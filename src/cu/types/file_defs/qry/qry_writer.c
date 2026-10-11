@@ -10,6 +10,15 @@
 //     qry_writer hand <name> [<priority>]
 //                                     every byte of the standard input handed as one blob of <name> at <priority>, 0 a
 //                                     panic, 1 critical and on disk before it returns, 2 ordinary where none is given
+//     qry_writer file <path>          every byte of the standard input handed as the current file at <path>, under the
+//                                     top of the tree (QRY_TOP): the run's writer writes it in the file's place, and it
+//                                     is on disk before this returns (qry_filed)
+//     qry_writer current <path>       the file at <path> as the run holds it to the standard output: its latest blob,
+//     or
+//                                     the file where the run holds none (qry_file_read)
+//     qry_writer tee <path>           the standard input passed to the standard output as it comes, and handed to the
+//                                     run as <path>.console a piece at a time, where the path <path>'s trace reaches
+//                                     the run (QRY_TRACE): what a program prints, kept in its run as it prints it
 //     qry_writer read <name>          every blob of <name> joined to the standard output, from the buffer while the
 //                                     writer runs and from the .qry once it has stopped, a stretch of the file no frame
 //                                     opens stepped over and said
@@ -23,6 +32,8 @@
 //                                     ordinary, in the order they were handed there; every name's where none is given,
 //                                     and the names the standard input holds, one a line, where the one given is `-`.
 //                                     1 where a name given is in none of its blobs
+//     qry_writer who <code>...        each who code named through the who table (qry_buffer.h, QryWho), a line each:
+//                                     the source and its line, the program's source and the time; no run is reached
 //
 // Where no .qry is given, QRY names it, the string every process of the run names it by. Exit 0 where it was done, 1
 // where it was not, 2 where the words are none of the above
@@ -201,11 +212,26 @@ int main(int count, char **words)
     if (count < 2)
     {
         fprintf(stderr,
-                "qry_writer start <qry> | ready [<qry>] | stop [<qry>] | hand <name> [<priority>] | read <name> | "
-                "latest <name> | first <name> | runs [<qry>] | carry <qry> [<name>... | -]\n");
+                "qry_writer start <qry> | ready [<qry>] | stop [<qry>] | hand <name> [<priority>] | file <path> | "
+                "current <path> | tee <path> | read <name> | latest <name> | first <name> | runs [<qry>] | "
+                "carry <qry> [<name>... | -] | who <code>...\n");
         return 2;
     }
     const char *const word = words[1];
+    // each who code given named through the who table, a line each: no run is reached
+    if ((strcmp(word, "who") == 0) && (count >= 3))
+    {
+        int named = 1;
+        for (int given = 2; given < count; given += 1)
+        {
+            QryWho who;
+            char text[2400];
+            const int read = qry_who_read(words[given], &who) && qry_who_named(who, text, sizeof(text));
+            printf("%s %s\n", words[given], read ? text : "is no who code");
+            named = named && read;
+        }
+        return named ? 0 : 1;
+    }
     if ((strcmp(word, "start") == 0) && (count == 3))
     {
         QryBuffer *const buffer = qry_create(words[2]);
@@ -329,6 +355,56 @@ int main(int count, char **words)
             fprintf(stderr, "qry_writer: %s was not handed to %s\n", words[2], path);
         }
         return (sequence != 0ull) ? 0 : 1;
+    }
+    if ((strcmp(word, "file") == 0) && (count == 3))
+    {
+        // every byte of the standard input handed as the current file at the path: the run's writer writes it
+        qry_writer_binary();
+        QryBuffer *const buffer = qry_open(path);
+        unsigned long long size = 0ull;
+        unsigned char *const bytes = (buffer != NULL) ? qry_writer_input(&size) : NULL;
+        const unsigned long long sequence = (bytes != NULL) ? qry_filed(buffer, words[2], bytes, size) : 0ull;
+        free(bytes);
+        qry_close(buffer);
+        if (sequence == 0ull)
+        {
+            fprintf(stderr, "qry_writer: %s was not written through %s\n", words[2], path);
+        }
+        return (sequence != 0ull) ? 0 : 1;
+    }
+    if ((strcmp(word, "current") == 0) && (count == 3))
+    {
+        // the file as the run holds it to the standard output: its latest blob, or the file where the run holds none
+        qry_writer_binary();
+        QryBuffer *const buffer = qry_open(path);
+        unsigned char *bytes = NULL;
+        unsigned long long size = 0ull;
+        const int read = qry_file_read(buffer, words[2], &bytes, &size);
+        const int out = read && ((size == 0ull) || (fwrite(bytes, 1u, (size_t)size, stdout) == size));
+        free(bytes);
+        qry_close(buffer);
+        return out ? 0 : 1;
+    }
+    if ((strcmp(word, "tee") == 0) && (count == 3))
+    {
+        // the standard input passed to the standard output as it comes, and handed to the run a piece at a time as
+        // <path>.console, where the path's trace reaches the run (QRY_TRACE)
+        qry_writer_binary();
+        QryBuffer *const buffer = qry_traced(words[2], QRY_ORDINARY) ? qry_open(path) : NULL;
+        char name[QRY_NAME_LONGEST + 1u];
+        snprintf(name, sizeof(name), "%s.console", words[2]);
+        static unsigned char s_piece[65536];
+        int whole = 1;
+        size_t got = 0u;
+        while ((got = fread(s_piece, 1u, sizeof(s_piece), stdin)) != 0u)
+        {
+            whole &= (fwrite(s_piece, 1u, got, stdout) == got);
+            fflush(stdout);
+            whole &=
+                (buffer == NULL) || (qry_hand(buffer, name, s_piece, (unsigned long long)got, QRY_ORDINARY) != 0ull);
+        }
+        qry_close(buffer);
+        return whole ? 0 : 1;
     }
     if (((strcmp(word, "read") == 0) || (strcmp(word, "latest") == 0)) && (count == 3))
     {

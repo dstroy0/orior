@@ -1,0 +1,4 @@
+where	who	kind	form	gloss
+any	-	opener	__<lang>__(	opens a block of the language <lang>: the text after it is handed to the parser of <lang>, and the rules of <lang> govern it; a file is read in the language its extension names everywhere outside a block
+any	-	closer	)__<lang>__	ends the block of <lang> it closes, and has no other use, so a block's end is found by it alone, whatever the text inside holds
+any	-	nested block	__<lang>__( ... __<lang>__( ... )__<lang>__ ... )__<lang>__	a block of a language inside a block of the same language: each opener counted against each closer, the outer block ending at the closer that brings the count to none

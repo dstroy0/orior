@@ -32,15 +32,21 @@
 // occurs at, each primitive a link that first occurs where it stands, and each chain a signature of the identities it
 // is read as, its primitives and its operands, with a number its contents in their order give it.
 //
-// slice writes <folder>/slices.txt, each slice a line, <folder>/chains.txt, the primitives and the chains, and
-// <folder>/host_questions.cpp, every question whose operands and result are integers that a slice holds, that is a task
-// of register pressure, or that <ours folder> holds the engine's chain for, compiled for the host as C++ with the arity
-// every kernel shares. The host computes each over every case, and its answers are the blob IDENTITY_HOST_ANSWERS of
-// the run's buffer (qry_buffer.h), as is every <host answers> named above; read then gives each identity its verdict:
-// the first case the two questions of one of its slices answer apart closes it as two operations, and an identity alike
-// on every case asked stays open with its count of cases. A case the host's C would trap on or leave undefined is asked
-// of nothing. Each identity is written to Lstar.klq after its keys, with the forms of the given rulesets whose texts
-// write its links, and with the rule a link breaks where asking the part as written would end it
+// Every file a mode writes goes through the run's writer (qry_buffer.h): a current file of the tree, Lstar.klq, the
+// .ksc, the .kqr or the .kdm, written by it in the file's place (qry_filed), and a table of the run's own a blob of the
+// run named by the table's own name. slice hands the run slices.txt, each slice a line, chains.txt, the primitives and
+// the chains, and host_questions.cpp, every question whose operands and result are integers that a slice holds, that is
+// a task of register pressure, or that <ours folder> holds the engine's chain for, compiled for the host as C++ with
+// the arity every kernel shares. The host computes each over every case, and its answers are the blob
+// IDENTITY_HOST_ANSWERS of the run's buffer (qry_buffer.h), as is every <host answers> named above; read then gives
+// each identity its verdict: the first case the two questions of one of its slices answer apart closes it as two
+// operations, and an identity alike on every case asked stays open with its count of cases. A case the host's C would
+// trap on or leave undefined is asked of nothing. Each identity is written to Lstar.klq after its keys, with the forms
+// of the given rulesets whose texts write its links, and with the rule a link breaks where asking the part as written
+// would end it
+#include "../../../../types/file_defs/kdm/kdm.h"
+#include "../../../../types/file_defs/kqr/kqr.h"
+#include "../../../../types/file_defs/ksc/ksc.h"
 #include "../../interface/interface.h"
 #include "../overseer/overseer.h"
 #include "../teacher/run_channel.h"
@@ -49,7 +55,6 @@
 #include "concept_product.h"
 #include "precept_value.h"
 #include "qry_buffer.h"
-#include "query_record.h"
 #include "query_trace.h"
 #include "target_internal.h"
 #include "word_web.h"
@@ -82,6 +87,7 @@ extern "C"
 #include <sstream>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -111,6 +117,71 @@ static std::string run_blob_text(const char *name)
     }
     // a blob is at most the buffer's bytes, which a size_t counts
     return std::string(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
+}
+
+// the file at `path` as the run holds it (qry_file_read): its latest blob, or the file where the run holds none; empty
+// where neither is there
+static std::string run_file_text(const std::string &path)
+{
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_file_read(qry_run(), path.c_str(), &bytes, &size))
+    {
+        return std::string();
+    }
+    // a file read whole is at most what a size_t counts
+    const std::string text(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
+    free(bytes);
+    return text;
+}
+
+// What a mode writes, held in memory until it is handed to the run's writer whole, the only thing that writes a file:
+// where it goes, and its bytes so far. `filed` 1 where it is a current file of the tree, which the writer writes in its
+// place (qry_filed), and 0 where it is a table of the run's own, a blob of the run named by the path's own name
+struct RunWritten
+{
+    std::string path;
+    int filed;
+    std::string text;
+};
+
+// `format` and what follows it added to the end of what `written` holds, as fprintf writes them
+static void run_print(RunWritten *written, const char *format, ...)
+{
+    va_list values;
+    va_start(values, format);
+    va_list measured;
+    va_copy(measured, values);
+    const int length = vsnprintf(NULL, 0u, format, measured);
+    va_end(measured);
+    if (length > 0)
+    {
+        const size_t at = written->text.size();
+        written->text.resize(at + (size_t)length + 1u);
+        vsnprintf(&written->text[at], (size_t)length + 1u, format, values);
+        written->text.resize(at + (size_t)length);
+    }
+    va_end(values);
+}
+
+// `written` handed to the run's writer whole: as the current file at its path, or as a blob named by the path's own
+// name. 1, or 0 where no run's writer runs or it was not handed
+static int run_closed(const RunWritten *written)
+{
+    QryBuffer *const run = qry_run();
+    if (run == NULL)
+    {
+        printf("klq_identity: no query writer runs to write %s: %s names no .qry a writer holds open\n",
+               written->path.c_str(), QRY_ENVIRONMENT);
+        return 0;
+    }
+    if (written->filed)
+    {
+        return qry_filed(run, written->path.c_str(), written->text.data(), written->text.size()) != 0ull;
+    }
+    const size_t slash = written->path.find_last_of("/\\");
+    const std::string name = (slash == std::string::npos) ? written->path : written->path.substr(slash + 1u);
+    return qry_hand(run, name.c_str(), written->text.data(), written->text.size(), QRY_ORDINARY) != 0ull;
 }
 
 // the operations that transfer control or wait, which cubin_safe.h's rule 2 keeps off the part: a question holding
@@ -485,17 +556,13 @@ static std::string first_type(const std::string &kernel)
 
 static int host_questions_write(const std::string &path, const std::string &stick, const std::set<std::string> &numbers)
 {
-    FILE *const file = fopen(path.c_str(), "wb");
-    if (file == NULL)
-    {
-        printf("  %s could not be written\n", path.c_str());
-        return 0;
-    }
-    fprintf(file, "// the stick's integer questions as the host computes them, written by klq_identity\n");
-    fprintf(file, "#include <limits>\n#include <stdio.h>\n\n");
-    fprintf(file, "struct HostIndex\n{\n    unsigned int x, y, z;\n};\n");
-    fprintf(file, "static const HostIndex threadIdx = {0u, 0u, 0u};\nstatic const HostIndex blockIdx = {0u, 0u, 0u};\n");
-    fprintf(file, "static const HostIndex blockDim = {1u, 1u, 1u};\n#define __global__\n\n");
+    RunWritten file = {path, 0, std::string()};
+    run_print(&file, "// the stick's integer questions as the host computes them, written by klq_identity\n");
+    run_print(&file, "#include <limits>\n#include <stdio.h>\n\n");
+    run_print(&file, "struct HostIndex\n{\n    unsigned int x, y, z;\n};\n");
+    run_print(&file,
+              "static const HostIndex threadIdx = {0u, 0u, 0u};\nstatic const HostIndex blockIdx = {0u, 0u, 0u};\n");
+    run_print(&file, "static const HostIndex blockDim = {1u, 1u, 1u};\n#define __global__\n\n");
     std::vector<std::string> written;
     for (const std::string &number : numbers)
     {
@@ -504,7 +571,7 @@ static int host_questions_write(const std::string &path, const std::string &stic
         {
             continue;
         }
-        fprintf(file, "%s\n", kernel.c_str());
+        run_print(&file, "%s\n", kernel.c_str());
         const std::string type = first_type(kernel);
         const int divides = (kernel.find(" / b") != std::string::npos) || (kernel.find(" % b") != std::string::npos) ||
                             (kernel.find("/=") != std::string::npos) || (kernel.find("%=") != std::string::npos) ||
@@ -512,53 +579,68 @@ static int host_questions_write(const std::string &path, const std::string &stic
         const int shifts = (kernel.find("<<") != std::string::npos) || (kernel.find(">>") != std::string::npos);
         // 1 where the host's C would trap on the case or leave it undefined: a divisor of zero, the least value over -1,
         // or a shift by the width or past it
-        fprintf(file, "static int refused_%s(const unsigned long long *in)\n{\n", number.c_str());
-        fprintf(file, "    const %s a = (%s)in[0];\n    const %s b = (%s)in[1];\n    (void)a;\n    (void)b;\n", type.c_str(),
-                type.c_str(), type.c_str(), type.c_str());
+        run_print(&file, "static int refused_%s(const unsigned long long *in)\n{\n", number.c_str());
+        run_print(&file, "    const %s a = (%s)in[0];\n    const %s b = (%s)in[1];\n    (void)a;\n    (void)b;\n",
+                  type.c_str(), type.c_str(), type.c_str(), type.c_str());
         if (divides)
         {
-            fprintf(file, "    if ((b == 0) || (std::numeric_limits<%s>::is_signed && (b == (%s)-1) && "
-                          "(a == std::numeric_limits<%s>::min())))\n    {\n        return 1;\n    }\n",
-                    type.c_str(), type.c_str(), type.c_str());
+            run_print(&file,
+                      "    if ((b == 0) || (std::numeric_limits<%s>::is_signed && (b == (%s)-1) && "
+                      "(a == std::numeric_limits<%s>::min())))\n    {\n        return 1;\n    }\n",
+                      type.c_str(), type.c_str(), type.c_str());
         }
         if (shifts)
         {
-            fprintf(file, "    if (((unsigned long long)b >= (unsigned long long)(sizeof(a + 0) * 8u)) || ((long long)b < 0))\n"
-                          "    {\n        return 1;\n    }\n");
+            run_print(
+                &file,
+                "    if (((unsigned long long)b >= (unsigned long long)(sizeof(a + 0) * 8u)) || ((long long)b < 0))\n"
+                "    {\n        return 1;\n    }\n");
         }
-        fprintf(file, "    return 0;\n}\n\n");
+        run_print(&file, "    return 0;\n}\n\n");
         written.push_back(number);
     }
-    fprintf(file, "typedef void (*HostKernel)(const unsigned long long *, unsigned long long *, unsigned int);\n");
-    fprintf(file, "typedef int (*HostRefused)(const unsigned long long *);\n");
-    fprintf(file, "static const struct\n{\n    const char *number;\n    HostKernel kernel;\n    HostRefused refused;\n} "
-                  "s_questions[] = {\n");
+    run_print(&file, "typedef void (*HostKernel)(const unsigned long long *, unsigned long long *, unsigned int);\n");
+    run_print(&file, "typedef int (*HostRefused)(const unsigned long long *);\n");
+    run_print(&file,
+              "static const struct\n{\n    const char *number;\n    HostKernel kernel;\n    HostRefused refused;\n} "
+              "s_questions[] = {\n");
     for (const std::string &number : written)
     {
-        fprintf(file, "    {\"%s\", measuring_stick_%s, refused_%s},\n", number.c_str(), number.c_str(), number.c_str());
+        run_print(&file, "    {\"%s\", measuring_stick_%s, refused_%s},\n", number.c_str(), number.c_str(),
+                  number.c_str());
     }
-    fprintf(file, "};\n\nstatic const unsigned long long s_values[] = {");
+    run_print(&file, "};\n\nstatic const unsigned long long s_values[] = {");
     for (unsigned int at = 0u; at < IDENTITY_VALUES; at += 1u)
     {
-        fprintf(file, "%s0x%llxull", (at == 0u) ? "" : ", ", s_values[at]);
+        run_print(&file, "%s0x%llxull", (at == 0u) ? "" : ", ", s_values[at]);
     }
-    fprintf(file, "};\n\n");
-    fprintf(file, "// each question a line: its number, then its answer to every case in order, - where the case is refused\n");
-    fprintf(file, "int main(void)\n{\n");
-    fprintf(file, "    for (unsigned int at = 0u; at < sizeof(s_questions) / sizeof(s_questions[0]); at += 1u)\n    {\n");
-    fprintf(file, "        printf(\"%%s\", s_questions[at].number);\n");
-    fprintf(file, "        for (unsigned int third = 0u; third < %uu; third += 1u)\n        {\n", IDENTITY_THIRDS);
-    fprintf(file, "            for (unsigned int left = 0u; left < %uu; left += 1u)\n            {\n", (unsigned int)IDENTITY_VALUES);
-    fprintf(file, "                for (unsigned int right = 0u; right < %uu; right += 1u)\n                {\n",
-            (unsigned int)IDENTITY_VALUES);
-    fprintf(file, "                    const unsigned long long in[4] = {s_values[left], s_values[right], third, 0ull};\n");
-    fprintf(file, "                    unsigned long long out[2] = {0ull, 0ull};\n");
-    fprintf(file, "                    if (s_questions[at].refused(in))\n                    {\n");
-    fprintf(file, "                        printf(\" -\");\n                        continue;\n                    }\n");
-    fprintf(file, "                    s_questions[at].kernel(in, out, 1u);\n");
-    fprintf(file, "                    printf(\" %%llx\", out[0]);\n                }\n            }\n        }\n");
-    fprintf(file, "        printf(\"\\n\");\n    }\n    return 0;\n}\n");
-    fclose(file);
+    run_print(&file, "};\n\n");
+    run_print(
+        &file,
+        "// each question a line: its number, then its answer to every case in order, - where the case is refused\n");
+    run_print(&file, "int main(void)\n{\n");
+    run_print(&file,
+              "    for (unsigned int at = 0u; at < sizeof(s_questions) / sizeof(s_questions[0]); at += 1u)\n    {\n");
+    run_print(&file, "        printf(\"%%s\", s_questions[at].number);\n");
+    run_print(&file, "        for (unsigned int third = 0u; third < %uu; third += 1u)\n        {\n", IDENTITY_THIRDS);
+    run_print(&file, "            for (unsigned int left = 0u; left < %uu; left += 1u)\n            {\n",
+              (unsigned int)IDENTITY_VALUES);
+    run_print(&file, "                for (unsigned int right = 0u; right < %uu; right += 1u)\n                {\n",
+              (unsigned int)IDENTITY_VALUES);
+    run_print(&file,
+              "                    const unsigned long long in[4] = {s_values[left], s_values[right], third, 0ull};\n");
+    run_print(&file, "                    unsigned long long out[2] = {0ull, 0ull};\n");
+    run_print(&file, "                    if (s_questions[at].refused(in))\n                    {\n");
+    run_print(&file,
+              "                        printf(\" -\");\n                        continue;\n                    }\n");
+    run_print(&file, "                    s_questions[at].kernel(in, out, 1u);\n");
+    run_print(&file, "                    printf(\" %%llx\", out[0]);\n                }\n            }\n        }\n");
+    run_print(&file, "        printf(\"\\n\");\n    }\n    return 0;\n}\n");
+    if (!run_closed(&file))
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 0;
+    }
     printf("  %s: %u questions the host computes\n", path.c_str(), (unsigned int)written.size());
     return 1;
 }
@@ -665,10 +747,10 @@ static std::string address_text(const std::vector<Question> &questions, unsigned
 // alone where nothing does, and its signature is those constituents in order, each an identity at its address, with
 // the primitive of each link and the literal operands in that order: identity:address with its primitives.
 //
-// <folder>/chains.txt holds the primitives in the order of their addresses, each with its count and its link, then for
-// each question its chain: the identity of the whole at its address and its count, the constituents, each an address
-// and a length, the primitives, and the operands
-// every window of every question's chain, each identity at its first occurrence with its count
+// The run's blob chains.txt holds the primitives in the order of their addresses, each with its count and its link,
+// then for each question its chain: the identity of the whole at its address and its count, the constituents, each an
+// address and a length, the primitives, and the operands every window of every question's chain, each identity at its
+// first occurrence with its count
 static std::unordered_map<unsigned long long, Occurrence> windows_held(const std::vector<Question> &questions)
 {
     std::unordered_map<unsigned long long, Occurrence> held;
@@ -690,12 +772,7 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
 {
     const std::unordered_map<unsigned long long, Occurrence> held = windows_held(questions);
     const std::string path = folder + "/chains.txt";
-    FILE *const file = fopen(path.c_str(), "wb");
-    if (file == NULL)
-    {
-        printf("  %s could not be written\n", path.c_str());
-        return 0;
-    }
+    RunWritten file = {path, 0, std::string()};
     std::string primitives;
     std::string chains;
     unsigned int primitive_count = 0u;
@@ -776,8 +853,12 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
                   "\n";
         chains += "constituents" + read + "\nprimitives" + primitive_row + "\noperands" + operand_row + "\n";
     }
-    fprintf(file, "%s%s", primitives.c_str(), chains.c_str());
-    fclose(file);
+    run_print(&file, "%s%s", primitives.c_str(), chains.c_str());
+    if (!run_closed(&file))
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 0;
+    }
     printf("  %s: %u chains, %u whole identities, %u chains reaffirming a lower address whole, %u primitives, %u "
            "constituents read, %u identities among them\n",
            path.c_str(), (unsigned int)questions.size(), (unsigned int)wholes.size(), reaffirmed, primitive_count,
@@ -812,12 +893,7 @@ static int identity_slice(const char *listing, const char *manifest, const char 
     std::stringstream stick;
     stick << stick_file.rdbuf();
     const std::string path = folder + "/slices.txt";
-    FILE *const file = fopen(path.c_str(), "wb");
-    if (file == NULL)
-    {
-        printf("  %s could not be written\n", path.c_str());
-        return 1;
-    }
+    RunWritten file = {path, 0, std::string()};
     std::set<std::string> asked;
     unsigned int slices = 0u;
     std::set<std::string> identities;
@@ -843,9 +919,9 @@ static int identity_slice(const char *listing, const char *manifest, const char 
             const std::string identity = lead_link.kind + "\t" + rite_link.kind;
             const std::string lead_context = member_context(lead, lead_link.position);
             const std::string rite_context = member_context(rite, rite_link.position);
-            fprintf(file, "%s:%s\t%s:%s\t%s\t%s\t%s\n", lead.number.c_str(), lead_link.position.c_str(),
-                    rite.number.c_str(), rite_link.position.c_str(), identity.c_str(), lead_context.c_str(),
-                    rite_context.c_str());
+            run_print(&file, "%s:%s\t%s:%s\t%s\t%s\t%s\n", lead.number.c_str(), lead_link.position.c_str(),
+                      rite.number.c_str(), rite_link.position.c_str(), identity.c_str(), lead_context.c_str(),
+                      rite_context.c_str());
             identities.insert(identity);
             slices += 1u;
             if (question_integer(lead) && question_integer(rite))
@@ -855,7 +931,11 @@ static int identity_slice(const char *listing, const char *manifest, const char 
             }
         }
     }
-    fclose(file);
+    if (!run_closed(&file))
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
     // the host computes each integer question the run channel puts to the part, a slice's member or not: a task of
     // register pressure, which slices with nothing, and every question the engine writes a chain for in `ours`
     for (const Question &question : questions)
@@ -1020,7 +1100,7 @@ static std::set<std::string> context_entries(const std::string &context)
 
 // a verdict over the carriers given, written after them: the first case one carrier's two questions answer apart, or
 // the count of cases alike. 1 where it closed, 0 where it stayed open over cases asked, -1 where nothing was asked
-static int carriers_verdict(FILE *file, const std::vector<const Carrier *> &carriers,
+static int carriers_verdict(RunWritten *file, const std::vector<const Carrier *> &carriers,
                             const std::map<std::string, std::vector<std::string>> &answers,
                             std::string (*text)(const Carrier &))
 {
@@ -1046,14 +1126,14 @@ static int carriers_verdict(FILE *file, const std::vector<const Carrier *> &carr
                 const unsigned int third = at / (IDENTITY_VALUES * IDENTITY_VALUES);
                 const unsigned int left = (at / IDENTITY_VALUES) % IDENTITY_VALUES;
                 const unsigned int right = at % IDENTITY_VALUES;
-                fprintf(file, "closed %s %llx,%llx,%x->%s,%s\n", text(*slice).c_str(), s_values[left], s_values[right],
-                        third, one.c_str(), other.c_str());
+                run_print(file, "closed %s %llx,%llx,%x->%s,%s\n", text(*slice).c_str(), s_values[left],
+                          s_values[right], third, one.c_str(), other.c_str());
                 return 1;
             }
             alike += 1u;
         }
     }
-    fprintf(file, "open %u\n", alike);
+    run_print(file, "open %u\n", alike);
     return (alike != 0u) ? 0 : -1;
 }
 
@@ -1112,7 +1192,7 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
     // members the same make the identity the same, and the carriers of one identity are told apart by address: the
     // position of each in the chain, the most basal member first
     std::map<std::string, std::vector<Carrier>> carried;
-    std::ifstream sliced(folder + "/slices.txt");
+    std::istringstream sliced(run_blob_text("slices.txt"));
     while (std::getline(sliced, line))
     {
         std::vector<std::string> cells;
@@ -1159,19 +1239,14 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
     {
         return 1;
     }
-    std::ifstream held(klq);
+    std::istringstream held(run_file_text(klq));
     std::stringstream kept;
     while (std::getline(held, line) && (line.rfind("slice_identity ", 0u) != 0u))
     {
         kept << line << "\n";
     }
-    FILE *const file = fopen(klq.c_str(), "wb");
-    if (file == NULL)
-    {
-        printf("  %s could not be written\n", klq.c_str());
-        return 1;
-    }
-    fprintf(file, "%s", kept.str().c_str());
+    RunWritten file = {klq, 1, std::string()};
+    run_print(&file, "%s", kept.str().c_str());
     unsigned int number = 0u;
     unsigned int contexts = 0u;
     unsigned int closed = 0u;
@@ -1186,14 +1261,14 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
         const size_t tab = identity.first.find('\t');
         const std::string sides[2] = {identity.first.substr(0u, tab), identity.first.substr(tab + 1u)};
         // an identity's address is its most basal carrier's
-        fprintf(file, "slice_identity %s\nfirst %s\nsecond %s\n", carrier_text(identity.second[0]).c_str(), sides[0].c_str(),
-                sides[1].c_str());
+        run_print(&file, "slice_identity %s\nfirst %s\nsecond %s\n", carrier_text(identity.second[0]).c_str(),
+                  sides[0].c_str(), sides[1].c_str());
         number += 1u;
         for (const std::string &side : sides)
         {
             if (rule_broken(side))
             {
-                fprintf(file, "rule 2 %s: its form transfers control or waits\n", side.c_str());
+                run_print(&file, "rule 2 %s: its form transfers control or waits\n", side.c_str());
                 flagged += 1u;
             }
         }
@@ -1205,7 +1280,7 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
                 if (std::any_of(links.begin(), links.end(),
                                 [&](const std::regex &one) { return std::regex_match(sides[at], one); }))
                 {
-                    fprintf(file, "form %s %s\n", (at == 0u) ? "first" : "second", form.first.c_str());
+                    run_print(&file, "form %s %s\n", (at == 0u) ? "first" : "second", form.first.c_str());
                     formed += 1u;
                 }
             }
@@ -1231,26 +1306,26 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
         for (const auto &place : placed)
         {
             const Carrier &basal = *place.second[0];
-            fprintf(file, "context %s\n", carrier_text(basal).c_str());
+            run_print(&file, "context %s\n", carrier_text(basal).c_str());
             // an entry both members hold is written once, and one a member alone holds is written under its side
             const std::set<std::string> first_entries = context_entries(basal.first_context);
             const std::set<std::string> second_entries = context_entries(basal.second_context);
             for (const std::string &entry : first_entries)
             {
-                fprintf(file, "%s%s\n", second_entries.count(entry) ? "" : "first ", entry.c_str());
+                run_print(&file, "%s%s\n", second_entries.count(entry) ? "" : "first ", entry.c_str());
             }
             for (const std::string &entry : second_entries)
             {
                 if (!first_entries.count(entry))
                 {
-                    fprintf(file, "second %s\n", entry.c_str());
+                    run_print(&file, "second %s\n", entry.c_str());
                 }
             }
             for (const Carrier *const slice : place.second)
             {
-                fprintf(file, "address %s\n", carrier_text(*slice).c_str());
+                run_print(&file, "address %s\n", carrier_text(*slice).c_str());
             }
-            const int verdict = carriers_verdict(file, place.second, answers, carrier_text);
+            const int verdict = carriers_verdict(&file, place.second, answers, carrier_text);
             contexts += 1u;
             closed += (verdict == 1) ? 1u : 0u;
             open += (verdict == 0) ? 1u : 0u;
@@ -1261,12 +1336,16 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
         split += (verdicts[0] && verdicts[1]) ? 1u : 0u;
     }
     // the chains after the identities, as slice wrote them
-    std::ifstream chained(folder + "/chains.txt");
+    std::istringstream chained(run_blob_text("chains.txt"));
     while (std::getline(chained, line))
     {
-        fprintf(file, "%s\n", line.c_str());
+        run_print(&file, "%s\n", line.c_str());
     }
-    fclose(file);
+    if (!run_closed(&file))
+    {
+        printf("  %s could not be written\n", klq.c_str());
+        return 1;
+    }
     printf("  %s: %u identities in %u contexts, %u identities in more than one, %u closed in one context and open in "
            "another\n",
            klq.c_str(), number, contexts, many, split);
@@ -1343,7 +1422,7 @@ static void candidates_read(const std::string &path, std::vector<Question> *cand
 // Each candidate chain sifted through the identities nvcc's chains hold, before anything of it is put to the part:
 // its whole known at an address, or read as the longest known windows from each link, with every link whose primitive
 // nvcc never writes and every two links side by side nvcc never writes so, each known apart. A part unknown that rule 2
-// keeps off the part is marked with the rule. <folder>/known.txt holds a candidate a group of lines
+// keeps off the part is marked with the rule. The run's blob known.txt holds a candidate a group of lines
 static int identity_known(const char *listing, const char *manifest, const std::string &folder,
                           const std::vector<std::string> &paths)
 {
@@ -1359,12 +1438,7 @@ static int identity_known(const char *listing, const char *manifest, const std::
         candidates_read(path, &candidates);
     }
     const std::string path = folder + "/known.txt";
-    FILE *const file = fopen(path.c_str(), "wb");
-    if (file == NULL)
-    {
-        printf("  %s could not be written\n", path.c_str());
-        return 1;
-    }
+    RunWritten file = {path, 0, std::string()};
     // the first occurrence of a window where nvcc's chains hold it, its constituents the same link for link
     const auto known = [&](const Question &candidate, unsigned int link, unsigned int length,
                            unsigned long long identity) -> const Occurrence *
@@ -1394,8 +1468,9 @@ static int identity_known(const char *listing, const char *manifest, const std::
         const Occurrence *const whole = known(candidate, 0u, links, from_first.back());
         char number[17];
         snprintf(number, sizeof(number), "%016llx", from_first.back());
-        fprintf(file, "candidate %s %s %s\n", candidate.number.c_str(), number,
-                (whole == nullptr) ? "unknown" : ("known " + address_text(questions, whole->question, whole->link)).c_str());
+        run_print(&file, "candidate %s %s %s\n", candidate.number.c_str(), number,
+                  (whole == nullptr) ? "unknown"
+                                     : ("known " + address_text(questions, whole->question, whole->link)).c_str());
         if (whole != nullptr)
         {
             wholes += 1u;
@@ -1422,7 +1497,7 @@ static int identity_known(const char *listing, const char *manifest, const std::
             }
             link += length;
         }
-        fprintf(file, "constituents%s\n", read.c_str());
+        run_print(&file, "constituents%s\n", read.c_str());
         unsigned int unknown_here = 0u;
         for (unsigned int link = 0u; link < links; link += 1u)
         {
@@ -1435,8 +1510,8 @@ static int identity_known(const char *listing, const char *manifest, const std::
             const std::string rule = rule_broken(written.exact) ? " rule 2: its form transfers control or waits" : "";
             if (!alone)
             {
-                fprintf(file, "unknown %s %s%s\n", written.position.c_str(), window_render(candidate, link, 1u).c_str(),
-                        rule.c_str());
+                run_print(&file, "unknown %s %s%s\n", written.position.c_str(),
+                          window_render(candidate, link, 1u).c_str(), rule.c_str());
                 unknown_primitives += 1u;
                 unknown_here += 1u;
                 flagged += rule.empty() ? 0u : 1u;
@@ -1446,7 +1521,7 @@ static int identity_known(const char *listing, const char *manifest, const std::
             {
                 std::string pair = window_render(candidate, link, 2u);
                 std::replace(pair.begin(), pair.end(), '\n', ';');
-                fprintf(file, "unpaired %s %s\n", written.position.c_str(), pair.c_str());
+                run_print(&file, "unpaired %s %s\n", written.position.c_str(), pair.c_str());
                 unknown_pairs += 1u;
                 unknown_here += 1u;
             }
@@ -1460,7 +1535,11 @@ static int identity_known(const char *listing, const char *manifest, const std::
             strangers += 1u;
         }
     }
-    fclose(file);
+    if (!run_closed(&file))
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
     printf("  %s: %u candidates, %u known whole, %u not known whole but every link and every two side by side known, "
            "%u with a part nvcc never writes\n",
            path.c_str(), (unsigned int)candidates.size(), wholes, permutations, strangers);
@@ -1503,8 +1582,8 @@ struct Permuted
 // is stood for by every other of its category naming as many registers, the registers of the link it stands for given
 // to it, and asked in the window of the link before it and the link after: a window nvcc writes somewhere is known, and
 // one it never writes is a question, held at the first address it arises at with its count. A link put in that rule 2
-// keeps off the part is marked with the rule. <folder>/permutations.txt holds the categories, each with its members at
-// the first address each occurs at, then the questions in the order of their addresses
+// keeps off the part is marked with the rule. The run's blob permutations.txt holds the categories, each with its
+// members at the first address each occurs at, then the questions in the order of their addresses
 static int identity_permute(const char *listing, const char *manifest, const std::string &folder)
 {
     std::vector<Question> questions;
@@ -1607,12 +1686,7 @@ static int identity_permute(const char *listing, const char *manifest, const std
         }
     }
     const std::string path = folder + "/permutations.txt";
-    FILE *const file = fopen(path.c_str(), "wb");
-    if (file == NULL)
-    {
-        printf("  %s could not be written\n", path.c_str());
-        return 1;
-    }
+    RunWritten file = {path, 0, std::string()};
     unsigned int joined = 0u;
     for (const std::string &root : roots)
     {
@@ -1623,12 +1697,12 @@ static int identity_permute(const char *listing, const char *manifest, const std
         }
         joined += 1u;
         const std::pair<unsigned int, unsigned int> &first = first_kind.at(members[0]);
-        fprintf(file, "category %s %u\n", address_text(questions, first.first, first.second).c_str(),
-                (unsigned int)members.size());
+        run_print(&file, "category %s %u\n", address_text(questions, first.first, first.second).c_str(),
+                  (unsigned int)members.size());
         for (const std::string &member : members)
         {
             const std::pair<unsigned int, unsigned int> &at = first_kind.at(member);
-            fprintf(file, "member %s %s\n", address_text(questions, at.first, at.second).c_str(), member.c_str());
+            run_print(&file, "member %s %s\n", address_text(questions, at.first, at.second).c_str(), member.c_str());
         }
     }
     unsigned int flagged = 0u;
@@ -1638,16 +1712,20 @@ static int identity_permute(const char *listing, const char *manifest, const std
         std::string window = question.window;
         window.pop_back();
         std::replace(window.begin(), window.end(), '\n', ';');
-        fprintf(file, "question %s %u\nfrom %s\nto %s\nwindow %s\n",
-                address_text(questions, question.question, question.link).c_str(), question.count,
-                question.from.c_str(), question.to.c_str(), window.c_str());
+        run_print(&file, "question %s %u\nfrom %s\nto %s\nwindow %s\n",
+                  address_text(questions, question.question, question.link).c_str(), question.count,
+                  question.from.c_str(), question.to.c_str(), window.c_str());
         if (rule_broken(question.to))
         {
-            fprintf(file, "rule 2 %s: its form transfers control or waits\n", question.to.c_str());
+            run_print(&file, "rule 2 %s: its form transfers control or waits\n", question.to.c_str());
             flagged += 1u;
         }
     }
-    fclose(file);
+    if (!run_closed(&file))
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
     printf("  %s: %u kinds of link in %u categories of more than one, %llu windows put, %llu of them nvcc writes, "
            "%u questions, %u of them kept off the part by rule 2\n",
            path.c_str(), (unsigned int)first_kind.size(), joined, put, known, (unsigned int)asked_order.size(), flagged);
@@ -1672,8 +1750,8 @@ struct FormFolded
 // The two chains are aligned link by link on their kinds, the longest run in common kept in order, and where they part
 // each link of ours is moved (nvcc writes its kind elsewhere in the question) or ours alone (nvcc writes nothing of its
 // kind there), each with the forms of the rulesets whose texts write it, and each link of nvcc's with nothing of ours
-// is written with its address. <folder>/broken.txt holds a question a group of lines, its verdict and the steps of
-// each, then each form whose links stand alone in a question nvcc makes in fewer steps, with its count of questions
+// is written with its address. The run's blob broken.txt holds a question a group of lines, its verdict and the steps
+// of each, then each form whose links stand alone in a question nvcc makes in fewer steps, with its count of questions
 // and of links, the most questions first
 static int identity_broken(const char *listing, const char *manifest, const std::string &folder,
                            const std::vector<std::string> &ours_paths, int count, char **files)
@@ -1699,12 +1777,7 @@ static int identity_broken(const char *listing, const char *manifest, const std:
         candidates_read(path, &ours);
     }
     const std::string path = folder + "/broken.txt";
-    FILE *const file = fopen(path.c_str(), "wb");
-    if (file == NULL)
-    {
-        printf("  %s could not be written\n", path.c_str());
-        return 1;
-    }
+    RunWritten file = {path, 0, std::string()};
     std::map<std::string, FormFolded> folded;
     unsigned int alike = 0u;
     unsigned int same = 0u;
@@ -1816,14 +1889,14 @@ static int identity_broken(const char *listing, const char *manifest, const std:
         {
             same += 1u;
         }
-        fprintf(file, "question %s %s %u %u %u\n", mine.number.c_str(), verdict, (unsigned int)rows,
-                (unsigned int)columns, common[0][0]);
+        run_print(&file, "question %s %s %u %u %u\n", mine.number.c_str(), verdict, (unsigned int)rows,
+                  (unsigned int)columns, common[0][0]);
         for (const size_t row : mine_only)
         {
             const Link &link = mine.chain[row];
             const std::string names = forms_writing(forms, link.kind);
-            fprintf(file, "%s %s %s form %s%s\n", moved[row] ? "moved" : "ours", link.position.c_str(),
-                    link.kind.c_str(), names.c_str(), folding[row] ? " fold" : "");
+            run_print(&file, "%s %s %s form %s%s\n", moved[row] ? "moved" : "ours", link.position.c_str(),
+                      link.kind.c_str(), names.c_str(), folding[row] ? " fold" : "");
             // only a link of a stretch where ours holds more of its own links than nvcc's, in a question nvcc makes in
             // fewer steps, is a step a fold takes away
             if (!folding[row] || (columns >= rows))
@@ -1841,8 +1914,8 @@ static int identity_broken(const char *listing, const char *manifest, const std:
         }
         for (const size_t column : answer_only)
         {
-            fprintf(file, "theirs %s:%s %s\n", answer.number.c_str(), answer.chain[column].position.c_str(),
-                    answer.chain[column].kind.c_str());
+            run_print(&file, "theirs %s:%s %s\n", answer.number.c_str(), answer.chain[column].position.c_str(),
+                      answer.chain[column].kind.c_str());
         }
     }
     std::vector<std::pair<std::string, FormFolded>> ranked(folded.begin(), folded.end());
@@ -1855,10 +1928,14 @@ static int identity_broken(const char *listing, const char *manifest, const std:
               });
     for (const auto &form : ranked)
     {
-        fprintf(file, "fold %s %u %u\n", form.first.c_str(), (unsigned int)form.second.questions.size(),
-                form.second.alone);
+        run_print(&file, "fold %s %u %u\n", form.first.c_str(), (unsigned int)form.second.questions.size(),
+                  form.second.alone);
     }
-    fclose(file);
+    if (!run_closed(&file))
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
     printf("  %s: %u of ours, %u alike link for link, %u in as many steps, %u nvcc makes in fewer (%u steps to "
            "learn), %u ours makes in fewer, %u with no answer\n",
            path.c_str(), (unsigned int)ours.size(), alike, same, theirs_fewer, steps_to_learn, ours_fewer, unanswered);
@@ -1991,17 +2068,18 @@ static std::set<std::string> stall_read(const Link &link)
 static std::map<std::string, StallField> stall_fields(const char *ksc)
 {
     std::map<std::string, StallField> fields;
-    std::ifstream file(ksc);
-    std::string line;
-    while (std::getline(file, line))
+    KscFile file = {};
+    ksc_read(&file, ksc);
+    for (unsigned int at = 0u; at < file.lines; at += 1u)
     {
         char name[64];
         StallField field = {0u, 0u};
-        if (sscanf(line.c_str(), "field %63s %u %u", name, &field.first, &field.bits) == 3)
+        if (sscanf(file.line[at], "field %63s %u %u", name, &field.first, &field.bits) == 3)
         {
             fields[name] = field;
         }
     }
+    ksc_free(&file);
     return fields;
 }
 
@@ -2098,46 +2176,22 @@ static std::string s_record_ksc;
 // and the part is asked it once; an ask that timed out is asked again until an answer resolves it, and an ask the gate
 // censored or the part answered illegal, timed or not, is censored without a process every time after, the part's
 // answer kept as it gave it. It is read where R is read and written back where R is, and its path is
-// empty where it could not be read, so that nothing writes over a record no mode read
-static QueryRecord s_query_record;
+// empty where it could not be read, so that nothing writes over a record no mode read. What a cycle puts is placed in
+// the record's order by its cycle and mode, its seed and its rounds (kqr_mark), each written before the first new ask
+// or sample that follows it and nowhere where none follows: a cycle the record answers whole adds no line to it
+static KqrRecord s_query_record;
 
 // the flags of the trace's choices, read from their table (src/cu/types/file_defs/klq/query_trace.tsv) when the pair
 // mode opens
 static QueryTrace s_query_trace;
 static std::string s_query_record_path;
-
-// The lines that place what a cycle puts in the record's order, its cycle and mode, its seed and its rounds, each
-// written before the first new ask or sample that follows it and nowhere where none follows: a cycle the record
-// answers whole adds no line to it
-static std::vector<std::pair<std::string, std::string>> s_marks_pending;
-
-// `kind words` held to be written before the next new ask or sample, a round in place of a round still pending
-static void mark_pending(const std::string &kind, const std::string &words)
-{
-    if ((kind == "round") && !s_marks_pending.empty() && (s_marks_pending.back().first == "round"))
-    {
-        s_marks_pending.back().second = words;
-        return;
-    }
-    s_marks_pending.push_back(std::make_pair(kind, words));
-}
-
-// the lines pending written to the record, a cycle numbered after every cycle it holds
-static void marks_written(void)
-{
-    for (const auto &mark : s_marks_pending)
-    {
-        const std::string words = (mark.first == "cycle")
-                                      ? (std::to_string(query_record_cycles(s_query_record) + 1u) + " " + mark.second)
-                                      : mark.second;
-        query_record_mark(&s_query_record, mark.first, words);
-    }
-    s_marks_pending.clear();
-}
-static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows);
+static int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows,
+                               QryWho who);
+// ksc_answers_written, the who the code that calls it
+#define ksc_answers_write(ksc_, asked_, rows_) ksc_answers_written((ksc_), (asked_), (rows_), QRY_WHO_HERE)
 static void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous,
-                       const RunQuestion *question, unsigned long long *asks, unsigned int mark,
-                       std::vector<RunQuestion> *asked);
+                       const std::vector<unsigned int> &slots, const RunQuestion *question, unsigned long long *asks,
+                       unsigned int mark, std::vector<RunQuestion> *asked);
 
 // the record written back to the .ksc it was read from, every ask a row in the order of its keys
 static void record_close(void)
@@ -2159,10 +2213,9 @@ static void record_close(void)
         printf("  the record could not be written to %s\n", s_record_ksc.c_str());
     }
     s_record_ksc.clear();
-    std::string error;
-    if (!s_query_record_path.empty() && !query_record_write(s_query_record_path, s_query_record, &error))
+    if (!s_query_record_path.empty() && !kqr_write(&s_query_record, s_query_record_path.c_str()))
     {
-        printf("  %s\n", error.c_str());
+        printf("  %s could not be written through the run's writer\n", s_query_record_path.c_str());
     }
     s_query_record_path.clear();
 }
@@ -2171,48 +2224,45 @@ static void record_close(void)
 // mode `mode` pending in its order
 static void record_open(const char *ksc, const char *mode)
 {
-    s_marks_pending.clear();
-    mark_pending("cycle", mode);
     s_record.clear();
     s_record_ksc = ksc;
-    std::ifstream in(ksc, std::ios::binary);
-    std::string line;
-    while (std::getline(in, line))
+    KscFile held = {};
+    static KscRow s_row;
+    ksc_read(&held, ksc);
+    for (unsigned int at = 0u; at < held.lines; at += 1u)
     {
-        line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
-        std::stringstream words(line);
-        std::string channel;
-        std::string answer;
-        std::string word;
-        std::string asked;
-        words >> channel >> answer >> word >> asked;
-        if ((channel != "run") || (asked != "ask"))
+        if (!ksc_row_read(held.line[at], "run", &s_row) || (strncmp(s_row.question, "ask ", 4u) != 0))
         {
             continue;
         }
+        const std::string answer = s_row.answer;
+        const std::string word = s_row.word;
+        std::stringstream words(s_row.question + 4);
         std::string key;
         std::string part;
-        for (unsigned int at = 0u; (at < 6u) && (words >> part); at += 1u)
+        for (unsigned int place = 0u; (place < 6u) && (words >> part); place += 1u)
         {
-            key += ((at == 0u) ? "" : " ") + part;
+            key += ((place == 0u) ? "" : " ") + part;
         }
         std::string refusal;
         std::getline(words, refusal);
         refusal = (!refusal.empty() && (refusal[0] == ' ')) ? refusal.substr(1u) : refusal;
-        s_record[key] = AskRecorded{answer, (unsigned int)std::stoul(word, nullptr, 16), refusal};
+        // the word is the host's place of the first case apart, at most eight hex digits
+        s_record[key] = AskRecorded{answer, (unsigned int)s_row.value, refusal};
     }
+    ksc_free(&held);
     const std::string classified = ksc;
     const size_t stem_at = classified.find_last_of("/\\") + 1u;
     const size_t suffix_at = classified.find_last_of('.');
-    std::string error;
+    char error[1280];
     s_query_record_path = classified.substr(0u, suffix_at) + ".kqr";
-    if (!query_record_read(s_query_record_path, classified.substr(stem_at, suffix_at - stem_at), &s_query_record,
-                           &error))
+    if (!kqr_read(&s_query_record, s_query_record_path.c_str(), classified.substr(stem_at, suffix_at - stem_at).c_str(),
+                  error, sizeof(error)))
     {
-        printf("  %s: the query record is not read, and nothing is written to it\n", error.c_str());
-        s_query_record = QueryRecord();
+        printf("  %s: the query record is not read, and nothing is written to it\n", error);
         s_query_record_path.clear();
     }
+    kqr_mark(&s_query_record, KQR_CYCLE_RECORD, mode);
     static int s_registered = 0;
     if (s_registered == 0)
     {
@@ -2229,9 +2279,9 @@ struct AskLog
     std::string bytes;
 };
 
-// The trace of every ask, where KLQ_TRACE names the query's .qry: the ask's number, the code's size, the registers,
-// the shape and the launches it is put with and its count of cases, then what came back: alike, apart with the first
-// case apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
+// The trace of every ask, in the query's .qry unless QRY_TRACE is 0 (qry_buffer.h): the ask's number, the code's size,
+// the registers, the shape and the launches it is put with and its count of cases, then what came back: alike, apart
+// with the first case apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
 static thread_local AskLog *s_ask_trace = NULL;
 
 // The log, in the query's .qry beside the trace, that klq_decoder reads: the cases as `cases <case>...`, written again
@@ -2290,18 +2340,18 @@ static void ask_files_closed(void)
     ask_handed(&s_log_whole);
 }
 
-// the trace and the log of the thread that carries the asks opened where KLQ_TRACE is set, into the run's buffer, the
-// .qry QRY names (qry_buffer.h), and handed the rest as the run ends
+// the trace and the log of the thread that carries the asks opened into the run's buffer, the .qry QRY names
+// (qry_buffer.h), as every path's trace is unless QRY_TRACE is 0, and handed the rest as the run ends
 static void ask_files_opened(void)
 {
-    if ((getenv("KLQ_TRACE") == NULL) || (s_ask_run != NULL))
+    if (!qry_traced("klq_identity", QRY_ORDINARY) || (s_ask_run != NULL))
     {
         return;
     }
     s_ask_run = qry_run();
     if (s_ask_run == NULL)
     {
-        printf("klq_identity: KLQ_TRACE is set and no query writer runs: %s names no .qry a writer holds open\n",
+        printf("klq_identity: no query writer runs to take the trace: %s names no .qry a writer holds open\n",
                QRY_ENVIRONMENT);
         return;
     }
@@ -2349,64 +2399,82 @@ static unsigned long long s_round_handed = 0ull;
 static unsigned long long s_round_held = 0ull;
 static unsigned long long s_round_processes = 0ull;
 
-// a question's identity: a hash of its code, its registers, its shape and launches, and a hash of its cases
-static std::string question_identity(const RunQuestion *question)
+// a question's identity, seven numbers: a hash of its code, its registers, its shape and launches, its count of cases
+// and a hash of its cases
+static KqrIdentity question_numbered(const RunQuestion *question)
 {
-    unsigned long long code = 0xcbf29ce484222325ull;
+    KqrIdentity identity = {0xcbf29ce484222325ull, question->registers, question->threads,    question->blocks,
+                            question->launches,    question->cases,     0xcbf29ce484222325ull};
     for (unsigned long long at = 0ull; at < question->code_size; at += 1ull)
     {
-        code = (code ^ question->code[at]) * 0x100000001b3ull;
+        identity.code = (identity.code ^ question->code[at]) * 0x100000001b3ull;
     }
-    unsigned long long cases = 0xcbf29ce484222325ull;
     const unsigned char *const words = (const unsigned char *)question->word;
     const size_t bytes = (size_t)question->cases * sizeof(question->word[0]);
     for (size_t at = 0u; at < bytes; at += 1u)
     {
-        cases = (cases ^ words[at]) * 0x100000001b3ull;
+        identity.cases_hash = (identity.cases_hash ^ words[at]) * 0x100000001b3ull;
     }
-    char identity[96];
-    snprintf(identity, sizeof(identity), "%016llx %u %u %u %u %u %016llx", code, question->registers, question->threads,
-             question->blocks, question->launches, question->cases, cases);
     return identity;
 }
 
+// a question's identity written as the query record's text form writes it, for a person to read
+static std::string question_identity(const RunQuestion *question)
+{
+    const KqrIdentity identity = question_numbered(question);
+    char text[96];
+    kqr_identity_text(&identity, text, sizeof(text));
+    return text;
+}
+
+// identities ordered as numbers, for a map to find one by
+struct IdentityOrder
+{
+    bool operator()(const KqrIdentity &one, const KqrIdentity &other) const
+    {
+        return std::tie(one.code, one.registers, one.threads, one.blocks, one.launches, one.cases, one.cases_hash) <
+               std::tie(other.code, other.registers, other.threads, other.blocks, other.launches, other.cases,
+                        other.cases_hash);
+    }
+};
+
 // `asked` answered from `held`. A question the part answered illegal is censored: the record keeps the part's answer
 // and its refusal, and the question is held off the part from then on, as one the gate censored is
-static void answer_given(RunQuestion *asked, const QueryRecordAsk &held)
+static void answer_given(RunQuestion *asked, const KqrAsk &held)
 {
-    asked->outcome = (held.answer == "answers")                                    ? (unsigned int)RUN_ANSWERED
-                     : ((held.answer == "illegal") || (held.answer == "censored")) ? (unsigned int)RUN_HELD
-                                                                                   : (unsigned int)RUN_NOTHING;
-    snprintf(asked->refused, sizeof(asked->refused), "%s", held.refusal.c_str());
-    for (size_t place = 0u; (place < held.words.size()) && (place < RUN_CASES_MOST); place += 1u)
+    asked->outcome = (held.answer == KQR_ANSWERS)                                      ? (unsigned int)RUN_ANSWERED
+                     : ((held.answer == KQR_ILLEGAL) || (held.answer == KQR_CENSORED)) ? (unsigned int)RUN_HELD
+                                                                                       : (unsigned int)RUN_NOTHING;
+    snprintf(asked->refused, sizeof(asked->refused), "%s", held.refusal);
+    for (unsigned int place = 0u; (place < held.words) && (place < RUN_CASES_MOST); place += 1u)
     {
-        asked->answered[place] = held.words[place];
+        asked->answered[place] = held.word[place];
     }
 }
 
-// what came back of `question` as the query record writes it: answers, illegal, nothing, timed_out where the
-// watchdog ended it before it came back, or censored where the gate held it off the part to protect the whole; empty
-// where the channel never carried it
-static std::string answer_recorded(const RunQuestion *question)
+// what came back of `question` as the query record keeps it: KQR_ANSWERS, KQR_ILLEGAL, KQR_NOTHING, KQR_TIMED_OUT where
+// the watchdog ended it before it came back, or KQR_CENSORED where the gate held it off the part to protect the whole;
+// KQR_ANSWER_COUNT where the channel never carried it
+static unsigned int answer_recorded(const RunQuestion *question)
 {
     if (question->outcome == RUN_ANSWERED)
     {
-        return "answers";
+        return KQR_ANSWERS;
     }
     if (question->outcome == RUN_ILLEGAL)
     {
-        return "illegal";
+        return KQR_ILLEGAL;
     }
     if (question->outcome == RUN_HELD)
     {
-        return "censored";
+        return KQR_CENSORED;
     }
     if (question->outcome != RUN_NOTHING)
     {
-        return std::string();
+        return KQR_ANSWER_COUNT;
     }
-    return (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? "timed_out"
-                                                                                                    : "nothing";
+    return (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? KQR_TIMED_OUT
+                                                                                                    : KQR_NOTHING;
 }
 
 // The asks `carried` answered. A timed ask is put every time and kept as a sample of its own, with its cost: those of
@@ -2421,24 +2489,25 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
     std::vector<RunQuestion *> alone;
     std::vector<RunQuestion *> timed;
     std::vector<RunQuestion *> timed_together;
-    std::vector<std::string> identities(carried.size());
-    std::map<std::string, RunQuestion *> first_of;
-    std::vector<std::string> firsts;
+    std::vector<KqrIdentity> identities(carried.size());
+    std::map<KqrIdentity, RunQuestion *, IdentityOrder> first_of;
+    std::vector<KqrIdentity> firsts;
     std::map<RunQuestion *, unsigned int> waiting;
     std::vector<std::pair<RunQuestion *, RunQuestion *>> copies;
     // the timed asks the part answered illegal or the gate censored, each with its refusal, censored again unput
-    std::unordered_map<std::string, std::string> timed_censored;
-    for (const QueryRecordSample &sample : s_query_record.samples)
+    std::map<KqrIdentity, std::string, IdentityOrder> timed_censored;
+    static KqrSample s_sample;
+    for (unsigned int at = 0u; kqr_sample_read(&s_query_record, at, &s_sample); at += 1u)
     {
-        if ((sample.answer == "illegal") || (sample.answer == "censored"))
+        if ((s_sample.answer == KQR_ILLEGAL) || (s_sample.answer == KQR_CENSORED))
         {
-            timed_censored[sample.identity] = sample.refusal;
+            timed_censored[s_sample.identity] = s_sample.refusal;
         }
     }
     for (size_t at = 0u; at < carried.size(); at += 1u)
     {
         RunQuestion *const question = carried[at].question;
-        identities[at] = question_identity(question);
+        identities[at] = question_numbered(question);
         s_round_handed += 1ull;
         const auto censored = timed_censored.find(identities[at]);
         if ((question->launches != 0u) && (censored != timed_censored.end()))
@@ -2455,10 +2524,10 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
             (timed_alone ? timed : timed_together).push_back(question);
             continue;
         }
-        const QueryRecordAsk *const held = query_record_find(s_query_record, identities[at]);
-        if ((held != NULL) && (held->answer != "timed_out"))
+        static KqrAsk s_held;
+        if (kqr_find(&s_query_record, &identities[at], &s_held) && (s_held.answer != KQR_TIMED_OUT))
         {
-            answer_given(question, *held);
+            answer_given(question, s_held);
             s_round_held += 1ull;
             continue;
         }
@@ -2514,39 +2583,46 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
     timed.insert(timed.end(), timed_together.begin(), timed_together.end());
     for (RunQuestion *const question : timed)
     {
-        const std::string answer = answer_recorded(question);
-        if (!answer.empty())
+        const unsigned int answer = answer_recorded(question);
+        if (answer != KQR_ANSWER_COUNT)
         {
-            marks_written();
-            query_record_sample(&s_query_record,
-                                QueryRecordSample{question_identity(question), answer, question->nanoseconds,
-                                                  (answer == "answers") ? std::string() : question->refused,
-                                                  (question->most != 0ull) ? 1 : 0, question->least, question->most});
+            memset(&s_sample, 0, sizeof(s_sample));
+            s_sample.identity = question_numbered(question);
+            s_sample.answer = answer;
+            s_sample.nanoseconds = question->nanoseconds;
+            s_sample.launched = (question->most != 0ull) ? 1 : 0;
+            s_sample.least = question->least;
+            s_sample.most = question->most;
+            snprintf(s_sample.refusal, sizeof(s_sample.refusal), "%s",
+                     (answer == KQR_ANSWERS) ? "" : question->refused);
+            kqr_sample(&s_query_record, &s_sample);
         }
     }
-    for (const std::string &identity : firsts)
+    static KqrAsk s_kept;
+    for (const KqrIdentity &identity : firsts)
     {
         RunQuestion *const question = first_of[identity];
-        QueryRecordAsk held;
-        held.identity = identity;
-        held.answer = answer_recorded(question);
-        if (held.answer.empty())
+        const unsigned int answer = answer_recorded(question);
+        if (answer == KQR_ANSWER_COUNT)
         {
             continue;
         }
-        if (held.answer == "answers")
+        memset(&s_kept, 0, sizeof(s_kept));
+        s_kept.identity = identity;
+        s_kept.answer = answer;
+        if (answer == KQR_ANSWERS)
         {
-            held.words.assign(question->answered, question->answered + question->cases);
+            for (unsigned int place = 0u; (place < question->cases) && (place < KQR_WORDS); place += 1u)
+            {
+                s_kept.word[place] = question->answered[place];
+                s_kept.words += 1u;
+            }
         }
         else
         {
-            held.refusal = question->refused;
+            snprintf(s_kept.refusal, sizeof(s_kept.refusal), "%s", question->refused);
         }
-        if (query_record_find(s_query_record, identity) == NULL)
-        {
-            marks_written();
-        }
-        query_record_keep(&s_query_record, held);
+        kqr_keep(&s_query_record, &s_kept);
     }
     for (const auto &copy : copies)
     {
@@ -2813,73 +2889,24 @@ static unsigned int chain_registers(const char *engine, const std::string &numbe
     return (file >> registers) ? registers : 0u;
 }
 
-// The .ksc rewritten with `rows` in place of every row of the run channel it held to a question beginning with the
-// words `asked`, whatever came back, the rows put after its last row of the run channel and its counts of the run
-// channel taken again. 1, or 0 where the .ksc could not be written
-static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows)
+// The .ksc rewritten by `who` with `rows` in place of every row of the run channel it held to a question beginning
+// with the words `asked`, whatever came back, the rows put after its last row of the run channel and its counts of the
+// run channel taken again (ksc_rows_replaced_by). 1, or 0 where the .ksc could not be written
+static int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows,
+                               QryWho who)
 {
-    std::ifstream in(ksc, std::ios::binary);
-    std::vector<std::string> kept;
-    std::string line;
-    while (std::getline(in, line))
+    KscFile file = {};
+    std::vector<const char *> texts;
+    for (const std::string &row : rows)
     {
-        const std::string plain = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
-        if (plain.compare(0u, 4u, "run ") == 0)
-        {
-            std::stringstream words(plain);
-            std::string channel;
-            std::string answered;
-            std::string word;
-            std::string question;
-            words >> channel >> answered >> word;
-            std::getline(words, question);
-            question = (!question.empty() && (question[0] == ' ')) ? question.substr(1u) : question;
-            // a row is the question's where its question begins with `asked`, whole words of it
-            if ((question.compare(0u, asked.size(), asked) == 0) &&
-                ((question.size() == asked.size()) || (question[asked.size()] == ' ')))
-            {
-                continue;
-            }
-        }
-        kept.push_back(plain);
+        texts.push_back(row.c_str());
     }
-    in.close();
-    size_t after = kept.size();
-    for (size_t at = 0u; at < kept.size(); at += 1u)
-    {
-        after = (kept[at].compare(0u, 4u, "run ") == 0) ? (at + 1u) : after;
-    }
-    kept.insert(kept.begin() + (std::ptrdiff_t)after, rows.begin(), rows.end());
-    std::map<std::string, unsigned int> counted;
-    for (const std::string &kept_line : kept)
-    {
-        std::stringstream words(kept_line);
-        std::string channel;
-        std::string answered;
-        words >> channel >> answered;
-        counted[answered] += (channel == "run") ? 1u : 0u;
-    }
-    FILE *const out = fopen(ksc, "wb");
-    if (out == NULL)
-    {
-        return 0;
-    }
-    for (const std::string &kept_line : kept)
-    {
-        std::stringstream words(kept_line);
-        std::string count_word;
-        std::string channel;
-        std::string answered;
-        words >> count_word >> channel >> answered;
-        if ((count_word == "count") && (channel == "run"))
-        {
-            fprintf(out, "count run      %-8s %u\n", answered.c_str(), counted[answered]);
-            continue;
-        }
-        fprintf(out, "%s\n", kept_line.c_str());
-    }
-    fclose(out);
-    return 1;
+    const int written =
+        ksc_read(&file, ksc) &&
+        ksc_rows_replaced_by(&file, "run", asked.c_str(), texts.data(), (unsigned int)texts.size(), who) &&
+        ksc_write_by(&file, ksc, who);
+    ksc_free(&file);
+    return written;
 }
 
 // the most questions one process carries, for the memory each holds while it is put
@@ -2914,9 +2941,9 @@ static void arrangement_probes(const char *engine, const std::map<std::string, s
 // that no chain of ours holds and an arrangement of the .kdm beside the machine file does is probed in that
 // arrangement, written at its operator's link as the cost puts it (arrangement_probes). A round is
 // carried STALL_CARRIED_MOST questions to a process. Each pair's soonest is written to the .ksc as the part's answer on
-// the run channel, `run answers <stall> stall <writer> <reader>`, in place of those it held, and <folder>/stall.txt
-// holds every pair with its probes and what came back at every stall: `=` alike on every probe, `x` apart on one, `!`
-// refused on one
+// the run channel, `run answers <stall> stall <writer> <reader>`, in place of those it held, and the run's blob
+// stall.txt holds every pair with its probes and what came back at every stall: `=` alike on every probe, `x` apart on
+// one, `!` refused on one
 static int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                           const char *machine_path, const char *const *carrier)
 {
@@ -2936,7 +2963,9 @@ static int identity_stall(const char *engine, const char *answers, const char *k
         return 1;
     }
     record_open(ksc, "stall");
+    // a chain of ours holds no slot, and the cross reads it whole (measuring_stick_query.c)
     static RunQuestion s_question;
+    s_question.slot = RUN_SLOT_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long asks = 0ull;
@@ -2952,7 +2981,8 @@ static int identity_stall(const char *engine, const char *answers, const char *k
             const std::vector<std::vector<unsigned char>> carried(codes.begin() + (long)first,
                                                                   codes.begin() + (long)(first + count));
             std::vector<RunQuestion> asked;
-            cuts_asked(carried, std::vector<int>(count, 0), &s_question, &asks, 255u, &asked);
+            cuts_asked(carried, std::vector<int>(count, 0), std::vector<unsigned int>(count, RUN_SLOT_NONE),
+                       &s_question, &asks, 255u, &asked);
             for (size_t at = 0u; at < count; at += 1u)
             {
                 char mark = (asked[at].outcome != RUN_ANSWERED) ? '!' : '=';
@@ -3027,13 +3057,7 @@ static int identity_stall(const char *engine, const char *answers, const char *k
     // the probes a pair is walked over at most, each from a chain of its own
     const size_t most = 3u;
     std::vector<std::string> rows;
-    FILE *const table = fopen((folder + "/stall.txt").c_str(), "wb");
-    if (table == NULL)
-    {
-        printf("klq_identity stall: %s/stall.txt could not be written\n", folder.c_str());
-        run_channel_close();
-        return 1;
-    }
+    RunWritten table = {(folder + "/stall.txt"), 0, std::string()};
     // every stall below the longest of each pair's writer, on each of its probes; the longest each probe answered alike
     std::vector<StallAsk> stall_asks;
     std::vector<std::vector<unsigned char>> stall_codes;
@@ -3204,8 +3228,8 @@ static int identity_stall(const char *engine, const char *answers, const char *k
         {
             over += " " + number;
         }
-        fprintf(table, "%s %s soonest %llu, stalls 0 to %llu: %s, over%s\n", each.first.first.c_str(),
-                each.first.second.c_str(), soonest, longest, each.second.c_str(), over.c_str());
+        run_print(&table, "%s %s soonest %llu, stalls 0 to %llu: %s, over%s\n", each.first.first.c_str(),
+                  each.first.second.c_str(), soonest, longest, each.second.c_str(), over.c_str());
         printf("  %s then %s: soonest %llu, stalls 0 to %llu %s\n", each.first.first.c_str(), each.first.second.c_str(),
                soonest, longest, each.second.c_str());
         if (soonest <= longest)
@@ -3218,30 +3242,36 @@ static int identity_stall(const char *engine, const char *answers, const char *k
     }
     // every pair the .ksc answers that this round did not put keeps its answer
     {
-        std::ifstream held(ksc, std::ios::binary);
-        std::string line;
-        while (std::getline(held, line))
+        KscFile held = {};
+        static KscRow s_row;
+        ksc_read(&held, ksc);
+        for (unsigned int at = 0u; at < held.lines; at += 1u)
         {
-            line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
-            std::stringstream words(line);
-            std::string channel;
-            std::string answered;
-            std::string word;
+            if (!ksc_row_read(held.line[at], "run", &s_row))
+            {
+                continue;
+            }
+            std::stringstream words(s_row.question);
             std::string kind;
             std::string writer;
             std::string reader;
-            words >> channel >> answered >> word >> kind >> writer >> reader;
-            if ((channel == "run") && (kind == "stall") && !reader.empty() &&
-                (came_back.count(std::make_pair(writer, reader)) == 0u))
+            words >> kind >> writer >> reader;
+            if ((kind == "stall") && !reader.empty() && (came_back.count(std::make_pair(writer, reader)) == 0u))
             {
-                rows.push_back(line);
+                rows.push_back(held.line[at]);
             }
         }
+        ksc_free(&held);
     }
     std::sort(rows.begin(), rows.end(), [](const std::string &left, const std::string &right) {
         return left.substr(left.find(" stall ")) < right.substr(right.find(" stall "));
     });
-    fclose(table);
+    if (!run_closed(&table))
+    {
+        printf("klq_identity stall: %s/stall.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
     run_channel_close();
     if (!ksc_answers_write(ksc, "stall", rows))
     {
@@ -3325,7 +3355,7 @@ static std::vector<unsigned char> register_renamed(const std::vector<unsigned ch
 // a number is truthy where every probe answers alike with its register renamed to it, and falsy where one answers
 // apart, is refused, or is held by the gate. The last register is the first truthy number, and every number under
 // it is the code's to name. It is written to the .ksc as the part's answer on the run channel,
-// `run answers <last> register last`, and <folder>/register.txt holds every number asked with its verdict
+// `run answers <last> register last`, and the run's blob register.txt holds every number asked with its verdict
 static int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                              const char *const *carrier)
 {
@@ -3346,7 +3376,9 @@ static int identity_register(const char *engine, const char *answers, const char
         return 1;
     }
     record_open(ksc, "register");
+    // a chain of ours holds no slot, and the cross reads it whole (measuring_stick_query.c)
     static RunQuestion s_question;
+    s_question.slot = RUN_SLOT_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long asks = 0ull;
@@ -3418,13 +3450,7 @@ static int identity_register(const char *engine, const char *answers, const char
         run_channel_close();
         return 1;
     }
-    FILE *const table = fopen((folder + "/register.txt").c_str(), "wb");
-    if (table == NULL)
-    {
-        printf("klq_identity register: %s/register.txt could not be written\n", folder.c_str());
-        run_channel_close();
-        return 1;
-    }
+    RunWritten table = {(folder + "/register.txt"), 0, std::string()};
     // a number is the walk's to ask where no probe holds it
     const auto renamed_alike = [&](long long number) -> int {
         const int held_by_probe = std::any_of(probes.begin(), probes.end(), [&](const RegisterProbe &probe) {
@@ -3441,13 +3467,18 @@ static int identity_register(const char *engine, const char *answers, const char
                                                             (unsigned long long)number),
                                            host[probe.number], places, &s_question, &asks);
         }
-        fprintf(table, "R%lld %s%s%s\n", number, truthy ? "truthy" : "falsy", truthy ? "" : ": ",
-                truthy ? "" : s_question.refused);
+        run_print(&table, "R%lld %s%s%s\n", number, truthy ? "truthy" : "falsy", truthy ? "" : ": ",
+                  truthy ? "" : s_question.refused);
         printf("  R%lld: %s\n", number, truthy ? "truthy" : "falsy");
         return truthy;
     };
     const long long last = walk_step(renamed_alike, (long long)highest, -1, 0);
-    fclose(table);
+    if (!run_closed(&table))
+    {
+        printf("klq_identity register: %s/register.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
     run_channel_close();
     if (last < 0)
     {
@@ -3456,7 +3487,7 @@ static int identity_register(const char *engine, const char *answers, const char
     }
     char row[64];
     snprintf(row, sizeof(row), "run answers %08llx register last", (unsigned long long)last);
-    if (!ksc_answers_write(ksc, "register", {row}))
+    if (!ksc_answers_write(ksc, "register", std::vector<std::string>{row}))
     {
         printf("klq_identity register: %s could not be written\n", ksc);
         return 1;
@@ -3495,7 +3526,7 @@ static int curve_band_widened(CurveBand *band, unsigned long long time)
 static int curve_point(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
                        const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks,
                        const std::string &task, unsigned int threads, unsigned int registers,
-                       unsigned long long *nanoseconds, FILE *table)
+                       unsigned long long *nanoseconds, RunWritten *table)
 {
     question->registers = registers;
     question->threads = threads;
@@ -3503,9 +3534,9 @@ static int curve_point(const std::vector<unsigned char> &code, const std::vector
     question->launches = CURVE_LAUNCHES;
     const int alike = question_alike(code, host, places, question, asks);
     *nanoseconds = alike ? (question->nanoseconds / CURVE_LAUNCHES) : 0ull;
-    fprintf(table, "%s threads %u blocks %u registers %u: %s %llu ns a launch%s%s\n", task.c_str(), threads,
-            question->blocks, registers, alike ? "alike" : "apart", *nanoseconds, alike ? "" : ", ",
-            alike ? "" : question->refused);
+    run_print(table, "%s threads %u blocks %u registers %u: %s %llu ns a launch%s%s\n", task.c_str(), threads,
+              question->blocks, registers, alike ? "alike" : "apart", *nanoseconds, alike ? "" : ", ",
+              alike ? "" : question->refused);
     return alike;
 }
 
@@ -3524,7 +3555,7 @@ static int curve_point(const std::vector<unsigned char> &code, const std::vector
 // registers truthy, is found by halving. The counts of threads end where the part answers no count of registers. Each
 // knee is written to the .ksc as the part's answer on the run channel, `run answers <registers> curve <task>
 // <threads>`, and each task's count of threads whose fewest registers run soonest as `run answers <threads> curve
-// <task> threads`; <folder>/curve.txt holds every point asked
+// <task> threads`; the run's blob curve.txt holds every point asked
 static int identity_curve(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                           const std::vector<std::string> &tasks, const char *const *carrier)
 {
@@ -3545,14 +3576,10 @@ static int identity_curve(const char *engine, const char *answers, const char *k
         return 1;
     }
     record_open(ksc, "curve");
-    FILE *const table = fopen((folder + "/curve.txt").c_str(), "wb");
-    if (table == NULL)
-    {
-        printf("klq_identity curve: %s/curve.txt could not be written\n", folder.c_str());
-        run_channel_close();
-        return 1;
-    }
+    RunWritten table = {(folder + "/curve.txt"), 0, std::string()};
+    // a chain of ours holds no slot, and the cross reads it whole (measuring_stick_query.c)
     static RunQuestion s_question;
+    s_question.slot = RUN_SLOT_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long asks = 0ull;
@@ -3590,7 +3617,7 @@ static int identity_curve(const char *engine, const char *answers, const char *k
             const auto declaring_alike = [&](long long count) -> int {
                 unsigned long long time = 0ull;
                 const int alike = curve_point(code, host[task], places, &s_question, &asks, task, threads,
-                                              (unsigned int)count, &time, table);
+                                              (unsigned int)count, &time, &table);
                 times[count] = time;
                 return alike;
             };
@@ -3621,7 +3648,7 @@ static int identity_curve(const char *engine, const char *answers, const char *k
             for (unsigned int asked = 0u; (held < CURVE_SUSTAIN) && (asked < CURVE_ASKS_MOST); asked += 1u)
             {
                 unsigned long long again = 0ull;
-                if (curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &again, table))
+                if (curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &again, &table))
                 {
                     held = curve_band_widened(&band, again) ? 0u : (held + 1u);
                 }
@@ -3635,7 +3662,7 @@ static int identity_curve(const char *engine, const char *answers, const char *k
                 {
                     unsigned long long time = 0ull;
                     if (!curve_point(code, host[task], places, &s_question, &asks, task, threads, (unsigned int)count,
-                                     &time, table))
+                                     &time, &table))
                     {
                         return 0;
                     }
@@ -3650,7 +3677,7 @@ static int identity_curve(const char *engine, const char *answers, const char *k
                     }
                     unsigned long long bounced = 0ull;
                     if (curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &bounced,
-                                    table) &&
+                                    &table) &&
                         curve_band_widened(&band, bounced))
                     {
                         past = 0u;
@@ -3678,7 +3705,12 @@ static int identity_curve(const char *engine, const char *answers, const char *k
             rows.push_back(row);
         }
     }
-    fclose(table);
+    if (!run_closed(&table))
+    {
+        printf("klq_identity curve: %s/curve.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
     run_channel_close();
     // each task's rows in place of that task's alone, every other task's curve kept
     for (const std::string &task : tasks)
@@ -3707,8 +3739,8 @@ static int identity_curve(const char *engine, const char *answers, const char *k
 // put through the run channel, every case at once in a container declaring every register its file holds, and its
 // answer is written to R. A question R has settled is never put again. Each ask settles one entry and no other:
 // the questions of the stick share no case, and the order the entries are put in settles no more of them than another
-// order would. <folder>/queue.txt holds every entry with its category, what it reads and what keeps it gray, and each
-// category's entries are counted on the standard output as a row of P12's table
+// order would. The run's blob queue.txt holds every entry with its category, what it reads and what keeps it gray, and
+// each category's entries are counted on the standard output as a row of P12's table
 static int identity_queue(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                           const char *manifest, const char *const *carrier)
 {
@@ -3755,14 +3787,10 @@ static int identity_queue(const char *engine, const char *answers, const char *k
         return 1;
     }
     record_open(ksc, "queue");
-    FILE *const table = fopen((folder + "/queue.txt").c_str(), "wb");
-    if (table == NULL)
-    {
-        printf("klq_identity queue: %s/queue.txt could not be written\n", folder.c_str());
-        run_channel_close();
-        return 1;
-    }
+    RunWritten table = {(folder + "/queue.txt"), 0, std::string()};
+    // a chain of ours holds no slot, and the cross reads it whole (measuring_stick_query.c)
     static RunQuestion s_question;
+    s_question.slot = RUN_SLOT_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long asks = 0ull;
@@ -3804,9 +3832,14 @@ static int identity_queue(const char *engine, const char *answers, const char *k
             counted[category]["alike"] += alike ? 1u : 0u;
         }
         counted[category][reads] += 1u;
-        fprintf(table, "%s\t%s\t%s\t%s\n", number.c_str(), category.c_str(), reads.c_str(), reason.c_str());
+        run_print(&table, "%s\t%s\t%s\t%s\n", number.c_str(), category.c_str(), reads.c_str(), reason.c_str());
     }
-    fclose(table);
+    if (!run_closed(&table))
+    {
+        printf("klq_identity queue: %s/queue.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
     run_channel_close();
     printf("| category | questions | written | held | alike | 1 | 0 | gray |\n");
     std::map<std::string, unsigned int> all;
@@ -3863,18 +3896,19 @@ static int identity_text(const char *engine, const char *answers, const char *ks
         }
     }
     std::vector<std::string> bridge;
-    std::ifstream held(klq, std::ios::binary);
+    std::istringstream held(run_file_text(klq));
     while (std::getline(held, line))
     {
         bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
-    held.close();
     if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
     record_open(ksc, "text_identity");
+    // a chain of ours holds no slot, and the cross reads it whole (measuring_stick_query.c)
     static RunQuestion s_question;
+    s_question.slot = RUN_SLOT_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long asks = 0ull;
@@ -3967,17 +4001,16 @@ static int identity_text(const char *engine, const char *answers, const char *ks
         written.push_back(verdict);
     }
     run_channel_close();
-    FILE *const file = fopen(klq, "wb");
-    if (file == NULL)
+    RunWritten file = {klq, 1, std::string()};
+    for (const std::string &kept : written)
+    {
+        run_print(&file, "%s\n", kept.c_str());
+    }
+    if (!run_closed(&file))
     {
         printf("klq_identity text_identity: %s could not be written\n", klq);
         return 1;
     }
-    for (const std::string &kept : written)
-    {
-        fprintf(file, "%s\n", kept.c_str());
-    }
-    fclose(file);
     printf("klq_identity text_identity: %llu asks, %u open, %u closed, %u not asked, written to %s\n", asks, open,
            closed, unasked, klq);
     return 0;
@@ -4567,14 +4600,14 @@ static std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, c
     return found_links;
 }
 
-// The cuts `codes` put together over the cases `question` holds, each dangerous where `dangerous` says: each container
-// declaring `mark` registers, and every register its file holds where the part refuses that, those put together in
-// the round after. Each cut's question into `asked`, in the order of `codes`, its outcome, answers and refusal its own,
-// and a cut with no code left unasked. Each ask counted in `asks`. The answers are values the host does not compute,
-// held in the log alone and never in R
+// The cuts `codes` put together over the cases `question` holds, each dangerous where `dangerous` says and each its
+// slot from `slots`, RUN_SLOT_NONE where it holds none: each container declaring `mark` registers, and every register
+// its file holds where the part refuses that, those put together in the round after. Each cut's question into `asked`,
+// in the order of `codes`, its outcome, answers and refusal its own, and a cut with no code left unasked. Each ask
+// counted in `asks`. The answers are values the host does not compute, held in the log alone and never in R
 static void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous,
-                       const RunQuestion *question, unsigned long long *asks, unsigned int mark,
-                       std::vector<RunQuestion> *asked)
+                       const std::vector<unsigned int> &slots, const RunQuestion *question, unsigned long long *asks,
+                       unsigned int mark, std::vector<RunQuestion> *asked)
 {
     const unsigned int most = 255u;
     asked->assign(codes.size(), RunQuestion());
@@ -4590,6 +4623,7 @@ static void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, con
         cut->code = codes[at].data();
         cut->code_size = codes[at].size();
         cut->registers = ((mark != 0u) && (mark < most)) ? mark : most;
+        cut->slot = slots[at];
         cut->cases = question->cases;
         memcpy(cut->word, question->word, (size_t)question->cases * sizeof(question->word[0]));
         carried.push_back(cut);
@@ -4754,12 +4788,11 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     const unsigned long seed = (getenv("KLQ_SEED") != NULL) ? std::stoul(getenv("KLQ_SEED")) : 1ul;
     std::vector<std::string> bridge;
     std::string line;
-    std::ifstream held_bridge(klq, std::ios::binary);
+    std::istringstream held_bridge(run_file_text(klq));
     while (std::getline(held_bridge, line))
     {
         bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
-    held_bridge.close();
     if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
@@ -4772,14 +4805,14 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         run_channel_close();
         return 1;
     }
-    mark_pending("seed", std::to_string(seed));
+    kqr_mark(&s_query_record, KQR_SEED_RECORD, std::to_string(seed).c_str());
     // the lessons a run before this one taught, carried into this run (overseer.h)
     overseer_lessons_cleared();
     const unsigned int lessons_carried = overseer_lessons_read(qry_run());
     unsigned int conferences = 0u;
     unsigned int lessons_taught = 0u;
     // the asks the query record held before this cycle, read with R
-    const size_t recorded_before = s_query_record.asks.size();
+    const unsigned int recorded_before = s_query_record.asks;
     // each pair's question and places, held with the pair and reached from its own thread, since a pair waits on its
     // round with both
     static thread_local RunQuestion *t_question = NULL;
@@ -5068,6 +5101,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 chose("shape_read", link_address);
                 continue;
             }
+            // the stand-in is the question's slot: the cross reads it as the probe it is (measuring_stick_query.c)
+            question.slot = link;
             const int alike =
                 past_closed ? 0 : vector_alike(code, expected, places, &question, &asks, magnitudes[chain.first].first);
             const unsigned int put_outcome = past_closed ? (unsigned int)RUN_HELD : question.outcome;
@@ -5189,6 +5224,9 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     // answer
                     std::vector<std::vector<unsigned char>> cut_codes;
                     std::vector<int> cut_dangerous;
+                    // the stand-in's cut holds it at the form's link, its slot; every other cut is the carrier's own
+                    // and holds none
+                    std::vector<unsigned int> cut_slots;
                     for (const std::string &read : reads_named)
                     {
                         if ((literal_reads.count(read) != 0u) || (read[0] == '['))
@@ -5211,6 +5249,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                         }
                         cut_codes.push_back(cut_code);
                         cut_dangerous.push_back(0);
+                        cut_slots.push_back(RUN_SLOT_NONE);
                     }
                     // the form's product and its stand-in's, each the value it writes on every case as the part holds
                     // it at the form, the carrier cut just after it: the links after the form are a delta of their own
@@ -5240,9 +5279,11 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                         }
                         cut_codes.push_back(cut_code);
                         cut_dangerous.push_back((side == 1u) ? t_dangerous : 0);
+                        cut_slots.push_back((side == 1u) ? (unsigned int)link_at : RUN_SLOT_NONE);
                     }
                     std::vector<RunQuestion> cut_answers;
-                    cuts_asked(cut_codes, cut_dangerous, &question, &asks, magnitudes[chain.first].first, &cut_answers);
+                    cuts_asked(cut_codes, cut_dangerous, cut_slots, &question, &asks, magnitudes[chain.first].first,
+                               &cut_answers);
                     size_t cut_at = 0u;
                     for (const std::string &read : reads_named)
                     {
@@ -5614,6 +5655,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 {
                     sides[side].code = codes[side].data();
                     sides[side].code_size = codes[side].size();
+                    // each stand-in is its side's slot, at the third form's link
+                    sides[side].slot = (unsigned int)link_at;
                     sides[side].registers = magnitudes[chain.first].first;
                     sides[side].cases = t_question->cases;
                     memcpy(sides[side].word, t_question->word, (size_t)t_question->cases * sizeof(t_question->word[0]));
@@ -5739,10 +5782,11 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     // they were, is settled: its verdict is the record's, and it is put no more, since a put runs again only where what
     // it reads has changed. Every other pair, open, with no path, or reading what changed, is gray, and the rounds put
     // the gray pairs alone
-    std::map<std::string, const QueryRecordPath *> recorded_paths;
-    for (const QueryRecordPath &path : s_query_record.paths)
+    std::map<std::string, KqrPath> recorded_paths;
+    static KqrPath s_recorded;
+    for (unsigned int at = 0u; kqr_path_read(&s_query_record, at, &s_recorded); at += 1u)
     {
-        recorded_paths[path.first + " " + path.second] = &path;
+        recorded_paths[std::string(s_recorded.first) + " " + s_recorded.second] = s_recorded;
     }
     std::vector<PairPut> pairs;
     size_t settled = 0u;
@@ -5769,10 +5813,11 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             snprintf(hashed, sizeof(hashed), "%016llx", reads);
             pair.reads = hashed;
             const auto path = recorded_paths.find(pair.first + " " + pair.second);
-            if ((path != recorded_paths.end()) && (path->second->reads == pair.reads) &&
-                (path->second->verdict.rfind("closed ", 0u) == 0u))
+            if ((path != recorded_paths.end()) && path->second.read &&
+                (strtoull(pair.reads.c_str(), NULL, 16) == path->second.reads) &&
+                (strncmp(path->second.verdict, "closed ", 7u) == 0))
             {
-                pair.verdict = path->second->verdict;
+                pair.verdict = path->second.verdict;
                 pair.put_whole = 1;
                 settled += 1u;
             }
@@ -5857,7 +5902,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         const unsigned long long held_before = s_round_held;
         const unsigned long long processes_before = s_round_processes;
         round += 1u;
-        mark_pending("round", std::to_string(round));
+        kqr_mark(&s_query_record, KQR_ROUND_RECORD, std::to_string(round).c_str());
         std::vector<CarriedAsk> carried;
         unsigned int asking = 0u;
         for (size_t at = 0u; at < pairs.size(); at += 1u)
@@ -5911,17 +5956,16 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         written.push_back(pair.verdict);
     }
     run_channel_close();
-    FILE *const file = fopen(klq, "wb");
-    if (file == NULL)
+    RunWritten file = {klq, 1, std::string()};
+    for (const std::string &kept : written)
+    {
+        run_print(&file, "%s\n", kept.c_str());
+    }
+    if (!run_closed(&file))
     {
         printf("klq_identity pair: %s could not be written\n", klq);
         return 1;
     }
-    for (const std::string &kept : written)
-    {
-        fprintf(file, "%s\n", kept.c_str());
-    }
-    fclose(file);
     printf("klq_identity pair: %llu asks, %u open, %u closed, %u not asked, written to %s\n", asks, open, closed,
            unasked, klq);
     // the lessons held, those carried in and those taught, handed to the run for the next run to carry
@@ -5930,13 +5974,19 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
            lessons_taught, lessons_carried);
     // the path this cycle read off the asks, each pair and its verdict, an open pair the question a further pass takes
     // up, written to the query record with every ask it held and every ask this cycle put once R is written back
-    s_query_record.paths.clear();
+    kqr_paths_clear(&s_query_record);
+    static KqrPath s_path;
     for (const PairPut &pair : pairs)
     {
-        s_query_record.paths.push_back(QueryRecordPath{pair.first, pair.second, pair.reads, pair.verdict});
+        snprintf(s_path.first, sizeof(s_path.first), "%s", pair.first.c_str());
+        snprintf(s_path.second, sizeof(s_path.second), "%s", pair.second.c_str());
+        s_path.read = pair.reads.empty() ? 0 : 1;
+        s_path.reads = strtoull(pair.reads.c_str(), NULL, 16);
+        snprintf(s_path.verdict, sizeof(s_path.verdict), "%s", pair.verdict.c_str());
+        kqr_path_add(&s_query_record, &s_path);
     }
-    printf("klq_identity pair: %zu asks held in the query record, %zu of them put this cycle\n",
-           s_query_record.asks.size(), s_query_record.asks.size() - recorded_before);
+    printf("klq_identity pair: %u asks held in the query record, %u of them put this cycle\n", s_query_record.asks,
+           s_query_record.asks - recorded_before);
     return 0;
 }
 
@@ -6117,12 +6167,14 @@ struct CostRow
 static void kdm_rows_read(const char *kdm, std::vector<std::string> *lines, std::vector<CostRow> *rows,
                           std::map<std::string, std::vector<size_t>> *operators)
 {
-    std::string line;
-    std::ifstream held_kdm(kdm, std::ios::binary);
-    while (std::getline(held_kdm, line))
+    // the .kdm as the run holds it (kdm.h), a line each
+    KdmFile held = {};
+    kdm_read(&held, kdm);
+    for (unsigned int at = 0u; at < held.lines; at += 1u)
     {
-        lines->push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
+        lines->push_back(held.line[at]);
     }
+    kdm_free(&held);
     for (size_t at = 0u; at < lines->size(); at += 1u)
     {
         std::vector<std::string> fields;
@@ -6254,7 +6306,7 @@ static int operator_link(const Ruleset *sass, Carriers &carriers, unsigned long 
 // asked, and a question the record holds is never put again. An arrangement the part answers apart or refuses keeps
 // no cost. Its cost is the least difference any case read, less the least its link's clock read alone, over
 // COST_REPEATS, in the part's clock count: written in its row of the .kdm with 1 run, the one reading.
-// <folder>/cost.txt holds every arrangement with its link and what came of it
+// the run's blob cost.txt holds every arrangement with its link and what came of it
 static int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                          const char *kdm, const char *machine_path, const char *const *carrier)
 {
@@ -6279,15 +6331,11 @@ static int identity_cost(const char *engine, const char *answers, const char *ks
         return 1;
     }
     record_open(ksc, "cost");
-    mark_pending("seed", std::to_string(seed));
-    FILE *const table = fopen((folder + "/cost.txt").c_str(), "wb");
-    if (table == NULL)
-    {
-        printf("klq_identity cost: %s/cost.txt could not be written\n", folder.c_str());
-        run_channel_close();
-        return 1;
-    }
+    kqr_mark(&s_query_record, KQR_SEED_RECORD, std::to_string(seed).c_str());
+    RunWritten table = {(folder + "/cost.txt"), 0, std::string()};
+    // an arrangement's chain holds no slot, and the cross reads it whole (measuring_stick_query.c)
     const std::unique_ptr<RunQuestion> question(new RunQuestion());
+    question->slot = RUN_SLOT_NONE;
     std::vector<unsigned int> places;
     stall_cases(question.get(), &places);
     unsigned long long asks = 0ull;
@@ -6327,13 +6375,13 @@ static int identity_cost(const char *engine, const char *answers, const char *ks
         {
             if (operator_at.word == NULL)
             {
-                fprintf(table, "%s: its arrangements produce no word of two reads sass.krs writes\n",
-                        each.first.c_str());
+                run_print(&table, "%s: its arrangements produce no word of two reads sass.krs writes\n",
+                          each.first.c_str());
                 own_left(own, "unwritable");
                 continue;
             }
-            fprintf(table, "%s: no link of %s carries the cases with registers alone and can be cut\n",
-                    each.first.c_str(), operator_at.word->name);
+            run_print(&table, "%s: no link of %s carries the cases with registers alone and can be cut\n",
+                      each.first.c_str(), operator_at.word->name);
             own_left(own, "no_link");
             continue;
         }
@@ -6350,8 +6398,8 @@ static int identity_cost(const char *engine, const char *answers, const char *ks
         const long form_lines = operator_at.form_lines;
         char address[64];
         snprintf(address, sizeof(address), "%s:%04x", chain.first.c_str(), 16u * (unsigned int)link_at);
-        fprintf(table, "%s at %s, %s in place of %s", each.first.c_str(), address, word->name, found_text.c_str());
-        fprintf(table, "%s", (!found_text.empty() && (found_text.back() == '\n')) ? "" : "\n");
+        run_print(&table, "%s at %s, %s in place of %s", each.first.c_str(), address, word->name, found_text.c_str());
+        run_print(&table, "%s", (!found_text.empty() && (found_text.back() == '\n')) ? "" : "\n");
         const std::string ones = "R" + std::to_string(base);
         const std::string start = "R" + std::to_string(base + 1u);
         const std::string end = "R" + std::to_string(base + 2u);
@@ -6419,7 +6467,8 @@ static int identity_cost(const char *engine, const char *answers, const char *ks
     }
     printf("  %zu questions written, put in one round\n", round.size());
     std::vector<RunQuestion> asked;
-    cuts_asked(round, std::vector<int>(round.size(), 0), question.get(), &asks, mark, &asked);
+    cuts_asked(round, std::vector<int>(round.size(), 0), std::vector<unsigned int>(round.size(), RUN_SLOT_NONE),
+               question.get(), &asks, mark, &asked);
     // a row alike where the part answers it as the host does on every case, and the least each clock read
     for (size_t at = 0u; at < planned.size(); at += 1u)
     {
@@ -6468,8 +6517,8 @@ static int identity_cost(const char *engine, const char *answers, const char *ks
         {
             const std::string reason = row.verdict.substr(0u, row.verdict.find_first_of(" ,"));
             left[(row.verdict == "alike") ? std::string("untimed") : reason] += 1u;
-            fprintf(table, "  %s: %s\n", row.fields[2].c_str(),
-                    row.verdict.empty() ? "unwritable" : row.verdict.c_str());
+            run_print(&table, "  %s: %s\n", row.fields[2].c_str(),
+                      row.verdict.empty() ? "unwritable" : row.verdict.c_str());
             continue;
         }
         long long numerator = (long long)row.least - (long long)clock;
@@ -6481,22 +6530,44 @@ static int identity_cost(const char *engine, const char *answers, const char *ks
         row.fields[4] = "1";
         lines[row.line] =
             row.fields[0] + "\t" + row.fields[1] + "\t" + row.fields[2] + "\t" + row.fields[3] + "\t" + row.fields[4];
-        fprintf(table, "  %s: alike, %llu clocks over %u, the clock alone %llu: %s\n", row.fields[2].c_str(), row.least,
-                COST_REPEATS, clock, row.fields[3].c_str());
+        run_print(&table, "  %s: alike, %llu clocks over %u, the clock alone %llu: %s\n", row.fields[2].c_str(),
+                  row.least, COST_REPEATS, clock, row.fields[3].c_str());
         costed += 1u;
     }
-    fclose(table);
-    FILE *const written = fopen(kdm, "wb");
-    if (written == NULL)
+    if (!run_closed(&table))
+    {
+        printf("klq_identity cost: %s/cost.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
+    // the .kdm's section, every line after its first to its tail with each row costed now in place of the one before,
+    // written by the cost pass; its tail as it was (kdm.h)
+    KdmFile written = {};
+    int held = 1;
+    for (const std::string &each : lines)
+    {
+        held = held && ktext_line_add(&written, each.c_str());
+    }
+    const unsigned int tail = kdm_tail_at(&written);
+    std::vector<const char *> section;
+    QryWho who;
+    int who_held = 0;
+    for (unsigned int at = 1u; at < tail; at += 1u)
+    {
+        if (!ktext_who_line(written.line[at], &who, &who_held))
+        {
+            section.push_back(written.line[at]);
+        }
+    }
+    const std::string part = (!lines.empty() && (lines[0].compare(0u, 4u, "kdm ") == 0)) ? lines[0].substr(4u) : "-";
+    held = held && kdm_section_written(&written, part.c_str(), section.data(), (unsigned int)section.size()) &&
+           kdm_write(&written, kdm);
+    kdm_free(&written);
+    if (!held)
     {
         printf("klq_identity cost: %s could not be written\n", kdm);
         return 1;
     }
-    for (const std::string &each : lines)
-    {
-        fprintf(written, "%s\n", each.c_str());
-    }
-    fclose(written);
     printf("klq_identity cost: %zu arrangements, %u costed over %llu asks and written to %s", rows.size(), costed, asks,
            kdm);
     for (const auto &each : left)

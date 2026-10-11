@@ -61,18 +61,18 @@ build_all()
     cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvidia/cubin_safe.c" \
         "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
         "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
-        "$QRY_SOURCE/qry_buffer.c" || { echo "  build failed: cubin_run did not compile"; exit 1; }
+        "${FILE_DEFS[@]}" || { echo "  build failed: cubin_run did not compile"; exit 1; }
     BINARY="$OUT/khw_write"
     cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" \
-        "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/query/answer_read.c" "$PROTOCOL/record_R/record.c" \
+        "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/query/answer_read.c" \
         "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" \
-        "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$QRY_SOURCE/qry_buffer.c" ||
+        "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
         { echo "  build failed: khw_write did not compile"; exit 1; }
     WRITER="$OUT/khw_machine_write"
     cc -std=c11 -O2 -Wall -o "$WRITER" "$LAYOUTS/nvidia/khw_machine_write.c" \
         "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
         "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
-        "$QRY_SOURCE/qry_buffer.c" || { echo "  build failed: khw_machine_write did not compile"; exit 1; }
+        "${FILE_DEFS[@]}" || { echo "  build failed: khw_machine_write did not compile"; exit 1; }
 }
 
 # the questions of the run's latest questions.txt, counted
@@ -94,7 +94,7 @@ emit()
     for one in "${FILES[@]}"; do
         named="$(run_named "$one")"
         if "$QRY_WRITER" first "$named" > /dev/null 2>&1; then
-            "$QRY_WRITER" first "$named" > "$one"
+            "$QRY_WRITER" first "$named" | run_filed "$one"
         else
             rm -f "$one"
         fi
@@ -135,7 +135,6 @@ pass()
     run_started "$RUNS"
     run_carried "$RUNS" "$WORK/forms_work.txt" "$WORK/forms.txt" held.txt
     run_read "$MACHINE" "$WORK/sm_86.ksc" "$WORK/sm_86.kqr" "$LAYOUT" "$MNEMONICS"
-    run_left "$MACHINE" "$WORK/sm_86.ksc" "$WORK/sm_86.kqr"
     emit "$1"
     cross
     carrier_words

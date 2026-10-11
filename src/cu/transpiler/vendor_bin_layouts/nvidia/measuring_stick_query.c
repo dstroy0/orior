@@ -11,17 +11,19 @@
 // writes memory through registers the question set no address in, faults it with an illegal address. Nothing here runs
 // on the part.
 //
-//     measuring_stick_query <question list> <nvdisasm> <architecture> <scratch folder> <report> <held>
+//     measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held>
 //
-// Every name but the disassembler's and the scratch folder is a blob of the run's buffer, the .qry QRY names
-// (qry_buffer.h): the list, a line a question, `<code> <registers> <cases> <answers> <slot> [<launches>]`
-// (run_channel.h), each question's code, and the container the carrier popped for it as <answers stem>.cubin. Every
-// container is the kernel the system accepted with the question's code in it, and differs from the next only in that
-// code; the slot instruction of each, as the part would be handed it, is read out of the container's code section.
+// Every name but the disassembler's is a blob of the run's buffer, the .qry QRY names (qry_buffer.h): the list, a line
+// a question, `<code> <registers> <cases> <answers> <slot> [<launches>]` (run_channel.h), each question's code, and the
+// container the carrier popped for it as <answers stem>.cubin. Every container is the kernel the system accepted with
+// the question's code in it; the code of each, as the part would be handed it, is read out of the container's code
+// section.
 //
-// The slot instructions are read by the vendor's disassembler as raw runs of encodings (nvdisasm --binary
-// <architecture>), each distinct encoding once, CHUNK of them a run and the runs read many at once. The vendor reads a
-// run from a file: a reader writes each run to its own scratch file in <scratch folder>, written over each run; everything the vendor prints of a run is a blob of the run's buffer, and no other file is written. The
+// The vendor reads a raw run of encodings (nvdisasm --binary <architecture>) only from a file's path: each run is
+// handed to the run's writer as a stream of the .qry (qry_streamed), and the vendor is pointed at that stream. The
+// writer is the only thing that writes a file, and everything the vendor prints of a run is a blob of the run.
+//
+// The slot instructions are read each distinct encoding once, CHUNK of them a run and the runs read many at once. The
 // vendor stops at the first instruction it calls illegal and names its address: that slot is put to a NOP and the run
 // read again, until it reads clean, and the clean run gives every legal slot's operation at once. A stop that names no
 // address is read again a slot at a time. Each slot the vendor reads whole has every register it names held to the
@@ -30,11 +32,17 @@
 // for the registers its memory operands read an address from; a slot that writes one of them is held, as is a slot with
 // a memory operand of its own.
 //
-// The report, handed as <report>, lists every question held; <held> is the feedback the carrier reads next run
-// (--held): a line `<low> <high>` an encoding, the slot instruction of each held question, for the carrier to hold off
-// the part. The vendor names no operation and nothing it says enters a form: the held list is only the exact words not
-// to ask. Exit 1 where any question is held, to stop the loop before the part, 2 where a blob, a tool or the run's
-// buffer was not reached
+// Every question's frame is read whole too: its code with its slot put to a NOP, or its whole code where it holds no
+// slot, each distinct frame once. Each instruction of it the vendor calls illegal is put to a NOP and the frame read
+// again; each such instruction, and each the vendor reads naming a register at or past the question's <registers>, is
+// held. The gate holds a whole code where any instruction of it is held (cubin_safe.c). A frame the vendor stops in at
+// no instruction it names holds its questions by no encoding.
+//
+// The report, handed as <report>, lists every question held; <held> is the feedback the carrier reads (--held): a line
+// `<low> <high>` an encoding held, for the carrier to hold every code that holds it off the part. The vendor names no
+// operation and nothing it says enters a form: the held list is only the exact words not to ask. Exit 1 where any
+// question is held, 2 where a blob, a tool or the run's buffer was not reached, or a frame was read at no stop it
+// named: the round is then not carried
 #if !defined(_WIN32)
 // the threads and the processor count are POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
@@ -128,20 +136,26 @@ typedef struct
     size_t word_index;
     size_t whole_index;
     size_t tail_index;
+    size_t prefix_index;
+    size_t piece_index;
+    size_t piece_key[2];
 } MsqQuestion;
 
 static QryBuffer *s_run = NULL;
 static const char *s_nvdisasm = NULL;
 static const char *s_architecture = NULL;
-static const char *s_scratch = NULL;
 
-// A reader of the vendor's disassembler over raw runs: its scratch file, the output it was handed back, and the count
-// of runs it read. `ident` keeps the scratch file and the blob names of readers that run at once apart
+// A reader of the vendor's disassembler over raw runs: the stream its runs are handed as, the run it is handing, the
+// output it was handed back, and the count of runs it read. `ident` keeps the blob names of readers that run at once
+// apart, and `stream` their streams
 typedef struct
 {
     unsigned int ident;
-    unsigned int scratch;
+    unsigned int stream;
     unsigned long long calls;
+    unsigned char *raw;
+    size_t raw_size;
+    size_t raw_room;
     char *output;
     unsigned long long output_room;
     unsigned long long output_size;
@@ -171,33 +185,31 @@ static int msq_added(unsigned char **memory, size_t *held, size_t *room, const v
     return 1;
 }
 
-// `count` runs at `runs` read by the vendor as one raw run: written to the reader's scratch file, the disassembler run
-// over it, everything it printed handed as a blob of the run's buffer and kept in the reader's output. 0 where the
+// `count` runs at `runs` read by the vendor as one raw run: handed to the run's writer as the reader's stream of the
+// .qry (qry_streamed), the disassembler pointed at that stream and run over it, and everything it printed kept in the
+// reader's output and handed to the run as the cross's trace. Nothing but the run's writer writes a file. 0 where the
 // disassembler ended clean, 1 where it did not, and -1 where it could not be run
 static int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
 {
     reader->calls += 1ull;
-    char scratch_path[1024];
-    snprintf(scratch_path, sizeof(scratch_path), "%s/scratch_%u.bin", s_scratch, reader->scratch);
-    FILE *const scratch = fopen(scratch_path, "wb");
-    if (scratch == NULL)
-    {
-        return -1;
-    }
-    int written = 1;
-    for (size_t at = 0u; at < count; at += 1u)
+    reader->raw_size = 0u;
+    int joined = 1;
+    for (size_t at = 0u; joined && (at < count); at += 1u)
     {
         // a run is at most a container's code, which a size_t counts
-        written &=
-            (runs[at].size == 0ull) || (fwrite(runs[at].bytes, 1u, (size_t)runs[at].size, scratch) == runs[at].size);
+        joined = (runs[at].size == 0ull) ||
+                 msq_added(&reader->raw, &reader->raw_size, &reader->raw_room, runs[at].bytes, (size_t)runs[at].size);
     }
-    written &= (fclose(scratch) == 0);
-    if (!written)
+    char stream_name[64];
+    char stream_path[1400];
+    snprintf(stream_name, sizeof(stream_name), "msq_stream_%u", reader->stream);
+    if (!joined || (qry_streamed(s_run, stream_name, reader->raw, (unsigned long long)reader->raw_size, stream_path,
+                                 sizeof(stream_path)) == 0ull))
     {
         return -1;
     }
     // the interface's command is a list of words it does not write to; the casts only meet its declared type
-    char *const command[] = {(char *)s_nvdisasm, (char *)"--binary", (char *)s_architecture, scratch_path, NULL};
+    char *const command[] = {(char *)s_nvdisasm, (char *)"--binary", (char *)s_architecture, stream_path, NULL};
     InterfaceAnswer answer;
     // read again where the output ran past the room it was given, the room grown to hold it
     for (unsigned int tried = 0u; tried < 2u; tried += 1u)
@@ -227,9 +239,13 @@ static int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     }
     reader->output_size =
         (answer.output_bytes < reader->output_room) ? answer.output_bytes : (reader->output_room - 1ull);
-    char name[64];
-    snprintf(name, sizeof(name), "run_%u_%llu", reader->ident, reader->calls);
-    qry_hand(s_run, name, reader->output, reader->output_size, QRY_ORDINARY);
+    // what the vendor printed of the run, the cross's trace (qry_buffer.h, QRY_TRACE)
+    if (qry_traced("measuring_stick_query", QRY_ORDINARY))
+    {
+        char name[64];
+        snprintf(name, sizeof(name), "run_%u_%llu", reader->ident, reader->calls);
+        qry_hand(s_run, name, reader->output, reader->output_size, QRY_ORDINARY);
+    }
     return ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull)) ? 0 : 1;
 }
 
@@ -889,8 +905,8 @@ static void *msq_chunks_worker(void *argument)
         atomic_store(&work->failed, 1);
         return NULL;
     }
-    // the thread's own scratch file, from 1: the reader after the chunks writes the scratch file 0
-    reader.scratch = atomic_fetch_add(&work->readers, 1u) + 1u;
+    // the thread's own stream, from 1: the reader after the chunks hands the stream 0
+    reader.stream = atomic_fetch_add(&work->readers, 1u) + 1u;
     for (size_t chunk = atomic_fetch_add(&work->next, 1u); chunk < work->chunks;
          chunk = atomic_fetch_add(&work->next, 1u))
     {
@@ -903,6 +919,7 @@ static void *msq_chunks_worker(void *argument)
         atomic_fetch_add(&work->calls, reader.calls);
     }
     free(reader.output);
+    free(reader.raw);
     return NULL;
 }
 
@@ -1015,6 +1032,108 @@ static int msq_tails_read(MsqReader *reader, const MsqDistinct *tails, MsqRegist
     return whole;
 }
 
+// A frame's reading, a question's code with its slot put to a NOP where it holds one: the place of every instruction
+// the vendor calls illegal, and the listing it reads once each of those is put to a NOP. `readable` 0 where the vendor
+// stopped at no instruction it named, and the frame can be held by no encoding
+typedef struct
+{
+    unsigned long long *illegal;
+    size_t illegal_count;
+    MsqListing listing;
+    int readable;
+} MsqFrame;
+
+// The frame `frame` read whole by the vendor, read again with each instruction it stops at put to a NOP, until it reads
+// clean or stops at no instruction it names. 1, or 0 where a reading could not be run or the system gave no memory
+static int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
+{
+    memset(read, 0, sizeof(*read));
+    const size_t instructions = (size_t)(frame->size / 16ull);
+    unsigned char *const copy = (unsigned char *)malloc((size_t)frame->size + 1u);
+    read->illegal = (unsigned long long *)malloc((instructions + 1u) * sizeof(unsigned long long));
+    if ((copy == NULL) || (read->illegal == NULL))
+    {
+        free(copy);
+        return 0;
+    }
+    memcpy(copy, frame->bytes, (size_t)frame->size);
+    const MsqBytes run = {copy, frame->size};
+    while (1)
+    {
+        const int status = msq_read(reader, &run, 1u);
+        if (status < 0)
+        {
+            free(copy);
+            return 0;
+        }
+        if (status == 0)
+        {
+            read->readable = msq_listing_read(reader->output, (size_t)reader->output_size, &read->listing);
+            free(copy);
+            return read->readable;
+        }
+        unsigned long long address = 0ull;
+        int stepped = msq_stopped_at(reader->output, (size_t)reader->output_size, &address) &&
+                      ((address % 16ull) == 0ull) && ((address + 16ull) <= frame->size);
+        for (size_t at = 0u; stepped && (at < read->illegal_count); at += 1u)
+        {
+            stepped = (read->illegal[at] != address);
+        }
+        if (!stepped)
+        {
+            free(copy);
+            return 1;
+        }
+        read->illegal[read->illegal_count] = address;
+        read->illegal_count += 1u;
+        memcpy(copy + address, s_nop, sizeof(s_nop));
+    }
+}
+
+static void msq_frame_free(MsqFrame *read)
+{
+    free(read->illegal);
+    msq_listing_free(&read->listing);
+    memset(read, 0, sizeof(*read));
+}
+
+// what the cross holds, kept as it goes: the held list, the report, and the lines it says of each hold
+typedef struct
+{
+    unsigned char *held;
+    size_t held_size;
+    size_t held_room;
+    unsigned char *report;
+    size_t report_size;
+    size_t report_room;
+    unsigned char *said;
+    size_t said_size;
+    size_t said_room;
+} MsqHolds;
+
+// One hold of `question`: the encoding at `encoding`, NULL where there is none to hold, added to the held list, and the
+// hold and `why` to the report and to what is said
+static void msq_hold_said(MsqHolds *holds, const MsqQuestion *question, const unsigned char *encoding, const char *why)
+{
+    char where[48] = "(no encoding)";
+    if (encoding != NULL)
+    {
+        unsigned long long low = 0ull;
+        unsigned long long high = 0ull;
+        memcpy(&low, encoding, 8u);
+        memcpy(&high, encoding + 8u, 8u);
+        char line[48];
+        const int length = snprintf(line, sizeof(line), "%016llx %016llx\n", low, high);
+        msq_added(&holds->held, &holds->held_size, &holds->held_room, line, (size_t)length);
+        snprintf(where, sizeof(where), "%016llx %016llx", low, high);
+    }
+    char said[640];
+    int length = snprintf(said, sizeof(said), "  %s  %s  [%s]\n", question->stem, why, where);
+    msq_added(&holds->report, &holds->report_size, &holds->report_room, said, (size_t)length);
+    length = snprintf(said, sizeof(said), "    %s  %s\n", question->stem, why);
+    msq_added(&holds->said, &holds->said_size, &holds->said_room, said, (size_t)length);
+}
+
 // the stem of `name`: past its last `/` or `\`, short of its last `.`
 static void msq_stem(const char *name, char *stem, size_t room)
 {
@@ -1028,18 +1147,6 @@ static void msq_stem(const char *name, char *stem, size_t room)
 }
 
 // `name` short of its last `.`, the extension past it put in its place
-// every reader's scratch file removed, the one after the chunks and each chunk reader's from 1 to `readers`: what the
-// vendor printed of each run is a blob of the run's buffer, and no file of the cross is left
-static void msq_scratch_removed(unsigned int readers)
-{
-    for (unsigned int scratch = 0u; scratch <= readers; scratch += 1u)
-    {
-        char scratch_path[1024];
-        snprintf(scratch_path, sizeof(scratch_path), "%s/scratch_%u.bin", s_scratch, scratch);
-        remove(scratch_path);
-    }
-}
-
 static void msq_extension_put(const char *name, const char *extension, char *put, size_t room)
 {
     const char *const forward = strrchr(name, '/');
@@ -1052,18 +1159,16 @@ static void msq_extension_put(const char *name, const char *extension, char *put
 
 int main(int count, char **words)
 {
-    if (count != 7)
+    if (count != 6)
     {
-        fprintf(stderr, "measuring_stick_query <question list> <nvdisasm> <architecture> <scratch folder> <report> "
-                        "<held>\n");
+        fprintf(stderr, "measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held>\n");
         return 2;
     }
     const char *const list_name = words[1];
     s_nvdisasm = words[2];
     s_architecture = words[3];
-    s_scratch = words[4];
-    const char *const report_name = words[5];
-    const char *const held_name = words[6];
+    const char *const report_name = words[4];
+    const char *const held_name = words[5];
     s_run = qry_run();
     if (s_run == NULL)
     {
@@ -1127,12 +1232,17 @@ int main(int count, char **words)
         }
         question_count += 1u;
     }
-    // the distinct slot encodings, whole codes and codes past a slot, each read once
+    // the distinct slot encodings, whole codes, codes before and past a slot, and frames, each read once: a slotted
+    // question's frame is the code before its slot, a NOP, and the code past it, found by the two
     MsqDistinct slot_words;
     MsqDistinct whole_codes;
     MsqDistinct tails;
+    MsqDistinct prefixes;
+    MsqDistinct pieces;
+    size_t *const piece_of = (size_t *)calloc(question_count + 1u, sizeof(size_t));
     if (!msq_distinct_made(&slot_words, question_count) || !msq_distinct_made(&whole_codes, question_count) ||
-        !msq_distinct_made(&tails, question_count))
+        !msq_distinct_made(&tails, question_count) || !msq_distinct_made(&prefixes, question_count) ||
+        !msq_distinct_made(&pieces, question_count) || (piece_of == NULL))
     {
         return 2;
     }
@@ -1146,6 +1256,18 @@ int main(int count, char **words)
             const MsqBytes tail = {question->code.bytes + ((question->slot + 1ull) * 16ull),
                                    question->code.size - ((question->slot + 1ull) * 16ull)};
             question->tail_index = msq_distinct_index(&tails, &tail);
+            const MsqBytes prefix = {question->code.bytes, question->slot * 16ull};
+            question->prefix_index = msq_distinct_index(&prefixes, &prefix);
+            question->piece_key[0] = question->prefix_index;
+            question->piece_key[1] = question->tail_index;
+            const MsqBytes key = {(const unsigned char *)question->piece_key, sizeof(question->piece_key)};
+            const size_t before = pieces.count;
+            question->piece_index = msq_distinct_index(&pieces, &key);
+            // the question a frame is first found by gives its bytes
+            if (pieces.count != before)
+            {
+                piece_of[question->piece_index] = place;
+            }
         }
         else
         {
@@ -1181,28 +1303,45 @@ int main(int count, char **words)
         pthread_join(started[thread], NULL);
     }
     free(started);
-    // the whole-kernel and tail readings run after the chunks, their reader's ident past every chunk's so its blob
-    // names stand apart
+    // the frame and tail readings run after the chunks, their reader's ident past every chunk's so its blob names stand
+    // apart, and its stream the 0th
     MsqReader reader;
     memset(&reader, 0, sizeof(reader));
     reader.ident = 0xffffffffu;
-    reader.scratch = 0u;
+    reader.stream = 0u;
     reader.output_room = 64ull << 20u;
     reader.output = (char *)malloc((size_t)reader.output_room);
-    MsqKind *const whole_kinds = (MsqKind *)calloc(whole_codes.count + 1u, sizeof(MsqKind));
+    MsqFrame *const whole_frames = (MsqFrame *)calloc(whole_codes.count + 1u, sizeof(MsqFrame));
+    MsqFrame *const piece_frames = (MsqFrame *)calloc(pieces.count + 1u, sizeof(MsqFrame));
     MsqRegisters *const addressed = (MsqRegisters *)calloc(tails.count + 1u, sizeof(MsqRegisters));
-    int whole = (reader.output != NULL) && (whole_kinds != NULL) && (addressed != NULL) && !atomic_load(&work.failed);
+    int whole = (reader.output != NULL) && (whole_frames != NULL) && (piece_frames != NULL) && (addressed != NULL) &&
+                !atomic_load(&work.failed);
+    // every frame read whole: a question with no slot by its whole code, a slotted one by the code before its slot, a
+    // NOP and the code past it, the code past a slot being the same in every question of one kernel
     for (size_t code = 0u; whole && (code < whole_codes.count); code += 1u)
     {
-        const int status = msq_read(&reader, &whole_codes.items[code], 1u);
-        whole = (status >= 0);
-        whole_kinds[code] =
-            ((status != 0) || msq_illegal_said(reader.output, (size_t)reader.output_size)) ? MSQ_ILLEGAL : MSQ_NONE;
+        whole = msq_frame_read(&reader, &whole_codes.items[code], &whole_frames[code]);
     }
+    unsigned char *joined = NULL;
+    size_t joined_size = 0u;
+    size_t joined_room = 0u;
+    for (size_t piece = 0u; whole && (piece < pieces.count); piece += 1u)
+    {
+        const MsqQuestion *const first = &questions[piece_of[piece]];
+        const MsqBytes *const prefix = &prefixes.items[first->prefix_index];
+        const MsqBytes *const tail = &tails.items[first->tail_index];
+        joined_size = 0u;
+        // a code is at most a container's, which a size_t counts
+        whole = msq_added(&joined, &joined_size, &joined_room, prefix->bytes, (size_t)prefix->size) &&
+                msq_added(&joined, &joined_size, &joined_room, s_nop, sizeof(s_nop)) &&
+                msq_added(&joined, &joined_size, &joined_room, tail->bytes, (size_t)tail->size);
+        const MsqBytes frame = {joined, (unsigned long long)joined_size};
+        whole = whole && msq_frame_read(&reader, &frame, &piece_frames[piece]);
+    }
+    free(joined);
     // the registers the code past each slot reads an address from: every distinct code past a slot read together, as
     // one raw run, the kernel's own code being the same in every question but the slot
     whole = whole && msq_tails_read(&reader, &tails, addressed);
-    msq_scratch_removed(atomic_load(&work.readers));
     if (!whole)
     {
         fprintf(stderr,
@@ -1210,23 +1349,60 @@ int main(int count, char **words)
                 s_nvdisasm);
         return 2;
     }
-    // the questions held, each with why, the held list and the report handed to the run's buffer
-    unsigned char *held = NULL;
-    size_t held_size = 0u;
-    size_t held_room = 0u;
-    unsigned char *report = NULL;
-    size_t report_size = 0u;
-    size_t report_room = 0u;
-    unsigned char *holds_said = NULL;
-    size_t holds_said_size = 0u;
-    size_t holds_said_room = 0u;
+    // the questions held, each with why, the held list and the report handed to the run's buffer. A question is held
+    // by its slot where the vendor reads it as below, and by its frame where the vendor calls an instruction of it
+    // illegal or reads one naming a register at or past the count its kernel allots: each such instruction's encoding
+    // is held, and the gate holds every code that holds it. A frame the vendor stopped in at no instruction it named
+    // holds its questions by no encoding, and the round they came in is not carried
+    MsqHolds kept;
+    memset(&kept, 0, sizeof(kept));
     size_t holds = 0u;
+    size_t unread = 0u;
     for (size_t place = 0u; place < question_count; place += 1u)
     {
         const MsqQuestion *const question = &questions[place];
-        const MsqReading empty = {MSQ_NONE, "", NULL};
-        const MsqReading *const reading = question->slotted ? &readings[question->word_index] : &empty;
-        const MsqKind kind = question->slotted ? reading->kind : whole_kinds[question->whole_index];
+        const MsqFrame *const frame =
+            question->slotted ? &piece_frames[question->piece_index] : &whole_frames[question->whole_index];
+        int held_question = 0;
+        if (!frame->readable)
+        {
+            msq_hold_said(&kept, question, NULL,
+                          "the vendor stopped in its code at no instruction it named, and the round is not carried");
+            unread += 1u;
+            holds += 1u;
+            continue;
+        }
+        for (size_t at = 0u; at < frame->illegal_count; at += 1u)
+        {
+            char why[160];
+            snprintf(why, sizeof(why), "the vendor reads an illegal instruction at byte %llu of the code",
+                     frame->illegal[at]);
+            msq_hold_said(&kept, question, question->code.bytes + frame->illegal[at], why);
+            held_question = 1;
+        }
+        for (size_t line = 0u; line < frame->listing.count; line += 1u)
+        {
+            const MsqLine *const read_line = &frame->listing.lines[line];
+            unsigned long long frame_reached = 0ull;
+            if (((read_line->offset + 16ull) <= question->code.size) &&
+                msq_register_reached(read_line->body, question->registers, &frame_reached))
+            {
+                char why[200];
+                snprintf(why, sizeof(why),
+                         "the vendor reads R%llu at byte %llu of the code, past the %u registers its "
+                         "kernel allots",
+                         frame_reached, read_line->offset, question->registers);
+                msq_hold_said(&kept, question, question->code.bytes + read_line->offset, why);
+                held_question = 1;
+            }
+        }
+        holds += held_question ? 1u : 0u;
+        if (!question->slotted)
+        {
+            continue;
+        }
+        const MsqReading *const reading = &readings[question->word_index];
+        const MsqKind kind = reading->kind;
         const char *const body = ((kind == MSQ_READ) && (reading->body != NULL)) ? reading->body : "";
         char why[256] = "";
         unsigned long long reached = 0ull;
@@ -1278,30 +1454,16 @@ int main(int count, char **words)
         {
             continue;
         }
-        holds += 1u;
+        holds += held_question ? 0u : 1u;
         // the held encoding, the question's own code at its slot
         const unsigned char *code = NULL;
         unsigned long long code_size = 0ull;
-        char where[64] = "(no slot encoding)";
-        if (qry_latest(s_run, question->code_name, &code, &code_size, NULL) && (question->slot < (code_size / 16ull)) &&
-            (((question->slot * 16ull) + 16ull) <= code_size))
-        {
-            unsigned long long low = 0ull;
-            unsigned long long high = 0ull;
-            memcpy(&low, code + (question->slot * 16ull), 8u);
-            memcpy(&high, code + (question->slot * 16ull) + 8u, 8u);
-            char line[48];
-            const int length = snprintf(line, sizeof(line), "%016llx %016llx\n", low, high);
-            msq_added(&held, &held_size, &held_room, line, (size_t)length);
-            snprintf(where, sizeof(where), "%016llx %016llx", low, high);
-        }
-        char said[640];
-        int length = snprintf(said, sizeof(said), "  %s  %s  [%s]\n", question->stem, why, where);
-        msq_added(&report, &report_size, &report_room, said, (size_t)length);
-        length = snprintf(said, sizeof(said), "    %s  %s\n", question->stem, why);
-        msq_added(&holds_said, &holds_said_size, &holds_said_room, said, (size_t)length);
+        const int coded = qry_latest(s_run, question->code_name, &code, &code_size, NULL) &&
+                          (question->slot < (code_size / 16ull)) && (((question->slot * 16ull) + 16ull) <= code_size);
+        msq_hold_said(&kept, question, coded ? (code + (question->slot * 16ull)) : NULL, why);
     }
     const unsigned long long readings_count = atomic_load(&work.calls) + reader.calls;
+    free(reader.output);
     char head[256];
     const int head_length =
         snprintf(head, sizeof(head), "questions read: %zu in %llu readings; held off the part: %zu\n", question_count,
@@ -1310,21 +1472,43 @@ int main(int count, char **words)
     size_t whole_report_size = 0u;
     size_t whole_report_room = 0u;
     msq_added(&whole_report, &whole_report_size, &whole_report_room, head, (size_t)head_length);
-    if (report_size != 0u)
+    if (kept.report_size != 0u)
     {
-        msq_added(&whole_report, &whole_report_size, &whole_report_room, report, report_size);
+        msq_added(&whole_report, &whole_report_size, &whole_report_room, kept.report, kept.report_size);
     }
-    qry_hand(s_run, held_name, held, held_size, QRY_ORDINARY);
+    qry_hand(s_run, held_name, kept.held, kept.held_size, QRY_ORDINARY);
     qry_hand(s_run, report_name, whole_report, whole_report_size, QRY_ORDINARY);
     printf("  questions read: %zu in %llu readings; the vendor holds %zu off the part\n", question_count,
            readings_count, holds);
     printf("  the held list is %s and the report %s, blobs of %s\n", held_name, report_name, qry_path(s_run));
-    if (holds_said_size != 0u)
+    if (kept.said_size != 0u)
     {
-        fwrite(holds_said, 1u, holds_said_size, stdout);
+        fwrite(kept.said, 1u, kept.said_size, stdout);
     }
+    for (size_t code = 0u; code < whole_codes.count; code += 1u)
+    {
+        msq_frame_free(&whole_frames[code]);
+    }
+    for (size_t piece = 0u; piece < pieces.count; piece += 1u)
+    {
+        msq_frame_free(&piece_frames[piece]);
+    }
+    free(whole_frames);
+    free(piece_frames);
+    free(piece_of);
+    free(reader.raw);
     msq_distinct_free(&slot_words);
     msq_distinct_free(&whole_codes);
     msq_distinct_free(&tails);
+    msq_distinct_free(&prefixes);
+    msq_distinct_free(&pieces);
+    // a frame the vendor named no stop in is no question it read: the round is not carried
+    if (unread != 0u)
+    {
+        fprintf(stderr,
+                "measuring_stick_query: %zu questions' codes the vendor stopped in at no instruction it named\n",
+                unread);
+        return 2;
+    }
     return (holds != 0u) ? 1 : 0;
 }

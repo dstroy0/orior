@@ -20,9 +20,10 @@
 // every relation and writes the record. The third writes every arrangement of the .kdm node by node, each node the
 // first writing found for its precept, into <folder>/chains, and the fourth reads the chains' answers back against
 // the relation each is a row of.
-#include "../../../lstar/protocol/counterexample/ladder.h"
 #include "../../../../engine/rmc/precept_value.h"
 #include "../../../../engine/rmc/word_web.h"
+#include "../../../../types/file_defs/kdm/kdm.h"
+#include "../../../lstar/protocol/counterexample/ladder.h"
 #include "../cubin_safe.h"
 #include "../cubin_write.h"
 #include "../sass_assemble.h"
@@ -789,8 +790,9 @@ static int writings_chains_write(const char *pattern, const char *kernel_text, c
     FILE *const list = fopen(path, "wb");
     snprintf(path, sizeof(path), "%s/chains.txt", into);
     FILE *const chains = fopen(path, "wb");
-    FILE *const rows = fopen(kdm, "rb");
-    if ((list == NULL) || (chains == NULL) || (rows == NULL))
+    // the .kdm as the run holds it (kdm.h)
+    static KdmFile s_rows;
+    if ((list == NULL) || (chains == NULL) || !kdm_read(&s_rows, kdm) || (s_rows.lines == 0u))
     {
         fprintf(stderr, "the folder %s or the .kdm %s was not reached\n", into, kdm);
         return 2;
@@ -803,25 +805,19 @@ static int writings_chains_write(const char *pattern, const char *kernel_text, c
             printf("  %-4s %s\n", s_precept_text[precept], s_forms[writing]);
         }
     }
-    char line[WRITINGS_LINE];
     unsigned int read = 0u;
     unsigned int unwritten = 0u;
     unsigned int written = 0u;
-    while ((written < WRITINGS_CHAINS_MOST) && (fgets(line, sizeof(line), rows) != NULL))
+    static KdmRow s_row;
+    for (unsigned int row = 0u; (written < WRITINGS_CHAINS_MOST) && (row < s_rows.lines); row += 1u)
     {
-        char operator_name[32];
-        unsigned int nodes_said = 0u;
-        char chain[512];
-        char cost[64];
-        unsigned int runs = 0u;
-        unsigned int verdict = 2u;
-        const int columns = (line[0] == '#') ? 0
-                                             : sscanf(line, "%31[^\t]\t%u\t%511[^\t]\t%63[^\t]\t%u\t%u", operator_name,
-                                                      &nodes_said, chain, cost, &runs, &verdict);
-        if ((columns < 3) || (nodes_said == 0u))
+        if (!kdm_row_read(s_rows.line[row], &s_row) || (s_row.nodes == 0u))
         {
             continue;
         }
+        const char *const operator_name = s_row.operation;
+        const char *const chain = s_row.chain;
+        const unsigned int verdict = (s_row.verdict < 0) ? 2u : (unsigned int)s_row.verdict;
         read += 1u;
         WritingsNode nodes[WRITINGS_CHAIN_NODES];
         unsigned int count = 0u;
@@ -858,7 +854,7 @@ static int writings_chains_write(const char *pattern, const char *kernel_text, c
                 (verdict == 1u) ? "standing" : ((verdict == 0u) ? "out" : "-"));
         written += 1u;
     }
-    fclose(rows);
+    kdm_free(&s_rows);
     fclose(list);
     fclose(chains);
     printf("interface sass chains: %u chains of the .kdm read, %u written and held to cubin_safe, %u not written\n", read,

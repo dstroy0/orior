@@ -5,6 +5,9 @@
 // into <part>.kdm
 #include "interface_sass_probe.h"
 
+#include "../../../../types/file_defs/kdm/kdm.h"
+#include "../../../../types/file_defs/ksc/ksc.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -223,9 +226,11 @@ int sass_class_read(const char *machines, const char *part)
 {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.ksc", machines, part);
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
+    // the .ksc as the run holds it (ksc.h)
+    static KscFile s_file;
+    if (!ksc_read(&s_file, path) || (s_file.lines == 0u))
     {
+        ksc_free(&s_file);
         return 0;
     }
     // the file is the classification: what was held before it is read is its own, and the equal writings a pass has
@@ -235,8 +240,35 @@ int sass_class_read(const char *machines, const char *part)
     s_containers_length = 0u;
     memset(s_tally, 0, sizeof(s_tally));
     char line[SASS_TEXT * 8u];
-    while (fgets(line, sizeof(line), file) != NULL)
+    // the forms are the text of the file's block of the ruleset's language (klang.h), the lines between its opener and
+    // its closer, which the ruleset beside the file reads after its own
+    unsigned int block = s_file.lines;
+    unsigned int block_past = s_file.lines;
+    if (!ktext_block_lines(&s_file, "krs", 0u, &block, &block_past))
     {
+        block = s_file.lines;
+        block_past = s_file.lines;
+    }
+    for (unsigned int at = block; at < block_past; at += 1u)
+    {
+        snprintf(line, sizeof(line), "%s\n", s_file.line[at]);
+        const size_t length = strlen(line);
+        if ((s_forms_length + length) < sizeof(s_forms))
+        {
+            memcpy(&s_forms[s_forms_length], line, length);
+            s_forms_length += length;
+        }
+    }
+    for (unsigned int at = 0u; at < s_file.lines; at += 1u)
+    {
+        // each line with its end, as the classification keeps the lines it carries whole; a who line is the file's
+        // and none of the classification's, and the block and its opener and closer were read above
+        snprintf(line, sizeof(line), "%s\n", s_file.line[at]);
+        const int blocked = (block != s_file.lines) && ((at + 1u) >= block) && (at <= block_past);
+        if ((strncmp(line, "who ", 4u) == 0) || blocked)
+        {
+            continue;
+        }
         const size_t length = strlen(line);
         if ((strncmp(line, "container ", 10u) == 0) || (strncmp(line, "field ", 6u) == 0))
         {
@@ -245,17 +277,6 @@ int sass_class_read(const char *machines, const char *part)
                 memcpy(&s_containers[s_containers_length], line, length);
                 s_containers_length += length;
             }
-            continue;
-        }
-        const int form = (strncmp(line, "form ", 5u) == 0) || (strncmp(line, "err ", 4u) == 0) ||
-                         (strncmp(line, "nop ", 4u) == 0);
-        if (form && ((s_forms_length + length) < sizeof(s_forms)))
-        {
-            memcpy(&s_forms[s_forms_length], line, length);
-            s_forms_length += length;
-        }
-        if (form)
-        {
             continue;
         }
         char channel_text[16];
@@ -300,184 +321,171 @@ int sass_class_read(const char *machines, const char *part)
             }
         }
     }
-    fclose(file);
+    ksc_free(&s_file);
     return 1;
 }
 
-int sass_class_write(const char *machines, const char *part)
+// the lines of `body`, each ended by a newline, put by `who` into `file` after every line it holds (ktext.h): 1, or 0
+// where there was no memory for them
+static int sass_class_lines_put(KscFile *file, QryText *body, QryWho who)
+{
+    const char **lines = NULL;
+    unsigned int count = 0u;
+    const int held = ktext_lines_cut(body, &lines, &count) &&
+                     ((count == 0u) || (ktext_lines_put_by(file, file->lines, lines, count, who) != 0u));
+    free(lines);
+    return held;
+}
+
+int sass_class_write_by(const char *machines, const char *part, QryWho who)
 {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.ksc", machines, part);
-    FILE *const file = fopen(path, "wb");
-    if (file == NULL)
-    {
-        printf("interface sass class: %s could not be written\n", path);
-        return 0;
-    }
-    fprintf(file, "ksc %s\n", part);
-    fprintf(file, "# How this system is asked, and what came back. A probe is not a thing of its own: it is a\n");
-    fprintf(file, "# question put on one of the channels below and the answer read back. Written by the interface's\n");
-    fprintf(file, "# SASS probe; every line here is something the system said, and nothing here was assumed.\n\n");
-    fprintf(file, "# the channels this system answers on\n");
+    // the classification put together in memory, its first line, and then every line after it under a who line of
+    // `who`, handed whole to the run's writer (ksc.h)
+    QryText body = {0};
+    qry_text_printed(&body,
+                     "# How this system is asked, and what came back. A probe is not a thing of its own: it is a\n");
+    qry_text_printed(
+        &body, "# question put on one of the channels below and the answer read back. Written by the interface's\n");
+    qry_text_printed(&body,
+                     "# SASS probe; every line here is something the system said, and nothing here was assumed.\n\n");
+    qry_text_printed(&body, "# the channels this system answers on\n");
     for (unsigned int channel = 0u; channel < SASS_CHANNEL_COUNT; channel += 1u)
     {
-        fprintf(file, "channel %-8s %s\n", s_channel_text[channel], s_channel_why[channel]);
+        qry_text_printed(&body, "channel %-8s %s\n", s_channel_text[channel], s_channel_why[channel]);
     }
-    fprintf(file, "\n# what an answer can be\n");
+    qry_text_printed(&body, "\n# what an answer can be\n");
     for (unsigned int answered = 0u; answered < SASS_CLASS_COUNT; answered += 1u)
     {
-        fprintf(file, "class %-8s %s\n", s_class_text[answered], s_class_why[answered]);
+        qry_text_printed(&body, "class %-8s %s\n", s_class_text[answered], s_class_why[answered]);
     }
-    fprintf(file, "\n# every question put, counted by the channel it went out on and what came back\n");
+    qry_text_printed(&body, "\n# every question put, counted by the channel it went out on and what came back\n");
     for (unsigned int channel = 0u; channel < SASS_CHANNEL_COUNT; channel += 1u)
     {
         for (unsigned int answered = 0u; answered < SASS_CLASS_COUNT; answered += 1u)
         {
-            fprintf(file, "count %-8s %-8s %u\n", s_channel_text[channel], s_class_text[answered],
-                    s_tally[channel][answered]);
+            qry_text_printed(&body, "count %-8s %-8s %u\n", s_channel_text[channel], s_class_text[answered],
+                             s_tally[channel][answered]);
         }
     }
-    fprintf(file, "\n# every question the system was asked in its own code, one a line: the channel, what came\n");
-    fprintf(file, "# back, the word it answered, and the question. These are the ones the system answered for\n");
-    fprintf(file, "# itself, with no compiler and no disassembler standing between.\n");
+    qry_text_printed(&body,
+                     "\n# every question the system was asked in its own code, one a line: the channel, what came\n");
+    qry_text_printed(&body,
+                     "# back, the word it answered, and the question. These are the ones the system answered for\n");
+    qry_text_printed(&body, "# itself, with no compiler and no disassembler standing between.\n");
     for (unsigned int number = 0u; number < s_classed_count; number += 1u)
     {
         const SassClassed *const one = &s_classed[number];
-        fprintf(file, "%s %s %08x %s\n", s_channel_text[one->channel], s_class_text[one->answered], one->word,
-                one->question);
+        qry_text_printed(&body, "%s %s %08x %s\n", s_channel_text[one->channel], s_class_text[one->answered], one->word,
+                         one->question);
     }
-    fprintf(file, "\n# writings the system answers alike: an operation written where the ruleset holds the other, each\n");
-    fprintf(file, "# giving the same machine code. A reading in one is the ruleset's form in the other.\n");
+    qry_text_printed(
+        &body, "\n# writings the system answers alike: an operation written where the ruleset holds the other, each\n");
+    qry_text_printed(&body, "# giving the same machine code. A reading in one is the ruleset's form in the other.\n");
     for (unsigned int number = 0u; number < s_equal_count; number += 1u)
     {
-        fprintf(file, "equal %s %s\n", s_equal[number].one, s_equal[number].other);
+        qry_text_printed(&body, "equal %s %s\n", s_equal[number].one, s_equal[number].other);
     }
     if (s_forms_length != 0u)
     {
-        fprintf(file, "\n# forms the system folds into one instruction of its own, as the ruleset beside this file reads\n");
-        fprintf(file, "# them after its own lines and its part's.\n");
-        fwrite(s_forms, 1u, s_forms_length, file);
+        qry_text_printed(
+            &body,
+            "\n# forms the system folds into one instruction of its own, as the ruleset beside this file reads\n");
+        qry_text_printed(&body, "# them after its own lines and its part's.\n");
+        qry_text_printed(&body, "__krs__(\n");
+        qry_text_added(&body, s_forms, s_forms_length);
+        qry_text_printed(&body, ")__krs__\n");
     }
     if (s_containers_length != 0u)
     {
-        fprintf(file, "\n# the fields of an instruction a question on the run channel turns, each its first bit and its "
-                      "bits, a\n");
-        fprintf(file, "# barrier holding every bit setting none; then the container the system accepted, which every "
-                      "such\n");
-        fprintf(file, "# question is put in: the kernel it enters at, then its bytes in hex, sixty-four a row. A "
-                      "question's code,\n");
-        fprintf(file, "# registers and exits replace the code's.\n");
-        fwrite(s_containers, 1u, s_containers_length, file);
+        qry_text_printed(&body,
+                         "\n# the fields of an instruction a question on the run channel turns, each its first bit "
+                         "and its bits, a\n");
+        qry_text_printed(&body,
+                         "# barrier holding every bit setting none; then the container the system accepted, which "
+                         "every such\n");
+        qry_text_printed(&body,
+                         "# question is put in: the kernel it enters at, then its bytes in hex, sixty-four a row. "
+                         "A question's code,\n");
+        qry_text_printed(&body, "# registers and exits replace the code's.\n");
+        qry_text_added(&body, s_containers, s_containers_length);
     }
-    const int closed = (fclose(file) == 0);
+    static KscFile s_file;
+    char first[SASS_TEXT];
+    snprintf(first, sizeof(first), "ksc %s", part);
+    const int written =
+        ksc_line_add(&s_file, first) && sass_class_lines_put(&s_file, &body, who) && ksc_write_by(&s_file, path, who);
+    qry_text_freed(&body);
+    ksc_free(&s_file);
+    if (!written)
+    {
+        printf("interface sass class: %s could not be written\n", path);
+        return 0;
+    }
     printf("interface sass class: %s written, %u questions kept whole\n", path, s_classed_count);
-    return closed;
+    return 1;
 }
 
-// the comment over the pipes in a .kdm, a line an entry, each written with its newline
+// the comment over the pipes in a .kdm, a line an entry
 static const char *const s_pipe_comment[] = {
-    "# operations the system writes on the FMA pipe in place of the integer pipe: the operation, its\n",
-    "# writing there, and the lane it moves in, one whose integer pipe holds the first number of\n",
-    "# operations or more and the second more than its FMA pipe.\n"};
+    "# operations the system writes on the FMA pipe in place of the integer pipe: the operation, its",
+    "# writing there, and the lane it moves in, one whose integer pipe holds the first number of",
+    "# operations or more and the second more than its FMA pipe."};
 
 int sass_pipe_read(const char *machines, const char *part)
 {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.kdm", machines, part);
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
+    // the .kdm as the run holds it (kdm.h)
+    static KdmFile s_file;
+    if (!kdm_read(&s_file, path) || (s_file.lines == 0u))
     {
+        kdm_free(&s_file);
         return 0;
     }
-    char line[SASS_TEXT * 2u];
-    while (fgets(line, sizeof(line), file) != NULL)
+    for (unsigned int at = kdm_tail_at(&s_file); at < s_file.lines; at += 1u)
     {
         char one[SASS_TEXT];
         char other[SASS_TEXT];
         unsigned int least = 0u;
         unsigned int over = 0u;
-        if (sscanf(line, "pipe %191s %191s %u %u", one, other, &least, &over) == 4)
+        if (sscanf(s_file.line[at], "pipe %191s %191s %u %u", one, other, &least, &over) == 4)
         {
             sass_pipe_take(one, other, least, over);
         }
     }
-    fclose(file);
+    kdm_free(&s_file);
     return 1;
 }
 
-// 1 where `line` is a pipe of a .kdm or a line of the comment over them
-static int sass_pipe_line(const char *line)
-{
-    int found = (strncmp(line, "pipe ", 5u) == 0);
-    for (unsigned int at = 0u; at < (sizeof(s_pipe_comment) / sizeof(s_pipe_comment[0])); at += 1u)
-    {
-        found = found || (strcmp(line, s_pipe_comment[at]) == 0);
-    }
-    return found;
-}
-
-int sass_pipe_write(const char *machines, const char *part)
+int sass_pipe_write_by(const char *machines, const char *part, QryWho who)
 {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.kdm", machines, part);
-    FILE *const in = fopen(path, "rb");
-    if (in == NULL)
+    // the .kdm as the run holds it, its pipes put in place of those it held, at the end of its tail (kdm.h)
+    static KdmFile s_file;
+    QryText text = {0};
+    for (unsigned int number = 0u; number < s_pipe_count; number += 1u)
     {
-        printf("interface sass class: %s could not be read\n", path);
-        return 0;
+        qry_text_printed(&text, "pipe %s %s %u %u\n", s_pipe[number].operation, s_pipe[number].writing,
+                         s_pipe[number].least, s_pipe[number].over);
     }
-    fseek(in, 0L, SEEK_END);
-    const long size = ftell(in);
-    fseek(in, 0L, SEEK_SET);
-    // ftell answers -1 only where the file cannot be measured, and a .kdm is a few hundred kilobytes
-    char *const kept = (size >= 0L) ? (char *)malloc((size_t)size + 1u) : NULL;
-    if (kept == NULL)
+    const char **pipes = NULL;
+    unsigned int count = 0u;
+    const unsigned int comments = (unsigned int)(sizeof(s_pipe_comment) / sizeof(s_pipe_comment[0]));
+    const int written = ktext_lines_cut(&text, &pipes, &count) && (count == s_pipe_count) && kdm_read(&s_file, path) &&
+                        (s_file.lines != 0u) &&
+                        kdm_pipes_replaced_by(&s_file, s_pipe_comment, comments, pipes, count, who) &&
+                        kdm_write_by(&s_file, path, who);
+    free(pipes);
+    qry_text_freed(&text);
+    kdm_free(&s_file);
+    if (!written)
     {
-        fclose(in);
-        printf("interface sass class: %s could not be held\n", path);
-        return 0;
-    }
-    size_t length = 0u;
-    char line[SASS_TEXT * 4u];
-    while (fgets(line, sizeof(line), in) != NULL)
-    {
-        const size_t taken = strlen(line);
-        if ((sass_pipe_line(line) == 0) && ((length + taken) <= (size_t)size))
-        {
-            memcpy(&kept[length], line, taken);
-            length += taken;
-        }
-    }
-    fclose(in);
-    // the blank lines the pipes stood after, taken down to the one newline that ends the map's last line
-    while ((length >= 2u) && (kept[length - 1u] == '\n') && (kept[length - 2u] == '\n'))
-    {
-        length -= 1u;
-    }
-    FILE *const out = fopen(path, "wb");
-    if (out == NULL)
-    {
-        free(kept);
         printf("interface sass class: %s could not be written\n", path);
         return 0;
     }
-    fwrite(kept, 1u, length, out);
-    free(kept);
-    if (s_pipe_count != 0u)
-    {
-        fprintf(out, "\n");
-    }
-    for (unsigned int at = 0u; (s_pipe_count != 0u) && (at < (sizeof(s_pipe_comment) / sizeof(s_pipe_comment[0])));
-         at += 1u)
-    {
-        fprintf(out, "%s", s_pipe_comment[at]);
-    }
-    for (unsigned int number = 0u; number < s_pipe_count; number += 1u)
-    {
-        fprintf(out, "pipe %s %s %u %u\n", s_pipe[number].operation, s_pipe[number].writing, s_pipe[number].least,
-                s_pipe[number].over);
-    }
-    const int closed = (fclose(out) == 0);
     printf("interface sass class: %s written, %u pipes\n", path, s_pipe_count);
-    return closed;
+    return 1;
 }

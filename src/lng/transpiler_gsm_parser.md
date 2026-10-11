@@ -1,10 +1,10 @@
 # The `.gsm` parser
 
 **Purpose:** What a parser of gnascor's assembly face (`.gsm`) wants. The face is relational: a statement is a pair's state and the transition between two of them, and a mnemonic is the label that transition is read off as. Each want is stated beside the language table its words come from and what stands open.
-**Scope:** `.gsm` source, the text of a `__gsm__(...)` block inside `.g`, and a `.gsm` file `.g` brings in by `use`, as [../cu/transpiler/gnascor.md](../cu/transpiler/gnascor.md) describes them: the branch pair, the shifts, the environmental base states, and both transition matrices. The `.g` parser is [transpiler_g_parser.md](transpiler_g_parser.md). The words are rows of [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv), checked by [lng_check.py](lng_check.py).
+**Scope:** `.gsm` source, the text of a `__gsm__(...)__gsm__` block inside `.g`, and a `.gsm` file `.g` brings in by `use`, as [../cu/transpiler/gnascor.md](../cu/transpiler/gnascor.md) describes them: the branch pair, the shifts, the environmental base states, and both transition matrices. The `.g` parser is [transpiler_g_parser.md](transpiler_g_parser.md). The words are rows of [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv), checked by [lng_check.c](lng_check.c).
 **Status:** Every row is a want. No `.gsm` parser is built.
 
-`.gsm` asks a part how it does math, in the most basic questions there are: `1,1->2` asks whether the part answers 2 for 1 and 1. The answers, held or refused inside the bound, are the sides of a pair, and the states and mnemonics below read them. `.gsm` follows no rule of C's syntax. Inside `.g` it is written only in a `__gsm__(...)` block, and nowhere else. Its identifiers are only the states and the mnemonics of [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv). A transition is the state it left and the state it reached, and the parser keeps that pair beside every mnemonic it reads: a label shared by many transitions then loses none of them (gnascor, Open 4).
+`.gsm` asks a part how it does math, in the most basic questions there are: `1,1->2` asks whether the part answers 2 for 1 and 1. The answers, held or refused inside the bound, are the sides of a pair, and the states and mnemonics below read them. `.gsm` follows no rule of C's syntax. Inside `.g` it is written only in a `__gsm__(...)__gsm__` block, and nowhere else. Its identifiers are only the states and the mnemonics of [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv). A transition is the state it left and the state it reached, and the parser keeps that pair beside every mnemonic it reads: a label shared by many transitions then loses none of them (gnascor, Open 4).
 
 ## Tokens
 
@@ -37,8 +37,8 @@
 
 | want | form | where its words are | what stands open |
 | --- | --- | --- | --- |
-| the text of a `__gsm__(...)` block | everything up to the matching `)` | [transpiler_g_parser.md](transpiler_g_parser.md) | none |
-| a `.gsm` file brought into `.g` | `use bigmul.gsm`, wrapped by the preprocessor as `__gsm__(bigmul.gsm)`, and the file read whole | [transpiler_g_parser.md](transpiler_g_parser.md) | none |
+| the text of a `__gsm__(...)__gsm__` block | everything up to `)__gsm__` | [transpiler_g_parser.md](transpiler_g_parser.md) | none |
+| a `.gsm` file brought into `.g` | `use bigmul.gsm`, wrapped by the preprocessor as `__gsm__(bigmul.gsm)__gsm__`, and the file read whole | [transpiler_g_parser.md](transpiler_g_parser.md) | none |
 | a function a `.gsm` file defines, ready for `.g` to call | held as a lambda in an op block, a primitive `.g` calls as the file defines it; its body is the arrangement the part's answers settled, as a `.kdm` row holds one | [transpiler_g_parser.md](transpiler_g_parser.md) | gnascor does not yet write how a `.gsm` file defines a function's name and parameters |
 | a `.g` statement and its `.gsm` text held to one meaning | none | gnascor: the two faces are the same assembly | no row maps a mnemonic to a transpiler form, and the `.gsm` a `.g` statement compiles to is not derivable from the tables yet |
-| every word the parser reads held in a table | none | [lng_check.py](lng_check.py) | the parser is not written, and nothing it reads is checked yet |
+| every word the parser reads held in a table | none | [lng_check.c](lng_check.c) | the parser is not written, and nothing it reads is checked yet |

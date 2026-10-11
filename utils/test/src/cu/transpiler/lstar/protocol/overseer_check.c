@@ -15,11 +15,20 @@
 //               cause, and holds nothing else; the lessons handed to the run are read back whole
 //   teacher     a question the carrier refuses calls a conference holding the teacher's account and the carrier's;
 //               one whose carrier outlasts its time calls one holding the teacher's
+//   airlock     a round reaches the carrier only once the cross has read it and handed a held list after it: a round
+//               the cross did not read, or one with no held list after it, is carried by nothing, as is every round of
+//               a channel with no airlock whose carrier is handed no held list. Given the real carrier and cross, a
+//               code the vendor reads clean passes with nothing held, and an instruction it calls illegal is held by
+//               its encoding, every reading through the run's streams (run_channel.h, measuring_stick_query.c)
 //
-//     overseer_check <overseer_carrier>
+//     overseer_check <overseer_carrier> [<cubin_run> <machine file> <layout> <cross> <nvdisasm>]
 //
 // The check runs in a run whose writer runs, QRY naming it (qry_run.sh): the teacher hands each round critical, and a
 // critical hand returns once the writer has it on disk
+#if !defined(_WIN32)
+// setenv and unsetenv are POSIX, outside strict C11
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/overseer/overseer.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
 #include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
@@ -73,7 +82,35 @@ static int check_conference_holds(QryBuffer *run, const char *identity, const ch
     return holds;
 }
 
-// a question's identity as R keeps it (record.h): the hash of its code, its registers, its shape and launches, its
+// 1 where the latest blob `name` of the run holds `text`
+static int check_latest_holds(QryBuffer *run, const char *name, const char *text)
+{
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_latest(run, name, &bytes, &size, NULL))
+    {
+        return 0;
+    }
+    const size_t length = strlen(text);
+    for (unsigned long long at = 0ull; (at + length) <= size; at += 1ull)
+    {
+        if (memcmp(bytes + at, text, length) == 0)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// 1 where the latest blob `name` of the run is there and holds no byte
+static int check_latest_empty(QryBuffer *run, const char *name)
+{
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 1ull;
+    return qry_latest(run, name, &bytes, &size, NULL) && (size == 0ull);
+}
+
+// a question's identity as R keeps it (kqr.h): the hash of its code, its registers, its shape and launches, its
 // count of cases and the hash of its cases, into `identity`, which holds 96
 static void check_identity(const RunQuestion *question, char *identity)
 {
@@ -98,9 +135,9 @@ static unsigned char s_code[32];
 
 int main(int count, char **words)
 {
-    if (count != 2)
+    if ((count != 2) && (count != 7))
     {
-        printf("overseer_check <overseer_carrier>\n");
+        printf("overseer_check <overseer_carrier> [<cubin_run> <machine file> <layout> <cross> <nvdisasm>]\n");
         return 2;
     }
     QryBuffer *const run = qry_run();
@@ -214,8 +251,10 @@ int main(int count, char **words)
                    overseer_holds("IMAD.X R1, R2, R3, R4", "1", why, sizeof(why)),
                "lessons: read back, each holds as it did");
 
-    // teacher: a question the carrier refuses calls a conference of the teacher's account and the carrier's
-    const char *const refusing[] = {words[1], "refuse", NULL};
+    // teacher: a question the carrier refuses, through an airlock whose cross reads the round, calls a conference of
+    // the teacher's account and the carrier's
+    const char *const refusing[] = {words[1], "refuse",  "--held", "held.txt", "--pop",    words[1],
+                                    "pop",    "--cross", words[1], "cross",    "held.txt", NULL};
     check_that(run_channel_open(refusing, 10000000ull) == 1, "teacher: the channel opens on the refusing carrier");
     for (unsigned int at = 0u; at < sizeof(s_code); at += 1u)
     {
@@ -241,11 +280,115 @@ int main(int count, char **words)
     check_that(overseer_convened(run, identity, 0, &ruling) == 1 && ruling.agreed &&
                    (ruling.cause == OVERSEER_CAUSE_ADDRESS) && (ruling.guidance == OVERSEER_OTHER_WAY),
                "teacher: the conference rules on the carrier's and the learner's accounts");
+    check_that(check_latest_holds(run, "airlock.txt", " airlock_answers.txt "),
+               "airlock: the round's list is handed with its answers renamed for the pop");
+    char line[160];
+    snprintf(line, sizeof(line), "teacher: %s carried: illegal, refused CUDA_ERROR_ILLEGAL_ADDRESS", identity);
+    check_that(check_latest_holds(run, "trace", line),
+               "trace: the teacher's line for the refused question is in the run");
     run_channel_close();
 
-    // teacher: a carrier that outlasts its time calls a conference too
-    const char *const hanging[] = {words[1], "hang", NULL};
+    // trace: every path traces where QRY_TRACE is unset; a plain name keeps only its path, a name after `-` keeps its
+    // path out, 0 keeps every path out, and a panic's or a critical trace always reaches the run
+    static const struct
+    {
+        const char *chosen;
+        const char *path;
+        unsigned int priority;
+        int traced;
+        const char *what;
+    } s_traces[] = {
+        {"", "teacher", QRY_ORDINARY, 1, "trace: unset, every path traces"},
+        {"teacher", "teacher", QRY_ORDINARY, 1, "trace: a plain name traces its path"},
+        {"teacher", "airlock", QRY_ORDINARY, 0, "trace: and keeps every other path out"},
+        {"teacher,airlock", "airlock", QRY_ORDINARY, 1, "trace: a list of names traces each"},
+        {"-airlock", "airlock", QRY_ORDINARY, 0, "trace: a name after - keeps its path out"},
+        {"-airlock", "teacher", QRY_ORDINARY, 1, "trace: and every other path traces"},
+        {"0", "teacher", QRY_ORDINARY, 0, "trace: 0 keeps every path out"},
+        {"0", "teacher", QRY_PANIC, 1, "trace: but a panic's trace always reaches the run"},
+        {"airlock", "teacher", QRY_CRITICAL, 1, "trace: and a critical one's"},
+    };
+    for (size_t at = 0u; at < (sizeof(s_traces) / sizeof(s_traces[0])); at += 1u)
+    {
+#if defined(_WIN32)
+        _putenv_s(QRY_TRACE_ENVIRONMENT, s_traces[at].chosen);
+#else
+        setenv(QRY_TRACE_ENVIRONMENT, s_traces[at].chosen, 1);
+#endif
+        check_that(qry_traced(s_traces[at].path, s_traces[at].priority) == s_traces[at].traced, s_traces[at].what);
+    }
+#if defined(_WIN32)
+    _putenv_s(QRY_TRACE_ENVIRONMENT, "");
+#else
+    unsetenv(QRY_TRACE_ENVIRONMENT);
+#endif
+
+    // airlock: a round the cross does not read, or reads and hands no held list after, is carried by nothing
+    static const char *const s_crossings[] = {"unread", "silent"};
+    for (unsigned int crossing = 0u; crossing < 2u; crossing += 1u)
+    {
+        const char *const unread[] = {words[1],   "refuse", "--held",  "held.txt", "--pop",
+                                      words[1],   "pop",    "--cross", words[1],   s_crossings[crossing],
+                                      "held.txt", NULL};
+        check_that(run_channel_open(unread, 10000000ull) == 1, "airlock: the channel opens");
+        s_code[1] = (unsigned char)(0xa0u + crossing);
+        run_channel_ask(&s_question);
+        check_identity(&s_question, identity);
+        check_that((s_question.outcome == RUN_NO_CHANNEL) && (strstr(s_question.refused, "the airlock") != NULL) &&
+                       !check_conference_holds(run, identity, "proctor:"),
+                   (crossing == 0u) ? "airlock: a round the cross did not read never reaches the carrier"
+                                    : "airlock: a round with no held list handed after it never reaches the carrier");
+        run_channel_close();
+    }
+
+    // airlock: a live channel with none, and a carrier handed no held list, carries nothing; an airlock whose carrier
+    // reads no held list does not open
+    const char *const open_air[] = {words[1], "refuse", NULL};
+    check_that(run_channel_open(open_air, 10000000ull) == 1, "airlock: a channel with none opens");
+    s_code[1] = 0xb0u;
+    run_channel_ask(&s_question);
+    check_that((s_question.outcome == RUN_NO_CHANNEL) && (strstr(s_question.refused, "has none") != NULL),
+               "airlock: and carries nothing");
+    run_channel_close();
+    const char *const unheld[] = {words[1],  "refuse", "--pop", words[1],   "pop",
+                                  "--cross", words[1], "cross", "held.txt", NULL};
+    check_that(run_channel_open(unheld, 10000000ull) == 0,
+               "airlock: one whose carrier reads no held list does not open");
+
+    // airlock, with the real tools where they are given: the carrier's dry pop and the vendor's cross read the round
+    // through the run's streams, a clean code passes with nothing held, and an illegal instruction is held by its
+    // encoding
+    if (count == 7)
+    {
+        const char *const real[] = {words[1], "refuse", "--held",     "held.txt", "--pop",   words[2],
+                                    "--dry",  "--full", words[3],     words[4],   "--cross", words[5],
+                                    words[6], "SM86",   "airlock.md", "held.txt", NULL};
+        check_that(run_channel_open(real, 60000000ull) == 1, "airlock: the channel opens on the real pop and cross");
+        // EXIT, then a NOP: what the vendor reads clean
+        static const unsigned char s_clean[32] = {0x4du, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+                                                  0x00u, 0x00u, 0x80u, 0x03u, 0x00u, 0xeau, 0x0fu, 0x00u,
+                                                  0x18u, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+                                                  0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc0u, 0x0fu, 0x00u};
+        memcpy(s_code, s_clean, sizeof(s_clean));
+        run_channel_ask(&s_question);
+        check_that(s_question.outcome == RUN_ILLEGAL, "airlock: a clean code passes the real airlock to the carrier");
+        check_that(check_latest_holds(run, "airlock_cross.txt", "questions read: 1") &&
+                       check_latest_empty(run, "held.txt"),
+                   "airlock: the vendor read it and holds nothing");
+        // all ones after the EXIT: an instruction the vendor calls illegal
+        memset(s_code + 16, 0xff, 16u);
+        run_channel_ask(&s_question);
+        check_that(check_latest_holds(run, "held.txt", "ffffffffffffffff ffffffffffffffff"),
+                   "airlock: the instruction the vendor calls illegal is held by its encoding");
+        run_channel_close();
+    }
+
+    // teacher, last: a carrier that outlasts its time calls a conference too. Its ending opens the panic line, and no
+    // question is put in the run after it
+    const char *const hanging[] = {words[1], "hang",    "--held", "held.txt", "--pop",    words[1],
+                                   "pop",    "--cross", words[1], "cross",    "held.txt", NULL};
     check_that(run_channel_open(hanging, 1000000ull) == 1, "teacher: the channel opens on the hanging carrier");
+    memset(s_code, 0, sizeof(s_code));
     s_code[0] = 0xffu;
     run_channel_ask(&s_question);
     check_that(s_question.outcome == RUN_NOTHING, "teacher: the carrier ended out of its time answers nothing");

@@ -2,12 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds the interface (compiler/interface), its PTX probe and its SASS probe, then runs the SASS probe: the PTX probe assembles
 # each membership question's kernel, written from ptx.krs, into a cubin; nvdisasm lists each, which gives each form's
-# machine code; and each operation's 128 bits are turned over one at a time and decoded, which gives its fields
+# machine code; and each operation's 128 bits are turned over one at a time and decoded, which gives its fields. The
+# SASS probe runs in one query run, query<n>-<datetime>.qry in the build's qry folder (qry_run.sh), whose writer writes
+# each machine file it learns in its place.
 set -u
 
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_CU="$TEST"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
+source "$TOP/src/cu/types/file_defs/file_defs.sh"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
@@ -56,7 +59,7 @@ done
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$CUBIN")
 rm -f "$BINARY" "$PROBE"
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" \
+for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "${FILE_DEFS[@]}" \
               "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.c" "$TEST/interface_sass_probe_main.c" "$TEST/interface_sass_probe_machine.c" \
               "$TEST/interface_sass_probe_ask.c" "$TEST/interface_sass_probe_class.c" "$TEST/interface_sass_probe_cubin.c" \
               "$TEST/interface_sass_probe_read.c" "$TEST/interface_sass_probe_check.c"; do
@@ -64,7 +67,7 @@ for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
             cc -std=c11 -O2 "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
@@ -86,6 +89,9 @@ nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -
     "$TEST_CU"/interface_ptx_probe_{questions,main}.cu \
     "${CODEGEN_SOURCES[@]}" -lnvrtc -lnvJitLink
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }
+source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+qry_writer_built "$OUT"
+run_started "$OUT/qry"
 
 # SASS_PATTERN names the sass folder of an earlier run: the part is asked how it loops against those cubins and the
 # machine file the tree holds for the first architecture, and nothing is learned again

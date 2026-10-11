@@ -61,13 +61,13 @@ CARRIER="$OUT/cubin_run"
 cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvidia/cubin_safe.c" \
     "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
     "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
-    "$QRY_SOURCE/qry_buffer.c" || { echo "  build failed: cubin_run did not compile"; exit 1; }
+    "${FILE_DEFS[@]}" || { echo "  build failed: cubin_run did not compile"; exit 1; }
 
 BINARY="$OUT/khw_write"
 cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" \
-    "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/query/answer_read.c" "$PROTOCOL/record_R/record.c" \
+    "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/query/answer_read.c" \
     "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" \
-    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$QRY_SOURCE/qry_buffer.c" ||
+    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
     { echo "  build failed: khw_write did not compile"; exit 1; }
 
 # the vendor's writer, a program the protocol runs through the interface to name the answers and lay out the .khw
@@ -75,7 +75,7 @@ WRITER="$OUT/khw_machine_write"
 cc -std=c11 -O2 -Wall -o "$WRITER" "$LAYOUTS/nvidia/khw_machine_write.c" \
     "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
     "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
-    "$QRY_SOURCE/qry_buffer.c" || { echo "  build failed: khw_machine_write did not compile"; exit 1; }
+    "${FILE_DEFS[@]}" || { echo "  build failed: khw_machine_write did not compile"; exit 1; }
 
 # the questions of the run's latest questions.txt, counted
 questions_counted()
@@ -89,7 +89,6 @@ run_started "$RUNS"
 run_carried "$RUNS" "$WORK/forms_work.txt" "$WORK/forms.txt" held.txt
 run_read "$MACHINE" "${MACHINE%.khw}.ksc" "${MACHINE%.khw}.kqr" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
     "$LAYOUTS/nvidia/mnemonic_nvidia.tsv"
-run_left "$MACHINE" "${MACHINE%.khw}.ksc" "${MACHINE%.khw}.kqr"
 if [ "$MODE" = "enumerate" ]; then
     # the slot's questions emitted off the part for the vendor's disassembler, seeded from the forms a prior run
     # learned where there are any: each known form's fields and register-runs listed, none carried, nothing reached

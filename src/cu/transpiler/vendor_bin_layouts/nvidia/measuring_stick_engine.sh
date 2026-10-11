@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds and runs measuring_stick_engine: each kernel of the measuring stick read form by form through cu.krs and
 # written in sass.krs, held against nvcc's listing on the host. No device. It is one query run, query<n>-<datetime>.qry
-# in <out>/qry (qry_run.sh): what the engine prints is its blob assembler.log, and with STICK_TRACE set each kernel's
-# trace is its blob NNNN.trace.
+# in <out>/qry (qry_run.sh): what the engine prints is its blob assembler.log, and each kernel's trace its blob
+# NNNN.trace, unless QRY_TRACE is 0.
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_engine.sh
 set -u
@@ -50,7 +50,7 @@ build_object()
 }
 for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$SCRIPTURA"/*.c \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
-    "$QRY_SOURCE/qry_buffer.c"; do
+    "${FILE_DEFS[@]}"; do
     build_object c "$(basename "$source")" "$source"
 done
 # the assembly printer and the device's code generator run on the record machine and call the host oracle, which
@@ -92,11 +92,8 @@ for code in "$OUT"/*.bin; do
 done
 wait
 
-# the stick's record, with each kernel written through the rulesets held against nvcc's listing
-case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*) PYTHON=python ;;
-    *) PYTHON=python3 ;;
-esac
-"$PYTHON" "$TEST/measuring_stick_read.py" "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" \
+# the stick's record, with each kernel written through the rulesets held against nvcc's listing, written by the run's
+# writer
+"$TEST/measuring_stick_read.sh" "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" \
     "$(cygpath -m "$TOP/src/cu/transpiler/lstar/protocol/table")/sass.krs" "$(cygpath -m "$TEST")/measuring_stick.md" \
     "$(cygpath -m "$OUT")/engine.tsv" "$(cygpath -m "$OUT")"

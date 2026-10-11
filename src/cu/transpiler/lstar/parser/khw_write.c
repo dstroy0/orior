@@ -51,6 +51,7 @@
 #include "../protocol/query/answer_read.h"
 #include "../protocol/teacher/run_channel.h"
 
+#include "../../../types/file_defs/ksc/ksc.h"
 #include "../../../types/file_defs/qry/qry_buffer.h"
 #include "../interface/interface.h"
 
@@ -1086,9 +1087,10 @@ static int khw_forms_work_written(void)
 }
 
 // the row a form's cost is kept under in the part's .ksc, its word the least launch and its question the form and the
-// spread: `run answers <least> cost <low> <high> <spread>`, the numbers in hex as every run row writes them
-#define KHW_COST_ROW "run answers %016llx cost %016llx %016llx %016llx\n"
-#define KHW_COST_READ "run answers %llx cost %llx %llx %llx"
+// spread: `run answers <least> cost <low> <high> <spread>`, the numbers in hex as every run row writes them; and the
+// words its question begins with, the form's
+#define KHW_COST_ROW "run answers %016llx cost %016llx %016llx %016llx"
+#define KHW_COST_ASKED "cost %016llx %016llx"
 
 // The cost of every classified form, asked (P6): each put at the slot over its relation's cases, timed over
 // KHW_LAUNCHES launches, each launch alone, and its runs read as the least one took and the spread past it, m_c and
@@ -1127,48 +1129,25 @@ static unsigned int khw_costs_asked(const char *path)
         s_spread[timed] = s_question.most - s_question.least;
         timed += 1u;
     }
-    // the .ksc's lines as they were, the cost row of a form timed now left out
-    static char s_kept[1u << 20u];
-    size_t kept = 0u;
-    FILE *const was = fopen(path, "rb");
-    if (was != NULL)
+    // the .ksc as the run holds it, the row of each form timed now in place of the one before, after the run channel's
+    // last row, and handed to the run's writer whole (ksc.h)
+    static KscFile s_file;
+    const QryWho who = QRY_WHO_HERE;
+    int written = ksc_read(&s_file, path);
+    for (unsigned int at = 0u; written && (at < timed); at += 1u)
     {
-        char line[512];
-        while (fgets(line, (int)sizeof(line), was) != NULL)
-        {
-            unsigned long long least = 0ull;
-            unsigned long long low = 0ull;
-            unsigned long long high = 0ull;
-            unsigned long long spread = 0ull;
-            int again = 0;
-            if (sscanf(line, KHW_COST_READ, &least, &low, &high, &spread) == 4)
-            {
-                for (unsigned int at = 0u; at < timed; at += 1u)
-                {
-                    again = again || ((s_low[at] == low) && (s_high[at] == high));
-                }
-            }
-            const size_t length = strlen(line);
-            if (!again && ((kept + length) < sizeof(s_kept)))
-            {
-                memcpy(&s_kept[kept], line, length);
-                kept += length;
-            }
-        }
-        fclose(was);
+        char row[128];
+        char asked[64];
+        snprintf(row, sizeof(row), KHW_COST_ROW, s_least[at], s_low[at], s_high[at], s_spread[at]);
+        snprintf(asked, sizeof(asked), KHW_COST_ASKED, s_low[at], s_high[at]);
+        const char *const rows[1] = {row};
+        written = ksc_rows_replaced_by(&s_file, "run", asked, rows, 1u, who);
     }
-    FILE *const file = fopen(path, "wb");
-    if (file == NULL)
+    if (!written || !ksc_write_by(&s_file, path, who))
     {
-        printf("  khw_write: %s could not be written\n", path);
-        return timed;
+        printf("  khw_write: %s could not be written through the run's writer\n", path);
     }
-    fwrite(s_kept, 1u, kept, file);
-    for (unsigned int at = 0u; at < timed; at += 1u)
-    {
-        fprintf(file, KHW_COST_ROW, s_least[at], s_low[at], s_high[at], s_spread[at]);
-    }
-    fclose(file);
+    ksc_free(&s_file);
     return timed;
 }
 

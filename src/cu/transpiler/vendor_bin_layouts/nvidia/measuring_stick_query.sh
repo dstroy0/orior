@@ -44,10 +44,10 @@ CARRIER="$OUT/cubin_run"
 cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvidia/cubin_safe.c" \
     "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
     "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
-    "$QRY_SOURCE/qry_buffer.c" || { echo "  the carrier did not compile"; exit 2; }
+    "${FILE_DEFS[@]}" || { echo "  the carrier did not compile"; exit 2; }
 CROSS="$OUT/measuring_stick_query"
 cc -std=c11 -O2 -Wall -Wextra -pthread -I "$TOP/src/cu/engine" -o "$CROSS" "$TEST/measuring_stick_query.c" \
-    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$QRY_SOURCE/qry_buffer.c" ||
+    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
     { echo "  the cross did not compile"; exit 2; }
 
 # the run QRY names where its writer runs, or a run of the cross's own with the latest questions carried into it: the
@@ -83,7 +83,7 @@ fi
 # the slot instruction of every popped container, as the part would be handed it, read by the vendor's disassembler
 # together as one raw run, split only where the vendor stops at an instruction it calls illegal
 # (measuring_stick_query.c)
-"$CROSS" questions.txt "$CUDA/bin/nvdisasm" SM86 "$SCRATCH" measuring_stick_query.md held.txt
+"$CROSS" questions.txt "$CUDA/bin/nvdisasm" SM86 measuring_stick_query.md held.txt
 held=$?
 echo "  the report is the blob measuring_stick_query.md of $QRY; the vendor's feedback is its blob held.txt"
 echo "  a live run holds those encodings with: cubin_run --held held.txt ..."

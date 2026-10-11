@@ -27,6 +27,7 @@
 // KRS_FORMS_NAME of the run's buffer, and what it prints is handed to the run's buffer as KRS_MACHINE_NAME.
 #include "../../../engine/rmc/precept_value.h"
 #include "../../../engine/rmc/word_web.h"
+#include "../../../types/file_defs/ksc/ksc.h"
 #include "../../../types/file_defs/qry/qry_buffer.h"
 #include "../interface/interface.h"
 #include "../protocol/counterexample/ladder.h"
@@ -167,22 +168,21 @@ static unsigned int krs_forms_read(const unsigned char *bytes, unsigned long lon
 static unsigned int krs_costs_read(const char *path)
 {
     s_costs = 0u;
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
-    {
-        return 0u;
-    }
-    char line[512];
-    while ((fgets(line, (int)sizeof(line), file) != NULL) && (s_costs < KRS_FORMS))
+    static KscFile s_file;
+    static KscRow s_row;
+    ksc_read(&s_file, path);
+    for (unsigned int at = 0u; (at < s_file.lines) && (s_costs < KRS_FORMS); at += 1u)
     {
         KrsCost held;
-        if (sscanf(line, "run answers %llx cost %llx %llx %llx", &held.least, &held.low, &held.high, &held.spread) == 4)
+        if (ksc_row_read(s_file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
+            (sscanf(s_row.question, "cost %llx %llx %llx", &held.low, &held.high, &held.spread) == 3))
         {
+            held.least = s_row.value;
             s_cost[s_costs] = held;
             s_costs += 1u;
         }
     }
-    fclose(file);
+    ksc_free(&s_file);
     return s_costs;
 }
 
@@ -203,13 +203,15 @@ static const KrsCost *krs_cost_of(unsigned long long low, unsigned long long hig
 static unsigned int krs_given_read(const char *path)
 {
     s_givens = 0u;
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
+    unsigned char *file_bytes = NULL;
+    unsigned long long file_size = 0ull;
+    unsigned long long file_at = 0ull;
+    if (!qry_file_read(qry_run(), path, &file_bytes, &file_size))
     {
         return 0u;
     }
     char line[KRS_LINE * 2u];
-    while ((fgets(line, (int)sizeof(line), file) != NULL) && (s_givens < KRS_FORMS))
+    while ((qry_line_next(file_bytes, file_size, &file_at, line, sizeof(line))) && (s_givens < KRS_FORMS))
     {
         char kind[KRS_NAME];
         char name[KRS_NAME];
@@ -221,7 +223,7 @@ static unsigned int krs_given_read(const char *path)
             s_givens += 1u;
         }
     }
-    fclose(file);
+    free(file_bytes);
     return s_givens;
 }
 
@@ -273,15 +275,17 @@ static unsigned int krs_ranked(const unsigned int *writer, unsigned int writers)
 // `parameter`. The count, 0 where it names none of them
 static unsigned int krs_parameters_named(const char *path, const char *name, char parameter[][KRS_NAME])
 {
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
+    unsigned char *file_bytes = NULL;
+    unsigned long long file_size = 0ull;
+    unsigned long long file_at = 0ull;
+    if (!qry_file_read(qry_run(), path, &file_bytes, &file_size))
     {
         return 0u;
     }
     static const char *const s_naming[] = {"form", "construct", "nop", "err"};
     char line[4096];
     unsigned int count = 0u;
-    while ((count == 0u) && (fgets(line, (int)sizeof(line), file) != NULL))
+    while ((count == 0u) && (qry_line_next(file_bytes, file_size, &file_at, line, sizeof(line))))
     {
         char kind[KRS_NAME];
         char named[KRS_NAME];
@@ -309,7 +313,7 @@ static unsigned int krs_parameters_named(const char *path, const char *name, cha
             rest += step;
         }
     }
-    fclose(file);
+    free(file_bytes);
     return count;
 }
 
@@ -481,13 +485,8 @@ int main(int count, char **word)
     krs_costs_read(path);
     snprintf(path, sizeof(path), "%s/%s.krs", rulesets, part);
     krs_given_read(path);
-    FILE *const forms = fopen(path, "wb");
-    if (forms == NULL)
-    {
-        printf("  krs_write: %s could not be written\n", path);
-        return 1;
-    }
-    fprintf(forms, "krs 1\n");
+    QryText forms = {0};
+    qry_text_printed(&forms, "krs 1\n");
     unsigned int given = 0u;
     for (unsigned int at = 0u; at < KRS_WORDS; at += 1u)
     {
@@ -515,7 +514,7 @@ int main(int count, char **word)
             const char *const kept = krs_given_of(each->name);
             if (kept != NULL)
             {
-                fprintf(forms, "%s\n", kept);
+                qry_text_printed(&forms, "%s\n", kept);
                 given += 1u;
             }
             printf("  krs_write: %u forms write %s, one cost or a cost not read (P6); %s\n", writers, each->name,
@@ -539,28 +538,23 @@ int main(int count, char **word)
             printf("  krs_write: %s is written by a form whose operands do not carry its words\n", each->name);
             continue;
         }
-        fprintf(forms, "form %s", each->name);
+        qry_text_printed(&forms, "form %s", each->name);
         for (unsigned int place = 0u; place < parameters; place += 1u)
         {
-            fprintf(forms, " %s", parameter[place]);
+            qry_text_printed(&forms, " %s", parameter[place]);
         }
-        fprintf(forms, " = %s\\n\n", text);
+        qry_text_printed(&forms, " = %s\\n\n", text);
         given += 1u;
     }
-    if (fclose(forms) != 0)
+    if (qry_text_filed(qry_run(), path, &forms) == 0ull)
     {
         printf("  krs_write: %s could not be written\n", path);
         return 1;
     }
     snprintf(path, sizeof(path), "%s/%s.krs", rulesets, language);
-    FILE *const head = fopen(path, "wb");
-    if (head == NULL)
-    {
-        printf("  krs_write: %s could not be written\n", path);
-        return 1;
-    }
-    fprintf(head, "krs 1\nruleset %s\npart %s\n", language, part);
-    if (fclose(head) != 0)
+    QryText head = {0};
+    qry_text_printed(&head, "krs 1\nruleset %s\npart %s\n", language, part);
+    if (qry_text_filed(qry_run(), path, &head) == 0ull)
     {
         printf("  krs_write: %s could not be written\n", path);
         return 1;

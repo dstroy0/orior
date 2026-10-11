@@ -19,6 +19,7 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
+source "$TOP/src/cu/types/file_defs/file_defs.sh"
 CUB="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INT="$TOP/src/cu/transpiler/lstar/interface"
 KRS="$TOP/src/cu/types/file_defs/readers"
@@ -46,17 +47,17 @@ fi
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CUB" -I "$INT" -I "$KRS" -I "$BOOT")
 cc -std=c11 -O1 -Wall "${INCLUDES[@]}" -o "$OUT/interface_sass_writings" "$HERE/interface_sass_writings.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" || exit 1
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "${FILE_DEFS[@]}" || exit 1
 # the runner holds every cubin to cubin_safe on the host before the driver is handed it
 cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/interface_sass_run.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "${FILE_DEFS[@]}" \
     -L "$CUDA/lib/x64" -lcuda 2>/dev/null || { echo "  the runner did not link against the CUDA driver"; exit 1; }
 # the descent is orior's own, and orior reads exact integers
 cc -std=c11 -O2 -Wall -I "$SIFT" -I "$EXACT" -o "$OUT/gate_descent" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/gate_descent.c" "$BOOT/gate/chain_build.c" \
     "$SIFT/orior_core.c" "$SIFT/orior_field.c" "$SIFT/orior_steer.c" "$SIFT/orior_steer_count.c" \
     "$SIFT/orior_steer_plan.c" "$SIFT/scan.c" "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" \
-    "$EXACT/exact_integer_limbs.c" || exit 1
+    "$EXACT/exact_integer_limbs.c" "${FILE_DEFS[@]}" || exit 1
 
 MACHINE="$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.khw"
 WIN_OUT="$(cygpath -m "$OUT")"
@@ -104,10 +105,14 @@ if [ -z "${WRITINGS_SEARCHED:-}" ]; then
     "$OUT/interface_sass_writings" chains-read "$WIN_OUT" "$(cygpath -m "$HERE")/interface_sass_chains.md" || exit 1
 fi
 
-# the descent's cases for each relation put to every arrangement it ran over
+# the descent's cases for each relation put to every arrangement it ran over, its .kdm and its cases written by the
+# writer of the run this script joins or starts in <out>/qry (qry_run.sh)
 DESCENT="$OUT/descent"
 rm -rf "$DESCENT"
 mkdir -p "$DESCENT"
+source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+qry_writer_built "$OUT"
+run_started "$OUT/qry"
 "$OUT/gate_descent" "$(cygpath -m "$DESCENT")" > "$DESCENT/gate_descent.out" || exit 1
 PAIRS=()
 for rows in "$DESCENT"/*.kdm; do

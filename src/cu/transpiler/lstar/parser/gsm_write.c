@@ -150,12 +150,7 @@ int main(int count, char **word)
     gsm_folder_of(machine, rulesets, sizeof(rulesets));
     char path[1200];
     snprintf(path, sizeof(path), "%s/%s.gsm", rulesets, part);
-    FILE *const out = fopen(path, "wb");
-    if (out == NULL)
-    {
-        printf("  gsm_write: %s could not be written\n", path);
-        return 1;
-    }
+    QryText out = {0};
     unsigned int relations = 0u;
     unsigned int cases = 0u;
     for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
@@ -177,12 +172,12 @@ int main(int count, char **word)
                     continue;
                 }
                 answer = (read_as != 0u) ? ladder_signed_answer(anchor, held->word) : answer;
-                fprintf(out, "%u,%u->%u\n", held->word[0], held->word[1], answer);
+                qry_text_printed(&out, "%u,%u->%u\n", held->word[0], held->word[1], answer);
                 cases += 1u;
             }
         }
     }
-    if (fclose(out) != 0)
+    if (qry_text_filed(qry_run(), path, &out) == 0ull)
     {
         printf("  gsm_write: %s could not be written\n", path);
         return 1;

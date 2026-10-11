@@ -13,6 +13,7 @@
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
+source "$TOP/src/cu/types/file_defs/file_defs.sh"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
 CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
@@ -29,7 +30,7 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CUBIN/sass_target.cu"; d
     c++ -std=c++17 -O1 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$CUBIN" -x c++ -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c"; do
+for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "${FILE_DEFS[@]}" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c"; do
     object="$OUT/$(basename "$source").o"
     cc -std=c11 -O1 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")

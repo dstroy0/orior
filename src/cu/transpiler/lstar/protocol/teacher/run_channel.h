@@ -97,13 +97,23 @@ typedef struct
 // A carrier whose only word is `dry` is a dry run: nothing carries a question and nothing answers it. Each question is
 // handed as question<n>.bin and cases<n>.txt, and as a line of questions.txt in the form a carrier's list takes,
 // `<code> <registers> <cases> <answers> <slot> <launches>`, the list handed whole once the channel closes, and it reads
-// RUN_HELD. What the protocol put is then checked by handing that list to a carrier that stops before the part
+// RUN_HELD. What the protocol put is then checked by handing that list to a carrier that stops before the part.
+//
+// Every round a live channel carries passes the airlock first, and nothing the vendor's reader has not read goes to the
+// part. The words after the carrier's may open one: `--pop <words>`, the carrier with the part taken out, which hands
+// each question's container (`--list <list>` put after its words), and `--cross <words>`, the vendor's reader over the
+// containers (the list put after its first word), which hands the held list the carrier reads by its `--held <name>`.
+// Before each round is carried, its list is handed as airlock.txt, each question's answers named airlock_ before its
+// own name, the pop and the cross are run over it, and the round is carried only where the cross read it and handed
+// the held list after it; the carrier then holds every code the vendor called out (cubin_safe.h). A channel with no
+// airlock carries a round only where its carrier is handed a held list of a cross that read the whole pass before it.
+// A round the airlock does not pass is carried by nothing and reads RUN_NO_CHANNEL, the airlock's reason its refusal
 int run_channel_open(const char *const *carrier, unsigned long long limit_microseconds);
 
-// R, the part's record at `path` (record.h), opened for the channel: an untimed question R holds an answer to is
+// R, the part's record at `path` (kqr.h), opened for the channel: an untimed question R holds an answer to is
 // answered from R and never carried, one it holds timed out is carried again, and what comes back of every question
-// carried is kept in R under a cycle of `mode`. R is written back when the channel is closed. 1, or 0 with the
-// reason printed. A dry run reads R and keeps nothing in it
+// carried is kept in R under a cycle of `mode`. R is written back when the channel is closed, where it changed and
+// was read whole. 1, or 0 with the reason printed. A dry run reads R and keeps nothing in it
 int run_channel_record(const char *path, const char *member, const char *mode);
 
 // `asked` put and answered. 1 where the outcome is RUN_ANSWERED, 0 otherwise, with `asked->outcome` saying which

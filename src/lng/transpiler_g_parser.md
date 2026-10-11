@@ -1,10 +1,10 @@
 # The `.g` parser
 
 **Purpose:** What a parser of gnascor's high order face (`.g`) wants. `.g` takes C's syntax style and is not C: no rule of C's binds it past that, reserved identifiers included. Each want is stated in the terms of C11 (ISO/IEC 9899:2011), the section of the standard it follows, the language table its words come from, and what stands open between it and a parser that reads it.
-**Scope:** `.g` source as [../cu/transpiler/gnascor.md](../cu/transpiler/gnascor.md) describes it: semantic plain language plus the shortcut operators, the query protocol's syntax, and the switch into `.gsm`. The `.gsm` parser is [transpiler_gsm_parser.md](transpiler_gsm_parser.md). The words are rows of [transpiler_lng.tsv](transpiler_lng.tsv) and [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv), checked by [lng_check.py](lng_check.py).
+**Scope:** `.g` source as [../cu/transpiler/gnascor.md](../cu/transpiler/gnascor.md) describes it: semantic plain language plus the shortcut operators, the query protocol's syntax, and the switch into `.gsm`. The `.gsm` parser is [transpiler_gsm_parser.md](transpiler_gsm_parser.md). The words are rows of [transpiler_lng.tsv](transpiler_lng.tsv) and [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv), checked by [lng_check.c](lng_check.c).
 **Status:** Every row is a want. No `.g` parser is built.
 
-`.g` is not C. It takes C's syntax style: tokens as C11 §6.4 has them, expressions by C11 §6.5's precedence, declarations and statements as §6.7 and §6.8 have them, a statement ended by `;` and a block held in `{}`. Where `.g` has a word for an operator, the word is the row of [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv) that marks the operator's column, and a core op takes the name Rust gives it. Asm is written only inside `__gsm__(...)`: a state, a mnemonic, a pair and a transition appear nowhere else in `.g`. Everything else is plain C, written as C writes it: the translation phases and the preprocessor, comments line and block, a line continued by `\`, calls, casts, `&&` and `||`, loads and stores through a pointer, members by `.` and by `->`, declarations, `const`, atomics, blocks, tests against 0, select, selection, loops, jumps and labels. A want whose words no table holds says so, and the name is Doug's to give.
+`.g` is not C. It takes C's syntax style: tokens as C11 §6.4 has them, expressions by C11 §6.5's precedence, declarations and statements as §6.7 and §6.8 have them, a statement ended by `;` and a block held in `{}`. Where `.g` has a word for an operator, the word is the row of [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv) that marks the operator's column, and a core op takes the name Rust gives it. Asm is written only inside `__gsm__(...)__gsm__`: a state, a mnemonic, a pair and a transition appear nowhere else in `.g`. Everything else is plain C, written as C writes it: the translation phases and the preprocessor, comments line and block, a line continued by `\`, calls, casts, `&&` and `||`, loads and stores through a pointer, members by `.` and by `->`, declarations, `const`, atomics, blocks, tests against 0, select, selection, loops, jumps and labels. A want whose words no table holds says so, and the name is Doug's to give.
 
 ## Translation phases and the preprocessor (C11 §5.1.1.2, §6.10)
 
@@ -13,7 +13,7 @@
 | a line continued onto the next | phase 2, `\` then a newline, the two deleted | plain C | none |
 | comments, each read as one space | phase 3; `//` to the end of the line, `/* */` across lines and not nested (§6.4.9) | `//` is the column `note` marks | none |
 | the preprocessor | phase 4: `#include`, `#define` of objects and of functions with `#` and `##`, `#undef`, `#if`, `#ifdef`, `#ifndef`, `#elif`, `#else`, `#endif`, `#line`, `#error`, `#pragma` and `_Pragma` (§6.10) | plain C | none |
-| a `.gsm` file brought into `.g` | `use bigmul.gsm`, which the preprocessor writes as `__gsm__(bigmul.gsm)` | `use` in [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv) | none |
+| a `.gsm` file brought into `.g` | `use bigmul.gsm`, which the preprocessor writes as `__gsm__(bigmul.gsm)__gsm__` | `use` in [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv) | none |
 | a function of a used `.gsm` file | called by the name and the parameters the file defines | the `.gsm` file's definitions | none: the preprocessor holds each function as a lambda in an op block, `.g` knows it from there, and a call to it is a primitive; its body stays asm, inside the op block |
 | the predefined macros | `__FILE__`, `__LINE__`, `__DATE__`, `__TIME__`, `__STDC__` and the rest (§6.10.8) | plain C | none |
 | escape sequences in character constants and string literals | phase 5 (§6.4.4.4) | plain C | none |
@@ -84,10 +84,10 @@
 | an address | `@` then a dotted name, `@system.auth` | gnascor's protocol components | none |
 | a qualifier, called at the address | `?` then an identifier, `@db.user_session?is_valid` | gnascor's protocol components | none: `?` is the call, as `x = func(val)` calls `func` |
 | a cost bound | `($...)` after the qualifier | gnascor's protocol components | gnascor holds that a bound is derived and never written, and its own example writes `$5ms`; a parser either rejects a written bound or reads it, and which is open |
-| a pair of branches | `[left, right]` | gnascor's syntax architecture | none: a pair is asm, written only inside `__gsm__(...)` and read by [transpiler_gsm_parser.md](transpiler_gsm_parser.md) |
-| resolution to a mnemonic | `output -> evaluate(...)` | gnascor's syntax architecture | resolution to a mnemonic is asm, written only inside `__gsm__(...)`, and `->` outside it is member access through a pointer |
-| the face a block is written in | none given | gnascor: a block declares which face it is written in | none: `__gsm__(...)` is the only switch, and everything outside it is the high order face |
-| the switch into `.gsm` | `__gsm__(...)` | gnascor's two faces | none: the text inside, or the `.gsm` file it names, is handed to [transpiler_gsm_parser.md](transpiler_gsm_parser.md) |
+| a pair of branches | `[left, right]` | gnascor's syntax architecture | none: a pair is asm, written only inside `__gsm__(...)__gsm__` and read by [transpiler_gsm_parser.md](transpiler_gsm_parser.md) |
+| resolution to a mnemonic | `output -> evaluate(...)` | gnascor's syntax architecture | resolution to a mnemonic is asm, written only inside `__gsm__(...)__gsm__`, and `->` outside it is member access through a pointer |
+| the face a block is written in | none given | gnascor: a block declares which face it is written in | none: `__gsm__(...)__gsm__` is the only switch, and everything outside it is the high order face |
+| the switch into `.gsm` | `__gsm__(...)__gsm__` | gnascor's two faces | none: the text inside, or the `.gsm` file it names, is handed to [transpiler_gsm_parser.md](transpiler_gsm_parser.md) |
 | the plain face and the shortcut face held to one meaning | `a equals something;` against `a=0;` | `equals`, `evaluate`, `is identical to` | both faces compile to 2 reads, 1 target and 1 store; the parser's two trees for them being one tree is the check, and it is not written |
 
 ## What the parser hands to the transpiler
@@ -96,4 +96,4 @@
 | --- | --- | --- | --- |
 | each node named as a form is named: the thing it writes, then what is done to it | the operand's type and the operator | the `transpiler` column of [gnascor_hol_lng.tsv](gnascor_hol_lng.tsv): `u32_t` to `word`, `i64_t` to `signed_wide`; the operator's core op name | none past 64 bits, above |
 | a sign the operator ignores dropped from the name | `+` on `u32_t` and on `i32_t` | `wide_add` takes no sign | none |
-| every word the parser emits held in a table | none | [lng_check.py](lng_check.py) | the parser is not written, and nothing it emits is checked yet |
+| every word the parser emits held in a table | none | [lng_check.c](lng_check.c) | the parser is not written, and nothing it emits is checked yet |
