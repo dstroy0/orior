@@ -62,9 +62,10 @@ What the eye cannot see is not drawn. The view, and the stretch its motion heads
    - An archive inside an archive: it opens as a folder too.
    - Files in an archive that can only be read: a file changed in an archive is saved back into it, the archive written anew beside the old one and then put in its place.
    - Jars, wheels and tarballs that are archives too: a jar, a wheel, a tar and a gzipped tar open as a zip does.
-5. **Runs watched as they run.** Every run a script starts, from the command line or anywhere else, shows in the window while it runs: each is found as its .qry file appears in a runs folder and is live while its writer runs, its blobs read from the run's shared buffer as they are written, a panic shown the moment it lands, and the run's table of contents read once it ends.
+5. **Runs watched as they run.** Every run a script starts, from the command line or anywhere else, shows in the window while it runs: each is found as its .qry file appears in a runs folder and is live while its writer runs, its blobs read from the run's shared buffer as they are written, a panic shown the moment it lands, each conference's accounts shown as the experts give them with the overseer's ruling, and the run's table of contents read once it ends.
    - A run started from a terminal that the window never hears of: the window finds each run by its file and its writer, wherever it was started.
    - A fault in the middle of a long run seen only at its end: a panic in the shared buffer shows in the window as it is written.
+   - A ruling seen without what led to it: a conference, the blob `conference_` followed by its question's identity with each space written as an underscore, shows each line `<expert>: <account>` as it is written, and the line that starts `overseer:` as the ruling; the lessons in `overseer.txt`, one `lesson <cause> <carrier or *> <stand-in>` a line, show beside the runs.
 
 ## How developers work
 
