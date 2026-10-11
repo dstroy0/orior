@@ -14,11 +14,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Tokens, diffs and searches that hold the page's one thread on a large file: each one that costs a frame runs in Rust beside the page and hands back only its answer.
    - A speedup on one machine that is a slowdown or a wrong answer on another: each vector path is tested beside the plain loop, on x86-64 and on aarch64, and gives the same answer.
 
-## The backend
-
-1. **One transfer layer.** What is large, a file's text, a statement's rows, a run's output, goes through memory the container shares with the child, named on the comms layer, and is never copied through a message.
-   - A big answer that stalls every channel behind it: the comms layer carries only what is small, and the transfer layer each large thing, side by side.
-
 ## Perception
 
 What the eye cannot see is not drawn. The view, and the stretch its motion heads into, is read and drawn first and whole; motion no eye can follow is drawn at the lowest rate that still reads as motion; and a change too small or too short to be seen is not animated. Each figure here is a measured one.

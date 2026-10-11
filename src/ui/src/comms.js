@@ -3,8 +3,9 @@
 
 // The Comms tool window: every part of orior's container that speaks or listens through the comms
 // layer, with the channels its key grants and how much it has said, and every channel that has
-// carried or refused a message, with its traffic and the parts that hear it, read again every REFRESH
-// while the window shows. A press on a channel shows its last messages in the pane beside the list.
+// carried or refused a message, with its traffic, the bytes of it that went through the transfer
+// layer, and the parts that hear it, read again every REFRESH while the window shows. A press on a
+// channel shows its last messages in the pane beside the list.
 
 import { invoke } from "./bridge.js";
 
@@ -64,7 +65,8 @@ function partRow(part) {
 
 function channelRow(channel) {
   const status = channel.refused ? `${plural(channel.messages, "message")}, ${channel.refused} refused` : plural(channel.messages, "message");
-  const detail = `${plural(channel.bytes, "byte")}; heard by ${channel.listeners.length ? [...new Set(channel.listeners)].join(", ") : "no part"}`;
+  const moved = channel.transferred ? `, ${plural(channel.transferred, "byte")} of them through the transfer layer` : "";
+  const detail = `${plural(channel.bytes, "byte")}${moved}; heard by ${channel.listeners.length ? [...new Set(channel.listeners)].join(", ") : "no part"}`;
   const button = element("button", { className: `containers-row comms-channel ${channel.refused ? "dead" : "running"}`, type: "button", title: detail }, element("span", { className: "containers-dot" }), element("span", { className: "name", textContent: channel.name }), element("span", { className: "status", textContent: status }), element("span", { className: "detail", textContent: detail }));
   button.dataset.key = channel.name;
   if (state.shown === channel.name) {

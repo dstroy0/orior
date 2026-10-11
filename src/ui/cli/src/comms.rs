@@ -8,8 +8,9 @@
 //! than its own. A message on a channel its speaker's key does not name is refused and counted, and a
 //! listener hears only the channels its key names.
 //!
-//! The container keeps each channel's traffic: how many messages and bytes it has carried, how many
-//! it refused, who listens, and the last few messages, for a view of every part and what it said.
+//! The container keeps each channel's traffic: how many messages and bytes it has carried, how many of
+//! those bytes went through the transfer layer, how many messages it refused, who listens, and the
+//! last few messages, for a view of every part and what it said.
 //!
 //! A channel's name is words joined by slashes, as lsp/rust or db/rows. A grant is a name, or a name
 //! ending in /* for every channel under it, or * alone for every channel.
@@ -61,6 +62,7 @@ struct Part {
 struct Traffic {
     messages: u64,
     bytes: u64,
+    transferred: u64,
     refused: u64,
     last: VecDeque<Message>,
 }
@@ -98,6 +100,8 @@ pub struct ChannelShown {
     pub name: String,
     pub messages: u64,
     pub bytes: u64,
+    /// The bytes of its bodies that went through the transfer layer, to or from a process.
+    pub transferred: u64,
     pub refused: u64,
     pub listeners: Vec<String>,
     pub last: Vec<Message>,
@@ -271,6 +275,13 @@ impl Comms {
         Ok(heard)
     }
 
+    /// Counts `bytes` of a body on `channel` that went through the transfer layer.
+    pub fn transferred(&self, channel: &str, bytes: u64) {
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.traffic.entry(channel.to_string()).or_default().transferred += bytes;
+        }
+    }
+
     /// Every part, as the view lists it.
     pub fn parts(&self) -> Vec<PartShown> {
         let Ok(inner) = self.inner.lock() else { return Vec::new() };
@@ -289,6 +300,7 @@ impl Comms {
                 name: name.clone(),
                 messages: traffic.messages,
                 bytes: traffic.bytes,
+                transferred: traffic.transferred,
                 refused: traffic.refused,
                 listeners: inner.listeners.iter().filter(|(_, pattern, _)| grants(pattern, name)).filter_map(|(key, _, _)| inner.parts.get(key).map(|part| part.name.clone())).collect(),
                 last: traffic.last.iter().cloned().collect(),

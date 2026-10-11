@@ -11,6 +11,11 @@
 //! asks {"listen": channel} and {"say": channel, "body": what}, each answered with {"ok": what was
 //! done} or {"refused": why}, and each message said on a channel it listens on comes as
 //! {"message": {"channel", "from", "body"}}.
+//!
+//! A body longer than the transfer layer's SMALL goes through it: the frame holds {"transfer":
+//! {"length"}} where the body would be, and the region handed over with the frame holds the body's
+//! JSON. On Windows the transfer names the region's handle too, the one the speaking process has, which
+//! the container takes from it, or the one the container made in the listening process.
 
 use std::io::{Read, Write};
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -20,15 +25,28 @@ use std::time::Duration;
 use serde_json::{json, Value};
 
 use super::{Comms, Key, Message};
+use crate::transfer::{self, Region};
 
-/// The longest frame taken, in bytes; a longer one goes through the transfer layer.
+#[cfg(unix)]
+use crate::transfer::Fds;
+
+/// The descriptors that come with the bytes read, which only a socket carries.
+#[cfg(windows)]
+#[derive(Default)]
+struct Fds;
+
+/// The longest frame taken, in bytes; a longer body goes through the transfer layer.
 const MOST: usize = 16 << 20;
 
-fn write_frame(out: &mut impl Write, value: &Value) -> std::io::Result<()> {
+fn frame_of(value: &Value) -> Vec<u8> {
     let data = value.to_string().into_bytes();
     let mut frame = (data.len() as u32).to_le_bytes().to_vec();
     frame.extend_from_slice(&data);
-    out.write_all(&frame)?;
+    frame
+}
+
+fn write_frame<W: Write + ?Sized>(out: &mut W, value: &Value) -> std::io::Result<()> {
+    out.write_all(&frame_of(value))?;
     out.flush()
 }
 
@@ -44,11 +62,81 @@ fn read_frame(input: &mut impl Read) -> std::io::Result<Value> {
     serde_json::from_slice(&data).map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
 }
 
-/// One end of a connection: its reading half, its writing half, and the process at the other end.
+/// The writing half of a connection, which hands a region over with a frame.
+trait Outlet: Write + Send {
+    /// Writes the whole of `frame`, the region `region` going to the other end with it.
+    fn write_with(&mut self, frame: &[u8], region: &Region) -> std::io::Result<()>;
+}
+
+/// What a frame says of the region it hands over: its length, and on Windows its handle in the
+/// process the frame goes to, which the container makes there where `to` names that process.
+fn handed(region: &Region, to: Option<u32>) -> Result<Value, String> {
+    #[cfg(windows)]
+    {
+        let handle = match to {
+            Some(process) => region.give(process)?,
+            None => region.handle(),
+        };
+        Ok(json!({"length": region.len(), "handle": handle}))
+    }
+    #[cfg(unix)]
+    {
+        let _ = to;
+        Ok(json!({"length": region.len()}))
+    }
+}
+
+/// The region a frame hands over as `transfer` says: on Windows taken from the process `from` where
+/// the container takes it, else the handle the container made here; elsewhere the next descriptor
+/// that came with the bytes read.
+fn handed_over(transfer: &Value, from: Option<u32>, fds: &Fds) -> Result<Region, String> {
+    let length = transfer["length"].as_u64().ok_or("a transfer names its length")? as usize;
+    #[cfg(windows)]
+    {
+        let _ = fds;
+        let handle = transfer["handle"].as_u64().ok_or("a transfer names its handle")?;
+        match from {
+            Some(process) => Region::take(process, handle, length),
+            None => Region::given(handle, length),
+        }
+    }
+    #[cfg(unix)]
+    {
+        let _ = from;
+        let fd = fds.take().ok_or("a transfer came with no region")?;
+        Region::received(fd, length)
+    }
+}
+
+/// The body a region holds.
+fn body_of(region: &Region) -> Result<Value, String> {
+    serde_json::from_slice(region.bytes()).map_err(|error| format!("the region holds no JSON: {error}"))
+}
+
+/// Tells the process `peer` of `message`, through the transfer layer where its body is long, and
+/// gives whether it went.
+fn tell(out: &mut dyn Outlet, message: &Message, peer: Option<u32>, comms: &Comms) -> bool {
+    let body = message.body.to_string();
+    if body.len() <= transfer::SMALL {
+        return write_frame(out, &json!({"message": message})).is_ok();
+    }
+    let sent = Region::with(body.as_bytes()).and_then(|region| {
+        let frame = json!({"message": {"channel": message.channel, "from": message.from}, "transfer": handed(&region, peer)?});
+        out.write_with(&frame_of(&frame), &region).map_err(|error| error.to_string())
+    });
+    if sent.is_ok() {
+        comms.transferred(&message.channel, body.len() as u64);
+    }
+    sent.is_ok()
+}
+
+/// One end of a connection: its reading half, its writing half, the process at the other end, and
+/// the descriptors that came with what was read.
 struct Joined {
     input: Box<dyn Read + Send>,
-    output: Box<dyn Write + Send>,
+    output: Box<dyn Outlet>,
     peer: Option<u32>,
+    fds: Arc<Fds>,
 }
 
 /// Opens the door to `comms`, and gives the address a process joins at.
@@ -58,7 +146,7 @@ pub fn open(comms: Arc<Comms>) -> Result<String, String> {
         match accept() {
             Ok(joined) => {
                 let comms = comms.clone();
-                std::thread::spawn(move || serve(&comms, joined));
+                std::thread::spawn(move || serve(comms, joined));
             }
             Err(_) => std::thread::sleep(Duration::from_millis(100)),
         }
@@ -66,10 +154,10 @@ pub fn open(comms: Arc<Comms>) -> Result<String, String> {
     Ok(address)
 }
 
-fn serve(comms: &Comms, joined: Joined) {
-    let Joined { mut input, output, peer } = joined;
+fn serve(comms: Arc<Comms>, joined: Joined) {
+    let Joined { mut input, output, peer, fds } = joined;
     let output = Arc::new(Mutex::new(output));
-    let answer = |value: Value| output.lock().map(|mut out| write_frame(&mut *out, &value).is_ok()).unwrap_or(false);
+    let answer = |value: Value| output.lock().map(|mut out| write_frame(&mut **out, &value).is_ok()).unwrap_or(false);
     let Ok(hello) = read_frame(&mut input) else { return };
     let key = Key::from_text(hello["key"].as_str().unwrap_or(""));
     let Some(name) = comms.name_of(&key) else {
@@ -92,9 +180,10 @@ fn serve(comms: &Comms, joined: Joined) {
             match comms.listen(&key, channel) {
                 Ok(heard) => {
                     let to = output.clone();
+                    let counted = comms.clone();
                     std::thread::spawn(move || {
                         for message in heard {
-                            let sent = to.lock().map(|mut out| write_frame(&mut *out, &json!({"message": message})).is_ok()).unwrap_or(false);
+                            let sent = to.lock().map(|mut out| tell(&mut **out, &message, peer, &counted)).unwrap_or(false);
                             if !sent {
                                 break;
                             }
@@ -107,8 +196,17 @@ fn serve(comms: &Comms, joined: Joined) {
                 }
             }
         } else if let Some(channel) = asked["say"].as_str() {
-            match comms.say(&key, channel, asked["body"].clone()) {
-                Ok(heard) => answer(json!({"ok": "say", "heard": heard})),
+            let body = match asked.get("transfer") {
+                None => Ok((asked["body"].clone(), 0)),
+                Some(transfer) => handed_over(transfer, peer, &fds).and_then(|region| Ok((body_of(&region)?, region.len()))),
+            };
+            match body.and_then(|(body, moved)| Ok((comms.say(&key, channel, body)?, moved))) {
+                Ok((heard, moved)) => {
+                    if moved > 0 {
+                        comms.transferred(channel, moved as u64);
+                    }
+                    answer(json!({"ok": "say", "heard": heard}))
+                }
                 Err(why) => answer(json!({"refused": why})),
             };
         } else {
@@ -120,7 +218,7 @@ fn serve(comms: &Comms, joined: Joined) {
 /// A process's end of the door: what it joined as, the answers to what it asks, and the messages on
 /// the channels it listens on.
 pub struct Client {
-    output: Mutex<Box<dyn Write + Send>>,
+    output: Mutex<Box<dyn Outlet>>,
     answers: Mutex<Receiver<Value>>,
     messages: Mutex<Receiver<Message>>,
     pub name: String,
@@ -141,8 +239,8 @@ impl Client {
 
     /// Joins the door at `address` with `key`.
     pub fn join(address: &str, key: &Key) -> Result<Client, String> {
-        let Joined { mut input, mut output, .. } = connect(address)?;
-        write_frame(&mut output, &json!({"key": key.text()})).map_err(|error| error.to_string())?;
+        let Joined { mut input, mut output, fds, .. } = connect(address)?;
+        write_frame(&mut *output, &json!({"key": key.text()})).map_err(|error| error.to_string())?;
         let hello = read_frame(&mut input).map_err(|error| error.to_string())?;
         if let Some(why) = hello["refused"].as_str() {
             return Err(why.to_string());
@@ -152,12 +250,15 @@ impl Client {
         let (tell_message, messages) = mpsc::channel();
         std::thread::spawn(move || {
             while let Ok(frame) = read_frame(&mut input) {
-                if frame.get("message").is_some() {
-                    if let Ok(message) = serde_json::from_value::<Value>(frame["message"].clone()) {
-                        let message = Message { channel: message["channel"].as_str().unwrap_or("").into(), from: message["from"].as_str().unwrap_or("").into(), body: message["body"].clone() };
-                        if tell_message.send(message).is_err() {
-                            break;
-                        }
+                if let Some(message) = frame.get("message") {
+                    let body = match frame.get("transfer") {
+                        None => Ok(message["body"].clone()),
+                        Some(transfer) => handed_over(transfer, None, &fds).and_then(|region| body_of(&region)),
+                    };
+                    let Ok(body) = body else { continue };
+                    let message = Message { channel: message["channel"].as_str().unwrap_or("").into(), from: message["from"].as_str().unwrap_or("").into(), body };
+                    if tell_message.send(message).is_err() {
+                        break;
                     }
                 } else if tell_answer.send(frame).is_err() {
                     break;
@@ -167,9 +268,15 @@ impl Client {
         Ok(Client { output: Mutex::new(output), answers: Mutex::new(answers), messages: Mutex::new(messages), name })
     }
 
-    fn ask(&self, asked: Value) -> Result<Value, String> {
+    /// Asks `asked`, the region `region` going with it where there is one, and gives the answer. The
+    /// region is held until the answer comes, by which time the container has read it.
+    fn ask(&self, asked: Value, region: Option<&Region>) -> Result<Value, String> {
         let mut output = self.output.lock().map_err(|_| "the door is held")?;
-        write_frame(&mut *output, &asked).map_err(|error| error.to_string())?;
+        let wrote = match region {
+            Some(region) => output.write_with(&frame_of(&asked), region),
+            None => write_frame(&mut **output, &asked),
+        };
+        wrote.map_err(|error| error.to_string())?;
         let answer = self.answers.lock().map_err(|_| "the door is held")?.recv_timeout(Duration::from_secs(10)).map_err(|_| "the container gave no answer".to_string())?;
         match answer["refused"].as_str() {
             Some(why) => Err(why.to_string()),
@@ -178,12 +285,20 @@ impl Client {
     }
 
     pub fn listen(&self, channel: &str) -> Result<(), String> {
-        self.ask(json!({"listen": channel})).map(|_| ())
+        self.ask(json!({"listen": channel}), None).map(|_| ())
     }
 
-    /// Says `body` on `channel`, and gives how many listeners heard it.
+    /// Says `body` on `channel`, through the transfer layer where it is long, and gives how many
+    /// listeners heard it.
     pub fn say(&self, channel: &str, body: Value) -> Result<u64, String> {
-        self.ask(json!({"say": channel, "body": body})).map(|answer| answer["heard"].as_u64().unwrap_or(0))
+        let text = body.to_string();
+        let answer = if text.len() <= transfer::SMALL {
+            self.ask(json!({"say": channel, "body": body}), None)?
+        } else {
+            let region = Region::with(text.as_bytes())?;
+            self.ask(json!({"say": channel, "transfer": handed(&region, None)?}), Some(&region))?
+        };
+        Ok(answer["heard"].as_u64().unwrap_or(0))
     }
 
     /// The next message on a channel this listens on, within `wait`.
@@ -193,6 +308,14 @@ impl Client {
 }
 
 type Accept = Box<dyn Fn() -> Result<Joined, String> + Send>;
+
+#[cfg(windows)]
+impl Outlet for windows::Pipe {
+    /// The region's handle is in the frame already: the pipe carries the frame alone.
+    fn write_with(&mut self, frame: &[u8], _region: &Region) -> std::io::Result<()> {
+        self.write_all(frame)
+    }
+}
 
 #[cfg(windows)]
 fn listener() -> Result<(String, Accept), String> {
@@ -210,7 +333,7 @@ fn listener() -> Result<(String, Accept), String> {
         }
         let joined = std::mem::replace(&mut *waiting, windows::Pipe::make(&name, false)?);
         let peer = joined.peer();
-        Ok(Joined { input: Box::new(joined.clone()), output: Box::new(joined), peer })
+        Ok(Joined { input: Box::new(joined.clone()), output: Box::new(joined), peer, fds: Arc::default() })
     });
     Ok((address, accept))
 }
@@ -218,7 +341,52 @@ fn listener() -> Result<(String, Accept), String> {
 #[cfg(windows)]
 fn connect(address: &str) -> Result<Joined, String> {
     let pipe = windows::Pipe::connect(address)?;
-    Ok(Joined { input: Box::new(pipe.clone()), output: Box::new(pipe), peer: None })
+    Ok(Joined { input: Box::new(pipe.clone()), output: Box::new(pipe), peer: None, fds: Arc::default() })
+}
+
+/// A socket's writing half, which hands a region's descriptor over with a frame's first byte.
+#[cfg(unix)]
+struct Socket(std::os::unix::net::UnixStream);
+
+#[cfg(unix)]
+impl Write for Socket {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        self.0.write(buffer)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.flush()
+    }
+}
+
+#[cfg(unix)]
+impl Outlet for Socket {
+    fn write_with(&mut self, frame: &[u8], region: &Region) -> std::io::Result<()> {
+        use std::os::fd::AsRawFd;
+        transfer::send_with(self.0.as_raw_fd(), frame, region.fd())
+    }
+}
+
+/// A socket's reading half, which keeps each descriptor that comes with the bytes it reads.
+#[cfg(unix)]
+struct Incoming {
+    socket: std::os::unix::net::UnixStream,
+    fds: Arc<Fds>,
+}
+
+#[cfg(unix)]
+impl Read for Incoming {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        use std::os::fd::AsRawFd;
+        transfer::receive(self.socket.as_raw_fd(), buffer, &self.fds)
+    }
+}
+
+#[cfg(unix)]
+fn joined(stream: std::os::unix::net::UnixStream, peer: Option<u32>) -> Result<Joined, String> {
+    let output = stream.try_clone().map_err(|error| error.to_string())?;
+    let fds = Arc::new(Fds::default());
+    Ok(Joined { input: Box::new(Incoming { socket: stream, fds: fds.clone() }), output: Box::new(Socket(output)), peer, fds })
 }
 
 #[cfg(unix)]
@@ -232,8 +400,7 @@ fn listener() -> Result<(String, Accept), String> {
     let accept: Accept = Box::new(move || {
         let (stream, _) = listener.accept().map_err(|error| error.to_string())?;
         let peer = unix::peer(&stream);
-        let output = stream.try_clone().map_err(|error| error.to_string())?;
-        Ok(Joined { input: Box::new(stream), output: Box::new(output), peer })
+        joined(stream, peer)
     });
     Ok((path.display().to_string(), accept))
 }
@@ -241,8 +408,7 @@ fn listener() -> Result<(String, Accept), String> {
 #[cfg(unix)]
 fn connect(address: &str) -> Result<Joined, String> {
     let stream = std::os::unix::net::UnixStream::connect(address).map_err(|error| format!("{address}: {error}"))?;
-    let output = stream.try_clone().map_err(|error| error.to_string())?;
-    Ok(Joined { input: Box::new(stream), output: Box::new(output), peer: None })
+    joined(stream, None)
 }
 
 #[cfg(unix)]
@@ -461,6 +627,29 @@ mod tests {
         let shell = comms.register("terminal", None, &["runs/*"], &["runs/*"]).unwrap();
         comms.bind(&shell, parent);
         assert_eq!(Client::join(&address, &shell).unwrap().name, "terminal");
+    }
+
+    #[test]
+    fn a_body_past_the_most_a_frame_takes_goes_through_the_transfer_layer_each_way() {
+        let comms = Arc::new(Comms::default());
+        let address = open(comms.clone()).unwrap();
+        let tracker = comms.register("tracker", None, &["runs/*"], &["runs/*"]).unwrap();
+        comms.bind(&tracker, std::process::id());
+        let window = comms.register("window", None, &["*"], &["*"]).unwrap();
+        let heard = comms.listen(&window, "runs/big").unwrap();
+        let client = Client::join(&address, &tracker).unwrap();
+        client.listen("runs/back").unwrap();
+        let big = "orior ".repeat(MOST / 5);
+        assert!(big.len() > MOST);
+        assert_eq!(client.say("runs/big", json!(big)).unwrap(), 1);
+        assert_eq!(heard.recv_timeout(Duration::from_secs(10)).unwrap().body.as_str().map(str::len), Some(big.len()));
+        comms.say(&window, "runs/back", json!(big)).unwrap();
+        let back = client.next(Duration::from_secs(10)).unwrap();
+        assert_eq!((back.channel.as_str(), back.from.as_str(), back.body.as_str().map(str::len)), ("runs/back", "window", Some(big.len())));
+        assert_eq!(client.say("runs/big", json!("small")).unwrap(), 1, "a short body goes in its frame");
+        let channels = comms.channels();
+        let moved = |name: &str| channels.iter().find(|one| one.name == name).unwrap().transferred;
+        assert_eq!((moved("runs/big"), moved("runs/back")), (big.len() as u64 + 2, big.len() as u64 + 2));
     }
 
     #[test]

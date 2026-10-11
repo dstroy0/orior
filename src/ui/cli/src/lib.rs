@@ -68,6 +68,7 @@ pub mod templates;
 pub mod test_runs;
 pub mod testing;
 pub mod toolchains;
+pub mod transfer;
 pub mod validate;
 pub mod watch;
 pub mod zmtp;
