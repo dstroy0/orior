@@ -257,7 +257,7 @@ fn changed_at(root: &Path) -> Vec<Changed> {
 
 /// Runs git at `root` with nothing to answer a prompt with, and gives what it wrote, or what it said
 /// went wrong.
-fn run(root: &Path, args: &[&str]) -> Result<String, String> {
+pub(crate) fn run(root: &Path, args: &[&str]) -> Result<String, String> {
     let mut command = Command::new("git");
     command.args(args).current_dir(root).env("GIT_TERMINAL_PROMPT", "0").stdin(Stdio::null());
     crate::runner::quiet(&mut command);

@@ -14,7 +14,8 @@
 // its HTML in a frame that runs none of its scripts; sets the label of a file's tab; reads the
 // theme's colors; and changes the window's chrome, a badge on the top bar and the color of its
 // signal. It hears when a file opens, changes, saves and the cursor moves, and reads and writes
-// files. A plugin names the form of the calls it was written for, `api` in its plugin.json, and orior
+// files, and from the second form on keeps settings of its own. A plugin names the form of the calls
+// it was written for, `api` in its plugin.json, and orior
 // keeps each form it has given: a plugin of an older form gets that form's calls, each answered as
 // it was.
 
@@ -74,6 +75,10 @@ const orior = (() => {
 })();
 `,
 };
+
+// The second form: the first's calls, and the plugin's own settings, read and written whole, kept
+// apart from every other plugin's and carried with the reader's settings to another machine.
+PRELUDES[2] = PRELUDES[1].replace("api: 1,", "api: 2,").replace("    files: Object.freeze(", '    settings: Object.freeze({ read: () => call("settings.read"), write: (values) => call("settings.write", values) }),\n    files: Object.freeze(');
 
 // The theme's colors a plugin reads, by the names of the window's own.
 const COLORS = ["--bg", "--surface", "--well", "--fg", "--fg-2", "--fg-3", "--line", "--signal", "--link", "--fail", "--ed-bg", "--ed-fg", "--ed-added", "--ed-changed", "--ed-removed"];
@@ -226,6 +231,8 @@ const CALLS = {
   "editor.active": () => state.hooks?.active() ?? null,
   "files.read": async (one, path) => (await invoke("file_read", { path: String(path) })).text,
   "files.write": async (one, path, text) => state.hooks.write(one, String(path), String(text)),
+  "settings.read": async (one) => invoke("plugin_settings_read", { id: one.id }),
+  "settings.write": async (one, values) => invoke("plugin_settings_write", { id: one.id, values }),
 };
 
 async function answer(one, data) {

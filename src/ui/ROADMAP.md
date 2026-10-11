@@ -23,15 +23,12 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Settings
 
-1. **Settings on every machine.** The reader's settings, keys, themes and plugins carried to another machine through a file or a repository of the reader's.
-   - One machine's settings written over another's without a question: nothing is written over without the differences shown first, each carrying is kept so it can be undone, and settings for one machine stay on it.
-   - Plugins' own settings that do not travel: a plugin's settings travel with it.
-2. **Nothing from the network unasked.** orior fetches nothing, no server, no update, no package, until the reader says yes, and a setting holds it off the network entirely.
+1. **Nothing from the network unasked.** orior fetches nothing, no server, no update, no package, until the reader says yes, and a setting holds it off the network entirely.
    - Editors that still call home with their telemetry off, through experiments, recommendations or plugins: orior sends nothing about the reader, and Network lists every address it has reached, when, and for what.
-3. **A plugin catalog.** Plugins others publish, found by name and installed from File, Plugins, each set on or off from a file, and each told what it may read and change before it runs.
+2. **A plugin catalog.** Plugins others publish, found by name and installed from File, Plugins, each set on or off from a file, and each told what it may read and change before it runs.
    - Plugins in a catalog that carry malware and run with all of the reader's rights: each plugin says what it reads, writes and reaches on the network, orior holds it to that, and an update that asks for more asks the reader again.
    - Plugins that update themselves unasked: a plugin is updated when the reader says so.
-4. **Other languages and other scripts.** The window in the reader's language, and text that runs right to left typed and drawn in its order.
+3. **Other languages and other scripts.** The window in the reader's language, and text that runs right to left typed and drawn in its order.
    - A cursor that jumps the wrong way, or words drawn in reverse, where Arabic or Hebrew meets text that runs left to right: the arrows move by the order the text is read in, and the word keys stop at the words of either script.
-5. **Packages for Linux.** orior installed from Flathub and the Snap Store as well as from its own release.
+4. **Packages for Linux.** orior installed from Flathub and the Snap Store as well as from its own release.
    - An editor from Flathub that cannot reach the machine's compilers, SDKs and tools from inside its sandbox: orior's Flatpak runs the tree's tools and its terminal's shell on the machine itself, through `flatpak-spawn --host`.

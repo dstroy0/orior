@@ -110,6 +110,7 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 | the settings Preferences and the menus set, the macros kept, and whether errors file on their own | `settings.json` |
 | each theme of the reader's | `themes/`, a file each, named for the theme |
 | the reader's plugins | `plugins/`, a folder each |
+| each plugin's own settings | `plugin_settings/`, a file each, named for the plugin |
 | the stylesheet laid over the window's own | `user.css` |
 | the toolchains the reader added | `user_toolchains.json` |
 | the panes, each tree's tabs and the files opened last, the places left in them, bookmarks, breakpoints, watches and the values each job last ran with | `state.json` |
@@ -117,6 +118,7 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 | each file's Local History | `history/` |
 | the repositories File, Open, Repository clones | `repositories/` |
 | the hashes of the files each deployment last sent to each place | `deployed/`, a file each |
+| each taking of another machine's settings, the files it wrote over as they were | `carried/`, a folder each |
 
 `settings.json` and `state.json` hold each entry under its own key, as JSON. orior reads the folder
 as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
@@ -127,7 +129,8 @@ as the tree opens and each time the file changes; Preferences, Settings in force
 a file sets, its value, and the file it comes from. A settings file, the tree's or `settings.json`,
 is JSON with comments and trailing commas, and has keys of its own beside its settings: `takes`, the
 path of another settings file, from the file's folder, whose settings it changes; `windows`, `linux`
-and `macos`, the settings for that system alone; and `[kind]`, as `[markdown]`, the theme of each
+and `macos`, the settings for that system alone; `machine`, in `settings.json`, the settings for
+this machine alone; and `[kind]`, as `[markdown]`, the theme of each
 scheme, `theme.dark` and `theme.light`, the editor shows that language's files in. Text in a value
 names another setting's value as `${setting:name}`, a variable of the system's environment as
 `${env:NAME}`, and the home folder, the tree's folder and the system as `${home}`, `${tree}` and
@@ -159,6 +162,14 @@ Colors, marks each color whose contrast with the color under it is under 4.5:1.
   "icons": [{ "pattern": "*.test.js", "mark": "T", "color": "--t2" }]
 }
 ```
+
+Preferences, Settings on Every Machine, sends `settings.json`, the themes, the plugins with each
+one's own settings, `menus.json` and `user.css` to a file or to a folder of the reader's, a
+repository's commits made and pushed, and takes them in from one on another machine. What a taking
+would change shows first, a file at a time and `settings.json` a setting at a time, and nothing is
+written until the reader takes what is chosen; each taking is kept in `carried/` and undone from
+the list there. `machine`, `signing.`, `environment.`, `memory-budget` and `carry.place` stay
+on the machine that set them.
 
 A tree names its deployments in `deploy.json` at its top folder, each a job of Build: its name,
 the folder whose files go, the patterns of the files that stay, the places, and how many releases

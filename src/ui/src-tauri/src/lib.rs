@@ -20,7 +20,7 @@ mod terminal;
 use orior_cli::cli::{self, Launch, Outcome};
 use orior_cli::link::{Address, Link};
 use orior_cli::serve::Server;
-use orior_cli::{commands, files, format, git, home, kept, plugins, report, root, servers, settings, toolchains};
+use orior_cli::{carry, commands, files, format, git, home, kept, plugins, report, root, servers, settings, toolchains};
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
@@ -296,6 +296,71 @@ fn kept_write(changes: std::collections::BTreeMap<String, Option<String>>) -> Re
 #[tauri::command(async)]
 fn settings_layers(tree: settings::Chain, root: String) -> settings::Layers {
     settings::layers(&settings::reader(), &tree, &root)
+}
+
+fn own_folder() -> Result<PathBuf, String> {
+    home::folder().ok_or_else(|| "orior has no folder of its own".to_string())
+}
+
+/// Writes the reader's settings that travel to `to`, a file or a folder of the reader's (carry.rs).
+#[tauri::command(async)]
+fn carry_send(to: String) -> Result<String, String> {
+    carry::send(&own_folder()?, Path::new(&to))
+}
+
+/// What the file or the folder `from` carries, and how it differs from the reader's own here.
+#[tauri::command(async)]
+fn carry_read(from: String) -> Result<serde_json::Value, String> {
+    let there = carry::read(Path::new(&from))?;
+    let differences = carry::differences(&own_folder()?, &there);
+    Ok(serde_json::json!({ "there": there, "differences": differences }))
+}
+
+/// Takes in the files of `places` that `there`, read from `from`, carries, and of settings.json the
+/// settings of `keys` alone.
+#[tauri::command(async)]
+fn carry_take(from: String, there: std::collections::BTreeMap<String, String>, places: Vec<String>, keys: Vec<String>) -> Result<carry::Taking, String> {
+    carry::take(&own_folder()?, &from, &there, &places, &keys)
+}
+
+/// Every taking kept, the last first.
+#[tauri::command(async)]
+fn carry_takings() -> Vec<carry::Taking> {
+    own_folder().map(|folder| carry::takings(&folder)).unwrap_or_default()
+}
+
+#[tauri::command(async)]
+fn carry_undo(id: String) -> Result<carry::Taking, String> {
+    carry::undo(&own_folder()?, &id)
+}
+
+/// The settings and the themes orior's folder keeps now, by key without `orior.`, and each of the
+/// page's keys `keys` that is a setting the folder no longer keeps.
+#[tauri::command(async)]
+fn kept_now(keys: Vec<String>) -> serde_json::Value {
+    let entries = own_folder().ok().and_then(|folder| kept::read(&folder)).unwrap_or_default();
+    let set: std::collections::BTreeMap<&String, &String> = entries.iter().filter(|(key, _)| kept::is_carried(key)).collect();
+    let gone: Vec<&str> = keys.iter().filter_map(|key| key.strip_prefix("orior.")).filter(|key| kept::is_carried(key) && *key != "themes" && !entries.contains_key(*key)).collect();
+    serde_json::json!({ "set": set, "gone": gone })
+}
+
+/// The settings of the plugin `id`, as it last wrote them, or an empty object.
+#[tauri::command(async)]
+fn plugin_settings_read(id: String) -> Result<serde_json::Value, String> {
+    let path = own_folder()?.join("plugin_settings").join(format!("{}.json", plugins::slug(&id)));
+    Ok(std::fs::read_to_string(&path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_else(|| serde_json::json!({})))
+}
+
+/// Keeps `values` as the settings of the plugin `id`, in place of those it kept before.
+#[tauri::command(async)]
+fn plugin_settings_write(id: String, values: serde_json::Value) -> Result<(), String> {
+    if !values.is_object() {
+        return Err("a plugin's settings are an object".into());
+    }
+    let folder = own_folder()?.join("plugin_settings");
+    std::fs::create_dir_all(&folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+    let path = folder.join(format!("{}.json", plugins::slug(&id)));
+    std::fs::write(&path, serde_json::to_string_pretty(&values).unwrap_or_default() + "\n").map_err(|error| format!("{}: {error}", path.display()))
 }
 
 /// The picture at `path` as the data address a theme keeps for the image behind the editor: PNG,
@@ -1009,6 +1074,14 @@ fn open(launch: Launch) {
             kept_write,
             settings_layers,
             image_data,
+            carry_send,
+            carry_read,
+            carry_take,
+            carry_takings,
+            carry_undo,
+            kept_now,
+            plugin_settings_read,
+            plugin_settings_write,
             files_copy,
             clip_files,
             files_paste,

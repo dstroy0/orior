@@ -96,6 +96,12 @@ fn place_of(key: &str) -> Place {
     }
 }
 
+/// Whether the entry `key`, without `orior.`, is a setting or the list of themes, those a taking of
+/// another machine's settings changes.
+pub fn is_carried(key: &str) -> bool {
+    matches!(place_of(key), Place::Settings | Place::Themes)
+}
+
 /// An entry's text as it is written: its JSON where it is JSON other than a string that writes back
 /// the same, else the text itself.
 fn written(text: &str) -> Value {

@@ -55,6 +55,17 @@ Storage.prototype.setItem = function (key, text) {
   queueMicrotask(() => listeners.forEach((listener) => listener(new Set([setting]))));
 };
 
+// The reader's own entry of `key`, as the page keeps it, whatever a file stands over it with.
+export const ownItem = (key) => getItem.call(window.localStorage, key);
+
+// Tells each listener the settings of `keys`, each without `orior.`, changed in the page's own
+// entries, as a taking of another machine's settings changes them.
+export function settingsChanged(keys) {
+  if (keys.size) {
+    listeners.forEach((listener) => listener(keys));
+  }
+}
+
 // Tells `listener` the settings the files changed, each by its key without `orior.` and a kind's as
 // `[kind] key`, each time the files are read again.
 export function onSettings(listener) {

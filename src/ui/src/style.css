@@ -8679,6 +8679,70 @@ textarea.report-field {
   cursor: pointer;
 }
 
+/* Preferences, Settings on Every Machine: the file or folder and its buttons on one line, what a
+   taking would change a file at a time with settings.json a setting at a time, and the takings kept,
+   each with its Undo. */
+.carry-line .carry-place {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.carry-line .prefs-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.carry-about,
+.carry-heading {
+  margin: 0 0 0.4rem;
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.carry-difference {
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.carry-file,
+.carry-setting {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.carry-setting {
+  padding-left: 1.4rem;
+  font: 12px var(--code);
+}
+
+.carry-how,
+.carry-arrow {
+  color: var(--fg-3);
+}
+
+.carry-here,
+.carry-there {
+  overflow: hidden;
+  max-width: 14rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carry-takings h4 {
+  margin: 0.5rem 0 0.2rem;
+  font: 600 12px var(--head);
+  color: var(--fg-2);
+}
+
+.carry-taking {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.15rem 0;
+}
+
 /* Preferences, Settings in force: each setting a row of its key, its value and the file it comes
    from, the files it stands over after it, and what the files could not say under them. */
 .prefs-force-files {

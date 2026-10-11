@@ -9,6 +9,8 @@
 //! - `takes`: the path of another settings file, from the file's own folder, whose settings this one
 //!   takes, its own standing over them;
 //! - `windows`, `linux` and `macos`: settings for that system alone, standing over the file's others;
+//! - `machine`, in the reader's own settings.json: settings for this machine alone, standing over the
+//!   file's others and its system's, and never carried to another machine (carry.rs);
 //! - `[kind]`, as `[markdown]`: the theme of each scheme, `theme.dark` and `theme.light`, the editor
 //!   shows the files of the language `kind` in.
 //!
@@ -28,6 +30,7 @@ use crate::kept::read_back;
 pub const TREE_FILE: &str = ".orior/settings.json";
 
 const TAKES: &str = "takes";
+const MACHINE: &str = "machine";
 const SYSTEMS: [&str; 3] = ["windows", "linux", "macos"];
 
 /// The settings a tree's file does not set, each a key or the start of keys where it ends in `.`:
@@ -105,7 +108,7 @@ pub fn system() -> &'static str {
 /// Whether `key` is one of a settings file's own keys and no setting: `takes`, a system's, or a
 /// kind's.
 pub fn is_file_key(key: &str) -> bool {
-    key == TAKES || SYSTEMS.contains(&key) || kind_of(key).is_some()
+    key == TAKES || key == MACHINE || SYSTEMS.contains(&key) || kind_of(key).is_some()
 }
 
 fn kind_of(key: &str) -> Option<&str> {
@@ -333,6 +336,10 @@ pub fn layers(reader: &Chain, tree: &Chain, root: &str) -> Layers {
             Some(_) => problems.push(format!("{}: {system} is an object of settings", file.file)),
             None => {}
         }
+        if let Some(Value::Object(set)) = file.values.get(MACHINE).filter(|_| own) {
+            let values = set.iter().filter(|(key, _)| !is_file_key(key)).collect();
+            parts.push(Part { file: &file.file, part: Some(MACHINE), values, rank: Rank::Over });
+        }
     }
     let mut raw = BTreeMap::new();
     for part in &parts {
@@ -425,7 +432,7 @@ mod reading {
         let reader = Chain {
             files: vec![
                 file("base.json", "{\"vim\": \"true\", \"margin\": \"true\"}"),
-                file("settings.json", &format!("{{\"takes\": \"base.json\", \"zoom\": 1.1, \"margin\": \"false\", \"{}\": {{\"sticky\": \"false\"}}, \"{other}\": {{\"zoom\": 3}}, \"fonts\": {{\"--code\": \"${{setting:code}}\"}}, \"code\": \"Fira Code\"}}", system())),
+                file("settings.json", &format!("{{\"takes\": \"base.json\", \"zoom\": 1.1, \"margin\": \"false\", \"{}\": {{\"sticky\": \"false\"}}, \"{other}\": {{\"zoom\": 3}}, \"fonts\": {{\"--code\": \"${{setting:code}}\"}}, \"code\": \"Fira Code\", \"machine\": {{\"brackets\": \"false\"}}}}", system())),
             ],
             problems: Vec::new(),
         };
@@ -451,5 +458,7 @@ mod reading {
         assert_eq!(read.from["[markdown] theme.dark"][0].file, TREE_FILE);
         assert_eq!(read.files, vec!["base.json", "settings.json", TREE_FILE]);
         assert_eq!(read.own_file.as_deref(), Some("settings.json"));
+        assert_eq!(read.over.get("brackets").map(String::as_str), Some("false"), "the part for this machine alone stands over the rest");
+        assert_eq!(read.from["brackets"][0].part.as_deref(), Some("machine"));
     }
 }

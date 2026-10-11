@@ -38,7 +38,7 @@ import { showPreferences } from "./preferences.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
 import { runToolchains } from "./toolchains.js";
-import { openUserCss } from "./usercss.js";
+import { loadUserCss, openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { printText } from "./print.js";
@@ -402,6 +402,11 @@ const COMMANDS = {
       openFile: (path) => {
         showView("edit");
         return openFile(path);
+      },
+      reloadOwn: async () => {
+        await loadPlugins();
+        await loadUserCss();
+        await loadReaderMenus();
       },
       checks: CHECKS,
       more: [

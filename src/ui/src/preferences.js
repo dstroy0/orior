@@ -3,7 +3,8 @@
 
 // File, Preferences: the color theme of each scheme and every color of its palette, the zoom, the
 // bar's and the menus' opacity, each item of the menus that is set on or off, the settings no menu
-// lists, each setting a settings file sets with its value and the file it comes from, the patterns
+// lists, each setting a settings file sets with its value and the file it comes from, the settings
+// carried to and from another machine, the patterns
 // that keep the explorer, the search and the watching of files from files, the sets of files Find in
 // Files searches in, and the keys: the set of keys, how a letter's key is bound, each key more than
 // one command holds, and each command's keys, set by pressing them. A color changed in the scheme's
@@ -22,6 +23,7 @@ import { BASES, choose, chosen, contrastOf, contrastPairs, CONTRAST_LEAST, delet
 import { setZoom, STEPS, zoom } from "./zoom.js";
 import { readSettings, settingsInForce, TREE_FILE } from "./settings.js";
 import { invoke, pick } from "./bridge.js";
+import { carryInto } from "./carry.js";
 
 const BASE_NAMES = { dark: "Dark", light: "Light" };
 
@@ -73,7 +75,7 @@ function groupOf(name) {
   return "--*";
 }
 
-export function showPreferences(sheet, { menus, runCommand, checks, more = [], openFile = null }) {
+export function showPreferences(sheet, { menus, runCommand, checks, more = [], openFile = null, reloadOwn = null }) {
   const body = element("div", { className: "sheet-prefs" });
   const state = { filter: "" };
 
@@ -514,6 +516,13 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     );
   }
 
+  // Settings on every machine (carry.js): the file or folder they go through, and each taking kept.
+  function carrySection() {
+    const section = element("section", { className: "prefs-carry" });
+    carryInto(section, { reloadOwn, pick });
+    return section;
+  }
+
   // The keys: the set chosen, how a letter's key is bound, each key more than one command holds with
   // those commands, and each command's keys, two at most, each set by pressing it, a button of the
   // mouse past its first three or the wheel turned with a key held, and each taken off by its cross.
@@ -629,7 +638,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     const focusName = body.contains(focused) ? focused.closest(".prefs-color")?.dataset.name : null;
     const scroll = body.querySelector(".prefs-colors")?.scrollTop ?? 0;
     const keysScroll = body.querySelector(".prefs-key-rows")?.scrollTop ?? 0;
-    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), inForceSection(), keysSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
+    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), inForceSection(), carrySection(), keysSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
     const keyRows = body.querySelector(".prefs-key-rows");
     if (keyRows) {
       keyRows.scrollTop = keysScroll;
