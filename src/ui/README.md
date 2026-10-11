@@ -34,8 +34,22 @@ A job's description is the opening comment or docstring of its own file.
 1. The feature is built.
 2. Its test goes in `test/`, which mirrors `src/` file for file: `src/x.js` is tested by `test/src/x.test.js`. A Rust module keeps its unit tests in its own `tests` module, as Rust's convention has it, and a test that spans modules goes in its crate's `tests/` folder.
 3. A feature of the window is tested through the window's debugging port, every way it can be used: each press, key, menu item, drag, hover and scroll, each state it can be in, and each error it can give, checked for what it shows and what it does.
-4. `test/harness.rs` runs every test, the crates' and the window's, in the dev app on the third monitor, and names each source file with no test of its own. The walker of the menus, `test/walk.py`, and the memory watcher, `test/memory.py`, run over every command.
+4. `test/harness.rs` runs every test, the crates' and the window's, and names each source file with no test of its own. The walker of the menus, `test/walk.py`, and the memory watcher, `test/memory.py`, run over every command.
 5. The feature is committed and pushed once all of it passes.
+
+## Testing it
+
+```
+cargo run --manifest-path src/ui/test/Cargo.toml -- [--only TEXT] [--monitor N]
+```
+
+The harness starts the servers the tests reach, each a Docker container of its own on this
+machine's loopback: PostgreSQL, MySQL, MariaDB, and CUPS with three printers. Without Docker the
+tests that reach them do not run, and the report names them. It runs each crate's tests, then the
+window's, in orior built for the run with a home and a tree of its own: a run leaves the
+reader's orior as it was. The window goes on the highest numbered monitor that is not the main one,
+or the one `--monitor` or `ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while
+any test fails or any source file has no test, and its report is in `test/runs/<time>/report.md`.
 
 ## Running it
 

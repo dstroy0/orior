@@ -96,8 +96,9 @@ for (const [name, key] of [
   ["--bar-opacity", "orior.opacity.bar"],
   ["--menu-opacity", "orior.opacity.menu"],
 ]) {
-  const percent = Number(localStorage.getItem(key) ?? "");
-  if (localStorage.getItem(key) !== null && percent >= 0 && percent <= 100) {
-    document.documentElement.style.setProperty(name, `${percent}%`);
+  // A share is a step of opacity.js's, 0 to 100 by tens; anything else leaves the stylesheet's own.
+  const kept = localStorage.getItem(key) ?? "";
+  if (/^(?:0|[1-9]0|100)$/.test(kept)) {
+    document.documentElement.style.setProperty(name, `${kept}%`);
   }
 }

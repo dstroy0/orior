@@ -507,11 +507,12 @@ mod speaking {
         assert_eq!(signature, "6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=");
     }
 
-    /// The server orior's tests sign in to, where one runs: PostgreSQL on 127.0.0.1:5432 with the
-    /// password ORIOR_PG_PASSWORD names for the user postgres.
+    /// The server orior's tests sign in to, where one runs: PostgreSQL at ORIOR_PG_ADDRESS, else on
+    /// 127.0.0.1:5432, with the password ORIOR_PG_PASSWORD names for the user postgres.
     fn server() -> Option<Pg> {
         let password = std::env::var("ORIOR_PG_PASSWORD").ok()?;
-        Pg::connect("127.0.0.1", 5432, "postgres", &password, "postgres", Duration::from_secs(5)).ok()
+        let (host, port) = crate::db::test_server("PG", 5432);
+        Pg::connect(&host, port, "postgres", &password, "postgres", Duration::from_secs(5)).ok()
     }
 
     #[test]
@@ -560,10 +561,11 @@ mod speaking {
         pg.all("reset password_encryption").unwrap();
         pg.all("create role orior_plain login password 'plain secret'").unwrap();
         pg.close();
+        let (host, port) = crate::db::test_server("PG", 5432);
         for (user, password) in [("orior_md5", "md5 secret"), ("orior_plain", "plain secret")] {
-            let signed = Pg::connect("127.0.0.1", 5432, user, password, "postgres", Duration::from_secs(5));
+            let signed = Pg::connect(&host, port, user, password, "postgres", Duration::from_secs(5));
             assert!(signed.is_ok(), "{user}: {:?}", signed.err());
-            let wrong = Pg::connect("127.0.0.1", 5432, user, "not it", "postgres", Duration::from_secs(5)).err().unwrap();
+            let wrong = Pg::connect(&host, port, user, "not it", "postgres", Duration::from_secs(5)).err().unwrap();
             assert_eq!(wrong.code, "28P01", "{user}");
         }
     }

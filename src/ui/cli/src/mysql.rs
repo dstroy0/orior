@@ -783,29 +783,33 @@ mod speaking {
         assert_eq!(caching("secret", scramble).len(), 32);
     }
 
-    /// The server orior's tests sign in to, where one runs: MySQL on 127.0.0.1:3306 with the
-    /// password ORIOR_MYSQL_PASSWORD names for root.
-    fn server() -> Option<(Mysql, String)> {
-        let password = std::env::var("ORIOR_MYSQL_PASSWORD").ok()?;
-        Mysql::connect("127.0.0.1", 3306, "root", &password, "", Duration::from_secs(5)).ok().map(|my| (my, password))
+    /// The server orior's tests sign in to, where one runs: MySQL, or MariaDB where `name` is
+    /// MARIADB, at ORIOR_<name>_ADDRESS, else on 127.0.0.1:3306, with the password
+    /// ORIOR_<name>_PASSWORD names for root.
+    fn server(name: &str) -> Option<(Mysql, String, (String, u16))> {
+        let password = std::env::var(format!("ORIOR_{name}_PASSWORD")).ok()?;
+        let (host, port) = crate::db::test_server(name, 3306);
+        Mysql::connect(&host, port, "root", &password, "", Duration::from_secs(5)).ok().map(|my| (my, password, (host, port)))
     }
 
     #[test]
     fn each_sign_in_works_and_a_query_s_rows_come_a_page_at_a_time() {
-        let Some((mut my, _)) = server() else { return };
-        my.all("DROP USER IF EXISTS 'orior_sha2'@'127.0.0.1', 'orior_native'@'127.0.0.1'").unwrap();
-        my.all("CREATE USER 'orior_sha2'@'127.0.0.1' IDENTIFIED WITH caching_sha2_password BY 'sha2 secret'").unwrap();
-        my.all("CREATE USER 'orior_native'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY 'native secret'").unwrap();
+        let Some((mut my, _, (host, port))) = server("MYSQL") else { return };
+        // Each user signs in from any host, as the test server sees the harness's machine at the
+        // address of its own network's gateway.
+        my.all("DROP USER IF EXISTS 'orior_sha2'@'%', 'orior_native'@'%'").unwrap();
+        my.all("CREATE USER 'orior_sha2'@'%' IDENTIFIED WITH caching_sha2_password BY 'sha2 secret'").unwrap();
+        my.all("CREATE USER 'orior_native'@'%' IDENTIFIED WITH mysql_native_password BY 'native secret'").unwrap();
         my.all("FLUSH PRIVILEGES").unwrap();
         // The first sign-in after the flush takes the password whole, sealed by the server's key;
         // the second is answered from the server's cache.
         for sealed in [true, false] {
-            let signed = Mysql::connect("127.0.0.1", 3306, "orior_sha2", "sha2 secret", "", Duration::from_secs(5));
+            let signed = Mysql::connect(&host, port, "orior_sha2", "sha2 secret", "", Duration::from_secs(5));
             assert!(signed.as_ref().is_ok_and(|one| one.sealed == sealed), "{:?}", signed.map(|one| one.sealed).err());
         }
-        let native = Mysql::connect("127.0.0.1", 3306, "orior_native", "native secret", "", Duration::from_secs(5));
+        let native = Mysql::connect(&host, port, "orior_native", "native secret", "", Duration::from_secs(5));
         assert!(native.is_ok(), "{:?}", native.err());
-        let wrong = Mysql::connect("127.0.0.1", 3306, "orior_sha2", "not it", "", Duration::from_secs(5)).err().unwrap();
+        let wrong = Mysql::connect(&host, port, "orior_sha2", "not it", "", Duration::from_secs(5)).err().unwrap();
         assert!(wrong.code.starts_with("1045"), "{wrong}");
         my.all("CREATE DATABASE IF NOT EXISTS orior_test").unwrap();
         my.all("CREATE TABLE IF NOT EXISTS orior_test.n (n INT, t VARCHAR(10), b VARBINARY(4), at TIMESTAMP NULL)").unwrap();
@@ -838,6 +842,38 @@ mod speaking {
         assert_eq!(slept, vec![vec![Some("1".to_string())]]);
         assert_eq!(my.all(&format!("SELECT {}", literal("it's \\ ok"))).unwrap(), vec![vec![Some("it's \\ ok".to_string())]]);
         my.all("DROP DATABASE orior_test").unwrap();
+        my.close();
+    }
+
+    #[test]
+    fn mariadb_signs_in_reads_rows_and_stops_a_query() {
+        let Some((mut my, _, (host, port))) = server("MARIADB") else { return };
+        my.all("DROP USER IF EXISTS 'orior_native'@'%'").unwrap();
+        my.all("CREATE USER 'orior_native'@'%' IDENTIFIED BY 'native secret'").unwrap();
+        let native = Mysql::connect(&host, port, "orior_native", "native secret", "", Duration::from_secs(5));
+        assert!(native.is_ok(), "{:?}", native.err());
+        let wrong = Mysql::connect(&host, port, "orior_native", "not it", "", Duration::from_secs(5)).err().unwrap();
+        assert!(wrong.code.starts_with("1045"), "{wrong}");
+        // MariaDB recurses 1000 times at most unless max_recursive_iterations says otherwise.
+        let Head::Rows(columns) = my.start("WITH RECURSIVE k(seq) AS (SELECT 1 UNION ALL SELECT seq + 1 FROM k WHERE seq < 900) SELECT seq, CONCAT('n', seq) AS t FROM k").unwrap() else { panic!("no rows") };
+        assert_eq!(columns.iter().map(|one| (one.name.as_str(), one.numeric)).collect::<Vec<_>>(), vec![("seq", true), ("t", false)]);
+        let (first, done) = my.rows(600).unwrap();
+        assert_eq!((first.len(), done.is_none(), first[599][1].as_deref()), (600, true, Some("n600")));
+        let (rest, done) = my.rows(600).unwrap();
+        assert_eq!((rest.len(), done.is_some()), (300, true));
+        let cancel = my.canceller();
+        let stopper = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(400));
+            cancel.send().unwrap();
+        });
+        let started = std::time::Instant::now();
+        // MariaDB fails a statement its KILL QUERY stops, where MySQL has SLEEP give 1.
+        let stopped = my.all("SELECT SLEEP(30)").unwrap_err();
+        stopper.join().unwrap();
+        assert!(started.elapsed() < Duration::from_secs(10));
+        assert!(stopped.code.starts_with("1317"), "{stopped}");
+        assert_eq!(my.all("SELECT 2").unwrap(), vec![vec![Some("2".to_string())]]);
+        my.all("DROP USER 'orior_native'@'%'").unwrap();
         my.close();
     }
 }

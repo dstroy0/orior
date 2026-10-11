@@ -183,6 +183,8 @@ async function start() {
   settlePanes();
   onView(settlePanes);
   await runLaunch();
+  // The window is whole: the test harness and the walker wait for this before they press anything.
+  document.documentElement.dataset.started = "";
 }
 
 // Works on the tree in `folder`, or in one asked for, in place of the one open. A folder that is no

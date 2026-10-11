@@ -6127,7 +6127,8 @@ textarea.report-field {
   color: var(--signal);
 }
 
-.menu-item:focus {
+.menu-item:focus,
+.menu-item.pointed {
   outline: none;
   background: var(--ed-sel);
 }

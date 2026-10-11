@@ -1051,6 +1051,19 @@ pub fn listed(root: &Path, open: &BTreeMap<String, Arc<Open>>) -> Result<Vec<Val
         .collect())
 }
 
+/// Where a test server listens: the host:port ORIOR_<name>_ADDRESS names, as the test harness gives
+/// it, else 127.0.0.1 at `port`.
+#[cfg(test)]
+pub(crate) fn test_server(name: &str, port: u16) -> (String, u16) {
+    std::env::var(format!("ORIOR_{name}_ADDRESS"))
+        .ok()
+        .and_then(|named| {
+            let (host, port) = named.rsplit_once(':')?;
+            Some((host.to_string(), port.parse().ok()?))
+        })
+        .unwrap_or_else(|| ("127.0.0.1".to_string(), port))
+}
+
 #[cfg(test)]
 mod connections {
     use super::*;
@@ -1171,7 +1184,8 @@ mod connections {
     fn a_postgres_connection_that_matters_guards_its_writes() {
         let Ok(password) = std::env::var("ORIOR_PG_PASSWORD") else { return };
         let root = tree("pg");
-        let base = Connection { name: "pg".into(), kind: "postgres".into(), host: "127.0.0.1".into(), user: "postgres".into(), database: "postgres".into(), ..Connection::default() };
+        let (host, port) = test_server("PG", 5432);
+        let base = Connection { name: "pg".into(), kind: "postgres".into(), host, port, user: "postgres".into(), database: "postgres".into(), ..Connection::default() };
         let open = Open::connect(&root, base.clone(), Some(password.clone())).unwrap();
         open.run("DROP TABLE IF EXISTS orior_guard", true, 10).unwrap();
         open.run("CREATE TABLE orior_guard (n int)", true, 10).unwrap();
@@ -1203,7 +1217,8 @@ mod connections {
     fn a_mysql_connection_reads_its_schema_and_its_zone() {
         let Ok(password) = std::env::var("ORIOR_MYSQL_PASSWORD") else { return };
         let root = tree("mysql");
-        let open = Open::connect(&root, Connection { name: "my".into(), kind: "mysql".into(), host: "127.0.0.1".into(), user: "root".into(), ..Connection::default() }, Some(password)).unwrap();
+        let (host, port) = test_server("MYSQL", 3306);
+        let open = Open::connect(&root, Connection { name: "my".into(), kind: "mysql".into(), host, port, user: "root".into(), ..Connection::default() }, Some(password)).unwrap();
         open.run("CREATE DATABASE IF NOT EXISTS orior_schema", true, 10).unwrap();
         open.run("CREATE TABLE IF NOT EXISTS orior_schema.t (id INT PRIMARY KEY, name VARCHAR(20) NOT NULL, KEY by_name (name))", true, 10).unwrap();
         assert!(!open.zone.lock().unwrap().is_empty());
