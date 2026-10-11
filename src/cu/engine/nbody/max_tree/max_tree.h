@@ -191,9 +191,19 @@ extern "C"
         unsigned int *level_code;
         unsigned int *proof_count;
         EngineError *error;
+        // the limbs a lane of `device_residual` is held in, as EngineResidualRequest's: 0 is ENGINE_RESIDUAL_LIMBS. A
+        // graded request, or one made while frames are kept, holds ENGINE_RESIDUAL_LIMBS
+        unsigned int limbs;
     } MaxTreeObjectsRequest;
 
     long max_tree_objects(const MaxTreeObjectsRequest *request);
+
+    // the device bytes max_tree_objects holds over `voxels` lanes with no frames kept, its bodies' room for `bodies`
+    // with them, each allocation in whole pages (DEVICE_POOL_PAGE_BYTES); 0 where the sort's workspace is not told
+    unsigned long long max_tree_objects_bytes(size_t voxels, size_t bodies);
+
+    // frees the buffers max_tree_objects holds between calls
+    void max_tree_resident_release(void);
 
 #define MAX_TREE_FIELD_MOMENT_ZZ 0u
 #define MAX_TREE_FIELD_MOMENT_YY 1u

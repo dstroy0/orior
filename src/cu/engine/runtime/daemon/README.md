@@ -123,6 +123,7 @@ ask.holding_microseconds = 2000000;   // how long it may wait held over budget b
 ask.sweep_microseconds = 20000;       // how often its process is measured while it runs; must not be 0
 ask.idle_microseconds = 5000000;      // how long the daemon lives on once no job is left
 ask.override_budget = 0;              // 1 admits it on its declaration even over its signum's peak
+ask.waiting_microseconds = 0;         // how long it may wait to fit the headroom; 0 waits until it fits
 ask.daemon_path = "path/to/tessera_daemon.exe";   // lets the client start the daemon; NULL if one is running
 ask.error = &error;
 
@@ -139,8 +140,10 @@ if (tessera_job_submit(&ask, &client, &ticket) == TESSERA_ERROR) { /* the error 
 | `asked == 1` | **held.** It declared more than its signum's last peak (`last_peak`) | override it, or wait |
 | `lost == 1` | **lost.** It was held past its holding time | keep its precalc in `lost_path`, then say so |
 
-A job that doesn't fit the headroom yet waits inside the submit until it fits, with no ticket until then. A job
-with a signum never seen before is admitted on its declaration over its standing, and measured.
+A job that doesn't fit the headroom yet waits inside the submit until it fits, with no ticket until then. An ask
+with `waiting_microseconds` waits that long at most: past it the submit errs with `ticket.waited` at or past it, its
+connection closes, and the daemon drops the job. A job with a signum never seen before is admitted on its
+declaration over its standing, and measured.
 
 **Held.** If the job means to take more than last time, confirm it with `tessera_job_override(client, &ticket,
 &error)`, which admits it on its declaration. Or wait with `tessera_job_wait(client, &ticket, &error)`: it

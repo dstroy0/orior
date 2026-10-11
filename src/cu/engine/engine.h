@@ -67,6 +67,19 @@ extern "C"
 
     long engine_residual(const EngineResidualRequest *request, const unsigned int **device_residual);
 
+    // the fewest limbs that hold the request's residual and its sign; a request past ENGINE_RESIDUAL_LIMBS is refused
+    unsigned long long engine_residual_limbs(const EngineResidualRequest *request);
+
+    // the device bytes engine_residual holds for the request: its lanes, its residual in the request's limbs, the check
+    // where it is proved, and the unit sweep's planes where the sweep runs
+    unsigned long long engine_residual_bytes(const EngineResidualRequest *request);
+
+    // frees what the engine holds on the device between calls: the residual's lanes, residual and key, the planes'
+    // residual, the unit sweep's planes, the max tree's buffers, the tower's and compression's pools, and the cycle's
+    // run and sum scratch. A job calls it before it releases, with body_overlap_release where it ran an overlap, and
+    // holds no device bytes of its own after
+    void engine_resident_release(void);
+
     typedef struct
     {
         const unsigned int *planes;
