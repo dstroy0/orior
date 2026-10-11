@@ -298,6 +298,28 @@ fn settings_layers(tree: settings::Chain, root: String) -> settings::Layers {
     settings::layers(&settings::reader(), &tree, &root)
 }
 
+/// The picture at `path` as the data address a theme keeps for the image behind the editor: PNG,
+/// JPEG, GIF, WebP, SVG or BMP, of IMAGE_MOST bytes at most.
+#[tauri::command(async)]
+fn image_data(path: String) -> Result<String, String> {
+    const IMAGE_MOST: u64 = 8 << 20;
+    let path = PathBuf::from(path);
+    let kind = match path.extension().and_then(|end| end.to_str()).map(str::to_ascii_lowercase).as_deref() {
+        Some("png") => "image/png",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("svg") => "image/svg+xml",
+        Some("bmp") => "image/bmp",
+        _ => return Err(format!("{} is not a picture of a kind a theme takes: PNG, JPEG, GIF, WebP, SVG or BMP", path.display())),
+    };
+    let said = |error: std::io::Error| format!("{}: {error}", path.display());
+    if std::fs::metadata(&path).map_err(said)?.len() > IMAGE_MOST {
+        return Err(format!("{} is over {} MB, the most an image behind the editor is", path.display(), IMAGE_MOST >> 20));
+    }
+    Ok(format!("data:{kind};base64,{}", orior_cli::serve::base64(&std::fs::read(&path).map_err(said)?)))
+}
+
 /// The script that puts what orior's folder keeps into the page's storage before the page's own
 /// scripts run, on the first load of the main window's page in a run, in place of every entry the
 /// page kept before. Where the folder keeps nothing yet, it tells the page to write all it holds
@@ -986,6 +1008,7 @@ fn open(launch: Launch) {
             print_page,
             kept_write,
             settings_layers,
+            image_data,
             files_copy,
             clip_files,
             files_paste,

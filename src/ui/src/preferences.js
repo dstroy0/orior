@@ -7,8 +7,10 @@
 // that keep the explorer, the search and the watching of files from files, the sets of files Find in
 // Files searches in, and the keys: the set of keys, how a letter's key is bound, each key more than
 // one command holds, and each command's keys, set by pressing them. A color changed in the scheme's
-// own theme starts a theme of the reader's from it, and every change shows at once. A theme copies
-// out as text and reads back in from the clipboard.
+// own theme starts a theme of the reader's from it, and every change shows at once; the palette holds
+// a color for every kind of token a grammar names, and each color whose contrast with the color under
+// it is too low for text is marked. A theme lays an image behind the editor and gives files icons by
+// patterns of their names. A theme copies out as text and reads back in from the clipboard.
 
 import { FONT_SETTINGS, fontDefault, fonts, setFont } from "./fonts.js";
 import { buttonName, keySettings, pressName, setKeySettings, SETS, sharedKeys, wheelName } from "./keys.js";
@@ -16,12 +18,15 @@ import { clipText, copyText } from "./menu.js";
 import { OPACITY_SETTINGS, opacity, setOpacity, STEPS as OPACITY_STEPS } from "./opacity.js";
 import { PATTERN_PARTS, patternsOf, setPatterns, setSets, setsText } from "./patterns.js";
 import { scheme, setScheme } from "./scheme.js";
-import { BASES, builtIn, choose, chosen, deleteTheme, freeName, readTheme, saveTheme, themeNamed, themes, themeText } from "./themes.js";
+import { BASES, choose, chosen, contrastOf, contrastPairs, CONTRAST_LEAST, deleteTheme, freeName, iconColor, IMAGE_OPACITY, paletteOf, readTheme, saveTheme, themeNamed, themes, themeText } from "./themes.js";
 import { setZoom, STEPS, zoom } from "./zoom.js";
 import { readSettings, settingsInForce, TREE_FILE } from "./settings.js";
-import { invoke } from "./bridge.js";
+import { invoke, pick } from "./bridge.js";
 
 const BASE_NAMES = { dark: "Dark", light: "Light" };
+
+// The shares of the image behind the editor to choose from.
+const IMAGE_SHARES = [0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.75, 1];
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -91,6 +96,113 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
   };
 
   const said = element("p", { className: "prefs-said", ariaLive: "polite" });
+
+  // Marks each color whose contrast with the one under it is too low, once a color changes; set by
+  // the palette's section as it is drawn.
+  let drawContrast = () => {};
+
+  // The image the theme lays behind the editor: chosen from a file, the share of it that shows, and
+  // taken off.
+  function imageRow() {
+    const image = shownTheme()?.image ?? null;
+    const button = (text, run, disabled = false) => {
+      const made = element("button", { type: "button", className: "prefs-button", textContent: text, disabled });
+      made.addEventListener("click", run);
+      return made;
+    };
+    const share = element(
+      "select",
+      { className: "report-field prefs-image-share", ariaLabel: "The image's share", disabled: !image },
+      ...IMAGE_SHARES.map((step) => element("option", { value: String(step), textContent: `${Math.round(step * 100)}%`, selected: Math.abs(step - (image?.opacity ?? IMAGE_OPACITY)) < 0.001 })),
+    );
+    share.addEventListener("change", () => {
+      const own = ownTheme();
+      saveTheme({ ...own, image: { ...own.image, opacity: Number(share.value) } });
+    });
+    const thumb = element("span", { className: "prefs-image-thumb", hidden: !image });
+    if (image) {
+      thumb.style.backgroundImage = `url("${image.src}")`;
+    }
+    return element(
+      "div",
+      { className: "prefs-line prefs-image" },
+      element("span", { className: "prefs-image-label", textContent: "Image behind the editor" }),
+      thumb,
+      button("Choose…", async () => {
+        const path = await pick("file").catch(() => null);
+        if (typeof path !== "string") {
+          return;
+        }
+        try {
+          const src = await invoke("image_data", { path });
+          const own = ownTheme();
+          saveTheme({ ...own, image: { src, opacity: own.image?.opacity ?? IMAGE_OPACITY } });
+          draw();
+        } catch (error) {
+          said.textContent = String(error);
+        }
+      }),
+      share,
+      button(
+        "Remove",
+        () => {
+          const own = { ...ownTheme() };
+          delete own.image;
+          saveTheme(own);
+          draw();
+        },
+        !image,
+      ),
+    );
+  }
+
+  // The icons the theme gives files by patterns of their names, the first whose pattern a name
+  // matches giving its icon: each a pattern, a mark and a color, changed in place and taken off by
+  // its cross, and one more added by Add.
+  function iconsSection() {
+    const icons = shownTheme()?.icons ?? [];
+    const keep = (next) => {
+      const own = ownTheme();
+      saveTheme({ ...own, icons: next });
+    };
+    const rows = icons.map((icon, at) => {
+      const mark = element("span", { className: "icon prefs-icon-shown", ariaHidden: "true" });
+      const drawMark = () => {
+        const now = shownTheme()?.icons?.[at];
+        mark.textContent = now?.mark ?? "";
+        mark.style.color = iconColor(now?.color) || "";
+      };
+      const field = (key, label) => {
+        const input = element("input", { className: `report-field prefs-icon-${key}`, type: "text", value: icon[key] ?? "", placeholder: label, ariaLabel: label, spellcheck: false });
+        input.addEventListener("change", () => {
+          keep((shownTheme()?.icons ?? []).map((one, index) => (index === at ? { ...one, [key]: input.value.trim() } : one)));
+          drawMark();
+        });
+        return input;
+      };
+      const off = element("button", { type: "button", className: "prefs-key-off", textContent: "×", title: "Take this icon off" });
+      off.addEventListener("click", () => {
+        keep((shownTheme()?.icons ?? []).filter((_, index) => index !== at));
+        draw();
+      });
+      drawMark();
+      return element("div", { className: "prefs-icon-row" }, mark, field("pattern", "Pattern"), field("mark", "Mark"), field("color", "Color"), off);
+    });
+    const add = element("button", { type: "button", className: "prefs-button", textContent: "Add" });
+    add.addEventListener("click", () => {
+      keep([...(shownTheme()?.icons ?? []), { pattern: "", mark: "", color: "" }]);
+      draw();
+      [...body.querySelectorAll(".prefs-icon-pattern")].at(-1)?.focus();
+    });
+    return element(
+      "div",
+      { className: "prefs-icons" },
+      element("h4", { textContent: "File icons" }),
+      element("p", { className: "prefs-icons-said", textContent: "A file takes the first icon whose pattern its name matches, * standing for any letters and ? for one; a color is one of the palette's, as --t2, or any color." }),
+      ...rows,
+      add,
+    );
+  }
 
   function themeRow() {
     const select = element("select", { className: "report-field", ariaLabel: "Color Theme" });
@@ -165,7 +277,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
         }
       })
     );
-    return element("section", { className: "prefs-theme" }, element("h3", { textContent: "Color Theme" }), element("div", { className: "prefs-line" }, select, name), actions, said);
+    return element("section", { className: "prefs-theme" }, element("h3", { textContent: "Color Theme" }), element("div", { className: "prefs-line" }, select, name), actions, said, imageRow(), iconsSection());
   }
 
   function colorRow(name, base, theme) {
@@ -190,6 +302,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
         draw();
         return;
       }
+      drawContrast();
       reset.disabled = !(name in colors);
       row.classList.toggle("changed", name in colors);
       // The first change to the scheme's own colors starts a theme, which the theme's row now names.
@@ -212,13 +325,14 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
       set(next, false);
     });
     reset.addEventListener("click", () => set(null, true));
-    row.append(swatch, element("code", { textContent: name }), text, reset);
+    row.append(swatch, element("code", { textContent: name }), text, element("span", { className: "prefs-contrast" }), reset);
     return row;
   }
 
   function colorsSection() {
-    const base = builtIn()[scheme()];
+    const base = paletteOf(scheme());
     const theme = shownTheme();
+    const contrasts = element("p", { className: "prefs-contrasts", hidden: true });
     const filter = element("input", { className: "filter", type: "search", placeholder: "Search", value: state.filter, spellcheck: false, ariaLabel: "Search colors" });
     const grid = element("div", { className: "prefs-colors" });
     const fill = () => {
@@ -237,12 +351,36 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
       }
       grid.replaceChildren(...[...groups].flatMap(([group, rows]) => [element("h4", { textContent: group }), ...rows]));
     };
+    // Each color of text whose contrast with the color under it is under CONTRAST_LEAST, marked on its
+    // row with the ratio and the color under it, and listed over the palette.
+    drawContrast = () => {
+      const colors = new Map(base);
+      for (const [name, value] of Object.entries(shownTheme()?.colors ?? {})) {
+        colors.set(name, value);
+      }
+      const low = new Map();
+      for (const [fore, back] of contrastPairs(colors)) {
+        const ratio = contrastOf(colors.get(fore), colors.get(back), colors.get("--bg"));
+        if (ratio < CONTRAST_LEAST && !low.has(fore)) {
+          low.set(fore, { back, ratio });
+        }
+      }
+      for (const row of grid.querySelectorAll(".prefs-color")) {
+        const found = low.get(row.dataset.name);
+        row.classList.toggle("low", Boolean(found));
+        row.querySelector(".prefs-contrast").textContent = found ? `${found.ratio.toFixed(1)}:1 on ${found.back}` : "";
+      }
+      contrasts.hidden = !low.size;
+      contrasts.textContent = `Under ${CONTRAST_LEAST}:1, the contrast WCAG 2 asks of text: ${[...low].map(([name, { back, ratio }]) => `${name} on ${back}, ${ratio.toFixed(1)}:1`).join("; ")}.`;
+    };
     filter.addEventListener("input", () => {
       state.filter = filter.value;
       fill();
+      drawContrast();
     });
     fill();
-    return element("section", { className: "prefs-palette" }, element("h3", { textContent: "Colors" }), filter, grid);
+    drawContrast();
+    return element("section", { className: "prefs-palette" }, element("h3", { textContent: "Colors" }), contrasts, filter, grid);
   }
 
   function settingsSection() {
@@ -505,6 +643,12 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
 
   draw();
   sheet(body);
-  // The files are read again as Preferences opens, so that each setting kept since shows with its file.
-  readSettings().then(() => body.isConnected && draw());
+  // The files are read again as Preferences opens, so that each setting kept since shows with its
+  // file; the settings in force are drawn again where the reading changed them.
+  const before = JSON.stringify(settingsInForce());
+  readSettings().then((read) => {
+    if (body.isConnected && JSON.stringify(read) !== before) {
+      body.querySelector(".prefs-force")?.replaceWith(inForceSection());
+    }
+  });
 }

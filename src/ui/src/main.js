@@ -155,6 +155,7 @@ async function start() {
   await startMotion();
   startWordmark();
   keepScheme();
+  applyThemes();
   onSettings(showSettings);
   startSettings();
   const styled = keepUserCss();

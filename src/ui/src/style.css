@@ -3513,6 +3513,18 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   font: var(--code-size) / var(--code-line) var(--code);
   font-variant-ligatures: none;
   overflow: hidden;
+  isolation: isolate;
+}
+
+/* The image a theme lays behind the editor, under its text, at the share the theme sets. */
+.ed::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--ed-image, none) center / cover no-repeat;
+  opacity: var(--ed-image-opacity, 0.15);
+  pointer-events: none;
 }
 
 .ed[data-empty="true"] > * {
@@ -7668,11 +7680,12 @@ textarea.report-field {
   max-height: none;
 }
 
+/* Preferences: its sections one under another, the sheet scrolling past those out of sight, and the
+   palette's colors scrolling in a part of their own. */
 .sheet-prefs {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
-  height: 100%;
   font: 13px var(--head);
 }
 
@@ -7753,8 +7766,6 @@ textarea.report-field {
 .prefs-palette {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .prefs-palette .filter {
@@ -7762,8 +7773,7 @@ textarea.report-field {
 }
 
 .prefs-colors {
-  flex: 1 1 auto;
-  min-height: 0;
+  max-height: 26rem;
   overflow-y: auto;
   padding-right: 0.3rem;
 }
@@ -7790,6 +7800,78 @@ textarea.report-field {
 
 .prefs-color.changed {
   box-shadow: inset 2px 0 0 var(--signal);
+}
+
+/* A color whose contrast with the color under it is too low for text: the ratio and the color under
+   it beside its value, and the colors so marked listed over the palette. */
+.prefs-contrast {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  margin-top: -0.15rem;
+  color: var(--fail);
+  font: 11.5px var(--code);
+}
+
+.prefs-contrast:empty {
+  display: none;
+}
+
+.prefs-contrasts {
+  margin: 0 0 0.4rem;
+  color: var(--fail);
+  font: 12px var(--head);
+}
+
+/* The theme's image behind the editor, a small picture of it beside its controls, and the theme's
+   icons of files, each a row of its mark, its pattern, its mark's letters, its color and its cross. */
+.prefs-image {
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+.prefs-image-label {
+  color: var(--fg-2);
+}
+
+.prefs-image-thumb {
+  width: 3.2rem;
+  height: 1.8rem;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * 0.6);
+  background: center / cover no-repeat;
+}
+
+.prefs-line .prefs-image-share {
+  flex: 0 0 6rem;
+}
+
+.prefs-icons {
+  margin-top: 0.6rem;
+}
+
+.prefs-icons h4 {
+  margin: 0 0 0.2rem;
+  font: 600 12px var(--head);
+  color: var(--fg-2);
+}
+
+.prefs-icons-said {
+  margin: 0 0 0.4rem;
+  color: var(--fg-3);
+  font: 12px var(--head);
+}
+
+.prefs-icon-row {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 2fr) 4rem minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+
+.prefs-icon-shown {
+  text-align: center;
+  font: 600 12px var(--code);
 }
 
 .prefs-color code {

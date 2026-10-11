@@ -144,6 +144,22 @@ run programs or name the reader's own.
 }
 ```
 
+A theme's file in `themes/` holds its name, the scheme it is drawn over, and its colors, among them
+one for any kind of token a grammar names, as `--t-string-escape`; and, where it has them, `image`,
+a picture laid behind the editor as a data address with the share of it that shows, and `icons`,
+each a pattern of files' names, the mark the explorer shows for them and its color. Preferences,
+Colors, marks each color whose contrast with the color under it is under 4.5:1.
+
+```json
+{
+  "name": "Night",
+  "base": "dark",
+  "colors": { "--t-string-escape": "#ffb86c" },
+  "image": { "src": "data:image/png;base64,…", "opacity": 0.15 },
+  "icons": [{ "pattern": "*.test.js", "mark": "T", "color": "--t2" }]
+}
+```
+
 A tree names its deployments in `deploy.json` at its top folder, each a job of Build: its name,
 the folder whose files go, the patterns of the files that stay, the places, and how many releases
 each place keeps.

@@ -23,6 +23,7 @@ import { escapeHtml } from "./editor/view.js";
 import { copyText, menuOn, showMenu } from "./menu.js";
 import { comments, onReview, removeComment, resolveComment } from "./review.js";
 import { structureOf } from "./outline.js";
+import { themeIcon } from "./themes.js";
 
 const KEPT = "orior.panes";
 
@@ -78,7 +79,8 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// A file's icon: a mark for its type in a color of the palette, or a page where the type has no mark.
+// A file's icon: the one the theme gives its name, else a mark for its type in a color of the
+// palette, or a page where the type has no mark.
 const ICONS = {
   js: ["JS", 3], mjs: ["JS", 3], json: ["{}", 3], cfg: ["{}", 3], rs: ["rs", 1], py: ["py", 4],
   sh: ["$", 2], bash: ["$", 2], ps1: ["PS", 4], psm1: ["PS", 4], bat: ["$", 7], cmd: ["$", 7],
@@ -93,10 +95,13 @@ const NAMED = { ".gitignore": ["◆", 1], ".gitattributes": ["◆", 1], ".gitmod
 
 export function iconOf(name, known = false) {
   const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
-  const [mark, color] = known ? ["K", 2] : (NAMED[name] ?? ICONS[ext] ?? [null, 0]);
+  const themed = known ? null : themeIcon(name);
+  const [mark, color] = themed ? [themed.mark, null] : known ? ["K", 2] : (NAMED[name] ?? ICONS[ext] ?? [null, 0]);
   const icon = element("span", { className: mark ? "icon" : "icon page", textContent: mark ?? "" });
   icon.setAttribute("aria-hidden", "true");
-  if (mark) {
+  if (themed?.color) {
+    icon.style.color = themed.color;
+  } else if (mark && color !== null) {
     icon.style.color = `var(--t${color})`;
   }
   return icon;

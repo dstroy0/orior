@@ -57,7 +57,7 @@ import { onPatterns, tellPatterns } from "./patterns.js";
 import { coloredLines } from "./screen.js";
 import { cellFileOf, closeNotebook, drawNotebook, hideNotebook, isNotebook, markNotebookSaved, notebookDirty, notebookEditor, notebookFile, notebookOfCellFile, openNotebook, repaintNotebook, showCellLine, showNotebookMerge, startNotebooks } from "./notebook.js";
 import { onScheme } from "./scheme.js";
-import { kindColors } from "./themes.js";
+import { iconsKey, kindColors } from "./themes.js";
 import { onFonts } from "./fonts.js";
 import { calm, status, write } from "./status.js";
 import { writeWithCare } from "./rights.js";
@@ -3084,12 +3084,18 @@ export async function startEdit(defs) {
       await drawTree();
     },
   });
-  onScheme(() =>
+  onScheme(() => {
     [state.editor, state.split?.editor].filter(Boolean).forEach((editor) => {
       editor.drawTheme();
       editor.refreshColors();
-    }),
-  );
+    });
+    // The theme's icons of files, where they changed.
+    if (iconsKey() !== state.iconsDrawn) {
+      state.iconsDrawn = iconsKey();
+      drawTabs();
+      drawTree();
+    }
+  });
   let wait = 0;
   document.getElementById("file-filter").addEventListener("input", () => {
     window.clearTimeout(wait);

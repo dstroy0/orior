@@ -26,6 +26,30 @@ const LONGEST = 20000;
 
 const classes = new Map();
 
+// Every kind of token the grammars compiled name, as "keyword" or "number.cost", for the themes that
+// color each.
+const kinds = new Set();
+
+export function tokenKinds() {
+  return [...kinds].sort();
+}
+
+// Notes each kind of token a rule's action names: a token, a list of them, cases, or a rule's own.
+function noteKinds(action) {
+  if (typeof action === "string") {
+    const kind = action === "@brackets" ? "delimiter.bracket" : action;
+    if (kind && !kind.startsWith("@")) {
+      kinds.add(kind);
+    }
+  } else if (Array.isArray(action)) {
+    action.forEach(noteKinds);
+  } else if (action?.cases) {
+    Object.values(action.cases).forEach(noteKinds);
+  } else if (action && typeof action === "object") {
+    noteKinds(action.token);
+  }
+}
+
 // The class names of a token: "number.cost" is t-number and t-number-cost. A color given to
 // number reaches every kind of number.
 export function classOf(token) {
@@ -65,6 +89,7 @@ export function compile(def) {
         continue;
       }
       const [pattern, action, next] = rule;
+      noteKinds(action);
       const own = action && typeof action === "object" && !Array.isArray(action) && !action.cases;
       out.push({ re: sticky(pattern), token: own ? action.token : action, next: own ? action.next : next });
     }
