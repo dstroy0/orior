@@ -20,6 +20,7 @@ import { startSight } from "./sight.js";
 import { startWaits } from "./waits.js";
 import { startPeek } from "./peek.js";
 import { startPreview } from "./preview.js";
+import { startPurpose } from "./purpose.js";
 import { startRequests } from "./requests.js";
 import { startDocks } from "./docks.js";
 import { startStatusItems } from "./statusitems.js";
@@ -267,6 +268,7 @@ async function begin(root) {
       startPreview();
       startRequests();
       startPeek();
+      startPurpose();
     }
     await loadRun();
     drawMenubar();

@@ -19,7 +19,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
-use crate::{bridge, catalog, debug, defs, files, format, git, history, latex, patterns, requests, plugins, root, run_file, runner, servers, symbols, toolchains, validate, watch};
+use crate::{bridge, catalog, debug, defs, files, format, git, history, latex, patterns, purpose, requests, plugins, root, run_file, runner, servers, symbols, toolchains, validate, watch};
 
 /// Where what the server tells goes: the event's name and its body.
 pub type Emit = Arc<dyn Fn(&str, Value) + Send + Sync>;
@@ -818,6 +818,8 @@ impl Server {
             "git_cherry_pick" => git::cherry_pick(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, &a.get::<String>("id")?).and_then(give),
             "git_line_history" => git::line_history(&self.root()?, &path()?, a.get("text")?).and_then(give),
             "file_at" => git::text_at(&self.root()?, &path()?, &a.get::<String>("id")?).and_then(give),
+            "file_said" => purpose::said(&self.root()?, &path()?).and_then(give),
+            "file_users" => purpose::users(&self.root()?, &path()?).and_then(|(users, all)| give(json!({"users": users, "all": all}))),
             "requests_parse" => give(requests::parse(&a.get::<String>("text")?)),
             "requests_environments" => requests::environments(&self.root()?, &path()?).and_then(give),
             "requests_send" => requests::send_at(&self.root()?, &path()?, &a.get::<String>("text")?, a.get("line")?, a.get::<Option<String>>("env")?.as_deref()).and_then(give),

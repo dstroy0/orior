@@ -114,6 +114,11 @@ fn seen(root: &Path) -> Option<Arc<Seen>> {
         }
         files.insert(path.to_string());
     }
+    // A tree in a folder its repository ignores is one git lists nothing of: it is read from the disk.
+    if files.is_empty() {
+        *kept = Some((root.to_path_buf(), Instant::now(), None));
+        return None;
+    }
     let view = Arc::new(Seen { files, dirs });
     *kept = Some((root.to_path_buf(), Instant::now(), Some(view.clone())));
     Some(view)
@@ -905,6 +910,29 @@ mod pasting {
         assert_eq!(brought[0].from, None);
         assert!(!outside.exists());
         fs::remove_dir_all(&root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod listing {
+    use super::all;
+    use std::fs;
+    use std::process::Command;
+
+    #[test]
+    fn a_tree_in_a_folder_its_repository_ignores_lists_its_files_from_the_disk() {
+        let repo = std::env::temp_dir().join(format!("orior_ui_listing_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&repo);
+        fs::create_dir_all(repo.join("runs/tree/src")).unwrap();
+        fs::write(repo.join(".gitignore"), "runs/\n").unwrap();
+        fs::write(repo.join("runs/tree/a.js"), "one").unwrap();
+        fs::write(repo.join("runs/tree/src/b.js"), "two").unwrap();
+        let repo = dunce::canonicalize(&repo).unwrap();
+        assert!(Command::new("git").arg("init").arg("-q").current_dir(&repo).status().unwrap().success());
+        let mut listed = all(&repo.join("runs/tree"));
+        listed.sort();
+        assert_eq!(listed, vec!["a.js".to_string(), "src/b.js".to_string()]);
+        fs::remove_dir_all(&repo).unwrap();
     }
 }
 

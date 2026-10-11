@@ -8039,6 +8039,59 @@ textarea.report-field {
   display: none;
 }
 
+/* The card of what a file is for, beside its row in the explorer. */
+.file-card {
+  position: fixed;
+  z-index: 40;
+  max-width: 26rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--ed-widget);
+  box-shadow: 0 10px 26px var(--lifted);
+  color: var(--fg);
+  font: 12.5px/1.45 var(--head);
+}
+
+.file-card p {
+  margin: 0 0 0.35rem;
+}
+
+.file-card-path {
+  color: var(--fg-3);
+  font: 11.5px var(--code);
+}
+
+.file-card-said.none,
+.file-card-wait {
+  color: var(--fg-3);
+}
+
+.file-card-head {
+  color: var(--fg-2);
+}
+
+.file-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.file-card-user {
+  padding: 0.05rem 0.3rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--link);
+  font: 12px var(--code);
+  text-align: left;
+  cursor: pointer;
+}
+
+.file-card-user:hover {
+  background: var(--line);
+}
+
 /* A tab opened from a peek is a preview until it is edited or pressed twice: its name in italics. */
 .tab.preview {
   font-style: italic;

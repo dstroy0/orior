@@ -53,6 +53,7 @@ pub mod pg;
 pub mod plugins;
 pub mod print;
 pub mod profile;
+pub mod purpose;
 pub mod python_paths;
 pub mod recording;
 pub mod report;
