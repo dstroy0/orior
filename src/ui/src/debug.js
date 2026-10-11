@@ -198,6 +198,11 @@ function setBreakpoint(path, line, change) {
   tellBreaks(path);
 }
 
+// Puts on `line` of `path` a breakpoint that writes `log` in place of stopping.
+export function setMessageBreakpoint(path, line, log) {
+  setBreakpoint(path, line, { log });
+}
+
 // The menu of the breakpoint strip on `line` of `path`: edit the breakpoint there, set one that
 // writes a message, or take it away.
 export function breakpointMenu(path, line, x, y) {

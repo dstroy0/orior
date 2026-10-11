@@ -53,6 +53,7 @@ pub mod review;
 pub mod pg;
 pub mod plugins;
 pub mod print;
+pub mod prints;
 pub mod profile;
 pub mod purpose;
 pub mod python_paths;

@@ -59,6 +59,7 @@ import { toggleComms } from "./comms.js";
 import { reviewChange } from "./changeview.js";
 import { gatherLines, toggleBoard } from "./gather.js";
 import { peekHere } from "./peek.js";
+import { printHere } from "./prints.js";
 import { previewMode, setPreview } from "./preview.js";
 import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
 import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
@@ -457,6 +458,7 @@ const COMMANDS = {
   "gathered-lines": () => toggleBoard(),
   focus: () => setFocus(),
   "review-structure": (args) => reviewChange(args[0] ?? null),
+  "print-here": inEditor(() => printHere()),
   usages: inEditor(() => editing().usages()),
   calls: inEditor(() => editing().calls()),
   rename: inEditor(() => editing().rename()),

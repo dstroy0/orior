@@ -8357,6 +8357,44 @@ textarea.report-field {
   font: 13px var(--head);
 }
 
+/* The prints a change added, in the Commit window over its message. */
+.commit-prints {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--fail) 40%, transparent);
+  border-radius: 6px;
+}
+
+.commit-prints-head {
+  margin: 0 0 2px;
+  color: var(--fail);
+  font: 12px var(--head);
+}
+
+.commit-print {
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--code);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: pre;
+  cursor: pointer;
+}
+
+.commit-print:hover {
+  color: var(--fg);
+}
+
+.commit-prints .commit-button {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
 /* A tab opened from a peek is a preview until it is edited or pressed twice: its name in italics. */
 .tab.preview {
   font-style: italic;
