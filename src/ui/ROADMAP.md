@@ -23,7 +23,5 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Settings
 
-1. **Other languages and other scripts.** The window in the reader's language, and text that runs right to left typed and drawn in its order.
-   - A cursor that jumps the wrong way, or words drawn in reverse, where Arabic or Hebrew meets text that runs left to right: the arrows move by the order the text is read in, and the word keys stop at the words of either script.
-2. **Packages for Linux.** orior installed from Flathub and the Snap Store as well as from its own release.
+1. **Packages for Linux.** orior installed from Flathub and the Snap Store as well as from its own release.
    - An editor from Flathub that cannot reach the machine's compilers, SDKs and tools from inside its sandbox: orior's Flatpak runs the tree's tools and its terminal's shell on the machine itself, through `flatpak-spawn --host`.

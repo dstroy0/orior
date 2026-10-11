@@ -24,6 +24,7 @@ import { setZoom, STEPS, zoom } from "./zoom.js";
 import { readSettings, settingsInForce, TREE_FILE } from "./settings.js";
 import { invoke, pick } from "./bridge.js";
 import { carryInto } from "./carry.js";
+import { chosenLanguage, languages, setLanguage } from "./language.js";
 
 const BASE_NAMES = { dark: "Dark", light: "Light" };
 
@@ -390,6 +391,22 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     const zoomSelect = element("select", { className: "report-field", ariaLabel: "Zoom" }, ...STEPS.map((step) => element("option", { value: String(step), textContent: `${Math.round(step * 100)}%`, selected: step === zoom() })));
     zoomSelect.addEventListener("change", () => setZoom(Number(zoomSelect.value)));
     rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Zoom" }), zoomSelect));
+    // The window's language: the system's, English, or one the reader has a language file for.
+    const own = localStorage.getItem("orior.language") ?? "";
+    const languageSelect = element(
+      "select",
+      { className: "report-field prefs-language", ariaLabel: "Language" },
+      element("option", { value: "", textContent: `The system's, ${navigator.language}`, selected: !own }),
+      element("option", { value: "en", textContent: "English", selected: own === "en" }),
+    );
+    languages().then((tags) => {
+      for (const tag of tags.filter((one) => one !== "en")) {
+        languageSelect.append(element("option", { value: tag, textContent: tag, selected: own === tag }));
+      }
+      languageSelect.value = own && [...languageSelect.options].some((option) => option.value === own) ? own : own ? chosenLanguage() : "";
+    });
+    languageSelect.addEventListener("change", () => setLanguage(languageSelect.value));
+    rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Language" }), languageSelect));
     for (const setting of OPACITY_SETTINGS) {
       const select = element("select", { className: "report-field", ariaLabel: setting.label }, ...OPACITY_STEPS.map((step) => element("option", { value: String(step), textContent: `${step}%`, selected: step === opacity(setting) })));
       select.addEventListener("change", () => setOpacity(setting, Number(select.value)));

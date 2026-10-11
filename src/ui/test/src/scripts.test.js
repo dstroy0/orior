@@ -66,7 +66,8 @@ test("a plugin draws marks, a tab's label, a panel, an overlay and the chrome th
   assert.equal(panel.querySelector("header span").textContent, "Drawn");
   assert.equal(panel.querySelector("iframe").getAttribute("sandbox"), "", "a panel runs none of its scripts");
   assert.match(panel.querySelector("iframe").srcdoc, /from the plugin/);
-  assert.equal(document.getElementById("plugin-badge").textContent, "drawn in the theme's colors");
+  // The badge comes after the theme's colors are read, a call later than the overlay.
+  await ui.waitFor(() => document.getElementById("plugin-badge").textContent === "drawn in the theme's colors", 3000);
   assert.equal(getComputedStyle(document.documentElement).getPropertyValue("--signal").trim(), "rgb(1, 2, 3)");
   await ui.waitFor(() => !document.getElementById("rights-ask").hidden, 5000);
   assert.match(document.querySelector(".rights-said").textContent, /^Draws asks to write locked_by_plugin\.txt, and the system refuses it the rights/);

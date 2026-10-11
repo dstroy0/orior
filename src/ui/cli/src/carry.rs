@@ -3,8 +3,8 @@
 
 //! The reader's settings carried to another machine: settings.json, without its part for this
 //! machine alone and the settings that name this machine's own (MACHINE); the themes; the reader's
-//! plugins, and each plugin's own settings; the menus and toolbar, menus.json; and the stylesheet,
-//! user.css. They go as one file, a JSON object of each file's text by its place in orior's own
+//! plugins, and each plugin's own settings; the menus and toolbar, menus.json; the stylesheet,
+//! user.css; and the reader's language files. They go as one file, a JSON object of each file's text by its place in orior's own
 //! folder, or into a folder of the reader's laid out as orior's own folder lays them, which, where it
 //! is a repository, is committed and pushed, and pulled before it is read.
 //!
@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 /// The files that travel, each a file or a folder of orior's own folder, by its place there.
-const CARRIED: [&str; 6] = ["settings.json", "menus.json", "user.css", "themes/", "plugins/", "plugin_settings/"];
+const CARRIED: [&str; 7] = ["settings.json", "menus.json", "user.css", "themes/", "plugins/", "plugin_settings/", "languages/"];
 
 /// The settings that name this machine's own and stay on it, each a key or the start of keys that
 /// ends in `.`: the part of settings.json for this machine alone, how programs are signed here, the

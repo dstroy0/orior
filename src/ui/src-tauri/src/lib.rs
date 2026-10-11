@@ -375,6 +375,29 @@ fn network_reached() -> Vec<orior_cli::net::Reached> {
     orior_cli::net::reached(1000)
 }
 
+/// The text of the reader's language file for the language `tag`, or nothing where there is none.
+#[tauri::command(async)]
+fn language_read(tag: String) -> String {
+    if tag.is_empty() || !tag.chars().all(|letter| letter.is_ascii_alphanumeric() || letter == '-') {
+        return String::new();
+    }
+    home::languages().and_then(|folder| std::fs::read_to_string(folder.join(format!("{tag}.json"))).ok()).unwrap_or_default()
+}
+
+/// The languages the reader has files for, by tag, in order.
+#[tauri::command(async)]
+fn languages_list() -> Vec<String> {
+    let mut found: Vec<String> = home::languages()
+        .and_then(|folder| std::fs::read_dir(folder).ok())
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| entry.file_name().to_string_lossy().strip_suffix(".json").map(String::from))
+        .collect();
+    found.sort();
+    found
+}
+
 /// The plugins the catalog at `address` lists.
 #[tauri::command(async)]
 fn plugins_catalog_read(address: String) -> Result<Vec<orior_cli::plugin_catalog::Entry>, String> {
@@ -1113,6 +1136,8 @@ fn open(launch: Launch) {
             network_hold,
             network_reached,
             plugins_catalog_read,
+            language_read,
+            languages_list,
             plugins_catalog_install,
             plugin_request,
             carry_send,

@@ -42,6 +42,37 @@ const SELECTION_ROUND = 4;
 // over what it was and not on it.
 const ORIGIN_ROWS = 512;
 
+// The letters of the scripts that run right to left: Hebrew, Arabic, Syriac, Thaana, N'Ko and the
+// rest of the right-to-left blocks, and their presentation forms. A line that holds one is placed as
+// the page draws it, each character where it stands, and every other line by its columns.
+const RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF\u{10800}-\u{10FFF}\u{1E800}-\u{1EFFF}]/u;
+
+// Whether each character of `text` is drawn running right to left: a letter of such a script is, a
+// letter of any other script and a digit are not, and a character of neither, as a space or a mark of
+// punctuation, runs as the letters on both sides of it do where they agree, and left to right where
+// they do not.
+export function runsRightToLeft(text) {
+  const strong = [...text].flatMap((char) => {
+    const kind = RTL.test(char) ? "R" : /[\p{L}\p{N}]/u.test(char) ? "L" : null;
+    return char.length === 2 ? [kind, kind] : [kind];
+  });
+  const out = new Array(strong.length).fill(false);
+  let before = null;
+  for (let at = 0; at < strong.length; at += 1) {
+    if (strong[at]) {
+      out[at] = strong[at] === "R";
+      before = strong[at];
+      continue;
+    }
+    let after = null;
+    for (let next = at + 1; next < strong.length && !after; next += 1) {
+      after = strong[next];
+    }
+    out[at] = before === "R" && after === "R";
+  }
+  return out;
+}
+
 // Column Selection Mode's key: while it is on, a drag chooses a column, as Shift and Alt do.
 const COLUMN_KEY = "orior.column";
 
@@ -675,7 +706,94 @@ export class Editor {
   }
 
   xOf(p) {
+    if (RTL.test(this.doc.line(p.line))) {
+      const x = this.measuredX(p.line, p.col);
+      if (x !== null) {
+        return x;
+      }
+    }
     return PAD + this.vcolOf(this.doc.line(p.line), p.col, p.line) * this.cw;
+  }
+
+  // The node the line `line` is drawn in, where its row is on screen.
+  rowNode(line) {
+    return this.textLayer.held.get(this.rows().rowOf(line))?.node ?? null;
+  }
+
+  // The text node, and the place in it, that holds the col `col` of the line drawn in `node`, the
+  // hints' and a fold's marks left out.
+  textAt(node, col) {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, { acceptNode: (text) => (text.parentElement?.closest(".ed-hint, .ed-folded") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+    let left = col;
+    for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+      if (left < text.length) {
+        return { text, offset: left };
+      }
+      left -= text.length;
+    }
+    return null;
+  }
+
+  // The box the page draws the character at `col` of the line drawn in `node` in, or null.
+  charBox(node, col) {
+    const at = this.textAt(node, col);
+    if (!at) {
+      return null;
+    }
+    const range = document.createRange();
+    range.setStart(at.text, at.offset);
+    range.setEnd(at.text, at.offset + 1);
+    const box = range.getBoundingClientRect();
+    return box.width || box.height ? box : null;
+  }
+
+  // Where the caret before col `col` of the line `line` stands as the page draws the line, in the
+  // space's own pixels: at the edge of the character at `col` that comes first in the order it is
+  // read, its right edge where it runs right to left, and past the last character at the line's end.
+  // Null where the line is not drawn.
+  measuredX(line, col) {
+    const node = this.rowNode(line);
+    const text = this.doc.line(line);
+    if (!node || !text.length) {
+      return null;
+    }
+    const at = Math.min(col, text.length);
+    const char = at < text.length ? at : at - 1;
+    const box = this.charBox(node, char);
+    if (!box) {
+      return null;
+    }
+    const right = runsRightToLeft(text)[char];
+    const edge = at < text.length ? (right ? box.right : box.left) : right ? box.left : box.right;
+    return edge - this.space.getBoundingClientRect().left;
+  }
+
+  // The col a press at the page's `x` lands on in the line `line` as the page draws it: before the
+  // character nearest it where the press is on that character's first half in the order it is read,
+  // and after it where on its second. Null where the line is not drawn.
+  measuredCol(line, x) {
+    const node = this.rowNode(line);
+    const text = this.doc.line(line);
+    if (!node) {
+      return null;
+    }
+    const right = runsRightToLeft(text);
+    let best = null;
+    for (let at = 0; at < Math.min(text.length, SHOWN); at += 1) {
+      const box = this.charBox(node, at);
+      if (!box) {
+        continue;
+      }
+      const off = x < box.left ? box.left - x : x > box.right ? x - box.right : 0;
+      if (!best || off < best.off) {
+        best = { at, box, off };
+      }
+    }
+    if (!best) {
+      return null;
+    }
+    const middle = (best.box.left + best.box.right) / 2;
+    return right[best.at] === x > middle ? best.at : best.at + 1;
   }
 
   // The place under a pointer.
@@ -691,6 +809,12 @@ export class Editor {
       return pos(last, this.doc.line(last).length);
     }
     const line = rows.lineOf(row);
+    if (RTL.test(this.doc.line(line))) {
+      const col = this.measuredCol(line, event.clientX);
+      if (col !== null) {
+        return pos(line, col);
+      }
+    }
     return pos(line, this.colAtV(this.doc.line(line), (event.clientX - rect.left - PAD) / this.cw, true, line));
   }
 
@@ -3409,9 +3533,13 @@ export class Editor {
         }
       }
     }
+    const rowTop = (row) => this.yOf(row);
+    this.textLayer.draw(text, rowTop);
     // Each selection covers its characters on each row it reaches, and a line's end inside it as
-    // one blank character, the rows' spans drawn as one shape.
+    // one blank character, the rows' spans drawn as one shape; on a line that holds text running
+    // right to left, each run of its characters as the page draws them is a shape of its own.
     const shapes = [];
+    const spaceLeft = this.space.getBoundingClientRect().left;
     for (const sel of sels) {
       if (empty(sel)) {
         continue;
@@ -3428,6 +3556,24 @@ export class Editor {
         const from = line === start.line ? start.col : 0;
         const ends = line < end.line;
         const to = line === end.line ? end.col : text.length;
+        const node = to > from && RTL.test(text) ? this.rowNode(line) : null;
+        const head = node ? this.textAt(node, from) : null;
+        const past = node ? (this.textAt(node, to) ?? this.textAt(node, to - 1)) : null;
+        if (head && past) {
+          const range = document.createRange();
+          range.setStart(head.text, head.offset);
+          range.setEnd(past.text, to < text.length ? past.offset : past.offset + 1);
+          for (const box of range.getClientRects()) {
+            if (box.width > 0) {
+              shapes.push(selectionPath([[row - this.originRow, box.left - spaceLeft, box.right - spaceLeft]], LINE, SELECTION_ROUND));
+            }
+          }
+          if (ends) {
+            const x = this.xOf(pos(line, text.length));
+            shapes.push(selectionPath([[row - this.originRow, x, x + cw]], LINE, SELECTION_ROUND));
+          }
+          continue;
+        }
         spans.push([row - this.originRow, PAD + this.vcolOf(text, from, line) * cw, PAD + this.vcolOf(text, to, line) * cw + (ends ? cw : 0)]);
       }
       shapes.push(selectionPath(spans, LINE, SELECTION_ROUND));
@@ -3454,8 +3600,6 @@ export class Editor {
       }
     }
 
-    const rowTop = (row) => this.yOf(row);
-    this.textLayer.draw(text, rowTop);
     this.underLayer.draw(new Map([...under].map(([row, html]) => [row, ["ed-band", html]])));
     this.gutterLayer.draw(gutter, rowTop);
     const marks = over.join("");

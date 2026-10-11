@@ -120,6 +120,7 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 | the hashes of the files each deployment last sent to each place | `deployed/`, a file each |
 | each taking of another machine's settings, the files it wrote over as they were | `carried/`, a folder each |
 | each address orior has reached off this machine, when and what for, the last thousand | `network.jsonl` |
+| the reader's language files, which give the window's texts in another language | `languages/`, `<tag>.json` each |
 
 `settings.json` and `state.json` hold each entry under its own key, as JSON. orior reads the folder
 as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
@@ -178,6 +179,15 @@ pushed, and an error report the reader let file on its own; it sends nothing abo
 Off the Network, kept as `network`, holds it off the network entirely, each reach refused with what
 it was for, and a tree's settings file does not set it. Help, Network… lists each address reached,
 when and what for.
+
+The window shows in the reader's language where a language file gives it: `languages/<tag>.json`,
+each of the window's English texts with the reader's for it, as `{ "File": "…" }`, the tag the
+setting `language` names, chosen in Preferences, or the system's. A text the file does not give
+stays in English, and the editor's text, the terminal's and the files' names are never changed. In
+the editor, a line where Hebrew, Arabic or another script that runs right to left meets text that
+runs left to right is drawn in the order it is read, the arrows move by that order, and a press or a
+selection lands where the page draws each character; the word keys count a letter's marks as part of
+its word.
 
 File, Plugins reads a catalog of plugins others publish, at an address the reader names on the web or
 on this machine, and installs a plugin the search finds from its package, a JSON file of its files by

@@ -15,7 +15,7 @@ const WINDOW = new Set([
   "app_exit", "app_version", "call", "carry_read", "carry_send", "carry_take", "carry_takings", "carry_undo", "checkers_known", "clip_files", "clip_read", "clip_write", "clone_start",
   "code_docstring", "code_sort", "commands_read", "devcontainer_line", "file_read_any", "file_slice", "file_write_any",
   "files_copy", "files_paste", "fill_paragraph", "format_languages", "highlight_grammar", "highlight_lines",
-  "home_folder", "home_reveal", "image_data", "inspect_languages", "kept_now", "kept_write", "launch_take", "link_open", "memory_calls", "memory_hold", "memory_use", "network_hold", "network_reached", "print_page", "printers_list",
+  "home_folder", "home_reveal", "image_data", "inspect_languages", "kept_now", "kept_write", "language_read", "languages_list", "launch_take", "link_open", "memory_calls", "memory_hold", "memory_use", "network_hold", "network_reached", "print_page", "printers_list",
   "parse_classes", "pick", "plugin_code", "plugin_create", "plugin_draft", "plugin_request", "plugin_settings_read", "plugin_settings_write", "plugins_catalog_install", "plugins_catalog_read", "plugins_read", "project_create", "reader_menus_read",
   "reads_file", "remote_get", "remote_rejoin", "repo_clone", "repo_opened", "report_asked", "report_auto", "report_auto_set", "report_bug", "report_error", "report_open",
   "repos_folder", "scrollback_close", "settings_layers", "scrollback_keep", "scrollback_open", "scrollback_read", "scrollback_reset",

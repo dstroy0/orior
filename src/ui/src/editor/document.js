@@ -64,7 +64,7 @@ export function mapThrough(p, edits, after = false) {
   return at;
 }
 
-const WORD_CHAR = /[\p{L}\p{N}_$]/u;
+const WORD_CHAR = /[\p{L}\p{M}\p{N}_$]/u;
 
 export function isWordChar(char) {
   return char !== undefined && WORD_CHAR.test(char);
