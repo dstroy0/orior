@@ -11,6 +11,27 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Typing that lags while a language server, a linter or a plugin works: the letter is drawn before any of them is told of it.
    - Lag that grows with the file's length or a line's: the key's cost is measured in the longest file and on the longest line the tests hold.
 
+## Perception
+
+What the eye cannot see is not drawn. The view, and the stretch its motion heads into, is read and drawn first and whole; motion no eye can follow is drawn at the lowest rate that still reads as motion; and a change too small or too short to be seen is not animated. Each figure here is a measured one.
+
+1. **What is in view, and what the motion heads into.** The editor, the explorer, the grid of rows and every list read and draw what shows and the stretch their scroll heads into, as far ahead as its speed carries it in the time a read takes, and hold what they read until it lies far behind; what lies behind the motion is let go first.
+   - Motion says where the view goes next: among people watching video all around them, the view 200 ms later lay the way the head was turning in 97% of cases.
+2. **The lattice drawn at the rate it is seen.** The lattice is drawn at the lowest rate at which its flow still reads as motion, and a frame that would move no point by a whole pixel is not drawn.
+   - No one follows the lattice's points one by one: people follow about four moving things at once, fewer the faster they move, and see a field of moving points as one flow.
+   - The edge of the lattice's order moves too slowly to see from one frame to the next.
+3. **No animation below what can be seen.** A change that moves nothing by a pixel in a frame, or ends before it could be seen, is not animated: its end is drawn at once.
+   - Motion the eye cannot pursue, small and unpredictable, needs fewer frames than motion it can pursue, and is given fewer.
+4. **Detail as the motion allows.** While a view scrolls fast, what the motion hides from the eye, the minimap, the colors of lines past the screen and the gutter's marks, is drawn coarse or later, and drawn whole once the motion slows.
+   - A change made while the eye moves fast is seldom seen: shifts of up to 1.2 degrees went unnoticed during eye movements of 66 ms or more.
+5. **Motion the way the reader moves.** A pane, a list or a menu moves the way the reader's own action points, from where it was pressed toward where it goes.
+   - The eye places a moving thing a little ahead along its path.
+6. **The three limits of a response.** A press or a key is answered within 0.1 s; anything slower than 1 s shows it is working; anything slower than 10 s shows how far along it is and can be stopped.
+   - Within 0.1 s a person feels they act on the thing itself; within 1 s their thought goes on unbroken; past 10 s they turn to something else.
+   - A delay of the pointer under 50 ms goes unseen: every response to the pointer is held under it.
+7. **Waits that read as short.** A bar of progress moves steadily, and faster toward its end where it can.
+   - A bar that slows or stops near its end reads as a longer wait than the same time spent steadily.
+
 ## Tools
 
 1. **Databases.** Connect to a database, browse its tables, run a query from the editor and read the rows it gives.
@@ -46,6 +67,29 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - An archive inside an archive: it opens as a folder too.
    - Files in an archive that can only be read: a file changed in an archive is saved back into it, the archive written anew beside the old one and then put in its place.
    - Jars, wheels and tarballs that are archives too: a jar, a wheel, a tar and a gzipped tar open as a zip does.
+
+## How developers work
+
+Each item keeps to a habit measured in developers at work.
+
+1. **Code seen without going to it.** A definition, a usage or a caller is seen in place, over the editor at the line, with no tab opened and no way back to find; a tab opened from one is a preview until it is edited.
+   - Developers spent 35% of their time on the mechanics of moving between code, and a fifth of it reading code in one fixed view.
+2. **What a file is for, before it is opened.** The pointer resting on a file in the explorer shows what the file is for, from its first comment, and what in the tree uses it.
+   - Without cues before opening, developers open file after file to judge each one.
+3. **The task's code in one place.** The lines a task needs, from any files, are gathered side by side in one place, each still the live text of its file, and kept with the task.
+   - Developers kept what they found in memory, in notes, or in tabs that closed, and went back to find it again.
+4. **Notices at the reader's breaks.** A notice that needs nothing done waits for a break in the work, a save, a commit, a run's end or the keys at rest, and none takes the keys; Focus holds every notice until it ends.
+   - Suggestions offered at such a break were taken up 52% of the time; those offered in the middle of a task were mostly dismissed.
+   - An interruption on the screen that demands attention slows the reading of code.
+5. **A change reviewed by its structure.** A change is shown as the functions it touches, each beside those it calls, and not file by file. A diff names who made the commit; nothing else shows who wrote a line unless the reader turns it on.
+   - In about 40% of pull requests more than half the changed functions call each other, and the function a caller needs is often in another file.
+   - A function moved shows as one move, not as lines taken out of one file and lines put into another.
+6. **The debugger as simple as print.** A print is a tool of its own: a line's values are printed by a message breakpoint without the file changing, and every print statement added for a task is listed and taken out in one step before a commit.
+   - Most developers never start a debugger, use only its plainest parts, and print values instead.
+   - Print statements left in by mistake are a common part of commits.
+7. **Menus that stay where they are, and their keys in sight.** A menu never orders itself by use: where an item stands is learned and kept. Holding Ctrl or Alt shows each button's keys over it.
+   - How fast an item is chosen depends on its place staying the same.
+   - Many people never learn an item's keys unless the keys are shown where they already look.
 
 ## Plugins
 
