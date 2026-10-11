@@ -774,19 +774,22 @@ body[data-strip-edge] .strip-edge {
   gap: 2px;
 }
 
-/* The window's own controls, the full height of the bar at its right end, in place of the system's
-   frame; close turns to the error's color under the pointer. */
+/* The window's own controls at the bar's right end, in place of the system's frame. Each is pressed
+   anywhere the full height of the bar, and lights as the bar's tools do, a square of their size and
+   radius in the middle of the bar; close lights in the error's color. */
 .window-controls {
   flex: none;
   align-self: stretch;
   display: flex;
+  gap: 2px;
   margin: 0 calc(5px - 0.8rem) 0 0.4rem;
 }
 
 .window-button {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 44px;
+  width: 34px;
   padding: 0;
   border: 0;
   background: none;
@@ -794,25 +797,43 @@ body[data-strip-edge] .strip-edge {
   cursor: pointer;
 }
 
+.window-button::before {
+  content: "";
+  position: absolute;
+  inset: calc(50% - 15px) 2px;
+  border-radius: 0.45rem;
+}
+
 .window-button .glyph {
-  width: 15px;
-  height: 15px;
-  stroke-width: 1.2;
+  position: relative;
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.4;
 }
 
 .window-button:hover {
-  background: var(--bar-title-hover);
   color: var(--bar-bright);
 }
 
+.window-button:hover::before {
+  background: var(--bar-title-hover);
+}
+
 .window-button.window-close:hover {
-  background: var(--ed-error);
   color: #ffffff;
 }
 
+.window-button.window-close:hover::before {
+  background: var(--ed-error);
+}
+
 .window-button:focus-visible {
+  outline: none;
+}
+
+.window-button:focus-visible::before {
   outline: 1px solid var(--bar-signal);
-  outline-offset: -2px;
+  outline-offset: -1px;
 }
 
 /* Notifications: what the status bar has said, the newest first, under the bell. */
