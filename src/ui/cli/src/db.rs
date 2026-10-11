@@ -836,8 +836,9 @@ impl Open {
     }
 
     /// Writes the rows held, and then the rest the run gives, to `path` as CSV, TSV or JSON lines,
-    /// the run read on to its end and not run again.
-    pub fn export(&self, path: &Path, format: &str) -> Result<Value, Failure> {
+    /// the run read on to its end and not run again, and tells `told` how many it has written after
+    /// each 4096 it reads on.
+    pub fn export(&self, path: &Path, format: &str, told: &dyn Fn(usize)) -> Result<Value, Failure> {
         let mut held = self.held.lock().map_err(|_| "the rows are held")?;
         if held.columns.is_empty() {
             return Err("no statement has given rows to export".into());
@@ -874,6 +875,7 @@ impl Open {
             written += rows.len();
             held.beyond += rows.len();
             held.done = done;
+            told(written);
         }
         out.flush().map_err(broke)?;
         Ok(json!({"written": written, "path": path.display().to_string()}))
@@ -1153,7 +1155,7 @@ mod connections {
         assert_eq!(parts[1]["detail"], "TEXT not null default 'x'");
         let export = root.join("t.csv");
         open.run("SELECT n, name FROM t ORDER BY n", false, 10).unwrap();
-        let written = open.export(&export, "csv").unwrap();
+        let written = open.export(&export, "csv", &|_| {}).unwrap();
         assert_eq!(written["written"], 1000);
         let text = std::fs::read_to_string(&export).unwrap();
         assert_eq!(text.lines().count(), 1001);

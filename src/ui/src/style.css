@@ -1055,6 +1055,34 @@ body[data-strip-edge] .strip-edge {
   display: none;
 }
 
+/* What the window waits on past a second, and past ten its Stop; and while any press's answer is
+   late past a tenth of a second, the pointer says the window is at work. */
+.status-wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-wait[hidden] {
+  display: none;
+}
+
+.status-wait-stop {
+  padding: 0 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+:root.waiting,
+:root.waiting * {
+  cursor: progress !important;
+}
+
 /* What holds the most memory, beside the total, quieter than it; and the reading over its budget. */
 .status-memory-most {
   margin-left: 0.4rem;

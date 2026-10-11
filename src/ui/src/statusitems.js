@@ -31,6 +31,7 @@ const ITEMS = [
   ["database", "Database Connection", "bar"],
   ["zoom", "Zoom", "bar"],
   ["memory", "Memory", "bar"],
+  ["wait", "What the Window Waits On", "bar"],
   ["editor", "The Editor's Line", "bar"],
   ["vim", "Vim Mode", "editor"],
   ["cursor", "Line and Column", "editor"],

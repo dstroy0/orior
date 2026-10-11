@@ -1102,7 +1102,10 @@ impl Server {
             "db_children" => self.database(&a.get::<String>("name")?)?.children(&a.get::<Vec<String>>("path")?).map_err(|failure| failure.to_string()).and_then(give),
             "db_export" => {
                 let target = at(&a.get::<String>("path")?)?;
-                self.database(&a.get::<String>("name")?)?.export(&target, &a.get::<String>("format")?).map_err(|failure| failure.to_string()).and_then(give)
+                // How far along the export is goes to the window as it writes.
+                let emit = self.emitting();
+                let told = move |written: usize| emit("call-progress", json!({"call": "db_export", "done": written, "unit": "rows written"}));
+                self.database(&a.get::<String>("name")?)?.export(&target, &a.get::<String>("format")?, &told).map_err(|failure| failure.to_string()).and_then(give)
             }
             "db_history" => give(self.database(&a.get::<String>("name")?)?.history()),
             "db_statement_at" => give(crate::db::statement_at(&a.get::<String>("text")?, a.get("offset")?, &a.get::<String>("kind")?)),

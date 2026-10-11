@@ -44,6 +44,9 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - A change made while the eye moves fast is seldom seen: shifts of up to 1.2 degrees went unnoticed during eye movements of 66 ms or more.
 6. **Motion the way the reader moves.** A menu grows out of the point it was opened from, a press's point or the edge of the item a submenu opened from, in a tenth of a second; a tool window comes in from the edge it docks at, the foot, the left or the right; and a pane collapses toward its own edge and comes back from it. None moves while the window is hidden or where the system asks for less motion.
    - The eye places a moving thing a little ahead along its path.
+7. **The three limits of a response.** Each call a press or a key makes is watched until it answers. Past a tenth of a second the pointer shows the window at work; past a second the status bar says what the window waits on and for how long; past ten it says how far along the work is where the work tells, as an export of rows does row by row, and offers Stop, which stops the work where it has a stop of its own, a statement, an export, a run of tests or a profile, and the wait always. A hover's and a press's own marks are drawn by the page's styles in the frame the pointer moves.
+   - Within 0.1 s a person feels they act on the thing itself; within 1 s their thought goes on unbroken; past 10 s they turn to something else.
+   - A delay of the pointer under 50 ms goes unseen: every response to the pointer is held under it.
 
 ## Tools
 

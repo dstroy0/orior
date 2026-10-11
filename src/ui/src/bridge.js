@@ -38,8 +38,22 @@ function send(command, args) {
   return bridge().invoke("call", { name: command, args });
 }
 
+// Those told of each call as it is made, each given a way to stop the wait on it, as waits.js is.
+const told = new Set();
+
+export function onCalls(listener) {
+  told.add(listener);
+}
+
 export function invoke(command, args = {}) {
-  return watcher ? watcher(command, args, send) : send(command, args);
+  const sent = watcher ? watcher(command, args, send) : send(command, args);
+  if (!told.size) {
+    return sent;
+  }
+  let stop;
+  const stopped = new Promise((_, fail) => (stop = fail));
+  told.forEach((listener) => listener(command, args, sent, (why) => stop(new Error(why))));
+  return Promise.race([sent, stopped]);
 }
 
 export async function listen(event, handler) {
