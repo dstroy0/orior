@@ -2640,7 +2640,8 @@ export class Editor {
   // drops. `level` runs from 0, everything, to 3:
   //
   //   1  the guides, the marks on the word under the cursor and the bracket pair wait
-  //   2  rows take only the colors already worked out, and the fold marks and find matches wait
+  //   2  rows take only the colors already worked out, and the fold marks, the find matches, the
+  //      diagnostics and the gutter's marks wait, all but its numbers, breakpoints and paused line
   //   3  rows are plain, and the minimap draws its lines in one color
   //
   // As the speed falls the level falls with it, and once the view rests a frame draws everything
@@ -3301,12 +3302,15 @@ export class Editor {
       const stop = breaks?.get(base + line);
       const dot = stop === undefined ? "" : `<span class="ed-break${stop.bound === false ? " unbound" : ""}${stop.log ? " log" : stop.condition || stop.hits ? " cond" : ""}"></span>`;
       const here = paused === base + line ? '<span class="ed-pc"></span>' : "";
-      const ribbon = marked?.has(base + line) ? '<span class="ed-bookmark"></span>' : "";
-      const history = s.history ? this.historyMark(line) : "";
-      const test = tests?.get(base + line);
+      // At speed the gutter keeps its numbers, its breakpoints and the paused line, and the rest of
+      // its marks wait for the view to slow.
+      const whole = level < 2;
+      const ribbon = whole && marked?.has(base + line) ? '<span class="ed-bookmark"></span>' : "";
+      const history = whole && s.history ? this.historyMark(line) : "";
+      const test = whole ? tests?.get(base + line) : undefined;
       const testMark = test === undefined ? "" : `<span class="ed-test ${test}" data-test="${base + line}" title="Run or debug the test">▶</span>`;
-      const cover = covered?.ran.has(base + line) ? '<span class="ed-cover ran"></span>' : covered?.missed.has(base + line) ? '<span class="ed-cover missed"></span>' : "";
-      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + number + mark + cover + this.changeMark(line)]);
+      const cover = !whole ? "" : covered?.ran.has(base + line) ? '<span class="ed-cover ran"></span>' : covered?.missed.has(base + line) ? '<span class="ed-cover missed"></span>' : "";
+      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + number + mark + cover + (whole ? this.changeMark(line) : "")]);
     }
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {
@@ -3322,7 +3326,7 @@ export class Editor {
     }
     // A language server's diagnostics, each underlined in the color of its severity: 1 an error, 2 a
     // warning, 3 a note and 4 a hint. One that spans nothing marks the character it stands at.
-    for (const diag of s.diagnostics ?? []) {
+    for (const diag of level < 2 ? (s.diagnostics ?? []) : []) {
       for (let line = diag.from.line - s.base; line <= diag.to.line - s.base; line += 1) {
         const row = line >= 0 && line < doc.count ? visible(line) : -1;
         if (row < 0) {

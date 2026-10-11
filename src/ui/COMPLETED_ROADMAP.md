@@ -40,6 +40,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - Motion says where the view goes next: among people watching video all around them, the view 200 ms later lay the way the head was turning in 97% of cases.
 4. **What is in view, in the explorer and every list.** A row of the explorer's tree and panes, and of the jobs beside a run, is neither laid out nor painted while it is out of sight, and keeps the height it had: the scroll stands where it would. As a list scrolls, the rows past its edge the way it heads, as many as its speed carries it over two frames' drawing and never fewer than eight, are drawn ahead of it.
    - A tree of thousands of files that lays out every row on each change: only the rows in sight are laid out and painted.
+5. **Detail as the motion allows.** While the editor scrolls fast, what the motion hides from the eye waits, more of it the faster the scroll: first the guides, the marks on the word under the cursor and the bracket pair; then the colors of lines not yet worked out, the fold marks, the find matches, the diagnostics and the gutter's marks, all but its numbers, breakpoints and paused line; then every color, the minimap's drawn in one. A frame that runs past its time drops a step whatever the speed. Once the view rests a frame draws everything, and the lines ahead of where it was heading are colored a slice at a time.
+   - A change made while the eye moves fast is seldom seen: shifts of up to 1.2 degrees went unnoticed during eye movements of 66 ms or more.
 
 ## Tools
 
