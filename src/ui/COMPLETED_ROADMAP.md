@@ -34,6 +34,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 ## Perception
 
 1. **The lattice drawn at the rate it is seen.** A lattice draws a frame only where some point has moved by a whole pixel of the page since the frame before, no faster than one each 33 ms and only in a frame nothing else wants, and draws again at once in a new scheme or theme. Over its loop it draws about one frame in three of those offered, and none while it rests. No one follows its points one by one, and a frame that moves none of them by a pixel shows nothing a reader could see.
+2. **No animation below what can be seen.** As a transition starts, its whole change is measured in the display's own units, device pixels for a move or a size and levels of 255 for an opacity or a color. One that changes nothing by a whole unit, or would end within two frames, is not animated: its end is drawn at once. One that changes less than a unit in each of its frames is drawn in whole units, each frame it shows moving something by a pixel or a level, and the frames between show nothing new.
+   - Motion the eye cannot pursue, small and unpredictable, needs fewer frames than motion it can pursue, and is given fewer: a twisty's quarter turn of a few pixels is drawn in as many frames as it has pixels to move.
 
 ## Tools
 
