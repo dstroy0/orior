@@ -6,11 +6,12 @@
 // Every call the page makes goes through the watch bridge.js keeps, which this sets: each is timed,
 // and a call that would leave the window is answered here and never made: one that quits or moves
 // the window, opens another window, the system's picker, the browser or a folder on the desktop,
-// sends to the network, files a report, installs a tool, keeps a template or a plugin in orior's own
-// folder, or reaches a plugin of the system's other than its events. The picker answers as the
-// reader would who closed it, and every other such call fails with HELD in its message, which the
-// walker does not count as a fault. walker_probe is held too, for the walker to see the watch hold
-// before it presses anything. The page's print and its window.open do nothing.
+// sends to the network, files a report the reader writes, installs a tool, keeps a template or a
+// plugin in orior's own folder, or reaches a plugin of the system's other than its events. The
+// picker answers as the reader would who closed it, and every other such call fails with HELD in
+// its message, which the walker does not count as a fault. walker_probe is held too, for the walker
+// to see the watch hold before it presses anything. The page's print and its window.open do nothing.
+// An error the window meets files as an issue, as each error the walk finds is kept track of.
 //
 // Each frame's time is kept, and where every element an animation runs on stands, as a series per
 // element, an animation that loops without end, as the caret's blink, left out; each layout shift with the elements it moved and from where to where; each long animation
@@ -23,7 +24,7 @@
   const HELD = "held by the walker";
   const REFUSED = new Set([
     "app_exit", "window_open", "window_act", "view_open", "link_open", "home_reveal", "templates_reveal",
-    "report_bug", "report_open", "report_error", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
+    "report_bug", "report_open", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
     "remote_get", "remote_rejoin", "git_push", "git_pull", "git_fetch", "template_keep", "plugin_create", "project_create",
     "walker_probe", "print_page",
   ]);

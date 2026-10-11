@@ -198,14 +198,15 @@
 
   // Every call the page makes goes through the watch bridge.js keeps, which this sets. A call a test
   // answers itself is answered by it; one that would leave the window, by quitting or moving it,
-  // opening another, the system's picker, the browser or the desktop, the network, a report, an
-  // install, or a plugin of the system's other than its events, fails with HELD in its message, the
-  // picker answering as the reader would who closed it; every other call is made. Each call a test
-  // causes is kept in `calls.made`, and what a test answers is forgotten once it ends.
+  // opening another, the system's picker, the browser or the desktop, the network, a report the
+  // reader writes, an install, or a plugin of the system's other than its events, fails with HELD in
+  // its message, the picker answering as the reader would who closed it; every other call is made.
+  // An error the window meets files as an issue, as each error a test finds is kept track of. Each
+  // call a test causes is kept in `calls.made`, and what a test answers is forgotten once it ends.
   const HELD = "held by the test harness";
   const REFUSED = new Set([
     "app_exit", "window_open", "window_act", "view_open", "link_open", "home_reveal", "templates_reveal",
-    "report_bug", "report_open", "report_error", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
+    "report_bug", "report_open", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
     "remote_get", "remote_rejoin", "git_push", "git_pull", "git_fetch", "template_keep", "plugin_create", "project_create",
     "walker_probe", "print_page",
   ]);
