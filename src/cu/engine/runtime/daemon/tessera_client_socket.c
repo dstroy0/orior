@@ -234,6 +234,76 @@ int tessera_receive(TesseraClient *client, TesseraFrame *frame)
     return tessera_frame_unpack(bytes, frame);
 }
 
+unsigned long long tessera_client_now(void)
+{
+#if defined(_WIN32)
+    LARGE_INTEGER counter;
+    LARGE_INTEGER frequency;
+    QueryPerformanceCounter(&counter);
+    QueryPerformanceFrequency(&frequency);
+    // a performance counter and its frequency are positive
+    const unsigned long long ticks = (unsigned long long)counter.QuadPart;
+    // a performance counter and its frequency are positive
+    const unsigned long long rate = (unsigned long long)frequency.QuadPart;
+    return ((ticks / rate) * 1000000ull) + (((ticks % rate) * 1000000ull) / rate);
+#else
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    // a monotonic clock's seconds and nanoseconds are not negative
+    return ((unsigned long long)now.tv_sec * 1000000ull) + ((unsigned long long)now.tv_nsec / 1000ull);
+#endif
+}
+
+int tessera_readable(TesseraClient *client, unsigned long long deadline)
+{
+    if (deadline == 0ull)
+    {
+        return 1;
+    }
+    for (;;)
+    {
+        const unsigned long long now = tessera_client_now();
+#if defined(_WIN32)
+        DWORD waiting = 0u;
+        if (!PeekNamedPipe(client->pipe, NULL, 0u, NULL, &waiting, NULL))
+        {
+            return -1;
+        }
+        if (waiting != 0u)
+        {
+            return 1;
+        }
+        if (now >= deadline)
+        {
+            return 0;
+        }
+        // a synchronous pipe has no timed read: the bytes waiting are looked at every few milliseconds
+        Sleep(TESSERA_CLIENT_LOOK_MILLISECONDS);
+#else
+        if (now >= deadline)
+        {
+            return 0;
+        }
+        const unsigned long long left = ((deadline - now) + 999ull) / 1000ull;
+        struct pollfd watched = {client->socket_descriptor, POLLIN, 0};
+        // the milliseconds left are held below 2^31 here, and narrow to int exactly
+        const int ready = poll(&watched, 1u, (int)((left < 0x7FFFFFFFull) ? left : 0x7FFFFFFFull));
+        if ((ready < 0) && (errno == EINTR))
+        {
+            continue;
+        }
+        if (ready < 0)
+        {
+            return -1;
+        }
+        if (ready > 0)
+        {
+            return 1;
+        }
+#endif
+    }
+}
+
 void tessera_frame_start(const TesseraClient *client, TesseraFrame *frame, unsigned int kind)
 {
     memset(frame, 0, sizeof(*frame));
