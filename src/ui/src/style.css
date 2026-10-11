@@ -7967,6 +7967,83 @@ textarea.report-field {
   background: color-mix(in srgb, var(--ed-added) 14%, transparent);
 }
 
+/* A peek of code: its places in a list beside the lines of the one shown, in an editor of its own
+   with no map, the line down its left the theme's signal where a change's peek has the change's. */
+.code-peek {
+  height: 18rem;
+  max-height: none;
+  border-left-color: var(--signal);
+}
+
+.code-peek-where {
+  margin-right: 0.5rem;
+  color: var(--fg-3);
+  font: 12px var(--code);
+}
+
+.code-peek-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.code-peek-list {
+  flex: 0 0 34%;
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow: auto;
+  border-right: 1px solid var(--ed-widget-line);
+  list-style: none;
+}
+
+.code-peek-place {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.15rem 0.6rem;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 12px var(--head);
+  text-align: left;
+  cursor: pointer;
+}
+
+.code-peek-place:hover {
+  background: var(--line);
+}
+
+.code-peek-place[aria-selected="true"] {
+  background: color-mix(in srgb, var(--signal) 14%, transparent);
+}
+
+.code-peek-file {
+  font-weight: 600;
+}
+
+.code-peek-text {
+  overflow: hidden;
+  color: var(--fg-2);
+  font: 11.5px var(--code);
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.code-peek-editor {
+  flex: 1;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) 0;
+}
+
+.code-peek-editor .ed-mini {
+  display: none;
+}
+
+/* A tab opened from a peek is a preview until it is edited or pressed twice: its name in italics. */
+.tab.preview {
+  font-style: italic;
+}
+
 .prefs-font[type="number"] {
   max-width: 6rem;
 }

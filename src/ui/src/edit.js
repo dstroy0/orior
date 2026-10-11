@@ -491,7 +491,7 @@ function drawTabs() {
   const tabButton = (tab) => {
     const name = tabName(tab);
     const close = element("span", { className: "close", textContent: tab.closing ? "×?" : "×", title: tab.path });
-    const button = element("button", { className: `tab${groupOf(tab.path) ? " grouped" : ""}`, type: "button", title: tab.path, role: "tab" });
+    const button = element("button", { className: `tab${groupOf(tab.path) ? " grouped" : ""}${tab.preview ? " preview" : ""}`, type: "button", title: tab.path, role: "tab" });
     button.setAttribute("aria-selected", String(tab.path === state.active));
     const mark = tab.commit ? -1 : marks.indexOf(tab.file);
     button.append(mark >= 0 ? element("span", { className: "tab-mark", textContent: String(mark + 1), title: `Ctrl+${mark + 1}` }) : "", dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", name, close);
@@ -503,6 +503,12 @@ function drawTabs() {
       }
     });
     button.addEventListener("auxclick", (event) => event.button === 1 && closeTab(tab));
+    button.addEventListener("dblclick", () => {
+      if (tab.preview) {
+        tab.preview = false;
+        drawTabs();
+      }
+    });
     dragOut(button, tab);
     return button;
   };
@@ -850,7 +856,10 @@ async function loaded(path) {
   return Boolean(tabOf(path));
 }
 
-export async function openFile(path) {
+// Opens the file at `path` in a tab and shows it. Where `preview`, a tab it opens is a preview,
+// its name in italics, until it is edited or its tab pressed twice, and the next preview opened
+// takes its place; a file opened any other way is a preview no longer.
+export async function openFile(path, { preview = false } = {}) {
   if (state.elsewhere) {
     state.elsewhere(path, null, 0);
     return;
@@ -858,6 +867,13 @@ export async function openFile(path) {
   const fresh = !tabOf(path);
   if (!(await loaded(path))) {
     return;
+  }
+  const opened = tabOf(path);
+  if (preview && fresh) {
+    state.tabs.filter((one) => one.preview && one !== opened && !dirty(one)).forEach((one) => closeTab(one));
+    opened.preview = true;
+  } else if (!preview) {
+    opened.preview = false;
   }
   if (state.split?.focused && splittable(tabOf(path))) {
     // A file opened in the split alone is not one of the first side's tabs.
@@ -1323,8 +1339,8 @@ async function saveActive(tab = tabOf(actingPath())) {
 
 // Opens a file with the cursor on a line and column of it, each counted from the file's first. A
 // line a file still being read has not reached yet is waited for; a file not open yet opens around
-// the line.
-export async function openAt(path, line, col = 0) {
+// the line. Where `preview`, a tab it opens is a preview, as openFile makes one.
+export async function openAt(path, line, col = 0, { preview = false } = {}) {
   if (state.elsewhere) {
     state.elsewhere(path, line, col);
     return;
@@ -1335,7 +1351,7 @@ export async function openAt(path, line, col = 0) {
   markPlace();
   state.moving = true;
   try {
-    await openFile(path);
+    await openFile(path, { preview });
   } finally {
     state.moving = false;
   }
@@ -2789,6 +2805,7 @@ export async function startEdit(defs) {
       const tab = state.tabs.find((one) => one.session === session);
       if (tab) {
         tab.closing = false;
+        tab.preview = false;
         changed(tab);
         typed();
         if (tab.validated) {
@@ -3422,6 +3439,25 @@ export function bindReaderKeys(list) {
 
 // What the menu bar does to the editor: the editor where a file of text is open in it, saving one
 // file or all of them, and closing one tab or all of them.
+// A session of the file at `path` for a view over the editor: a twin of its tab's where a tab holds
+// it whole, live and taking edits as the tab does, and the file as it was read, taking none, where
+// none does. A path outside the tree is read where it is.
+export async function viewSession(path) {
+  const tab = tabOf(path);
+  if (tab?.session && !tab.session.window && !tab.notebook) {
+    return tab.session.twin();
+  }
+  const outside = /^(?:[A-Za-z]:[\\/]|\/|\\\\)/.test(path);
+  const text = outside ? await invoke("file_read_any", { path }) : (await invoke("file_read", { path })).text;
+  return new Session(text ?? "", state.known.languageOf(path), { readOnly: true });
+}
+
+// An editor in `host` for a view over the editor, its edits told as a tab's are.
+export function viewEditor(host) {
+  const { onEdit, pasteAs, spansOf, onShown, onChange } = state.editorHooks;
+  return new Editor(host, { onEdit, pasteAs, spansOf, onShown, onChange: (s) => onChange(s.of ?? s), statusHost: document.createElement("div") });
+}
+
 export function editing() {
   return {
     editor: state.split?.focused ? state.split.editor : state.editor?.s ? state.editor : null,

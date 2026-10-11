@@ -25,19 +25,17 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 Each item keeps to a habit measured in developers at work.
 
-1. **Code seen without going to it.** A definition, a usage or a caller is seen in place, over the editor at the line, with no tab opened and no way back to find; a tab opened from one is a preview until it is edited.
-   - Developers spent 35% of their time on the mechanics of moving between code, and a fifth of it reading code in one fixed view.
-2. **What a file is for, before it is opened.** The pointer resting on a file in the explorer shows what the file is for, from its first comment, and what in the tree uses it.
+1. **What a file is for, before it is opened.** The pointer resting on a file in the explorer shows what the file is for, from its first comment, and what in the tree uses it.
    - Without cues before opening, developers open file after file to judge each one.
-3. **The task's code in one place.** The lines a task needs, from any files, are gathered side by side in one place, each still the live text of its file, and kept with the task.
+2. **The task's code in one place.** The lines a task needs, from any files, are gathered side by side in one place, each still the live text of its file, and kept with the task.
    - Developers kept what they found in memory, in notes, or in tabs that closed, and went back to find it again.
-4. **Notices at the reader's breaks.** A notice that needs nothing done waits for a break in the work, a save, a commit, a run's end or the keys at rest, and none takes the keys; Focus holds every notice until it ends.
+3. **Notices at the reader's breaks.** A notice that needs nothing done waits for a break in the work, a save, a commit, a run's end or the keys at rest, and none takes the keys; Focus holds every notice until it ends.
    - Suggestions offered at such a break were taken up 52% of the time; those offered in the middle of a task were mostly dismissed.
    - An interruption on the screen that demands attention slows the reading of code.
-5. **A change reviewed by its structure.** A change is shown as the functions it touches, each beside those it calls, and not file by file. A diff names who made the commit; nothing else shows who wrote a line unless the reader turns it on.
+4. **A change reviewed by its structure.** A change is shown as the functions it touches, each beside those it calls, and not file by file. A diff names who made the commit; nothing else shows who wrote a line unless the reader turns it on.
    - In about 40% of pull requests more than half the changed functions call each other, and the function a caller needs is often in another file.
    - A function moved shows as one move, not as lines taken out of one file and lines put into another.
-6. **The debugger as simple as print.** A print is a tool of its own: a line's values are printed by a message breakpoint without the file changing, and every print statement added for a task is listed and taken out in one step before a commit.
+5. **The debugger as simple as print.** A print is a tool of its own: a line's values are printed by a message breakpoint without the file changing, and every print statement added for a task is listed and taken out in one step before a commit.
    - Most developers never start a debugger, use only its plainest parts, and print values instead.
    - Print statements left in by mistake are a common part of commits.
 ## Plugins

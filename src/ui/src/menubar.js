@@ -56,6 +56,7 @@ import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profil
 import { openRemote } from "./remote.js";
 import { toggleContainers } from "./containers.js";
 import { toggleComms } from "./comms.js";
+import { peekHere } from "./peek.js";
 import { previewMode, setPreview } from "./preview.js";
 import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
 import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
@@ -447,6 +448,9 @@ const COMMANDS = {
   jump: inEditor((e) => (e.startJump(), say("Jump: type the letter or two where the cursor is to go, then the mark there."))),
   bridge: goToBridge,
   definition: inEditor(() => editing().definition()),
+  "peek-definition": inEditor(() => peekHere("definition")),
+  "peek-usages": inEditor(() => peekHere("usages")),
+  "peek-callers": inEditor(() => peekHere("callers")),
   usages: inEditor(() => editing().usages()),
   calls: inEditor(() => editing().calls()),
   rename: inEditor(() => editing().rename()),

@@ -86,6 +86,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 1. **Menus that stay where they are, and their keys in sight.** No menu orders itself by use: an item stands where it was learned, and only a search ranks what it finds. Holding Ctrl or Alt alone for half a second shows, over each button in sight that has keys, the keys that press it, from the keys it names or the keys its title ends with, and over each menu's title its Alt letter; letting go, another key, a press, a wheel or the window going to the back takes them away.
    - How fast an item is chosen depends on its place staying the same.
    - Many people never learn an item's keys unless the keys are shown where they already look.
+2. **Code seen without going to it.** Peek Definition (Alt+F12, Ctrl+Shift+I), Peek Usages (Ctrl+Alt+F7) and Peek Callers show the places the language server finds over the editor under the cursor's line, in an editor of their own: a file a tab holds shows its live text, changes not saved and all, and takes edits as the tab does, and one no tab holds shows as it was read. No tab opens, several places stand in a list the arrows go through, and Escape closes the peek. Enter, or Open, opens the place in a tab that is a preview, its name in italics, until it is edited or its tab pressed twice; the next preview opened takes its place.
+   - Developers spent 35% of their time on the mechanics of moving between code, and a fifth of it reading code in one fixed view.
 
 ## Code intelligence
 
