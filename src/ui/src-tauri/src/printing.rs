@@ -114,8 +114,8 @@ pub fn print(app: &tauri::AppHandle, html: String, settings: Settings) -> Result
                     let environment = core.cast::<ICoreWebView2_2>()?.Environment()?.cast::<ICoreWebView2Environment6>()?;
                     let print_settings = environment.CreatePrintSettings()?;
                     print_settings.SetOrientation(if settings.landscape { COREWEBVIEW2_PRINT_ORIENTATION_LANDSCAPE } else { COREWEBVIEW2_PRINT_ORIENTATION_PORTRAIT })?;
-                    print_settings.SetShouldPrintHeaderAndFooter(false.into())?;
-                    print_settings.SetShouldPrintBackgrounds(true.into())?;
+                    print_settings.SetShouldPrintHeaderAndFooter(false)?;
+                    print_settings.SetShouldPrintBackgrounds(true)?;
                     let more = print_settings.cast::<ICoreWebView2PrintSettings2>()?;
                     more.SetColorMode(if settings.gray { COREWEBVIEW2_PRINT_COLOR_MODE_GRAYSCALE } else { COREWEBVIEW2_PRINT_COLOR_MODE_COLOR })?;
                     if let Some(pages) = settings.pages.as_deref().filter(|pages| !pages.trim().is_empty()) {
