@@ -1112,6 +1112,36 @@ body[data-strip-edge] .strip-edge {
   display: none;
 }
 
+/* The notice and the press beside it that puts its kind away for good: one item of the bar, the
+   press quiet until the pointer is on it. */
+.status-said-box {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.status-said-away {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.status-said-away:hover,
+.status-said-away:focus-visible {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.status-said-away[hidden] {
+  display: none;
+}
+
 .status-focus {
   border: 0;
   padding: 0;
@@ -2702,6 +2732,15 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   color: var(--fg);
   font: 15px/1.6 var(--head);
   overflow-wrap: break-word;
+}
+
+/* Help, What's New: the preview's type in a sheet of its own size, the sheet's place and frame. */
+.md-preview.sheet-changes {
+  position: static;
+  width: min(42rem, 80vw);
+  max-height: 70vh;
+  border-left: 0;
+  padding: 0 0.4rem 0.4rem;
 }
 
 .md-preview[hidden] {

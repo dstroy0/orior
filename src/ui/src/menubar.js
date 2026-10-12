@@ -44,6 +44,7 @@ import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { printText } from "./print.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
+import { markdownHtml } from "./markdown.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
@@ -545,6 +546,7 @@ const COMMANDS = {
   network: () => showNetwork(sheet),
   "network-off": (args) => setOffNetwork(onOff(args) ?? !offNetwork()),
   about: showAbout,
+  "whats-new": showChanges,
 };
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
@@ -1239,6 +1241,15 @@ function showShortcuts() {
     }
     body.append(block);
   }
+  sheet(body);
+}
+
+// Help, What's New: what each release of the window changed, as CHANGES.md built into the app gives
+// it. The window shows it here alone and opens on no page of its own.
+async function showChanges() {
+  const body = document.createElement("article");
+  body.className = "md-preview sheet-changes";
+  body.innerHTML = markdownHtml(await invoke("app_changes").catch(() => "# What's new in orior\n\nThe changes could not be read."));
   sheet(body);
 }
 

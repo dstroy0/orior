@@ -202,6 +202,12 @@ fn app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+/// What each release of the window changed, as CHANGES.md gives it, built into the app.
+#[tauri::command]
+fn app_changes() -> &'static str {
+    include_str!("../../CHANGES.md")
+}
+
 /// Ends the app, every window of it, from the File menu.
 /// What the app holds in memory, its own process and every one it started, or nothing where the
 /// system does not say.
@@ -1188,6 +1194,7 @@ fn open(launch: Launch) {
             launch_take,
             window_open,
             app_version,
+            app_changes,
             app_exit,
             window_show,
             memory_use,

@@ -5,6 +5,7 @@
 // kind the file shown is. And every item of every menu, pressed from its menu as a person presses it.
 
 import { allCommands, firstKeys, runCommand } from "../../src/menubar.js";
+import { invoke } from "../../src/bridge.js";
 import { closeMenu } from "../../src/menu.js";
 
 const { test, assert, ui } = window.__harness;
@@ -27,6 +28,21 @@ test("a key two commands for different kinds of file share goes to the one the f
   shown = "notes.md";
   assert.equal(enter(), false, "the editor's own use of the key where neither is for the file");
   assert.deepEqual(ran, ["run-statement", "send-request"]);
+});
+
+test("Help, What's New shows what each release changed, the running version's own among them", async () => {
+  const help = [...document.getElementById("menubar").children].find((one) => one.textContent.trim() === "Help");
+  await ui.click(help);
+  const menu = await ui.waitFor(() => document.querySelector("body > .menu"), 3000);
+  await ui.click([...menu.querySelectorAll(".menu-item")].find((one) => one.querySelector("span")?.textContent === "What's New"));
+  const shown = await ui.waitFor(() => document.querySelector("dialog[open] .sheet-changes"), 3000);
+  try {
+    const version = await invoke("app_version");
+    assert.equal(shown.querySelector("h1")?.textContent, "What's new in orior");
+    assert.ok([...shown.querySelectorAll("h2")].some((one) => one.textContent === version), `a section for ${version}`);
+  } finally {
+    document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  }
 });
 
 // The answers given to what some commands ask; every other question is closed unanswered.

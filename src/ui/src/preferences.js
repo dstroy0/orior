@@ -26,6 +26,7 @@ import { invoke, pick } from "./bridge.js";
 import { carryInto } from "./carry.js";
 import { coresKept, KEPT_LEAST, machineCores, setCoresKept } from "./cores.js";
 import { chosenLanguage, languages, setLanguage } from "./language.js";
+import { bringBack, noticesAway } from "./statusbar.js";
 
 const BASE_NAMES = { dark: "Dark", light: "Light" };
 
@@ -545,6 +546,25 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
   }
 
   // Settings on every machine (carry.js): the file or folder they go through, and each taking kept.
+  // The notices put away for good, each with a press that shows its kind again.
+  function noticesSection() {
+    const away = noticesAway();
+    const rows = away.map((kind) => {
+      const back = element("button", { type: "button", className: "prefs-button", textContent: "Show Again", ariaLabel: `Show again: ${kind}` });
+      back.addEventListener("click", () => {
+        bringBack(kind);
+        draw();
+      });
+      return element("div", { className: "prefs-line prefs-notice-away" }, element("span", { textContent: kind }), back);
+    });
+    return element(
+      "section",
+      { className: "prefs-notices" },
+      element("h3", { textContent: "Notices" }),
+      ...(rows.length ? rows : [element("p", { className: "prefs-said", textContent: "No notice is put away. Not again, beside a notice on the status bar, puts its kind away." })]),
+    );
+  }
+
   function carrySection() {
     const section = element("section", { className: "prefs-carry" });
     carryInto(section, { reloadOwn, pick });
@@ -669,7 +689,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     const focusLabel = body.contains(focused) && !focusName ? focused.getAttribute("aria-label") : null;
     const scroll = body.querySelector(".prefs-colors")?.scrollTop ?? 0;
     const keysScroll = body.querySelector(".prefs-key-rows")?.scrollTop ?? 0;
-    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), inForceSection(), carrySection(), keysSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
+    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), inForceSection(), noticesSection(), carrySection(), keysSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
     const keyRows = body.querySelector(".prefs-key-rows");
     if (keyRows) {
       keyRows.scrollTop = keysScroll;

@@ -134,11 +134,45 @@ const REST = 2000;
 const BREAKS = new Set(["file_write", "git_commit", "git_commit_parts"]);
 const breaks = { commanded: -Infinity, input: performance.now(), held: [], timer: 0, focus: false, listeners: [] };
 
+// Notices put away for good: each by its kind, kept with the reader's settings. A notice of a kind
+// put away shows no more and counts as nothing unseen; the bell still keeps it. Preferences brings a
+// kind back.
+const AWAY_KEY = "orior.notices-away";
+
+export function noticesAway() {
+  try {
+    const kept = JSON.parse(localStorage.getItem(AWAY_KEY) ?? "[]");
+    return Array.isArray(kept) ? kept.filter((kind) => typeof kind === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function putAway(kind) {
+  const away = noticesAway();
+  if (!away.includes(kind)) {
+    localStorage.setItem(AWAY_KEY, JSON.stringify([...away, kind]));
+  }
+}
+
+export function bringBack(kind) {
+  localStorage.setItem(AWAY_KEY, JSON.stringify(noticesAway().filter((one) => one !== kind)));
+}
+
+// A notice's kind where it is given none: its first line, each number in it read as any, so that a
+// notice said again with another count is the same kind.
+export const kindOf = (text) => String(text).split("\n")[0].replace(/\d+/g, "#");
+
 // Puts a word on the bar for a moment: its first line, and all of it over it, at once where it
 // answers what the reader did and at the next break where it does not. A press takes it away, and
-// does `act` first where there is one. The bell keeps it.
-export function say(text, { failed = false, act = null } = {}) {
-  const notice = { text: String(text), failed, act, at: Date.now() };
+// does `act` first where there is one; Not again beside it puts its kind away for good. The bell
+// keeps it.
+export function say(text, { failed = false, act = null, kind = null } = {}) {
+  const notice = { text: String(text), failed, act, at: Date.now(), kind: kind ?? kindOf(text) };
+  if (noticesAway().includes(notice.kind)) {
+    keepNotice(notice, { seen: true });
+    return;
+  }
   if (breaks.focus || performance.now() - breaks.commanded > ANSWERS) {
     breaks.held.push(notice);
     focusChanged();
@@ -230,26 +264,42 @@ export function startNotices() {
   document.getElementById("status-focus")?.addEventListener("click", () => setFocus(false));
 }
 
-function keepNotice(notice) {
-  notices.push({ text: notice.text, failed: notice.failed, at: notice.at });
+function keepNotice(notice, { seen = false } = {}) {
+  notices.push({ text: notice.text, failed: notice.failed, at: notice.at, kind: notice.kind });
   if (notices.length > NOTICES_KEPT) {
     notices.shift();
   }
-  unseen += 1;
+  if (!seen) {
+    unseen += 1;
+  }
   noticeListeners.forEach((listener) => listener());
 }
 
-function show({ text, failed, act, ...notice }) {
-  keepNotice({ text, failed, ...notice });
+function show({ text, failed, act, kind, ...notice }) {
+  keepNotice({ text, failed, kind, ...notice });
   const node = document.getElementById("status-said");
+  const away = document.getElementById("status-said-away");
+  const hide = () => {
+    node.hidden = true;
+    if (away) {
+      away.hidden = true;
+    }
+  };
   window.clearTimeout(saidTimer);
   node.textContent = String(text).split("\n")[0];
   node.title = String(text);
   node.classList.toggle("failed", failed);
   node.hidden = false;
   node.onclick = () => {
-    node.hidden = true;
+    hide();
     act?.();
   };
-  saidTimer = window.setTimeout(() => (node.hidden = true), failed ? FAILED_FOR : SAID_FOR);
+  if (away) {
+    away.hidden = false;
+    away.onclick = () => {
+      hide();
+      putAway(kind);
+    };
+  }
+  saidTimer = window.setTimeout(hide, failed ? FAILED_FOR : SAID_FOR);
 }
