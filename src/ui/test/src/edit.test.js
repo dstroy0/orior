@@ -3,10 +3,10 @@
 
 // The editor's tabs and files: a zip in the tree opened as a folder, its files read, changed and saved
 // back into it, and a large text held on the Rust side, its changes following it there and its
-// gutter's marks worked out there.
+// gutter's marks worked out there, and the tabs opened again as the tree starts.
 
 import { invoke } from "../../src/bridge.js";
-import { chooseNames, editing, openFile } from "../../src/edit.js";
+import { chooseNames, editing, openFile, restoreSession } from "../../src/edit.js";
 import { lineChanges } from "../../src/editor/diff.js";
 import { togglePane } from "../../src/sides.js";
 import { showView } from "../../src/views.js";
@@ -102,4 +102,23 @@ test("a large text is held on the Rust side, each change follows it there, and i
     }
   }
   assert.ok(gone, "no text is held under its key");
+});
+
+test("the tabs opened again as the tree starts leave the keys in the field the reader is typing in, and take them where nothing has them", async () => {
+  showView("edit");
+  await openFile("README.md");
+  await ui.waitFor(() => editing().active === "README.md", 5000);
+  const editorNode = document.getElementById("editor");
+  const field = document.createElement("input");
+  document.body.append(field);
+  try {
+    field.focus();
+    await restoreSession();
+    assert.equal(document.activeElement, field, "the field keeps the keys");
+    field.blur();
+    await restoreSession();
+    assert.ok(editorNode.contains(document.activeElement), "the editor takes the keys nothing has");
+  } finally {
+    field.remove();
+  }
 });

@@ -89,6 +89,8 @@ const state = {
   back: [],
   forward: [],
   moving: false,
+  // Whether the tabs the tree had open are being opened again as it starts.
+  restoring: false,
   // The tabs by when each was last shown, and the walk Last Editor is on while Ctrl is held.
   used: [],
   cycle: null,
@@ -1248,7 +1250,11 @@ function show(path) {
     editorNode.hidden = false;
     binaryNode.hidden = true;
     state.editor.show(tab.session);
-    state.editor.focus();
+    // A tab shown as the session comes back takes the keys only where nothing else has them: what the
+    // reader began to type into at the start keeps them.
+    if (!state.restoring || !document.activeElement || document.activeElement === document.body) {
+      state.editor.focus();
+    }
     markChanges(tab);
   } else {
     state.editor.show(null);
@@ -2669,6 +2675,15 @@ function keepBackups() {
 
 // Opens the tabs the tree had open, and shows the one it showed.
 export async function restoreSession() {
+  state.restoring = true;
+  try {
+    await putSessionBack();
+  } finally {
+    state.restoring = false;
+  }
+}
+
+async function putSessionBack() {
   const kept = readKept(sessionKey(), { tabs: [], active: null });
   for (const path of kept.tabs ?? []) {
     await load(path).catch(() => {});
