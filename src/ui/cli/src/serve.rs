@@ -904,6 +904,19 @@ impl Server {
                 });
                 give(())
             }
+            // A file too large for the page, held here as the file and the lines written over it
+            // (pages.rs).
+            "pages_open" => crate::pages::open(&a.get::<String>("key")?, &at(&path()?)?).and_then(give),
+            "pages_shape" => crate::pages::shape(&a.get::<String>("key")?).and_then(give),
+            "pages_read" => crate::pages::read(&a.get::<String>("key")?, a.get("from")?, a.get("to")?).and_then(give),
+            "pages_edit" => crate::pages::edit(&a.get::<String>("key")?, &a.get::<Vec<Vec<crate::document::Edit>>>("changes")?).and_then(give),
+            "pages_changed" => crate::pages::changed(&a.get::<String>("key")?).and_then(give),
+            "pages_find" => crate::pages::find(&a.get::<String>("key")?, &a.get("sought")?, a.get("most")?).and_then(give),
+            "pages_save" => crate::pages::save(&a.get::<String>("key")?).and_then(give),
+            "pages_release" => {
+                crate::pages::release(&a.get::<String>("key")?);
+                give(())
+            }
             "trust_read" => give(crate::trust::told(&self.root()?)),
             "trust_set" => {
                 let folder = PathBuf::from(a.get::<String>("folder")?);

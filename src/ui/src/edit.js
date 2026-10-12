@@ -41,6 +41,7 @@ import { anchor } from "./review.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
+import { follow as followPaged, inWindow, jumpPaged, openPaged, PAGED_FROM, readPaged, releasePaged, savePaged } from "./paged.js";
 import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, parseShown, serve, spansOf, startServers, stopServing, stopTelling, treeChecking, wrap } from "./servers.js";
 import { callHierarchy, closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
@@ -754,6 +755,7 @@ function closeTab(tab) {
   leaveSplit(tab.path);
   stopServing(tab);
   letGo(tab.session?.doc);
+  releasePaged(tab.session);
   if (tab.notebook) {
     closeNotebook(tab.notebook);
   }
@@ -925,7 +927,11 @@ async function load(path, as = null) {
     const opened = await invoke("file_read", { path });
     const tab = { path, file: path, size: opened.size, closing: false };
     const place = placeOf(path);
-    if (opened.windowed) {
+    if (opened.windowed && opened.size >= PAGED_FROM) {
+      tab.session = await openPaged(path, place?.line ?? 0, state.known.languageOf(path));
+      markSaved(tab);
+      settleAt(tab.session, place);
+    } else if (opened.windowed) {
       const shown = await invoke("file_window", { path, line: place?.line ?? 0, half: HALF });
       const held = { start: shown.start, end: shown.end, size: shown.size, lines: shown.lines };
       tab.session = new Session(shown.text, state.known.languageOf(path), { base: shown.line, window: held });
@@ -954,7 +960,7 @@ async function load(path, as = null) {
       tab.bytes = new Uint8Array(opened.bytes);
     }
     state.tabs.push(tab);
-    if (tab.session?.window) {
+    if (tab.session?.window && !tab.session.window.paged) {
       tab.reading = readOutward(tab);
     }
     serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
@@ -1323,6 +1329,17 @@ async function saveActive(tab = tabOf(actingPath())) {
   if (!tab?.session || tab.readOnly) {
     return;
   }
+  // A paged file is written on the Rust side, with every edit made to it.
+  if (tab.session.window?.paged) {
+    const writing = tab.session.doc.id;
+    await savePaged(tab.session);
+    tab.saved = writing;
+    tab.closing = false;
+    drawTabs();
+    await loadChanges();
+    drawTree();
+    return;
+  }
   // A file still being read is written only once all of it is in.
   await tab.reading;
   if (saving("format")) {
@@ -1374,6 +1391,9 @@ export async function openAt(path, line, col = 0, { preview = false } = {}) {
   }
   if ((line < s.base || line >= s.base + s.doc.count) && tab.reading) {
     await tab.reading;
+  }
+  if (s.window?.paged && !inWindow(s, line)) {
+    await jumpPaged(s, line);
   }
   if (state.split?.focused && state.split.active === path) {
     state.split.editor.goTo(line - s.base, col);
@@ -3006,6 +3026,16 @@ export async function startEdit(defs) {
     },
   };
   state.editor = new Editor(document.getElementById("editor"), { ...state.editorHooks, statusHost: document.getElementById("statusbar") });
+  // A paged file's window moves with the view, looked at once a frame while the view scrolls.
+  let following = 0;
+  state.editor.scroller.addEventListener("scroll", () => {
+    if (!following && state.editor.s?.window?.paged) {
+      following = requestAnimationFrame(() => {
+        following = 0;
+        followPaged(state.editor.s, state.editor);
+      });
+    }
+  });
   startNotebooks({
     languageOf: (path) => state.known.languageOf(path),
     changed: () => drawTabs(),
@@ -3101,7 +3131,25 @@ export async function startEdit(defs) {
     tabsChanged: () => drawTabs(),
     active: () => (state.active ? tabOf(state.active)?.file ?? null : null),
     editor: () => state.editor,
-    textOf: async (path) => tabOf(path)?.session?.doc.text() ?? (await invoke("file_read", { path })).text,
+    textOf: async (path) => {
+      const s = tabOf(path)?.session;
+      if (s?.window?.paged) {
+        throw new Error(`${path} is held as pages: orior.editor.lines reads a part of it`);
+      }
+      await tabOf(path)?.reading;
+      return s?.doc.text() ?? (await invoke("file_read", { path })).text;
+    },
+    // A part of a file's lines: a paged file's from the Rust side, and any other's as its tab holds
+    // it or its file does.
+    linesOf: async (path, from, to) => {
+      const s = tabOf(path)?.session;
+      if (s?.window?.paged) {
+        return readPaged(s, from, to);
+      }
+      await tabOf(path)?.reading;
+      const lines = s ? s.doc.lines : ((await invoke("file_read", { path })).text ?? "").split(/\r?\n/);
+      return lines.slice(from - (s?.base ?? 0), to - (s?.base ?? 0));
+    },
     write: (one, path, text) => writeWithCare(path, text, { who: one.name }).then(() => null),
   });
   syncPlugins();

@@ -53,6 +53,7 @@ pub mod mapped;
 pub mod mysql;
 pub mod net;
 pub mod notebook;
+pub mod pages;
 pub mod patterns;
 pub mod regexp;
 pub mod requests;

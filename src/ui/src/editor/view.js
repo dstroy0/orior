@@ -34,6 +34,10 @@ const historyChars = () => (authorsShown() ? HISTORY_CHARS : DATE_CHARS);
 // The height of a row, read from the code's line height each time the editor measures.
 let LINE = 20;
 
+// How many rows of padding a paged file's window has above it and below it at most: the scrolling
+// space stays within what the page lays out, and the window moves as the view nears its edge.
+const PAGED_PAD = 250000;
+
 // How round a selection's corners are, in pixels.
 const SELECTION_ROUND = 4;
 
@@ -609,11 +613,73 @@ export class Editor {
       this.underLayer.shift(added);
       this.gutterLayer.shift(added);
     }
+    this.keepLine();
     if (this.find.shown) {
       window.clearTimeout(this.findWait);
       this.findWait = window.setTimeout(() => this.find.refresh(), 400);
     }
     this.schedule();
+  }
+
+  // Lines of a paged file's window let go above it or below it: the rows on screen keep their
+  // places, as when lines are read in.
+  shrunk(session, count, above) {
+    if (session !== this.s) {
+      return;
+    }
+    this.rowsKey = "";
+    this.size();
+    if (above) {
+      this.originRow -= count;
+      this.textLayer.shift(-count);
+      this.underLayer.shift(-count);
+      this.gutterLayer.shift(-count);
+    }
+    this.keepLine();
+    this.schedule();
+  }
+
+  // A paged file's window put elsewhere in the file: the view shows it afresh.
+  replaced(session) {
+    if (session !== this.s) {
+      return;
+    }
+    this.heldLine = undefined;
+    for (const layer of [this.textLayer, this.underLayer, this.gutterLayer]) {
+      layer.clear();
+    }
+    this.widestCache = this.widthOf(session.doc.lines);
+    this.s = null;
+    session.view = null;
+    this.show(session);
+  }
+
+  // Reads the line of the file at the top of the view, before a paged file's window moves under it.
+  holdLine(session) {
+    if (session === this.s && session.window?.paged) {
+      this.heldLine = session.base + this.scrollY() / LINE;
+    }
+  }
+
+  // Puts the line `holdLine` read back at the top of the view once the window has moved, a glide
+  // under way carried with it, and the scroll that does it not counted as speed.
+  keepLine() {
+    if (this.heldLine === undefined || !this.s) {
+      return;
+    }
+    const line = this.heldLine;
+    this.heldLine = undefined;
+    this.size();
+    const want = this.pad + (line - this.s.base) * LINE;
+    const by = want - this.scroller.scrollTop;
+    if (by) {
+      this.scroller.scrollTop = want;
+      this.placedTop = this.scroller.scrollTop;
+      if (this.glide) {
+        this.glide.to += by;
+        this.glide.at += by;
+      }
+    }
   }
 
   // Sizes the scrolling space to every row and the widest line.
@@ -623,7 +689,10 @@ export class Editor {
     // the window and below it, counted as the file opened, stand as padding. A line read in takes
     // its place from the padding, and the scroll and the scrollbar stay where they are.
     const s = this.s;
-    if (s?.window) {
+    if (s?.window?.paged) {
+      this.pad = Math.min(s.base, PAGED_PAD) * LINE;
+      this.below = Math.min(s.window.after, PAGED_PAD) * LINE;
+    } else if (s?.window) {
       this.pad = s.base * LINE;
       this.below = Math.max(0, this.linesInFile() - s.base - s.doc.count) * LINE;
     } else {
@@ -3430,6 +3499,9 @@ export class Editor {
     if (!s.window) {
       return s.base + s.doc.count;
     }
+    if (s.window.paged) {
+      return s.base + s.doc.count + s.window.after;
+    }
     return Math.max(s.window.lines ?? 0, s.base + s.doc.count);
   }
 
@@ -3802,7 +3874,7 @@ export class Editor {
       const chars = spans.reduce((sum, sel) => sum + (startOf(sel).line === endOfSel(sel).line ? endOfSel(sel).col - startOf(sel).col : 0), 0);
       picked = lines ? `${lines + spans.length} lines selected` : `${chars} selected`;
     }
-    const read = s.window ? `${Math.floor((100 * (s.window.end - s.window.start)) / Math.max(1, s.window.size))}% read` : "";
+    const read = s.window && !s.window.paged ? `${Math.floor((100 * (s.window.end - s.window.start)) / Math.max(1, s.window.size))}% read` : "";
     const errors = (s.diagnostics ?? []).filter((diag) => diag.severity === 1).length;
     const warnings = (s.diagnostics ?? []).filter((diag) => diag.severity === 2).length;
     const mode = this.vim?.label() ?? "";

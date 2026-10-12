@@ -192,7 +192,8 @@
     browserTraced: async (writer, qry, name) => ask({ op: "browser_trace", end: true, writer, qry, name }),
     type: async (text) => ask({ op: "type", text }),
     // Waits for `what`, a selector shown or a function's true value, and gives it.
-    waitFor: async (what, ms = 5000) => {
+    // Waits for `what`, a test or a selector, at most `ms`; `said` names it where it never comes.
+    waitFor: async (what, ms = 5000, said = null) => {
       const until = performance.now() + ms;
       while (performance.now() < until) {
         const value = typeof what === "function" ? await what() : document.querySelector(what);
@@ -201,7 +202,7 @@
         }
         await new Promise((next) => setTimeout(next, 30));
       }
-      throw new Failure(`waited ${ms} ms for ${typeof what === "function" ? "the condition" : what}`);
+      throw new Failure(`waited ${ms} ms for ${said ?? (typeof what === "function" ? "the condition" : what)}`);
     },
     // The gaps between the frames drawn over `ms`, to say how smoothly something moved.
     frames: async (ms) => {
