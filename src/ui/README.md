@@ -55,6 +55,15 @@ goes on the highest numbered monitor that is not the main one, or the one `--mon
 `ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while any test fails or any
 source file has no test, and its report is in `test/runs/<time>/report.md`.
 
+On Windows the window is driven through its debugging port. On Linux its web view is WebKitGTK,
+and the window is driven through WebKitWebDriver: every press, key, drag and wheel goes as
+WebDriver's actions. `--docker` runs the window's tests in the harness's own Docker image, from
+`test/docker/`, on any machine Docker runs on. The tree is brought into a volume of the
+container's own, the window is built there and drawn on a display in memory, and the report comes
+back to `test/runs/`. Every item of every menu and every option of Preferences is pressed there as
+a person presses it. `.github/workflows/ui.yml` runs the same on each pull request that changes the
+app, beside CodeQL and SonarQube Cloud.
+
 ## Running it
 
 It needs Rust 1.77 or later to build. Every line of the page is in `src/`, written for this tree,

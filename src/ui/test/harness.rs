@@ -14,8 +14,13 @@
 //! 4. what has no test: each module of the window with no file in test/src, each file of Rust with
 //!    code and no test, and each test file whose module is gone.
 //!
+//! The window is driven through its debugging port where its web view is WebView2, on Windows, and
+//! through WebDriver where it is WebKitGTK, on Linux (driven.rs). --docker runs the window's tests in
+//! the harness's own Docker image on this machine, driven through WebDriver (docker.rs).
+//!
 //! cargo run --manifest-path test/Cargo.toml --release -- [--only TEXT] [--monitor N] [--monitors]
 //!     [--no-servers] [--no-rust] [--no-window] [--keep-window] [--stop-servers]
+//!     [--driver cdp|webdriver] [--docker]
 //!
 //! The window goes on the monitor --monitor or ORIOR_TEST_MONITOR numbers, as --monitors lists them,
 //! else the highest numbered that is not the main one. The report goes to test/runs/<time>/report.md. The run fails where any test fails, the window
@@ -23,10 +28,13 @@
 
 mod bench;
 mod cdp;
+mod docker;
+mod driven;
 mod frames;
 mod input;
 mod servers;
 mod systems;
+mod webdriver;
 mod window;
 
 use std::collections::BTreeMap;
@@ -53,15 +61,33 @@ struct Options {
     stop_servers: bool,
     monitors: bool,
     systems: bool,
+    /// Whether the window is driven through WebDriver, else through its debugging port.
+    webdriver: bool,
+    /// Whether the window's tests run in the harness's Docker image, and the words given to the
+    /// harness there.
+    docker: bool,
+    passed: Vec<String>,
 }
 
 impl Options {
     fn read() -> Result<Options, String> {
-        let mut options = Options { only: Vec::new(), monitor: std::env::var("ORIOR_TEST_MONITOR").ok().and_then(|named| named.parse().ok()), servers: true, rust: true, window: true, keep_window: false, stop_servers: false, monitors: false, systems: true };
+        let mut options = Options { only: Vec::new(), monitor: std::env::var("ORIOR_TEST_MONITOR").ok().and_then(|named| named.parse().ok()), servers: true, rust: true, window: true, keep_window: false, stop_servers: false, monitors: false, systems: true, webdriver: !cfg!(windows), docker: false, passed: Vec::new() };
         let mut args = std::env::args().skip(1);
         while let Some(arg) = args.next() {
             match arg.as_str() {
-                "--only" => options.only.push(args.next().ok_or("--only needs the text of a test file's path")?),
+                "--only" => {
+                    let only = args.next().ok_or("--only needs the text of a test file's path")?;
+                    options.passed.extend(["--only".to_string(), only.clone()]);
+                    options.only.push(only);
+                }
+                "--driver" => {
+                    options.webdriver = match args.next().as_deref() {
+                        Some("webdriver") => true,
+                        Some("cdp") => false,
+                        _ => return Err("--driver needs cdp, the debugging port, or webdriver".into()),
+                    }
+                }
+                "--docker" => options.docker = true,
                 "--monitor" => options.monitor = Some(args.next().and_then(|number| number.parse().ok()).ok_or("--monitor needs the monitor's number, as the system's display settings give it")?),
                 "--no-servers" => options.servers = false,
                 "--no-rust" => options.rust = false,
@@ -78,7 +104,7 @@ impl Options {
     }
 }
 
-const USAGE: &str = "harness [--only TEXT] [--monitor N] [--monitors] [--no-servers] [--no-rust] [--no-systems] [--no-window] [--keep-window] [--stop-servers]";
+const USAGE: &str = "harness [--only TEXT] [--monitor N] [--monitors] [--no-servers] [--no-rust] [--no-systems] [--no-window] [--keep-window] [--stop-servers] [--driver cdp|webdriver] [--docker]";
 
 /// A test's outcome: its name, whether it passed, and why not.
 pub struct Outcome {
@@ -551,6 +577,9 @@ fn main() -> ExitCode {
         }
         return ExitCode::SUCCESS;
     }
+    if options.docker {
+        return docker::run(&here, &ui, &options.passed);
+    }
     let run = here.join("runs").join(stamp());
     if let Err(error) = std::fs::create_dir_all(&run) {
         eprintln!("{}: {error}", run.display());
@@ -620,7 +649,29 @@ fn main() -> ExitCode {
     }
 
     let tests: Vec<String> = files_under(&here.join("src"), ".test.js").into_iter().map(|file| format!("src/{file}")).filter(|file| options.only.is_empty() || options.only.iter().any(|only| file.contains(only.as_str()))).collect();
-    if options.window && !tests.is_empty() {
+    if options.window && !tests.is_empty() && options.webdriver {
+        println!("window, through WebDriver");
+        let tree = run.join("tree");
+        let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
+            .map_err(|error| format!("the run's tree: {error}"))
+            .and_then(|_| benched.as_ref().map_or(Ok(()), |folder| bench::placed(folder, &tree)))
+            .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
+            .and_then(|_| driven::build(&ui, &here))
+            .and_then(|program| {
+                let extra: Vec<(String, String)> = env.iter().filter(|(key, _)| key == "ORIOR_TEST_SSH").map(|(_, value)| ("ORIOR_SSH".to_string(), value.clone())).collect();
+                driven::start(&program, &run, &tree, &extra)
+            });
+        match started {
+            Err(error) => {
+                println!("  {error}");
+                report.files.push(("the window".into(), vec![Outcome { name: "it starts".into(), ok: false, ms: 0, error }], Vec::new()));
+            }
+            Ok(driven) => {
+                driven::run_files(&driven, &here, &tests, &env, &mut report);
+                input::stop_started();
+            }
+        }
+    } else if options.window && !tests.is_empty() {
         println!("window");
         let tree = run.join("tree");
         let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
@@ -687,7 +738,7 @@ fn main() -> ExitCode {
                 }
             }
         }
-        for file in ["bench.rs", "cdp.rs", "frames.rs", "harness.rs", "input.rs", "servers.rs", "systems.rs", "window.rs"] {
+        for file in ["bench.rs", "cdp.rs", "docker.rs", "driven.rs", "frames.rs", "harness.rs", "input.rs", "servers.rs", "systems.rs", "webdriver.rs", "window.rs"] {
             if untested_rust(&here.join(file)) {
                 report.untested.push(format!("test/{file}"));
             }
