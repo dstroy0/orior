@@ -16,6 +16,7 @@ import { write } from "./status.js";
 import { say } from "./statusbar.js";
 import { runInTerminal } from "./terminal.js";
 import { wordmark } from "./wordmark.js";
+import { showView } from "./views.js";
 
 // The groups in the order the engine's own steps run, and then what reads its results.
 const ORDER = ["build", "executable", "deploy", "protocol", "ingest", "run", "render", "sim", "view", "pipeline", "stage", "test"];
@@ -250,8 +251,12 @@ function drawStage() {
   stage.querySelectorAll("input, select").forEach((node) => node.addEventListener("input", () => remember(job.id, valuesFrom(job))));
 }
 
+// The groups whose jobs build.
+const BUILDS = new Set(["build", "executable"]);
+
 // Starts a job and keeps its run, from the Start button or from anywhere else in the app. The run
-// shows in the job's console and in the status block either way.
+// shows in the job's console and in the status block either way, and a build's in the build window:
+// the run view, its job chosen, wherever it was started from.
 export async function startJob(id, values) {
   const run = await invoke("job_start", { job: id, values });
   const before = early(run);
@@ -267,6 +272,12 @@ export async function startJob(id, values) {
   }
   write("runs", [run, { job: id }]);
   state.shown.set(id, run);
+  if (BUILDS.has(state.jobs.find((job) => job.id === id)?.group)) {
+    showView("run");
+    if (state.chosen !== id) {
+      showJob(id);
+    }
+  }
   if (before.end) {
     onEnd({ payload: before.end });
     return run;

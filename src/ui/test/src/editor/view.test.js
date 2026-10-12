@@ -102,6 +102,10 @@ test("the word keys stop at the ends of words of either script, a letter's marks
 // A line of the window's trace: its indent, the call's name, when it was entered and how long it ran.
 const TRACED = /^( *)([\w.]+) (\d+\.\d{3}) (\d+\.\d{3})$/;
 
+// Where the view stood at its last scroll event, read without laying the page out as a read of the
+// scroller would in a frame the page has changed.
+const seen = (view) => (view.lastTop ?? view.scroller.scrollTop) - view.pad;
+
 // The frames the page is given over `ms`, as requestAnimationFrame calls it: the times of each.
 function framesOver(ms) {
   return new Promise((done) => {
@@ -201,7 +205,7 @@ test("under a steady wheel every frame moves the text an even step", async () =>
   const frames = [];
   let wheeling = true;
   const tick = (now) => {
-    frames.push([now, view.scrollY()]);
+    frames.push([now, seen(view)]);
     if (wheeling) {
       requestAnimationFrame(tick);
     }
@@ -218,7 +222,7 @@ test("under a steady wheel every frame moves the text an even step", async () =>
   await ui.browserTraced(writer, `${root}/${traceRun}`, "browser.trace");
   await new Promise((done) => setTimeout(done, 300));
   const paints = paintsOf(await invoke("qry_joined", { path: traceRun, name: TRACE_BLOB }));
-  const browser = (await invoke("qry_joined", { path: traceRun, name: "browser.trace" })).split("\n").slice(0, 14).join("; ");
+  const browser = (await invoke("qry_joined", { path: traceRun, name: "browser.trace" })).split("\n").filter((line, at) => at < 8 || line.startsWith("forced")).join("; ");
   await ui.run(writer, ["stop", `${root}/${traceRun}`]);
   const slowest = [...paints].sort((a, b) => b.spent - a.spent).slice(0, 5).map((paint) => `${paint.spent.toFixed(2)} ms ${JSON.stringify(Object.fromEntries(Object.entries(paint.stages).map(([stage, ms]) => [stage, Number(ms.toFixed(2))])))}`).join("; ");
   // The glide's first frames gather speed, and its last ones after the wheel stops lose it.
@@ -390,9 +394,9 @@ async function scrolledThrough(path, seconds) {
     // few lines on screen, whether each is drawn with a color.
     let sampling = true;
     const sample = () => {
-      const first = Math.floor(view.scrollY() / lineHeight());
+      const first = Math.floor(seen(view) / lineHeight());
       const lines = [first + 2, first + 12, first + 22].filter((line) => line < view.s.doc.count);
-      frames.push({ at: traceTime(), y: view.scrollY(), writes: view.textLayer.writes, colored: lines.map((line) => [line, /class="t-/.test(view.rowNode(line)?.innerHTML ?? "")]) });
+      frames.push({ at: traceTime(), y: seen(view), writes: view.textLayer.writes, colored: lines.map((line) => [line, /class="t-/.test(view.rowNode(line)?.innerHTML ?? "")]) });
       if (sampling) {
         requestAnimationFrame(sample);
       }
@@ -414,7 +418,7 @@ async function scrolledThrough(path, seconds) {
     await ui.waitFor(async () => (await invoke("qry_joined", { path: relative, name: TRACE_BLOB })).length > 0, 5000);
     await new Promise((done) => setTimeout(done, 300));
     const paints = paintsOf(await invoke("qry_joined", { path: relative, name: TRACE_BLOB }));
-    const browser = (await invoke("qry_joined", { path: relative, name: "browser.trace" })).split("\n").slice(0, 14).join("; ");
+    const browser = (await invoke("qry_joined", { path: relative, name: "browser.trace" })).split("\n").filter((line, at) => at < 8 || line.startsWith("forced")).join("; ");
     return { view, interval, missedAtRest, frames, paints, began, stopped, browser };
   } finally {
     view.smoothOn = smooth;

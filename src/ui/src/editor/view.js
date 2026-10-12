@@ -18,7 +18,7 @@ import { letterOf } from "../keys.js";
 import { selectionPath } from "./shape.js";
 import { Vim } from "./vim.js";
 import { Hover, Suggest } from "./widgets.js";
-import { pressed, status, write } from "../status.js";
+import { calm, nextSlice, pressed, status, write } from "../status.js";
 import { enter, leave } from "../trace.js";
 import { icon } from "../icons.js";
 import { authorsShown } from "../authors.js";
@@ -127,10 +127,16 @@ const BRACKETS_LINES = 200000;
 const BRACKETS_READ = 20000;
 const UNBRACKETED = /\bt-(?:comment|string|regexp)/;
 const SHOWN = 10000;
-// A row is drawn as far as the view reaches across and a step past it, the step whole, so that a
-// scroll across draws the rows again only as it passes one: a line of tens of thousands of
-// characters lays out what can be seen, and not the rest.
-const REACH_STEP = 512;
+// A row is drawn as far as the view reaches across, to the end of the step it reaches into, so that
+// a scroll across draws the rows again only as it passes into the next: a line of tens of thousands
+// of characters lays out what can be seen, and not the rest. The step is in characters.
+const REACH_STEP = 128;
+// The rows a view draws are those in sight first, then out from them a slice of DRAW_SLICE rows at a
+// time, as a large file is read, to DRAWN_MOST rows at the most.
+const DRAW_SLICE = 32;
+const DRAWN_MOST = 1200;
+const sessionIds = new WeakMap();
+let sessionsSeen = 0;
 
 // The most rows whose markup is kept; past it the kept rows are let go and made again as they show.
 const ROWS_KEPT = 5000;
@@ -300,7 +306,7 @@ export class Editor {
     this.originRow = 0;
     this.pad = 0;
     this.below = 0;
-    this.textLayer = new Layer(this.text);
+    this.textLayer = new Layer(this.text, { flow: true });
     this.underLayer = new Layer(this.under);
     this.gutterLayer = new Layer(this.gutterRows);
     this.overHtml = "";
@@ -2995,6 +3001,7 @@ export class Editor {
     // Where the view stands, read before anything changes the page.
     const top = this.scroller.scrollTop;
     const left = this.scroller.scrollLeft;
+    this.scrolledNow = { top, left };
     this.hover.hide();
     const now = performance.now();
     if (top === this.placedTop) {
@@ -3071,6 +3078,64 @@ export class Editor {
       }
     };
     idle(slice);
+  }
+
+  // What the rows drawn were drawn in: the session and the origin. Drawn in any other, a row out of
+  // sight is let go.
+  drawnFor() {
+    return `${this.sessionId(this.s)}|${this.originRow}`;
+  }
+
+  // A number for each session the view has shown, kept with the session.
+  sessionId(s) {
+    if (!s) {
+      return 0;
+    }
+    if (!sessionIds.has(s)) {
+      sessionsSeen += 1;
+      sessionIds.set(s, sessionsSeen);
+    }
+    return sessionIds.get(s);
+  }
+
+  // Draws the rows out from those drawn, a slice at a time, the way nextSlice says, in each idle
+  // moment the view is not pressed in, as a large file is read: a scroll finds the rows it comes to
+  // drawn. It stops at DRAWN_MOST rows, at the ends of the text, and where what the rows are drawn
+  // from changes, the next frame drawing what is in sight and starting it again.
+  async drawOutward() {
+    if (this.drawing) {
+      return;
+    }
+    this.drawing = true;
+    try {
+      let below = true;
+      for (;;) {
+        await calm();
+        const drawn = this.drawn;
+        if (!this.s || !drawn || drawn.for !== this.drawnFor() || !this.host.isConnected) {
+          return;
+        }
+        const rows = this.rows();
+        const canAbove = drawn.from > 0;
+        const canBelow = drawn.to < rows.size - 1;
+        if ((!canAbove && !canBelow) || drawn.to - drawn.from + 1 >= DRAWN_MOST) {
+          return;
+        }
+        const goBelow = nextSlice({ canAbove, canBelow, moving: status.scroll.speed > 0, heading: status.scroll.heading, below }) === "below";
+        below = !below;
+        const from = goBelow ? drawn.to + 1 : Math.max(0, drawn.from - DRAW_SLICE);
+        const to = goBelow ? Math.min(rows.size - 1, drawn.to + DRAW_SLICE) : drawn.from - 1;
+        const parts = new Map();
+        for (let row = from; row <= to; row += 1) {
+          parts.set(row, ["ed-row", this.rowHtml(rows.lineOf(row))]);
+        }
+        this.textLayer.extend(parts, (row) => this.yOf(row));
+        drawn.from = Math.min(drawn.from, from);
+        drawn.to = Math.max(drawn.to, to);
+      }
+    } finally {
+      this.drawing = false;
+    }
   }
 
   schedule() {
@@ -3190,8 +3255,8 @@ export class Editor {
     return s.depths[line];
   }
 
-  // How many characters across a row is drawn to: as far as the view reaches, in whole steps of
-  // REACH_STEP, and a step more.
+  // How many characters across a row is drawn to: as far as the view reaches, to the end of the step
+  // of REACH_STEP it reaches into.
   reach() {
     const seen = Math.ceil(((this.leftNow ?? this.scroller.scrollLeft) + this.viewSize().width) / this.cw);
     return (Math.floor(seen / REACH_STEP) + 2) * REACH_STEP;
@@ -3433,8 +3498,12 @@ export class Editor {
     // The gutter holds, left to right, the strip a breakpoint is set in, Line History's column where
     // it shows, the line numbers, and the fold arrows and change marks.
     // Where the view stands, read before this frame changes the page.
-    const scrolledTop = this.scroller.scrollTop;
-    const scrolledLeft = this.scroller.scrollLeft;
+    // Where the view stands, as this frame's scroll event read it, or read now where none came: a read
+    // after the page has changed lays it out again before the frame does.
+    const known = this.scrolledNow;
+    this.scrolledNow = null;
+    const scrolledTop = known ? known.top : this.scroller.scrollTop;
+    const scrolledLeft = known ? known.left : this.scroller.scrollLeft;
     this.leftNow = scrolledLeft;
     const historyWidth = s.history ? Math.round(historyChars() * cw) + 8 : 0;
     const gutterWidth = Math.round(String(total).length * cw + 36 + BREAK_STRIP) + historyWidth;
@@ -3582,8 +3651,18 @@ export class Editor {
     }
     const rowTop = (row) => this.yOf(row);
     const textCall = enter("text");
-    this.textLayer.draw(text, rowTop);
+    // The rows drawn: those in sight, and those drawn out from them since in the session and from the
+    // origin they were drawn in, at most DRAWN_MOST of them, as many past the view on either side as
+    // there are room for, and none past the text's end. A row drawn before an edit or a scroll across
+    // is drawn again from the text as it stands as it comes into sight.
+    const drawnFor = this.drawnFor();
+    const was = this.drawn?.for === drawnFor && this.drawn.from <= last + 1 && this.drawn.to >= first - 1 ? this.drawn : null;
+    const half = Math.floor((DRAWN_MOST - (last - first + 1)) / 2);
+    this.drawn = { for: drawnFor, from: Math.max(Math.min(first, was?.from ?? first), first - half), to: Math.min(Math.max(last, was?.to ?? last), last + half, rows.size - 1) };
+    const drawn = this.drawn;
+    this.textLayer.draw(text, rowTop, (row) => row >= drawn.from && row <= drawn.to);
     leave(textCall);
+    this.drawOutward();
     // Each selection covers its characters on each row it reaches, and a line's end inside it as
     // one blank character, the rows' spans drawn as one shape; on a line that holds text running
     // right to left, each run of its characters as the page draws them is a shape of its own.

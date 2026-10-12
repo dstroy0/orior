@@ -537,6 +537,11 @@ fn lit(text: impl Into<String>) -> Arg {
     Arg::Lit(text.into())
 }
 
+/// The words a build tool says every command it runs by, where the build's trace is verbose.
+fn verbose(words: &[&str]) -> Arg {
+    when(crate::catalog::TRACE, crate::catalog::TRACE_VERBOSE, words)
+}
+
 fn when(key: &str, value: &str, words: &[&str]) -> Arg {
     Arg::When(key.to_string(), value.to_string(), words.iter().map(|word| word.to_string()).collect())
 }
@@ -703,6 +708,7 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
                     Arg::Flag("--profile", "profile".into()),
                     Arg::FlagBut("--target", "target".into(), THIS_MACHINE.into()),
                     Arg::When("profile".into(), "release".into(), vec!["--config".into(), format!("build.rustflags=['--remap-path-prefix={}=.']", root.display())]),
+                    verbose(&["-vv"]),
                     Arg::Cross("rust"),
                 ],
             )],
@@ -716,8 +722,8 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
                 vec![
                     tool("cmake", "cmake", vec![lit("-E"), lit("make_directory"), at("/.cmake/api/v1/query")]),
                     tool("cmake", "cmake", vec![lit("-E"), lit("touch"), at("/.cmake/api/v1/query/codemodel-v2")]),
-                    tool("cmake", "cmake", vec![lit("-S"), lit(folder), lit("-B"), at(""), Arg::Around("-DCMAKE_BUILD_TYPE=".into(), "config".into(), String::new())]),
-                    tool("cmake", "cmake", vec![lit("--build"), at(""), lit("--target"), lit(name), lit("--config"), Arg::Value("config".into())]),
+                    tool("cmake", "cmake", vec![lit("-S"), lit(folder), lit("-B"), at(""), Arg::Around("-DCMAKE_BUILD_TYPE=".into(), "config".into(), String::new()), verbose(&["--log-level=VERBOSE"])]),
+                    tool("cmake", "cmake", vec![lit("--build"), at(""), lit("--target"), lit(name), lit("--config"), Arg::Value("config".into()), verbose(&["--verbose"])]),
                 ],
             )
         }
@@ -725,7 +731,7 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
             let build = build_folder(root, &exe.script, "meson");
             let at = || Arg::Around(build.clone(), "buildtype".into(), String::new());
             let mut setup = vec![lit("setup"), lit("--reconfigure"), at(), lit(folder), Arg::Around("--buildtype=".into(), "buildtype".into(), String::new())];
-            let mut compile = vec![lit("compile"), lit("-C"), at(), lit(name)];
+            let mut compile = vec![lit("compile"), lit("-C"), at(), lit(name), verbose(&["--verbose"])];
             if needs_vsenv() {
                 setup.extend([lit("--vsenv"), Arg::Unpath("cl".into())]);
                 compile.push(Arg::Unpath("cl".into()));
@@ -752,7 +758,7 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
                 args.extend([lit("-C"), lit(folder)]);
                 format!("{}/{out}", root.display().to_string().replace('\\', "/"))
             };
-            args.extend([lit("-trimpath"), lit("-o"), Arg::Format(out), lit(package.clone())]);
+            args.extend([lit("-trimpath"), verbose(&["-v", "-x"]), lit("-o"), Arg::Format(out), lit(package.clone())]);
             let (system, processor) = go_host();
             let systems = first_of(system, &["windows", "linux", "darwin"]);
             let processors = first_of(processor, &["amd64", "arm64"]);
@@ -778,12 +784,13 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
                     Arg::Value("configuration".into()),
                     when("output", "one file", &["-r", &dotnet_runtime(), "--self-contained", "true", "-p:PublishSingleFile=true", "-p:IncludeNativeLibrariesForSelfExtract=true"]),
                     when("configuration", "Release", &["-p:ContinuousIntegrationBuild=true"]),
+                    verbose(&["-v", "detailed"]),
                 ],
             )],
         ),
         (Kind::Zig, detail) => {
             let optimize = matches!(detail, Detail::Optimize(true));
-            let mut args = vec![lit("build"), lit("--build-file"), lit(script.clone())];
+            let mut args = vec![lit("build"), lit("--build-file"), lit(script.clone()), verbose(&["--verbose"])];
             let mut params = Vec::new();
             if optimize {
                 args.push(Arg::Around("-Doptimize=".into(), "optimize".into(), String::new()));
@@ -800,7 +807,7 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
             (
                 format!("PyInstaller, run by the tree's Python, freezes {script} into {}.", under(&made)),
                 Vec::new(),
-                vec![tool("python", "python", vec![lit("-m"), lit("PyInstaller"), lit("--noconfirm"), lit("--distpath"), lit(under("dist")), lit("--workpath"), lit(under("build")), lit(script.clone())])],
+                vec![tool("python", "python", vec![lit("-m"), lit("PyInstaller"), lit("--noconfirm"), verbose(&["--log-level", "DEBUG"]), lit("--distpath"), lit(under("dist")), lit("--workpath"), lit(under("build")), lit(script.clone())])],
             )
         }
         (Kind::Npm, Detail::Bin { entry, with, commonjs }) => {
@@ -810,7 +817,7 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
             if *commonjs {
                 deno.push(lit("--unstable-detect-cjs"));
             }
-            deno.extend([lit("--output"), lit(out.clone()), lit(entry.clone())]);
+            deno.extend([verbose(&["--log-level=debug"]), lit("--output"), lit(out.clone()), lit(entry.clone())]);
             let mut node = vec![only("node"), lit("sea"), lit(entry.clone()), lit(out.clone())];
             if !*commonjs {
                 node.push(lit("module"));
@@ -832,6 +839,7 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
         step.args.push(Arg::SourceDate);
     }
     params.push(choice("then", &["build", "run", "run as the system runs it"]));
+    params.push(crate::catalog::trace());
     params.push(Param { key: "folder".into(), kind: "dir", choices: Vec::new(), default: String::new(), required: false });
     steps.push(Step { program: Program::Made { system: false }, args: vec![Arg::Only("then".into(), "run".into())] });
     steps.push(Step { program: Program::Made { system: true }, args: vec![Arg::Only("then".into(), "run as the system runs it".into())] });
@@ -1551,6 +1559,42 @@ mod reading {
         if let Ok(lines) = crate::runner::shown(&dir, cmake, &values) {
             assert_eq!(lines[2], "cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release");
             assert_eq!(lines[3], "cmake --build build/cmake/c/Release --target cli --config Release");
+        }
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_build_tool_says_every_command_it_runs_by_default_and_its_own_words_where_quiet() {
+        let dir = scratch("trace");
+        put(&dir, "Cargo.toml", "[package]\nname = \"tool\"\n");
+        put(&dir, "src/main.rs", "fn main() {}\n");
+        put(&dir, "c/CMakeLists.txt", "project(c)\nadd_executable(cli cli.c)\n");
+        put(&dir, "g/go.mod", "module example.com/g\n");
+        put(&dir, "g/main.go", "package main\n\nfunc main() {}\n");
+        let mut found = Vec::new();
+        jobs(&dir, &mut found);
+        for job in &found {
+            let trace = job.params.iter().find(|param| param.key == crate::catalog::TRACE).expect("each build's trace");
+            assert_eq!(trace.default, crate::catalog::TRACE_VERBOSE, "{}", job.id);
+        }
+        let given = |trace: &str, more: &[(&str, &str)]| -> HashMap<String, Vec<String>> {
+            [(crate::catalog::TRACE, trace)].iter().chain(more).map(|(key, value)| (key.to_string(), vec![value.to_string()])).collect()
+        };
+        let job = |id: &str| found.iter().find(|job| job.id == id).expect(id);
+        let lines = |id: &str, trace: &str, more: &[(&str, &str)]| crate::runner::shown(&dir, job(id), &given(trace, more));
+        if let (Ok(verbose), Ok(quiet)) = (lines("executable/Cargo.toml:tool", "verbose", &[("profile", "dev")]), lines("executable/Cargo.toml:tool", "quiet", &[("profile", "dev")])) {
+            assert!(verbose[0].contains(" -vv"), "{}", verbose[0]);
+            assert!(!quiet[0].contains(" -vv"), "{}", quiet[0]);
+        }
+        if let Ok(verbose) = lines("executable/c/CMakeLists.txt:cli", "verbose", &[("config", "Release")]) {
+            assert_eq!(verbose[2], "cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release --log-level=VERBOSE");
+            assert_eq!(verbose[3], "cmake --build build/cmake/c/Release --target cli --config Release --verbose");
+        }
+        if let Ok(quiet) = lines("executable/c/CMakeLists.txt:cli", "quiet", &[("config", "Release")]) {
+            assert_eq!(quiet[3], "cmake --build build/cmake/c/Release --target cli --config Release");
+        }
+        if let Ok(verbose) = lines("executable/g/go.mod:g", "verbose", &[]) {
+            assert!(verbose[0].contains(" -trimpath -v -x -o "), "{}", verbose[0]);
         }
         let _ = fs::remove_dir_all(&dir);
     }

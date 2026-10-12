@@ -62,6 +62,13 @@ export function pressed() {
   return status.input.active || status.scroll.speed > 0;
 }
 
+// The side the next slice is read from of a windowed file, or drawn on of the rows a view draws
+// outward, "below" or "above": the way the view heads while it scrolls, and below and above in turn
+// at rest, `below` saying whose turn it is.
+export function nextSlice({ canAbove, canBelow, moving, heading, below }) {
+  return canBelow && (!canAbove || (moving ? heading > 0 : below)) ? "below" : "above";
+}
+
 // Waits for an idle moment the view is not pressed in, checking each idle moment.
 export function calm() {
   return new Promise((resolve) => {

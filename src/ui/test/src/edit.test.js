@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The editor's tabs and files: which side of a large file, read a slice at a time, is read next, a
-// zip in the tree opened as a folder, its files read, changed and saved back into it, and a large text
-// held on the Rust side, its changes following it there and its gutter's marks worked out there.
+// The editor's tabs and files: a zip in the tree opened as a folder, its files read, changed and saved
+// back into it, and a large text held on the Rust side, its changes following it there and its
+// gutter's marks worked out there.
 
 import { invoke } from "../../src/bridge.js";
-import { chooseNames, editing, nextSlice, openFile } from "../../src/edit.js";
+import { chooseNames, editing, openFile } from "../../src/edit.js";
 import { lineChanges } from "../../src/editor/diff.js";
 import { togglePane } from "../../src/sides.js";
 import { showView } from "../../src/views.js";
@@ -14,23 +14,6 @@ import { showView } from "../../src/views.js";
 const { test, assert, ui } = window.__harness;
 
 const rowOf = (path) => document.getElementById("files").querySelector(`.node[data-key="${path}"]`);
-
-test("a large file is read the way the view heads while it scrolls", () => {
-  const both = { canAbove: true, canBelow: true, moving: true };
-  assert.equal(nextSlice({ ...both, heading: -1, below: true }), "above");
-  assert.equal(nextSlice({ ...both, heading: 1, below: false }), "below");
-});
-
-test("at rest a large file is read below and above in turn", () => {
-  const both = { canAbove: true, canBelow: true, moving: false, heading: -1 };
-  assert.equal(nextSlice({ ...both, below: true }), "below");
-  assert.equal(nextSlice({ ...both, below: false }), "above");
-});
-
-test("a side read to its end is read no more, whichever way the view heads", () => {
-  assert.equal(nextSlice({ canAbove: false, canBelow: true, moving: true, heading: -1, below: false }), "below");
-  assert.equal(nextSlice({ canAbove: true, canBelow: false, moving: true, heading: 1, below: true }), "above");
-});
 
 test("a zip in the tree opens as a folder, and a file in it opens, is changed and saved back into it", async () => {
   showView("edit");

@@ -33,7 +33,7 @@ import { colorWith } from "./editor/tokens.js";
 import { findWith } from "./editor/find.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
-import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
+import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, folderIcon, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
 import { drawCommit, startCommit } from "./commit.js";
 import { closeDiff, showDiff } from "./diffview.js";
 import { showMerge } from "./mergeview.js";
@@ -62,7 +62,7 @@ import { cellFileOf, closeNotebook, drawNotebook, hideNotebook, isNotebook, mark
 import { onScheme } from "./scheme.js";
 import { iconsKey, kindColors } from "./themes.js";
 import { onFonts } from "./fonts.js";
-import { calm, status, write } from "./status.js";
+import { calm, nextSlice, status, write } from "./status.js";
 import { writeWithCare } from "./rights.js";
 import { marksOf, startScripts, syncPlugins, tabLabelOf, tell } from "./scripts.js";
 import { togglePane } from "./sides.js";
@@ -362,8 +362,8 @@ function shownName(entry) {
   }
 }
 
-// A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon, the
-// name, and git's letter for it. An archive is a folder with its file's icon.
+// A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon or
+// the folder's, the name, and git's letter for it. An archive is a folder with its file's icon.
 function node(entry, depth) {
   const known = !entry.dir && state.known?.typeOf(entry.path);
   const mark = entry.dir ? state.rolled.get(entry.path) : state.changes.get(entry.path);
@@ -373,9 +373,7 @@ function node(entry, depth) {
     title: entry.path,
   });
   button.append(...guides(depth), element("span", { className: "twisty" }));
-  if (!entry.dir || entry.archive) {
-    button.append(iconOf(entry.name, Boolean(known)));
-  }
+  button.append(entry.dir && !entry.archive ? folderIcon() : iconOf(entry.name, Boolean(known)));
   button.append(element("span", { className: "name", textContent: shownName(entry) }));
   if (entry.archive) {
     button.dataset.archive = "true";
@@ -809,12 +807,6 @@ async function sliceAt(path, start, end) {
   const head = new DataView(sent, 0, 24);
   const at = (offset) => Number(head.getBigUint64(offset, true));
   return { start: at(0), end: at(8), size: at(16), text: textOf.decode(new Uint8Array(sent, 24)) };
-}
-
-// The side of a windowed file the next slice is read from, "below" or "above": the way the view
-// heads while it scrolls, and below and above in turn at rest, `below` saying whose turn it is.
-export function nextSlice({ canAbove, canBelow, moving, heading, below }) {
-  return canBelow && (!canAbove || (moving ? heading > 0 : below)) ? "below" : "above";
 }
 
 // Reads the rest of a windowed file, a slice at a time, standing back whenever the status block says

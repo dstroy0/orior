@@ -3740,10 +3740,17 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   pointer-events: none;
 }
 
+/* The text and the gutter's numbers each on a layer of its own: a scroll moves them, and the rows
+   drawn out ahead of the view (view.js) are there to move into sight. */
 .ed-layers {
   position: absolute;
   top: 0;
   left: 0;
+  will-change: transform;
+}
+
+.ed-gutter-rows {
+  will-change: transform;
 }
 
 .ed-space {
@@ -3762,12 +3769,17 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   white-space: pre;
 }
 
-.ed-row {
+/* The text's rows flow in blocks, each block placed where its first row stands (layer.js). */
+.ed-block {
   position: absolute;
-  left: 10px;
+  left: 0;
+}
+
+.ed-row {
+  margin-left: 10px;
   height: var(--code-line);
   white-space: pre;
-  contain: layout style;
+  contain: style;
 }
 
 .ed-band > div,
@@ -4889,9 +4901,39 @@ body[data-solo] [data-solo-tool] > .dock-sash {
  * step and its inside slides in. Only the pane's own area moves while it slides: a slide that moved
  * the editor too would draw all of it again on each frame. The pointer at that edge of the view
  * brings it back. */
+/* A pane collapsing slides away whole, its ground and its inside together, up and toward the side it
+   collapses to, holding its room until it is gone; one coming back takes its room at once and slides
+   in whole. Its inside stays in place in it as it slides. */
 .collapsible {
   overflow: hidden;
-  transition: border-color 0.22s ease;
+  transition:
+    border-color 0.22s ease,
+    transform 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.collapsible.toward-left.collapsed.sliding,
+.collapsible.toward-left.arriving {
+  transform: translate(-100%, -100%);
+  opacity: 0;
+}
+
+.collapsible.toward-right.collapsed.sliding,
+.collapsible.toward-right.arriving {
+  transform: translate(100%, -100%);
+  opacity: 0;
+}
+
+.collapsible.toward-bottom.collapsed.sliding,
+.collapsible.toward-bottom.arriving {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.collapsible.collapsed.sliding > .side-inner {
+  transform: none;
+  opacity: 1;
+  transition: none;
 }
 
 .side-inner {
@@ -4917,6 +4959,12 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   width: var(--held);
 }
 
+/* A pane slid away is not drawn: what is out of sight is neither laid out nor painted, and its
+   inside keeps what it holds for the slide back. */
+.collapsible.collapsed:not(.sliding) > .side-inner {
+  content-visibility: hidden;
+}
+
 .collapsible.toward-left.collapsed > .side-inner {
   transform: translate(-100%, -100%);
   opacity: 0;
@@ -4936,22 +4984,16 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   height: var(--held);
 }
 
-/* A pane coming back holds its inside where it collapsed to while the editor gives it its room. */
+/* A pane coming back stands where it collapsed to, its inside in place in it, while the editor gives
+   it its room. */
+.collapsible.arriving,
 .collapsible.arriving > .side-inner {
   transition: none;
-  opacity: 0;
 }
 
-.collapsible.toward-left.arriving > .side-inner {
-  transform: translate(-100%, -100%);
-}
-
-.collapsible.toward-right.arriving > .side-inner {
-  transform: translate(100%, -100%);
-}
-
-.collapsible.toward-bottom.arriving > .side-inner {
-  transform: translateY(100%);
+.collapsible.arriving > .side-inner {
+  transform: none;
+  opacity: 1;
 }
 
 .collapsible.toward-bottom.collapsed > .side-inner {
@@ -5231,11 +5273,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 /* A file's icon: its type's mark, or a page. Its capitals stand 98% as tall as the capitals of the name beside it:
    the size is taken off the row's cap height, and the code font is set so its own capitals are that tall. Where
    cap is unknown the mark is 98% of the row's 13px. Its box is two characters of its own font, as wide as the
-   widest mark, each mark centered in it, and a space stands between it and the name. */
+   widest mark, each mark centered in it, and a character's width stands between it and the name. */
 .icon {
   flex: none;
   width: 2ch;
-  margin-right: 0.3em;
+  margin-right: 0.5rem;
   font: 700 12.75px/1 var(--code);
   font-size: 0.98cap;
   font-size-adjust: cap-height 1;
@@ -5243,14 +5285,16 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   letter-spacing: -0.04em;
 }
 
-.icon.page::before {
-  content: "";
-  display: inline-block;
-  box-sizing: border-box;
-  width: 0.8cap;
-  height: 1cap;
-  border: 1px solid var(--fg-3);
-  border-radius: 1px;
+/* A folder's icon, the folder's shape in its box, as tall as a mark's capitals and a little more. */
+.icon.folder {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--t4);
+}
+
+.icon.folder .glyph {
+  width: 14px;
+  height: 14px;
 }
 
 /* What git says of a row: the name and its letter in the state's color. */

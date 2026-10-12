@@ -23,7 +23,7 @@ const AUTO = "orior.panes.auto";
 // How long the pointer stays away before a pane collapses, in milliseconds.
 const REST = 700;
 
-// How long a pane's inside takes to slide away, as style.css sets it, in milliseconds.
+// How long a pane takes to slide away, as style.css sets it, in milliseconds.
 const SLIDE = 220;
 
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -52,8 +52,9 @@ export function autoCollapse() {
   return localStorage.getItem(AUTO) !== "false";
 }
 
-// Shows a pane or collapses it. A pane collapsing holds its room while its inside slides away and
-// gives it back in one step after; one shown takes its room at once and its inside slides in.
+// Shows a pane or collapses it. A pane collapsing holds its room while it slides away whole, its ground
+// and its inside together, and gives the room back in one step after; one shown takes its room at once
+// and slides in whole.
 function setShown(pane, shown) {
   const { node } = pane;
   window.clearTimeout(pane.slide);
