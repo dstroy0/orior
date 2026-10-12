@@ -533,15 +533,10 @@ pub fn search(root: &Path, query: &str, how: Searching, set: &Patterns) -> Resul
             return found;
         }
     }
-    let mut listing = Command::new("git");
-    listing.args(["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--"]).args(&specs).current_dir(root).stdin(Stdio::null()).stderr(Stdio::null());
-    crate::runner::quiet(&mut listing);
-    let listed = listing.output().ok().filter(|out| out.status.success()).map(|out| String::from_utf8_lossy(&out.stdout).split('\0').filter(|path| !path.is_empty()).map(str::to_string).collect::<BTreeSet<String>>());
-    // A tree inside a folder its repository ignores is one git lists nothing of, and is searched as a
-    // tree git cannot read.
-    let listed = listed.filter(|listed| !listed.is_empty() || !ignored_by_git(root));
-    let (paths, most): (Vec<String>, u64) = match listed {
-        Some(listed) => (listed.into_iter().filter(|path| searched(path)).collect(), u64::MAX),
+    // The files: git's view of the tree, kept between lists and searches and let go as files change,
+    // or the tree's own files where git lists none of them.
+    let (paths, most): (Vec<String>, u64) = match seen(root) {
+        Some(view) => (view.files.iter().filter(|path| searched(path)).cloned().collect(), u64::MAX),
         None => (all(root).into_iter().filter(|path| searched(path)).collect(), SEARCHED_BYTES),
     };
     // One reader takes the files from the disk and hands each, mapped or read, to the workers through a
@@ -627,14 +622,6 @@ pub fn search(root: &Path, query: &str, how: Searching, set: &Patterns) -> Resul
     });
     found.sort_by_key(|(index, _)| *index);
     Ok(found.into_iter().flat_map(|(_, hits)| hits).take(HITS_LIMIT).collect())
-}
-
-/// Whether the repository the tree is in ignores the tree's own folder.
-fn ignored_by_git(root: &Path) -> bool {
-    let mut asked = Command::new("git");
-    asked.args(["check-ignore", "-q", "."]).current_dir(root).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
-    crate::runner::quiet(&mut asked);
-    asked.status().is_ok_and(|status| status.success())
 }
 
 /// Whether a character joins a word, for a search of whole words.
