@@ -16,10 +16,13 @@ RUN apt-get update \
       xvfb xauth dbus dbus-x11 at-spi2-core fonts-dejavu-core fonts-noto-core \
  && rm -rf /var/lib/apt/lists/*
 RUN curl -sSf --retry 3 --connect-timeout 30 https://sh.rustup.rs | sh -s -- -y --profile minimal
+# The name git gives the commits a test makes in the run's tree.
+RUN git config --global user.name "orior harness" && git config --global user.email harness@localhost
 # A container gives the web view no namespaces of its own to sandbox in, and no GPU: it draws in
 # software, through X.
 ENV PATH=/root/.cargo/bin:$PATH \
     WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 \
     LIBGL_ALWAYS_SOFTWARE=1 \
+    WEBKIT_DISABLE_COMPOSITING_MODE=1 \
     GDK_BACKEND=x11
 WORKDIR /src/ui

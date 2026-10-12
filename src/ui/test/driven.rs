@@ -272,7 +272,8 @@ pub fn run_files(driven: &Driven, here: &Path, files: &[String], servers: &[(Str
             outcomes.push(Outcome { name: "the page threw nothing".into(), ok: false, ms: 0, error: threw.iter().map(|one| one.as_str()).collect::<Vec<_>>().join("\n") });
         }
         let failed = outcomes.iter().filter(|one| !one.ok).count();
-        println!("  {file}: {} passed, {failed} failed", outcomes.len() - failed);
+        let not_run = outcomes.iter().filter(|one| one.not_run()).count();
+        println!("  {file}: {} passed, {failed} failed, {not_run} not run on this window", outcomes.len() - failed - not_run);
         for one in outcomes.iter().filter(|one| !one.ok) {
             println!("    FAILED {}: {}", one.name, one.error.lines().next().unwrap_or(""));
         }

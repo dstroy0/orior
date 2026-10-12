@@ -274,7 +274,10 @@
         const message = String(error?.message ?? error);
         const stack = String(error?.stack ?? "");
         const told = stack.includes(message) ? stack : `${message}\n${stack}`;
-        results.push({ name: one.name, ok: false, ms: Math.round(performance.now() - started), error: told.split("\n").slice(0, 4).join("\n") });
+        // A step only the window with its debugging port can take, met under WebDriver: the test is
+        // not run here, and says why, where it would fail for what the window cannot be asked.
+        const notHere = message.startsWith("not run on a WebDriver window:");
+        results.push({ name: one.name, ok: notHere, ms: Math.round(performance.now() - started), error: notHere ? message : told.split("\n").slice(0, 4).join("\n") });
       }
       await ui.focusTold(true).catch(() => {});
       document.querySelectorAll("dialog[open]").forEach((one) => one.close());

@@ -424,6 +424,10 @@ fn driven_move(x: f64, y: f64, ms: u64) -> Value {
     json!({"type": "pointerMove", "origin": "viewport", "x": x.round() as i64, "y": y.round() as i64, "duration": ms})
 }
 
+/// How a step no WebDriver window can take begins what it says: runner.js finds the words, and
+/// the test is said as not run on this window, where the window with its debugging port runs it.
+pub const NOT_HERE: &str = "not run on a WebDriver window:";
+
 /// Performs one step runner.js asked for, through a WebDriver session: the same steps as `perform`,
 /// sent as WebDriver's actions. A step only the debugging port can take, as a trace of the browser's
 /// frames or a media feature told to the page, is said not to be taken.
@@ -465,8 +469,8 @@ pub fn perform_driven(session: &crate::webdriver::Session, step: &Value) -> Resu
             let script = "const on = arguments[0]; window.__harnessHasFocus ??= document.hasFocus.bind(document); document.hasFocus = on ? () => true : window.__harnessHasFocus; window.dispatchEvent(new Event(on ? 'focus' : 'blur')); return true;";
             session.execute(script, json!([step["on"].as_bool().unwrap_or(true)])).map(|_| ())
         }
-        "media" => Err("a WebDriver window is told no media feature: the step runs where the window has its debugging port".into()),
-        "browser_trace" => Err("a WebDriver window gives no trace of its frames: the step runs where the window has its debugging port".into()),
+        "media" => Err(format!("{NOT_HERE} it is told no media feature, which the window with its debugging port is told")),
+        "browser_trace" => Err(format!("{NOT_HERE} it gives no trace of its frames, which the window with its debugging port gives")),
         "run" => run(step),
         "key" => {
             let mut ticks = Vec::new();

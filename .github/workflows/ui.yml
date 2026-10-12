@@ -9,9 +9,9 @@
 #   window  every test of the window, the real window built in the harness's Docker image and driven
 #           through WebDriver, every press, key, drag and wheel sent as WebDriver's actions.
 #
-# A change to the app's Markdown alone runs nothing. Each job keeps the harness's report as an
-# artifact. The harness fails a run where any test fails or any part of the app has no test, and
-# the job fails with it.
+# A push to main that changes the app's Markdown alone runs nothing; a pull request is matched by
+# all it changes. Each job keeps the harness's report as an artifact. The harness fails a run where
+# any test fails or any part of the app has no test, and the job fails with it.
 
 name: ui
 

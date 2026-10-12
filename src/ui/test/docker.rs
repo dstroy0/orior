@@ -4,8 +4,9 @@
 //! The window's tests in a Docker container of the harness's own, on this machine: the image of
 //! test/docker/ built where Docker has none or its file has changed, the tree brought into a volume
 //! of the container's own with every build it makes, and the harness run there on a display that
-//! draws in memory, driving the window through WebDriver. Each run's report comes back to
-//! test/runs/ here. The tree on this machine is only read.
+//! draws in memory, driving the window through WebDriver. The test servers run on this machine, as
+//! servers.rs starts them, and the container is told where each listens. Each run's report comes
+//! back to test/runs/ here. The tree on this machine is only read.
 
 use std::path::Path;
 use std::process::{Command, ExitCode, Stdio};
@@ -28,9 +29,14 @@ pub fn inside(passed: &[String]) -> String {
 
 /// The words of `docker run` for the container: the tree at `ui` read at /host/ui, src/cu beside
 /// it at /src/cu for the query writer, the volumes that keep its tree, builds and downloads
-/// between runs, and test/runs/ here where its reports go.
-pub fn run_words(ui: &Path, passed: &[String]) -> Vec<String> {
-    let mut words: Vec<String> = ["run", "--rm", "--init", "--shm-size=1g"].map(String::from).to_vec();
+/// between runs, test/runs/ here where its reports go, and the servers' settings `env`, as a
+/// container reaches this machine.
+pub fn run_words(ui: &Path, passed: &[String], env: &[(String, String)]) -> Vec<String> {
+    let mut words: Vec<String> = ["run", "--rm", "--init", "--shm-size=1g", "--add-host", "host.docker.internal:host-gateway"].map(String::from).to_vec();
+    for (key, value) in env {
+        words.push("-e".into());
+        words.push(format!("{key}={value}"));
+    }
     let mut mount = |source: String, target: &str, read_only: bool| {
         words.push("--mount".into());
         words.push(format!("type=bind,source={source},target={target}{}", if read_only { ",readonly" } else { "" }));
@@ -59,7 +65,15 @@ pub fn run(here: &Path, ui: &Path, passed: &[String]) -> ExitCode {
         eprintln!("the image {IMAGE} did not build");
         return ExitCode::FAILURE;
     }
-    match Command::new("docker").args(run_words(ui, passed)).stdin(Stdio::null()).status() {
+    let up = crate::servers::start(here);
+    for said in &up.said {
+        println!("  {said}");
+    }
+    let mut env = crate::systems::seen_from_a_container(&up.env);
+    // The names of the settings handed, by which the harness there reads them.
+    let names: Vec<String> = env.iter().map(|(key, _)| key.clone()).collect();
+    env.push(("ORIOR_TEST_SERVERS".into(), names.join(",")));
+    match Command::new("docker").args(run_words(ui, passed, &env)).stdin(Stdio::null()).status() {
         Ok(status) if status.success() => ExitCode::SUCCESS,
         Ok(_) => ExitCode::FAILURE,
         Err(error) => {
@@ -85,11 +99,13 @@ mod tests {
     #[test]
     fn the_tree_here_is_read_only_and_the_runs_come_back() {
         let ui = Path::new("/repo/src/ui");
-        let words = run_words(ui, &[]);
+        let words = run_words(ui, &[], &[("ORIOR_TEST_PG".into(), "host.docker.internal:5432".into())]);
         let joined = words.join(" ");
         assert!(joined.contains(&format!("type=bind,source={},target=/host/ui,readonly", ui.display())), "{joined}");
         assert!(joined.contains(&format!("type=bind,source={},target=/src/ui/test/runs ", ui.join("test").join("runs").display())), "{joined}");
         assert!(joined.contains("-v orior-test-window-tree:/src/ui"), "{joined}");
+        assert!(joined.contains("--add-host host.docker.internal:host-gateway"), "{joined}");
+        assert!(joined.contains("-e ORIOR_TEST_PG=host.docker.internal:5432"), "{joined}");
         assert_eq!(words[words.len() - 3..words.len() - 1], ["sh".to_string(), "-c".to_string()]);
         assert!(words.iter().position(|word| word == IMAGE) < words.iter().position(|word| word == "sh"));
     }

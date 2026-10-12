@@ -114,6 +114,18 @@ pub struct Outcome {
     pub error: String,
 }
 
+impl Outcome {
+    /// Whether the test passed: run, and nothing said against it.
+    fn passed(&self) -> bool {
+        self.ok && !self.not_run()
+    }
+
+    /// Whether the test was not run on the window driven, for a step only another window can take.
+    fn not_run(&self) -> bool {
+        self.ok && self.error.starts_with(input::NOT_HERE)
+    }
+}
+
 /// What each part of the run found, for the report.
 #[derive(Default)]
 struct Report {
@@ -131,12 +143,17 @@ impl Report {
     }
 
     fn passed(&self) -> usize {
-        self.crates.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.ok).count()).sum::<usize>() + self.files.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.ok).count()).sum::<usize>()
+        self.crates.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.ok).count()).sum::<usize>() + self.files.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.passed()).count()).sum::<usize>()
+    }
+
+    /// The window's tests not run on the window driven, each for a step only another can take.
+    fn not_run(&self) -> usize {
+        self.files.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.not_run()).count()).sum::<usize>()
     }
 
     fn write(&self) -> String {
         let mut out = String::from("# Test run\n\n");
-        let _ = writeln!(out, "{} passed, {} failed, {} parts with no test, {} tests with no part.\n", self.passed(), self.failed(), self.untested.len(), self.orphans.len());
+        let _ = writeln!(out, "{} passed, {} failed, {} not run on this window, {} parts with no test, {} tests with no part.\n", self.passed(), self.failed(), self.not_run(), self.untested.len(), self.orphans.len());
         if !self.said.is_empty() || !self.servers.is_empty() {
             out.push_str("## Servers and the window\n\n");
             for line in self.servers.iter().chain(&self.said) {
@@ -158,7 +175,11 @@ impl Report {
         out.push_str("\n## The window\n\n");
         for (file, outcomes, errors) in &self.files {
             let failed = outcomes.iter().filter(|one| !one.ok).count();
-            let _ = writeln!(out, "- {file}: {} passed, {failed} failed", outcomes.len() - failed);
+            let not_run = outcomes.iter().filter(|one| one.not_run()).count();
+            let _ = writeln!(out, "- {file}: {} passed, {failed} failed, {not_run} not run on this window", outcomes.len() - failed - not_run);
+            for one in outcomes.iter().filter(|one| one.not_run()) {
+                let _ = writeln!(out, "  - not run here: {}: {}", one.name, one.error);
+            }
             for one in outcomes.iter().filter(|one| !one.ok) {
                 let _ = writeln!(out, "  - FAILED {} ({} ms)\n\n    ```text\n{}\n    ```", one.name, one.ms, one.error.lines().map(|line| format!("    {line}")).collect::<Vec<_>>().join("\n"));
             }
@@ -255,6 +276,12 @@ fn files_under(folder: &Path, ending: &str) -> Vec<String> {
     }
     found.sort();
     found
+}
+
+/// The servers' settings named in `names`, as ORIOR_TEST_SERVERS gives them, each with its value
+/// as `read` gives it; a name with no value is left out.
+fn told_servers(names: Option<&str>, read: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
+    names.unwrap_or("").split(',').filter(|name| !name.is_empty()).filter_map(|name| read(name).map(|value| (name.to_string(), value))).collect()
 }
 
 /// Makes the run's tree a git repository of its own, its files committed: a test's git, as a branch
@@ -569,7 +596,8 @@ fn run_files(conn: &Arc<Connection>, page: &Arc<Page>, ui: &Path, files: &[Strin
             outcomes.push(Outcome { name: "the page threw nothing".into(), ok: false, ms: 0, error: threw.iter().map(|one| one.as_str()).collect::<Vec<_>>().join("\n") });
         }
         let failed = outcomes.iter().filter(|one| !one.ok).count();
-        println!("  {file}: {} passed, {failed} failed", outcomes.len() - failed);
+        let not_run = outcomes.iter().filter(|one| one.not_run()).count();
+        println!("  {file}: {} passed, {failed} failed, {not_run} not run on this window", outcomes.len() - failed - not_run);
         for one in outcomes.iter().filter(|one| !one.ok) {
             println!("    FAILED {}: {}", one.name, one.error.lines().next().unwrap_or(""));
         }
@@ -622,6 +650,11 @@ fn main() -> ExitCode {
     match &benched {
         Ok(_) => env.push(("ORIOR_TEST_BENCH".into(), "bench".into())),
         Err(error) => report.said.push(format!("the benchmark files: {error}")),
+    }
+    // Where the servers run apart from this harness, as for its run in Docker, it is told where
+    // each listens in its environment: ORIOR_TEST_SERVERS names the settings, each read by its name.
+    if !options.servers {
+        env.extend(told_servers(std::env::var("ORIOR_TEST_SERVERS").ok().as_deref(), |key| std::env::var(key).ok()));
     }
     if options.servers {
         println!("servers");
@@ -771,7 +804,7 @@ fn main() -> ExitCode {
 
     let written = run.join("report.md");
     let _ = std::fs::write(&written, report.write());
-    println!("{} passed, {} failed, {} parts with no test, {} tests with no part", report.passed(), report.failed(), report.untested.len(), report.orphans.len());
+    println!("{} passed, {} failed, {} not run on this window, {} parts with no test, {} tests with no part", report.passed(), report.failed(), report.not_run(), report.untested.len(), report.orphans.len());
     println!("report: {}", written.display());
     if report.failed() == 0 && report.untested.is_empty() && report.orphans.is_empty() && report.said.is_empty() {
         ExitCode::SUCCESS
@@ -815,6 +848,18 @@ mod tests {
     }
 
     #[test]
+    fn the_servers_named_are_read_by_their_names() {
+        let read = |key: &str| match key {
+            "ORIOR_PG_ADDRESS" => Some("host.docker.internal:5432".to_string()),
+            "ORIOR_PG_PASSWORD" => Some("secret".to_string()),
+            _ => None,
+        };
+        let told = told_servers(Some("ORIOR_PG_ADDRESS,ORIOR_PG_PASSWORD,ORIOR_GONE"), read);
+        assert_eq!(told, [("ORIOR_PG_ADDRESS".to_string(), "host.docker.internal:5432".to_string()), ("ORIOR_PG_PASSWORD".to_string(), "secret".to_string())]);
+        assert!(told_servers(None, read).is_empty());
+    }
+
+    #[test]
     fn the_run_s_tree_is_a_repository_of_its_own() {
         let tree = std::env::temp_dir().join(format!("orior-harness-tree-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tree);
@@ -848,6 +893,17 @@ mod tests {
         assert!(!untested_rust(&dir.join("tested.rs")));
         assert!(!untested_rust(&dir.join("mods.rs")));
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_test_not_run_on_this_window_is_counted_apart_with_its_reason() {
+        let mut report = Report::default();
+        let reason = format!("{} it gives no trace of its frames", input::NOT_HERE);
+        report.files.push(("src/a.test.js".into(), vec![Outcome { name: "runs".into(), ok: true, ms: 1, error: String::new() }, Outcome { name: "traces".into(), ok: true, ms: 1, error: reason.clone() }], Vec::new()));
+        assert_eq!((report.passed(), report.failed(), report.not_run()), (1, 0, 1));
+        let written = report.write();
+        assert!(written.contains("1 passed, 0 failed, 1 not run on this window"), "{written}");
+        assert!(written.contains(&format!("not run here: traces: {reason}")), "{written}");
     }
 
     #[test]
