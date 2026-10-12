@@ -2,11 +2,6 @@
 
 What the window does not do yet, by area. Each item says what it gives the reader. Within an area, the items stand in the order they are to be built. Under an item, each note names a complaint people make of the tools that do the same work, and what orior does so the reader never makes it. What is done moves to [the completed roadmap](COMPLETED_ROADMAP.md).
 
-## When it opens
-
-1. **Nothing sent before the reader is asked.** orior makes no request of the network as it opens, first launch or any other.
-   - An editor calls home on first launch before the reader is asked, data goes under the name of an update check, and telemetry is on by default ([Infosecurity][19], [ghc-devs][20], [Debian][21], [BfDI][22]). orior sends nothing of the reader's at all, and checks for an update only when asked.
-
 ## Responsiveness
 
 1. **Completion that keeps up with fast keys.** The list stands as soon as a name, a dot or a path is begun, and no key typed fast is lost or out of order while it shows.

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The window as it opens: on the tree and the tabs left, and nothing in the way of them, the tree
-// read behind it. The page each file of tests runs on is loaded fresh, and this file reads it as it
-// stands once it has started.
+// The window as it opens: on the tree and the tabs left, nothing in the way of them, the tree read
+// behind it, and no address reached. The page each file of tests runs on is loaded fresh, and this
+// file reads it as it stands once it has started.
 
 import { invoke } from "../../src/bridge.js";
 import { write } from "../../src/status.js";
@@ -29,4 +29,12 @@ test("the tree's files and what they declare are read behind the window, and the
   await ui.waitFor(() => unreadNode()?.textContent === "The tree's symbols not read yet", 2000);
   write("unread", { files: false, symbols: false });
   await ui.waitFor(() => !unreadNode(), 2000);
+});
+
+test("the window reaches no address on the network as it opens, and files no error report the reader has not let file", async () => {
+  const reached = (await invoke("network_reached")).filter((one) => one.at >= performance.timeOrigin);
+  assert.deepEqual(reached, [], "no address reached since this window opened");
+  if (!(await invoke("report_asked"))[0]) {
+    assert.equal(await invoke("report_auto"), false, "no report files before the reader answers");
+  }
 });
