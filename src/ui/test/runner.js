@@ -127,7 +127,17 @@
       }
       const seen = node.getBoundingClientRect();
       const point = { x: seen.left + seen.width / 2, y: seen.top + seen.height / 2 };
-      const still = last && last.x === point.x && last.y === point.y;
+      // Still once it stands where it stood a frame before and nothing holding it is animating: two
+      // slow frames can fall on one moment of a menu's growth, and its items move after.
+      const animating = (() => {
+        for (let one = node; one; one = one.parentElement) {
+          if (one.getAnimations().some((animation) => animation.playState === "running")) {
+            return true;
+          }
+        }
+        return false;
+      })();
+      const still = last && last.x === point.x && last.y === point.y && !animating;
       last = point;
       const hit = document.elementFromPoint(point.x, point.y);
       if (seen.width === 0 || seen.height === 0 || getComputedStyle(node).visibility === "hidden") {

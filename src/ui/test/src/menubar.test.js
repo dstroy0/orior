@@ -94,13 +94,15 @@ async function openTo(at, path) {
     const item = itemsIn(menu).find((button) => labelOf(button) === label);
     assert.ok(item, `${named(depth + 1)} is in its menu`);
     const heard = [];
-    const hear = (event) => heard.push(`${event.type}:${event.target?.className || event.target?.nodeName || "window"}:${Math.round(performance.now())}`);
+    const hear = (event) => heard.push(`${event.type}:${event.target?.className || event.target?.nodeName || "window"}${event.type === "click" ? `[${event.target?.textContent?.trim()}]` : ""}:${Math.round(performance.now())}`);
     const kinds = ["pointermove", "pointerdown", "pointerup", "click", "focusout", "blur", "resize", "keydown"];
     kinds.forEach((kind) => window.addEventListener(kind, hear, true));
+    const aimed = item.getBoundingClientRect();
     await ui.click(item);
+    heard.push(`aimed at ${label} at ${Math.round(aimed.top)}, now at ${Math.round(item.getBoundingClientRect().top)}`);
     menu = await ui.waitFor(() => openMenus()[depth + 1], 3000).catch(() => {
       const open = openMenus().map((one) => `${itemsIn(one).length} items at ${Math.round(one.getBoundingClientRect().top)}`);
-      throw new Error(`${named(depth + 1)} did not open: ${open.length} menus open (${open.join(", ")}), the window ${innerWidth}x${innerHeight}; heard ${heard.join(" ")}`);
+      throw new Error(`${named(depth + 1)} did not open: ${open.length} menus open (${open.join(", ")}), the window ${innerWidth}x${innerHeight}; heard ${heard.join(" ")}; closed by ${(window.__removedMenus ?? []).slice(-3).join(" ||| ")}`);
     }).finally(() => kinds.forEach((kind) => window.removeEventListener(kind, hear, true)));
   }
   return itemsIn(menu);
@@ -144,6 +146,14 @@ test(
     };
     addEventListener("error", heard);
     addEventListener("unhandledrejection", heard);
+    // Each menu taken off the page, when and by what calls, said where a menu does not open: a press
+    // that finds its menus closed names what closed them.
+    window.__removedMenus = [];
+    const remove = Element.prototype.remove;
+    Element.prototype.remove = function () {
+      if (this.classList?.contains("menu")) window.__removedMenus.push(`${Math.round(performance.now())} ${new Error("removed").stack.split(String.fromCharCode(10)).slice(1, 7).join(" <- ")}`);
+      return remove.call(this);
+    };
     let pressed = 0;
     // What kept an item from being reached or pressed, by its path, the walk going on past it.
     const unreached = [];
@@ -194,6 +204,8 @@ test(
         }
       }
     } finally {
+      Element.prototype.remove = remove;
+      delete window.__removedMenus;
       removeEventListener("error", heard);
       removeEventListener("unhandledrejection", heard);
       await putBack();
