@@ -3,8 +3,9 @@
 #
 # The window's own system for its tests, on any machine Docker runs on: Ubuntu with the libraries
 # orior's window is built with, WebKitGTK's WebDriver, a display of X's that draws in memory and a
-# session bus, Rust as rustup installs it, and rsync, which brings the tree in. docker.rs runs the
-# harness here, and driven.rs drives the window it builds.
+# session bus, Rust as rustup installs it, rsync, which brings the tree in, and VNC and noVNC, which
+# show the display to a browser. docker.rs runs the harness here, and driven.rs drives the window it
+# builds.
 
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
@@ -13,7 +14,7 @@ RUN printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https:
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl build-essential pkg-config git python3 rsync \
       libwebkit2gtk-4.1-dev webkit2gtk-driver libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
-      xvfb xauth dbus dbus-x11 at-spi2-core fonts-dejavu-core fonts-noto-core \
+      xvfb xauth dbus dbus-x11 at-spi2-core fonts-dejavu-core fonts-noto-core x11vnc novnc websockify \
  && rm -rf /var/lib/apt/lists/*
 RUN curl -sSf --retry 3 --connect-timeout 30 https://sh.rustup.rs | sh -s -- -y --profile minimal
 # The name git gives the commits a test makes in the run's tree.
@@ -25,4 +26,7 @@ ENV PATH=/root/.cargo/bin:$PATH \
     LIBGL_ALWAYS_SOFTWARE=1 \
     WEBKIT_DISABLE_COMPOSITING_MODE=1 \
     GDK_BACKEND=x11
+# The display shown to a browser on this machine as the harness runs.
+COPY watch.sh /usr/local/bin/orior-watch
+RUN chmod +x /usr/local/bin/orior-watch
 WORKDIR /src/ui

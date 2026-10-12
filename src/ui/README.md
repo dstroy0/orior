@@ -61,7 +61,8 @@ WebDriver's actions. `--docker` runs the window's tests in the harness's own Doc
 `test/docker/`, on any machine Docker runs on. The tree is brought into a volume of the
 container's own, the window is built there and drawn on a display in memory, and the report comes
 back to `test/runs/`. Every item of every menu and every option of Preferences is pressed there as
-a person presses it. `.github/workflows/ui.yml` runs the same on each pull request that changes the
+a person presses it. While a run goes, a browser on this machine shows its window at
+`http://localhost:6080/vnc.html`, to be watched and not driven. `.github/workflows/ui.yml` runs the same on each pull request that changes the
 app, beside CodeQL and SonarQube Cloud.
 
 ## Running it

@@ -14,6 +14,9 @@ use std::process::{Command, ExitCode, Stdio};
 /// The image the window's tests run in.
 pub const IMAGE: &str = "orior-test-window";
 
+/// Where a browser on this machine shows the window as the tests drive it.
+pub const WATCH: &str = "http://localhost:6080/vnc.html?autoconnect=true&resize=scale";
+
 /// What the container runs: the tree brought in from /host/ui, less what is built there and the
 /// runs kept, then the harness, its window's tests alone, with the words `passed` besides. X's
 /// display in memory is given 96 dots an inch, at which WebKitWebDriver puts each press where it
@@ -22,7 +25,7 @@ pub fn inside(passed: &[String]) -> String {
     let words: Vec<String> = passed.iter().map(|word| format!("'{}'", word.replace('\'', "'\\''"))).collect();
     format!(
         "rsync -a --delete --exclude /test/target --exclude /test/runs --exclude /cli/target --exclude /src-tauri/target --exclude __pycache__ /host/ui/ /src/ui/ \
-         && dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' cargo run --manifest-path /src/ui/test/Cargo.toml --release -- --driver webdriver --no-servers --no-rust --no-systems {}",
+         && dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' orior-watch cargo run --manifest-path /src/ui/test/Cargo.toml --release -- --driver webdriver --no-servers --no-rust --no-systems {}",
         words.join(" ")
     )
     .trim_end()
@@ -34,7 +37,7 @@ pub fn inside(passed: &[String]) -> String {
 /// between runs, test/runs/ here where its reports go, and the servers' settings `env`, as a
 /// container reaches this machine.
 pub fn run_words(ui: &Path, passed: &[String], env: &[(String, String)]) -> Vec<String> {
-    let mut words: Vec<String> = ["run", "--rm", "--init", "--shm-size=1g", "--add-host", "host.docker.internal:host-gateway"].map(String::from).to_vec();
+    let mut words: Vec<String> = ["run", "--rm", "--init", "--shm-size=1g", "--add-host", "host.docker.internal:host-gateway", "-p", "127.0.0.1:6080:6080"].map(String::from).to_vec();
     for (key, value) in env {
         words.push("-e".into());
         words.push(format!("{key}={value}"));
@@ -61,7 +64,7 @@ pub fn run_words(ui: &Path, passed: &[String], env: &[(String, String)]) -> Vec<
 /// there, and gives its exit.
 pub fn run(here: &Path, ui: &Path, passed: &[String]) -> ExitCode {
     let _ = std::fs::create_dir_all(here.join("runs"));
-    println!("the window's tests in Docker, image {IMAGE}");
+    println!("the window's tests in Docker, image {IMAGE}; the window shows at {WATCH} as they run");
     let built = Command::new("docker").args(["build", "-t", IMAGE]).arg(here.join("docker")).stdin(Stdio::null()).status();
     if !built.is_ok_and(|status| status.success()) {
         eprintln!("the image {IMAGE} did not build");
@@ -94,7 +97,7 @@ mod tests {
         let said = inside(&["--only".into(), "editor/view".into()]);
         assert!(said.starts_with("rsync -a --delete "), "{said}");
         assert!(said.contains("--exclude /test/runs"), "{said}");
-        assert!(said.contains("xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96'"), "{said}");
+        assert!(said.contains("xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' orior-watch cargo run"), "{said}");
         assert!(said.ends_with("--driver webdriver --no-servers --no-rust --no-systems '--only' 'editor/view'"), "{said}");
     }
 
@@ -107,6 +110,7 @@ mod tests {
         assert!(joined.contains(&format!("type=bind,source={},target=/src/ui/test/runs ", ui.join("test").join("runs").display())), "{joined}");
         assert!(joined.contains("-v orior-test-window-tree:/src/ui"), "{joined}");
         assert!(joined.contains("--add-host host.docker.internal:host-gateway"), "{joined}");
+        assert!(joined.contains("-p 127.0.0.1:6080:6080"), "the window is shown on this machine alone: {joined}");
         assert!(joined.contains("-e ORIOR_TEST_PG=host.docker.internal:5432"), "{joined}");
         assert_eq!(words[words.len() - 3..words.len() - 1], ["sh".to_string(), "-c".to_string()]);
         assert!(words.iter().position(|word| word == IMAGE) < words.iter().position(|word| word == "sh"));
