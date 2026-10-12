@@ -71,6 +71,11 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Calm design keeps most of what is told at the edge of attention, asks the least attention it can, and works even when it fails ([calm technology][66], [calmtech.com][67], [Fuzzy Math][68]).
 7. **A light theme as well as a dark.** orior's look comes in a light ground for bright rooms and small text, beside its dark one, and can follow the light of the system.
    - Light text grounds read better for small text in good light, readers do not notice they do better, and a dark ground is easier in dim light ([NN/G][69], [TIDS 2025][70], [Gadget Hacks][71]).
+8. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that held it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
+   - A slow start, indexing, completion that drags, costly language servers and plugins that eat memory, with no way to see what takes the time; a feature that saves ten seconds later still angers where it adds a delay to every key. orior holds each key to its frame and names whatever runs past its budget.
+9. **Everything working behind, in sight.** The status bar lists each piece of work running behind the editor, what it is doing, what it costs and how far it has come, and any of it can be stopped; what the compiler decided and what an optimization cost are read beside the code they concern.
+   - Readers want transparency: background work, the compiler's decisions and the cost of an optimization kept hidden make them hate an IDE.
+   - An IDE is to be deeply observable: the program's state, its data flow, the build's decisions, what each thing costs and what each change did, each open to the reader.
 
 ## Notices and messages
 
@@ -83,6 +88,10 @@ What the window does not do yet, by area. Each item says what it gives the reade
 3. **Errors in the reader's words, with the way out.** Each error orior shows says what happened and what to do next, in plain words, and neither praises nor blames.
    - Anxiety peaks before error messages; messages are written in the programmer's words; an interface should neither praise nor condemn, and be plain, predictable and in the reader's hands ([Ewha thesis][79], [DTUI ch. 12][80], [UX Collective][81]).
    - Frustration costs a third to a half of the time spent at a computer ([Lazar et al.][82]).
+4. **A quiet mode, and each kind of help set apart.** One key quiets every hint, suggestion and notice for work without a break; each kind of help has its own switch and its own threshold, and the keys do the same whatever suggestions stand.
+   - Readers want suggestions on demand, a switch for each feature where one switch turns all of them, thresholds of their own for hints and warnings, and keys that act the same whichever suggestions are shown.
+   - Readers want flow: small interruptions, again and again, break concentration.
+   - Help should take work away and not ask for attention.
 
 ## Tools
 
@@ -125,6 +134,17 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Liveness changes how developers move through code, and running code as it is written checks it ([Kubelka et al.][127], [arXiv 1807.08578][128], [arXiv 2306.09541][129], [SEEDE][130]).
 10. **A review without bias.** A change under review shows its parts by what they change, with the writer's name out of sight.
     - Code review aids can take bias out of review ([arXiv 2407.01407][131]).
+11. **A function understood in one place.** The callers, the callees and the types a function reaches stand beside it in a view of their own, which opens no tab and leaves none behind.
+    - Tabs that pile up, names whose origin is not plain, and twenty files opened to understand one function. orior's view of a function follows its calls in place and closes clean.
+12. **Data traced from input to output.** A value is followed from where it enters the program to every place it reaches, and an edit shows what it changes elsewhere: the calls, the tests and the files it reaches.
+    - Readers want the IDE to trace data from input to output, explain chains of calls, and show an edit's consequences elsewhere.
+13. **Every automated change says why, and goes back whole.** A quick fix, a refactoring, a format or a completion shows the exact change before it is made, the rule that made it and the checks run on it; it never reaches past what was asked, and one undo takes it back.
+    - Automated changes widen a small edit into a large rewrite, and nothing says what rule made them or whether behavior changed.
+    - Readers want trust: a refactoring or a quick fix that silently breaks something loses it.
+    - Readers want confidence: an IDE that calls a change safe without showing the evidence earns none. orior shows the checks a change passed beside it.
+    - Correctness comes before cleverness: an automated change keeps the behavior intended, and checking that it does is made easy.
+14. **A key says what it does here.** Where one key does different things in different places, the key's hint says what it will do where the caret stands, before it is pressed.
+    - Readers want predictability: the same key doing different things in different contexts makes them hate an IDE.
 
 ## Plugins
 
@@ -156,6 +176,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
     - Updates change keys, the layout and the sidebar without asking, the window changes from the server with no update, and an update wipes plugins, settings, keys and history ([Cursor forum][160], [Cursor forum][161], [Cursor forum][162], [Antigravity][163]).
     - An update took away the reader's toolbars and settings ([IntelliJ][164]).
     - Each major release brings regressions, and small annoyances pile on ([IntelliJ][165]). Every interaction of orior's is walked by the harness before a release.
+    - Readers want control: an IDE that changes its behavior without their leave is one they come to hate.
 11. **orior's files, read and carried as files.** orior keeps every setting and state in plain files in one folder, the same on every system, that any backup reads.
     - Settings, state and plugins sit in different folders on each system, state is kept in a database backups cannot carry, and importing fails on a missing database ([VS Code][166], [Cursor forum][167], [Cursor forum][168], [codegenes][169]).
 
@@ -174,6 +195,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - A tool put on PATH is not seen until the IDE restarts, at times only after a reboot, and a tool must be named by its exact file name ([IntelliJ][186], [IntelliJ][187], [IntelliJ][188]).
 5. **Language support with no wait.** The languages orior knows are with it before a file opens, and the few plugins it needs do not slow it.
    - Language support is downloaded only once a file opens, and a good setup needs many plugins that slow it ([G2][189], [G2][190]).
+6. **The setting that caused a failure, named.** Where a build or a run fails on a setting, orior names the setting, the file that set it and what else sets it: an SDK, a variable of the environment, a compiler's version or a plugin.
+   - Trees work on one machine and not another, with SDKs, variables of the environment and compiler versions at odds and settings spread across many files, and no word of which setting caused the failure.
 
 ## Code intelligence
 
@@ -271,6 +294,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Zero-width characters break code unseen, and marking all outside ASCII marks the parts of an emoji flag ([israynotarray][316], [zed #19846][317], [vscode-gremlins][318]).
 10. **Closing brackets that read the line.** A closing bracket or quote is added only where one is missing, typed over where it stands, and one switch turns it off for every language.
     - Brackets and quotes are inserted blind to the line, quotes double in markup, the setting does not stop it for every language, and the completion list takes the Enter meant for a new line ([KDE #308614][319], [NetBeans #262685][320], [NetBeans #205881][321], [IntelliJ][322], [Eclipse][323], [SmartBear][324]). orior's list takes Tab, and Enter only when the reader has moved in the list.
+11. **Completion that never takes the edit.** A suggestion is plainly a suggestion until it is taken; Enter and Tab do what they always do unless the reader has moved into the list; one Escape puts it away; it puts in the word asked for and not a block; and how eagerly it comes is the reader's to set.
+    - Suggestions come too eagerly, take the keys, change what Enter or Tab does, or put in a large block where one word was wanted, and the reader loses hold of the edit.
 
 ## Version control
 
@@ -306,6 +331,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Comments are marked missed and blank lines covered, coverage shows only in the tree, marks do not stand out, and every line comes gray ([IntelliJ][360], [IntelliJ][361], [IntelliJ][362], [Cursor forum][363]).
 4. **Each test's output its own.** Tests run at once each keep their output apart, and the reader marks tests that must run alone.
    - Output of tests run at once is mixed, logs interleave, and some tests must stay in a row ([openstack-dev][364], [Gradle forum][365], [IntelliJ][366], [MATLAB][367]).
+5. **The tests a change touches.** orior finds the tests an edit reaches and runs them on one key, their results beside the edit.
+   - Readers want the IDE to name the tests a change affects.
 
 ## Debugging
 
@@ -333,6 +360,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
     - Stepping back from an exception by a buffer of what ran last, and following data past the edge of one system ([SD Times][236], [Strange Loop][404]).
 11. **Edit and continue.** A change made while stopped takes effect without a restart, where the language allows.
     - Edit and continue, hot swap and data breakpoints are wished for ([Ayende][405], [IntelliJ][406], [Wallaby][407], [DEV][408]).
+12. **The first failure, and what led to it.** Where errors cascade, orior shows the earliest that matters, with the chain of calls across awaits and the state that changed on the way to it, the later failures folded under it.
+    - Stack traces that say little, asynchronous runs hard to follow, and errors buried under a cascade of failures that follow from them: the debugger tells what failed and not why.
 
 ## Layout
 
@@ -356,6 +385,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - The IDE takes focus as the pointer passes, shows a caret while keys go elsewhere, a dialog takes focus from a popup, and a hidden pointer moves focus ([Code::Blocks][429], [KDE #348034][430], [IntelliJ][431], [IntelliJ][432], [Launchpad #1238410][433]).
 10. **The system's title bar with orior's menu.** The system's title bar keeps orior's menu bar once, its controls, and a tiling manager's edges.
     - With the system's bar the menu is gone, the setting is not honored on Linux, the menu shows twice, and resize cursors show under a tiling manager ([Cursor forum][434], [Cursor forum][435], [Cursor forum][436], [Cursor forum][437]).
+11. **A clean window that shows more as asked.** The window opens with the editor and the tree alone; every panel, toolbar and badge comes when asked; each feature says what it is where it stands, in one pattern across orior and its plugins; and keys and commands stay as they are.
+    - Too many panels, toolbars, pop-ups, badges and nested menus, and more time spent keeping the window than writing code.
 
 ## Running and measuring
 
@@ -389,8 +420,13 @@ What the window does not do yet, by area. Each item says what it gives the reade
 3. **An assistant that works the reader's way.** An assistant in orior runs locally where it can, keeps the tree's history and the reader's choices, shows the context it uses and lets it be edited, marks what it wrote, shows each prompt's cost, and asks before it acts.
    - Developers want the context set and seen by hand, nothing lost, no logging in again, code kept home, AI code marked, and behavior chosen per task ([JetBrains Research][476]).
    - Developers want agents that work unattended and return changes for review, shown and paused, guided by requirements kept in files, with permissions, checkpoints and skills kept under version control ([RedMonk][477]).
+   - Users of editors built around AI report limits of context and memory, intrusive suggestions, high cost, poor generated code and a poor interface: intelligence added does not by itself make the work better, and it has to be useful, well timed and trusted.
 4. **Measures of the reader's own work.** orior shows the reader what they did in a day, for them alone.
    - Two thirds of developers doubt the measures of their work reflect what they give ([JetBrains][478]).
+5. **An assistant's change reviewed as a diff.** Every change an assistant makes is shown as an exact diff in the tree's own conventions, with its tests' results beside it, and is refused or taken back in one step.
+   - In Stack Overflow's 2025 survey, 66% of those using AI tools named outputs that are almost right as a frustration, and 45% the debugging of code AI wrote ([Stack Overflow 2025][479]).
+6. **No way of working forced.** Every feature of orior can be left unused, and orior works beside the reader's own tools: their git, their terminal, their build and the keys of the editor they came from.
+   - Readers want freedom: an IDE that forces a way of working or a set of tools on them is one they come to hate.
 
 <!-- docs-check: quoting -->
 [1]: https://gist.github.com/hyperupcall/99e355405611be6c4e0a38b6e3e8aad0
@@ -871,4 +907,5 @@ What the window does not do yet, by area. Each item says what it gives the reade
 [476]: https://kairos.jetbrains.com/research/articles/what-developers-want-and-what-gets-built
 [477]: https://redmonk.com/kholterhoff/2025/12/22/10-things-developers-want-from-their-agentic-ides-in-2025/
 [478]: https://devecosystem-2025.jetbrains.com/
+[479]: https://survey.stackoverflow.co/2025/ai
 <!-- docs-check: end quoting -->
