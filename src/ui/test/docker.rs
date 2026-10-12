@@ -34,9 +34,10 @@ pub fn inside(passed: &[String]) -> String {
 
 /// The words of `docker run` for the container: the tree at `ui` read at /host/ui, src/cu beside
 /// it at /src/cu for the query writer, the volumes that keep its tree, builds and downloads
-/// between runs, test/runs/ here where its reports go, and the servers' settings `env`, as a
-/// container reaches this machine.
-pub fn run_words(ui: &Path, passed: &[String], env: &[(String, String)]) -> Vec<String> {
+/// between runs, test/runs/ here where its reports go, the servers' settings `env`, as a
+/// container reaches this machine, and the ssh key's folder `keys` read at /host/ssh where the ssh
+/// server came up.
+pub fn run_words(ui: &Path, passed: &[String], env: &[(String, String)], keys: Option<&Path>) -> Vec<String> {
     let mut words: Vec<String> = ["run", "--rm", "--init", "--shm-size=1g", "--add-host", "host.docker.internal:host-gateway", "-p", "127.0.0.1:6080:6080"].map(String::from).to_vec();
     for (key, value) in env {
         words.push("-e".into());
@@ -51,6 +52,9 @@ pub fn run_words(ui: &Path, passed: &[String], env: &[(String, String)]) -> Vec<
         mount(cu.display().to_string(), "/src/cu", true);
     }
     mount(ui.join("test").join("runs").display().to_string(), "/src/ui/test/runs", false);
+    if let Some(keys) = keys {
+        mount(keys.display().to_string(), "/host/ssh", true);
+    }
     for (volume, target) in [("orior-test-window-tree", "/src/ui"), ("orior-test-window-cargo", "/root/.cargo/registry")] {
         words.push("-v".into());
         words.push(format!("{volume}:{target}"));
@@ -75,10 +79,15 @@ pub fn run(here: &Path, ui: &Path, passed: &[String]) -> ExitCode {
         println!("  {said}");
     }
     let mut env = crate::systems::seen_from_a_container(&up.env);
+    // The ssh server's port, where it came up: the harness there reaches it with a config of its own.
+    let ssh = up.env.iter().any(|(key, _)| key == "ORIOR_TEST_SSH").then(|| std::fs::read_to_string(here.join("target").join("ssh").join("config")).ok()).flatten().and_then(|config| crate::servers::ssh_port(&config));
+    if let Some(port) = ssh {
+        env.push(("ORIOR_TEST_SSH_PORT".into(), port.to_string()));
+    }
     // The names of the settings handed, by which the harness there reads them.
     let names: Vec<String> = env.iter().map(|(key, _)| key.clone()).collect();
     env.push(("ORIOR_TEST_SERVERS".into(), names.join(",")));
-    match Command::new("docker").args(run_words(ui, passed, &env)).stdin(Stdio::null()).status() {
+    match Command::new("docker").args(run_words(ui, passed, &env, ssh.map(|_| here.join("target").join("ssh")).as_deref())).stdin(Stdio::null()).status() {
         Ok(status) if status.success() => ExitCode::SUCCESS,
         Ok(_) => ExitCode::FAILURE,
         Err(error) => {
@@ -104,13 +113,14 @@ mod tests {
     #[test]
     fn the_tree_here_is_read_only_and_the_runs_come_back() {
         let ui = Path::new("/repo/src/ui");
-        let words = run_words(ui, &[], &[("ORIOR_TEST_PG".into(), "host.docker.internal:5432".into())]);
+        let words = run_words(ui, &[], &[("ORIOR_TEST_PG".into(), "host.docker.internal:5432".into())], Some(&ui.join("keys")));
         let joined = words.join(" ");
         assert!(joined.contains(&format!("type=bind,source={},target=/host/ui,readonly", ui.display())), "{joined}");
         assert!(joined.contains(&format!("type=bind,source={},target=/src/ui/test/runs ", ui.join("test").join("runs").display())), "{joined}");
         assert!(joined.contains("-v orior-test-window-tree:/src/ui"), "{joined}");
         assert!(joined.contains("--add-host host.docker.internal:host-gateway"), "{joined}");
         assert!(joined.contains("-p 127.0.0.1:6080:6080"), "the window is shown on this machine alone: {joined}");
+        assert!(joined.contains(&format!("type=bind,source={},target=/host/ssh,readonly", ui.join("keys").display())), "{joined}");
         assert!(joined.contains("-e ORIOR_TEST_PG=host.docker.internal:5432"), "{joined}");
         assert_eq!(words[words.len() - 3..words.len() - 1], ["sh".to_string(), "-c".to_string()]);
         assert!(words.iter().position(|word| word == IMAGE) < words.iter().position(|word| word == "sh"));

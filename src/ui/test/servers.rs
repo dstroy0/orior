@@ -218,6 +218,37 @@ fn ssh_ready(name: &str, port: u16, here: &Path) -> Result<String, String> {
     Ok(slash(&config))
 }
 
+/// The port the ssh config at `config` reaches the ssh server on, as ssh_ready writes it.
+pub fn ssh_port(config: &str) -> Option<u16> {
+    config.lines().find_map(|line| line.trim().strip_prefix("Port ")).and_then(|port| port.trim().parse().ok())
+}
+
+/// The ssh test server as a container reaches it: the key of the folder `keys` copied into `into`
+/// with rights for its owner alone, and a config there that reaches the server at `port` on this
+/// machine through host.docker.internal. Gives the settings the tests are told.
+pub fn ssh_inside(keys: &Path, into: &Path, port: u16) -> Result<Vec<(String, String)>, String> {
+    std::fs::create_dir_all(into).map_err(|error| error.to_string())?;
+    let key = into.join("id_ed25519");
+    std::fs::copy(keys.join("id_ed25519"), &key).map_err(|error| format!("the ssh key: {error}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&key, std::fs::Permissions::from_mode(0o600)).map_err(|error| error.to_string())?;
+    }
+    let config = into.join("config");
+    let text = format!(
+        "Host orior-test-ssh\n  HostName host.docker.internal\n  Port {port}\n  User orior\n  IdentityFile \"{}\"\n  IdentitiesOnly yes\n  UserKnownHostsFile \"{}\"\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n",
+        key.display(),
+        into.join("known_hosts").display()
+    );
+    std::fs::write(&config, text).map_err(|error| error.to_string())?;
+    Ok(vec![
+        ("ORIOR_TEST_SSH".into(), format!("ssh -F \"{}\"", config.display())),
+        ("ORIOR_TEST_SSH_HOST".into(), "orior-test-ssh".into()),
+        ("ORIOR_TEST_SSH_TO".into(), "host.docker.internal".into()),
+    ])
+}
+
 /// An HTTP server in the harness's own process, on the loopback, for the tests of requests: `/echo`
 /// answers with the request it was sent as JSON, `/count` with how many times it was asked, `/moved`
 /// with a redirect to `/echo`, `/image` with a PNG of one pixel, and any other path with 404. Gives
@@ -288,6 +319,27 @@ pub fn stop() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_ssh_port_is_read_from_the_config() {
+        assert_eq!(ssh_port("Host orior-test-ssh\n  HostName 127.0.0.1\n  Port 55022\n  User orior\n"), Some(55022));
+        assert_eq!(ssh_port("Host x\n"), None);
+    }
+
+    #[test]
+    fn inside_a_container_the_ssh_server_is_reached_through_this_machine() {
+        let dir = std::env::temp_dir().join(format!("orior-ssh-inside-{}", std::process::id()));
+        let keys = dir.join("keys");
+        std::fs::create_dir_all(&keys).unwrap();
+        std::fs::write(keys.join("id_ed25519"), "a key\n").unwrap();
+        let told = ssh_inside(&keys, &dir.join("into"), 55022).unwrap();
+        let config = std::fs::read_to_string(dir.join("into").join("config")).unwrap();
+        assert!(config.contains("HostName host.docker.internal\n  Port 55022\n"), "{config}");
+        assert_eq!(std::fs::read_to_string(dir.join("into").join("id_ed25519")).unwrap(), "a key\n");
+        assert!(told.iter().any(|(key, value)| key == "ORIOR_TEST_SSH" && value.contains("config")), "{told:?}");
+        assert!(told.iter().any(|(key, value)| key == "ORIOR_TEST_SSH_TO" && value == "host.docker.internal"), "{told:?}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn the_port_docker_gives_is_read_from_each_form_it_takes() {

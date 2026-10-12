@@ -655,6 +655,13 @@ fn main() -> ExitCode {
     // each listens in its environment: ORIOR_TEST_SERVERS names the settings, each read by its name.
     if !options.servers {
         env.extend(told_servers(std::env::var("ORIOR_TEST_SERVERS").ok().as_deref(), |key| std::env::var(key).ok()));
+        // The ssh server, where its port is told and its key's folder is read at /host/ssh.
+        if let Some(port) = std::env::var("ORIOR_TEST_SSH_PORT").ok().and_then(|port| port.parse().ok()) {
+            match servers::ssh_inside(Path::new("/host/ssh"), &here.join("target").join("ssh-inside"), port) {
+                Ok(told) => env.extend(told),
+                Err(error) => report.said.push(format!("the ssh server: {error}")),
+            }
+        }
     }
     if options.servers {
         println!("servers");
