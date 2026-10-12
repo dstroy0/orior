@@ -462,7 +462,11 @@ pub fn perform_driven(session: &crate::webdriver::Session, step: &Value) -> Resu
         }
         "wheel" => {
             let scroll = json!({"type": "scroll", "origin": "viewport", "x": number(step, "x")?.round() as i64, "y": number(step, "y")?.round() as i64, "deltaX": step["deltaX"].as_f64().unwrap_or(0.0).round() as i64, "deltaY": step["deltaY"].as_f64().unwrap_or(0.0).round() as i64, "duration": 0});
-            session.actions(json!([{"type": "wheel", "id": "wheel", "actions": [scroll]}]))
+            // Each step a wheel source of its own: WebKitWebDriver passes the first scroll of a source on
+            // to the page and none after it.
+            static WHEELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let id = format!("wheel-{}", WHEELS.fetch_add(1, std::sync::atomic::Ordering::SeqCst));
+            session.actions(json!([{"type": "wheel", "id": id, "actions": [scroll]}]))
         }
         // The page told it has the system's focus, its document answering so, or what is so.
         "focus" => {

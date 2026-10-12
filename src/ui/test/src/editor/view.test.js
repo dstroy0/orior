@@ -155,7 +155,7 @@ test("a fast scroll through a long file holds the display's own rate, as files s
   // As far as the wheel's steps carry the view, half of them at the least, a glide still under way at
   // the end: the steps that came, however many the machine sends in the time.
   const carried = Math.min(view.scroller.scrollHeight - view.scroller.clientHeight, wheels * 200 * 0.5);
-  assert.ok(view.scrollY() >= carried, `the view moved ${view.scrollY()} of the ${wheels * 200} px its ${wheels} steps sent`);
+  assert.ok(view.scrollY() >= carried, `the view moved ${view.scrollY()} of the ${wheels * 200} px its ${wheels} steps sent, over ${times.length} frames at ${rate.toFixed(1)} a second`);
   assert.ok(saves >= 6, `files were saved as it scrolled: ${saves}`);
   assert.ok(rate >= display * 0.8, `${rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
   assert.ok(Math.max(...gaps) < 100, `the longest wait between two frames, ${Math.max(...gaps).toFixed(1)} ms`);
