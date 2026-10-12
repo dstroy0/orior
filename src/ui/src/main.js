@@ -25,6 +25,7 @@ import { startPreview } from "./preview.js";
 import { startPurpose } from "./purpose.js";
 import { startRequests } from "./requests.js";
 import { startDocks } from "./docks.js";
+import { startDrop } from "./drop.js";
 import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
 import { startProfile } from "./profile.js";
@@ -278,6 +279,7 @@ async function start() {
   startNetwork();
   startLanguage();
   startTrust();
+  startDrop({ changed: () => editing().treeChanged() });
   // A tree on another machine: once the link to it is made, the runs kept there are read, and once
   // it is made again after a drop, every open tab is handed to its server there again.
   await startRemote({

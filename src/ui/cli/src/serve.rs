@@ -888,6 +888,22 @@ impl Server {
                 }
                 format::format(&at(&path()?)?, &language, &a.get::<String>("text")?).and_then(give)
             }
+            // Files from outside the window copied into a folder of the tree on a thread of their
+            // own, each telling how far along it is, and the copy telling where each went once done.
+            "files_bring" => {
+                let root = self.root()?;
+                let into = a.get::<String>("into")?;
+                let paths: Vec<PathBuf> = a.get::<Vec<String>>("paths")?.into_iter().map(PathBuf::from).collect();
+                let emit = self.emitting();
+                std::thread::spawn(move || {
+                    let told = |path: &str, done: u64, size: u64| emit("bring-progress", json!({"path": path, "done": done, "size": size}));
+                    match files::bring(&root, &into, &paths, &told) {
+                        Ok(brought) => emit("bring-done", json!({"into": into, "brought": brought})),
+                        Err(said) => emit("bring-done", json!({"into": into, "error": said})),
+                    }
+                });
+                give(())
+            }
             "trust_read" => give(crate::trust::told(&self.root()?)),
             "trust_set" => {
                 let folder = PathBuf::from(a.get::<String>("folder")?);

@@ -1060,6 +1060,63 @@ pub fn paste(root: &Path, into: &str, from: &[PathBuf], moving: bool) -> Result<
     Ok(pasted)
 }
 
+/// How often a file brought into the tree tells how far along its copy is.
+const BRING_TELLS: Duration = Duration::from_millis(100);
+
+/// Copies each of `from`, a file or a folder and all it holds, into the folder `into` of the tree,
+/// as a paste copies it, telling `told` the tree's path of each file as it is copied, the bytes
+/// copied of it and its size, every BRING_TELLS and once it is whole. Gives where each went.
+pub fn bring(root: &Path, into: &str, from: &[PathBuf], told: &dyn Fn(&str, u64, u64)) -> Result<Vec<Pasted>, String> {
+    let folder = inside(root, into)?;
+    if !folder.is_dir() {
+        return Err(format!("{into} is no folder"));
+    }
+    let mut brought = Vec::new();
+    for source in from {
+        let name = source.file_name().ok_or_else(|| format!("{} has no name", source.display()))?;
+        if source.is_dir() && folder.starts_with(source) {
+            return Err(format!("{} is not copied into itself", source.display()));
+        }
+        let target = free_name(&folder, Path::new(name));
+        bring_one(root, source, &target, told).map_err(|error| format!("{}: {error}", source.display()))?;
+        brought.push(Pasted { from: source.starts_with(root).then(|| relative(root, source)), to: relative(root, &target) });
+    }
+    forget_seen();
+    Ok(brought)
+}
+
+fn bring_one(root: &Path, source: &Path, target: &Path, told: &dyn Fn(&str, u64, u64)) -> std::io::Result<()> {
+    if source.is_dir() {
+        fs::create_dir(target)?;
+        for entry in fs::read_dir(source)? {
+            let entry = entry?;
+            bring_one(root, &entry.path(), &target.join(entry.file_name()), told)?;
+        }
+        return Ok(());
+    }
+    let size = fs::metadata(source)?.len();
+    let path = relative(root, target);
+    let mut input = fs::File::open(source)?;
+    let mut output = fs::File::create(target)?;
+    let mut buffer = vec![0u8; 1 << 20];
+    let (mut done, mut last) = (0u64, Instant::now());
+    told(&path, 0, size);
+    loop {
+        let read = input.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        output.write_all(&buffer[..read])?;
+        done += read as u64;
+        if last.elapsed() >= BRING_TELLS {
+            told(&path, done, size);
+            last = Instant::now();
+        }
+    }
+    told(&path, size.max(done), size.max(done));
+    Ok(())
+}
+
 /// `name` in `folder`, numbered where the folder holds that name already: `notes.txt`, then
 /// `notes (2).txt`, `notes (3).txt` and on.
 fn free_name(folder: &Path, name: &Path) -> PathBuf {
@@ -1116,6 +1173,36 @@ mod pasting {
         assert_eq!(brought[0].from, None);
         assert!(!outside.exists());
         fs::remove_dir_all(&root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod bringing {
+    use super::bring;
+    use std::fs;
+    use std::sync::Mutex;
+
+    #[test]
+    fn a_file_and_a_folder_brought_in_are_copied_whole_each_file_telling_its_end() {
+        let base = std::env::temp_dir().join(format!("orior_ui_bring_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("tree/in")).unwrap();
+        fs::create_dir_all(base.join("outside/folder")).unwrap();
+        fs::write(base.join("outside/big.bin"), vec![7u8; 3 << 20]).unwrap();
+        fs::write(base.join("outside/folder/note.txt"), "note").unwrap();
+        fs::write(base.join("tree/in/big.bin"), "here first").unwrap();
+        let base = dunce::canonicalize(&base).unwrap();
+        let root = base.join("tree");
+        let heard = Mutex::new(Vec::new());
+        let brought = bring(&root, "in", &[base.join("outside/big.bin"), base.join("outside/folder")], &|path, done, size| heard.lock().unwrap().push((path.to_string(), done, size))).unwrap();
+        assert_eq!(brought.iter().map(|one| one.to.as_str()).collect::<Vec<_>>(), ["in/big (2).bin", "in/folder"]);
+        assert_eq!(fs::read(root.join("in/big (2).bin")).unwrap().len(), 3 << 20);
+        assert_eq!(fs::read_to_string(root.join("in/folder/note.txt")).unwrap(), "note");
+        assert_eq!(fs::read_to_string(root.join("in/big.bin")).unwrap(), "here first", "nothing is written over");
+        let heard = heard.into_inner().unwrap();
+        assert!(heard.contains(&("in/big (2).bin".to_string(), 3 << 20, 3 << 20)), "the big file tells its end");
+        assert!(heard.contains(&("in/folder/note.txt".to_string(), 4, 4)));
+        fs::remove_dir_all(&base).unwrap();
     }
 }
 
