@@ -664,6 +664,9 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
   function draw() {
     const focused = document.activeElement;
     const focusName = body.contains(focused) ? focused.closest(".prefs-color")?.dataset.name : null;
+    // A field the reader was in, as a list stepped through with the keys, keeps the keys once the
+    // sheet is drawn again: found again by its label.
+    const focusLabel = body.contains(focused) && !focusName ? focused.getAttribute("aria-label") : null;
     const scroll = body.querySelector(".prefs-colors")?.scrollTop ?? 0;
     const keysScroll = body.querySelector(".prefs-key-rows")?.scrollTop ?? 0;
     body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), inForceSection(), carrySection(), keysSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
@@ -675,6 +678,8 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     grid.scrollTop = scroll;
     if (focusName) {
       body.querySelector(`.prefs-color[data-name="${CSS.escape(focusName)}"] .prefs-value`)?.focus();
+    } else if (focusLabel) {
+      body.querySelector(`[aria-label="${CSS.escape(focusLabel)}"]`)?.focus();
     }
   }
 

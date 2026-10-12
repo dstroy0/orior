@@ -257,6 +257,28 @@ fn files_under(folder: &Path, ending: &str) -> Vec<String> {
     found
 }
 
+/// Makes the run's tree a git repository of its own, its files committed: a test's git, as a branch
+/// made or a stash, acts on it, and never on the repository the tree's folder sits in. What
+/// bench::placed puts under bench/ is left out.
+fn own_repository(tree: &Path) -> Result<(), String> {
+    let git = |args: &[&str]| -> Result<(), String> {
+        let ran = Command::new("git")
+            .args(["-c", "user.name=orior harness", "-c", "user.email=harness@localhost", "-c", "commit.gpgsign=false"])
+            .args(args)
+            .current_dir(tree)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map_err(|error| format!("git: {error}"))?;
+        if ran.success() { Ok(()) } else { Err(format!("git {} in the run's tree ended {ran}", args.join(" "))) }
+    };
+    git(&["init", "-q", "-b", "main"])?;
+    std::fs::write(tree.join(".git").join("info").join("exclude"), "bench/\n").map_err(|error| format!("the run's tree: {error}"))?;
+    git(&["add", "-A"])?;
+    git(&["commit", "-q", "-m", "The run's tree."])
+}
+
 // ---- Rust ----
 
 /// Runs cargo test for the crate at `manifest` and gives each test's outcome and the output of
@@ -654,6 +676,7 @@ fn main() -> ExitCode {
         let tree = run.join("tree");
         let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
             .map_err(|error| format!("the run's tree: {error}"))
+            .and_then(|_| own_repository(&tree))
             .and_then(|_| benched.as_ref().map_or(Ok(()), |folder| bench::placed(folder, &tree)))
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
             .and_then(|_| driven::build(&ui, &here))
@@ -676,6 +699,7 @@ fn main() -> ExitCode {
         let tree = run.join("tree");
         let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
             .map_err(|error| format!("the run's tree: {error}"))
+            .and_then(|_| own_repository(&tree))
             .and_then(|_| benched.as_ref().map_or(Ok(()), |folder| bench::placed(folder, &tree)))
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
             .and_then(|_| window::build(&ui, &here.join("target").join("app")))
@@ -788,6 +812,22 @@ mod tests {
         let verdicts: Vec<(&str, bool)> = outcomes.iter().map(|one| (one.name.as_str(), one.ok)).collect();
         assert_eq!(verdicts, [("a::one", true), ("a::two", true), ("a::three", false)]);
         assert!(failures.contains("it broke"));
+    }
+
+    #[test]
+    fn the_run_s_tree_is_a_repository_of_its_own() {
+        let tree = std::env::temp_dir().join(format!("orior-harness-tree-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tree);
+        std::fs::create_dir_all(tree.join("bench")).unwrap();
+        std::fs::write(tree.join("hello.py"), "print('hello')\n").unwrap();
+        std::fs::write(tree.join("bench").join("big.txt"), "big\n").unwrap();
+        own_repository(&tree).unwrap();
+        let said = |args: &[&str]| String::from_utf8(Command::new("git").args(args).current_dir(&tree).output().unwrap().stdout).unwrap();
+        let top = PathBuf::from(said(&["rev-parse", "--show-toplevel"]).trim());
+        assert_eq!(top.canonicalize().unwrap(), tree.canonicalize().unwrap(), "git's top is the tree itself");
+        assert_eq!(said(&["ls-files"]).trim(), "hello.py", "the files committed, bench/ left out");
+        assert_eq!(said(&["status", "--porcelain"]).trim(), "", "nothing left to commit");
+        std::fs::remove_dir_all(&tree).unwrap();
     }
 
     #[test]

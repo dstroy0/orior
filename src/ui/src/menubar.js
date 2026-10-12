@@ -416,7 +416,7 @@ const COMMANDS = {
         { label: "Vim's Keys", on: vimKeys, set: setVimKeys },
       ],
     }),
-  "user-css": () => openUserCss(),
+  "user-css": () => openUserCss().catch((error) => say(String(error), { failed: true })),
   plugins: () => showPlugins(sheet),
   "new-plugin": (args) => showGenerator(sheet, args),
   "reload-plugins": () => loadPlugins(),
@@ -535,8 +535,12 @@ const COMMANDS = {
   report: (args) => reportForm(sheet, args),
   "auto-report": async (args) => {
     const on = args[0] === "on" ? true : args[0] === "off" ? false : !state.autoReport;
-    await invoke("report_auto_set", { on });
-    state.autoReport = on;
+    try {
+      await invoke("report_auto_set", { on });
+      state.autoReport = on;
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
   },
   network: () => showNetwork(sheet),
   "network-off": (args) => setOffNetwork(onOff(args) ?? !offNetwork()),

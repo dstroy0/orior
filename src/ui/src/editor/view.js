@@ -3204,6 +3204,10 @@ export class Editor {
     } else {
       delete this.host.dataset.comments;
     }
+    // A view with no file open has no rows to count again: the setting holds for the file it opens.
+    if (!this.s) {
+      return;
+    }
     this.textLayer.clear();
     this.size();
     this.reveal();

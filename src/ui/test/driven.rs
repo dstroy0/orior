@@ -209,10 +209,17 @@ const RUN: &str = "const h = window.__harnessDriven; const url = arguments[0]; (
 /// Waits for the next step the page asks for, or for the file's end.
 const NEXT: &str = "const done = arguments[arguments.length - 1]; const h = window.__harnessDriven; const look = () => { if (h.queue.length) { h.wake = null; done({ step: h.queue.shift() }); } else if (h.end) { h.wake = null; done({ end: h.end }); } else { h.wake = look; } }; look();";
 
+/// runner.js as one expression a script can return: its sourceURL line and the semicolon that
+/// ends its statement taken off.
+fn expression_of(runner: &str) -> String {
+    let kept: Vec<&str> = runner.lines().filter(|line| !line.trim_start().starts_with("//# sourceURL")).collect();
+    kept.join("\n").trim_end().trim_end_matches(';').to_string()
+}
+
 /// Runs one file in the window, answering each step it asks for, and gives its outcomes.
 fn run_file(session: &Session, runner: &str, tell: &Value, file: &str) -> Result<Vec<Outcome>, String> {
     wait_started(session)?;
-    session.execute(&format!("return (\n{runner}\n);"), json!([]))?;
+    session.execute(&format!("return (\n{}\n);", expression_of(runner)), json!([]))?;
     session.execute(QUEUE, json!([]))?;
     session.execute("window.__harness.servers = arguments[0]; if (window.__harnessErrors) window.__harnessErrors.length = 0; return true;", json!([tell]))?;
     session.execute(RUN, json!([format!("/__harness/test/{file}")]))?;
@@ -284,6 +291,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn the_runner_is_one_expression() {
+        let runner = "// The runner.\n(() => {\n  return \"ready\";\n})();\n//# sourceURL=harness-runner.js\n";
+        assert_eq!(expression_of(runner), "// The runner.\n(() => {\n  return \"ready\";\n})()");
     }
 
     #[test]

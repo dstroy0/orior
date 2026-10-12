@@ -254,6 +254,8 @@
   harness.ui = ui;
   harness.calls = calls;
   harness.Failure = Failure;
+  // What a held call's error says, for a test that sets those errors aside.
+  harness.held = HELD;
 
   // Runs the tests a file gave, in order, and gives each one's name, whether it passed, why not, and
   // how long it took; the file's tests are taken away once run.
@@ -268,7 +270,11 @@
         await Promise.race([one.work(), new Promise((_, fail) => setTimeout(() => fail(new Failure(`it ran past ${one.timeout} ms`)), one.timeout))]);
         results.push({ name: one.name, ok: true, ms: Math.round(performance.now() - started) });
       } catch (error) {
-        results.push({ name: one.name, ok: false, ms: Math.round(performance.now() - started), error: String(error?.stack || error).split("\n").slice(0, 4).join("\n") });
+        // A stack of V8's opens with the message; one of WebKit's holds the frames alone.
+        const message = String(error?.message ?? error);
+        const stack = String(error?.stack ?? "");
+        const told = stack.includes(message) ? stack : `${message}\n${stack}`;
+        results.push({ name: one.name, ok: false, ms: Math.round(performance.now() - started), error: told.split("\n").slice(0, 4).join("\n") });
       }
       await ui.focusTold(true).catch(() => {});
       document.querySelectorAll("dialog[open]").forEach((one) => one.close());

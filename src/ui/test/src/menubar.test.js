@@ -85,13 +85,23 @@ async function putBack() {
 async function openTo(at, path) {
   await putBack();
   const title = document.getElementById("menubar").children[at];
+  const named = (depth) => [title.textContent.trim(), ...path.slice(0, depth)].join(" / ");
   await ui.click(title);
-  let menu = await ui.waitFor(() => openMenus()[0], 3000);
+  let menu = await ui.waitFor(() => openMenus()[0], 3000).catch(() => {
+    throw new Error(`${named(0)} did not open`);
+  });
   for (const [depth, label] of path.entries()) {
     const item = itemsIn(menu).find((button) => labelOf(button) === label);
-    assert.ok(item, `${labelOf(title)} / ${path.slice(0, depth + 1).join(" / ")} is in its menu`);
+    assert.ok(item, `${named(depth + 1)} is in its menu`);
+    const heard = [];
+    const hear = (event) => heard.push(`${event.type}:${event.target?.className || event.target?.nodeName || "window"}:${Math.round(performance.now())}`);
+    const kinds = ["pointermove", "pointerdown", "pointerup", "click", "focusout", "blur", "resize", "keydown"];
+    kinds.forEach((kind) => window.addEventListener(kind, hear, true));
     await ui.click(item);
-    menu = await ui.waitFor(() => openMenus()[depth + 1], 3000);
+    menu = await ui.waitFor(() => openMenus()[depth + 1], 3000).catch(() => {
+      const open = openMenus().map((one) => `${itemsIn(one).length} items at ${Math.round(one.getBoundingClientRect().top)}`);
+      throw new Error(`${named(depth + 1)} did not open: ${open.length} menus open (${open.join(", ")}), the window ${innerWidth}x${innerHeight}; heard ${heard.join(" ")}`);
+    }).finally(() => kinds.forEach((kind) => window.removeEventListener(kind, hear, true)));
   }
   return itemsIn(menu);
 }
@@ -122,36 +132,58 @@ test(
     }
     const threw = [];
     let pressing = "";
-    const heard = (event) => threw.push(`${pressing}: ${event.error?.message ?? event.reason?.message ?? event.reason ?? event.message}`);
+    // A call the harness holds, as Exit's or a window's moved to another display, fails as it would
+    // never fail for a person: its error is set aside, the page's and the walk's alike.
+    const said = (event) => String(event.error?.message ?? event.reason?.message ?? event.reason ?? event.message);
+    const heard = (event) => {
+      if (said(event).includes(window.__harness.held)) {
+        event.preventDefault();
+        return;
+      }
+      threw.push(`${pressing}: ${said(event)}`);
+    };
     addEventListener("error", heard);
     addEventListener("unhandledrejection", heard);
     let pressed = 0;
+    // What kept an item from being reached or pressed, by its path, the walk going on past it.
+    const unreached = [];
     try {
       const titles = document.getElementById("menubar").children.length;
       for (let at = 0; at < titles; at++) {
-        const title = labelOf(document.getElementById("menubar").children[at]) || document.getElementById("menubar").children[at].textContent;
-        for (const path of await leavesOf(at)) {
+        const title = document.getElementById("menubar").children[at].textContent.trim();
+        let paths = [];
+        try {
+          paths = await leavesOf(at);
+        } catch (error) {
+          unreached.push(`${title}: ${error.message}`);
+          continue;
+        }
+        for (const path of paths) {
           const label = path.at(-1);
           const command = commandOf.get(label) ?? "";
           pressing = `${title} / ${path.join(" / ")}`;
-          const items = await openTo(at, path.slice(0, -1));
-          const item = items.find((button) => labelOf(button) === label);
-          if (!item || item.disabled) {
-            continue;
-          }
-          await ui.click(item);
-          pressed++;
-          await wait(250);
-          const field = document.querySelector("dialog[open] .sheet-ask .report-field");
-          if (field) {
-            if (ANSWERS[command]) {
-              field.focus();
-              await ui.type(ANSWERS[command]);
-              await ui.key("Enter");
-            } else {
-              await ui.key("Escape");
+          try {
+            const items = await openTo(at, path.slice(0, -1));
+            const item = items.find((button) => labelOf(button) === label);
+            if (!item || item.disabled) {
+              continue;
             }
-            await wait(150);
+            await ui.click(item);
+            pressed++;
+            await wait(250);
+            const field = document.querySelector("dialog[open] .sheet-ask .report-field");
+            if (field) {
+              if (ANSWERS[command]) {
+                field.focus();
+                await ui.type(ANSWERS[command]);
+                await ui.key("Enter");
+              } else {
+                await ui.key("Escape");
+              }
+              await wait(150);
+            }
+          } catch (error) {
+            unreached.push(`${pressing}: ${error.message}`);
           }
           await putBack();
           if (AFTER[command]) {
@@ -166,8 +198,9 @@ test(
       removeEventListener("unhandledrejection", heard);
       await putBack();
     }
-    assert.ok(pressed > 100, `pressed ${pressed} items`);
+    assert.deepEqual(unreached, [], "the items not reached or pressed");
     assert.deepEqual(threw, [], "what the items threw");
+    assert.ok(pressed > 100, `pressed ${pressed} items`);
   },
   { timeout: 1_800_000 },
 );

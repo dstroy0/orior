@@ -7,7 +7,7 @@
 
 import { runCommand } from "../../src/menubar.js";
 
-const { test, assert, ui } = window.__harness;
+const { test, assert, ui, calls } = window.__harness;
 
 const wait = (ms) => new Promise((done) => setTimeout(done, ms));
 const sheetOf = () => document.querySelector("dialog[open] .sheet-prefs");
@@ -22,51 +22,63 @@ test(
     addEventListener("error", heard);
     addEventListener("unhandledrejection", heard);
     let changed = 0;
+    // The setting of reports sent on their own is kept by the tree's side, which the harness holds
+    // from the network; here it is kept as the tree's side keeps it.
+    calls.answer("report_auto_set", () => null);
     try {
       runCommand("preferences");
       const sheet = await ui.waitFor(sheetOf, 5000);
       const name = (node) => node.ariaLabel || node.closest("label")?.textContent?.trim() || node.className;
 
-      for (const box of [...sheet.querySelectorAll("input[type=checkbox]")].filter(shown)) {
-        changing = `the box ${name(box)}`;
-        const was = box.checked;
-        await ui.click(box);
+      // The field at `at` of those `selector` finds, found again each time it is read: a change
+      // can draw the sheet again, and the field with it.
+      const nth = (selector, at) => [...sheet.querySelectorAll(selector)].filter(shown)[at];
+      const count = (selector) => [...sheet.querySelectorAll(selector)].filter(shown).length;
+
+      for (let at = 0, boxes = count("input[type=checkbox]"); at < boxes; at++) {
+        const box = () => nth("input[type=checkbox]", at);
+        changing = `the box ${name(box())}`;
+        const was = box().checked;
+        await ui.click(box());
         await wait(80);
-        assert.equal(box.checked, !was, `${changing} turns`);
-        await ui.click(box);
+        assert.equal(box().checked, !was, `${changing} turns`);
+        await ui.click(box());
         await wait(80);
-        assert.equal(box.checked, was, `${changing} turns back`);
+        assert.equal(box().checked, was, `${changing} turns back`);
         changed++;
       }
 
-      for (const slider of [...sheet.querySelectorAll("input[type=range]")].filter(shown)) {
-        changing = `the slider ${name(slider)}`;
-        const was = slider.value;
-        slider.focus();
-        const up = Number(slider.value) < Number(slider.max);
+      for (let at = 0, sliders = count("input[type=range]"); at < sliders; at++) {
+        const slider = () => nth("input[type=range]", at);
+        changing = `the slider ${name(slider())}`;
+        const was = slider().value;
+        const up = Number(slider().value) < Number(slider().max);
+        slider().focus();
         await ui.key(up ? "Right" : "Left");
         await wait(80);
-        assert.ok(slider.value !== was, `${changing} moves`);
+        assert.ok(slider().value !== was, `${changing} moves`);
         await ui.key(up ? "Left" : "Right");
         await wait(80);
-        assert.equal(slider.value, was, `${changing} moves back`);
+        assert.equal(slider().value, was, `${changing} moves back`);
         changed++;
       }
 
-      for (const list of [...sheet.querySelectorAll("select")].filter(shown)) {
-        changing = `the list ${name(list)}`;
-        const was = list.selectedIndex;
-        if (list.options.length < 2) {
+      for (let at = 0, lists = count("select"); at < lists; at++) {
+        const list = () => nth("select", at);
+        changing = `the list ${name(list())}`;
+        const was = list().selectedIndex;
+        if (list().options.length < 2) {
           continue;
         }
-        list.focus();
-        const down = was < list.options.length - 1;
+        const down = was < list().options.length - 1;
+        list().focus();
         await ui.key(down ? "Down" : "Up");
         await wait(80);
-        assert.ok(list.selectedIndex !== was, `${changing} steps`);
+        assert.ok(list().selectedIndex !== was, `${changing} steps`);
         await ui.key(down ? "Up" : "Down");
         await wait(80);
-        assert.equal(list.selectedIndex, was, `${changing} steps back`);
+        assert.equal(list().selectedIndex, was, `${changing} steps back`);
+        assert.equal(document.activeElement, list(), `${changing} keeps the keys`);
         changed++;
       }
     } finally {

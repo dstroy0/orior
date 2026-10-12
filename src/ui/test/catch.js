@@ -8,9 +8,13 @@
 
 (() => {
   const kept = (window.__harnessErrors = []);
-  const words = (said) => said.map((one) => (one instanceof Error ? one.stack || String(one) : typeof one === "string" ? one : JSON.stringify(one) ?? String(one))).join(" ");
-  addEventListener("error", (event) => kept.push(`threw ${event.error?.stack || event.message}`));
-  addEventListener("unhandledrejection", (event) => kept.push(`threw ${event.reason?.stack || event.reason}`));
+  // An error's message and its frames: WebKit's stack holds the frames alone.
+  const told = (error) => (error instanceof Error ? `${error.message}\n${error.stack ?? ""}`.trim() : String(error));
+  const words = (said) => said.map((one) => (one instanceof Error ? told(one) : typeof one === "string" ? one : JSON.stringify(one) ?? String(one))).join(" ");
+  addEventListener("error", (event) => kept.push(`threw ${event.error ? told(event.error) : event.message}`));
+  // Read once every listener has had it: a rejection a test sets aside, by preventing its default,
+  // is not kept.
+  addEventListener("unhandledrejection", (event) => setTimeout(() => event.defaultPrevented || kept.push(`threw ${told(event.reason)}`)));
   const error = console.error.bind(console);
   console.error = (...said) => {
     kept.push(`console.error ${words(said)}`);
