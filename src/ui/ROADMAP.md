@@ -75,9 +75,12 @@ What the window does not do yet, by area. Each item says what it gives the reade
 8. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that held it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
    - A slow start, indexing, completion that drags, costly language servers and plugins that eat memory, with no way to see what takes the time; a feature that saves ten seconds later still angers where it adds a delay to every key. orior holds each key to its frame and names whatever runs past its budget.
    - Readers struggle to find which part causes a lag. Time and processor are put to each language server, plugin, index and piece of work behind, and the test of it slows each in turn and checks that the window names it.
+   - "Why is indexing so slow" and "why is completion so slow" show the cost of the work and nothing of its cause.
 9. **Everything working behind, in sight.** The status bar lists each piece of work running behind the editor, what it is doing, what it costs and how far it has come, and any of it can be stopped; what the compiler decided and what an optimization cost are read beside the code they concern.
    - Readers want transparency: background work, the compiler's decisions and the cost of an optimization kept hidden make them hate an IDE.
    - An IDE is to be deeply observable: the program's state, its data flow, the build's decisions, what each thing costs and what each change did, each open to the reader.
+   - "Why does it keep reloading" shows behavior that breaks what the reader expects. Each thing orior does again on its own says why, where it does it.
+   - IntelliJ's Maven auto-import, a question of some 47,000 views, shows three things at once: a behavior made automatic, its cost to the machine, and a way back not plain enough to keep the question from being asked ([JetBrains][484]); the switch was then taken away ([JetBrains][485]), and readers report it on after every box was cleared ([JetBrains][486]). Work orior does on its own, as reading a build file again, shows its cost where it runs and is turned off from there.
 
 ## Notices and messages
 
@@ -95,6 +98,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Readers want flow: small interruptions, again and again, break concentration.
    - Help should take work away and not ask for attention.
    - Some readers want suggestions only when they ask. Suggestions that come on their own, those that follow from the context, and those asked for each have a setting of their own, and the test of it turns each on and off apart from the others.
+   - "How do I disable" shows a default readers do not want, as suggestions that come on their own; "How do I stop" shows an interruption or a surprise, again and again.
 
 ## Tools
 
@@ -146,6 +150,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
     - Readers want trust: a refactoring or a quick fix that silently breaks something loses it.
     - Readers want confidence: an IDE that calls a change safe without showing the evidence earns none. orior shows the checks a change passed beside it.
     - Correctness comes before cleverness: an automated change keeps the behavior intended, and checking that it does is made easy.
+    - "How do I undo an automatic refactoring" shows a change made unasked or hard to take back.
 14. **A key says what it does here.** Where one key does different things in different places, the key's hint says what it will do where the caret stands, before it is pressed.
     - Readers want predictability: the same key doing different things in different contexts makes them hate an IDE.
 
@@ -173,6 +178,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 8. **A tree's settings that add to the reader's.** A tree's setting changes only what it names, and the window says which settings come from the tree.
    - A tree's setting replaces the reader's whole, and a setting committed with a tree silently changes each developer's editor ([Sourcegraph][153], [nomad-FAIR][154]).
    - Settings that touch the whole window are ignored in a window of several trees, and which layer wins is not plain ([VS Code][155], [openclaw][156]).
+   - "How do I configure formatting for one project" can show controls that are not plain, or a setting rightly the reader's own. A tree's setting is set where the tree is open, and the window says which settings are the tree's.
 9. **Packages for Linux that reach the system.** Every package of orior's reaches the system's shell, toolchains and container socket, with its terminal and debugger at work.
    - The sandboxed package cannot reach the shell, SDKs or Docker, and its terminal, containers and debugger fail ([Flathub #370][157], [DEV][158], [vscode-cpptools #1550][159]).
 10. **An update that changes nothing of the reader's.** An update keeps every key, pane, setting and plugin as the reader left them, and nothing changes without one.
@@ -180,6 +186,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
     - An update took away the reader's toolbars and settings ([IntelliJ][164]).
     - Each major release brings regressions, and small annoyances pile on ([IntelliJ][165]). Every interaction of orior's is walked by the harness before a release.
     - Readers want control: an IDE that changes its behavior without their leave is one they come to hate.
+    - "How do I get back the old layout" shows a way of working lost to a change. Every change to the window's layout can be put back, from where it was made.
 11. **orior's files, read and carried as files.** orior keeps every setting and state in plain files in one folder, the same on every system, that any backup reads.
     - Settings, state and plugins sit in different folders on each system, state is kept in a database backups cannot carry, and importing fails on a missing database ([VS Code][166], [Cursor forum][167], [Cursor forum][168], [codegenes][169]).
 
@@ -243,6 +250,10 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Format on save runs a formatter other than the one expected, formatting only lines changed breaks, and line-ending conversion makes every save a change ([vscode #146910][237], [prettier-vscode #638][238], [israynotarray][239]).
    - A linter and a formatter rewrite what the other wrote, a loop on every save ([typescript-eslint][240], [Josh Goldberg][241], [Lightrun][242], [devplaybook][243]). orior runs them in one order once, and names a rule that undoes another.
    - Black keeps a collection one item a line by a trailing comma, and equal code then formats differently, and another formatter collapses what Black keeps open ([black #2135][244], [black #1941][245], [ruff #1200][246]).
+   - "Disable ALL Auto Formatting on Save" gathered 26 answers: readers tried settings, met formatting a formatter does of its own, and in the end bound Save to Save Without Formatting ([CodeGenes][482]). orior's one switch for formatting on save stops every formatter's, its own and each plugin's.
+   - A reader wants formatting for most files and none for Markdown, a question of more than 11,000 views ([Classmethod][483]). orior takes a language out of formatting in one place, beside the switch for all.
+   - "How do I stop reformatting my code" shows an interruption that comes back on each save.
+   - IntelliJ's question of how to turn formatting off has some 55,000 views over more than ten years, its answers giving several ways to turn it off or narrow it ([JetBrains][487], [JetBrains][488]).
 2. **Every environment of the tree found.** A new environment, one in a subfolder, and conda's are found as they appear.
    - A new environment is not found until refreshed, one outside the paths searched is missed, conda's are missing off the PATH, and a conda environment in the tree errors ([VS Code][247], [vscode-python #24640][248], [#12164][249]).
    - Too many tools do one job, and the active environment must be kept in mind ([Chris Warrick][250], [Pinecone][251], [KDnuggets][252]). orior shows the environment in use on the status bar.
@@ -301,6 +312,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
     - Brackets and quotes are inserted blind to the line, quotes double in markup, the setting does not stop it for every language, and the completion list takes the Enter meant for a new line ([KDE #308614][319], [NetBeans #262685][320], [NetBeans #205881][321], [IntelliJ][322], [Eclipse][323], [SmartBear][324]). orior's list takes Tab, and Enter only when the reader has moved in the list.
 11. **Completion that never takes the edit.** A suggestion is plainly a suggestion until it is taken; Enter and Tab do what they always do unless the reader has moved into the list; one Escape puts it away; it puts in the word asked for and not a block; and how eagerly it comes is the reader's to set.
     - Suggestions come too eagerly, take the keys, change what Enter or Tab does, or put in a large block where one word was wanted, and the reader loses hold of the edit.
+    - A reader asks how to turn off every suggestion that comes on its own, pressing Escape before each new line and lost among settings of like names ([Stack Overflow][480]). orior turns every suggestion that comes on its own off with one switch, named as the reader would name it.
+    - A reader asks how to stop the completion list, which comes up as they type and covers much of the code, and the settings they tried did not stop it ([freeCodeCamp][481]). orior's list never covers the line typed, and the switch that stops it is found by the words of the question.
 
 ## Version control
 
@@ -432,6 +445,17 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - In Stack Overflow's 2025 survey, 66% of those using AI tools named outputs that are almost right as a frustration, and 45% the debugging of code AI wrote ([Stack Overflow 2025][479]).
 6. **No way of working forced.** Every feature of orior can be left unused, and orior works beside the reader's own tools: their git, their terminal, their build and the keys of the editor they came from.
    - Readers want freedom: an IDE that forces a way of working or a set of tools on them is one they come to hate.
+   - "How do I make completion work like another editor" shows a way of working orior should bend to. orior's completion, keys and layout can each take the ways of the editors readers come from.
+7. **Help that answers the question as people ask it.** The command palette takes a question in the reader's words, as "turn off suggestions" or "stop formatting on save", and answers with the setting or the command, changed there; a setting many readers turn off is off by default.
+   - What readers search for shows the work's friction where no one files a report: how to turn something off, stop it, take it back, set it or get round it.
+   - A question can show a feature that is there and cannot be found, a default readers do not want, a thing the tool cannot do, a thing done in too many steps, or behavior and words that are hard to understand. Each wants its own answer: where thousands ask how to turn a feature off, the answer may be a better default where a better guide is no answer at all.
+   - The four questions about turning something off show the editor acting where the reader does not want it to, controls that are hard to understand, behavior spread across settings, plugins and languages, and a way round to be found where the reader would say what they want.
+   - Views, answers and questions asked twice measure how many ask, with limits: views pile up over time, many answers can show confusion more than numbers, and a question closed as asked before does not count everyone who met it.
+   - What the questions show is not that readers turn features off: it is that they need help again and again to take back control of what the tool does for them. These are kinds of question to look into, and not every one shows a bad design.
+   - An answer of the form "install this plugin, change these four settings and restart" shows more than a want of documentation. What takes a plugin, settings and a restart elsewhere is one setting in orior, in force at once.
+   - The richest openings may lie between what an IDE can do and what a reader can easily make it do.
+8. **The questions asked of IDEs, gathered and weighed.** For VS Code, IntelliJ IDEA, Visual Studio, PyCharm and Eclipse, the searches, the Stack Overflow questions with their views, answers, questions marked as asked before and dates, the GitHub issues, the pages that say how to turn a thing off or get round it, and the release notes that later changed it are gathered; the questions that mean one need are put together, as "disable the IntelliSense popup", "stop autocomplete while typing" and "only show suggestions on demand"; and each need is weighed apart by how many ask, whether it is still asked years on, how many settings, plugins and steps the way round takes, and whether what exists meets it. orior's roadmap takes the needs in that order.
+   - The pages found so far are each checked on their own; which problems are most common wants the whole set of searches, across search engines, before it is claimed.
 
 <!-- docs-check: quoting -->
 [1]: https://gist.github.com/hyperupcall/99e355405611be6c4e0a38b6e3e8aad0
@@ -913,4 +937,13 @@ What the window does not do yet, by area. Each item says what it gives the reade
 [477]: https://redmonk.com/kholterhoff/2025/12/22/10-things-developers-want-from-their-agentic-ides-in-2025/
 [478]: https://devecosystem-2025.jetbrains.com/
 [479]: https://survey.stackoverflow.co/2025/ai
+[480]: https://stackoverflow.com/questions/78163815
+[481]: https://forum.freecodecamp.org/t/how-to-disable-auto-complete-in-vs-code/706036
+[482]: https://www.codegenes.net/blog/vscode-disable-all-auto-formatting-on-save/
+[483]: https://dev.classmethod.jp/articles/the-setting-to-disable-formatting-for-certain-languages-does-not-work-after-updating-prettier-in-vscode/
+[484]: https://intellij-support.jetbrains.com/hc/en-us/community/posts/206248039/comments/207064159
+[485]: https://intellij-support.jetbrains.com/hc/en-us/community/posts/360007057999/comments/360001572299
+[486]: https://intellij-support.jetbrains.com/hc/en-us/community/posts/7122600922258/comments/7123075590674
+[487]: https://intellij-support.jetbrains.com/hc/en-us/community/posts/207017425/comments/204250970
+[488]: https://www.jetbrains.com/help/idea/2025.3/reformat-and-rearrange-code.html
 <!-- docs-check: end quoting -->
