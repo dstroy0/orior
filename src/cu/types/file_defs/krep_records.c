@@ -10,6 +10,9 @@
 
 // the most bytes a number takes, seven bits a byte
 #define KREP_NUMBER_MOST 10u
+// the words of a row of a file's table before the change's own numbers: the file's key, the who's two words and the
+// change
+#define KREP_ROW_OPENING 4u
 
 // the 32-bit word of the four little-endian bytes at `bytes`, the head's version
 static unsigned int krep_half_of(const unsigned char *bytes)
@@ -76,6 +79,68 @@ static unsigned long long krep_hash(const char *bytes, unsigned long long length
         hash = (hash ^ (unsigned char)bytes[at]) * 0x100000001b3ull;
     }
     return hash;
+}
+
+// A row of `file`'s table of the key `key`, of the who two words `who` hold and of the change `change`: its `count`
+// numbers from `numbers`, then `size` bytes at `bytes` filled out to a whole word with zeros, handed at `priority`.
+// Its sequence where it is critical, 1 where it is ordinary, or 0 where it could not be handed, and the file then no
+// table's
+static unsigned long long krep_row_handed(KrepFile *file, unsigned long long key, const unsigned long long *who,
+                                          unsigned int change, const unsigned long long *numbers, unsigned int count,
+                                          const void *bytes, unsigned long long size, unsigned int priority)
+{
+    static const unsigned char s_zeros[8] = {0u};
+    const unsigned long long opening[KREP_ROW_OPENING] = {key, who[0], who[1], change};
+    QryText row = {0};
+    qry_text_added(&row, opening, sizeof(opening));
+    qry_text_added(&row, numbers, (unsigned long long)count * sizeof(unsigned long long));
+    qry_text_added(&row, bytes, size);
+    qry_text_added(&row, s_zeros, (8ull - (size % 8ull)) % 8ull);
+    const unsigned long long sequence =
+        row.failed ? 0ull : qry_hand(file->run, file->table, row.bytes, row.size, priority);
+    qry_text_freed(&row);
+    file->key = (sequence != 0ull) ? file->key : 0ull;
+    return sequence;
+}
+
+// the two words of the who in force over the record at `at` of `file` into `words`: a who record's own, or the
+// nearest one's before it, zeros where none is
+static void krep_who_words_at(const KrepFile *file, unsigned int at, unsigned long long *words)
+{
+    words[0] = 0ull;
+    words[1] = 0ull;
+    if ((at < file->records) && (file->record[at].code == KREP_RECORD_WHO))
+    {
+        if (file->record[at].count == 2u)
+        {
+            words[0] = file->record[at].word[0];
+            words[1] = file->record[at].word[1];
+        }
+        return;
+    }
+    QryWho who;
+    if (krep_who_at(file, at, &who))
+    {
+        qry_who_words(who, words);
+    }
+}
+
+// the row of the record at `at` of `file`, put there, of the who two words `who` hold, handed to its table
+static void krep_record_row(KrepFile *file, unsigned int at, const unsigned long long *who)
+{
+    const KrepRecord *const held = &file->record[at];
+    const unsigned long long numbers[3] = {at, held->code, held->count};
+    krep_row_handed(file, file->key, who, KREP_ROW_PUT, numbers, 3u, held->word,
+                    (unsigned long long)held->count * sizeof(unsigned long long), QRY_ORDINARY);
+}
+
+// the row of the text of the number `number` of `file`, of no who, handed to its table
+static void krep_text_row(KrepFile *file, unsigned int number)
+{
+    static const unsigned long long s_none[2] = {0ull, 0ull};
+    const unsigned long long numbers[2] = {number, file->text_length[number - 1u]};
+    krep_row_handed(file, file->key, s_none, KREP_ROW_TEXT, numbers, 2u, file->text[number - 1u],
+                    file->text_length[number - 1u], QRY_ORDINARY);
 }
 
 // the slot of the text of `length` bytes at `bytes` in `file`'s table: the one holding it, or the empty one it would
@@ -163,6 +228,10 @@ static unsigned long long krep_text_taken(KrepFile *file, const char *bytes, uns
     if (file->text_slot[slot] == 0u)
     {
         file->text_slot[slot] = file->texts;
+    }
+    if (file->key != 0ull)
+    {
+        krep_text_row(file, file->texts);
     }
     return file->texts;
 }
@@ -259,9 +328,10 @@ int krep_read(KrepFile *file, const char *path, const char *kind, char *error, s
     return 1;
 }
 
-int krep_write_by(const KrepFile *file, const char *path, QryWho who)
+// `file` put together in memory and handed whole to the run's writer as the file at `path`, written by `who`, which
+// writes it in the file's place: the sequence of its bytes' blob, or 0 where it could not be written
+static unsigned long long krep_filed(const KrepFile *file, const char *path, QryWho who)
 {
-    // the file put together in memory and handed whole to the run's writer, which writes it in the file's place
     QryText text = {0};
     unsigned char head[KREP_HEAD_BYTES];
     memcpy(head, KREP_MAGIC, 8u);
@@ -284,7 +354,27 @@ int krep_write_by(const KrepFile *file, const char *path, QryWho who)
             krep_number_added(&text, held->word[place]);
         }
     }
-    return qry_text_filed_by(qry_run(), path, &text, who) != 0ull;
+    return qry_text_filed_by(qry_run(), path, &text, who);
+}
+
+int krep_write_by(const KrepFile *file, const char *path, QryWho who)
+{
+    if (file->key == 0ull)
+    {
+        return krep_filed(file, path, who) != 0ull;
+    }
+    // the file its rows put together written, the view of its table, and not the one held: its bytes' blob linked to
+    // the head row of the rows it was written from
+    KrepFile view;
+    memset(&view, 0, sizeof(view));
+    const unsigned long long written = krep_viewed(file, &view) ? krep_filed(&view, path, who) : 0ull;
+    krep_free(&view);
+    if (written != 0ull)
+    {
+        const unsigned long long link[3] = {written, file->key, QRY_LINK_WRITTEN_FROM};
+        qry_row_handed_by(file->run, QRY_LINKS_TABLE, link, 3u, QRY_ORDINARY, who);
+    }
+    return written != 0ull;
 }
 
 void krep_free(KrepFile *file)
@@ -336,6 +426,12 @@ int krep_record_put(KrepFile *file, unsigned int at, unsigned int code, const un
     file->record[at].count = count;
     file->record[at].word = copy;
     file->records += 1u;
+    if (file->key != 0ull)
+    {
+        unsigned long long who[2];
+        krep_who_words_at(file, at, who);
+        krep_record_row(file, at, who);
+    }
     return 1;
 }
 
@@ -350,9 +446,168 @@ void krep_record_drop(KrepFile *file, unsigned int at)
     {
         return;
     }
+    if (file->key != 0ull)
+    {
+        unsigned long long who[2];
+        krep_who_words_at(file, at, who);
+        const unsigned long long numbers[1] = {at};
+        krep_row_handed(file, file->key, who, KREP_ROW_DROP, numbers, 1u, NULL, 0ull, QRY_ORDINARY);
+    }
     free(file->record[at].word);
     memmove(&file->record[at], &file->record[at + 1u], (size_t)(file->records - at - 1u) * sizeof(KrepRecord));
     file->records -= 1u;
+}
+
+int krep_record_set(KrepFile *file, unsigned int at, const unsigned long long *words, unsigned int count)
+{
+    if (at >= file->records)
+    {
+        return 0;
+    }
+    unsigned long long *const copy = (unsigned long long *)malloc(((size_t)count + 1u) * sizeof(unsigned long long));
+    if (copy == NULL)
+    {
+        return 0;
+    }
+    if (count != 0u)
+    {
+        memcpy(copy, words, (size_t)count * sizeof(unsigned long long));
+    }
+    free(file->record[at].word);
+    file->record[at].word = copy;
+    file->record[at].count = count;
+    if (file->key != 0ull)
+    {
+        unsigned long long who[2];
+        krep_who_words_at(file, at, who);
+        const unsigned long long numbers[2] = {at, count};
+        krep_row_handed(file, file->key, who, KREP_ROW_SET, numbers, 2u, copy,
+                        (unsigned long long)count * sizeof(unsigned long long), QRY_ORDINARY);
+    }
+    return 1;
+}
+
+int krep_tabled_by(KrepFile *file, QryBuffer *buffer, const char *table, const char *path, QryWho who)
+{
+    file->key = 0ull;
+    char name[QRY_NAME_LONGEST + 1u];
+    if ((buffer == NULL) || !qry_file_named(path, name, sizeof(name)))
+    {
+        return 0;
+    }
+    file->run = buffer;
+    file->table = table;
+    unsigned long long words[2];
+    qry_who_words(who, words);
+    const unsigned long long length = strlen(name);
+    const unsigned long long head[3] = {krep_half_of((const unsigned char *)file->kind), KREP_VERSION, length};
+    file->key = krep_row_handed(file, 0ull, words, KREP_ROW_HEAD, head, 3u, name, length, QRY_CRITICAL);
+    for (unsigned int number = 1u; (file->key != 0ull) && (number <= file->texts); number += 1u)
+    {
+        krep_text_row(file, number);
+    }
+    // each record's who the who in force over it, carried down the records from each who record
+    words[0] = 0ull;
+    words[1] = 0ull;
+    for (unsigned int at = 0u; (file->key != 0ull) && (at < file->records); at += 1u)
+    {
+        const KrepRecord *const held = &file->record[at];
+        if (held->code == KREP_RECORD_WHO)
+        {
+            words[0] = (held->count == 2u) ? held->word[0] : 0ull;
+            words[1] = (held->count == 2u) ? held->word[1] : 0ull;
+        }
+        krep_record_row(file, at, words);
+    }
+    return file->key != 0ull;
+}
+
+int krep_viewed(const KrepFile *file, KrepFile *view)
+{
+    krep_open(view, file->kind);
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if ((file->key == 0ull) || !qry_joined(file->run, file->table, &bytes, &size))
+    {
+        return 0;
+    }
+    // the rows joined, each whole words: its opening, the numbers its change gives, then its bytes or its words
+    const unsigned long long words = size / sizeof(unsigned long long);
+    unsigned long long at = 0ull;
+    int held = ((size % sizeof(unsigned long long)) == 0ull);
+    while (held && ((at + KREP_ROW_OPENING) <= words))
+    {
+        unsigned long long opening[KREP_ROW_OPENING];
+        memcpy(opening, bytes + (at * sizeof(unsigned long long)), sizeof(opening));
+        at += KREP_ROW_OPENING;
+        const unsigned long long change = opening[3];
+        const unsigned int given = ((change == KREP_ROW_HEAD) || (change == KREP_ROW_PUT))   ? 3u
+                                   : ((change == KREP_ROW_TEXT) || (change == KREP_ROW_SET)) ? 2u
+                                   : (change == KREP_ROW_DROP)                               ? 1u
+                                                                                             : 0u;
+        if ((given == 0u) || ((at + given) > words))
+        {
+            held = 0;
+            break;
+        }
+        unsigned long long number[3] = {0ull, 0ull, 0ull};
+        memcpy(number, bytes + (at * sizeof(unsigned long long)), given * sizeof(unsigned long long));
+        at += given;
+        // a head's and a text's bytes, filled out to whole words, and a put's and a set's words
+        const unsigned long long following = ((change == KREP_ROW_HEAD) || (change == KREP_ROW_TEXT))
+                                                 ? ((number[given - 1u] + 7ull) / 8ull)
+                                             : (change == KREP_ROW_PUT) ? number[2]
+                                             : (change == KREP_ROW_SET) ? number[1]
+                                                                        : 0ull;
+        if (following > (words - at))
+        {
+            held = 0;
+            break;
+        }
+        const unsigned char *const after = bytes + (at * sizeof(unsigned long long));
+        at += following;
+        // a head's key is 0 and is no file's; a row of another file's key is passed over
+        if (opening[0] != file->key)
+        {
+            continue;
+        }
+        // a place, a code and a count read here are each at most what an unsigned int holds, as held to it
+        const int counted =
+            (number[0] <= 0xffffffffull) && (number[1] <= 0xffffffffull) && (number[2] <= 0xffffffffull);
+        switch (change)
+        {
+        case KREP_ROW_TEXT:
+            held = (number[0] == (view->texts + 1ull)) &&
+                   (krep_text_taken(view, (const char *)after, number[1]) == number[0]);
+            break;
+        case KREP_ROW_PUT:
+            held = counted && (number[0] <= view->records) &&
+                   krep_record_put(view, (unsigned int)number[0], (unsigned int)number[1],
+                                   (const unsigned long long *)(const void *)after, (unsigned int)number[2]);
+            break;
+        case KREP_ROW_SET:
+            held = counted && (number[0] < view->records) &&
+                   krep_record_set(view, (unsigned int)number[0], (const unsigned long long *)(const void *)after,
+                                   (unsigned int)number[1]);
+            break;
+        case KREP_ROW_DROP:
+            held = (number[0] < view->records);
+            if (held)
+            {
+                krep_record_drop(view, (unsigned int)number[0]);
+            }
+            break;
+        default:
+            break;
+        }
+    }
+    free(bytes);
+    held = held && (at == words);
+    if (!held)
+    {
+        krep_open(view, file->kind);
+    }
+    return held;
 }
 
 unsigned long long krep_text_number(KrepFile *file, const char *bytes, unsigned long long length)

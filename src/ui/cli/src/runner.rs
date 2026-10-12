@@ -122,15 +122,11 @@ pub fn python() -> PathBuf {
     PathBuf::from(if cfg!(windows) { "python" } else { "python3" })
 }
 
-/// The newest copy of a built program under the folders the build scripts publish to.
+/// A built program under build/, the folder the build scripts publish to.
 pub fn built(root: &Path, name: &str) -> Result<PathBuf, String> {
     let file = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
-    ["build", "examples/build", "src/build"]
-        .iter()
-        .map(|dir| root.join(dir).join(&file))
-        .filter(|path| path.is_file())
-        .max_by_key(|path| path.metadata().and_then(|m| m.modified()).ok())
-        .ok_or_else(|| format!("no {file} under build/, examples/build/ or src/build/: run its build job first"))
+    let path = root.join("build").join(&file);
+    if path.is_file() { Ok(path) } else { Err(format!("no {file} under build/: run its build job first")) }
 }
 
 /// The program and its words an environment variable names: its text as one word where it is a file,
@@ -241,7 +237,7 @@ fn arguments(step: &Step, values: &HashMap<String, Vec<String>>) -> Result<Vec<S
                     out.push(value);
                 }
             }
-            Arg::Set(..) | Arg::Unpath(_) | Arg::Only(..) | Arg::EnvBut(..) | Arg::Cross(_) | Arg::SourceDate | Arg::Folder(_) => {}
+            Arg::Set(..) | Arg::Unpath(_) | Arg::Only(..) | Arg::Given(_) | Arg::SetFrom(..) | Arg::EnvBut(..) | Arg::Cross(_) | Arg::SourceDate | Arg::Folder(_) => {}
         }
     }
     Ok(out)
@@ -291,6 +287,12 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
         if let Arg::Set(key, value) = arg {
             cmd.env(key, value);
             set.push(format!("{key}={value}"));
+        }
+        if let Arg::SetFrom(variable, key) = arg {
+            if let Some(value) = values.get(key).and_then(|v| v.first()).filter(|v| !v.is_empty()) {
+                cmd.env(variable, value);
+                set.push(format!("{variable}={value}"));
+            }
         }
         if let Arg::EnvBut(key, but) = arg {
             if let Some(value) = values.get(key).and_then(|v| v.first()).filter(|v| !v.is_empty() && *v != but) {
@@ -438,10 +440,12 @@ pub fn shown(root: &Path, job: &Job, values: &HashMap<String, Vec<String>>) -> R
     job.steps.iter().filter(|step| runs(step, values)).map(|step| command(root, step, values).map(|(_, shown)| shown)).collect()
 }
 
-/// Whether a step runs with these values: every param an Only names holds the value it names.
+/// Whether a step runs with these values: every param an Only names holds the value it names, and
+/// every param a Given names holds a value.
 fn runs(step: &Step, values: &HashMap<String, Vec<String>>) -> bool {
     step.args.iter().all(|arg| match arg {
         Arg::Only(key, value) => values.get(key).and_then(|given| given.first()) == Some(value),
+        Arg::Given(key) => values.get(key).and_then(|given| given.first()).is_some_and(|value| !value.is_empty()),
         _ => true,
     })
 }

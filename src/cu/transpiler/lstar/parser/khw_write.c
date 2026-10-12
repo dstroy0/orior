@@ -139,6 +139,10 @@ static unsigned int s_pooled;
 // the launches the kernel's own question is timed over, as a task's cost is read (P11, Step 10)
 #define KHW_LAUNCHES 100u
 
+// the most words after `--` the channel is opened on and their end: a carrier, the airlock's pop and its cross, each of
+// up to eight words, and the `--pop` and `--cross` between them (run_channel.h)
+#define KHW_CARRIER_WORDS 27u
+
 // What the part answered of one form: the relation every case of it answered, whether the case's words were read in
 // the order the host put them or the other way round, whether the answers read a word signed, and the runs of bits
 // its operands sit in with the place each run writes or reads
@@ -1316,10 +1320,10 @@ int main(int count, char **word)
     // [<rounds>] and, for a dry run tuned off the part, [--slot <n>] and [--forms <name>]: the slot whose questions are
     // emitted for the vendor's disassembler, and the blob of the run's buffer holding the forms a prior run learned to
     // seed them from, in place of the learn loop (khw_enumerate). The split's passes over the working set: [--discover]
-    // widens it a round and keeps what it finds with its fields unasked; [--turns] asks the turns of what a discover left; [--registers] asks the register-
-    // runs the turns found; [--costs] times every classified form (P6) and keeps its least and spread in the part's
-    // .ksc. A cross-check reads each pass's questions before it, and no form's turns or register-runs reach the part
-    // before the vendor has read them
+    // widens it a round and keeps what it finds with its fields unasked; [--turns] asks the turns of what a discover
+    // left; [--registers] asks the register-runs the turns found; [--costs] times every classified form (P6) and keeps
+    // its least and spread in the part's .ksc. A cross-check reads each round's questions before it is carried
+    // (run_channel.h), and no form's turns or register-runs reach the part before the vendor has read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
     const char *forms = NULL;
@@ -1370,7 +1374,7 @@ int main(int count, char **word)
     {
         return 1;
     }
-    const char *carrier[8];
+    const char *carrier[KHW_CARRIER_WORDS];
     unsigned int words = 0u;
     for (int at = split + 1; (at < count) && (words < ((sizeof(carrier) / sizeof(carrier[0])) - 1u)); at += 1)
     {
@@ -1386,6 +1390,13 @@ int main(int count, char **word)
     char record[1024];
     const size_t stem =
         strlen(s_path) - (((strlen(s_path) > 4u) && (strcmp(s_path + strlen(s_path) - 4u, ".khw") == 0)) ? 4u : 0u);
+    // how far a container's code reaches, from the .ksc beside the machine file, for a register hold the cross gives
+    char reach[1024];
+    snprintf(reach, sizeof(reach), "%.*s.ksc", (int)stem, s_path);
+    if (!run_channel_registers_past(reach))
+    {
+        printf("  %s holds no answer of how far a container's code reaches: a register hold stays held\n", reach);
+    }
     snprintf(record, sizeof(record), "%.*s.kqr", (int)stem, s_path);
     if (!run_channel_record(record, s_part, "khw_write"))
     {
@@ -1417,9 +1428,9 @@ int main(int count, char **word)
     }
     // the split: a discover pass widens the working set a round and keeps what it finds unasked, a turns pass asks the
     // turns of what a discover left, a register pass asks the register-runs the turns found. A cross-check reads each
-    // pass's questions before it, and neither a form's turns nor its register-runs reach the part before the vendor has
-    // read them. The working set is the run's blob KHW_WORK_NAME, which the passes hand each other; the slot is found
-    // afresh each pass, off the kernel's code
+    // round's questions before it is carried, and neither a form's turns nor its register-runs reach the part before
+    // the vendor has read them. The working set is the run's blob KHW_WORK_NAME, which the passes hand each other; the
+    // slot is found afresh each pass, off the kernel's code
     if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
         KhwAnswered kernel;

@@ -1,0 +1,3 @@
+where	who	kind	code	form	numbers	gloss
+row	qry_row_text	text	-	text <number> <text>	0 0 <number> <length> <bytes>	a text a row of another table names by its number, of no who: its number, the 64-bit FNV-1a hash of its bytes, a hash of 0 taken as 1, its length and its bytes filled out to a whole word with zeros; each process hands a text the first time it numbers it, so that a text two processes number stands in the table once for each, under one number
+any	-	number	-	-	-	every number of a row a 64-bit word, the low byte first; a row is a blob of the table's name, texts, and its key the blob's sequence in the run

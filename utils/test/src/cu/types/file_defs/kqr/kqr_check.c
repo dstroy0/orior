@@ -13,8 +13,11 @@
 //   samples    every sample is read back as it was kept, its launches' least and most where it has them
 //   pairs      every pair is read back, and the pairs a run reads off its asks take the place of those before
 //   refused    a line the oracle gives no kind of is refused with its line
+//   rows       a record made a view of the run's table of asks is put together from its rows as it is held, every
+//              text and every record in its order, before and after what a run puts, and the bytes written are linked
+//              to the rows they were written from; with no run it is no table's
 //   a part's   every ask of the record named on the command line, where one is, is found by its identity, and the
-//              record written as records and read back is its text form byte for byte
+//              record, a view of the run's table, written as records and read back is its text form byte for byte
 //
 //     kqr_check <folder> [<a part's .kqr>]...
 //
@@ -86,6 +89,67 @@ static const char *const s_written =
 
 static KqrRecord s_record;
 
+// 1 where the two files hold one kind, the same texts in the same order and the same records, the bytes each is
+// written as
+static int files_same(const KrepFile *one, const KrepFile *other)
+{
+    int same =
+        (memcmp(one->kind, other->kind, 4u) == 0) && (one->texts == other->texts) && (one->records == other->records);
+    for (unsigned int number = 0u; same && (number < one->texts); number += 1u)
+    {
+        // a text is at most the bytes of a file read whole, which a size_t counts
+        same = (one->text_length[number] == other->text_length[number]) &&
+               (memcmp(one->text[number], other->text[number], (size_t)one->text_length[number]) == 0);
+    }
+    for (unsigned int at = 0u; same && (at < one->records); at += 1u)
+    {
+        const KrepRecord *const left = &one->record[at];
+        const KrepRecord *const right = &other->record[at];
+        same = (left->code == right->code) && (left->count == right->count) &&
+               ((left->count == 0u) ||
+                (memcmp(left->word, right->word, (size_t)left->count * sizeof(unsigned long long)) == 0));
+    }
+    return same;
+}
+
+// 1 where the run's table of links holds a link from the latest blob of the file at `path` to the head row `key`, the
+// file's bytes written from the rows of its table
+static int written_from(const char *path, unsigned long long key)
+{
+    QryBuffer *const run = qry_run();
+    char name[QRY_NAME_LONGEST + 1u];
+    const unsigned char *held = NULL;
+    unsigned long long held_size = 0ull;
+    unsigned long long sequence = 0ull;
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_file_named(path, name, sizeof(name)) || !qry_latest(run, name, &held, &held_size, &sequence) ||
+        !qry_joined(run, QRY_LINKS_TABLE, &bytes, &size))
+    {
+        return 0;
+    }
+    // a link's row: the who's two words, the key it is from, the key it is to and its code
+    unsigned long long row[5];
+    int found = 0;
+    for (unsigned long long at = 0ull; !found && ((at + sizeof(row)) <= size); at += sizeof(row))
+    {
+        memcpy(row, bytes + at, sizeof(row));
+        found = (row[2] == sequence) && (row[3] == key) && (row[4] == QRY_LINK_WRITTEN_FROM);
+    }
+    free(bytes);
+    return found;
+}
+
+// 1 where `record`'s rows in the run's table put together the record it holds
+static int view_same(const KqrRecord *record)
+{
+    KrepFile view;
+    memset(&view, 0, sizeof(view));
+    const int same = krep_viewed(&record->file, &view) && files_same(&view, &record->file);
+    krep_free(&view);
+    return same;
+}
+
 // the identity `text` writes, read
 static KqrIdentity identity_of(const char *text)
 {
@@ -104,6 +168,10 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
     char *const text = file_read(part, &size);
     check_that(text != NULL, "a part's record reads");
     check_that(kqr_read(&s_record, part, "part", error, sizeof(error)) == 1, "a part's record opens");
+    char again[1024];
+    snprintf(again, sizeof(again), "%s/kqr_check_part_%u.kqr", folder, number);
+    check_that(kqr_tabled(&s_record, qry_run(), again) == 1, "a part's record is made a view of the run's table");
+    check_that(view_same(&s_record), "and its rows put together the record as it was read");
     unsigned int asks = 0u;
     unsigned int found = 0u;
     static KqrAsk s_held;
@@ -135,8 +203,6 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
         }
         line = (end != NULL) ? (end + 1) : NULL;
     }
-    char again[1024];
-    snprintf(again, sizeof(again), "%s/kqr_check_part_%u.kqr", folder, number);
     check_that(kqr_write(&s_record, again) == 1, "a part's record is written as records");
     size_t numbered_size = 0u;
     char *const numbered = file_read(again, &numbered_size);
@@ -189,6 +255,9 @@ int main(int count, char **words)
     text = rendered(&s_record, &size);
     check_that((text != NULL) && (strcmp(text, s_written) == 0), "as the text form byte for byte");
     free(text);
+    check_that(kqr_tabled(&s_record, NULL, path) == 0, "with no run, a record is no table's");
+    check_that(kqr_tabled(&s_record, qry_run(), path) == 1, "a record is made a view of the run's table of asks");
+    check_that(view_same(&s_record), "and its rows put together every text and every record it holds");
 
     KqrIdentity identity = identity_of("00000000000000aa 12 0 0 0 3 00000000000000bb");
     check_that(kqr_find(&s_record, &identity, &s_held) == 1, "an ask held is found by its identity's numbers");
@@ -271,7 +340,12 @@ int main(int count, char **words)
     snprintf(s_path.verdict, sizeof(s_path.verdict), "open 3");
     kqr_path_add_by(&s_record, &s_path, put);
     check_that(s_record.changed, "a record put to is changed");
+    check_that(view_same(&s_record),
+               "the rows of what a run put, an answer in place of one timed out and the pairs let "
+               "go and put again, put together the record as it is held");
+    const unsigned long long key = s_record.file.key;
     check_that(kqr_write(&s_record, path) == 1, "the record is written as records");
+    check_that(written_from(path, key), "its bytes are linked to the rows they were written from");
     check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 1, "and read back");
     text = rendered(&s_record, &size);
     char put_code[QRY_WHO_CODE_LETTERS + 1u];

@@ -7,6 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+// the run's tables of the accounts the overseer hears, the conferences it holds and the lessons it teaches, each row
+// naming its conference by the number of the question's identity in the table of texts (accounts.oracle.tsv,
+// conferences.oracle.tsv, lessons.oracle.tsv)
+#define OVERSEER_ACCOUNTS_TABLE "accounts"
+#define OVERSEER_CONFERENCES_TABLE "conferences"
+#define OVERSEER_LESSONS_TABLE "lessons"
+
 // the most lessons a run holds, the longest carrier name, the most experts a conference names, and the most causes it
 // hears read
 #define OVERSEER_LESSONS_MOST 4096u
@@ -194,9 +201,12 @@ static void overseer_clause_read(OverseerHeard *heard, const char *expert, const
     }
 }
 
-// one account, the line from `line` to `end`, read into `heard`: its expert, then each clause after a `;`, a
-// `standing` clause taking the rest of the line
-static void overseer_account_read(OverseerHeard *heard, const char *line, const char *end)
+// One account, the line from `line` to `end`, read into `heard`: its expert, then each clause after a `;`, a
+// `standing` clause taking the rest of the line. The account a row of the run's table of accounts: the conference,
+// the number of the question's identity, `conference`; the expert's text, the account's and the cause it reads, 0
+// where it reads none
+static void overseer_account_read(OverseerHeard *heard, const char *line, const char *end, QryBuffer *run,
+                                  unsigned long long conference)
 {
     const char *const colon = (const char *)memchr(line, ':', (size_t)(end - line));
     if ((colon == NULL) || (colon == line) || (memchr(line, ' ', (size_t)(colon - line)) != NULL))
@@ -209,6 +219,9 @@ static void overseer_account_read(OverseerHeard *heard, const char *line, const 
     heard->accounts += 1u;
     char text[OVERSEER_ACCOUNT_LONGEST];
     overseer_trimmed(colon + 1, end, text, sizeof(text));
+    const unsigned long long account[3] = {conference, qry_row_text(run, expert, strlen(expert)),
+                                           qry_row_text(run, text, strlen(text))};
+    const unsigned int votes_before = heard->vote_count;
     char *const standing = strstr(text, "; standing ");
     if (standing != NULL)
     {
@@ -226,12 +239,19 @@ static void overseer_account_read(OverseerHeard *heard, const char *line, const 
         overseer_clause_read(heard, expert, one);
         clause = next;
     }
+    // the cause the account reads, the last of its cause clauses where it gives one
+    const unsigned long long row[4] = {account[0], account[1], account[2],
+                                       (heard->vote_count != votes_before) ? heard->votes[heard->vote_count - 1u].cause
+                                                                           : 0ull};
+    qry_row_handed(run, OVERSEER_ACCOUNTS_TABLE, row, 4u);
 }
 
-// every line of `bytes`, `size` of them, read as an account once: a line read before in this conference is the same
-// account heard twice, as the carrier's own is in its answer and on the panic line
+// every line of `bytes`, `size` of them, read as an account once, each a row of the run's table of accounts of the
+// conference `conference`: a line read before in this conference is the same account heard twice, as the carrier's own
+// is in its answer and on the panic line
 static void overseer_accounts_read(OverseerHeard *heard, const unsigned char *bytes, unsigned long long size,
-                                   const unsigned char *before, unsigned long long before_size)
+                                   const unsigned char *before, unsigned long long before_size, QryBuffer *run,
+                                   unsigned long long conference)
 {
     unsigned long long at = 0ull;
     while (at < size)
@@ -256,7 +276,7 @@ static void overseer_accounts_read(OverseerHeard *heard, const unsigned char *by
         }
         if (!heard_before && (length != 0u))
         {
-            overseer_account_read(heard, (const char *)line, (const char *)end);
+            overseer_account_read(heard, (const char *)line, (const char *)end, run, conference);
         }
     }
 }
@@ -307,7 +327,9 @@ int overseer_convened(QryBuffer *run, const char *identity, int other_way_put, O
         free(conference);
         return 0;
     }
-    overseer_accounts_read(heard, conference, conference_size, NULL, 0ull);
+    // the conference named in each row of it by the number of the question's identity
+    const unsigned long long question = qry_row_text(run, identity, strlen(identity));
+    overseer_accounts_read(heard, conference, conference_size, NULL, 0ull, run, question);
     // a panic on the line: every party's account of it heard too, those the conference already holds heard once
     if (qry_panicked(run) != 0ull)
     {
@@ -315,7 +337,7 @@ int overseer_convened(QryBuffer *run, const char *identity, int other_way_put, O
         unsigned long long call_size = 0ull;
         if (qry_joined(run, QRY_PANIC_CALL, &call, &call_size))
         {
-            overseer_accounts_read(heard, call, call_size, conference, conference_size);
+            overseer_accounts_read(heard, call, call_size, conference, conference_size, run, question);
         }
         free(call);
     }
@@ -408,7 +430,16 @@ int overseer_convened(QryBuffer *run, const char *identity, int other_way_put, O
     {
         const int everywhere = (ruling->side == OVERSEER_SIDE_STAND_IN) &&
                                ((cause == OVERSEER_CAUSE_INSTRUCTION) || (cause == OVERSEER_CAUSE_REGISTER));
-        ruling->taught = overseer_lesson_kept(cause, everywhere ? "*" : heard->carrier, heard->standing);
+        const char *const carrier = everywhere ? "*" : heard->carrier;
+        ruling->taught = overseer_lesson_kept(cause, carrier, heard->standing);
+        if (ruling->taught)
+        {
+            // the lesson a row of the run's table of lessons: its conference, its cause, its carrier, `*` at every
+            // carrier, and the stand-in as written
+            const unsigned long long lesson[4] = {question, cause, qry_row_text(run, carrier, strlen(carrier)),
+                                                  qry_row_text(run, heard->standing, strlen(heard->standing))};
+            qry_row_handed(run, OVERSEER_LESSONS_TABLE, lesson, 4u);
+        }
         overseer_said(ruling, "; lesson: the stand-in %s", heard->standing);
         overseer_said(ruling, " held off the part %s", everywhere ? "at every carrier" : "at the carrier");
         if (!everywhere)
@@ -421,6 +452,17 @@ int overseer_convened(QryBuffer *run, const char *identity, int other_way_put, O
         }
     }
     overseer_account(run, identity, "overseer", ruling->said);
+    // the conference a row of the run's table of conferences: the ruling, its accounts heard, the lesson where one was
+    // taught, and its words
+    const unsigned long long ruled[8] = {question,
+                                         ruling->agreed ? 1ull : 0ull,
+                                         ruling->cause,
+                                         ruling->side,
+                                         ruling->guidance,
+                                         ruling->accounts,
+                                         ruling->taught ? 1ull : 0ull,
+                                         qry_row_text(run, ruling->said, strlen(ruling->said))};
+    qry_row_handed(run, OVERSEER_CONFERENCES_TABLE, ruled, 8u);
     return 1;
 }
 

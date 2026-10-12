@@ -456,7 +456,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
     static KqrAsk s_ask;
     static KqrSample s_sample;
     // the pairs, kept apart and put after every other record
-    KrepFile pairs = {{0}, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u};
+    KrepFile pairs = {{0}, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, NULL, NULL, 0ull};
     unsigned long long at = 0ull;
     unsigned int number = 0u;
     const char *stopped = NULL;
@@ -624,18 +624,10 @@ static void kqr_asks_once(KqrRecord *record)
             at += 1u;
             continue;
         }
-        KrepRecord *const before = &record->file.record[record->slot[slot] - 1u];
-        if (kqr_ask_of(record, before, &s_before) && (s_before.answer == KQR_TIMED_OUT))
+        const unsigned int before = record->slot[slot] - 1u;
+        if (kqr_ask_of(record, &record->file.record[before], &s_before) && (s_before.answer == KQR_TIMED_OUT))
         {
-            const unsigned int count = kqr_ask_words(record, &s_ask, s_words);
-            unsigned long long *const copy = (unsigned long long *)malloc((size_t)count * sizeof(unsigned long long));
-            if (copy != NULL)
-            {
-                memcpy(copy, s_words, (size_t)count * sizeof(unsigned long long));
-                free(before->word);
-                before->word = copy;
-                before->count = count;
-            }
+            krep_record_set(&record->file, before, s_words, kqr_ask_words(record, &s_ask, s_words));
         }
         krep_record_drop(&record->file, at);
     }
@@ -677,6 +669,11 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
     }
     kqr_indexed(record);
     return 1;
+}
+
+int kqr_tabled_by(KqrRecord *record, QryBuffer *buffer, const char *path, QryWho who)
+{
+    return record->open && krep_tabled_by(&record->file, buffer, KQR_TABLE, path, who);
 }
 
 int kqr_write_by(const KqrRecord *record, const char *path, QryWho who)
@@ -747,16 +744,10 @@ void kqr_keep_by(KqrRecord *record, const KqrAsk *ask, QryWho who)
             kqr_shifted(record, at + 1u, 1u);
         }
     }
-    unsigned long long *const copy = (unsigned long long *)malloc((size_t)count * sizeof(unsigned long long));
-    if (copy == NULL)
+    if (krep_record_set(&record->file, at, s_words, count))
     {
-        return;
+        record->changed = 1;
     }
-    memcpy(copy, s_words, (size_t)count * sizeof(unsigned long long));
-    free(record->file.record[at].word);
-    record->file.record[at].word = copy;
-    record->file.record[at].count = count;
-    record->changed = 1;
 }
 
 void kqr_sample_by(KqrRecord *record, const KqrSample *sample, QryWho who)

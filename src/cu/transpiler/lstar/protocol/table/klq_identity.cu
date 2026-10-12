@@ -2224,11 +2224,16 @@ static void record_close(void)
 }
 
 // the record read from `ksc`, written back to it when the program ends, and the query record beside it, a cycle of
-// mode `mode` pending in its order
+// mode `mode` pending in its order; and the channel told how far a container's code reaches, as `ksc` holds it
 static void record_open(const char *ksc, const char *mode)
 {
     s_record.clear();
     s_record_ksc = ksc;
+    // how far a container's code reaches, for a register hold the cross gives the channel (run_channel.h)
+    if (!run_channel_registers_past(ksc))
+    {
+        printf("  %s holds no answer of how far a container's code reaches: a register hold stays held\n", ksc);
+    }
     KscFile held = {};
     static KscRow s_row;
     ksc_read(&held, ksc);
@@ -2264,6 +2269,11 @@ static void record_open(const char *ksc, const char *mode)
     {
         printf("  %s: the query record is not read, and nothing is written to it\n", error);
         s_query_record_path.clear();
+    }
+    else
+    {
+        // the record a view of the run's table of asks, written as its rows put it together
+        kqr_tabled(&s_query_record, qry_run(), s_query_record_path.c_str());
     }
     kqr_mark(&s_query_record, KQR_CYCLE_RECORD, mode);
     static int s_registered = 0;
@@ -4759,6 +4769,27 @@ static std::string pair_verdicts_joined(const std::string &one_way, const std::s
 static thread_local int t_turned = 0;
 static thread_local int t_other_way = 0;
 
+// A pair the cross read, a row of the run's table of pairs (pairs.oracle.tsv): its two forms' texts, closed or open,
+// its count of cases alike where it is open, the text of the case that closed it where it is closed, the hash of what
+// its put reads where `read` is 1, and its verdict's text
+static void pair_row_handed(const std::string &first, const std::string &second, int read, unsigned long long reads,
+                            const std::string &verdict)
+{
+    QryBuffer *const run = qry_run();
+    const int closed = (verdict.rfind("closed ", 0u) == 0u);
+    const int open = (verdict.rfind("open ", 0u) == 0u);
+    const std::string closing = closed ? verdict.substr(7u) : std::string();
+    const unsigned long long row[8] = {qry_row_text(run, first.c_str(), first.size()),
+                                       qry_row_text(run, second.c_str(), second.size()),
+                                       closed ? 1ull : 0ull,
+                                       open ? strtoull(verdict.c_str() + 5, NULL, 10) : 0ull,
+                                       qry_row_text(run, closing.c_str(), closing.size()),
+                                       read ? 1ull : 0ull,
+                                       read ? reads : 0ull,
+                                       qry_row_text(run, verdict.c_str(), verdict.size())};
+    qry_row_handed(run, "pairs", row, 8u);
+}
+
 // The bridge's pairs put to the part, `pair <form> <form>` in Lstar.klq: two forms whose sameness the text leaves
 // open. A pair is put in a carrier, a chain of ours the host computes that holds one form's text as sass.krs writes it:
 // the form's arguments are read off the chain's lines, the other form is written in its place with the arguments of
@@ -5987,6 +6018,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         s_path.reads = strtoull(pair.reads.c_str(), NULL, 16);
         snprintf(s_path.verdict, sizeof(s_path.verdict), "%s", pair.verdict.c_str());
         kqr_path_add(&s_query_record, &s_path);
+        pair_row_handed(pair.first, pair.second, s_path.read, s_path.reads, pair.verdict);
     }
     printf("klq_identity pair: %u asks held in the query record, %u of them put this cycle\n", s_query_record.asks,
            s_query_record.asks - recorded_before);

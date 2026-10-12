@@ -11,7 +11,7 @@
 // writes memory through registers the question set no address in, faults it with an illegal address. Nothing here runs
 // on the part.
 //
-//     measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held>
+//     measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds>]
 //
 // Every name but the disassembler's is a blob of the run's buffer, the .qry QRY names (qry_buffer.h): the list, a line
 // a question, `<code> <registers> <cases> <answers> <slot> [<launches>]` (run_channel.h), each question's code, and the
@@ -39,8 +39,12 @@
 // no instruction it names holds its questions by no encoding.
 //
 // The report, handed as <report>, lists every question held; <held> is the feedback the carrier reads (--held): a line
-// `<low> <high>` an encoding held, for the carrier to hold every code that holds it off the part. The vendor names no
-// operation and nothing it says enters a form: the held list is only the exact words not to ask. Exit 1 where any
+// `<low> <high>` an encoding held, for the carrier to hold every code that holds it off the part. <holds>, where it is
+// given, is the feedback the teacher reads before the round is carried (run_channel.h): a line a hold,
+// `<answers stem> <registers> <why>`, the count of registers that clears it where it is a register past the count its
+// kernel allots and that count is at most MSQ_ALLOTTED_MOST, 0 where no count clears it. The vendor names no
+// operation and nothing it says enters a form: the held list is only the exact words not to ask, and a count that
+// clears a hold changes how a question is put and not what it asks. Exit 1 where any
 // question is held, 2 where a blob, a tool or the run's buffer was not reached, or a frame was read at no stop it
 // named: the round is then not carried
 #if !defined(_WIN32)
@@ -81,6 +85,8 @@ static const char *const s_control[] = {"BRA",   "BRX",   "JMP",  "JMX",      "C
 
 // the most registers a reading names, past the most a kernel allots and the widest operand past it
 #define MSQ_REGISTERS 512u
+// the most registers a kernel allots a thread, R254 the highest a field names short of RZ
+#define MSQ_ALLOTTED_MOST 255u
 
 static const char s_illegal_why[] = "the vendor reads an illegal instruction our gate's key passed";
 
@@ -1097,7 +1103,8 @@ static void msq_frame_free(MsqFrame *read)
     memset(read, 0, sizeof(*read));
 }
 
-// what the cross holds, kept as it goes: the held list, the report, and the lines it says of each hold
+// what the cross holds, kept as it goes: the held list, the report, the lines it says of each hold, and the holds the
+// teacher reads
 typedef struct
 {
     unsigned char *held;
@@ -1109,11 +1116,24 @@ typedef struct
     unsigned char *said;
     size_t said_size;
     size_t said_room;
+    unsigned char *listed;
+    size_t listed_size;
+    size_t listed_room;
 } MsqHolds;
 
-// One hold of `question`: the encoding at `encoding`, NULL where there is none to hold, added to the held list, and the
-// hold and `why` to the report and to what is said
-static void msq_hold_said(MsqHolds *holds, const MsqQuestion *question, const unsigned char *encoding, const char *why)
+// the count of registers that clears a hold of a register past the count, `reached` the highest register it reaches:
+// one past it, or 0 where that is past MSQ_ALLOTTED_MOST
+static unsigned int msq_clearing(unsigned long long reached)
+{
+    // a count at most MSQ_ALLOTTED_MOST fits an unsigned int
+    return (reached < MSQ_ALLOTTED_MOST) ? (unsigned int)(reached + 1ull) : 0u;
+}
+
+// One hold of `question`: the encoding at `encoding`, NULL where there is none to hold, added to the held list, the
+// hold and `why` to the report and to what is said, and to the holds the teacher reads with `clearing`, the count of
+// registers that clears it, 0 where none does
+static void msq_hold_said(MsqHolds *holds, const MsqQuestion *question, const unsigned char *encoding, const char *why,
+                          unsigned int clearing)
 {
     char where[48] = "(no encoding)";
     if (encoding != NULL)
@@ -1132,6 +1152,8 @@ static void msq_hold_said(MsqHolds *holds, const MsqQuestion *question, const un
     msq_added(&holds->report, &holds->report_size, &holds->report_room, said, (size_t)length);
     length = snprintf(said, sizeof(said), "    %s  %s\n", question->stem, why);
     msq_added(&holds->said, &holds->said_size, &holds->said_room, said, (size_t)length);
+    length = snprintf(said, sizeof(said), "%s %u %s\n", question->stem, clearing, why);
+    msq_added(&holds->listed, &holds->listed_size, &holds->listed_room, said, (size_t)length);
 }
 
 // the stem of `name`: past its last `/` or `\`, short of its last `.`
@@ -1159,9 +1181,9 @@ static void msq_extension_put(const char *name, const char *extension, char *put
 
 int main(int count, char **words)
 {
-    if (count != 6)
+    if ((count != 6) && (count != 7))
     {
-        fprintf(stderr, "measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held>\n");
+        fprintf(stderr, "measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds>]\n");
         return 2;
     }
     const char *const list_name = words[1];
@@ -1169,6 +1191,7 @@ int main(int count, char **words)
     s_architecture = words[3];
     const char *const report_name = words[4];
     const char *const held_name = words[5];
+    const char *const holds_name = (count == 7) ? words[6] : NULL;
     s_run = qry_run();
     if (s_run == NULL)
     {
@@ -1367,7 +1390,8 @@ int main(int count, char **words)
         if (!frame->readable)
         {
             msq_hold_said(&kept, question, NULL,
-                          "the vendor stopped in its code at no instruction it named, and the round is not carried");
+                          "the vendor stopped in its code at no instruction it named, and the round is not carried",
+                          0u);
             unread += 1u;
             holds += 1u;
             continue;
@@ -1377,7 +1401,7 @@ int main(int count, char **words)
             char why[160];
             snprintf(why, sizeof(why), "the vendor reads an illegal instruction at byte %llu of the code",
                      frame->illegal[at]);
-            msq_hold_said(&kept, question, question->code.bytes + frame->illegal[at], why);
+            msq_hold_said(&kept, question, question->code.bytes + frame->illegal[at], why, 0u);
             held_question = 1;
         }
         for (size_t line = 0u; line < frame->listing.count; line += 1u)
@@ -1392,7 +1416,8 @@ int main(int count, char **words)
                          "the vendor reads R%llu at byte %llu of the code, past the %u registers its "
                          "kernel allots",
                          frame_reached, read_line->offset, question->registers);
-                msq_hold_said(&kept, question, question->code.bytes + read_line->offset, why);
+                msq_hold_said(&kept, question, question->code.bytes + read_line->offset, why,
+                              msq_clearing(frame_reached));
                 held_question = 1;
             }
         }
@@ -1405,6 +1430,7 @@ int main(int count, char **words)
         const MsqKind kind = reading->kind;
         const char *const body = ((kind == MSQ_READ) && (reading->body != NULL)) ? reading->body : "";
         char why[256] = "";
+        unsigned int clearing = 0u;
         unsigned long long reached = 0ull;
         MsqRegisters written;
         msq_registers_written(body, &written);
@@ -1437,6 +1463,7 @@ int main(int count, char **words)
         {
             snprintf(why, sizeof(why), "the vendor reads R%llu at the slot, past the %u registers its kernel allots",
                      reached, question->registers);
+            clearing = msq_clearing(reached);
         }
         else if (overwritten >= 0)
         {
@@ -1460,7 +1487,7 @@ int main(int count, char **words)
         unsigned long long code_size = 0ull;
         const int coded = qry_latest(s_run, question->code_name, &code, &code_size, NULL) &&
                           (question->slot < (code_size / 16ull)) && (((question->slot * 16ull) + 16ull) <= code_size);
-        msq_hold_said(&kept, question, coded ? (code + (question->slot * 16ull)) : NULL, why);
+        msq_hold_said(&kept, question, coded ? (code + (question->slot * 16ull)) : NULL, why, clearing);
     }
     const unsigned long long readings_count = atomic_load(&work.calls) + reader.calls;
     free(reader.output);
@@ -1478,6 +1505,11 @@ int main(int count, char **words)
     }
     qry_hand(s_run, held_name, kept.held, kept.held_size, QRY_ORDINARY);
     qry_hand(s_run, report_name, whole_report, whole_report_size, QRY_ORDINARY);
+    // the holds the teacher reads, handed even where there are none, so that it knows this round was read
+    if (holds_name != NULL)
+    {
+        qry_hand(s_run, holds_name, kept.listed, kept.listed_size, QRY_ORDINARY);
+    }
     printf("  questions read: %zu in %llu readings; the vendor holds %zu off the part\n", question_count,
            readings_count, holds);
     printf("  the held list is %s and the report %s, blobs of %s\n", held_name, report_name, qry_path(s_run));

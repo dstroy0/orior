@@ -4,7 +4,8 @@
 //   here       the who of a line of this file numbers this file, gives the line, and numbers this program's source
 //   code       a who's code reads back as the who it was made from, and a code of other letters is none
 //   named      a who named through the table gives this file's path and line, and the program's source
-//   filed      a file written through the run's writer is followed in the run by its sequence and the who that wrote it
+//   filed      a file written through the run's writer is followed in the run by its row of the table of files: the
+//              who that wrote it, its sequence and its path's number in the table of texts
 //
 //     who_check <folder>
 //
@@ -66,17 +67,22 @@ int main(int count, char **words)
     check_that(sequence != 0ull, "a file is written through the run's writer");
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    check_that(qry_latest(run, QRY_FILED_CALL, &bytes, &size, NULL) && (size == (3u * sizeof(unsigned long long))),
-               "and followed in the run by its record");
-    unsigned long long filed[3] = {0ull, 0ull, 0ull};
+    check_that(qry_latest(run, QRY_FILES_TABLE, &bytes, &size, NULL) && (size == (4u * sizeof(unsigned long long))),
+               "and followed in the run by its row of the table of files");
+    // the row: the who's two words, the write's sequence and its path's number in the table of texts
+    unsigned long long filed[4] = {0ull, 0ull, 0ull, 0ull};
     if (size == sizeof(filed))
     {
         memcpy(filed, bytes, sizeof(filed));
     }
-    const QryWho wrote = qry_who_of_words(&filed[1]);
-    check_that((filed[0] == sequence) && (wrote.source == here.source) && (wrote.line == filed_line) &&
+    const QryWho wrote = qry_who_of_words(filed);
+    check_that((filed[2] == sequence) && (wrote.source == here.source) && (wrote.line == filed_line) &&
                    (wrote.program == here.program),
                "its sequence and the who that wrote it, this file at the line of the write");
+    char named_path[1024];
+    check_that(qry_file_named(path, named_path, sizeof(named_path)) &&
+                   (filed[3] == qry_row_text(run, named_path, strlen(named_path))),
+               "and its path, by its number in the table of texts");
 
     printf("who_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;

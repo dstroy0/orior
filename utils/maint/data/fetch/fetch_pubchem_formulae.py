@@ -26,9 +26,9 @@ import urllib.request
 # Walk up to the repository instead of counting directories to it, and stop at the filesystem root.
 # A directory that is its own parent would otherwise loop the walk forever.
 ROOT = os.path.dirname(os.path.abspath(__file__))
-while ROOT != os.path.dirname(ROOT) and not os.path.isdir(os.path.join(ROOT, "src", "python")):
+while ROOT != os.path.dirname(ROOT) and not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     ROOT = os.path.dirname(ROOT)
-if not os.path.isdir(os.path.join(ROOT, "src", "python")):
+if not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     raise SystemExit("could not find archive/src/python above %s" % os.path.abspath(__file__))
 
 CACHE = os.path.join(ROOT, "build", "pubchem")

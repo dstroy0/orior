@@ -115,22 +115,21 @@ import numpy
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-def _trees(start):
-    """Walk up until a directory holding orior is found, in place of counting parents.
+def _anchor(start):
+    """Walk up until the directory holding src/cu/engine is found, in place of counting parents.
 
     A fixed number of dirname calls encodes how deep this file happens to sit. Searching upward
     finds it wherever this file sits.
     """
     at = start
     while at != os.path.dirname(at):
-        if os.path.isdir(os.path.join(at, "orior")):
+        if os.path.isdir(os.path.join(at, "src", "cu", "engine")):
             return at
         at = os.path.dirname(at)
     return start
 
 
-TREES = _trees(HERE)
-ANCHOR = os.path.join(TREES, "orior")
+ANCHOR = _anchor(HERE)
 PAPERS = os.path.join(ANCHOR, "build", "papers")
 SESSION = os.path.join(ANCHOR, "build", "corpora", "session_prose.txt")
 

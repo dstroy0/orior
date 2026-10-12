@@ -30,7 +30,7 @@ import sys
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # Walks up to the repository instead of counting directories to it. Counting is what broke
 # every path in this tree the last time anything moved.
-while not os.path.isdir(os.path.join(ROOT, "src", "python")):
+while not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     ROOT = os.path.dirname(ROOT)
 sys.path.insert(0, os.path.join(ROOT, "src", "python"))
 import manifest  # noqa: E402,F401

@@ -17,7 +17,7 @@
 //!     [--no-servers] [--no-rust] [--no-window] [--keep-window] [--stop-servers]
 //!
 //! The window goes on the monitor --monitor or ORIOR_TEST_MONITOR numbers, as --monitors lists them,
-//! else the highest numbered that is not the main one. The report goes to test/runs/<time>/report.md. The run fails where any test fails, the window
+//! else the highest numbered that is not the main one. The report goes to the top's build/ui_test/runs/<time>/report.md. The run fails where any test fails, the window
 //! throws, or a part has no test.
 
 mod cdp;
@@ -467,6 +467,8 @@ fn main() -> ExitCode {
     };
     let here = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let ui = here.parent().map(Path::to_path_buf).unwrap_or_else(|| here.clone());
+    // the top of the tree's build/, two folders above the app's, where the run and the app built for it go
+    let built = ui.parent().and_then(Path::parent).map(|top| top.join("build")).unwrap_or_else(|| here.join("build"));
     if options.stop_servers {
         servers::stop();
         println!("the test servers are stopped");
@@ -479,7 +481,7 @@ fn main() -> ExitCode {
         }
         return ExitCode::SUCCESS;
     }
-    let run = here.join("runs").join(stamp());
+    let run = built.join("ui_test").join("runs").join(stamp());
     if let Err(error) = std::fs::create_dir_all(&run) {
         eprintln!("{}: {error}", run.display());
         return ExitCode::from(2);
@@ -505,7 +507,7 @@ fn main() -> ExitCode {
 
     if options.rust {
         println!("rust");
-        let app_target = here.join("target").join("app");
+        let app_target = built.join("cargo").join("app");
         for (name, manifest, target) in [("cli", ui.join("cli").join("Cargo.toml"), None), ("src-tauri", ui.join("src-tauri").join("Cargo.toml"), Some(app_target.as_path())), ("test", here.join("Cargo.toml"), None)] {
             println!("  {name}");
             let (outcomes, failures) = cargo_test(&manifest, target, &env);
@@ -520,7 +522,7 @@ fn main() -> ExitCode {
         let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
             .map_err(|error| format!("the run's tree: {error}"))
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
-            .and_then(|_| window::build(&ui, &here.join("target").join("app")))
+            .and_then(|_| window::build(&ui, &built.join("cargo").join("app")))
             .and_then(|program| window::start(&program, &ui, &run, &tree, options.monitor));
         match started {
             Err(error) => {

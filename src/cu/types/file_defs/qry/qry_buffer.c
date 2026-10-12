@@ -15,6 +15,7 @@
 #include "../../../includes/codecs/crc/crc_key.h"
 #include "qry.h"
 
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -1095,10 +1096,10 @@ unsigned long long qry_filed_by(QryBuffer *buffer, const char *path, const void 
     {
         return 0ull;
     }
-    // the write's sequence and its who, after it in the run
-    unsigned long long filed[3] = {sequence, 0ull, 0ull};
-    qry_who_words(who, &filed[1]);
-    return (qry_hand(buffer, QRY_FILED_CALL, filed, sizeof(filed), QRY_CRITICAL) != 0ull) ? sequence : 0ull;
+    // the write a row of the run's table of files after it, critical: its who, its sequence and its path's number in
+    // the table of texts
+    const unsigned long long file[2] = {sequence, qry_row_text(buffer, name, strlen(name))};
+    return qry_row_handed_by(buffer, QRY_FILES_TABLE, file, 2u, QRY_CRITICAL, who) ? sequence : 0ull;
 }
 
 // the who table, read once a process: each number's source, its path from the top of the tree, a number the table does
@@ -1109,9 +1110,7 @@ static unsigned int s_who_highest;
 static unsigned int s_who_program;
 static atomic_int s_who_state;
 
-// the top of the tree into `top`, which holds `room`: the one QRY_TOP_ENVIRONMENT names, or where it names none, the
-// tree this file was built from. 1, or 0 where neither is had
-static int qry_who_top(char *top, size_t room)
+int qry_top(char *top, size_t room)
 {
     const char *const given = getenv(QRY_TOP_ENVIRONMENT);
     if (given != NULL)
@@ -1140,7 +1139,7 @@ static int qry_who_source_named(const char *file, char *name, size_t room)
 {
     char top[1024];
     char plain[1024];
-    if (!qry_who_top(top, sizeof(top)) || !qry_path_plain(file, plain, sizeof(plain)))
+    if (!qry_top(top, sizeof(top)) || !qry_path_plain(file, plain, sizeof(plain)))
     {
         return 0;
     }
@@ -1227,7 +1226,7 @@ static void qry_who_table_read(void)
     char path[1400];
     unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    if (qry_who_top(top, sizeof(top)) && (snprintf(path, sizeof(path), "%s/%s", top, QRY_WHO_TABLE) > 0) &&
+    if (qry_top(top, sizeof(top)) && (snprintf(path, sizeof(path), "%s/%s", top, QRY_WHO_TABLE) > 0) &&
         qry_file_read(qry_run(), path, &bytes, &size))
     {
         unsigned long long at = 0ull;
@@ -2726,6 +2725,98 @@ int qry_file_latest_each(const char *path,
     return 1;
 }
 
+int qry_file_each(const char *path,
+                  void (*each)(void *context, const char *name, unsigned long long sequence, const unsigned char *bytes,
+                               unsigned long long size),
+                  void *context, char *error, size_t room)
+{
+    if (room != 0u)
+    {
+        error[0] = '\0';
+    }
+    QryMapped mapped;
+    if (!qry_mapped(&mapped, path))
+    {
+        qry_unmapped(&mapped);
+        snprintf(error, room, "%s could not be opened", path);
+        return 0;
+    }
+    // a .qry that opens with its table is read by its rows, and one that does not by its frames, counted first: a blob
+    // at most a row or a frame
+    QryTableHead front;
+    const QryRow *front_rows = NULL;
+    const int tabled = qry_table_found(&mapped, &front, &front_rows);
+    size_t most = tabled ? (size_t)front.rows : 0u;
+    for (unsigned long long walk = 0ull; !tabled && (walk < mapped.size);)
+    {
+        QryBlob blob;
+        if (qry_blob_read(mapped.bytes, mapped.size, walk, &blob))
+        {
+            most += 1u;
+            walk = blob.next;
+        }
+        else
+        {
+            walk = qry_next_whole(mapped.bytes, mapped.size, walk);
+        }
+    }
+    QryLatest *const kept = (QryLatest *)malloc((most + 1u) * sizeof(QryLatest));
+    if (kept == NULL)
+    {
+        qry_unmapped(&mapped);
+        snprintf(error, room, "%s: no memory to read its blobs", path);
+        return 0;
+    }
+    // every row that reads whole kept, a row that does not counted as lost; or every frame read by its head, a stretch
+    // none opens stepped over to the next and counted
+    size_t count = 0u;
+    unsigned long long lost = 0ull;
+    for (unsigned long long row = 0ull; tabled && (row < front.rows); row += 1ull)
+    {
+        const QryRow *const one = &front_rows[row];
+        if (!qry_row_inside(&front, one) || !qry_row_whole(&mapped, &front, one))
+        {
+            lost += one->size;
+            continue;
+        }
+        kept[count] = (QryLatest){one->hash, one->name_at, one->name_length, one->sequence, one->bytes_at, one->size};
+        count += 1u;
+    }
+    for (unsigned long long at = 0ull; !tabled && (at < mapped.size);)
+    {
+        QryBlob blob;
+        if (!qry_blob_read(mapped.bytes, mapped.size, at, &blob))
+        {
+            const unsigned long long next = qry_next_whole(mapped.bytes, mapped.size, at);
+            lost += next - at;
+            at = next;
+            continue;
+        }
+        kept[count] = (QryLatest){0ull, blob.name_at, blob.name_length, blob.sequence, blob.bytes_at, blob.size};
+        count += 1u;
+        at = blob.next;
+    }
+    qsort(kept, count, sizeof(QryLatest), qry_latest_order);
+    char name[QRY_NAME_LONGEST + 1u];
+    for (size_t place = 0u; place < count; place += 1u)
+    {
+        snprintf(name, sizeof(name), "%.*s", (int)kept[place].name_length,
+                 (const char *)(mapped.bytes + kept[place].name_at));
+        each(context, name, kept[place].sequence, mapped.bytes + kept[place].bytes_at, kept[place].size);
+    }
+    free(kept);
+    qry_unmapped(&mapped);
+    if ((lost != 0ull) && tabled)
+    {
+        snprintf(error, room, "%s: %llu bytes of blobs whose frames do not read whole were stepped over", path, lost);
+    }
+    else if (lost != 0ull)
+    {
+        snprintf(error, room, "%s: %llu bytes no frame opens were stepped over", path, lost);
+    }
+    return 1;
+}
+
 // The .qry the writer writes: a handle that writes through the system's memory for the queue in bulk, and one that
 // writes through to the disk itself for panics and critical blobs, both at the end the writer keeps, `length`
 typedef struct
@@ -3306,6 +3397,120 @@ static int qry_table_dumped(QryBuffer *buffer, unsigned long long *count)
     return whole;
 }
 
+// the oracle named `name`, its path from the top of the tree `top`, put into the run where the run holds no blob of
+// the name: read from the tree and handed at the buffer's tail under the lock. 1 where it was put in, 0 where the run
+// holds one already or the tree holds none
+static int qry_oracle_put(QryBuffer *buffer, const char *top, const char *name)
+{
+    const unsigned char *held = NULL;
+    unsigned long long held_size = 0ull;
+    char path[1400];
+    const int written = snprintf(path, sizeof(path), "%s/%s", top, name);
+    // a path that does not fit its room names no file
+    if (qry_latest(buffer, name, &held, &held_size, NULL) || (written <= 0) || ((size_t)written >= sizeof(path)))
+    {
+        return 0;
+    }
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_file_read(NULL, path, &bytes, &size))
+    {
+        return 0;
+    }
+    qry_lock(buffer);
+    int placed = 0;
+    qry_appended(buffer, name, strlen(name), bytes, size, QRY_ORDINARY, 0u, buffer->head->capacity, 0ull, &placed);
+    qry_unlock(buffer);
+    free(bytes);
+    return placed;
+}
+
+// The oracle of every table the run holds, put into the run as it ends where it holds none of the oracle's name
+// (qry_oracle_put): each name the run holds read once, by its first blob; a name of no folder with an oracle under
+// QRY_ORACLES a table of the run's own, and a name whose first blob is the head row of a k-file (krep_records.h: a
+// key of 0, a change of 0, then the kind's four bytes, the low first, its letters and numbers past zeros, the version,
+// and the name's length within the row) a k-file's table, whose oracles are QRY_KFILE_ROWS and its kind's. The count
+// put in
+static unsigned long long qry_oracles_added(QryBuffer *buffer)
+{
+    char top[1024];
+    if (!qry_top(top, sizeof(top)))
+    {
+        return 0ull;
+    }
+    // the hashes of the names read, a power of two slots each a hash or 0, grown to stay at most half full
+    size_t slots = 1024u;
+    size_t count = 0u;
+    unsigned long long *seen = (unsigned long long *)calloc(slots, sizeof(unsigned long long));
+    unsigned long long added = 0ull;
+    const unsigned long long tail = atomic_load(&buffer->head->tail);
+    QryBlob blob;
+    for (unsigned long long walk = 0ull;
+         (seen != NULL) && (walk < tail) && qry_blob_read(buffer->data, tail, walk, &blob); walk = blob.next)
+    {
+        const char *const name = (const char *)(buffer->data + blob.name_at);
+        // a name's hash is never 0, the mark of a slot no name holds
+        const unsigned long long hash = qry_hash(name, (size_t)blob.name_length);
+        size_t probe = (size_t)hash & (slots - 1u);
+        while ((seen[probe] != 0ull) && (seen[probe] != hash))
+        {
+            probe = (probe + 1u) & (slots - 1u);
+        }
+        if (seen[probe] == hash)
+        {
+            continue;
+        }
+        seen[probe] = hash;
+        count += 1u;
+        // an oracle's name that does not fit the longest name a blob takes names no oracle
+        char oracle[QRY_NAME_LONGEST + 1u];
+        int named = snprintf(oracle, sizeof(oracle), "%s/%.*s.oracle.tsv", QRY_ORACLES, (int)blob.name_length, name);
+        if ((memchr(name, '/', (size_t)blob.name_length) == NULL) && (named > 0) && ((size_t)named < sizeof(oracle)))
+        {
+            added += (unsigned long long)qry_oracle_put(buffer, top, oracle);
+        }
+        unsigned long long words[7] = {0ull, 0ull, 0ull, 0ull, 0ull, 0ull, 0ull};
+        if (blob.size >= sizeof(words))
+        {
+            memcpy(words, buffer->data + blob.bytes_at, sizeof(words));
+        }
+        char kind[5] = {0, 0, 0, 0, 0};
+        int lettered = (blob.size >= sizeof(words)) && (words[0] == 0ull) && (words[3] == 0ull) &&
+                       (words[6] <= (blob.size - sizeof(words)));
+        for (unsigned int at = 0u; lettered && (at < 4u); at += 1u)
+        {
+            // the kind's four bytes stand the low first in its word
+            const char letter = (char)((words[4] >> (8u * at)) & 0xffull);
+            lettered = isalnum((unsigned char)letter) || ((letter == '\0') && (at != 0u));
+            kind[at] = (char)tolower((unsigned char)letter);
+        }
+        named = snprintf(oracle, sizeof(oracle), "%s/%s/%s.oracle.tsv", QRY_KFILE_ORACLES, kind, kind);
+        if (lettered && (named > 0) && ((size_t)named < sizeof(oracle)))
+        {
+            added += (unsigned long long)qry_oracle_put(buffer, top, QRY_KFILE_ROWS);
+            added += (unsigned long long)qry_oracle_put(buffer, top, oracle);
+        }
+        if ((count * 2u) >= slots)
+        {
+            unsigned long long *const larger = (unsigned long long *)calloc(slots * 2u, sizeof(unsigned long long));
+            for (size_t at = 0u; (larger != NULL) && (at < slots); at += 1u)
+            {
+                size_t place = (size_t)seen[at] & ((slots * 2u) - 1u);
+                while ((seen[at] != 0ull) && (larger[place] != 0ull))
+                {
+                    place = (place + 1u) & ((slots * 2u) - 1u);
+                }
+                larger[place] = seen[at];
+            }
+            free(seen);
+            seen = larger;
+            slots *= 2u;
+        }
+    }
+    free(seen);
+    return added;
+}
+
 int qry_write_until_stopped(QryBuffer *buffer)
 {
     QryHead *const head = buffer->head;
@@ -3371,7 +3576,9 @@ int qry_write_until_stopped(QryBuffer *buffer)
                   (atomic_load(&head->critical_written) >= atomic_load(&head->critical_handed)) &&
                   (head->dumped_blobs == 0ull);
     }
-    // the writer's own account, the run's last blob, written and flushed through to the disk
+    // the oracle of every table the run holds, once every member has moved its last; then the writer's own account, the
+    // run's last blob, written and flushed through to the disk
+    const unsigned long long oracles = qry_oracles_added(buffer);
     char account[384];
     const QryWrites *const writes = &state->writes;
     const int length = snprintf(account, sizeof(account),
@@ -3401,6 +3608,10 @@ int qry_write_until_stopped(QryBuffer *buffer)
     const int put = qry_files_put(buffer, atomic_load(&head->tail), &files);
     atomic_store(&head->writing, 0u);
     printf("  %s: %s", buffer->path, account);
+    if (oracles != 0ull)
+    {
+        printf("  %s: the oracles of its tables, %llu, put in from the tree\n", buffer->path, oracles);
+    }
     if (tabled)
     {
         printf("  %s: dumped with its table of %llu rows in %.3f ms\n", buffer->path, rows,
@@ -3432,4 +3643,120 @@ int qry_stop(QryBuffer *buffer, unsigned int milliseconds)
         qry_sleep_millisecond();
     }
     return 1;
+}
+
+// the words of a row before its columns: the who's two words
+#define QRY_ROW_OPENING 2u
+
+// the numbers of the texts this process has handed, a power of two slots each a number or 0, and the count held; one
+// thread at a time numbers a text
+static unsigned long long *s_texts = NULL;
+static size_t s_text_slots = 0u;
+static size_t s_text_count = 0u;
+static atomic_flag s_texts_held = ATOMIC_FLAG_INIT;
+
+int qry_row_handed_by(QryBuffer *buffer, const char *table, const unsigned long long *columns, unsigned int count,
+                      unsigned int priority, QryWho who)
+{
+    if ((buffer == NULL) || (count > QRY_ROW_COLUMNS))
+    {
+        return 0;
+    }
+    unsigned long long row[QRY_ROW_OPENING + QRY_ROW_COLUMNS];
+    qry_who_words(who, row);
+    if (count != 0u)
+    {
+        memcpy(row + QRY_ROW_OPENING, columns, (size_t)count * sizeof(unsigned long long));
+    }
+    return qry_hand(buffer, table, row, (unsigned long long)(QRY_ROW_OPENING + count) * sizeof(unsigned long long),
+                    priority) != 0ull;
+}
+
+// the 64-bit FNV-1a hash of `length` bytes at `bytes`, a hash of 0 taken as 1: 0 names no text
+static unsigned long long qry_text_hash(const char *bytes, unsigned long long length)
+{
+    unsigned long long hash = 0xcbf29ce484222325ull;
+    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    {
+        hash = (hash ^ (unsigned char)bytes[at]) * 0x100000001b3ull;
+    }
+    return (hash != 0ull) ? hash : 1ull;
+}
+
+// the slot of `number` in the texts this process has handed: the one holding it, or the empty one it would go in
+static size_t qry_text_slot(unsigned long long number)
+{
+    size_t at = (size_t)(number & (s_text_slots - 1u));
+    while ((s_texts[at] != 0ull) && (s_texts[at] != number))
+    {
+        at = (at + 1u) & (s_text_slots - 1u);
+    }
+    return at;
+}
+
+// the texts this process has handed given room for one more within half their slots: 1, or 0 where there was no memory
+static int qry_texts_roomed(void)
+{
+    if ((s_text_slots != 0u) && ((2u * (s_text_count + 1u)) <= s_text_slots))
+    {
+        return 1;
+    }
+    const size_t grown = (s_text_slots == 0u) ? 1024u : (2u * s_text_slots);
+    unsigned long long *const larger = (unsigned long long *)calloc(grown, sizeof(unsigned long long));
+    if (larger == NULL)
+    {
+        return 0;
+    }
+    unsigned long long *const before = s_texts;
+    const size_t before_slots = s_text_slots;
+    s_texts = larger;
+    s_text_slots = grown;
+    for (size_t at = 0u; at < before_slots; at += 1u)
+    {
+        if (before[at] != 0ull)
+        {
+            s_texts[qry_text_slot(before[at])] = before[at];
+        }
+    }
+    free(before);
+    return 1;
+}
+
+unsigned long long qry_row_text(QryBuffer *buffer, const char *bytes, unsigned long long length)
+{
+    if ((buffer == NULL) || (length == 0ull))
+    {
+        return 0ull;
+    }
+    const unsigned long long number = qry_text_hash(bytes, length);
+    while (atomic_flag_test_and_set(&s_texts_held))
+    {
+    }
+    unsigned long long numbered = 0ull;
+    if (qry_texts_roomed())
+    {
+        const size_t slot = qry_text_slot(number);
+        numbered = number;
+        if (s_texts[slot] == 0ull)
+        {
+            // the text's row: of no who, its number, its length and its bytes filled out to a whole word with zeros
+            static const unsigned char s_zeros[8] = {0u};
+            const unsigned long long opening[QRY_ROW_OPENING + 2u] = {0ull, 0ull, number, length};
+            QryText row = {0};
+            qry_text_added(&row, opening, sizeof(opening));
+            qry_text_added(&row, bytes, length);
+            qry_text_added(&row, s_zeros, (8ull - (length % 8ull)) % 8ull);
+            const int handed =
+                !row.failed && (qry_hand(buffer, QRY_TEXTS_TABLE, row.bytes, row.size, QRY_ORDINARY) != 0ull);
+            qry_text_freed(&row);
+            if (handed)
+            {
+                s_texts[slot] = number;
+                s_text_count += 1u;
+            }
+            numbered = handed ? number : 0ull;
+        }
+    }
+    atomic_flag_clear(&s_texts_held);
+    return numbered;
 }

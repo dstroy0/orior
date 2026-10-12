@@ -49,6 +49,7 @@ pub mod plugins;
 pub mod print;
 pub mod profile;
 pub mod python_paths;
+pub mod query;
 pub mod recording;
 pub mod report;
 pub mod root;

@@ -68,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("edges")
     parser.add_argument("log")
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     parser.add_argument("--history", default=os.path.join(root, "build", "tsv", "null_curve_history.tsv"))
     parser.add_argument("--label", default="")
     options = parser.parse_args()

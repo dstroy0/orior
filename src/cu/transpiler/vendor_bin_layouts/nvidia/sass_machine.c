@@ -522,11 +522,13 @@ static int sass_kinds_read(SassForm *form, const char *column)
 }
 
 // what the part answered on the run channel, read from the .ksc of the machine file's stem at `path` into `machine`:
-// the soonest reads, each operation's the largest of its lines, and the last register a question's code can name. A
-// machine with no .ksc beside it holds no soonest read, and every register
+// the soonest reads, each operation's the largest of its lines, the last register a question's code can name, and how
+// many registers past the highest its code names a container declares. A machine with no .ksc beside it holds no
+// soonest read, every register, and no count past
 static void sass_answers_read(SassMachine *machine, const char *path)
 {
     machine->register_last = SASS_MACHINE_UNANSWERED;
+    machine->register_past = SASS_MACHINE_UNANSWERED;
     char ksc[1024];
     const size_t length = strlen(path);
     const int typed = (length > 4u) && (strcmp(path + length - 4u, ".khw") == 0);
@@ -548,6 +550,11 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         if (strncmp(s_row.question, "register last", 13u) == 0)
         {
             machine->register_last = answered;
+            continue;
+        }
+        if (strncmp(s_row.question, "register past", 13u) == 0)
+        {
+            machine->register_past = answered;
             continue;
         }
         if (sscanf(s_row.question, "stall %63s %63s", writer, reader) != 2)

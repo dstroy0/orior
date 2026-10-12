@@ -27,95 +27,7 @@ and keeps whichever definition produced the relation.
 All three may be partly known. A known entry is information and is never thrown away; derivation fills the rest,
 and the three agreeing is the coherence picture.
 
-**the query protocol** is the form every ask takes, and it is what derivation is made of. A question put to a
-target is an address, a qualifier and a cost bound:
-
-    [ ADDRESS ] -> ( QUALIFIER ) -> [ MEASURED COST ] -> BINARY RESULT (1 or 0)
-
-The address names the target: a memory address, a URI, an API endpoint, an LLM context key, a register. The
-qualifier is a binary question asked at it, phrased to demand a state validation and never a data payload. One
-loop can therefore ask a part and a service the same question. The cost bound is the most the target may spend
-to answer, and no hand writes that field.
-
-**The bound is unbound first.** An ask carrying no bound returns the cost instead of a bit: a measurement,
-never a verdict. The spread of those costs is the baseline, and the baseline is `.knf`. Every bound after that
-is expressed against it. No absolute figure is ever written into the machine. Binding a query to `$10ms` by
-hand is a scale written into the machine, which the engine is optimized against at every other point; the
-unbound pass derives the figure in place of choosing it.
-
-So the protocol is two passes of one ask. The unbound pass returns a cost and tells us where to go: a cheap
-address is worth expanding and an expensive one is worth chaining or pruning. The bound pass returns the bit,
-and the bit is what a branch consumes. A missing address, a false qualifier, a timeout, an error and too many
-cycles all read 0 at that point, and the distinction between them survives in the baseline instead of in the
-bit.
-
-Two things the unbound pass has to record. A watchdog stop is not a cost reading, it is a censored sample, and a
-baseline built without marking them reads low. And a baseline taken once goes stale the moment the host's load
-changes. The reference ask is therefore put alongside the real one and measured in the same conditions, the
-same way the emission order is shuffled to leave nothing to tell measurement from work by.
-
-**The baseline buys chain slicing.** A chain carries a cost and one number for a whole chain names no
-part of it. Put the unbound ask at many cuts of the chain and the per-link costs come out of the readings
-together, each one measured in the same conditions as the rest. A chain is then a profile and not a total, and
-the expensive link is named instead of inferred.
-
-How the asks are ordered decides whether that works at all, and the arithmetic is measured in
-`utils/maint/engine/measure_check.py`. Subtracting neighboring cuts puts the noise of two measurements on a quantity
-the size of one link, and one link is the quantity sitting under the floor: the recovered cost carries
-1 + 12543/12800 floors squared of noise against a signal of 1, which orders 56 + 9692/41993% of link pairs
-correctly where a coin orders 50%. Repetition, descended level by level, still orders more pairs at 6400
-repeats of every cut, 97 + 143/181%, and the order of asking fixes it for far less than that.
-
-**The emission order is not a shuffle, it is a carrier.** A shuffle throws away what it scrambled. This order
-is known to the asker and tells the part nothing: the part has no way to separate a measurement from work, and
-every answer is still decodable, because the order is in the record. Build it so every ask covers half the
-links and any two asks overlap on a quarter, and the answers come apart exactly. One ask then informs every
-link at once in place of one link. The squared gain over asking a link at a time is (links + 1) over four:
-1 + 15541/35219 at 3 links, 4 + 31188/189499 at 15, 60.2291 + r/d at 255, and growing with the chain. Nothing
-beats the bound on what one answer can carry. A known order reaches that bound and asking one at a time does not, and
-the whole gain is that difference.
-
-A known order also beats a drawn one, and by more the further out the reading is: 4 + 883/1053 times at the
-median worst-link error, 31 + 37/135 at the 95th, 145 + 5/6 at the worst of 400. 18 of 400 drawn orders do not come
-apart at all and cost their whole pass. An engine answering every time is held to its worst case, and a known
-order has the same worst case every pass by construction.
-
-**Where links contend the costs stop adding, and the solve does not say so.** It returns plausible per-link
-numbers with the contention folded into them, and what the fit could not account for stays flat while the
-answers go wrong by a factor of two. What catches it is a term for contention's own shape. Contention grows as
-the square of how many links an ask covers and the links themselves grow as the count. An order sweeping
-that count therefore separates the two, and an order holding it at half gives the difference nowhere to
-appear. The term
-notices at 88% where the leftover notices none of it, and the same solve then takes the damage back out. It
-costs one more unknown and not one more ask.
-
-Cross-branch comparison follows from that, and it is the reason the arrangements are all kept. Every
-arrangement that produces an operator is a branch, each branch slices into the same relation, and comparing
-them link by link gives the winning path for a given problem instead of one arrangement that suits nothing in
-particular. A chain reading worse as a total can hold the cheapest link for the job, and only a sliced reading
-can see it.
-
-The rest of the protocol, the pair states and the mnemonics the bits resolve to, is in
-[src/cu/transpiler/gnascor.md](cu/transpiler/gnascor.md). Every step of it, what backs it and the run behind its
-status is in the query protocol's own table,
-[theory/workbooks/Lstar_protocol/query_protocol_table.md](../theory/workbooks/Lstar_protocol/query_protocol_table.md). A step
-changes status there and nowhere else.
-
-**The gate is the engine's own descent.** Each candidate arrangement is an alignment and a relation's cases are
-the needle, and orior's descent places the case that prunes the most, stops where the best case prunes
-nothing, and leaves the survivors as its answer. The descent is planned on the host against arithmetic every
-system that computes agrees about, and a target is asked only the cases it placed. That is steering on what is
-known to be true. Survival is a conjunction, and order cannot change a conjunction. A plan that steers badly
-costs speed and never a wrong survivor: gate then rank, in the engine's own words.
-
-Cost is measured by chaining, never alone: one operation sits under the noise floor and a chain clears it by
-fifteen times. Chaining is also what takes the bias out. A primitive that reads worse by itself and is right for a
-job is then chosen for that job.
-
-An operator is a chain of primitives and the chain can be rearranged. Every arrangement that produces the operator
-is kept with its cost, and a job takes the one that suits it, in place of one arrangement that suits nothing in
-particular. A person writing a compiler by hand affords one arrangement for each operator, because a person has to
-write it. Nobody writes these, and the best for an application is therefore always available.
+**the query protocol** is the form every ask takes, and it is the transpiler's: it, every step of it and its open work are in the query protocol table, [theory/workbooks/Lstar_protocol/query_protocol_table.md](../theory/workbooks/Lstar_protocol/query_protocol_table.md).
 
 Finished work lives in the engine table, `theory/workbooks/engine/engine_table.md`. What is written here is open.
 
@@ -159,7 +71,7 @@ shows three members where the first agrees with the second, the second with the 
 neither. Pairwise agreement therefore names no set, and which members share a stem has no answer that does not
 depend on which was asked first. A group needs one of two things written: a representative every member is
 compared against, or a rule that builds the group and says which member it is anchored on. The rule is
-written, with its anchor as the representative (Open 11).
+written, with its anchor as the representative (Open 5 of the query protocol table).
 
 **`.kdm` grows to whatever specificity a part needs.** It holds as many answers as it has: a general answer
 block, and under it a map specific enough to be optimal on one device and nowhere else. A driver written by
@@ -333,181 +245,22 @@ reads has changed.
        mended by measuring that file again.
      - `file_types_table.md` has no `.kdm` or `.ksc` and holds `.ksh` and `.ans`, where this plan's six are `.kcr`,
        `.krs`, `.kcs`, `.knf`, `.kdm` and `.ksc`.
-2. **The writings the part gives are read into nothing.** A writing of one instruction is searched for on the part
-   for every precept and every ladder relation, and every arrangement of the `.kdm` is written from them, run and
-   read back (the writings searched, below). `L*` is still written by hand. `sass.krs` and `ptx.krs` are read off
-   NVIDIA's compiler: `src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.sh` asks every form the record
-   programs' lanes decide in one program between tags, a question holding a number asked again with another,
-   builds it once and reads each block back into a form. `ptx.krs` is read off the PTX of questions in `c.krs`'s
-   text; `sass.krs` is read off the listing of questions in `ptx.krs`'s own text, put to `ptxas` as inline PTX, a
-   carry in through `add.cc` and out through `addc`, a predicate in through `setp` and out through `selp`. A form
-   every question of which reads whole and alike, assembles against the machine file and is no longer than the
-   ruleset's is written into the ruleset; every other keeps its text and `monolith_forms.md` says why. Nothing is
-   run on the part. Where the compiler stores a test's predicate as its negation and every instruction left is an
-   ISETP anded with PT, each comparison is turned over, a chain through .EX whole; and a reading that drops a `.hi`
-   the ruleset names is kept. A question holding a number
-   outside an address is asked a third time with the number loaded, which the compiler cannot fold; that reading,
-   assembled with the number in its place, stands where the two written-in ones do not settle. Where the written-in
-   questions read apart only between sets of banks, a register added as IMAD.IADD and a number as IADD3, the reading
-   that assembles for every set stands. A number in a 64-bit slot is asked whole, its high word the alternate of its
-   low. A probe classifies a form only where the number it varies shows in the answer: a numbered probe whose number
-   the answer does not carry is one the system folded, and it settles nothing, a value the system cannot fold deciding
-   instead. The test names no value; which numbers a system folds is the system's own, written to the part's `.ksc`
-   on the compile channel. A settled form must still
-   assemble for every number it was asked, folded probes counted, or a reading drawn from register operands alone is no
-   form of an operator a literal is asked of in a slot it cannot encode. Where a reading differs from the ruleset only in
-   an operation's signedness and the SASS reads the same word, the system compiles the two writings to one machine code:
-   the reading is the ruleset's form, `word_mul`'s `mul.lo.s32` the ruleset's `mul.lo.u32`, and the writing the
-   system answers alike is written to the `.ksc` beside its folds. Of 55 forms over 440 questions, 43 of
-   `sass.krs` and 18 of `ptx.krs` are the reading. What keeps the rest: no question reads a copy, as in a straight run
-   the allocator names a copy's two words one register, which leaves `word_copy`, `word_set`, `sign_set` and
-   `wide_unpack` nothing to read; `sign_select` and `wide_select` take a number in either of two slots and `SEL` takes
-   one only in its second, and no one text assembles for every number asked; `ptx.krs` reaches `launch_load_wide` through a
-   generic `ld`; `global_load_word_if` reads as a branch, `global_add_atomic_word` and `wide_mul` read longer than the ruleset's,
-   `wide_mul` reads `mul.lo.s` where the ruleset holds `mul.lo.u` and is folded with nothing to prove the two one
-   word here, and the ruleset holds no `predicate_bitand` or `predicate_bitxor`. It is the loop and it is the work.
-   The query protocol above gives the loop its shape and nothing emits one yet. The cost bound is the open part
-   of it: static, written into the query as `$10ms`, or dynamic, measured against a running average. The chain
-   clock already reads a cost in the part's own time, and that reading is what a bound would be set from. That
-   clock runs inside the SASS probe, through the toolkit, and is scaffolding (the method, above): the loop's
-   clock is read by an ask put through `host_entry.h` like every other answer. That ask is `query_ask`
-   (`src/cu/transpiler/lstar/protocol/query/query_ask.{h,c}`): an address and a qualifier, held, equal or advancing, returning
-   a cost unbound and a bit bound, the cost read off a clock that is itself an address. `query_ask_check.c` holds it
-   to memory the test owns and to the host's interrupt time at a fixed address, found advancing by the ask itself.
-   That counter steps once a clock interrupt, half a millisecond to a millisecond, and an ask is far shorter: a
-   cost read from it is a step or nothing. A bound set from it judges a run of asks and never one. Asks at
-   addresses nothing has said are safe go through `query_interface_walk`
-   (`src/cu/transpiler/lstar/protocol/query/query_interface.{h,c}`): the interface runs `query_walk` in a probe, one address
-   after another, and an address that ends the probe is answered by the ending, the walk going on from the next
-   address in a fresh probe. `query_interface_check.c` holds
-   it to address 0, which ends the asker on an address fault, and to the page every Windows process shares,
-   which answers reads and ends the asker on a put. Of that page's first sixteen words the walk finds two that
-   advance, at 0x8 and 0x14, the interrupt time and the system time of the page's own layout. The run channel finds the part's bus the way firmware enumerates one, and never the way firmware is told
-   to. Firmware is handed its enumeration space, the configuration address and the register offsets read from
-   a bus standard by hand, and that is a scale written into the machine and forbidden here. The channel is
-   given no address and no offset, and finds the enumeration space by how it answers. `host_address_ask`
-   (`host_entry.h`) writes two words that share no bits and reads each back, sorting an address into four
-   kinds: HOLDS gave back what it was written, plain memory; FIXED gave back one word whatever it was written,
-   a constant such as an identifier; LIVE gave back a word the part decided, a register the part drives;
-   NOTHING gave back all ones, nothing drove the line. A sizing register answers LIVE, since written all ones
-   it gives back the mask of the bits it decodes, which is neither the memory that would hold all ones nor the
-   empty line that reads all ones. An enumeration space is a region where a FIXED identifier and a LIVE sizing
-   register repeat at one stride, and both halves are already measured with nothing told: the kind from
-   `host_address_ask`, the stride from `period_read` (M18) or shift agreement over the sequence of kinds. The
-   channel samples the range coarse with the classifying ask, the gate's descent steers toward where the kinds
-   stop being flat HOLDS or flat NOTHING and start repeating a FIXED then a LIVE, one struck record gives the
-   stride, and the rest is read one record at a time and not one address at a time. The width of a decoded
-   region is read last, from the mask a LIVE register gives back when it is written all ones: the part sets
-   the width and no hand writes it. On that the part's run channel stands, the records found this way with the
-   known order, its solve and the descent running over them, and NVRTC, nvJitLink and the CUDA runtime leave
-   the loop once a writing is put to a record and its bit read back.
 
-   The monolith (`src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.cu`) is what our compiler is held against: one program,
-   built once by NVIDIA's compiler, holding every base precept between tags, its listing the answer key and its
-   costs read on the part by `monolith_run`. `src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.sh` holds
-   every block against our reader, our assembler and the word our compiler writes it with, and writes
-   `monolith_differences.md` whole on every run. Wherever the machine file holds a form, our reader and
-   assembler give NVIDIA's operation bits exactly. What stands between our compiler and NVIDIA's writing is a
-   state error that compounds layer on layer, and it is fixed from the root up, each fix read off the record:
-   - Machine file. The fields the disassembler hides are in it: the descriptor register, the field that renames
-     the operation, the field whose 0 drops the operand, and the operand a form holds and does not print, which
-     keeps the bits its form was seen with. `src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_unprinted.sh`
-     asks the part what each value of such a field does and writes `interface_sass_unprinted.md` whole. A
-     predicate the same operation leaves out of its text at PT, as a load's at bits 64 to 67, is that operand's
-     run and its form's own bits where the text drops it; the load's holds its number inverted, and the part
-     answers each printed predicate as written. Our reader names a form a value renames by that value: a
-     multiplier of 0 or RZ reads IMAD.MOV, of 1 IMAD.IADD and of any other IMAD. The probe reads a relative
-     branch target, which the disassembler prints as the address it lands on, as its distance from the instruction
-     after it, and every branch form holds its distance at bits 34 to 81 and a predicate it prints at 87 to 90.
-     A bit one value of which leaves an operand out of the text under another name, as BAR.SYNCALL is BAR.SYNC with
-     its barrier left out, is the operation's; a field printed twice, as BAR.SYNC R0, R0 prints its one register,
-     is both operands', and the assembler refuses two values for it. All 2928 forms read back under their own
-     operation from their own encoding. With `--forms` the
-     script asks every form holding an unprinted operand, its operands filled by their kinds, and writes
-     `interface_sass_unprinted_forms.md`: of 437 such forms 368 are asked, and 375 of their 379 runs answer alike
-     at every value asked. Every cubin it writes declares 255 registers a thread: a kernel refuses a register
-     number past the count it declares, and F2FP's run at 64 to 72, refused at bits 68 to 71 under the pattern's
-     10, answers alike at every bit under 255. BAR.SYNC's and NANOSLEEP's runs are refused at every turned bit. A
-     form that takes an address is asked through the word it writes, and none of the 40 atomics holding an
-     unprinted register at 64 to 71 runs at its own bits: 22 are refused as illegal instructions, and 18 take a
-     32-bit or shared address that nothing the question holds backs. All 40 were reached by turning bits. NVIDIA's
-     compiler writes an atomic for an atomic on `.global` through a 64-bit pointer, and its 64-bit add holds the
-     descriptor register at 64 to 69 and two bits it refuses otherwise at 70 and 71, no register. The forms with no
-     result to read are not asked. `src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_fields.sh` turns each
-     operation bit of every form `sass.krs` uses and runs it on the part, its result moved to R8, its sources to
-     registers holding distinct values and a predicate it sets read through `SEL`, and writes
-     `interface_sass_fields.md` whole. A turned bit is put to the part only where its operation key holds forms in
-     the machine file and no control transfer or wait among them; any other is marked skipped and run on nothing.
-     Of the 75 forms, 1619 bits read inside a run the machine file records and 526 outside every run. The three
-     branch forms name a label and are not asked.
-   - Scheduler bits. NVIDIA sets them an instruction at a time. A late result sits behind a write barrier and a
-     store behind a read barrier, read from what NVIDIA's compiler writes over the tree (`monolith_scheduler.md`).
-     The soonest a fixed result is read is the part's answer on the run channel, walked down by
-     `klq_identity.sh stall` and held in `sm_86.ksc` as `run answers <stall> stall <writer> <reader>`. Our safe word
-     stalls each instruction the largest soonest its operation answered, the longest where it answered none
-     (`sass_operation_schedule`). `sm_86.ksc` holds none until the stick answers whole at the longest stalls: that
-     run is the baseline each stall is timed against, and a stall is kept at the longest whose time matches the
-     shortest. `cubin_safe` asks no stall of an instruction a form holds: a short one gives a wrong answer and
-     never a kernel that does not return.
-   - Writings searched on the part. `src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings.sh` puts every
-     form of the machine file that writes a register from registers, predicates and numbers alone, 745 of 2928, in
-     place of the kernel's IADD3, each through the gate, and runs it on the part over 256 cases at once: the ladder's
-     two-word cases, the words a width turns on against the counts a shift turns on, and words drawn as
-     `chain_build` draws its sweep. A form is put with every assignment of the two words and RZ to its register
-     sources that gives both, and a number whose field is eight bits wide, a truth table, with each of its 256
-     values. It writes `interface_sass_writings.md` whole: 5685 cubins, 5394 run and the part refuses 291. Every
-     precept that carries a word holds under at least one form, asr, rol and ror each as a `.W` funnel given the
-     word on both halves, and every ladder relation but same. On the ladder's cases alone a dot product of bytes
-     holds product and every shift holds up or down: the drawn words take them out. Up and down hold only under
-     `.W`, since the precept wraps a count of 32 and more and the forms without `.W` answer 0 there.
-   - Arrangements run on the part. The same script writes every arrangement of `machines/sm_86.kdm` node by node,
-     each node the first writing the search found for its precept, runs all 3068 over the same cases and writes
-     `interface_sass_chains.md` whole: every one answers its relation on every case, add 1202, take 1047, up 411 and
-     down 408. Then the cases `gate_descent` places for each relation, one or two, are put to every arrangement it
-     descends over, 3575 of them, on the part alone, and `interface_sass_descent.md` holds the part's verdicts to the
-     descent's: what stands on the part stands on the host for every relation, and no verdict differs.
-   - `sass.krs`. `word_shl` and `word_shr` carry no `.W`, and a count of 32 or more answers 0
-     where the precept wraps it. The machine file holds no `.W` form with a number for the count, and the code
-     generator writes number counts of 1 to 31 alone, where both forms agree. `word_funnel_right` carries no `.W`
-     and has no left form; there is no
-     arithmetic shift form; NOT, NAND and NOR have no form, each one `LOP3` (0x33, 0x3f, 0x03); add and
-     subtract write `IADD3` alone.
-   - Word web and alphabet web. On this part every gate is one `LOP3` node and ASR, ROL and ROR are each one
-     `SHF` node, where the webs hold gates as separate precepts, NOT and NAND written from each other, and the
-     rotates and the sign spread as trees the width counts. `word_shl` and `word_shr` are the precept by the word web and
-     not by its form.
-   - Candidates the part's clock chooses between: ERR as a trap in place or a branch to a handler; MOV as the
-     passage or `word_copy`; ADD and SUB as `IADD3` or `IMAD.IADD`.
-   - Past the monolith: NAND and NOR in one `LOP3` where NVIDIA writes two, and ROL and ROR in one `SHF` without
-     the guard NVIDIA keeps from the source.
-   - The harness walks the alphabet tree one level where a precept has no word.
-
-3. **`.kdm` costs count nodes.** `utils/maint/engine/chain_check.sh` writes 2857 arrangements over 27.6M tried, add
-   1140, take 904, up 409, down 404, each once, and nothing for same, places or product at three nodes.
-   `utils/maint/engine/klq_identity.sh cost` puts each one whose nodes are words `sass.krs` writes at a link of its
-   operator's word in a chain of ours, holds it to the host, and reads the part's clock over it, every question in one
-   round: all 2857 are costed, every one alike with the host, at 4 clocks a node. `word_nand`, `word_nor`, `word_rol`
-   and `word_ror` are written from the forms the part answers each precept for (`interface_sass_writings.md`), and the
-   stall walk reads each rotate's soonest in the arrangements that hold it. The safe word stalls each link the
-   soonest its writer's result is read whether the next link reads it or not, and every operation the arrangements
-   use is read soonest at 4: a cost counts nodes. Arrangements of one count of nodes are told apart only by a word
-   that stalls where a link reads the one before it.
-
-4. **`.krs` has no derived half.** Five are written. None can be completed by asking. A partly written one is the
+2. **`.krs` has no derived half.** Five are written. None can be completed by asking. A partly written one is the
    normal case and not a failure.
 
-5. **The answer keys still hold the weight.** `precepts.h` holds 18 precepts and `word_web.h` 18 words, both typed.
+3. **The answer keys still hold the weight.** `precepts.h` holds 18 precepts and `word_web.h` 18 words, both typed.
    `sm_86.khw` is one run's output read back as an input. These are for checking a derivation against. Nothing
    that derives may read them.
 
-6. **The relations are not asked for everything.** An atomic add has no relation put for it. `global_add_atomic_word` waits on
+4. **The relations are not asked for everything.** An atomic add has no relation put for it. `global_add_atomic_word` waits on
    that, and not on a name a disassembler will not print.
 
-7. **VHDL is a target on the Pi**, built on the `cell_tracking` branch at `bbc464b`, off main. State forms cut the
+5. **VHDL is a target on the Pi**, built on the `cell_tracking` branch at `bbc464b`, off main. State forms cut the
    program into clock states and `vhdl.krs` writes a clocked entity. In progress, uncommitted, and the device
    writes where the host refuses.
 
-8. **Not proved.** Of the matrix's 57 suites, 43 hold every check on the current tree: daemon, web_check, interface,
+6. **Not proved.** Of the matrix's 57 suites, 43 hold every check on the current tree: daemon, web_check, interface,
    interface_sass, interface_ptx, ruleset_read, cubin_safe, record_host, record_c, codegen_device, engine_c,
    exact_divide, exact_transform, max_tree, device_pool, period, python_period, python_periodic_energy, double_fields,
    obsignatio, qasm, record_sum, vhdl_construction_set, record_bitwise, record_coherence, record_divide,
@@ -537,132 +290,16 @@ reads has changed.
    before a cubin is written. A loop ask
    branches by its nature and is held off the part until a rule says when a loop ends.
 
-9. **The query record holds its asks and their costs, and not yet the paths over them.** `.kqr`, the query record, holds the asks put to a
-    member and the paths read off them, in that order: every probe and what came back, with costs, refusals
-    and censored samples each marked, then the winning path per problem over those same asks. It takes the
-    stem the rest of the set takes. That face, `.kdm` and `.knf` under one stem are a member's coherence map
-    and fingerprint it exactly. It carries the general and specific split `.kdm` carries: a generic block good
-    for any member of a class, and a specific block holding the best combination available for one section of
-    one member. Keeping the asks beside the paths leaves the fingerprint independent of `.kdm` in place of a
-    cache of it. A refused or censored probe appears nowhere in a table of chain costs, and it separates two
-    parts that cost the same. Every mode of `klq_identity.sh` writes `sm_86.kqr`
-    (read and written by `kqr.c` in `src/cu/types/file_defs/kqr`) beside R: every untimed ask and
-    what came back, each case's word or the refusal, timed_out where the watchdog ended it and censored where the
-    gate held it off the part to protect the whole; every timed ask a sample of its own with the nanoseconds its
-    launches took; then each pair and its verdict. A cycle reads it first and asks the part only what no cycle
-    asked, a timed ask excepted and an ask that timed out asked again until an answer resolves it, and an open pair
-    is the question a further pass takes up. The curve of task 1006 writes 293 samples, 278 with their cost and 15 refused. The asks and
-    samples stand in the order they were put, each cycle that put a new one before them with its mode, its seed
-    where it draws one and its rounds, and a cycle the record answers whole writes no line. The winning path over
-    chain costs and the general and specific split are not written yet.
-
-10. **The order of asks is built on the host and nothing emits it to a target.** The order, its solve and the
-    contention read are proved on the host (M24 in the engine table, Q5, Q7). The device half is open: a container
-    that runs a chain's covered links and reads the part's clock around them, put through the channel in Open 2,
-    with the censored-sample mark and the reference ask alongside. Its answer carries one bit a check, 128 an ask,
-    and never one bit over a set (Q15).
-
-11. **Stem membership has a written rule and nothing reads it.** Two members sharing a stem is the whole basis
-    of a set, and pairwise agreement inside a floor cannot decide it. `src/cu/transpiler/lstar/protocol/order/stem_group.{h,c}`
-    holds an anchored group rule: the members in an order fixed by what they are, the finest floor first, the first
-    member with no group anchoring one, and every member with no group that agrees with that anchor joining it.
-    Agreement is a conjunction over rows at the coarser floor, and a row one member refused and the other
-    measured separates them. `stem_group_check.c` (run by `utils/maint/engine/chain_check.sh`) holds it: the three
-    members `order_check.py` breaks pairwise agreement with group the same way in all six orders, and over 400
-    drawn sets every member agrees with its anchor, no two anchors agree, and every set groups alike under 24
-    shuffles. A group is a function of the whole set, and a block written for one is written again when the set
-    changes. The open part is the general block in `.kdm` keyed to a group, which nothing writes yet.
-
-12. **One function of 132 runs on the device.** `src/cu/types/integerfloats/double_fields/double_fields.cu` holds
+7. **One function of 132 runs on the device.** `src/cu/types/integerfloats/double_fields/double_fields.cu` holds
     `double_fields.c`'s four functions as one record program, encoded, laid out and loaded by the calls
     `engine_record_encode` makes, swept on the device and run on the host. `double_fields_test.cu` holds it 1:1
     against the C on 4110 lanes, the edges of a double and 4096 drawn words, with merges past every mask: the
     device equals the host word for word, both equal the C on every lane, and a mask one short fails 2049 lanes
     of the exponent and 2056 of the merge. The program is written from the C by hand, and deriving a function's
     program from the function is not built. The record program reaches the part through NVRTC and nvJitLink,
-    scaffolding until the channel in Open 2 carries it. The other 131 functions that compute and the 47 that call
+    scaffolding until the channel in Open 1 of the query protocol table carries it. The other 131 functions that compute and the 47 that call
     the operating system are rows in `TREE_LAYOUT_PLAN.tsv`, listed by
     `utils/maint/engine/tree_layout_check.py --write`.
-
-13. **A run is one table of blobs, and is to be a database of its own, a table for each area of it.** A run's `.qry`
-    holds every blob handed to it and a table of them, a row a blob: its name's hash, its sequence, its time, its
-    priority and where its bytes sit (`qry.h`). Each process of the run hands into a ring of its own, which the writer
-    moves into the run in turn; a file handed to the run is written in its place once the run ends (`qry_filed`), and
-    while the run runs every file is read from memory (`qry_file_read`). The run as planned:
-    - **A table for each area.** The teacher's asks, the carrier's launches, the gate's verdicts, the overseer's
-      conferences and lessons, the cross's pairs, the writers' files and every trace each own a table. A row is fixed
-      numbers: its key, the run's sequence; its who (`QryWho`), the source, the line, the program and the time; and
-      the columns its table names, each a number. A text is held once, in the run's table of texts, and a row names
-      it by its number, as a `.kqr` names its texts (`krep_records.h`). A table's columns and codes stand in its
-      oracle, `<area>.oracle.tsv`, and its reader and the decoder read them from there.
-    - **The tables.** Past the key and the who, each row holds these columns, every one a number, a text by its
-      number and bytes of a length a row cannot fix by the key of their blob:
-      - texts: the text's bytes, each text once.
-      - blobs: the blob's name, its bytes and its priority, as the `.qry`'s table holds them (`qry.h`).
-      - links: the key a link is from, the key it is to and the link's code: every relation between rows that one
-        column cannot hold, the launches a verdict read, the accounts a conference heard, the rows a file was
-        written from.
-      - asks, the teacher's: the records `.kqr` holds, a row each (`kqr.h`). An ask its identity, the hash of its code,
-        its registers, threads, blocks and launches, its count of cases and the hash of its cases, then its answer's
-        code, the blob of its words and the text of its refusal; a sample its identity, its answer's code, its
-        nanoseconds and the least and the most one launch took; a cycle, a seed and a round each its number; a pair
-        its two forms' texts, the hash of what its put reads and its verdict's text.
-      - launches, the carrier's: the ask's key, the blobs of its code and its container, the outcome's code,
-        answered, refused, timed out or faulted, its nanoseconds, the least and the most one launch took, and the
-        text of what the carrier said.
-      - verdicts, the gate's: the ask's key, the rule's number, held or put, and the text of its reason.
-      - accounts, conferences and lessons, the overseer's: an account the expert's code and the text it gave; a
-        conference the question's key, the cause's code and its ruling's code, consensus or none, the accounts it
-        heard its links; a lesson the conference's key, the cause's code, the text of its carrier or every carrier,
-        and the text of the stand-in as written.
-      - pairs, the cross's: the texts of its two forms, the verdict's code, closed or open, its count of cases alike
-        and the key of the case that closed it.
-      - files, the writers': the text of its path and the blob of its bytes, the rows it was written from its links.
-    - **A trace is rows.** Every row carries its who, the source and the line of the code that made it; an area's
-      trace is its rows in the order of their keys. A decision that makes no row of its own, an ask the gate puts
-      past a rule, is a row of its area's table with the decision's code.
-    - **A buffer for each member.** Each process of a run is a member and hands its ordinary blobs into a ring of its
-      own in the run's shared memory, at the ring's tail, with no lock another member takes (`qry_buffer.h`). The
-      writer takes the members in turn and on a member's turn moves everything from the ring's head to its tail into
-      the run's buffer in one go, each blob given its sequence as it goes in; a ring that holds nothing has a turn that
-      does nothing, and the member keeps adding past what is taken. A panic and a critical blob go in at the tail as
-      they are handed, ahead of every member. A process moves its own ring before another reads what it handed
-      (`qry_moved`) and settles every ring once a process it started has ended (`qry_settled`).
-    - **One writer.** The pressure buffer drains every area's buffer into the `.qry`: panics first, then critical,
-      then the ordinary rows in stretches, as it writes blobs. As the run ends it dumps each table's rows and its
-      index beside the blobs, and the blobs stay a table of their own for raw bytes, a cubin or a listing.
-    - **Rows keyed to rows.** A row names the rows it follows from by their keys: a launch the ask it carried, a
-      verdict the launches it read, a conference the refusals it heard, a file the rows it was written from. A
-      question about a run is a walk over keys, and the decoder (`kdecode`) is its select: a table, a range of keys,
-      raw or decoded.
-    - **Files as views.** Nothing writes a file in its place while the run runs. A file handed to the run is a row
-      of the files table and its bytes, every program of the run reads the latest of it from the run
-      (`qry_file_read`), and the writer writes each file in its place as the run ends. A file the run reads from the
-      disk is taken into the run the first time it is read, and read from memory after: while the run runs, it reads
-      from memory and not the disk. A tool outside the run that reads a file from the disk while the run runs, nvcc,
-      nvdisasm or a script's `cmp`, is pointed at a stream the run puts out for it (`qry_streamed`), as
-      `measuring_stick_query.c` points nvdisasm.
-
-    It is built in this order, each step held by the checks that hold the run now (`chain_check.sh`, the overseer's
-    check, the writers' bytes):
-    1. A buffer for each member under the blob calls as they stand, and the time of a hand measured under contention
-       before and after. Built and measured (`build/harness/qry/hand_time.sh`, 2000 hands of 256 bytes or 200 of 64 KiB
-       a process): a hand of 256 bytes takes a median of 0.1 µs at 1, 4 and 16 processes against 1.2 to 1.4 µs under
-       the one lock, and its 99th hundredth 1.4 to 2.3 µs against 5.5 to 18; a hand of 64 KiB takes a median of 31 to
-       41 µs against 30 to 50, its 99th hundredth 170 to 2491 µs against 56 to 341, and 16 processes hand theirs in
-       15.4 ms against 25.0. Every byte reaches the run as handed.
-    2. Files written as the run ends, and every step that reads a filed file from the disk while the run runs found
-       and pointed at a stream. Built: the writer writes each file's latest handed bytes in its place once the `.qry`
-       is dumped and before it says it has stopped; a file the run reads from the disk is taken into the run and read
-       from memory after; the engine's ruleset reader reads every ruleset, `.kdm` and `.ksc` as the run holds it, a
-       program built without the run's buffer linked to stand-ins that read the disk (`ruleset_flat.cu`); and every
-       other read of a file the run writes, `klq_identity`'s pipe rows, the descent's cases and `sass.krs` in the
-       scaffolding and the monolith, goes through the run. `kdm_check` holds a file the run writes to be read from the
-       run and not the disk while the run runs, and `chain_check.sh` holds it in its place once the run has ended.
-    3. Rows: the head and the records of `krep_records.h` made a table of the run, the teacher's asks first, which
-       `.kqr` holds, and `.kqr` then a view of that table.
-    4. The carrier's launches, the gate's verdicts, the overseer, the cross and the writers, a table each.
-    5. `kdecode` reading the tables.
 
 ## Pending Doug
 

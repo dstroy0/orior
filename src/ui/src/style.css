@@ -1846,8 +1846,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
    its own place. */
 .bar-mark {
   position: relative;
-  left: -4px;
-  top: 6.2px;
+  left: -9px;
+  top: 3.2px;
   margin-right: -4.4px;
 }
 

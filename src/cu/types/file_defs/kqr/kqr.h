@@ -15,6 +15,10 @@
 // (QryWho); and a cycle, a seed and a round are each written before the first new ask or sample that follows them and
 // nowhere where none follows, so that a cycle the record answers whole adds no record to it. A record of the .kqr's
 // text form, read where a file holds it, is written back as records, its lines in their order.
+//
+// A record a run keeps is a view of the run's table of asks, KQR_TABLE (kqr_tabled_by, krep_records.h): every record
+// it holds a row of the table, every record kept after a row as it is kept, and the record written as its rows put it
+// together.
 #ifndef KQR_H
 #define KQR_H
 
@@ -29,6 +33,9 @@ extern "C"
 
 // the .kqr's kind, the four bytes after the k-file head
 #define KQR_KIND "KQR\0"
+
+// the name of the run's table whose rows a record a run keeps is a view of
+#define KQR_TABLE "asks"
 
 // the codes of the .kqr's records, as its oracle gives them
 #define KQR_MEMBER_RECORD 0x10u
@@ -149,8 +156,15 @@ extern "C"
     // one of `member` where it stopped
     int kqr_read(KqrRecord *record, const char *path, const char *member, char *error, size_t room);
 
-    // `record` handed to the run's writer as the file at `path` (qry_filed_by), written by `who`: 1, or 0 where no
-    // run's writer runs, the path stands outside the tree, or it could not be written
+    // `record` made a view of the table KQR_TABLE of the run `buffer`, as the file at `path`, by `who`
+    // (krep_tabled_by): every record it holds a row of the table, every record kept after a row as it is kept, and the
+    // record written as its rows put it together. 1, or 0 where it is not open, no run is given or a row could not be
+    // handed, and the record is written as it is held
+    int kqr_tabled_by(KqrRecord *record, QryBuffer *buffer, const char *path, QryWho who);
+
+    // `record` handed to the run's writer as the file at `path` (qry_filed_by), written by `who`, the record its rows
+    // put together where it is a view of the run's table (kqr_tabled_by): 1, or 0 where no run's writer runs, the path
+    // stands outside the tree, or it could not be written
     int kqr_write_by(const KqrRecord *record, const char *path, QryWho who);
 
     // everything `record` holds let go, and the record zeros again
@@ -192,6 +206,7 @@ extern "C"
     void kqr_text_sliced(const KqrRecord *record, QryText *text, int named, unsigned int from, unsigned int count);
 
 // each, the who the code that calls it
+#define kqr_tabled(record_, buffer_, path_) kqr_tabled_by((record_), (buffer_), (path_), QRY_WHO_HERE)
 #define kqr_write(record_, path_) kqr_write_by((record_), (path_), QRY_WHO_HERE)
 #define kqr_keep(record_, ask_) kqr_keep_by((record_), (ask_), QRY_WHO_HERE)
 #define kqr_sample(record_, sample_) kqr_sample_by((record_), (sample_), QRY_WHO_HERE)

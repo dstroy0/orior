@@ -74,7 +74,7 @@ jobs:
       - name: Gather
         run: |
           mkdir -p dist
-          find src/ui/src-tauri/target -path '*/release/bundle/*' -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) -exec cp {} dist/ \;
+          find build/cargo -path '*/release/bundle/*' -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) -exec cp {} dist/ \;
           ls -l dist
           test -n "$(ls dist)"
 

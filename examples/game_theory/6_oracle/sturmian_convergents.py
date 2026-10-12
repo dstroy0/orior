@@ -37,7 +37,7 @@ import sys
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 ROOT = HERE
-while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(os.path.join(ROOT, "src", "python")):
+while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     ROOT = os.path.dirname(ROOT)
 sys.path.insert(0, os.path.join(ROOT, "src", "python"))
 import manifest  # noqa: E402,F401

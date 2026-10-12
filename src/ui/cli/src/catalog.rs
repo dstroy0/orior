@@ -53,6 +53,11 @@ pub enum Arg {
     Unpath(String),
     /// No argument: the step runs only where the param's value is the value named.
     Only(String, String),
+    /// No argument: the step runs only where a value of the param is given.
+    Given(String),
+    /// No argument: the value of a param, where one is given, set in the step's environment under the
+    /// variable named.
+    SetFrom(String, String),
     /// The text with each {key} in it filled with that param's value, as one word.
     Format(String),
     /// A flag and then the value of a param, where one is given other than the value named.
@@ -617,6 +622,7 @@ pub fn read(root: &Path) -> Vec<Job> {
     crate::executables::jobs(root, &mut jobs);
     crate::deploy::jobs(root, &mut jobs);
     protocol(root, &mut jobs);
+    crate::query::jobs(root, &mut jobs);
     driver(root, &mut jobs);
     runners(root, &mut jobs);
     sims(root, &mut jobs);

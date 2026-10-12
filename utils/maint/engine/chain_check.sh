@@ -12,6 +12,9 @@
 #   kqr_check        holds R, the .kqr's reader and writer, to what its oracle says of it, on a record it writes and
 #                    on the part's own, written as records and read back as its bytes
 #   who_check        holds a who to what the who table gives, and every write to the who the run records of it
+#   qry_rows_check   holds a row of a table of the run to its who and its columns as handed, and a text of the table
+#                    of texts to its number, handed once
+#   kdecode_check    holds kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
 #                    a who line, and the part's cost rows put again as it was
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
@@ -62,6 +65,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/answer_read_check" "$TOP/utils/test/src/c
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kqr_check" "$TOP/utils/test/src/cu/types/file_defs/kqr/kqr_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/file_defs/who/who_check.c" \
+    "${FILE_DEFS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_rows_check" "$TOP/utils/test/src/cu/types/file_defs/qry/qry_rows_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/file_defs/ksc/ksc_check.c" \
     "${FILE_DEFS[@]}" || exit 1
@@ -124,8 +129,8 @@ fi
 "$OUT/ask_order_check" || exit 1
 "$OUT/query_ask_check" || exit 1
 "$OUT/answer_read_check" || exit 1
-# R's check and the who's in a run of their own, whose writer writes the records and the file they are held to, ended
-# with the subshell
+# R's check, the who's and the rows' in a run of their own, whose writer writes the records and the file they are held
+# to, ended with the subshell
 (
     source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
     qry_writer_built "$OUT"
@@ -133,6 +138,7 @@ fi
     run_started "$OUT/kqr_runs"
     "$OUT/kqr_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kqr" &&
         "$OUT/who_check" "$OUT" &&
+        "$OUT/qry_rows_check" &&
         "$OUT/ksc_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.ksc" &&
         "$OUT/kdm_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kdm"
 ) || exit 1
@@ -145,6 +151,8 @@ else
     echo "  the file the run held is NOT in its place now the run has ended"
     exit 1
 fi
+# kdecode's select over the tables of that run, read once it has ended
+bash "$TOP/utils/test/src/cu/types/file_defs/kdecode_check.sh" "$newest_run" || exit 1
 "$OUT/survivors_check" || exit 1
 mkdir -p "$OUT/scheduler_check.dry"
 "$OUT/scheduler_check" "$OUT/scheduler_check.dry" || exit 1

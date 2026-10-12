@@ -1,0 +1,7 @@
+where	who	kind	code	form	numbers	gloss
+row	overseer	lesson	-	lesson <conference> <cause> <carrier> <standing>	<who> <conference text> <cause> <carrier text> <standing text>	a lesson a conference taught that the run did not hold, a row of the table lessons
+column 0	overseer	conference	-	<text>	<text>	the conference that taught it: the question's identity, by its number in the table of texts
+column 1	overseer	cause	-	<cause>	<code>	the cause it was taught by, by the codes of accounts.oracle.tsv
+column 2	overseer	carrier	-	<text>	<text>	the carrier it holds at, `*` at every carrier, by its number in the table of texts
+column 3	overseer	standing	-	<text>	<text>	the stand-in as written, held off the part, by its number in the table of texts
+any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (QryWho, qry_buffer.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, lessons, and its key the blob's sequence in the run

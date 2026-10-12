@@ -47,8 +47,10 @@
 // the learner. The lessons are the run's blob OVERSEER_LESSONS, read where a run carried them in and handed whole as
 // each is taught, and a question a lesson holds is answered as held, the part never seeing it.
 //
-// The ruling is handed to the conference as the overseer's own account. The overseer is called from one thread at a
-// time.
+// The ruling is handed to the conference as the overseer's own account. Every account the overseer hears, every
+// conference it holds and every lesson it teaches is a row of the run's tables of accounts, conferences and lessons
+// (accounts.oracle.tsv, conferences.oracle.tsv, lessons.oracle.tsv, qry_buffer.h), each naming its conference by the
+// number of the question's identity in the table of texts. The overseer is called from one thread at a time.
 
 #include "../../../../types/file_defs/qry/qry_buffer.h"
 

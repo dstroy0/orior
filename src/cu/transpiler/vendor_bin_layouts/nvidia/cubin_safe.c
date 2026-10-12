@@ -43,9 +43,10 @@ static unsigned int cubin_register_of(unsigned long long low, unsigned long long
     return CUBIN_REGISTER_ZERO;
 }
 
-// 1 where an operand of `form` names a register the kernel never allotted: one at `registers` or above, where that
-// count is known, or past the part's ceiling register_last, RZ always excepted. The form says which operands are
-// registers and where they sit (sass_machine.h); the instruction `low` and `high` holds their numbers
+// 1 where an operand of `form` names a register the kernel never allotted: where `registers` is known, one past
+// R(registers - register_past), the part's answer of how far a container's code reaches, and every one where the part
+// has not answered it; or one past the part's ceiling register_last; RZ always excepted. The form says which operands
+// are registers and where they sit (sass_machine.h); the instruction `low` and `high` holds their numbers
 static int cubin_register_out_of_range(const SassMachine *machine, const SassForm *form, unsigned long long low,
                                        unsigned long long high, unsigned int registers)
 {
@@ -61,7 +62,10 @@ static int cubin_register_out_of_range(const SassMachine *machine, const SassFor
         {
             continue;
         }
-        if ((registers != 0u) && (value >= registers))
+        // a register past the reach answered faults the part with a register out of range, and one where the reach is
+        // not answered may; a container declaring d reaches no further than R(d - 1), whatever a machine holds
+        const unsigned int past = (machine->register_past == 0u) ? 1u : machine->register_past;
+        if ((registers != 0u) && ((machine->register_past == SASS_MACHINE_UNANSWERED) || ((value + past) > registers)))
         {
             return 1;
         }
@@ -317,9 +321,9 @@ static void cubin_safe_verdict_clear(void)
     s_verdict_ready = 0;
 }
 
-int cubin_safe_verdict_read(const char *bytes, unsigned long long size)
+// every line `<low> <high>` of the `size` bytes at `bytes` added to the held list: 1, or 0 where it did not fit memory
+static int cubin_safe_verdict_lines(const char *bytes, unsigned long long size)
 {
-    cubin_safe_verdict_clear();
     char line[CUBIN_SAFE_HELD_LINE];
     int grown = 1;
     unsigned long long at = 0ull;
@@ -358,13 +362,30 @@ int cubin_safe_verdict_read(const char *bytes, unsigned long long size)
             s_held_count += 1u;
         }
     }
+    return grown;
+}
+
+int cubin_safe_verdict_read(const char *bytes, unsigned long long size)
+{
+    cubin_safe_verdict_clear();
     // a list that did not fit holds nothing: the verdict stays unloaded and the airlock keeps every code off the part
-    if (!grown)
+    if (!cubin_safe_verdict_lines(bytes, size))
     {
         cubin_safe_verdict_clear();
         return 0;
     }
     s_verdict_ready = 1;
+    return 1;
+}
+
+int cubin_safe_verdict_added(const char *bytes, unsigned long long size)
+{
+    // a list that did not fit leaves none at all: the verdict unloaded and every code held off the part
+    if (!cubin_safe_verdict_lines(bytes, size))
+    {
+        cubin_safe_verdict_clear();
+        return 0;
+    }
     return 1;
 }
 

@@ -1,4 +1,3 @@
-# What cargo and the Tauri build write here, each rebuilt from Cargo.lock and the sources.
-src-tauri/target/
-cli/target/
+# What the Tauri build writes here, rebuilt from the sources. Every crate's own build goes under the top's build/
+# (.cargo/config.toml at the top).
 src-tauri/gen/

@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds and runs khw_write (src/cu/transpiler/lstar/parser/khw_write.c): the part's forms learned by asking the
 # part, and sm_86.khw written from the answers. Every question is carried by vendor_bin_layouts/nvidia/cubin_run and
-# held to cubin_safe on the host before the driver sees it. Nothing of a vendor's toolchain is run and no listing is
-# read: the kernel is the code the container the system accepted already holds, the cases are the ladder's, and the
-# host computes each case beside the part.
+# held to cubin_safe on the host before the driver sees it. Nothing of a vendor's toolchain enters what is learned: the
+# kernel is the code the container the system accepted already holds, the cases are the ladder's, the host computes
+# each case beside the part, and the vendor's disassembler only checks each round before the part (run_channel.h).
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_write.sh [dry|enumerate <slot>] [<rounds>]
 #
@@ -14,9 +14,11 @@
 # Every mode is one query run, query<n>-<datetime>.qry in build/engine/khw/qry (qry_run.sh): every question, its cases
 # and answers, the lists, the forms and what the vendor's writer and the carrier print are blobs of it, and no file of
 # theirs is written beside it. Each run carries in the forms the run before it left, forms.txt and forms_work.txt, and
-# holds every file it reads as it read it and those it changes as it left them. The live run is handed held.txt, the
-# vendor's feedback, carried from the latest run there that holds one (measuring_stick_query.sh): the carrier holds
-# every encoding it names off the part.
+# holds every file it reads as it read it and those it changes as it left them. Every round of the live run passes the
+# airlock before the part: the carrier with the part taken out pops each question's container, the cross reads them
+# against the vendor's disassembler (measuring_stick_query.c) and hands held.txt, which the carrier holds every
+# encoding of off the part, a question held only for a register past its count is put again with the count that
+# clears it, and each hold and each count given is a line of the teacher's trace.
 #
 # With `enumerate <slot>` nothing reaches the part either, and no carrier runs: the slot's questions are emitted for
 # the vendor's disassembler to read before a deeper run carries them. Each form a prior run learned (the run's
@@ -86,7 +88,7 @@ questions_counted()
 # the run, holding what it runs against: the forms the run before it left, carried in (the files beside the machine
 # file where no run holds them), and every file it reads as it read it, and those it changes as it left them
 run_started "$RUNS"
-run_carried "$RUNS" "$WORK/forms_work.txt" "$WORK/forms.txt" held.txt
+run_carried "$RUNS" "$WORK/forms_work.txt" "$WORK/forms.txt" faulted.txt
 run_read "$MACHINE" "${MACHINE%.khw}.ksc" "${MACHINE%.khw}.kqr" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
     "$LAYOUTS/nvidia/mnemonic_nvidia.tsv"
 if [ "$MODE" = "enumerate" ]; then
@@ -112,17 +114,20 @@ if [ "$MODE" = "enumerate" ]; then
 fi
 
 if [ "$MODE" = "live" ]; then
-    # the vendor's feedback, where a cross-check has handed it to a run (measuring_stick_query.sh), carried into this
-    # one above: the carrier holds every encoding it names off the part before the driver sees it, however our own gate
-    # read it
-    HELD_WORDS=()
-    if "$QRY_WRITER" latest held.txt > /dev/null 2>&1; then
-        HELD_WORDS=(--held held.txt)
-        echo "  the vendor's feedback holds $("$QRY_WRITER" latest held.txt | grep -c .) encodings off the part this run"
-    fi
+    # the cross every round passes before the part, the vendor's disassembler beside its compiler: the carrier holds
+    # every encoding the round's held.txt names off the part before the driver sees it, however our own gate read it
+    CROSS="$OUT/measuring_stick_query"
+    cc -std=c11 -O2 -Wall -Wextra -pthread -I "$TOP/src/cu/engine" -o "$CROSS" \
+        "$LAYOUTS/nvidia/measuring_stick_query.c" "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
+        "${FILE_DEFS[@]}" || { echo "  build failed: the cross did not compile"; exit 1; }
+    NVDISASM="$(dirname "$(command -v nvcc)")/nvdisasm"
+    [ -x "$NVDISASM" ] || [ -x "$NVDISASM.exe" ] ||
+        { echo "  no nvdisasm beside nvcc: the airlock has no reader, and nothing goes to the part"; exit 2; }
     "$BINARY" sm_86 "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
         "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" "$WRITER" "$ROUNDS" -- \
-        "$CARRIER" "${HELD_WORDS[@]}" "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
+        "$CARRIER" --held held.txt "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
+        --pop "$CARRIER" --dry --full "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
+        --cross "$CROSS" "$NVDISASM" SM86 airlock.md held.txt
     exit $?
 fi
 

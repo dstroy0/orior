@@ -40,7 +40,7 @@ mkdir -p "$OUT"
 
 RUN="${1:-}"
 if [ -z "$RUN" ]; then
-    RUN="$(ls -d "$TOP"/build/*/sass/form_0.text "$TOP"/../build/harness/*/sass/form_0.text 2>/dev/null | sort | tail -1)"
+    RUN="$(ls -d "$TOP"/build/*/sass/form_0.text "$TOP"/build/harness/*/sass/form_0.text 2>/dev/null | sort | tail -1)"
     RUN="${RUN%/sass/form_0.text}"
 fi
 [ -f "$RUN/sass/form_0.cubin" ] && [ -f "$RUN/sass/form_0.text" ] || { echo "  no earlier run with sass/form_0"; exit 1; }

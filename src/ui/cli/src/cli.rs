@@ -585,6 +585,13 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "list" => list(&root, first),
         "tests" => tests_list(&root, words),
         "bridge" => bridge(&root, first),
+        "query" => match (crate::query::values(&root, words), job_named(&catalog::read(&root), crate::query::ID)) {
+            (Ok(given), Ok(job)) => run_job(root, job, &given),
+            (Err(said), _) | (_, Err(said)) => {
+                err(&said);
+                NO_CODE
+            }
+        },
         _ => {
             let Some(name) = first else {
                 err(&format!("{command} needs a job: orior run list names them"));

@@ -95,7 +95,7 @@ def _repository_root():
 
     climbed = start
     while (climbed != os.path.dirname(climbed)) and not os.path.isdir(
-        os.path.join(climbed, "src", "python")
+        os.path.join(climbed, "src", "cu", "engine")
     ):
         climbed = os.path.dirname(climbed)
     return climbed

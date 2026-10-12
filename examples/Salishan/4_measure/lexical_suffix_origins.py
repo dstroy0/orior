@@ -24,7 +24,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # Walks up to the repository instead of counting directories to it.
-while not os.path.isdir(os.path.join(ROOT, "src", "python")):
+while not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     ROOT = os.path.dirname(ROOT)
 EXPERIMENTS = os.path.join(ROOT, "utils", "maint", "data", "salishan", "experiments")
 sys.path.insert(0, EXPERIMENTS)

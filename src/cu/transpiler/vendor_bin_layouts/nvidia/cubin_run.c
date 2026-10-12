@@ -44,6 +44,9 @@
 // the rest do the same work over again. One line is written to the answers:
 //
 //     answered <answer>...      each case's two words as one value in hex, in the order of the cases
+//     registers <declared> <part> the registers the question's kernel declares, and the count the part reports for it
+//                               through cuFuncGetAttribute: read off a loaded function and not probed, the register
+//                               boundary known without an ask that walks up to it and faults the part
 //     skipped <verdict> <name>  cubin_safe held it off the part, and the driver never saw it
 //     skipped no vendor verdict a live run was given no --held file: the vendor's reader never read this code for a
 //                               fault. It is held off the part, the cross must read it first (the safety airlock)
@@ -58,7 +61,8 @@
 // `refused CUDA_ERROR_LAUNCH_TIMEOUT`, and nothing is launched after it in the process.
 //
 // After each launch the part's own fault telemetry is read, the Xid critical errors the driver's management layer
-// stamps (cubin_run_telemetry_open, cubin_run_telemetry_faulted), under cubin_safe's rule 7. A launch that makes the
+// stamps and, where the system keeps a log of them, every error the display driver writes to the System log, each Xid
+// with its text (cubin_run_telemetry_open, cubin_run_telemetry_faulted), under cubin_safe's rule 7. A launch that makes the
 // part stamp one, or one the driver names a context-corrupting fault itself, has faulted the part: it is answered
 // `refused`, and nothing is launched after it in the process. This catches an out-of-range register, which faults in
 // microseconds and so never trips rule 6's bound, before its fault storm reaches the system's watchdog.
@@ -68,6 +72,10 @@
 // (cubin_run_timed):
 //
 //     timed <launches> <nanoseconds> <least> <most>
+//
+// Each question the gate reads is a row of the run's table of verdicts, put past every rule or held, and each launch a
+// row of its table of launches, each keyed to its ask, the sequence of the question's code's blob in the run
+// (verdicts.oracle.tsv, launches.oracle.tsv, qry_buffer.h).
 //
 // The driver is reached by name and by its own entry points, and nothing of its vendor's toolchain is compiled
 // against. Exit 0 where a line was written, 2 where no run's writer runs, or the inputs, the machine or the driver were
@@ -112,6 +120,25 @@
 #define CUBIN_RUN_THREADS_MOST (1u << 20u)
 // the exits a question's code holds at most
 #define CUBIN_RUN_EXITS 256u
+// the run's tables of the gate's verdicts and the carrier's launches, and what came of a launch, its row's outcome
+// (verdicts.oracle.tsv, launches.oracle.tsv)
+#define CUBIN_RUN_VERDICTS "verdicts"
+#define CUBIN_RUN_LAUNCHES "launches"
+
+// the slot instructions of launches that faulted the part, a line `<low> <high> <cause>` each, the cause the listener
+// heard or `-`: each held off the part from then on, in this run and in every run it is carried into
+// (cubin_safe_verdict_added)
+#define CUBIN_RUN_FAULTS "faulted.txt"
+#define CUBIN_RUN_ANSWERED 0u
+#define CUBIN_RUN_REFUSED 1u
+#define CUBIN_RUN_FAULTED 2u
+#define CUBIN_RUN_TIMED_OUT 3u
+
+// the attribute the driver reports a kernel's register count under (cuFuncGetAttribute, CU_FUNC_ATTRIBUTE_NUM_REGS):
+// the count the part says the kernel allots, read off a loaded function and not probed, and the register count before
+// it is read
+#define CUBIN_RUN_ATTRIBUTE_NUM_REGS 4
+#define CUBIN_RUN_REGISTERS_UNREAD 0xffffffffu
 
 // the driver's own types as its entry points take them: a status, handles, and a device address
 typedef int CubinRunStatus;
@@ -133,6 +160,7 @@ typedef struct
     CubinRunStatus (*context_set)(void *);
     CubinRunStatus (*module_load)(void **, const void *);
     CubinRunStatus (*function_get)(void **, void *, const char *);
+    CubinRunStatus (*function_attribute)(int *, int, void *);
     CubinRunStatus (*allocate)(CubinRunAddress *, size_t);
     CubinRunStatus (*copy_in)(CubinRunAddress, const void *, size_t);
     CubinRunStatus (*clear)(CubinRunAddress, unsigned char, size_t);
@@ -178,6 +206,42 @@ static unsigned long long cubin_run_input(const char *name, unsigned char *bytes
     // the blob fits `bytes`, whose count a size_t holds
     memcpy(bytes, held, (size_t)size);
     return size;
+}
+
+// the key of the ask whose code is the channel input `code_path`: the sequence of its latest blob in the run's buffer,
+// or 0 where the run holds none
+static unsigned long long cubin_run_ask_key(const char *code_path)
+{
+    const unsigned char *held = NULL;
+    unsigned long long size = 0ull;
+    unsigned long long sequence = 0ull;
+    return qry_latest(s_run, code_path, &held, &size, &sequence) ? sequence : 0ull;
+}
+
+// the gate's verdict on the ask `ask`, `verdict` and the byte `at` it held at, a row of the run's table of verdicts:
+// put or held, and carried where the part is there to carry it
+static void cubin_run_verdict_row(unsigned long long ask, unsigned int verdict, unsigned long long at, int dry)
+{
+    const char *const reason = cubin_safe_name(verdict);
+    const int held = (verdict != CUBIN_SAFE);
+    const unsigned long long row[6] = {ask,
+                                       verdict,
+                                       held ? 1ull : 0ull,
+                                       held ? at : 0ull,
+                                       qry_row_text(s_run, reason, strlen(reason)),
+                                       dry ? 0ull : 1ull};
+    qry_row_handed(s_run, CUBIN_RUN_VERDICTS, row, 6u);
+}
+
+// a launch of the ask `ask`, its outcome `outcome` and what the carrier said of it, `said`, empty where it answered, a
+// row of the run's table of launches with its timed launches' count and times
+static void cubin_run_launch_row(unsigned long long ask, unsigned int outcome, unsigned int launches,
+                                 unsigned long long nanoseconds, unsigned long long least, unsigned long long most,
+                                 const char *said)
+{
+    const unsigned long long row[7] = {
+        ask, outcome, launches, nanoseconds, least, most, qry_row_text(s_run, said, strlen(said))};
+    qry_row_handed(s_run, CUBIN_RUN_LAUNCHES, row, 7u);
 }
 
 // the lines of a channel input: its blob in the run's buffer, read in place
@@ -335,6 +399,7 @@ static int cubin_run_driver(CubinRunDriver *driver)
     *(void **)&driver->context_set = cubin_run_entry(library, "cuCtxSetCurrent");
     *(void **)&driver->module_load = cubin_run_entry(library, "cuModuleLoadData");
     *(void **)&driver->function_get = cubin_run_entry(library, "cuModuleGetFunction");
+    *(void **)&driver->function_attribute = cubin_run_entry(library, "cuFuncGetAttribute");
     *(void **)&driver->allocate = cubin_run_entry(library, "cuMemAlloc_v2");
     *(void **)&driver->copy_in = cubin_run_entry(library, "cuMemcpyHtoD_v2");
     *(void **)&driver->clear = cubin_run_entry(library, "cuMemsetD8_v2");
@@ -352,7 +417,8 @@ static int cubin_run_driver(CubinRunDriver *driver)
     *(void **)&driver->release = cubin_run_entry(library, "cuMemFree_v2");
     return (driver->module_unload != NULL) && (driver->release != NULL) && (driver->init != NULL) &&
            (driver->device_get != NULL) && (driver->context_retain != NULL) && (driver->context_set != NULL) &&
-           (driver->module_load != NULL) && (driver->function_get != NULL) && (driver->allocate != NULL) &&
+           (driver->module_load != NULL) && (driver->function_get != NULL) &&
+           (driver->function_attribute != NULL) && (driver->allocate != NULL) &&
            (driver->copy_in != NULL) && (driver->clear != NULL) && (driver->launch != NULL) &&
            (driver->synchronize != NULL) && (driver->copy_out != NULL) && (driver->error_name != NULL) &&
            (driver->event_create != NULL) && (driver->event_record != NULL) && (driver->event_synchronize != NULL) &&
@@ -392,10 +458,177 @@ static void *s_telemetry_device = NULL;
 static void *s_telemetry_set = NULL;
 static int s_telemetry_ready = 0;
 
-// The part's fault telemetry opened and its Xid critical errors registered on device 0, the device the carrier runs:
-// 1 where it is ready to read, 0 with a warning where its library, an entry point, or the registration is not there.
-// A part that reports no such error still opens, and the wait then only ever comes back empty
-static int cubin_run_telemetry_open(void)
+#if defined(_WIN32)
+// The part's fault telemetry as the system's own log holds it, beside the management layer: every error the display
+// driver, the provider nvlddmkm, writes to the System log, read through the system's event log reader, reached by name
+// and by its own entry points as the driver is. The driver writes each Xid there whether its management layer
+// is reached: the event's ID its Xid, and its text what the part did, as `Graphics SM Warp Exception on (GPC 1, TPC 0,
+// SM 0): Out Of Range Register`
+typedef struct
+{
+    void *(WINAPI *query)(void *, const wchar_t *, const wchar_t *, unsigned long);
+    int(WINAPI *next)(void *, unsigned long, void **, unsigned long, unsigned long, unsigned long *);
+    int(WINAPI *render)(void *, void *, unsigned long, unsigned long, void *, unsigned long *, unsigned long *);
+    int(WINAPI *close)(void *);
+} CubinRunEvents;
+
+// a query of a channel by its path, read in the order written or newest first, a wait on the reader with no end, and
+// an event rendered as its XML
+#define CUBIN_RUN_EVENTS_PATH 0x1ul
+#define CUBIN_RUN_EVENTS_FORWARD 0x100ul
+#define CUBIN_RUN_EVENTS_NEWEST 0x200ul
+#define CUBIN_RUN_EVENTS_ENDLESS 0xfffffffful
+#define CUBIN_RUN_EVENTS_XML 1ul
+
+static CubinRunEvents s_events;
+#endif
+static int s_events_ready = 0;
+
+// the record of the newest driver error read so far, and how long a launch the driver answered with an error waits
+// for the driver to write it: only an error past that record counts against the launch to come
+static unsigned long long s_events_seen = 0ull;
+#define CUBIN_RUN_EVENTS_WAIT_MILLISECONDS 1000u
+
+// the Xid critical errors the part stamped against the last launch, each one's datum, its Xid, with the text the
+// driver wrote of it where the system's log holds one, kept for the listener's account of a panic
+// (cubin_run_refusal_said): as many as CUBIN_RUN_XID_KEPT, and the count of all
+#define CUBIN_RUN_XID_KEPT 16u
+#define CUBIN_RUN_XID_TEXT 192u
+static unsigned long long s_xid_data[CUBIN_RUN_XID_KEPT];
+static char s_xid_text[CUBIN_RUN_XID_KEPT][CUBIN_RUN_XID_TEXT];
+static unsigned int s_xid_count = 0u;
+
+// an Xid and the text the driver wrote of it kept against the last launch, a `;` of the text written `,`, since the
+// listener's account ends in clauses after one
+static void cubin_run_xid_kept(unsigned long long xid, const char *text)
+{
+    if (s_xid_count < CUBIN_RUN_XID_KEPT)
+    {
+        s_xid_data[s_xid_count] = xid;
+        snprintf(s_xid_text[s_xid_count], sizeof(s_xid_text[s_xid_count]), "%s", text);
+        for (char *semicolon = strchr(s_xid_text[s_xid_count], ';'); semicolon != NULL;
+             semicolon = strchr(semicolon, ';'))
+        {
+            *semicolon = ',';
+        }
+    }
+    s_xid_count += 1u;
+}
+
+#if defined(_WIN32)
+// `event` rendered as its XML into `xml`, which holds `room`: 1, or 0 where it could not be
+static int cubin_run_event_xml(void *event, char *xml, size_t room)
+{
+    static wchar_t s_wide[16384];
+    unsigned long used = 0ul;
+    unsigned long properties = 0ul;
+    if (!s_events.render(NULL, event, CUBIN_RUN_EVENTS_XML, (unsigned long)sizeof(s_wide), s_wide, &used, &properties))
+    {
+        return 0;
+    }
+    // the room is far below what an int counts
+    return WideCharToMultiByte(CP_UTF8, 0u, s_wide, -1, xml, (int)room, NULL, NULL) > 0;
+}
+
+// the number `xml` holds in the tag `tag`, past its attributes, or 0 where it holds no such tag
+static unsigned long long cubin_run_event_number(const char *xml, const char *tag)
+{
+    const char *const opened = strstr(xml, tag);
+    const char *const closed = (opened != NULL) ? strchr(opened, '>') : NULL;
+    return (closed != NULL) ? strtoull(closed + 1, NULL, 10) : 0ull;
+}
+
+// the text of the driver's error in `xml` into `text`, which holds `room`: its second datum, the first the device, or
+// its first where it holds one alone
+static void cubin_run_event_text(const char *xml, char *text, size_t room)
+{
+    const char *datum = strstr(xml, "<Data>");
+    const char *const second = (datum != NULL) ? strstr(datum + 6, "<Data>") : NULL;
+    datum = (second != NULL) ? second : datum;
+    const char *const end = (datum != NULL) ? strstr(datum, "</Data>") : NULL;
+    // a datum is far below what an int counts
+    snprintf(text, room, "%.*s", (end != NULL) ? (int)(end - datum - 6) : 0, (datum != NULL) ? datum + 6 : "");
+}
+
+// The driver's errors in the System log past the record `after`, read in the order written, each kept against the
+// launch where `keep` (cubin_run_xid_kept), the newest only where `newest`: the record of the newest read, `after`
+// where none is past it
+static unsigned long long cubin_run_events_read(unsigned long long after, int keep, int newest)
+{
+    char query[192];
+    wchar_t wide[192];
+    snprintf(query, sizeof(query),
+             "*[System[Provider[@Name='nvlddmkm'] and (Level=1 or Level=2) and (EventRecordID>%llu)]]", after);
+    if (MultiByteToWideChar(CP_UTF8, 0u, query, -1, wide, (int)(sizeof(wide) / sizeof(wide[0]))) <= 0)
+    {
+        return after;
+    }
+    void *const results = s_events.query(NULL, L"System", wide,
+                                         CUBIN_RUN_EVENTS_PATH |
+                                             (newest ? CUBIN_RUN_EVENTS_NEWEST : CUBIN_RUN_EVENTS_FORWARD));
+    if (results == NULL)
+    {
+        return after;
+    }
+    static char s_xml[32768];
+    char text[CUBIN_RUN_XID_TEXT];
+    void *event[16];
+    unsigned long returned = 0ul;
+    int more = 1;
+    while (more && s_events.next(results, newest ? 1ul : 16ul, event, CUBIN_RUN_EVENTS_ENDLESS, 0ul, &returned) &&
+           (returned != 0ul))
+    {
+        for (unsigned long at = 0ul; at < returned; at += 1ul)
+        {
+            if (cubin_run_event_xml(event[at], s_xml, sizeof(s_xml)))
+            {
+                const unsigned long long record = cubin_run_event_number(s_xml, "<EventRecordID");
+                after = (record > after) ? record : after;
+                if (keep)
+                {
+                    cubin_run_event_text(s_xml, text, sizeof(text));
+                    cubin_run_xid_kept(cubin_run_event_number(s_xml, "<EventID"), text);
+                }
+            }
+            s_events.close(event[at]);
+        }
+        more = !newest;
+    }
+    s_events.close(results);
+    return after;
+}
+#endif
+
+// the system's log of the driver's errors opened, and the newest already written taken as read: 1 where it is ready
+// to read, 0 where its reader or an entry point of it is not there, or the system keeps no such log
+static int cubin_run_events_open(void)
+{
+#if defined(_WIN32)
+    void *const library = (void *)LoadLibraryA("wevtapi.dll");
+    if (library == NULL)
+    {
+        return 0;
+    }
+    *(void **)&s_events.query = cubin_run_entry(library, "EvtQuery");
+    *(void **)&s_events.next = cubin_run_entry(library, "EvtNext");
+    *(void **)&s_events.render = cubin_run_entry(library, "EvtRender");
+    *(void **)&s_events.close = cubin_run_entry(library, "EvtClose");
+    if ((s_events.query == NULL) || (s_events.next == NULL) || (s_events.render == NULL) || (s_events.close == NULL))
+    {
+        return 0;
+    }
+    s_events_seen = cubin_run_events_read(0ull, 0, 1);
+    s_events_ready = 1;
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+// The part's management layer opened and its Xid critical errors registered on device 0, the device the carrier runs:
+// 1 where it is ready to read, 0 where its library, an entry point, or the registration is not there. A part that
+// reports no such error still opens, and the wait then only ever comes back empty
+static int cubin_run_management_open(void)
 {
 #if defined(_WIN32)
     void *const library = (void *)LoadLibraryA("nvml.dll");
@@ -404,7 +637,6 @@ static int cubin_run_telemetry_open(void)
 #endif
     if (library == NULL)
     {
-        fprintf(stderr, "the part's fault telemetry was not reached: rule 7 does not guard this run\n");
         return 0;
     }
     *(void **)&s_telemetry.init = cubin_run_entry(library, "nvmlInit_v2");
@@ -417,29 +649,34 @@ static int cubin_run_telemetry_open(void)
     if ((s_telemetry.init == NULL) || (s_telemetry.device_get == NULL) || (s_telemetry.set_create == NULL) ||
         (s_telemetry.register_events == NULL) || (s_telemetry.set_wait == NULL))
     {
-        fprintf(stderr, "the part's fault telemetry has no entry point: rule 7 does not guard this run\n");
         return 0;
     }
     if ((s_telemetry.init() != 0) || (s_telemetry.device_get(0u, &s_telemetry_device) != 0) ||
         (s_telemetry.set_create(&s_telemetry_set) != 0) ||
         (s_telemetry.register_events(s_telemetry_device, CUBIN_RUN_XID, s_telemetry_set) != 0))
     {
-        fprintf(stderr, "the part's fault telemetry did not register its critical errors: rule 7 does not guard this "
-                        "run\n");
         return 0;
     }
     s_telemetry_ready = 1;
     return 1;
 }
 
-// the Xid critical errors the part stamped against the last launch, each one's datum, its Xid, kept for the
-// listener's account of a panic (cubin_run_panic_called): as many as CUBIN_RUN_XID_KEPT, and the count of all
-#define CUBIN_RUN_XID_KEPT 16u
-static unsigned long long s_xid_data[CUBIN_RUN_XID_KEPT];
-static unsigned int s_xid_count = 0u;
+// The part's fault telemetry opened: the management layer's Xid critical errors, and the driver's errors in the
+// system's log where the system keeps one. 1 where either is ready to read, 0 with a warning where neither is
+static int cubin_run_telemetry_open(void)
+{
+    const int management = cubin_run_management_open();
+    const int events = cubin_run_events_open();
+    if (!management && !events)
+    {
+        fprintf(stderr, "the part's fault telemetry was not reached: rule 7 does not guard this run\n");
+        return 0;
+    }
+    return 1;
+}
 
-// Every Xid critical error already stamped read off and thrown away: only one stamped after this counts against the
-// launch to come. Nothing where the telemetry is not ready
+// Every fault already stamped or written read off and thrown away: only one stamped or written after this counts
+// against the launch to come. Nothing where the telemetry is not ready
 static void cubin_run_telemetry_drain(void)
 {
     CubinRunXidEvent event;
@@ -452,13 +689,21 @@ static void cubin_run_telemetry_drain(void)
             break;
         }
     }
+#if defined(_WIN32)
+    if (s_events_ready)
+    {
+        s_events_seen = cubin_run_events_read(s_events_seen, 0, 0);
+    }
+#endif
 }
 
-// 1 where the part stamped an Xid critical error, every one stamped read without waiting and its datum kept: the launch
-// just carried faulted the part. 0 where none is stamped or the telemetry is not ready
-static int cubin_run_telemetry_faulted(void)
+// 1 where the part stamped an Xid critical error or the driver wrote an error of it to the system's log, every one
+// read without waiting and kept: the launch just carried faulted the part. A launch the driver answered with `status`
+// other than 0 waits for the driver's error up to CUBIN_RUN_EVENTS_WAIT_MILLISECONDS, since the driver writes it as the
+// fault comes back. 0 where none is stamped or written, or the telemetry is not ready
+static int cubin_run_telemetry_faulted(CubinRunStatus status)
 {
-    int faulted = 0;
+    const unsigned int before = s_xid_count;
     CubinRunXidEvent event;
     while (s_telemetry_ready)
     {
@@ -469,15 +714,24 @@ static int cubin_run_telemetry_faulted(void)
         }
         if ((event.event_type & CUBIN_RUN_XID) != 0ull)
         {
-            faulted = 1;
-            if (s_xid_count < CUBIN_RUN_XID_KEPT)
-            {
-                s_xid_data[s_xid_count] = event.event_data;
-            }
-            s_xid_count += 1u;
+            cubin_run_xid_kept(event.event_data, "");
         }
     }
-    return faulted;
+#if defined(_WIN32)
+    const unsigned int stamped = s_xid_count;
+    for (unsigned int waited = 0u; s_events_ready; waited += 25u)
+    {
+        s_events_seen = cubin_run_events_read(s_events_seen, 1, 0);
+        if ((s_xid_count != stamped) || (status == 0) || (waited >= CUBIN_RUN_EVENTS_WAIT_MILLISECONDS))
+        {
+            break;
+        }
+        Sleep(25u);
+    }
+#else
+    (void)status;
+#endif
+    return s_xid_count != before;
 }
 
 // the host's clock in nanoseconds, from a start of its own and only ever read against itself
@@ -558,7 +812,7 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
     // rule 7: the part's fault telemetry read, and the driver's own word on the stop event with it. A launch that
     // faulted the part halts the process and is answered as refused, named by the driver's error or, where only the
     // stamp caught it, as a failed launch
-    if (cubin_safe_fault(cubin_run_telemetry_faulted(), status) == CUBIN_SAFE_LAUNCH_FAULT)
+    if (cubin_safe_fault(cubin_run_telemetry_faulted(status), status) == CUBIN_SAFE_LAUNCH_FAULT)
     {
         s_launch_timed_out = 1;
         s_launch_faulted = 1;
@@ -586,6 +840,11 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
 // The least and the most block latency of the last timed question, the runs P6 reads (cubin_run_timed)
 static unsigned long long s_timed_least;
 static unsigned long long s_timed_most;
+
+// the register count the part reports for the last kernel a launch loaded (cuFuncGetAttribute), or
+// CUBIN_RUN_REGISTERS_UNREAD before it is read: the count read off the part, a question never walking up to the
+// boundary to find it
+static unsigned int s_part_registers = CUBIN_RUN_REGISTERS_UNREAD;
 
 // `launches` launches of `function` over `arguments`, one at a time, each under cubin_safe's rule 6, their block
 // latencies summed into `nanoseconds` and the least and the most of them into s_timed_least and s_timed_most: 0, or the
@@ -671,6 +930,16 @@ static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char 
     status = (status == 0) ? driver->context_set(context) : status;
     status = (status == 0) ? driver->module_load(&module, s_container) : status;
     status = (status == 0) ? driver->function_get(&function, module, kernel) : status;
+    if (status == 0)
+    {
+        // the part's own count of the registers the kernel allots, read off the loaded function before any launch: a
+        // count the attribute holds in a signed int is never negative
+        int reported = 0;
+        s_part_registers =
+            ((driver->function_attribute(&reported, CUBIN_RUN_ATTRIBUTE_NUM_REGS, function) == 0) && (reported >= 0))
+                ? (unsigned int)reported
+                : CUBIN_RUN_REGISTERS_UNREAD;
+    }
     status = (status == 0) ? driver->allocate(&in, in_bytes) : status;
     status = (status == 0) ? driver->allocate(&out, out_bytes) : status;
     status = (status == 0) ? driver->copy_in(in, given, in_bytes) : status;
@@ -899,12 +1168,27 @@ static const char *cubin_run_cause_named(const char *name)
     return NULL;
 }
 
-// The cause the Xid critical errors the part stamped read as: a fault of the part's memory map (31) an address, a
+// The cause the Xid critical errors the part stamped read as. The driver's own text of one first, where the system's
+// log holds it: a register out of range a register, an illegal instruction the instruction, and an address out of
+// range or a fault of the memory map an address. Then its number: a fault of the part's memory map (31) an address, a
 // channel that stopped (8) or a context switch past its time (109) a launch that did not return, and an exception of
 // the graphics engine (13) or of its class (69) an exception. The first of those, in that order, that the errors
 // hold; NULL where they hold none
 static const char *cubin_run_cause_heard(void)
 {
+    static const char *const s_said[] = {"Out Of Range Register", "Illegal Instruction", "Out Of Range Address",
+                                         "MMU Fault"};
+    static const char *const s_said_cause[] = {"register", "instruction", "address", "address"};
+    for (size_t said = 0u; said < (sizeof(s_said) / sizeof(s_said[0])); said += 1u)
+    {
+        for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_KEPT); place += 1u)
+        {
+            if (strstr(s_xid_text[place], s_said[said]) != NULL)
+            {
+                return s_said_cause[said];
+            }
+        }
+    }
     static const unsigned long long s_heard[] = {31ull, 8ull, 109ull, 13ull, 69ull};
     static const char *const s_heard_cause[] = {"address", "time", "time", "exception", "exception"};
     for (size_t heard = 0u; heard < (sizeof(s_heard) / sizeof(s_heard[0])); heard += 1u)
@@ -918,6 +1202,29 @@ static const char *cubin_run_cause_heard(void)
         }
     }
     return NULL;
+}
+
+// The slot instruction `low` `high` of a launch that faulted the part added to the run's CUBIN_RUN_FAULTS with the
+// cause the listener heard, handed critical so that it is on disk before the carrier goes on, and held off the part in
+// this process at once
+static void cubin_run_faulted_kept(unsigned long long low, unsigned long long high, const char *cause)
+{
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    QryText text = {0};
+    if (qry_latest(s_run, CUBIN_RUN_FAULTS, &bytes, &size, NULL))
+    {
+        qry_text_added(&text, bytes, size);
+    }
+    qry_text_printed(&text, "%016llx %016llx %s\n", low, high, (cause != NULL) ? cause : "-");
+    if (!text.failed)
+    {
+        qry_hand(s_run, CUBIN_RUN_FAULTS, text.bytes, text.size, QRY_CRITICAL);
+    }
+    qry_text_freed(&text);
+    char line[48];
+    snprintf(line, sizeof(line), "%016llx %016llx\n", low, high);
+    cubin_safe_verdict_added(line, strlen(line));
 }
 
 // The account `call` holds said in the answer `answers` too, and handed as a panic of the call where `panicked` and
@@ -959,7 +1266,7 @@ static void cubin_run_refusal_said(CubinRunSaying *answers, int panicked, const 
                   (proctor_cause != NULL) ? "; cause " : "", (proctor_cause != NULL) ? proctor_cause : "");
     cubin_run_account_given(answers, call, panicked);
     const char *const listener_cause = cubin_run_cause_heard();
-    if (!s_telemetry_ready)
+    if (!s_telemetry_ready && !s_events_ready)
     {
         cubin_run_say(call, "listener: the part's fault telemetry was not reached this run, and heard nothing\n");
     }
@@ -973,6 +1280,10 @@ static void cubin_run_refusal_said(CubinRunSaying *answers, int panicked, const 
         for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_KEPT); place += 1u)
         {
             cubin_run_say(call, " %llu", s_xid_data[place]);
+            if (s_xid_text[place][0] != '\0')
+            {
+                cubin_run_say(call, " (%s)", s_xid_text[place]);
+            }
         }
         cubin_run_say(call, "%s%s%s\n", (s_xid_count > CUBIN_RUN_XID_KEPT) ? " ..." : "",
                       (listener_cause != NULL) ? "; cause " : "", (listener_cause != NULL) ? listener_cause : "");
@@ -1000,6 +1311,10 @@ static void cubin_run_refusal_said(CubinRunSaying *answers, int panicked, const 
     }
     cubin_run_say(call, "\n");
     cubin_run_account_given(answers, call, panicked);
+    if (s_launch_faulted && slotted)
+    {
+        cubin_run_faulted_kept(low, high, listener_cause);
+    }
 }
 
 static int cubin_run_question(const char *kernel, unsigned long long pattern_size, const char *code_path,
@@ -1008,6 +1323,8 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
 {
     CubinRunSaying *const answers = &s_answer_said;
     answers->size = 0u;
+    s_part_registers = CUBIN_RUN_REGISTERS_UNREAD;
+    const unsigned long long ask = cubin_run_ask_key(code_path);
     const unsigned long long code_size = cubin_run_input(code_path, s_code, sizeof(s_code));
     if ((pattern_size == 0ull) || (code_size == 0ull) || !cubin_run_cases(cases_path))
     {
@@ -1047,6 +1364,7 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     // its register fields bound by the count this question's kernel allots (rule 6)
     unsigned long long at = 0ull;
     const unsigned int verdict = cubin_safe_image(&s_machine, s_container, size, registers, &at);
+    cubin_run_verdict_row(ask, verdict, at, s_dry);
     if (s_dry)
     {
         if (s_facets & CUBIN_FACET_VENDOR)
@@ -1095,8 +1413,14 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     {
         const char *name = NULL;
         s_driver.error_name(status, &name);
-        cubin_run_say(answers, "refused %s%s\n", (name != NULL) ? name : "CUDA_ERROR_LAUNCH_FAILED",
-                      s_launch_faulted ? " the part faulted" : "");
+        char refused[160];
+        snprintf(refused, sizeof(refused), "refused %s%s", (name != NULL) ? name : "CUDA_ERROR_LAUNCH_FAILED",
+                 s_launch_faulted ? " the part faulted" : "");
+        cubin_run_say(answers, "%s\n", refused);
+        const unsigned int outcome = s_launch_timed_out ? CUBIN_RUN_TIMED_OUT
+                                     : s_launch_faulted ? CUBIN_RUN_FAULTED
+                                                        : CUBIN_RUN_REFUSED;
+        cubin_run_launch_row(ask, outcome, launches, 0ull, 0ull, 0ull, refused);
         // the carrier losing its mind, a launch that faulted the part or hung past its bound, is a panic: the call
         // opened with every party's account and the answer handed with them, nothing waiting on the disk. A refusal
         // that left the part whole is an answer like any other. Either way the accounts are said in the answer, for
@@ -1112,19 +1436,33 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
         cubin_run_say(answers, " %llx", ((unsigned long long)s_answers[place][1] << 32u) | s_answers[place][0]);
     }
     cubin_run_say(answers, "\n");
+    // the part's own count of the kernel's registers, beside the count the question declared: read off the part, the
+    // register boundary in hand without an ask that walks up to it
+    if (s_part_registers != CUBIN_RUN_REGISTERS_UNREAD)
+    {
+        cubin_run_say(answers, "registers %u %u\n", registers, s_part_registers);
+    }
     if (launches != 0u)
     {
         cubin_run_say(answers, "timed %u %llu %llu %llu\n", launches, nanoseconds, s_timed_least, s_timed_most);
     }
+    cubin_run_launch_row(ask, CUBIN_RUN_ANSWERED, launches, (launches != 0u) ? nanoseconds : 0ull,
+                         (launches != 0u) ? s_timed_least : 0ull, (launches != 0u) ? s_timed_most : 0ull, "");
     return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
 }
 
-// the held list named `name` loaded into the gate: the blob of it in the run's buffer. 1, or 0 where it did not read
+// the held list named `name` loaded into the gate, the blob of it in the run's buffer, and with it every encoding that
+// faulted the part, the run's CUBIN_RUN_FAULTS where it holds one. 1, or 0 where either did not read
 static int cubin_run_verdict_load(const char *name)
 {
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    return qry_latest(s_run, name, &bytes, &size, NULL) && cubin_safe_verdict_read((const char *)bytes, size);
+    if (!qry_latest(s_run, name, &bytes, &size, NULL) || !cubin_safe_verdict_read((const char *)bytes, size))
+    {
+        return 0;
+    }
+    return !qry_latest(s_run, CUBIN_RUN_FAULTS, &bytes, &size, NULL) ||
+           cubin_safe_verdict_added((const char *)bytes, size);
 }
 
 int main(int count, char **words)

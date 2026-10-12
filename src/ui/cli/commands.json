@@ -310,7 +310,14 @@
       ]
     },
     { "title": "Build", "groups": ["build", "executable", "deploy"] },
-    { "title": "Protocol", "strip": "protocol", "groups": ["protocol"] },
+    {
+      "title": "Protocol",
+      "strip": "protocol",
+      "groups": ["protocol"],
+      "items": [
+        { "label": "Query…", "command": "query", "args": "--<from> --<to> [--<part>] [--dry]", "console": true }
+      ]
+    },
     { "title": "Ingest", "strip": "ingest", "groups": ["ingest"] },
     { "title": "Render", "strip": "render", "groups": ["render", "view"] },
     { "title": "Sim", "strip": "sim", "groups": ["sim"] },

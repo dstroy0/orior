@@ -129,7 +129,10 @@ typedef struct
 #define SASS_MACHINE_UNANSWERED 0xffffffffu
 
 // `register_last` is the last register the part answers a question's code can name, from the .ksc beside the
-// machine file (`run answers <last> register last`), and SASS_MACHINE_UNANSWERED where it holds no answer
+// machine file (`run answers <last> register last`), and SASS_MACHINE_UNANSWERED where it holds no answer.
+// `register_past` is how many registers past the highest its code names a container declares, as the part answers:
+// a container declaring d names R0 through R(d - past) and no other, and one past that faults the part with a register
+// out of range (`run answers <past> register past`); SASS_MACHINE_UNANSWERED where the part has not answered it
 typedef struct
 {
     char part[SASS_MACHINE_PART];
@@ -139,6 +142,7 @@ typedef struct
     SassSoonest soonest[SASS_MACHINE_SOONEST];
     unsigned int soonests;
     unsigned int register_last;
+    unsigned int register_past;
     // where each form's operands sit and the bits it leaves open, held once by sass_encoding_places_hold
     // (sass_assemble.h) for every encoding read after; NULL where each read finds them again
     void *places_held;

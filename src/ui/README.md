@@ -49,7 +49,7 @@ tests that reach them do not run, and the report names them. It runs each crate'
 window's, in orior built for the run with a home and a tree of its own: a run leaves the
 reader's orior as it was. The window goes on the highest numbered monitor that is not the main one,
 or the one `--monitor` or `ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while
-any test fails or any source file has no test, and its report is in `test/runs/<time>/report.md`.
+any test fails or any source file has no test, and its report is in `build/ui_test/runs/<time>/report.md` at the top of the tree.
 
 ## Running it
 
@@ -69,7 +69,7 @@ cd src/ui/src-tauri
 cargo tauri build
 ```
 
-They land under `src-tauri/target/release/bundle/`, for the platform the build runs on. Each
+They land under `build/cargo/release/bundle/` at the top of the tree, for the platform the build runs on. Each
 published release carries them for Windows, macOS and Linux, built by `.github/workflows/app.yml`.
 Without a clone, `cargo install --git https://github.com/dstroy0/orior orior-ui --locked` builds and
 installs the program `orior`. A plain cargo build puts the page inside the program, as the installers

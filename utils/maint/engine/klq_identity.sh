@@ -5,8 +5,13 @@
 # Lstar.klq after its keys, beside the forms of the rulesets given, and the engine's writing of the stick sifted
 # through what nvcc writes to the run's blob known.txt. Reads the stick measuring_stick.sh and
 # measuring_stick_engine.sh last wrote. No device. Every file a mode writes goes through the run's writer: a current
-# file of the tree, Lstar.klq, sm_86.ksc, sm_86.kqr or sm_86.kdm, written by it in the file's place, and every table
-# of the run's own, slices.txt, chains.txt, host_questions.cpp and the rest, a blob of the run (qry_buffer.h).
+# file of the tree, Lstar.klq or the part's .ksc, .kqr or .kdm, written by it in the file's place, and every table of
+# the run's own, slices.txt, chains.txt, host_questions.cpp and the rest, a blob of the run (qry_buffer.h). The part
+# is the one KLQ_PART names, sm_86 where it is not given, its machine file, record and costs beside the bridge; KLQ_TO
+# names the language its forms are written in, sass where it is not given, the one language klq_identity writes, and
+# any other is refused. Where KLQ_DRY is set, a mode that puts questions is run dry: every round passes the airlock as
+# a live one does, the vendor's disassembler reading it, and the carrier stops before the driver, so that nothing is
+# launched, what each round would have handed the part is the run's blob dry.txt, and R keeps nothing (run_channel.h).
 #
 #     utils/maint/engine/klq_identity.sh
 #     utils/maint/engine/klq_identity.sh sass.krs
@@ -21,10 +26,10 @@
 # With no arguments the forms are sass.krs's. Given stall alone, it runs nothing else: the soonest each operation's
 # result is read is walked down on the part over the engine's writing of the stick, every question carried by
 # vendor_bin_layouts/nvidia/cubin_run and held to cubin_safe before the driver sees it, and the answers written to
-# sm_86.ksc. Given register alone, the last register a question's code can name is walked down the same way and
-# written to sm_86.ksc. Given curve and the numbers of chains of ours, each chain's time is taken on the part against
-# the registers it declares and the threads of its blocks, and each knee written to sm_86.ksc. Given queue alone,
-# every question of the stick is read off the record in sm_86.ksc or put to the part, and each counted by its
+# the part's .ksc. Given register alone, the last register a question's code can name is walked down the same way and
+# written to the part's .ksc. Given curve and the numbers of chains of ours, each chain's time is taken on the part against
+# the registers it declares and the threads of its blocks, and each knee written to the part's .ksc. Given queue alone,
+# every question of the stick is read off the record in the part's .ksc or put to the part, and each counted by its
 # category as reading 1, 0 or gray to the run's blob queue.txt. Each of those runs
 # reads the host answers an earlier run handed its .qry, carried into its own, and puts questions to the device. Given text_identity alone, every
 # side of every identity between texts in Lstar.klq is written as a kernel of a stick of its own
@@ -39,7 +44,7 @@
 # and the set of our coherence each pair is read into is written beneath its verdict with its concept, read off the
 # values the part holds at each link. Each pair is put at its links' least vector first, the links between a case's load and the
 # form, then the registers the chain names, and links of one vector are tried in an order drawn from KLQ_SEED, 1
-# where it is not given. Given cost alone, each arrangement of sm_86.kdm whose nodes sass.krs writes is put in a chain
+# where it is not given. Given cost alone, each arrangement of the part's .kdm whose nodes sass.krs writes is put in a chain
 # of ours in place of the link its operator stands at, timed on the part's clock where it answers alike, and its cost
 # and runs written in its row.
 set -u
@@ -57,6 +62,13 @@ COHERENCE="$TOP/src/cu/transpiler/lstar/protocol/table"
 LAYOUTS="$TOP/src/cu/transpiler/vendor_bin_layouts"
 STICK="$TOP/build/measuring_stick"
 [ -f "$STICK/measuring_stick_nvcc.sass" ] || { echo "  no stick: run $LAYOUTS/nvidia/measuring_stick.sh"; exit 1; }
+# the part, its files beside the bridge, its name as the vendor's reader takes it, and the language of its forms
+PART="${KLQ_PART:-sm_86}"
+PART_READ="$(printf '%s' "$PART" | tr -d '_' | tr '[:lower:]' '[:upper:]')"
+[ "${KLQ_TO:-sass}" = "sass" ] || { echo "  klq_identity writes forms in sass alone, and KLQ_TO names $KLQ_TO"; exit 1; }
+for kind in khw ksc kqr; do
+    [ -f "$COHERENCE/$PART.$kind" ] || { echo "  no $PART.$kind beside the bridge: KLQ_PART names no part the tree holds"; exit 1; }
+done
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$PARSER" -I "$QRY_SOURCE")
 BINARY="$OUT/klq_identity"
@@ -111,10 +123,12 @@ carrier_built() {
     NVDISASM="$(dirname "$(command -v nvcc)")/nvdisasm"
     [ -x "$NVDISASM" ] || [ -x "$NVDISASM.exe" ] || { echo "  no nvdisasm beside nvcc: the airlock has no reader"; exit 1; }
     # every round through the airlock: the carrier holds what the round's cross holds, and carries nothing the vendor
-    # has not read
-    CARRY=("$CARRIER" --held held.txt "$COHERENCE/sm_86.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
-        --pop "$CARRIER" --dry --full "$COHERENCE/sm_86.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
-        --cross "$CROSS" "$NVDISASM" SM86 airlock.md held.txt)
+    # has not read; where KLQ_DRY is set it stops before the driver, the part taken out, and launches nothing
+    local stop=()
+    [ -n "${KLQ_DRY:-}" ] && stop=(--dry --full)
+    CARRY=("$CARRIER" --held held.txt ${stop[@]+"${stop[@]}"} "$COHERENCE/$PART.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
+        --pop "$CARRIER" --dry --full "$COHERENCE/$PART.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
+        --cross "$CROSS" "$NVDISASM" "$PART_READ" airlock.md held.txt)
 }
 
 # The run's query container, query<n>-<datetime>.qry (qry_run.sh): in the folder KLQ_TRACE names where it is set, and
@@ -131,7 +145,7 @@ traced() {
     return "${PIPESTATUS[0]}"
 }
 run_configs() {
-    run_read "$COHERENCE/sm_86.khw" "$COHERENCE/sm_86.ksc" "$COHERENCE/sm_86.kqr" "$COHERENCE/Lstar.klq" \
+    run_read "$COHERENCE/$PART.khw" "$COHERENCE/$PART.ksc" "$COHERENCE/$PART.kqr" "$COHERENCE/Lstar.klq" \
         "$COHERENCE/cu.krs" "$COHERENCE/sass.krs" "$STICK/measuring_stick.tsv"
 }
 
@@ -148,7 +162,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "text_identity" ]; then
     WIN_SIDES="$(cygpath -m "$SIDES")"
     python "$LAYOUTS/nvidia/measuring_stick.py" "$WIN_SIDES/measuring_stick.cu" "$WIN_SIDES/measuring_stick.tsv" \
         "$(cygpath -m "$COHERENCE")/Lstar.klq" || exit 1
-    "$CUDA/bin/nvcc" ${CYCLE_HOST_CCBIN:+-ccbin "$CYCLE_HOST_CCBIN"} -cubin -arch=sm_86 -O3 -diag-suppress 177 -o "$WIN_SIDES/measuring_stick_nvcc.cubin" \
+    "$CUDA/bin/nvcc" ${CYCLE_HOST_CCBIN:+-ccbin "$CYCLE_HOST_CCBIN"} -cubin -arch="$PART" -O3 -diag-suppress 177 -o "$WIN_SIDES/measuring_stick_nvcc.cubin" \
         "$WIN_SIDES/measuring_stick.cu" || { echo "  nvcc did not compile the sides"; exit 1; }
     "$CUDA/bin/cuobjdump" -sass "$SIDES/measuring_stick_nvcc.cubin" > "$SIDES/measuring_stick_nvcc.sass" || exit 1
     # the engine names the rulesets from the top of the tree; what it prints goes into the run's .qry as assembler.log
@@ -157,7 +171,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "text_identity" ]; then
     [ "${PIPESTATUS[0]}" -eq 0 ] || exit 1
     for code in "$SIDES"/engine/*.bin; do
         [ -f "$code" ] || continue
-        "$CUDA/bin/nvdisasm" -b SM86 "$(cygpath -m "$code")" > "${code%.bin}.dis" 2>&1
+        "$CUDA/bin/nvdisasm" -b "$PART_READ" "$(cygpath -m "$code")" > "${code%.bin}.dis" 2>&1
     done
     "$BINARY" slice "$SIDES/measuring_stick_nvcc.sass" "$SIDES/measuring_stick.tsv" "$SIDES/measuring_stick.cu" \
         "$SIDES" "$SIDES/engine" || exit 1
@@ -167,7 +181,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "text_identity" ]; then
     "$SIDES/host_questions" | "$QRY_WRITER" hand host_answers.txt
     [ "${PIPESTATUS[0]}" -eq 0 ] || exit 1
     carrier_built
-    traced klq_identity "$BINARY" text_identity "$SIDES/engine" host_answers.txt "$COHERENCE/sm_86.ksc" "$SIDES" \
+    traced klq_identity "$BINARY" text_identity "$SIDES/engine" host_answers.txt "$COHERENCE/$PART.ksc" "$SIDES" \
         "$COHERENCE/Lstar.klq" "$SIDES/measuring_stick.tsv" -- "${CARRY[@]}"
     exit $?
 fi
@@ -177,18 +191,18 @@ if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" =
     MODE="$1"
     shift
     [ "$MODE" = "queue" ] && set -- "$STICK/measuring_stick.tsv"
-    [ "$MODE" = "pair" ] && set -- "$COHERENCE/Lstar.klq" "$COHERENCE/sm_86.khw"
-    [ "$MODE" = "stall" ] && set -- "$COHERENCE/sm_86.khw"
-    [ "$MODE" = "cost" ] && set -- "$COHERENCE/sm_86.kdm" "$COHERENCE/sm_86.khw"
+    [ "$MODE" = "pair" ] && set -- "$COHERENCE/Lstar.klq" "$COHERENCE/$PART.khw"
+    [ "$MODE" = "stall" ] && set -- "$COHERENCE/$PART.khw"
+    [ "$MODE" = "cost" ] && set -- "$COHERENCE/$PART.kdm" "$COHERENCE/$PART.khw"
     mkdir -p "$WORK/$MODE"
     run_started "$RUNS"
     # the host's answers, and the overseer's lessons where a run before this one was taught any (overseer.h)
-    run_carried "$RUNS" "$WORK/host_answers.txt" "$WORK/overseer.txt"
+    run_carried "$RUNS" "$WORK/host_answers.txt" "$WORK/overseer.txt" faulted.txt
     "$QRY_WRITER" latest host_answers.txt > /dev/null 2>&1 ||
         { echo "  no host answers: run utils/maint/engine/klq_identity.sh first"; exit 1; }
     run_configs
-    [ "$MODE" = "cost" ] && run_read "$COHERENCE/sm_86.kdm"
-    traced klq_identity "$BINARY" "$MODE" "$STICK/engine" host_answers.txt "$COHERENCE/sm_86.ksc" "$WORK/$MODE" "$@" \
+    [ "$MODE" = "cost" ] && run_read "$COHERENCE/$PART.kdm"
+    traced klq_identity "$BINARY" "$MODE" "$STICK/engine" host_answers.txt "$COHERENCE/$PART.ksc" "$WORK/$MODE" "$@" \
         -- "${CARRY[@]}" || exit 1
     # the pair's log read back by the decoder, where the learner traced it into the run
     if [ "$MODE" = "pair" ] && "$QRY_WRITER" latest log > /dev/null 2>&1; then
