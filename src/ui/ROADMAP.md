@@ -4,27 +4,23 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Responsiveness
 
-1. **Completion that keeps up with fast keys.** The list stands as soon as a name, a dot or a path is begun, and no key typed fast is lost or out of order while it shows.
-   - The list takes seconds after a dot or a path, and misses keys typed fast ([ReSharper][23], [Vetur][24]). orior answers from its own words of the file at once and adds the server's as they come.
-   - Diagnostics wait a fixed second after the last key, which reads as lag ([vscode-cpptools #12017][25]). orior shows a mark as soon as its source has one, with no wait of its own.
-   - Typing lags behind the keys while completion and analysis run, and the window freezes for seconds during completion ([JetBrains][26], [IntelliJ][27], [Assembla][28]). The letter is drawn before any of that work begins.
-2. **A large file held in little memory.** A file of hundreds of megabytes opens in sight at once and costs the window no more than what is drawn of it and an index of its lines.
+1. **A large file held in little memory.** A file of hundreds of megabytes opens in sight at once and costs the window no more than what is drawn of it and an index of its lines.
    - One large file takes the IDE to 10 GB and freezes it, and a language's plugin makes a big file unusable where plain text is quick ([IntelliJ][29], [IntelliJ][30]). orior colors and outlines a large file in parts behind the view, and a plugin is handed only the part it asks for.
    - Dragging a file of 10 MB into a tree freezes the IDE as it opens it ([IntelliJ][31]). A file dropped in is copied behind, with its progress shown, and is not opened until asked.
    - The editor takes 16 GB with no extensions, and a large JSON file makes memory explode ([vscode #107999][32], [Lemmy][33]). orior shows its memory on the status bar, and gives back what a closed tab held.
-3. **A start no plugin can slow.** No plugin or shell profile is waited on before the window takes keys.
+2. **A start no plugin can slow.** No plugin or shell profile is waited on before the window takes keys.
    - One extension's activation takes 20 s of the start, and a slow shell profile read at start blocks every extension ([vscode-cpptools #1640][34]). orior starts plugins after the first frame, each on its own, and reads the shell's environment behind.
-4. **The minimap goes where it is pressed.** A press on the minimap brings that place to the middle of the view, and the wheel over it scrolls the text.
+3. **The minimap goes where it is pressed.** A press on the minimap brings that place to the middle of the view, and the wheel over it scrolls the text.
    - A press jumps somewhere other than where it was pressed, and the wheel over the minimap does nothing ([Sublime forum][35], [Sublime forum][36]).
-5. **A trackpad held as smooth as a wheel.** Fingers held on a trackpad move the text at the display's own rate, wrapped or not.
+4. **A trackpad held as smooth as a wheel.** Fingers held on a trackpad move the text at the display's own rate, wrapped or not.
    - Scrolling with fingers held drops the editor to about one frame a second, worse with word wrap ([vscode #192027][37]).
-6. **Go to File as the reader means it.** An exact name stands above every looser match and above history, and fuzzy matching can be turned off.
+5. **Go to File as the reader means it.** An exact name stands above every looser match and above history, and fuzzy matching can be turned off.
    - An exact name ranks below a looser match, letters matched in the middle of words add noise, and people ask to turn fuzzy matching off ([vscode #164352][38], [#99171][39], [#27317][40], [#8673][41]).
-7. **Saved means saved, however one gets back.** A tab back at its saved text by an input method's character or Vim's undo shows no change.
+6. **Saved means saved, however one gets back.** A tab back at its saved text by an input method's character or Vim's undo shows no change.
    - A file stays marked after undoing to its saved text, after an input method's character typed and taken back, and after Vim's undo ([vscode #206720][42], [VSCodeVim][43]).
-8. **No window's changes lost.** Every window's changes not saved are kept as they are made, whichever window closes first.
+7. **No window's changes lost.** Every window's changes not saved are kept as they are made, whichever window closes first.
    - Changes not saved are lost when a window other than the last is closed ([kitemetric][44]).
-9. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
+8. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
    - A preview beside the editor delays each letter, the two sharing a process, and a Vim mode adds a tenth of a second to every key ([typst-preview #245][45], [VSCodeVim #2021][46]). orior draws previews and plugins off the editor's thread, and its Vim keys are its own.
    - The editor is slow to type, scroll and find on a low-powered laptop with extensions off ([Lightrun][47]). orior is measured on the Raspberry Pi as well as here.
    - Completion and analysis can come late or get in the way of editing. Typing and the caret's moves answer at once whether analysis has finished or not, and the test of it types and moves through a file while analysis is still running.

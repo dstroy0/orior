@@ -17,7 +17,7 @@ import { Minimap } from "./minimap.js";
 import { letterOf } from "../keys.js";
 import { selectionPath } from "./shape.js";
 import { Vim } from "./vim.js";
-import { Hover, Suggest } from "./widgets.js";
+import { Hover, LIST_KEYS, Suggest } from "./widgets.js";
 import { calm, nextSlice, pressed, status, write } from "../status.js";
 import { enter, leave } from "../trace.js";
 import { icon } from "../icons.js";
@@ -1192,9 +1192,9 @@ export class Editor {
       return { from, to, text };
     }, one && !/\s/.test(text) ? "type" : "space");
     if (lang.complete && one && isWordChar(text)) {
-      this.suggest.update(true);
-    } else if (this.suggest.open) {
-      this.suggest.update(false);
+      this.suggest.later(true);
+    } else if (this.suggest.open || this.suggest.pending) {
+      this.suggest.later(false);
     }
   }
 
@@ -1303,8 +1303,8 @@ export class Editor {
       const step = p.col >= 2 && /[\uDC00-\uDFFF]/.test(prev) ? 2 : 1;
       return { from: pos(p.line, p.col - step), to: p, text: "" };
     }, "delete");
-    if (this.suggest.open) {
-      this.suggest.update(false);
+    if (this.suggest.open || this.suggest.pending) {
+      this.suggest.later(false);
     }
   }
 
@@ -2351,6 +2351,9 @@ export class Editor {
     }
     this.hover.hide();
     const name = keyName(event);
+    if (LIST_KEYS.has(name)) {
+      this.suggest.flush();
+    }
     if (this.suggest.open && this.suggest.key(name)) {
       event.preventDefault();
       return;

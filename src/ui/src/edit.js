@@ -41,7 +41,7 @@ import { anchor } from "./review.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
-import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, parseShown, serve, spansOf, startServers, stopServing, treeChecking, wrap } from "./servers.js";
+import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, parseShown, serve, spansOf, startServers, stopServing, stopTelling, treeChecking, wrap } from "./servers.js";
 import { callHierarchy, closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
 import { extractFunction } from "./extract.js";
@@ -1852,7 +1852,7 @@ async function holdMemory(budget) {
   for (const tab of state.tabs) {
     if (tab.served && files.has(plain(`${root}/${tab.file}`))) {
       Object.assign(tab, { served: undefined, untold: false, unserved: true });
-      window.clearTimeout(tab.telling);
+      stopTelling(tab);
       if (tab.session) {
         tab.session.diagnostics = null;
       }
@@ -2947,7 +2947,15 @@ export async function startEdit(defs) {
       const tab = tabOfSession(s.of ?? s);
       return tab ? spansOf(tab, from, to) : Promise.resolve([]);
     },
-    onEdit: (s) => editListeners.forEach((listener) => listener(s.of ?? s)),
+    onEdit: (s) => {
+      // The tab's server hears of the change once the frame that draws it is drawn, and not once the
+      // keys rest: its marks come with no wait of the window's own (servers.js).
+      const tab = state.tabs.find((one) => one.session === (s.of ?? s));
+      if (tab) {
+        changed(tab);
+      }
+      editListeners.forEach((listener) => listener(s.of ?? s));
+    },
     pasteAs: (s, text) => {
       const path = tabOfSession(s.of ?? s)?.file ?? null;
       for (const listener of pasteListeners) {
