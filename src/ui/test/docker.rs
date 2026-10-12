@@ -15,12 +15,14 @@ use std::process::{Command, ExitCode, Stdio};
 pub const IMAGE: &str = "orior-test-window";
 
 /// What the container runs: the tree brought in from /host/ui, less what is built there and the
-/// runs kept, then the harness, its window's tests alone, with the words `passed` besides.
+/// runs kept, then the harness, its window's tests alone, with the words `passed` besides. X's
+/// display in memory is given 96 dots an inch, at which WebKitWebDriver puts each press where it
+/// is sent; at another it puts each one off by the scale between the two.
 pub fn inside(passed: &[String]) -> String {
     let words: Vec<String> = passed.iter().map(|word| format!("'{}'", word.replace('\'', "'\\''"))).collect();
     format!(
         "rsync -a --delete --exclude /test/target --exclude /test/runs --exclude /cli/target --exclude /src-tauri/target --exclude __pycache__ /host/ui/ /src/ui/ \
-         && dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' cargo run --manifest-path /src/ui/test/Cargo.toml --release -- --driver webdriver --no-servers --no-rust --no-systems {}",
+         && dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' cargo run --manifest-path /src/ui/test/Cargo.toml --release -- --driver webdriver --no-servers --no-rust --no-systems {}",
         words.join(" ")
     )
     .trim_end()
@@ -92,7 +94,7 @@ mod tests {
         let said = inside(&["--only".into(), "editor/view".into()]);
         assert!(said.starts_with("rsync -a --delete "), "{said}");
         assert!(said.contains("--exclude /test/runs"), "{said}");
-        assert!(said.contains("xvfb-run -a"), "{said}");
+        assert!(said.contains("xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96'"), "{said}");
         assert!(said.ends_with("--driver webdriver --no-servers --no-rust --no-systems '--only' 'editor/view'"), "{said}");
     }
 
