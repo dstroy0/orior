@@ -781,6 +781,16 @@ impl Server {
                 }
                 give(changed)
             }
+            // The tree's files and what they declare, read behind the window from the tree's
+            // opening, and whether each is not read yet.
+            "tree_read" => {
+                let root = self.root()?;
+                files::read_behind(&root);
+                let listed = root.clone();
+                self.symbols.refresh(&root, move || files::all(&listed));
+                give(())
+            }
+            "tree_unread" => give(serde_json::json!({ "files": files::unread(&self.root()?), "symbols": self.symbols.unread() })),
             "symbols_find" => {
                 let root = self.root()?;
                 let listed = root.clone();

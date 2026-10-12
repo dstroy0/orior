@@ -4,11 +4,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## When it opens
 
-1. **At work at once, with the reading behind.** Every key works from the first frame; what the tree is read for comes in behind and is never waited on.
-   - Indexing at launch takes minutes, and the tool is not fully at work until it ends; a slow start makes a tool feel heavy ([IntelliJ][13], [JetBrains][14], [JetBrains][15]). orior answers from what it has while it reads, and says on the status bar what is not read yet.
-2. **Trust asked once, and kept.** A tree's own code runs only once the reader says so, and the answer holds for the tree and every tree under it.
+1. **Trust asked once, and kept.** A tree's own code runs only once the reader says so, and the answer holds for the tree and every tree under it.
    - A trust prompt comes for every new folder, and readers learn to click past it ([The Register][16], [VS Code][17], [TIL][18]). orior asks only when a tree would run code of its own, once for a folder of trees.
-3. **Nothing sent before the reader is asked.** orior makes no request of the network as it opens, first launch or any other.
+2. **Nothing sent before the reader is asked.** orior makes no request of the network as it opens, first launch or any other.
    - An editor calls home on first launch before the reader is asked, data goes under the name of an update check, and telemetry is on by default ([Infosecurity][19], [ghc-devs][20], [Debian][21], [BfDI][22]). orior sends nothing of the reader's at all, and checks for an update only when asked.
 
 ## Responsiveness

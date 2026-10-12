@@ -46,7 +46,7 @@ import { giveCores } from "./cores.js";
 import { keysChanged } from "./keys.js";
 import { startSearch } from "./search.js";
 import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
-import { watch } from "./status.js";
+import { watch, write } from "./status.js";
 import { focusTerminalView, newTerminal, runInTerminal, startTerminal } from "./terminal.js";
 import { onView, showView, shownView } from "./views.js";
 import { onTold, showWindow } from "./windows.js";
@@ -95,8 +95,8 @@ async function settle(root, said) {
 // The bars of the files being read, kept from one drawing to the next so each moves steadily.
 const readBars = new Map();
 
-// The bar's reading of the status block: the runs going and the files still being read, each with a
-// bar of how far along it is.
+// The bar's reading of the status block: the runs going, the files still being read, each with a
+// bar of how far along it is, and what of the tree is not read yet.
 function drawPulse(held) {
   const parts = [];
   if (held.runs.size) {
@@ -118,7 +118,35 @@ function drawPulse(held) {
     reading.append(`${name} `, bar, ` ${Math.floor((100 * read) / Math.max(1, size))}%`);
     parts.push(reading);
   }
+  const unread = [held.unread.files && "files", held.unread.symbols && "symbols"].filter(Boolean);
+  if (unread.length) {
+    parts.push(Object.assign(document.createElement("span"), { className: "pulse-unread", textContent: `The tree's ${unread.join(" and ")} not read yet` }));
+  }
   document.getElementById("pulse").replaceChildren(...parts);
+}
+
+// How often the tree's reading is asked after while it goes, in milliseconds.
+const UNREAD_EVERY = 250;
+
+// Which reading of the tree is the last begun: a tree opened in place of another ends the other's.
+let treeRead = 0;
+
+// Reads the tree's files and what they declare behind the window, every key at work meanwhile, and
+// keeps the status block told which are not read yet until both are.
+async function readTree() {
+  const ticket = ++treeRead;
+  await invoke("tree_read").catch(() => {});
+  while (ticket === treeRead) {
+    const unread = await invoke("tree_unread").catch(() => ({ files: false, symbols: false }));
+    if (ticket !== treeRead) {
+      return;
+    }
+    write("unread", unread);
+    if (!unread.files && !unread.symbols) {
+      return;
+    }
+    await new Promise((rest) => setTimeout(rest, UNREAD_EVERY));
+  }
 }
 
 // Shows again each setting a settings file changed whose part of the page took it as the window
@@ -310,6 +338,7 @@ async function begin(root) {
       return;
     }
     await readSettings(root);
+    readTree();
     const defs = await invoke("definitions_read");
     if (!started) {
       started = true;

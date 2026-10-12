@@ -24,6 +24,12 @@ const state = { node: null, input: null, list: null, items: [], chosen: 0, befor
 const EVERYWHERE_EACH = 8;
 const DOUBLE_SHIFT = 400;
 
+// How often the rows are asked for again while the tree's files are being read, in milliseconds.
+const AGAIN = 250;
+
+// The last row while the tree's files are being read, which has the rows asked for again.
+const readingRow = () => ({ label: "Reading the tree's files: more may be found.", hits: [], run: null, reading: true });
+
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
   made.append(...children.filter((child) => child !== null && child !== undefined));
@@ -117,7 +123,7 @@ async function treeSymbolRows(query) {
     run: () => state.hooks.openFile(symbol.path, symbol.line, 0),
   }));
   if (found.reading) {
-    rows.push({ label: "Reading the tree's files: more may be found.", hits: [], run: null });
+    rows.push(readingRow());
   }
   return rows;
 }
@@ -142,18 +148,26 @@ async function fileRows(query) {
   }
   // The tree's files are matched in files.rs, where the list of them is held: a name the same as
   // what was typed first, then one that starts with it, ahead of a longer name that only holds it.
-  const found = await state.hooks.findFiles(path, recent, MOST).catch(() => []);
-  return found.map((one) => rowOf(one.path, one.hits, one.score));
+  // Until the tree's files are read, the files opened lately answer.
+  const found = await state.hooks.findFiles(path, recent, MOST).catch(() => ({ found: [], reading: false }));
+  const rows = found.found.map((one) => rowOf(one.path, one.hits, one.score));
+  if (found.reading) {
+    rows.push(readingRow());
+  }
+  return rows;
 }
+
+// The first `most` rows of `rows` that go somewhere, and the row that says the tree is being read.
+const firstOf = (rows, most) => [...rows.filter((row) => row.run).slice(0, most), ...rows.filter((row) => row.reading)];
 
 // A heading over the rows of one kind, which the keys step past.
 const heading = (label) => ({ label, hits: [], run: null, heading: true });
 
 async function everywhereRows(text) {
   const query = text.trim();
-  const files = (await fileRows(query)).slice(0, EVERYWHERE_EACH);
+  const files = firstOf(await fileRows(query), EVERYWHERE_EACH);
   // With nothing typed, what the open file declares; with a query, what the whole tree does.
-  const symbols = query ? (await treeSymbolRows(query)).filter((row) => row.run).slice(0, EVERYWHERE_EACH) : state.hooks.symbols() ? symbolRows(query).slice(0, EVERYWHERE_EACH) : [];
+  const symbols = query ? firstOf(await treeSymbolRows(query), EVERYWHERE_EACH) : state.hooks.symbols() ? symbolRows(query).slice(0, EVERYWHERE_EACH) : [];
   const commands = commandRows(query).slice(0, EVERYWHERE_EACH);
   return [
     ...(files.length ? [heading("Files"), ...files] : []),
@@ -229,15 +243,22 @@ function drawRows() {
   state.list.children[chosen]?.scrollIntoView({ block: "nearest" });
 }
 
-async function draw() {
+// Draws the rows for what is typed. Asked for again while the tree's files are being read, the row
+// chosen stays chosen where it is still there.
+async function draw(again = false) {
   const text = state.input.value;
   const drawing = ++state.drawing;
+  const was = again ? state.items[state.chosen] : null;
   const items = await rowsFor(text);
   if (drawing !== state.drawing || state.node.hidden) {
     return;
   }
+  if (items.some((item) => item.reading)) {
+    setTimeout(() => drawing === state.drawing && !state.node.hidden && draw(true), AGAIN);
+  }
   state.items = items;
-  state.chosen = Math.max(0, items.findIndex((item) => !item.heading));
+  const kept = was ? items.findIndex((item) => item.run && item.label === was.label && item.detail === was.detail) : -1;
+  state.chosen = kept >= 0 ? kept : Math.max(0, items.findIndex((item) => !item.heading));
   state.input.placeholder = placeholderOf(text);
   if (!items.length) {
     state.items = [{ label: state.custom?.empty ?? (text.startsWith(">") ? "No matching commands" : "No matching results"), hits: [], run: null }];

@@ -401,12 +401,23 @@ impl Listed {
     }
 }
 
-/// The tree's files as the last quick open read them, when, and whether they are being read again.
+/// The tree's files as the last quick open read them, when, whether they are being read again,
+/// whether they have been read once, and how many reads of them have begun.
 struct Held {
     root: PathBuf,
     at: Instant,
     files: Arc<Vec<Listed>>,
     reading: bool,
+    read: bool,
+    begun: u64,
+}
+
+/// What a quick open found, the best first, and whether the tree's files were still being read for
+/// the first time.
+#[derive(Serialize)]
+pub struct Answer {
+    pub found: Vec<Found>,
+    pub reading: bool,
 }
 
 static HELD: Mutex<Option<Held>> = Mutex::new(None);
@@ -421,50 +432,83 @@ fn listed(root: &Path) -> Arc<Vec<Listed>> {
     Arc::new(files)
 }
 
-/// Lets go of the files the quick open holds, to be read again by the next search, as after the
-/// search's patterns change.
+/// Reads the files the quick open holds again behind the window, as after the search's patterns
+/// change, the files read so far answering meanwhile.
 pub fn forget_held() {
-    *HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+    let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(kept) = held.as_mut() {
+        read_into(kept);
+    }
 }
 
-/// The tree's files for a quick open: read now the first time, and after that the files last read,
-/// read again behind the search once they are older than SEEN_FOR.
-fn held(root: &Path) -> Arc<Vec<Listed>> {
+/// Reads the tree's files on a thread of their own into what the quick open holds, taken where no
+/// later read has begun.
+fn read_into(kept: &mut Held) {
+    kept.reading = true;
+    kept.begun += 1;
+    let (root, begun) = (kept.root.clone(), kept.begun);
+    std::thread::spawn(move || {
+        let files = listed(&root);
+        let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(kept) = held.as_mut().filter(|kept| kept.root == root && kept.begun == begun) {
+            kept.files = files;
+            kept.at = Instant::now();
+            kept.reading = false;
+            kept.read = true;
+        }
+    });
+}
+
+/// Starts reading the tree's files for the quick open behind the window, where they are neither held
+/// nor being read.
+pub fn read_behind(root: &Path) {
+    let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if held.as_ref().is_some_and(|kept| kept.root == root) {
+        return;
+    }
+    read_into(held.insert(Held { root: root.to_path_buf(), at: Instant::now(), files: Arc::new(Vec::new()), reading: true, read: false, begun: 0 }));
+}
+
+/// Whether the tree's files are not read yet for the quick open.
+pub fn unread(root: &Path) -> bool {
+    !HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).as_ref().is_some_and(|kept| kept.root == root && kept.read)
+}
+
+/// The tree's files for a quick open, and whether they have been read once: the files last read,
+/// read again behind the search once they are older than SEEN_FOR, and none until the first read,
+/// begun behind the window where it has not begun, ends.
+fn held(root: &Path) -> (Arc<Vec<Listed>>, bool) {
     let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     match held.as_mut() {
         Some(kept) if kept.root == root => {
-            if kept.at.elapsed() >= SEEN_FOR && !kept.reading {
-                kept.reading = true;
-                let root = root.to_path_buf();
-                std::thread::spawn(move || {
-                    let files = listed(&root);
-                    let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-                    if let Some(kept) = held.as_mut().filter(|kept| kept.root == root) {
-                        kept.files = files;
-                        kept.at = Instant::now();
-                        kept.reading = false;
-                    }
-                });
+            if kept.read && kept.at.elapsed() >= SEEN_FOR && !kept.reading {
+                read_into(kept);
             }
-            kept.files.clone()
+            (kept.files.clone(), kept.read)
         }
         _ => {
-            let files = listed(root);
-            *held = Some(Held { root: root.to_path_buf(), at: Instant::now(), files: files.clone(), reading: false });
-            files
+            drop(held);
+            read_behind(root);
+            (Arc::new(Vec::new()), false)
         }
     }
 }
 
-/// The tree's files that answer `query`, at most `most` of them, the best first. A file in `recent`
-/// scores LATELY more, and one named as typed, with or without its extension, EXACT more, as one
-/// whose name starts with what was typed scores half of EXACT more.
-pub fn ranked(root: &Path, query: &str, recent: &[String], most: usize) -> Vec<Found> {
+/// The tree's files that answer `query`, at most `most` of them, the best first, and whether the
+/// tree's files are not read yet: until they are, the files of `recent` alone answer. A file in
+/// `recent` scores LATELY more, and one named as typed, with or without its extension, EXACT more, as
+/// one whose name starts with what was typed scores half of EXACT more.
+pub fn ranked(root: &Path, query: &str, recent: &[String], most: usize) -> Answer {
+    let (files, read) = held(root);
+    let files = if read { files } else { Arc::new(recent.iter().map(|path| Listed::of(path)).collect()) };
+    Answer { found: ranked_in(&files, query, recent, most), reading: !read }
+}
+
+fn ranked_in(files: &[Listed], query: &str, recent: &[String], most: usize) -> Vec<Found> {
     let lowered: String = query.chars().map(Letter::lower).collect();
     let asked = lowered.rsplit('/').next().unwrap_or_default();
     let wanted_bytes: Vec<u8> = lowered.bytes().filter(|byte| !byte.is_ascii_whitespace()).collect();
     let wanted_chars: Vec<char> = lowered.chars().filter(|letter| !letter.is_whitespace()).collect();
-    let files = held(root);
     let mut found: Vec<Found> = Vec::new();
     for file in files.iter() {
         let matched = if file.path.is_ascii() && lowered.is_ascii() {
@@ -1095,6 +1139,35 @@ mod listing {
         listed.sort();
         assert_eq!(listed, vec!["a.js".to_string(), "src/b.js".to_string()]);
         fs::remove_dir_all(&repo).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod reading {
+    use super::{ranked, unread};
+    use std::fs;
+
+    #[test]
+    fn a_quick_open_answers_from_the_recent_files_until_the_tree_is_read() {
+        let root = std::env::temp_dir().join(format!("orior_ui_reading_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("alpha.txt"), "one").unwrap();
+        fs::write(root.join("apple.txt"), "two").unwrap();
+        let root = dunce::canonicalize(&root).unwrap();
+        let first = ranked(&root, "a", &["apple.txt".to_string()], 10);
+        assert!(first.reading, "the tree is not read yet");
+        assert_eq!(first.found.iter().map(|one| one.path.as_str()).collect::<Vec<_>>(), ["apple.txt"]);
+        for _ in 0..100 {
+            if !unread(&root) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let read = ranked(&root, "alpha", &[], 10);
+        assert!(!read.reading, "the tree is read");
+        assert_eq!(read.found[0].path, "alpha.txt");
+        fs::remove_dir_all(&root).unwrap();
     }
 }
 
