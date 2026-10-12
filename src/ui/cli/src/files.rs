@@ -88,21 +88,54 @@ type Kept = Option<(PathBuf, Instant, Option<Arc<Seen>>)>;
 
 static KEPT: Mutex<Kept> = Mutex::new(None);
 
+/// Whether git's view is being read again behind the view kept.
+static RESEEING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Git's view of the tree: as kept, read again behind it once it is older than SEEN_FOR, or read now
+/// where none is kept, the view let go as files move.
 fn seen(root: &Path) -> Option<Arc<Seen>> {
     let mut kept = KEPT.lock().ok()?;
     if let Some((at, when, view)) = kept.as_ref() {
         if at == root && when.elapsed() < SEEN_FOR {
             return view.clone();
         }
+        if let (true, Some(view)) = (at == root, view) {
+            if !RESEEING.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                let root = root.to_path_buf();
+                std::thread::spawn(move || {
+                    let read = read_seen(&root);
+                    if let Ok(mut kept) = KEPT.lock() {
+                        // A view let go as it was read is not put back: the next one reads it anew.
+                        if matches!(kept.as_ref(), Some((at, ..)) if *at == root) {
+                            *kept = Some((root, Instant::now(), read));
+                        }
+                    }
+                    RESEEING.store(false, std::sync::atomic::Ordering::SeqCst);
+                });
+            }
+            return Some(view.clone());
+        }
     }
+    let view = read_seen(root);
+    *kept = Some((root.to_path_buf(), Instant::now(), view.clone()));
+    view
+}
+
+/// Reads git's view of the tree in the background, as a tree opens, for the first list or search.
+pub fn warm(root: &Path) {
+    let root = root.to_path_buf();
+    std::thread::spawn(move || {
+        seen(&root);
+    });
+}
+
+/// Git's view of the tree as git gives it now, or None where git cannot read it or lists nothing.
+fn read_seen(root: &Path) -> Option<Arc<Seen>> {
     let mut git = Command::new("git");
     git.args(["ls-files", "--cached", "--others", "--exclude-standard", "-z"]).current_dir(root);
     git.stdin(Stdio::null()).stderr(Stdio::null());
     crate::runner::quiet(&mut git);
-    let Some(out) = git.output().ok().filter(|out| out.status.success()) else {
-        *kept = Some((root.to_path_buf(), Instant::now(), None));
-        return None;
-    };
+    let out = git.output().ok().filter(|out| out.status.success())?;
     let mut files = BTreeSet::new();
     let mut dirs = BTreeSet::new();
     for path in String::from_utf8_lossy(&out.stdout).split('\0').filter(|p| !p.is_empty()) {
@@ -116,12 +149,9 @@ fn seen(root: &Path) -> Option<Arc<Seen>> {
     }
     // A tree in a folder its repository ignores is one git lists nothing of: it is read from the disk.
     if files.is_empty() {
-        *kept = Some((root.to_path_buf(), Instant::now(), None));
         return None;
     }
-    let view = Arc::new(Seen { files, dirs });
-    *kept = Some((root.to_path_buf(), Instant::now(), Some(view.clone())));
-    Some(view)
+    Some(Arc::new(Seen { files, dirs }))
 }
 
 /// Lets go of git's view of the tree, to be read again by the next list or search, as after files

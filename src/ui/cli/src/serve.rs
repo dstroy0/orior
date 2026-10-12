@@ -505,6 +505,7 @@ impl Server {
             self.servers.let_go();
             self.symbols.forget();
             self.watch();
+            files::warm(&path);
         }
         Ok(path.to_string_lossy().into_owned())
     }
