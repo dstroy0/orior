@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The explorer's Outline over a file of twenty thousand symbols: only the rows in sight on the page,
-// the symbol the cursor is in marked and scrolled to, and a press on a row going to its line.
+// the symbol the cursor is in marked and scrolled to, and a press on a row going to its line; and
+// each file's mark standing on the line its name stands on.
 
 import { invoke } from "../../src/bridge.js";
 import { editing, openFile } from "../../src/edit.js";
@@ -82,4 +83,42 @@ test("every file has a mark and every folder the folder's shape, a character's w
     const gap = name.left - icon.getBoundingClientRect().right;
     assert.ok(gap >= 0.5 * parseFloat(getComputedStyle(row).fontSize), `${row.dataset.key}: ${gap.toFixed(1)} px before the name`);
   }
+});
+
+test("each file's mark in the tree has its ink centered on the middle of its name's capitals", async () => {
+  showView("edit");
+  togglePane(true, { take: false, pin: true });
+  await document.fonts.ready;
+  await ui.waitFor(() => document.querySelectorAll("#files .node:not(.dir) .icon").length >= 3, 10000);
+  // A box of no height set in a text stands on the text's line, wherever the text is moved to.
+  const lineOf = (node) => {
+    const probe = Object.assign(document.createElement("span"), { style: "display:inline-block;width:0;height:0;vertical-align:baseline" });
+    node.append(probe);
+    const at = probe.getBoundingClientRect().bottom;
+    probe.remove();
+    return at;
+  };
+  const pen = document.createElement("canvas").getContext("2d");
+  // The ink of `text` set as `node` sets it: how far above its line it reaches, and below. A font
+  // sized so its capitals are as tall as its size is scaled to that.
+  const inkOf = (node, text) => {
+    const style = getComputedStyle(node);
+    const size = Number.parseFloat(style.fontSize);
+    pen.font = `${style.fontWeight} 100px ${style.fontFamily}`;
+    const ink = pen.measureText(text);
+    const scale = style.fontSizeAdjust.includes("cap-height") ? size / pen.measureText("H").actualBoundingBoxAscent : size / 100;
+    return { above: ink.actualBoundingBoxAscent * scale, below: ink.actualBoundingBoxDescent * scale };
+  };
+  const off = [...document.querySelectorAll("#files .node:not(.dir)")]
+    .filter((row) => row.checkVisibility() && row.querySelector(".icon")?.textContent && row.querySelector(".name"))
+    .map((row) => {
+      const icon = row.querySelector(".icon");
+      const name = row.querySelector(".name");
+      const mark = inkOf(icon, icon.textContent);
+      const middle = lineOf(icon) - (mark.above - mark.below) / 2;
+      const capitals = lineOf(name) - inkOf(name, "H").above / 2;
+      return { mark: icon.textContent, name: row.dataset.key, by: Math.round((middle - capitals) * 100) / 100 };
+    })
+    .filter((one) => Math.abs(one.by) > 0.75);
+  assert.deepEqual(off, [], "each mark's ink centered on its name's capitals");
 });

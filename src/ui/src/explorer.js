@@ -117,6 +117,48 @@ function markOf(name, ext) {
   return from.slice(0, 2).toLowerCase() || "··";
 }
 
+// How far up each mark is moved, in pixels, for its ink to center on the middle of the capitals of
+// the name beside it: a mark of small letters, as py or zp, stands on the name's line with its ink
+// lower than the name's. Each is measured once the fonts are in, as a row sets the mark and the name.
+const lifts = new Map();
+let fonts = null;
+
+// The ink of `text` in `font`, as { font, size, adjusted }: how far above its line it reaches, and
+// below, in pixels. A font sized so its capitals are as tall as its size is scaled to that.
+function inkOf(font, text) {
+  const pen = (inkOf.canvas ??= document.createElement("canvas")).getContext("2d");
+  pen.font = font.font;
+  const ink = pen.measureText(text);
+  const scale = font.adjusted ? font.size / pen.measureText("H").actualBoundingBoxAscent : font.size / 100;
+  return { above: ink.actualBoundingBoxAscent * scale, below: ink.actualBoundingBoxDescent * scale };
+}
+
+export function liftOf(mark) {
+  if (lifts.has(mark)) {
+    return lifts.get(mark);
+  }
+  if (document.fonts?.status !== "loaded") {
+    return 0;
+  }
+  if (!fonts) {
+    const icon = element("span", { className: "icon", textContent: "H" });
+    const name = element("span", { className: "name", textContent: "H" });
+    const row = element("div", { className: "node" }, icon, name);
+    row.style.cssText = "position:fixed;visibility:hidden";
+    document.body.append(row);
+    const of = (node) => {
+      const style = getComputedStyle(node);
+      return { font: `${style.fontWeight} 100px ${style.fontFamily}`, size: Number.parseFloat(style.fontSize), adjusted: style.fontSizeAdjust.includes("cap-height") };
+    };
+    fonts = { icon: of(icon), name: of(name) };
+    row.remove();
+  }
+  const ink = inkOf(fonts.icon, mark);
+  const lift = inkOf(fonts.name, "H").above / 2 - (ink.above - ink.below) / 2;
+  lifts.set(mark, lift);
+  return lift;
+}
+
 export function iconOf(name, known = false) {
   const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
   const themed = known ? null : themeIcon(name);
@@ -126,6 +168,10 @@ export function iconOf(name, known = false) {
   const [mark, color] = themed ? [themed.mark, null] : known ? ["K", 2] : (named ?? ICONS[ext] ?? [markOf(name, ext), 8]);
   const icon = element("span", { className: "icon", textContent: mark });
   icon.setAttribute("aria-hidden", "true");
+  const lift = liftOf(mark);
+  if (Math.abs(lift) > 0.1) {
+    icon.style.transform = `translateY(${(-lift).toFixed(2)}px)`;
+  }
   if (!themed && !known && !named && !ICONS[ext]) {
     icon.classList.add("unmarked");
   }
