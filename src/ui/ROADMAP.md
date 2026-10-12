@@ -45,6 +45,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 9. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
    - A preview beside the editor delays each letter, the two sharing a process, and a Vim mode adds a tenth of a second to every key ([typst-preview #245][45], [VSCodeVim #2021][46]). orior draws previews and plugins off the editor's thread, and its Vim keys are its own.
    - The editor is slow to type, scroll and find on a low-powered laptop with extensions off ([Lightrun][47]). orior is measured on the Raspberry Pi as well as here.
+   - Completion and analysis can come late or get in the way of editing. Typing and the caret's moves answer at once whether analysis has finished or not, and the test of it types and moves through a file while analysis is still running.
 
 ## The backend
 
@@ -73,6 +74,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Light text grounds read better for small text in good light, readers do not notice they do better, and a dark ground is easier in dim light ([NN/G][69], [TIDS 2025][70], [Gadget Hacks][71]).
 8. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that held it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
    - A slow start, indexing, completion that drags, costly language servers and plugins that eat memory, with no way to see what takes the time; a feature that saves ten seconds later still angers where it adds a delay to every key. orior holds each key to its frame and names whatever runs past its budget.
+   - Readers struggle to find which part causes a lag. Time and processor are put to each language server, plugin, index and piece of work behind, and the test of it slows each in turn and checks that the window names it.
 9. **Everything working behind, in sight.** The status bar lists each piece of work running behind the editor, what it is doing, what it costs and how far it has come, and any of it can be stopped; what the compiler decided and what an optimization cost are read beside the code they concern.
    - Readers want transparency: background work, the compiler's decisions and the cost of an optimization kept hidden make them hate an IDE.
    - An IDE is to be deeply observable: the program's state, its data flow, the build's decisions, what each thing costs and what each change did, each open to the reader.
@@ -92,6 +94,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Readers want suggestions on demand, a switch for each feature where one switch turns all of them, thresholds of their own for hints and warnings, and keys that act the same whichever suggestions are shown.
    - Readers want flow: small interruptions, again and again, break concentration.
    - Help should take work away and not ask for attention.
+   - Some readers want suggestions only when they ask. Suggestions that come on their own, those that follow from the context, and those asked for each have a setting of their own, and the test of it turns each on and off apart from the others.
 
 ## Tools
 
@@ -231,6 +234,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
     - Generated docstrings are left unformatted, types beyond the simple ones are written wrong, and types in the docstring break a renderer that adds them ([SiLA2 #6][232], [mkdocstrings #57][233], [sphinx-autodoc-typehints #281][234]).
 13. **Mistakes told as they are typed.** What the compiler would say shows as the line is typed, before a build.
     - Mistakes are told only when the compiler runs ([cplusplus.com][235], [SD Times][236]).
+14. **The tree understood once, and read again only where it changed.** What orior knows of the whole tree is kept between starts, and a change is read again in the files it touches alone: navigation and problems stay true while no file is analyzed twice for nothing.
+    - Knowing the whole tree is of great use, and it can take much of the machine. The test of it checks that a definition and a problem are found as before while the work done after a change is measured and kept to the files the change reaches.
 
 ## Languages and formatting
 

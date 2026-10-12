@@ -9,8 +9,9 @@
 #   window  every test of the window, the real window built in the harness's Docker image and driven
 #           through WebDriver, every press, key, drag and wheel sent as WebDriver's actions.
 #
-# Each job keeps the harness's report as an artifact. The harness fails a run where any test fails or
-# any part of the app has no test, and the job fails with it.
+# A change to the app's Markdown alone runs nothing. Each job keeps the harness's report as an
+# artifact. The harness fails a run where any test fails or any part of the app has no test, and
+# the job fails with it.
 
 name: ui
 
@@ -21,11 +22,13 @@ on:
       - "src/ui/**"
       - "src/cu/**"
       - ".github/workflows/ui.yml"
+      - "!src/ui/**/*.md"
   pull_request:
     paths:
       - "src/ui/**"
       - "src/cu/**"
       - ".github/workflows/ui.yml"
+      - "!src/ui/**/*.md"
   workflow_dispatch:
 
 permissions:
