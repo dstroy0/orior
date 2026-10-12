@@ -47,8 +47,10 @@ use crate::toolchains;
 /// starts with, the languages it serves, the protocol's name for each extension's language, the
 /// line that installs it where the toolchain can be present without it, and the name of the file
 /// that marks a project, each of which in the tree the server is given as one of its linked
-/// projects where it does not look below the top folder for them itself; and, for a server that
-/// checks its projects as a whole and not a file at a time, the notification that has it check them.
+/// projects where it does not look below the top folder for them itself; for a server that checks its
+/// projects as a whole and not a file at a time, the notification that has it check them; and the
+/// options it starts with in a tree whose own code is held back (trust.rs), which keep it from
+/// running that code.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ServerSpec {
     pub program: String,
@@ -62,6 +64,8 @@ pub struct ServerSpec {
     pub projects: Option<String>,
     #[serde(default)]
     pub checks: Option<String>,
+    #[serde(default)]
+    pub held: Option<Value>,
 }
 
 /// Folders a search for projects does not go into: what a build writes, and what git keeps.
@@ -747,7 +751,15 @@ impl Servers {
                 let emit = emit.clone();
                 let published = self.published.clone();
                 let checks = self.checks.clone();
-                let options = spec.projects.as_deref().map_or(Value::Null, |name| json!({"linkedProjects": projects_in(root, name)}));
+                let mut options = spec.projects.as_deref().map_or(Value::Null, |name| json!({"linkedProjects": projects_in(root, name)}));
+                if let (Some(Value::Object(held)), true) = (&spec.held, crate::trust::held_back(root)) {
+                    if !options.is_object() {
+                        options = json!({});
+                    }
+                    if let Value::Object(given) = &mut options {
+                        given.extend(held.clone());
+                    }
+                }
                 Server::start(&program, &spec.args, root, options, toolchains::run_path(), Box::new(move |method, params| heard(method, params, &emit, &published, &checks))).map_err(|said| match &spec.setup {
                     Some(setup) => format!("{} did not start ({said}): {setup} installs it", spec.program),
                     None => format!("{} did not start: {said}", spec.program),
@@ -1656,6 +1668,7 @@ impl Servers {
         let mut by_language: HashMap<String, Option<(String, Arc<Server>, ServerSpec)>> = HashMap::new();
         let mut waiting = Vec::new();
         let mut whole = HashSet::new();
+        let held = crate::trust::held_back(root);
         for file in files {
             let Some(language) = language_of(&languages, file) else {
                 continue;
@@ -1669,6 +1682,8 @@ impl Servers {
             };
             let path = root.join(file);
             match &spec.checks {
+                // A check of the projects as a whole builds them, and runs the tree's own code.
+                Some(_) if held => {}
                 Some(method) => {
                     if whole.insert(tool) {
                         let _ = server.notify(method, json!({"textDocument": null}));

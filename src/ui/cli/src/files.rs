@@ -132,7 +132,7 @@ pub fn warm(root: &Path) {
 /// Git's view of the tree as git gives it now, or None where git cannot read it or lists nothing.
 fn read_seen(root: &Path) -> Option<Arc<Seen>> {
     let mut git = Command::new("git");
-    git.args(["ls-files", "--cached", "--others", "--exclude-standard", "-z"]).current_dir(root);
+    git.args(crate::trust::git_words(root)).args(["ls-files", "--cached", "--others", "--exclude-standard", "-z"]).current_dir(root);
     git.stdin(Stdio::null()).stderr(Stdio::null());
     crate::runner::quiet(&mut git);
     let out = git.output().ok().filter(|out| out.status.success())?;
@@ -761,7 +761,7 @@ fn hits_in(path: &str, bytes: &[u8], query: &str, how: Searching) -> Vec<Hit> {
 /// where git cannot search the tree, which is then searched for the query as text.
 fn search_by_git(root: &Path, query: &str, how: Searching, specs: &[String], searched: &dyn Fn(&str) -> bool) -> Option<Result<Vec<Hit>, String>> {
     let mut git = Command::new("git");
-    git.args(["grep", "-n", "--column", "-I", "--no-color", "--untracked", "--full-name"]).current_dir(root);
+    git.args(crate::trust::git_words(root)).args(["grep", "-n", "--column", "-I", "--no-color", "--untracked", "--full-name"]).current_dir(root);
     if !how.case {
         git.arg("-i");
     }

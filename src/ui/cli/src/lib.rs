@@ -88,6 +88,7 @@ pub mod testing;
 pub mod tls;
 pub mod toolchains;
 pub mod transfer;
+pub mod trust;
 pub mod validate;
 pub mod vector;
 pub mod watch;

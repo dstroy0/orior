@@ -29,6 +29,7 @@
         { "label": "Open in Dev Container", "command": "dev-container", "console": true },
         { "label": "Clone Repository…", "command": "clone", "args": "[url] [folder]", "console": true },
         { "label": "Keep Tree as Template…", "command": "keep-template", "args": "[name]" },
+        { "label": "Trust This Tree…", "command": "trust-tree" },
         "-",
         { "label": "Save", "command": "save", "keys": "Ctrl+S", "needs": "changed-active" },
         { "label": "Save All", "command": "save-all", "needs": "changed" },

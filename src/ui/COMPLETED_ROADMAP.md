@@ -10,6 +10,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 
 3. **At work at once, with the reading behind.** Every key works from the first frame; what the tree is read for comes in behind and is never waited on. The tree's files and what they declare are read behind the window from the tree's opening. Go to File answers from the files opened lately until the tree's files are read, and the tree's symbols from what is read so far, each saying more may be found and asking again until the read ends. The status bar says what of the tree is not read yet.
 
+4. **Trust asked once, and kept.** A tree's own code runs only once the reader says so, and the answer holds for the tree and every tree under it. orior asks only when a tree holds code its tools run as they read it: a build script or a procedural macro rust-analyzer builds, a Prettier or ESLint configuration in JavaScript, or an fsmonitor hook in the tree's git configuration. Trust It, Trust Every Tree in the folder above, or Hold It Back is kept in trust.json in orior's home. Until the tree is trusted, rust-analyzer starts with its build scripts, procedural macros and checks off, the checkers do not run, Prettier does not run the tree's configuration, and git runs no fsmonitor hook; the status bar says the code is held back, and a press there or File, Trust This Tree, asks again.
+
 ## Responsiveness
 
 1. **Go to File puts the exact name first.** A file whose name is what was typed comes above a longer name that holds it, and a name that starts with it comes next.

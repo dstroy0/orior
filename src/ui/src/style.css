@@ -8805,6 +8805,24 @@ textarea.report-field {
   display: none;
 }
 
+/* The tree's own code held back until the reader trusts it, in the bar's signal. */
+.status-trust {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--bar-signal);
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-trust:hover {
+  color: var(--bar-bright);
+}
+
+.status-trust[hidden] {
+  display: none;
+}
+
 .status-plugin-stop {
   margin-left: 0.4rem;
   padding: 0 6px;

@@ -881,7 +881,21 @@ impl Server {
             "requests_from_curl" => requests::from_curl(&a.get::<String>("text")?).and_then(give),
             "requests_private" => requests::make_private(&self.root()?, &path()?).and_then(give),
             "latex_make" => latex::make(&self.root()?, &path()?, &a.get::<String>("text")?).and_then(give),
-            "format_text" => format::format(&at(&path()?)?, &a.get::<String>("language")?, &a.get::<String>("text")?).and_then(give),
+            "format_text" => {
+                let language = a.get::<String>("language")?;
+                if format::program_of(&language).as_deref() == Some("prettier") && crate::trust::prettier_held_back(&self.root()?) {
+                    return Err("Prettier would run the tree's own configuration, and the tree is not trusted: File, Trust This Tree".into());
+                }
+                format::format(&at(&path()?)?, &language, &a.get::<String>("text")?).and_then(give)
+            }
+            "trust_read" => give(crate::trust::told(&self.root()?)),
+            "trust_set" => {
+                let folder = PathBuf::from(a.get::<String>("folder")?);
+                crate::trust::set(&folder, a.get("trusted")?)?;
+                // The servers start again, with the tree's code or without it as the answer has it.
+                self.servers.let_go();
+                give(())
+            }
             "format_width" => give(format::width(&at(&path()?)?, &a.get::<String>("language")?)),
             "format_margin" => give(format::margin(&at(&path()?)?, &a.get::<String>("language")?).map(|(width, by)| json!({"width": width, "by": by}))),
             "tree_mount" => root::mount(Path::new(&path()?)).and_then(give),

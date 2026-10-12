@@ -48,6 +48,7 @@ import { startSearch } from "./search.js";
 import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
 import { watch, write } from "./status.js";
 import { focusTerminalView, newTerminal, runInTerminal, startTerminal } from "./terminal.js";
+import { readTrust, startTrust } from "./trust.js";
 import { onView, showView, shownView } from "./views.js";
 import { onTold, showWindow } from "./windows.js";
 import { startWordmark } from "./wordmark.js";
@@ -276,6 +277,7 @@ async function start() {
   startNotices();
   startNetwork();
   startLanguage();
+  startTrust();
   // A tree on another machine: once the link to it is made, the runs kept there are read, and once
   // it is made again after a drop, every open tab is handed to its server there again.
   await startRemote({
@@ -339,6 +341,7 @@ async function begin(root) {
     }
     await readSettings(root);
     readTree();
+    readTrust();
     const defs = await invoke("definitions_read");
     if (!started) {
       started = true;

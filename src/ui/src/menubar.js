@@ -39,6 +39,7 @@ import { offNetwork, setOffNetwork, showNetwork } from "./network.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
 import { runToolchains } from "./toolchains.js";
+import { askTrust } from "./trust.js";
 import { loadUserCss, openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
@@ -547,6 +548,7 @@ const COMMANDS = {
   "network-off": (args) => setOffNetwork(onOff(args) ?? !offNetwork()),
   about: showAbout,
   "whats-new": showChanges,
+  "trust-tree": () => askTrust(),
 };
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
