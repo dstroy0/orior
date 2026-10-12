@@ -98,16 +98,31 @@ test("each file's mark in the tree has its ink centered on the middle of its nam
     probe.remove();
     return at;
   };
-  const pen = document.createElement("canvas").getContext("2d");
-  // The ink of `text` set as `node` sets it: how far above its line it reaches, and below. A font
-  // sized so its capitals are as tall as its size is scaled to that.
+  // The ink of `text` set as `node` sets it: how far above its line it reaches, and below, found
+  // in its pixels drawn at 100px, the font scaled to set a "0" as wide as the node sets one.
+  const canvas = Object.assign(document.createElement("canvas"), { width: 400, height: 240 });
+  const pen = canvas.getContext("2d", { willReadFrequently: true });
   const inkOf = (node, text) => {
     const style = getComputedStyle(node);
-    const size = Number.parseFloat(style.fontSize);
+    const zeros = Object.assign(document.createElement("span"), { textContent: "0000000000", style: "position:absolute;visibility:hidden;white-space:pre" });
+    node.append(zeros);
+    const wide = zeros.getBoundingClientRect().width / 10;
+    zeros.remove();
     pen.font = `${style.fontWeight} 100px ${style.fontFamily}`;
-    const ink = pen.measureText(text);
-    const scale = style.fontSizeAdjust.includes("cap-height") ? size / pen.measureText("H").actualBoundingBoxAscent : size / 100;
-    return { above: ink.actualBoundingBoxAscent * scale, below: ink.actualBoundingBoxDescent * scale };
+    pen.clearRect(0, 0, canvas.width, canvas.height);
+    pen.fillText(text, 10, 160);
+    const { data } = pen.getImageData(0, 0, canvas.width, canvas.height);
+    const inked = [];
+    for (let row = 0; row < canvas.height; row += 1) {
+      for (let at = row * canvas.width * 4 + 3; at < (row + 1) * canvas.width * 4; at += 4) {
+        if (data[at] > 96) {
+          inked.push(row);
+          break;
+        }
+      }
+    }
+    const scale = wide / pen.measureText("0").width;
+    return { above: (160 - inked[0]) * scale, below: (inked.at(-1) + 1 - 160) * scale };
   };
   const off = [...document.querySelectorAll("#files .node:not(.dir)")]
     .filter((row) => row.checkVisibility() && row.querySelector(".icon")?.textContent && row.querySelector(".name"))

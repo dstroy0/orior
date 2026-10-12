@@ -90,9 +90,13 @@ test("a large text is held on the Rust side, each change follows it there, and i
   for (const hunk of own.hunks) {
     assert.deepEqual(s.changesThen.slice(hunk.then[0], hunk.then[1]), head.slice(hunk.then[0], hunk.then[1]), "the lines a change spans as the commit holds them");
   }
-  // Closed, its tab's text is let go on the Rust side.
-  await ui.click(document.querySelector(`#tabs .tab .close[title="held/held.py"]`));
-  await ui.click(document.querySelector(`#tabs .tab .close[title="held/held.py"]`));
+  // Closed, its tab's text is let go on the Rust side. The tab strip is drawn again as the marks
+  // come: each press is on the close button as it stands.
+  const closer = () => document.querySelector(`#tabs .tab .close[title="held/held.py"]`);
+  for (let press = 0; press < 2 && closer(); press += 1) {
+    await ui.waitFor(() => closer()?.checkVisibility(), 3000);
+    await ui.click(closer());
+  }
   await ui.waitFor(() => !document.querySelector(`#tabs .tab .close[title="held/held.py"]`), 3000);
   let gone = false;
   for (let tries = 0; tries < 30 && !gone; tries += 1) {

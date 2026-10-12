@@ -118,19 +118,37 @@ function markOf(name, ext) {
 }
 
 // How far up each mark is moved, in pixels, for its ink to center on the middle of the capitals of
-// the name beside it: a mark of small letters, as py or zp, stands on the name's line with its ink
-// lower than the name's. Each is measured once the fonts are in, as a row sets the mark and the name.
+// the name beside it: a mark of small letters, as py or zp, stands with its ink lower than the name's,
+// and the mark's line and the name's are not the same in every engine. Each is measured once the
+// fonts are in, as a row sets the mark and the name.
 const lifts = new Map();
 let fonts = null;
 
-// The ink of `text` in `font`, as { font, size, adjusted }: how far above its line it reaches, and
-// below, in pixels. A font sized so its capitals are as tall as its size is scaled to that.
+// The ink of `text` in `font`, as { font, wide }: how far above its line it reaches, and below, in
+// pixels, the font scaled to set a "0" `wide` pixels wide, as the page sets it. The text is drawn at
+// 100px and its ink found row by row.
 function inkOf(font, text) {
-  const pen = (inkOf.canvas ??= document.createElement("canvas")).getContext("2d");
+  const canvas = (inkOf.canvas ??= Object.assign(document.createElement("canvas"), { width: 400, height: 240 }));
+  const pen = canvas.getContext("2d", { willReadFrequently: true });
   pen.font = font.font;
-  const ink = pen.measureText(text);
-  const scale = font.adjusted ? font.size / pen.measureText("H").actualBoundingBoxAscent : font.size / 100;
-  return { above: ink.actualBoundingBoxAscent * scale, below: ink.actualBoundingBoxDescent * scale };
+  pen.clearRect(0, 0, canvas.width, canvas.height);
+  pen.fillStyle = "#000";
+  pen.textBaseline = "alphabetic";
+  pen.fillText(text, 10, 160);
+  const { data } = pen.getImageData(0, 0, canvas.width, canvas.height);
+  let top = -1;
+  let bottom = -1;
+  for (let row = 0; row < canvas.height; row += 1) {
+    for (let at = row * canvas.width * 4 + 3; at < (row + 1) * canvas.width * 4; at += 4) {
+      if (data[at] > 96) {
+        top = top < 0 ? row : top;
+        bottom = row + 1;
+        break;
+      }
+    }
+  }
+  const scale = font.wide / pen.measureText("0").width;
+  return top < 0 ? { above: 0, below: 0 } : { above: (160 - top) * scale, below: (bottom - 160) * scale };
 }
 
 export function liftOf(mark) {
@@ -141,20 +159,33 @@ export function liftOf(mark) {
     return 0;
   }
   if (!fonts) {
-    const icon = element("span", { className: "icon", textContent: "H" });
-    const name = element("span", { className: "name", textContent: "H" });
+    // Each font's "0" measured as the row sets it, in a box of ten of them.
+    const zeros = (className) => element("span", { className, textContent: "0000000000" });
+    const icon = zeros("icon");
+    const name = zeros("name");
     const row = element("div", { className: "node" }, icon, name);
-    row.style.cssText = "position:fixed;visibility:hidden";
+    row.style.cssText = "position:fixed;visibility:hidden;width:auto";
+    icon.style.width = "auto";
+    name.style.flex = "none";
     document.body.append(row);
+    // A box of no height set in a text stands on the text's line.
+    const lineOf = (node) => {
+      const probe = element("span");
+      probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+      node.append(probe);
+      const at = probe.getBoundingClientRect().bottom;
+      probe.remove();
+      return at;
+    };
     const of = (node) => {
       const style = getComputedStyle(node);
-      return { font: `${style.fontWeight} 100px ${style.fontFamily}`, size: Number.parseFloat(style.fontSize), adjusted: style.fontSizeAdjust.includes("cap-height") };
+      return { font: `${style.fontWeight} 100px ${style.fontFamily}`, wide: node.getBoundingClientRect().width / 10 };
     };
-    fonts = { icon: of(icon), name: of(name) };
+    fonts = { icon: of(icon), name: of(name), below: lineOf(icon) - lineOf(name) };
     row.remove();
   }
   const ink = inkOf(fonts.icon, mark);
-  const lift = inkOf(fonts.name, "H").above / 2 - (ink.above - ink.below) / 2;
+  const lift = inkOf(fonts.name, "H").above / 2 - (ink.above - ink.below) / 2 + fonts.below;
   lifts.set(mark, lift);
   return lift;
 }
