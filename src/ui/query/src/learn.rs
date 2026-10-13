@@ -232,10 +232,11 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             Ok(code)
         }
         Step::Dry(rounds) => {
+            // the dry machine file and the costs and record beside it, under the working folder, not the tree's
             let machine = work.join("sm_86.khw");
             let mut run = context.started(FOLDER)?;
             carried(context, &run, false)?;
-            run.read(&[machine.clone(), files.costs.clone(), files.record.clone(), files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
+            run.read(&[machine.clone(), work.join("sm_86.ksc"), work.join("sm_86.kqr"), files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
             let mut words = teacher_words(&machine, &files, &writer);
             words.extend([rounds.to_string(), "--".into(), "dry".into()]);
             if context.said(&run, &teacher, &as_words(&words))? != 0 {
@@ -257,7 +258,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             let machine = work.join("sm_86.khw");
             let mut run = context.started(FOLDER)?;
             carried(context, &run, false)?;
-            run.read(&[machine.clone(), files.costs.clone(), files.record.clone(), files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
+            run.read(&[machine.clone(), work.join("sm_86.ksc"), work.join("sm_86.kqr"), files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
             let forms = if lines(&run, "forms_work.txt") != 0 { "forms_work.txt" } else { "forms.txt" };
             let seeded = lines(&run, forms);
             let mut words = teacher_words(&machine, &files, &writer);
