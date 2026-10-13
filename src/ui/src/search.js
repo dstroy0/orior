@@ -7,7 +7,7 @@
 // whole tree or to a set of files Preferences names. A file's row opens and closes its lines, and a
 // line's row opens the file at the match.
 
-import { invoke } from "./bridge.js";
+import { invoke, listen } from "./bridge.js";
 import { iconOf } from "./explorer.js";
 import { onPatterns, searchSets } from "./patterns.js";
 
@@ -174,6 +174,13 @@ export function startSearch(open) {
     run();
   });
   state.query.addEventListener("input", later);
+  // What stands found is found again as files git sees change, as a tool writes them, and not for a
+  // build's output git ignores.
+  listen("tree-changed", ({ payload }) => {
+    if (state.query.value.trim() && (payload?.git || payload?.lost)) {
+      later();
+    }
+  });
   state.query.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();

@@ -8,7 +8,7 @@
 //! finds only what git tracks or would track. A tree git cannot read is listed whole, less SKIPPED,
 //! and nothing in it is marked.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -76,10 +76,12 @@ pub struct Slice {
     pub text: String,
 }
 
-/// Git's view of the tree: every file it tracks or would track, and every folder holding one.
+/// Git's view of the tree: every file it tracks or would track, every folder holding one, and, for
+/// each folder outside it a file was found in, whether git ignores that folder, asked as it is met.
 struct Seen {
     files: BTreeSet<String>,
     dirs: BTreeSet<String>,
+    ignored: Mutex<HashMap<String, bool>>,
 }
 
 /// The tree git's view was last read for, when, and the view, None where git could not read the
@@ -151,7 +153,7 @@ fn read_seen(root: &Path) -> Option<Arc<Seen>> {
     if files.is_empty() {
         return None;
     }
-    Some(Arc::new(Seen { files, dirs }))
+    Some(Arc::new(Seen { files, dirs, ignored: Mutex::new(HashMap::new()) }))
 }
 
 /// Lets go of git's view of the tree, to be read again by the next list or search, as after files
@@ -162,12 +164,37 @@ pub fn forget_seen() {
     }
 }
 
-/// Whether git tracks the path or would: a file it lists, or a file in a folder holding one it lists
-/// or at the tree's top. Every path is, in a tree git cannot read.
+/// Whether git tracks the path or would: a file it lists, a file in a folder holding one it lists or
+/// at the tree's top, or a file in a folder the view does not hold, as one just made, that git does
+/// not ignore. Every path is, in a tree git cannot read.
 pub fn tracked(root: &Path, path: &str) -> bool {
     let Some(view) = seen(root) else { return true };
     let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
-    view.files.contains(path) || folder.is_empty() || view.dirs.contains(folder)
+    if view.files.contains(path) || folder.is_empty() || view.dirs.contains(folder) {
+        return true;
+    }
+    // The first folder down the path the view does not hold: an empty folder git lists nothing of, a
+    // folder made since the view was read, or one git ignores, as a build's output is.
+    let mut at = 0;
+    let outside = loop {
+        let end = path[at..].find('/').map_or(folder.len(), |slash| at + slash);
+        if !view.dirs.contains(&path[..end]) || end >= folder.len() {
+            break &path[..end];
+        }
+        at = end + 1;
+    };
+    if let Some(ignored) = view.ignored.lock().ok().and_then(|asked| asked.get(outside).copied()) {
+        return !ignored;
+    }
+    let mut git = Command::new("git");
+    git.args(crate::trust::git_words(root)).args(["check-ignore", "-q", "--"]).arg(format!("{outside}/")).current_dir(root);
+    git.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    crate::runner::quiet(&mut git);
+    let ignored = git.status().is_ok_and(|status| status.success());
+    if let Ok(mut asked) = view.ignored.lock() {
+        asked.insert(outside.to_string(), ignored);
+    }
+    !ignored
 }
 
 /// A folder's entries, less what the explorer's patterns hide. Where a pattern keeps only what it
@@ -1393,6 +1420,30 @@ mod listing {
         let mut listed = all(&repo.join("runs/tree"));
         listed.sort();
         assert_eq!(listed, vec!["a.js".to_string(), "src/b.js".to_string()]);
+        fs::remove_dir_all(&repo).unwrap();
+    }
+
+    #[test]
+    fn a_file_in_a_folder_made_after_gits_view_was_read_is_tracked_and_one_in_an_ignored_folder_is_not() {
+        let repo = std::env::temp_dir().join(format!("orior_ui_tracked_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&repo);
+        fs::create_dir_all(repo.join("made")).unwrap();
+        fs::write(repo.join(".gitignore"), "out/\n").unwrap();
+        fs::write(repo.join("a.txt"), "one").unwrap();
+        let repo = dunce::canonicalize(&repo).unwrap();
+        assert!(Command::new("git").arg("init").arg("-q").current_dir(&repo).status().unwrap().success());
+        super::forget_seen();
+        assert!(super::tracked(&repo, "a.txt"));
+        // The view now read holds the empty folder as nothing.
+        fs::write(repo.join("made/new.txt"), "two").unwrap();
+        fs::create_dir_all(repo.join("made/deeper")).unwrap();
+        fs::write(repo.join("made/deeper/more.txt"), "three").unwrap();
+        fs::create_dir_all(repo.join("out/deep")).unwrap();
+        fs::write(repo.join("out/deep/x.o"), "four").unwrap();
+        assert!(super::tracked(&repo, "made/new.txt"), "a file in a folder made since");
+        assert!(super::tracked(&repo, "made/deeper/more.txt"), "and one a folder further down");
+        assert!(!super::tracked(&repo, "out/deep/x.o"), "a file under a folder git ignores");
+        super::forget_seen();
         fs::remove_dir_all(&repo).unwrap();
     }
 }
