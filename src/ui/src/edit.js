@@ -54,7 +54,8 @@ import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { startRuns } from "./runs.js";
 import { startTrace } from "./trace.js";
 import { coverageOf, startTests, testMenu, testsOf } from "./tests.js";
-import { focusedKey, keepListKeys, refocus } from "./lists.js";
+import { keepListKeys } from "./lists.js";
+import { RowList } from "./rowlist.js";
 import { clipText, copyText, menuOn, showMenu } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
 import { onPatterns, tellPatterns } from "./patterns.js";
@@ -214,8 +215,9 @@ async function loadChanges() {
 }
 
 // Draws the tree from the folders read, and ends once the latest draw has put its rows in. A draw that
-// a later one overtakes while it reads puts nothing in, and the row that holds the keys as the rows
-// are put in keeps them.
+// a later one overtakes while it reads puts nothing in. The rows are what each stands for, and a row
+// list puts on the page only those in sight and those the scroll heads into. A folder of any size
+// opens and scrolls at once, and the row that holds the keys keeps them.
 function drawTree() {
   state.drawn = drawTreeOnce(state.drawing + 1);
   return state.drawn;
@@ -224,13 +226,12 @@ function drawTree() {
 async function drawTreeOnce(drawing) {
   const list = document.getElementById("files");
   state.drawing = drawing;
+  state.rowList ??= new RowList(list, { height: TREE_ROW, gap: MOUNT_GAP, build: (row) => treeRowOf(row) });
   const put = (rows) => {
     if (drawing !== state.drawing) {
       return state.drawn;
     }
-    const focused = focusedKey(list);
-    list.replaceChildren(...rows);
-    refocus(list, focused);
+    state.rowList.set(rows, rows.findIndex((row) => row.mountFirst));
     return null;
   };
   const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
@@ -238,13 +239,13 @@ async function drawTreeOnce(drawing) {
   const query = document.getElementById("file-filter").value.trim();
   if (query) {
     const found = await invoke("tree_find", { query });
-    await put(found.map((path) => node({ name: path, path, dir: false, ignored: false }, 0)));
+    await put(found.map((path) => treeRow({ name: path, path, dir: false, ignored: false }, 0)));
     return;
   }
-  const nodes = [];
+  const rows = [];
   const walk = async (dir, depth) => {
     for (const entry of await childrenOf(dir)) {
-      nodes.push(node(entry, depth));
+      rows.push(treeRow(entry, depth));
       if (entry.dir && state.expanded.has(entry.path)) {
         await walk(entry.path, depth + 1);
       }
@@ -254,17 +255,38 @@ async function drawTreeOnce(drawing) {
   // Each folder or file from another place stands after the tree's own, under its own name.
   for (const [at, mounted] of state.mounts.entries()) {
     const path = `@${mounted.name}`;
-    const row = node({ name: mounted.name, path, dir: mounted.dir, ignored: false }, 0);
-    row.classList.add("mount");
-    row.classList.toggle("mount-first", at === 0);
-    row.title = mounted.path;
-    nodes.push(row);
+    rows.push({ ...treeRow({ name: mounted.name, path, dir: mounted.dir, ignored: false }, 0), mount: mounted.path, mountFirst: at === 0 });
     if (mounted.dir && state.expanded.has(path)) {
       await walk(path, 1);
     }
   }
-  await put(nodes);
+  await put(rows);
 }
+
+// The height of a row of the tree, and the room above the first folder or file from another place.
+const TREE_ROW = 22;
+const MOUNT_GAP = 4;
+
+// A row of the tree as the row list holds it: its key, depth, name and whether it is open, which the
+// list's keys read, and the entry it stands for.
+function treeRow(entry, depth) {
+  return { key: entry.path, depth, name: shownName(entry), open: entry.dir ? state.expanded.has(entry.path) : null, entry };
+}
+
+// A row of the tree's element, as it comes into sight.
+function treeRowOf(row) {
+  const button = node(row.entry, row.depth);
+  if (row.mount) {
+    button.classList.add("mount");
+    button.classList.toggle("mount-first", row.mountFirst);
+    button.title = row.mount;
+  }
+  return button;
+}
+
+// The element of the tree's row for `path`, put on the page and scrolled into sight, or null where
+// the tree shows no row for it.
+export const treeRowShown = (path) => state.rowList?.reveal(path) ?? null;
 
 // More than one tree in a window: folders from other places, and single files from them, mounted
 // beside the tree, each with its own place in the explorer and kept with the tree.
@@ -1200,7 +1222,7 @@ async function reveal(path) {
     at = path.lastIndexOf("/", at - 1);
   }
   await drawTree();
-  [...document.querySelectorAll("#files .node")].find((row) => row.dataset.key === path)?.scrollIntoView({ block: "nearest" });
+  treeRowShown(path);
 }
 
 function show(path) {
@@ -3448,7 +3470,7 @@ const SHOWN_IN_WINDOW = new Set(["html", "htm", "svg", "png", "jpg", "jpeg"]);
 // The tree's file menu and a tab's menu as commands, each by the name commands.json gives it, run
 // from the menu or from the command line with the words it gives: a path of the tree, a mount's name
 // for Remove from Window, and what each names besides.
-const rowOfPath = (path) => [...document.querySelectorAll("#files .node")].find((row) => row.dataset.key === path) ?? null;
+const rowOfPath = (path) => treeRowShown(path);
 const parentOf = (path) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
 
 async function isFolder(path) {
@@ -3602,9 +3624,7 @@ async function pasteFiles(into) {
   await drawTree();
   const last = pasted.at(-1)?.to;
   if (last !== undefined) {
-    const row = [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === last);
-    row?.focus();
-    row?.scrollIntoView({ block: "nearest" });
+    treeRowShown(last)?.focus();
   }
 }
 

@@ -7,7 +7,7 @@
 import { allCommands, firstKeys, hasCommand, isChecked, runCommand } from "../../src/menubar.js";
 import { invoke, listen } from "../../src/bridge.js";
 import { closeMenu } from "../../src/menu.js";
-import { editing, openFile, saving, vimKeys } from "../../src/edit.js";
+import { editing, openFile, saving, treeRowShown, vimKeys } from "../../src/edit.js";
 import { killTerminal, newTerminal, runInTerminal, toggleTerminal } from "../../src/terminal.js";
 import { showView } from "../../src/views.js";
 import { paletteOpen } from "../../src/palette.js";
@@ -1685,7 +1685,7 @@ async function menuOver(find) {
 ["file-open", "file-remove", "file-names", "file-open-window", "file-cut", "file-copy", "file-paste", "file-copy-path", "file-terminal", "file-select-compare", "file-compare"].forEach((command) => COVERED.add(command));
 ["tab-close", "tab-close-others", "tab-split-right", "tab-split-down", "tab-new-window", "tab-group", "tab-ungroup", "tab-mark", "tab-open-as"].forEach((command) => COVERED.add(command));
 
-const rowOf = (path) => [...document.querySelectorAll("#files .node")].find((row) => row.dataset.key === path);
+const rowOf = (path) => treeRowShown(path);
 const tabOfName = (path) => [...document.querySelectorAll("#tabs .tab")].find((tab) => tab.title === path);
 
 test("every item of the tree's menus, the tabs' and the editor's runs a command the command line runs", async () => {

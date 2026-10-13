@@ -16,6 +16,10 @@
 // marked, Up and Down step from match to match, and Backspace takes the last letter back. Escape, a
 // click in the list, a key that opens or closes a row, or the keys leaving the list ends the search.
 // What was typed shows over the list's top right.
+//
+// A list inside the list whose rows are not all on the page, as the tree's, holds a model of them, as
+// rowlist.js keeps it: the keys step through all its rows by the model, its first and last are where
+// a step from outside it comes in, and letters typed in it find the rows among all of its own.
 
 import { fuzzy } from "./fuzzy.js";
 
@@ -26,6 +30,9 @@ const inSight = (row) => row.offsetParent !== null;
 function rowsOf(list) {
   return [...list.querySelectorAll(ROWS)].filter(inSight);
 }
+
+// The model of the rows of the list that holds `row`, where its rows are not all on the page.
+const modelOf = (row) => row?.closest?.(".row-list")?.rowModel ?? null;
 
 const depthOf = (row) => Number(row.dataset.depth ?? row.closest("details")?.dataset.depth ?? 0);
 
@@ -71,11 +78,12 @@ function typedSearch(list) {
   shown.className = "list-typed";
   shown.hidden = true;
   document.body.append(shown);
-  const held = { text: "", matches: [] };
+  const held = { text: "", matches: [], model: null };
   const mark = () => {
     const ranges = [];
-    for (const { row, hits } of held.matches) {
-      const node = nameOf(row).firstChild;
+    for (const { row: given, at, hits } of held.matches) {
+      const row = given ?? held.model.shownAt(at);
+      const node = row && nameOf(row).firstChild;
       if (node?.nodeType !== Node.TEXT_NODE) {
         continue;
       }
@@ -88,6 +96,15 @@ function typedSearch(list) {
     }
     CSS.highlights?.set("list-typed", new Highlight(...ranges));
   };
+  // What is typed, shown over the list's top right, marked where nothing matches.
+  const show = () => {
+    const box = list.getBoundingClientRect();
+    shown.textContent = held.text;
+    shown.classList.toggle("none", !held.matches.length);
+    shown.style.top = `${Math.round(box.top + 4)}px`;
+    shown.style.right = `${Math.round(window.innerWidth - box.right + 8)}px`;
+    shown.hidden = false;
+  };
   return {
     get text() {
       return held.text;
@@ -95,18 +112,35 @@ function typedSearch(list) {
     // The matches for what is typed now, the row from `from` on that takes the keys.
     find(text, from) {
       held.text = text;
+      const model = modelOf(from);
+      if (held.model !== model && held.model) {
+        held.model.onDraw = null;
+      }
+      held.model = model;
+      if (model) {
+        // Every row of the model, on the page or not, and those it puts on the page marked as they come.
+        model.onDraw = mark;
+        held.matches = [];
+        for (let at = 0; at < model.count; at += 1) {
+          const found = fuzzy(text, model.name(at));
+          if (found) {
+            held.matches.push({ at, hits: found.hits });
+          }
+        }
+        show();
+        const start = Math.max(0, model.indexOf(from.dataset.key));
+        const first = held.matches.find((one) => one.at >= start) ?? held.matches[0];
+        const row = first ? model.element(first.at, { reveal: true }) : null;
+        mark();
+        return row;
+      }
       // In a list whose rows name what they stand for, as the explorer's files and folders do, the
       // headings of its groups are no matches.
       const all = rowsOf(list);
       const named = all.filter((row) => row.querySelector(".name"));
       const rows = named.length ? named : all;
       held.matches = rows.map((row) => ({ row, found: fuzzy(text, nameOf(row).textContent) })).filter((one) => one.found).map(({ row, found }) => ({ row, hits: found.hits }));
-      const box = list.getBoundingClientRect();
-      shown.textContent = text;
-      shown.classList.toggle("none", !held.matches.length);
-      shown.style.top = `${Math.round(box.top + 4)}px`;
-      shown.style.right = `${Math.round(window.innerWidth - box.right + 8)}px`;
-      shown.hidden = false;
+      show();
       mark();
       const start = Math.max(0, rows.indexOf(from));
       const first = held.matches.find((one) => rows.indexOf(one.row) >= start) ?? held.matches[0];
@@ -114,11 +148,20 @@ function typedSearch(list) {
     },
     // The match `by` matches on from `row`, the last or the first where there is no further one.
     step(row, by) {
+      if (held.model) {
+        const at = held.matches.findIndex((one) => one.at === held.model.indexOf(row.dataset.key));
+        const next = held.matches[Math.max(0, Math.min(held.matches.length - 1, at + by))];
+        return next ? held.model.element(next.at, { reveal: true }) : row;
+      }
       const at = held.matches.findIndex((one) => one.row === row);
       const next = held.matches[Math.max(0, Math.min(held.matches.length - 1, at + by))];
       return next?.row ?? row;
     },
     end() {
+      if (held.model) {
+        held.model.onDraw = null;
+        held.model = null;
+      }
       if (held.text) {
         held.text = "";
         held.matches = [];
@@ -167,6 +210,10 @@ export function keepListKeys(list, search) {
       return;
     }
     typed.end();
+    const model = modelOf(row);
+    if (model && stepInModel(event, row, model)) {
+      return;
+    }
     let next = null;
     if (event.key === "ArrowDown") {
       next = rows[at + 1] ?? row;
@@ -193,6 +240,14 @@ export function keepListKeys(list, search) {
       return;
     }
     event.preventDefault();
+    // A step from outside a model's rows comes in at its first row going down, at its last going up,
+    // and Home and End go to the very first and last.
+    const into = modelOf(next);
+    if (into && into !== model) {
+      next = into.element(event.key === "ArrowUp" || event.key === "End" ? into.count - 1 : 0, { reveal: true });
+    } else if (into && (event.key === "Home" || event.key === "End")) {
+      next = into.element(event.key === "End" ? into.count - 1 : 0, { reveal: true });
+    }
     next?.focus();
     next?.scrollIntoView({ block: "nearest" });
   });
@@ -202,6 +257,50 @@ export function keepListKeys(list, search) {
       rowsOf(list)[0]?.focus();
     }
   });
+}
+
+// A key on row `row` of a model's rows, stepped through the model: Up and Down to the row before or
+// after, Right into an open folder or opening a closed one, Left closing an open one or out to the
+// row that holds it. Says whether it took the key: a step past the model's first or last row, and
+// every other key, is the list's.
+function stepInModel(event, row, model) {
+  const at = model.indexOf(row.dataset.key);
+  let to = null;
+  if (at < 0) {
+    return false;
+  }
+  if (event.key === "ArrowDown") {
+    to = at + 1 < model.count ? at + 1 : null;
+  } else if (event.key === "ArrowUp") {
+    to = at > 0 ? at - 1 : null;
+  } else if (event.key === "ArrowRight") {
+    const open = model.open(at);
+    if (open === false) {
+      event.preventDefault();
+      row.click();
+      return true;
+    }
+    to = open && at + 1 < model.count ? at + 1 : at;
+  } else if (event.key === "ArrowLeft") {
+    if (model.open(at)) {
+      event.preventDefault();
+      row.click();
+      return true;
+    }
+    to = at;
+    for (let back = at - 1; back >= 0; back -= 1) {
+      if (model.depth(back) < model.depth(at)) {
+        to = back;
+        break;
+      }
+    }
+  }
+  if (to === null) {
+    return false;
+  }
+  event.preventDefault();
+  model.element(to, { reveal: true }).focus({ preventScroll: true });
+  return true;
 }
 
 // The key of the row that has the focus, where it is in the list, and null otherwise. A row's key is

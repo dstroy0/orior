@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The rows in sight: a folder of three hundred files in the explorer's tree, its rows out of sight
-// neither laid out nor painted, and those its scroll heads into drawn ahead.
+// not on the page while the list keeps their height, and those its scroll heads into drawn ahead.
 
 import { invoke } from "../../src/bridge.js";
 import { togglePane } from "../../src/sides.js";
@@ -16,7 +16,7 @@ const rowOf = (path) => files().querySelector(`.node[data-key="${path}"]`);
 const drawn = (row) => row.querySelector(".name").checkVisibility({ contentVisibilityAuto: true });
 const name = (at) => `sight/f${String(at).padStart(3, "0")}.txt`;
 
-test("rows of the tree out of sight are neither laid out nor painted, and those in sight are", async () => {
+test("rows of the tree out of sight are not on the page and keep their height, and those in sight are drawn", async () => {
   for (let at = 0; at < 300; at += 1) {
     await invoke("file_create", { path: name(at) }).catch(() => {});
   }
@@ -26,12 +26,13 @@ test("rows of the tree out of sight are neither laid out nor painted, and those 
   if (rowOf("sight").getAttribute("aria-expanded") !== "true") {
     await ui.click(rowOf("sight"));
   }
-  await ui.waitFor(() => rowOf(name(299)), 10000);
+  await ui.waitFor(() => files().rowModel?.indexOf(name(299)) >= 0, 10000);
   files().scrollTop = 0;
   await ui.rest(100);
   assert.ok(drawn(rowOf("sight")), "the folder's own row, in sight, is drawn");
-  assert.ok(!drawn(rowOf(name(299))), "a row far below is neither laid out nor painted");
-  assert.equal(rowOf(name(299)).getBoundingClientRect().height, rowOf("sight").getBoundingClientRect().height, "it keeps a row's height");
+  assert.equal(rowOf(name(299)), null, "a row far below is not on the page");
+  const height = rowOf("sight").getBoundingClientRect().height;
+  assert.ok(files().scrollHeight >= files().rowModel.count * height, `the list keeps every row's height: ${files().scrollHeight} px for ${files().rowModel.count} rows of ${height}`);
 });
 
 test("the rows the tree scrolls toward are drawn ahead of it", async () => {

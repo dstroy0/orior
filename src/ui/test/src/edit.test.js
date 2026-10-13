@@ -7,14 +7,14 @@
 // saved text, however it got back, marked saved; and the changes not saved kept as a window closes.
 
 import { invoke } from "../../src/bridge.js";
-import { chooseNames, editing, openFile, restoreSession, setVimKeys, vimKeys } from "../../src/edit.js";
+import { chooseNames, editing, openFile, restoreSession, setVimKeys, treeRowShown, vimKeys } from "../../src/edit.js";
 import { lineChanges } from "../../src/editor/diff.js";
 import { togglePane } from "../../src/sides.js";
 import { showView } from "../../src/views.js";
 
 const { test, assert, ui } = window.__harness;
 
-const rowOf = (path) => document.getElementById("files").querySelector(`.node[data-key="${path}"]`);
+const rowOf = (path) => treeRowShown(path);
 
 test("a zip in the tree opens as a folder, and a file in it opens, is changed and saved back into it", async () => {
   showView("edit");

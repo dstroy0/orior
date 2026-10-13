@@ -62,8 +62,9 @@ export function drawAhead(list) {
 }
 
 // The rows of `list` marked to be drawn ahead, for the tests.
-export const aheadOf = (list) => lists.get(list)?.marked ?? [];
+// A list rowlist.js draws marks its own rows ahead as it puts them on the page.
+export const aheadOf = (list) => lists.get(list)?.marked ?? [...list.querySelectorAll(":scope > .ahead")];
 
 export function startSight() {
-  document.querySelectorAll(".pane-body, #jobs").forEach(drawAhead);
+  document.querySelectorAll(".pane-body:not(.row-list), #jobs").forEach(drawAhead);
 }
