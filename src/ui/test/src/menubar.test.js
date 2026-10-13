@@ -126,6 +126,9 @@ const openMenus = () => [...document.querySelectorAll("body > .menu")];
 const itemsIn = (menu) => [...menu.querySelectorAll(":scope > .menu-item")];
 const labelOf = (button) => button.querySelector("span")?.textContent ?? "";
 
+// The window's size, its zoom and what the page sees of it, said where a press misses.
+const viewSaid = () => `the window ${innerWidth}x${innerHeight} at zoom ${zoom()}, the page seen ${Math.round(visualViewport.width)}x${Math.round(visualViewport.height)} at scale ${visualViewport.scale}, ${devicePixelRatio} pixels to a point`;
+
 // Every menu closed, every sheet and dialog closed, a finding of the slow plugin stopped, and the
 // keys let go.
 async function putBack() {
@@ -144,7 +147,7 @@ async function openTo(at, path) {
   const named = (depth) => [title.textContent.trim(), ...path.slice(0, depth)].join(" / ");
   await ui.click(title);
   let menu = await ui.waitFor(() => openMenus()[0], 3000).catch(() => {
-    throw new Error(`${named(0)} did not open`);
+    throw new Error(`${named(0)} did not open; ${viewSaid()}, the title at ${JSON.stringify(title.getBoundingClientRect())}`);
   });
   for (const [depth, label] of path.entries()) {
     const item = itemsIn(menu).find((button) => labelOf(button) === label);
@@ -185,7 +188,10 @@ test(
     const commandOf = new Map();
     // A setting the menus check turns on and off: pressed again, it stands as the walk found it.
     const checking = new Set(allCommands().filter((item) => item.checks).map((item) => item.command));
-    for (const item of allCommands()) {
+    // A label is read as a command of the bar's own menus: a list's menu can give the same label
+    // another command, as the profile's Zoom Out does.
+    const onBar = new Set([...document.getElementById("menubar").children].map((title) => title.textContent.trim()));
+    for (const item of allCommands().filter((one) => onBar.has(one.menu))) {
       for (const label of [item.label, ...Object.values(item.labels ?? {})]) {
         commandOf.set(label, item.command);
       }
@@ -251,7 +257,7 @@ test(
               await wait(150);
             }
           } catch (error) {
-            unreached.push(`${pressing}: ${error.message}`);
+            unreached.push(`${pressing}: ${error.message}; ${viewSaid()}`);
           }
           await putBack();
           if (AFTER[command] || checking.has(command)) {
