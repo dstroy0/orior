@@ -1,0 +1,228 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// pieces.c: the pieces: a word and a run read, the pieces of the vendor's listing read, what a read holds, a piece's reading and name, a form's name and text composed, and a form kept
+#include "khw_machine_write_internal.h"
+
+// one piece of a name as the vendor's table gives it
+typedef struct
+{
+    char kind[KHW_PIECE];
+    char piece[KHW_PIECE];
+    char reads[KHW_READS];
+} KhwPiece;
+
+static KhwPiece s_piece[KHW_PIECES];
+static unsigned int s_pieces;
+
+// the container the system accepted, the part it enters at, how many registers a thread of it holds, the kernel's
+// code and how many places it holds
+unsigned char s_pattern[KHW_PATTERN_BYTES];
+
+unsigned long long s_pattern_size;
+char s_kernel[128];
+unsigned int s_registers;
+unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
+unsigned int s_kernel_places;
+
+// the machine the file holds
+SassMachine s_machine;
+
+// one word of an instruction
+unsigned long long khw_word_read(const unsigned char *instruction, unsigned int byte)
+{
+    unsigned long long value = 0ull;
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        value |= (unsigned long long)instruction[byte + at] << (8u * at);
+    }
+    return value;
+}
+
+// the bits `first` to `last` of the instruction `low` and `high` make
+static unsigned long long khw_run_read(unsigned long long low, unsigned long long high, unsigned int first,
+                                       unsigned int last)
+{
+    unsigned long long value = 0ull;
+    for (unsigned int bit = first; bit <= last; bit += 1u)
+    {
+        const unsigned long long word = (bit < 64u) ? low : high;
+        value |= ((word >> (bit % 64u)) & 1ull) << (bit - first);
+    }
+    return value;
+}
+
+// the pieces of the vendor's table at `path`, into s_piece. 1, or 0 with the reason printed
+int khw_pieces_read(const char *path)
+{
+    FILE *const file = fopen(path, "rb");
+    if (file == NULL)
+    {
+        printf("  khw_machine_write: %s could not be read\n", path);
+        return 0;
+    }
+    char line[1024];
+    while (fgets(line, sizeof(line), file) != NULL)
+    {
+        line[strcspn(line, "\r\n")] = '\0';
+        if ((line[0] == '#') || (line[0] == '\0') || (s_pieces == KHW_PIECES))
+        {
+            continue;
+        }
+        char *const piece = strchr(line, '\t');
+        char *const reads = (piece != NULL) ? strchr(piece + 1, '\t') : NULL;
+        if (reads == NULL)
+        {
+            continue;
+        }
+        *piece = '\0';
+        *reads = '\0';
+        char *const gloss = strchr(reads + 1, '\t');
+        if (gloss != NULL)
+        {
+            *gloss = '\0';
+        }
+        snprintf(s_piece[s_pieces].kind, sizeof(s_piece[s_pieces].kind), "%.*s", (int)(KHW_PIECE - 1u), line);
+        snprintf(s_piece[s_pieces].piece, sizeof(s_piece[s_pieces].piece), "%.*s", (int)(KHW_PIECE - 1u), piece + 1);
+        snprintf(s_piece[s_pieces].reads, sizeof(s_piece[s_pieces].reads), "%.*s", (int)(KHW_READS - 1u), reads + 1);
+        s_pieces += 1u;
+    }
+    fclose(file);
+    if (s_pieces == 0u)
+    {
+        printf("  khw_machine_write: %s holds no piece of a name\n", path);
+        return 0;
+    }
+    return 1;
+}
+
+// 1 where the reads of `piece` hold `word` whole, and not as part of a longer one
+static int khw_reads_hold(const KhwPiece *piece, const char *word)
+{
+    const size_t length = strlen(word);
+    const char *at = piece->reads;
+    while ((at = strstr(at, word)) != NULL)
+    {
+        const int before = (at == piece->reads) || (*(at - 1) == ' ');
+        const int after = (at[length] == '\0') || (at[length] == ' ');
+        if (before && after)
+        {
+            return 1;
+        }
+        at += length;
+    }
+    return 0;
+}
+
+// the piece of kind `kind` whose reads hold `word`, or NULL where the table gives none
+const char *khw_piece_reading(const char *kind, const char *word)
+{
+    for (unsigned int at = 0u; at < s_pieces; at += 1u)
+    {
+        if ((strcmp(s_piece[at].kind, kind) == 0) && khw_reads_hold(&s_piece[at], word))
+        {
+            return s_piece[at].piece;
+        }
+    }
+    return NULL;
+}
+
+// the piece of kind `kind` whose own text is `text`, or NULL where the table gives none
+static const char *khw_piece_named(const char *kind, const char *text)
+{
+    for (unsigned int at = 0u; at < s_pieces; at += 1u)
+    {
+        if ((strcmp(s_piece[at].kind, kind) == 0) && (strcmp(s_piece[at].piece, text) == 0))
+        {
+            return s_piece[at].piece;
+        }
+    }
+    return NULL;
+}
+
+// The name of a form the part answered `held` of, composed from the pieces of the vendor's table: the kind of value
+// the cases hold, the relation answered, how many sources the fields found, and the qualifier the answers read a word
+// into where a case of the relation reads two ways. Into `written`, which holds `room`
+static void khw_name_composed(const KhwForm *held, char *written, size_t room)
+{
+    const char *const kind = khw_piece_reading("kind", KHW_READS_WORD);
+    const char *const operation = khw_piece_reading("operation", held->relation);
+    written[0] = '\0';
+    if (operation == NULL)
+    {
+        return;
+    }
+    size_t at = 0u;
+    at += (size_t)snprintf(&written[at], room - at, "%s%s", (kind != NULL) ? kind : "", operation);
+    // the count of sources the part answered fields for, written where the table holds that count for this relation
+    char sources[KHW_PIECE];
+    snprintf(sources, sizeof(sources), "%u", (held->runs > 0u) ? (held->runs - 1u) : 0u);
+    for (unsigned int piece = 0u; piece < s_pieces; piece += 1u)
+    {
+        if ((strcmp(s_piece[piece].kind, "count") == 0) && (strcmp(s_piece[piece].piece, sources) == 0) &&
+            khw_reads_hold(&s_piece[piece], held->relation))
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%s", sources);
+            break;
+        }
+    }
+    if (held->signedness_asked != 0)
+    {
+        const char *const read_as =
+            khw_piece_named("qualifier", (held->signed_read != 0) ? KHW_PIECE_SIGNED : KHW_PIECE_UNSIGNED);
+        if (read_as != NULL)
+        {
+            at += (size_t)snprintf(&written[at], room - at, ".%s", read_as);
+        }
+    }
+    (void)at;
+}
+
+// The text of a form the part answered `held` of: its name, then each operand in the order its run's first bit rises,
+// the order they are printed in, each read from the encoding through its own run. A register the part
+// answers nothing at is printed by the name the tree writes it under
+void khw_text_composed(const KhwForm *held, char *written, size_t room)
+{
+    char name[KHW_NAME];
+    khw_name_composed(held, name, sizeof(name));
+    written[0] = '\0';
+    if (name[0] == '\0')
+    {
+        return;
+    }
+    size_t at = (size_t)snprintf(written, room, "%s", name);
+    for (unsigned int run = 0u; (run < held->runs) && (at < room); run += 1u)
+    {
+        const unsigned long long number = khw_run_read(held->low, held->high, held->first[run], held->last[run]);
+        if (number == KHW_REGISTER_NONE)
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%s%s", (run == 0u) ? " " : ", ", KHW_REGISTER_NONE_TEXT);
+        }
+        else
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%sR%llu", (run == 0u) ? " " : ", ", number);
+        }
+    }
+}
+
+// `held` kept in `machine` as a form under `text`, with the runs the part answered for its operands. 1, or 0 where
+// the machine is full
+int khw_form_kept(SassMachine *machine, const KhwForm *held, const char *text)
+{
+    SassForm *kept = NULL;
+    if (!sass_machine_take(machine, text, held->low, held->high, &kept) || (kept == NULL))
+    {
+        return 0;
+    }
+    // the relation's name fits the form's room, and a longer one is cut to it
+    snprintf(kept->relation, sizeof(kept->relation), "%.*s", (int)(sizeof(kept->relation) - 1u), held->relation);
+    kept->signed_read = held->signed_read;
+    kept->runs = 0u;
+    for (unsigned int run = 0u; (run < held->runs) && (kept->runs < SASS_MACHINE_RUNS); run += 1u)
+    {
+        kept->run[kept->runs].operand = run;
+        kept->run[kept->runs].first = held->first[run];
+        kept->run[kept->runs].last = held->last[run];
+        kept->run[kept->runs].place = held->place[run];
+        kept->runs += 1u;
+    }
+    return 1;
+}

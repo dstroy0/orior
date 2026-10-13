@@ -14,16 +14,16 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py run --at HASH              the suites of orior as it was at a commit
     harness.py run --idle SECONDS         a suite silent this long once admitted is hung (1800; 0 never)
 
---at exports the commit once, with git archive, to build/trees/<commit> beside the repository
+--at exports the commit once, with git archive, to build/trees/<commit>
 (fetching it from origin where this clone does not hold it) and runs that tree's matrix there; its
 logs go to build/harness/at_<commit>/.
 
-Every suite's nvcc goes through one compile cache, build/compile_cache beside the repository
+Every suite's nvcc goes through one compile cache, build/compile_cache
 (utils/maint/engine/compile_cache.py, set up by utils/maint/engine/build_stamp.sh): each source is compiled once a tree and
 set of flags, by the first suite that needs it, and the rest link its object. A tree is keyed by
 its committed files, uncommitted changes and untracked files, or by its commit where pinned.
 
-Each suite's output goes to build/harness/<env>.log beside the repository. A suite passes when
+Each suite's output goes to build/harness/<env>.log. A suite passes when
 its job exits 0, every "test exit N" line it printed is 0, and no check failed ("N checks, M
 failed"). A suite that prints "not run:" and no check line is NOT RUN; one that prints no check
 line and no exit line is NO CHECKS, which is reported, never read as a pass by silence.
@@ -413,12 +413,10 @@ def cmd_env_list(a):
 
 TESSERA_RUN_CANDIDATES = (
     os.environ.get("HARNESS_TESSERA_RUN", ""),
-    os.path.join(os.path.dirname(ROOT), "build", "tessera_host", "tessera_run.exe"),
     os.path.join(ROOT, "build", "tessera_host", "tessera_run.exe"),
-    os.path.join(os.path.dirname(ROOT), "build", "tessera_host", "tessera_run"),
     os.path.join(ROOT, "build", "tessera_host", "tessera_run"),
 )
-SCRIPT_BUILD = os.path.join(os.path.dirname(ROOT), "build", "harness")
+SCRIPT_BUILD = os.path.join(ROOT, "build", "harness")
 # a suite admitted and silent this long is hung
 IDLE_SECONDS = 1800
 # the processors a suite reserves where its env names none: a suite that links cached objects peaks near one, and
@@ -466,7 +464,7 @@ def pinned_root(commit):
     if found.returncode != 0:
         return None
     full = found.stdout.strip()
-    tree = os.path.join(os.path.dirname(ROOT), "build", "trees", full)
+    tree = os.path.join(ROOT, "build", "trees", full)
     pinned = os.path.join(tree, ".pinned")
     if not os.path.isfile(pinned):
         archive = subprocess.run(["git", "-C", ROOT, "archive", "--format=tar", full], capture_output=True, check=True)
@@ -489,7 +487,7 @@ def script_command(name, e, tessera, root=ROOT, script_build=SCRIPT_BUILD):
     env.update(e.get("env", {}))
     env["BUILD_OUT"] = out
     # one compile cache for every suite, pinned or not: a tree's objects are compiled by its first suite
-    env["COMPILE_CACHE_DIR"] = os.path.join(os.path.dirname(ROOT), "build", "compile_cache").replace("\\", "/")
+    env["COMPILE_CACHE_DIR"] = os.path.join(ROOT, "build", "compile_cache").replace("\\", "/")
     # a suite compiles what the cache lacks as many at a time as the processors it reserves
     env["COMPILE_CACHE_JOBS"] = str(e.get("processors", PROCESSORS))
     if "CYCLE_RECORD_CHECK" in env or "CYCLE_RECORD_REPORT" in env:

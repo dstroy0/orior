@@ -11,6 +11,5 @@ src/import/prose/docs_check.py	84
 src/import/prose/gate.py	3
 src/import/prose/prosody_rate.py	6
 theory/theory/boundary/bibliography.tex	2
-utils/maint/data/salishan/corpus_script_extraction/coverage_check.py	1
 utils/maint/data/salishan/corpus_script_extraction/glyph_names.py	2
 utils/maint/data/salishan/corpus_script_extraction/space_repair.py	1

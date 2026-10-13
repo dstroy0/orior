@@ -20,6 +20,14 @@
 //               a channel with no airlock whose carrier is handed no held list. Given the real carrier and cross, a
 //               code the vendor reads clean passes with nothing held, and an instruction it calls illegal is held by
 //               its encoding, every reading through the run's streams (run_channel.h, measuring_stick_query.c)
+//   tables      a conference held is a row of the run's conferences, each account it heard a row of its accounts and
+//               its lesson a row of its lessons, each naming the conference by the number of the question's identity
+//   verdicts    given the real carrier, every question its gate reads is a row of the run's table of verdicts keyed to
+//               its ask, held where a rule broke, its reason a text of the table of texts, and an ask read again a
+//               second row of it
+//   check       a question the cross holds only for a register past the count its kernel allots is put again with the
+//               count that clears it, read again and carried; one held for what no count clears keeps its count; each
+//               hold and each count given is a line of the teacher's trace
 //
 //     overseer_check <overseer_carrier> [<cubin_run> <machine file> <layout> <cross> <nvdisasm>]
 //
@@ -59,11 +67,9 @@ static void check_accounts(QryBuffer *run, const char *identity, const char *con
     }
 }
 
-// 1 where the latest blob of the conference of `identity` holds `text`
-static int check_conference_holds(QryBuffer *run, const char *identity, const char *text)
+// 1 where the blobs `name` of the run, joined, hold `text`
+static int check_joined_holds(QryBuffer *run, const char *name, const char *text)
 {
-    char name[OVERSEER_NAME_LONGEST];
-    overseer_conference_named(identity, name);
     unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     int holds = 0;
@@ -80,6 +86,14 @@ static int check_conference_holds(QryBuffer *run, const char *identity, const ch
     }
     free(bytes);
     return holds;
+}
+
+// 1 where the conference of `identity` holds `text`
+static int check_conference_holds(QryBuffer *run, const char *identity, const char *text)
+{
+    char name[OVERSEER_NAME_LONGEST];
+    overseer_conference_named(identity, name);
+    return check_joined_holds(run, name, text);
 }
 
 // 1 where the latest blob `name` of the run holds `text`
@@ -100,6 +114,91 @@ static int check_latest_holds(QryBuffer *run, const char *name, const char *text
         }
     }
     return 0;
+}
+
+// The rows of `words` words each of the run's table `table` whose first column, past the who's two words, is
+// `conference`: their count, the last of them copied into `last`, which holds `words`, and in `cause_reads` the count
+// of those whose fourth column, an account's cause, is `cause`
+static unsigned int check_rows_of(QryBuffer *run, const char *table, unsigned int words, unsigned long long conference,
+                                  unsigned long long *last, unsigned long long cause, unsigned int *cause_reads)
+{
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    unsigned int count = 0u;
+    *cause_reads = 0u;
+    if (!qry_joined(run, table, &bytes, &size))
+    {
+        return 0u;
+    }
+    unsigned long long row[16];
+    const size_t row_size = (size_t)words * sizeof(unsigned long long);
+    for (unsigned long long at = 0ull; (words <= 16u) && ((at + row_size) <= size); at += row_size)
+    {
+        memcpy(row, bytes + at, row_size);
+        if (row[2] == conference)
+        {
+            memcpy(last, row, row_size);
+            count += 1u;
+            *cause_reads += ((words > 5u) && (row[5] == cause)) ? 1u : 0u;
+        }
+    }
+    free(bytes);
+    return count;
+}
+
+// 1 where the run's table of texts holds a row of the number `number`
+static int check_text_held(QryBuffer *run, unsigned long long number)
+{
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    int found = 0;
+    if (!qry_joined(run, "texts", &bytes, &size))
+    {
+        return 0;
+    }
+    // a text's row: two words of no who, its number, its length, then its bytes filled out to a whole word
+    unsigned long long opening[4];
+    for (unsigned long long at = 0ull; !found && ((at + sizeof(opening)) <= size);)
+    {
+        memcpy(opening, bytes + at, sizeof(opening));
+        found = (opening[2] == number);
+        at += sizeof(opening) + (((opening[3] + 7ull) / 8ull) * 8ull);
+    }
+    free(bytes);
+    return found;
+}
+
+// The rows of the run's table of verdicts of the ask whose code is the latest blob question.bin, in their order: the
+// rule, held, carried and reason of each, into `rule`, `held`, `carried` and `reason`, each of room `room`. Their count
+static unsigned int check_verdicts(QryBuffer *run, unsigned long long *rule, unsigned long long *held,
+                                   unsigned long long *carried, unsigned long long *reason, unsigned int room)
+{
+    const unsigned char *code = NULL;
+    unsigned long long code_size = 0ull;
+    unsigned long long ask = 0ull;
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    unsigned int count = 0u;
+    if (!qry_latest(run, "question.bin", &code, &code_size, &ask) || !qry_joined(run, "verdicts", &bytes, &size))
+    {
+        return 0u;
+    }
+    // a verdict's row: the who's two words, then its ask, rule, held, the byte it held at, its reason and carried
+    unsigned long long row[8];
+    for (unsigned long long at = 0ull; ((at + sizeof(row)) <= size) && (count < room); at += sizeof(row))
+    {
+        memcpy(row, bytes + at, sizeof(row));
+        if (row[2] == ask)
+        {
+            rule[count] = row[3];
+            held[count] = row[4];
+            reason[count] = row[6];
+            carried[count] = row[7];
+            count += 1u;
+        }
+    }
+    free(bytes);
+    return count;
 }
 
 // 1 where the latest blob `name` of the run is there and holds no byte
@@ -177,6 +276,24 @@ int main(int count, char **words)
                "consensus: the ruling says what the learner was after");
     check_that(check_conference_holds(run, "check-consensus", "overseer: 7 accounts heard"),
                "consensus: the ruling is handed to the conference as the overseer's account");
+
+    // tables: the conference a row of the run's conferences, each account it heard a row of its accounts and its
+    // lesson a row of its lessons, each naming the conference by the number of the question's identity
+    const unsigned long long consensus = qry_row_text(run, "check-consensus", strlen("check-consensus"));
+    unsigned long long last[10];
+    unsigned int reads = 0u;
+    check_that((check_rows_of(run, "conferences", 10u, consensus, last, 0ull, &reads) == 1u) && (last[3] == 1ull) &&
+                   (last[4] == OVERSEER_CAUSE_ADDRESS) && (last[5] == OVERSEER_SIDE_STAND_IN) &&
+                   (last[6] == OVERSEER_OTHER_WAY) && (last[7] == 7ull) && (last[8] == 1ull) &&
+                   check_text_held(run, last[9]),
+               "tables: the conference is a row of the run's conferences, its ruling, its seven accounts, its lesson "
+               "and its words");
+    check_that((check_rows_of(run, "accounts", 6u, consensus, last, OVERSEER_CAUSE_ADDRESS, &reads) == 7u) &&
+                   (reads == 2u),
+               "tables: each of its seven accounts is a row of the run's accounts, two of them reading an address");
+    check_that((check_rows_of(run, "lessons", 6u, consensus, last, 0ull, &reads) == 1u) &&
+                   (last[3] == OVERSEER_CAUSE_ADDRESS) && check_text_held(run, last[5]),
+               "tables: its lesson is a row of the run's lessons, its cause and the stand-in as written");
 
     // dissent: two causes, no ruling
     static const char *const s_dissent[] = {
@@ -282,7 +399,7 @@ int main(int count, char **words)
                "teacher: the conference rules on the carrier's and the learner's accounts");
     check_that(check_latest_holds(run, "airlock.txt", " airlock_answers.txt "),
                "airlock: the round's list is handed with its answers renamed for the pop");
-    char line[160];
+    char line[256];
     snprintf(line, sizeof(line), "teacher: %s carried: illegal, refused CUDA_ERROR_ILLEGAL_ADDRESS", identity);
     check_that(check_latest_holds(run, "trace", line),
                "trace: the teacher's line for the refused question is in the run");
@@ -355,6 +472,39 @@ int main(int count, char **words)
     check_that(run_channel_open(unheld, 10000000ull) == 0,
                "airlock: one whose carrier reads no held list does not open");
 
+    // check: a question the cross holds only for a register past its count is put again with the count that clears
+    // it and read again, and one held for what no count clears is kept held, each hold and each count a line of the
+    // teacher's trace
+    const char *const counted[] = {words[1], "refuse",  "--held", "held.txt",  "--pop",    words[1],
+                                   "pop",    "--cross", words[1], "registers", "held.txt", NULL};
+    check_that(run_channel_open(counted, 10000000ull) == 1, "check: the channel opens on a cross that holds registers");
+    s_code[1] = 0xc0u;
+    s_question.registers = 16u;
+    check_identity(&s_question, identity);
+    run_channel_ask(&s_question);
+    check_that(s_question.registers == 41u,
+               "check: a question held only for registers is put again with the count that clears it");
+    check_that(check_latest_holds(run, "questions.txt", "question.bin 41 cases.txt") &&
+                   (s_question.outcome == RUN_ILLEGAL),
+               "check: read again, it passes and is carried with that count");
+    snprintf(line, sizeof(line), "teacher: %s checked: held, the stand-in reads R40, past the 16 registers", identity);
+    check_that(check_joined_holds(run, "trace", line), "check: its hold is a line of the teacher's trace");
+    snprintf(line, sizeof(line), "teacher: %s checked: put again with 41 registers in place of 16", identity);
+    check_that(check_joined_holds(run, "trace", line), "check: and so is the count it was given");
+    run_channel_close();
+    const char *const illegal[] = {words[1], "refuse",  "--held", "held.txt", "--pop",    words[1],
+                                   "pop",    "--cross", words[1], "illegal",  "held.txt", NULL};
+    check_that(run_channel_open(illegal, 10000000ull) == 1, "check: the channel opens on a cross that holds encodings");
+    s_code[1] = 0xc1u;
+    s_question.registers = 16u;
+    check_identity(&s_question, identity);
+    run_channel_ask(&s_question);
+    snprintf(line, sizeof(line), "teacher: %s checked: kept held: no count of registers clears it", identity);
+    check_that((s_question.registers == 16u) && check_joined_holds(run, "trace", line),
+               "check: a question held for what no count clears keeps its count, and is traced kept held");
+    run_channel_close();
+    s_question.registers = 16u;
+
     // airlock, with the real tools where they are given: the carrier's dry pop and the vendor's cross read the round
     // through the run's streams, a clean code passes with nothing held, and an illegal instruction is held by its
     // encoding
@@ -375,6 +525,32 @@ int main(int count, char **words)
         check_that(check_latest_holds(run, "airlock_cross.txt", "questions read: 1") &&
                        check_latest_empty(run, "held.txt"),
                    "airlock: the vendor read it and holds nothing");
+        unsigned long long rule[4];
+        unsigned long long held[4];
+        unsigned long long carried[4];
+        unsigned long long reason[4];
+        check_that((check_verdicts(run, rule, held, carried, reason, 4u) == 1u) &&
+                       (held[0] == ((rule[0] != 0ull) ? 1ull : 0ull)) && (carried[0] == 0ull) &&
+                       check_text_held(run, reason[0]),
+                   "verdicts: the pop's gate reads the ask once, a row keyed to it, held where a rule broke, the part "
+                   "taken out, its reason a text of the table of texts");
+        // MOV R40, c[0x0][0x28], then EXIT: a register the vendor reads past the 16 the question's kernel allots
+        static const unsigned char s_past[32] = {0x02u, 0x7au, 0x28u, 0x00u, 0x00u, 0x0au, 0x00u, 0x00u,
+                                                 0x00u, 0x0fu, 0x00u, 0x00u, 0x00u, 0xe4u, 0x0fu, 0x00u,
+                                                 0x4du, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+                                                 0x00u, 0x00u, 0x80u, 0x03u, 0x00u, 0xeau, 0x0fu, 0x00u};
+        memcpy(s_code, s_past, sizeof(s_past));
+        s_question.registers = 16u;
+        check_identity(&s_question, identity);
+        run_channel_ask(&s_question);
+        snprintf(line, sizeof(line), "teacher: %s checked: held, the vendor reads R40 at byte ", identity);
+        check_that((s_question.registers == 41u) && check_joined_holds(run, "trace", line),
+                   "check: a register the vendor reads past the count is put again with the count that clears it");
+        check_that((s_question.outcome == RUN_ILLEGAL) && check_latest_empty(run, "held.txt"),
+                   "check: read again with that count, the vendor holds nothing and it is carried");
+        check_that(check_verdicts(run, rule, held, carried, reason, 4u) == 2u,
+                   "verdicts: the ask read again with the count that clears it is a second row of one ask");
+        s_question.registers = 16u;
         // all ones after the EXIT: an instruction the vendor calls illegal
         memset(s_code + 16, 0xff, 16u);
         run_channel_ask(&s_question);

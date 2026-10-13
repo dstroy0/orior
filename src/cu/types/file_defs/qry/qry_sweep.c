@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qry_sweep.c: the host's own widths, alignments and steps for the run's buffer (qry_buffer.h), found by timing each
 // candidate on the host with its own clock, and the ones found fastest written to qry_host.h beside qry_buffer.h, which
-// every build of the buffer then takes (qry_sweep.sh).
+// every build of the buffer then takes (`orior protocol sweep`).
 //
 //     qry_sweep time <scratch folder>    each candidate timed QRY_SWEEP_ROUNDS times, a line each to the standard
 //                                        output: what was timed, the candidate, and the nanoseconds it took a MiB
@@ -416,7 +416,7 @@ static int qry_sweep_picked(int count, char **runs)
     printf("// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational\n");
     printf("// qry_host.h: this host's widths, alignments and steps for the run's buffer, the fastest of each "
            "candidate's\n");
-    printf("// median over the host's sweeps (qry_sweep.c), written by qry_sweep.sh and read by qry_buffer.h\n");
+    printf("// median over the host's sweeps (qry_sweep.c), written by `orior protocol sweep` and read by qry_buffer.h\n");
     printf("#ifndef QRY_HOST_H\n#define QRY_HOST_H\n\n");
     if (align != 0ull)
     {

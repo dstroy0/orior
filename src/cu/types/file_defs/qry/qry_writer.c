@@ -11,8 +11,12 @@
 //                                     every byte of the standard input handed as one blob of <name> at <priority>, 0 a
 //                                     panic, 1 critical and on disk before it returns, 2 ordinary where none is given
 //     qry_writer file <path>          every byte of the standard input handed as the current file at <path>, under the
-//                                     top of the tree (QRY_TOP): the run's writer writes it in the file's place, and it
-//                                     is on disk before this returns (qry_filed)
+//                                     top of the tree (QRY_TOP): the .qry holds it before this returns, and the run's
+//                                     writer writes it in the file's place once the run ends (qry_filed)
+//     qry_writer left <path>          the file at <path> handed to the run as the run leaves it, under its name from
+//                                     the top of the tree (qry_file_named) or its own where it stands outside:
+//                                     nothing where the run holds it as a current file, the run leaving it as it
+//                                     holds it; the file read whole where the run does not (qry_file_held)
 //     qry_writer current <path>       the file at <path> as the run holds it to the standard output: its latest blob,
 //     or
 //                                     the file where the run holds none (qry_file_read)
@@ -37,174 +41,18 @@
 //
 // Where no .qry is given, QRY names it, the string every process of the run names it by. Exit 0 where it was done, 1
 // where it was not, 2 where the words are none of the above
-#if !defined(_WIN32)
-// nanosleep is POSIX, outside strict C11
-#define _POSIX_C_SOURCE 200809L
-#endif
-#include "qry_buffer.h"
+#include "writer/qry_writer_internal.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
+// `room` bytes of the standard input into `piece`, as many as one read gives: the count, 0 at the input's end, and
+// less than 0 where it could not be read
+static long qry_writer_piece_read(unsigned char *piece, size_t room)
+{
 #if defined(_WIN32)
-#include <fcntl.h>
-#include <io.h>
-#include <windows.h>
+    // a piece's room fits the count a read takes
+    return (long)_read(0, piece, (unsigned int)room);
 #else
-#include <time.h>
+    return (long)read(0, piece, room);
 #endif
-
-// the most a stop waits for the writer to write the rest, and a ready for it to make the buffer
-#define QRY_WRITER_STOP_MILLISECONDS 600000u
-#define QRY_WRITER_READY_MILLISECONDS 30000u
-
-static void qry_writer_binary(void)
-{
-#if defined(_WIN32)
-    _setmode(_fileno(stdin), _O_BINARY);
-    _setmode(_fileno(stdout), _O_BINARY);
-#endif
-}
-
-static void qry_writer_pause(void)
-{
-#if defined(_WIN32)
-    Sleep(10u);
-#else
-    const struct timespec pause = {0, 10000000};
-    nanosleep(&pause, NULL);
-#endif
-}
-
-// the .qry named after the words, or the one QRY names
-static const char *qry_writer_named(int count, char **words, int at)
-{
-    return (count > at) ? words[at] : getenv(QRY_ENVIRONMENT);
-}
-
-// every byte of the standard input, in memory of the caller's to free
-static unsigned char *qry_writer_input(unsigned long long *size)
-{
-    unsigned long long room = 65536ull;
-    unsigned char *bytes = (unsigned char *)malloc((size_t)room);
-    *size = 0ull;
-    while (bytes != NULL)
-    {
-        if (*size == room)
-        {
-            room *= 2ull;
-            unsigned char *const larger = (unsigned char *)realloc(bytes, (size_t)room);
-            if (larger == NULL)
-            {
-                free(bytes);
-                return NULL;
-            }
-            bytes = larger;
-        }
-        const size_t read = fread(bytes + *size, 1u, (size_t)(room - *size), stdin);
-        if (read == 0u)
-        {
-            break;
-        }
-        *size += read;
-    }
-    return bytes;
-}
-
-// what a carry or a file's latest is handed each name of a finished .qry with: the run's buffer to hand it to, NULL
-// where it is written to the standard output, the names asked for in the order qry_writer_name_order puts them, each
-// once, every name where there are none, which of them were found, and whether each went where it was sent
-typedef struct
-{
-    QryBuffer *run;
-    char **names;
-    int name_count;
-    int *found;
-    unsigned long long carried;
-    int sent;
-} QryWriterCarry;
-
-static int qry_writer_name_order(const void *left, const void *right)
-{
-    return strcmp(*(char *const *)left, *(char *const *)right);
-}
-
-// the names asked for put in order and each kept once, for qry_writer_carried to find a blob's name among them
-static void qry_writer_names_ordered(QryWriterCarry *carry)
-{
-    qsort(carry->names, (size_t)carry->name_count, sizeof(char *), qry_writer_name_order);
-    int kept = 0;
-    for (int at = 0; at < carry->name_count; at += 1)
-    {
-        if ((kept == 0) || (strcmp(carry->names[kept - 1], carry->names[at]) != 0))
-        {
-            carry->names[kept] = carry->names[at];
-            kept += 1;
-        }
-    }
-    carry->name_count = kept;
-}
-
-// the names the standard input holds, one a line, read into memory of the caller's to free, `*bytes`, and listed in
-// `*names`, also the caller's to free: their count, or -1 where there was no memory
-static int qry_writer_names_read(unsigned char **bytes, char ***names)
-{
-    unsigned long long size = 0ull;
-    *bytes = qry_writer_input(&size);
-    size_t lines = 1u;
-    for (unsigned long long at = 0ull; (*bytes != NULL) && (at < size); at += 1ull)
-    {
-        lines += ((*bytes)[at] == '\n') ? 1u : 0u;
-    }
-    unsigned char *const larger = (*bytes != NULL) ? (unsigned char *)realloc(*bytes, (size_t)size + 1u) : NULL;
-    *names = (larger != NULL) ? (char **)calloc(lines, sizeof(char *)) : NULL;
-    if (*names == NULL)
-    {
-        free((larger != NULL) ? larger : *bytes);
-        *bytes = NULL;
-        return -1;
-    }
-    *bytes = larger;
-    (*bytes)[size] = '\0';
-    int count = 0;
-    char *line = (char *)*bytes;
-    while (*line != '\0')
-    {
-        char *const end = strchr(line, '\n');
-        char *const next = (end != NULL) ? (end + 1) : (line + strlen(line));
-        if (end != NULL)
-        {
-            *end = '\0';
-        }
-        line[strcspn(line, "\r")] = '\0';
-        if (line[0] != '\0')
-        {
-            (*names)[count] = line;
-            count += 1;
-        }
-        line = next;
-    }
-    return count;
-}
-
-static void qry_writer_carried(void *context, const char *name, const unsigned char *bytes, unsigned long long size)
-{
-    QryWriterCarry *const carry = (QryWriterCarry *)context;
-    if (carry->name_count != 0)
-    {
-        char *const *const named = (char *const *)bsearch(&name, carry->names, (size_t)carry->name_count,
-                                                          sizeof(char *), qry_writer_name_order);
-        if (named == NULL)
-        {
-            return;
-        }
-        carry->found[named - carry->names] = 1;
-    }
-    const int sent = (carry->run != NULL) ? (qry_hand(carry->run, name, bytes, size, QRY_ORDINARY) != 0ull)
-                                          : (fwrite(bytes, 1u, (size_t)size, stdout) == size);
-    carry->sent &= sent;
-    carry->carried += sent ? 1ull : 0ull;
 }
 
 int main(int count, char **words)
@@ -356,6 +204,35 @@ int main(int count, char **words)
         }
         return (sequence != 0ull) ? 0 : 1;
     }
+    if ((strcmp(word, "left") == 0) && (count == 3))
+    {
+        // the run's own current file is how the run leaves it; any other file is handed as the disk holds it
+        qry_writer_binary();
+        QryBuffer *const buffer = qry_open(path);
+        if (buffer == NULL)
+        {
+            return 1;
+        }
+        int handed = 1;
+        if (!qry_file_held(buffer, words[2]))
+        {
+            char name[QRY_NAME_LONGEST + 1u];
+            const char *const slash = strrchr(words[2], '/');
+            const char *const own = (slash != NULL) ? (slash + 1) : words[2];
+            snprintf(name, sizeof(name), "%s", own);
+            qry_file_named(words[2], name, sizeof(name));
+            // a file that is not there is left as nothing, and nothing is handed
+            unsigned char *bytes = NULL;
+            unsigned long long size = 0ull;
+            if (qry_file_read(NULL, words[2], &bytes, &size))
+            {
+                handed = (qry_hand(buffer, name, bytes, size, QRY_ORDINARY) != 0ull);
+            }
+            free(bytes);
+        }
+        qry_close(buffer);
+        return handed ? 0 : 1;
+    }
     if ((strcmp(word, "file") == 0) && (count == 3))
     {
         // every byte of the standard input handed as the current file at the path: the run's writer writes it
@@ -396,13 +273,19 @@ int main(int count, char **words)
         static unsigned char s_piece[65536];
         int whole = 1;
         size_t got = 0u;
-        while ((got = fread(s_piece, 1u, sizeof(s_piece), stdin)) != 0u)
+        // one read at a time, as much as the input gives: a line printed reaches the output and the run at once, not
+        // once a block of the piece's size has gathered
+        long read_now = 0L;
+        while ((read_now = qry_writer_piece_read(s_piece, sizeof(s_piece))) > 0L)
         {
+            // a read's count is positive here
+            got = (size_t)read_now;
             whole &= (fwrite(s_piece, 1u, got, stdout) == got);
             fflush(stdout);
             whole &=
                 (buffer == NULL) || (qry_hand(buffer, name, s_piece, (unsigned long long)got, QRY_ORDINARY) != 0ull);
         }
+        whole &= (read_now == 0L);
         qry_close(buffer);
         return whole ? 0 : 1;
     }

@@ -4,6 +4,10 @@
 # The engine is the repository's own, at src/cu/engine: every build reads it there, and a tree without it fails
 # here, before anything compiles
 ENGINE="$(cd "$TOP/.." && pwd)/src/cu/engine"
+
+# the top of the repository TOP stands in, where every build goes under build/; TOP itself where git gives none
+BUILD_ROOT="$(git -C "$TOP" rev-parse --show-toplevel 2> /dev/null)"
+[ -n "$BUILD_ROOT" ] || BUILD_ROOT="$TOP"
 if [ ! -f "$ENGINE/engine_config.h" ]; then
     echo "  build failed: no engine at $ENGINE"
     exit 1
@@ -28,7 +32,7 @@ build_stamp()
         mkdir -p "$OUT"
         return 0
     fi
-    FINAL="$TOP/build"
+    FINAL="$BUILD_ROOT/build"
     mkdir -p "$FINAL"
     find "$FINAL" -mindepth 1 -maxdepth 1 -type d \
         -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]_*' \

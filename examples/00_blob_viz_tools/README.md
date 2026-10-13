@@ -138,8 +138,8 @@ slices from the source beside it:
 cd ../cell_tracking
 python maint/fetch_open_sample.py
 bash build_driver.sh
-../build/track_driver.exe --cfg base.cfg --ingest
-../build/track_driver.exe --cfg base.cfg
+../../build/track_driver.exe --cfg base.cfg --ingest
+../../build/track_driver.exe --cfg base.cfg
 python ../00_blob_viz_tools/view/serve_room.py
 ```
 

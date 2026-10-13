@@ -53,7 +53,8 @@ crate is built for each of them in their place. Then it runs the window's tests,
 the run with a home and a tree of its own: a run leaves the reader's orior as it was. The window
 goes on the highest numbered monitor that is not the main one, or the one `--monitor` or
 `ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while any test fails or any
-source file has no test, and its report is in `test/runs/<time>/report.md`.
+source file has no test, and its report is in `build/ui_test/runs/<time>/report.md` at the top of
+the tree.
 
 On Windows the window is driven through its debugging port. On Linux its web view is WebKitGTK,
 and the window is driven through WebKitWebDriver: every press, key, drag and wheel goes as

@@ -12,6 +12,9 @@
 #   kqr_check        holds R, the .kqr's reader and writer, to what its oracle says of it, on a record it writes and
 #                    on the part's own, written as records and read back as its bytes
 #   who_check        holds a who to what the who table gives, and every write to the who the run records of it
+#   qry_rows_check   holds a row of a table of the run to its who and its columns as handed, and a text of the table
+#                    of texts to its number, handed once
+#   kdecode_check    holds kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
 #                    a who line, and the part's cost rows put again as it was
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
@@ -63,6 +66,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kqr_check" "$TOP/utils/test/src/cu/types/
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/file_defs/who/who_check.c" \
     "${FILE_DEFS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_rows_check" "$TOP/utils/test/src/cu/types/file_defs/qry/qry_rows_check.c" \
+    "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/file_defs/ksc/ksc_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kdm_check" "$TOP/utils/test/src/cu/types/file_defs/kdm/kdm_check.c" \
@@ -70,12 +75,12 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kdm_check" "$TOP/utils/test/src/cu/types/
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/survivors_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/survivors_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/gate/survivors.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/scheduler_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/scheduler_check.c" \
-    "$TOP/src/cu/transpiler/lstar/protocol/order/scheduler.c" "$TOP/src/cu/transpiler/lstar/protocol/teacher/run_channel.c" \
-    "$TOP/src/cu/transpiler/lstar/interface/interface.c" \
+    "$TOP/src/cu/transpiler/lstar/protocol/order/scheduler.c" "$TOP"/src/cu/transpiler/lstar/protocol/teacher/run_channel/*.c \
+    "$TOP"/src/cu/transpiler/lstar/protocol/overseer/*.c "$TOP/src/cu/transpiler/lstar/interface/interface.c" "$TOP"/src/cu/transpiler/lstar/interface/platform/*.c \
     "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/overseer_check.c" \
-    "$TOP/src/cu/transpiler/lstar/protocol/overseer/overseer.c" "$TOP/src/cu/transpiler/lstar/protocol/teacher/run_channel.c" \
-    "$TOP/src/cu/transpiler/lstar/interface/interface.c" \
+    "$TOP"/src/cu/transpiler/lstar/protocol/overseer/*.c "$TOP"/src/cu/transpiler/lstar/protocol/teacher/run_channel/*.c \
+    "$TOP/src/cu/transpiler/lstar/interface/interface.c" "$TOP"/src/cu/transpiler/lstar/interface/platform/*.c \
     "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_carrier" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/overseer_carrier.c" \
     "${FILE_DEFS[@]}" || exit 1
@@ -84,7 +89,7 @@ BOOT="$TOP/src/cu/transpiler/lstar/protocol"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_walk" "$BOOT/query/query_walk.c" "$BOOT/query/query_ask.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/query_interface_check" \
-    "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_interface_check.c" "$BOOT/query/query_interface.c" "$INTERFACE/interface.c" \
+    "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_interface_check.c" "$BOOT/query/query_interface.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
     "$INTERFACE/interface_names.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_order_check.c" \
     "$BOOT/order/query_order.c" "$BOOT/query/query_ask.c" "$BOOT/order/ask_order.c" \
@@ -99,7 +104,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/host_entry_check" "$TOP/utils/test/src/cu
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/classify_walk" "$BOOT/query/classify_walk.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/bus_enum_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/bus_enum_check.c" "$BOOT/query/bus_enum.c" "$BOOT/query/bus_enum_walk.c" "$BOOT/query/query_interface.c" \
-    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" || exit 1
+    "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" || exit 1
 WALK="$OUT/query_walk"
 if [ -f "$WALK.exe" ]; then
     WALK="$WALK.exe"
@@ -124,8 +129,8 @@ fi
 "$OUT/ask_order_check" || exit 1
 "$OUT/query_ask_check" || exit 1
 "$OUT/answer_read_check" || exit 1
-# R's check and the who's in a run of their own, whose writer writes the records and the file they are held to, ended
-# with the subshell
+# R's check, the who's and the rows' in a run of their own, whose writer writes the records and the file they are held
+# to, ended with the subshell
 (
     source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
     qry_writer_built "$OUT"
@@ -133,9 +138,21 @@ fi
     run_started "$OUT/kqr_runs"
     "$OUT/kqr_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kqr" &&
         "$OUT/who_check" "$OUT" &&
+        "$OUT/qry_rows_check" &&
         "$OUT/ksc_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.ksc" &&
         "$OUT/kdm_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kdm"
 ) || exit 1
+# the file kdm_check handed its run, in its place once that run has ended: it names the run's .qry, the newest
+newest_run="$(ls -t "$OUT"/kqr_runs/query*.qry | head -1)"
+command -v cygpath > /dev/null && newest_run="$(cygpath -m "$newest_run")"
+if grep -qF "# $newest_run" "$OUT/kdm_check_put.kdm" 2> /dev/null; then
+    echo "  the file the run held is in its place now the run has ended"
+else
+    echo "  the file the run held is NOT in its place now the run has ended"
+    exit 1
+fi
+# kdecode's select over the tables of that run, read once it has ended
+bash "$TOP/utils/test/src/cu/types/file_defs/kdecode_check.sh" "$newest_run" || exit 1
 "$OUT/survivors_check" || exit 1
 mkdir -p "$OUT/scheduler_check.dry"
 "$OUT/scheduler_check" "$OUT/scheduler_check.dry" || exit 1

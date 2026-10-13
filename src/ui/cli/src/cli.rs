@@ -617,6 +617,11 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "list" => list(&root, first),
         "tests" => tests_list(&root, words),
         "bridge" => bridge(&root, first),
+        "query" | "learn" | "cross" | "write" | "pairs" | "stick" | "kept" | "sweep" => {
+            let mut all = vec![command.to_string()];
+            all.extend(words.iter().cloned());
+            crate::query::protocol(&root, &all)
+        }
         _ => {
             let Some(name) = first else {
                 err(&format!("{command} needs a job: orior run list names them"));

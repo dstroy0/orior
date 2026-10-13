@@ -26,7 +26,7 @@ mkdir -p "$OUT"
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc" -I "$CYCLE" -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU"
     -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" -I "$SCRIPTURA" -I "$CUBIN" -I "$TOP/utils/test/src/cu/engine/analysis/cycle")
 OBJECTS=()
-for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "${FILE_DEFS[@]}" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c"; do
+for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
     object="$OUT/$(basename "$source").o"
     cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/src/cu/types/file_defs/readers" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
@@ -40,7 +40,7 @@ for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,
 done
 # the assembly printer and the device's code generator run on the record machine and call the host oracle, the
 # cycle.c left out above; nothing here writes a lane, it only decides one
-for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu \
+for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu \
     "$CUBIN/sass_target.cu" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_lane_needs.cpp"; do
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;

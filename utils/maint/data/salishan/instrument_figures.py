@@ -47,7 +47,7 @@ for _category in os.scandir(HERE):
         sys.path.insert(0, _category.path)
 sys.path.insert(0, HERE)
 _at = HERE
-while (_at != os.path.dirname(_at)) and not os.path.isdir(os.path.join(_at, "src", "python")):
+while (_at != os.path.dirname(_at)) and not os.path.isdir(os.path.join(_at, "src", "cu", "engine")):
     _at = os.path.dirname(_at)
 ROOT = _at
 sys.path.insert(0, os.path.join(ROOT, "src", "python", "engine", "nbody", "orior", "instrument"))

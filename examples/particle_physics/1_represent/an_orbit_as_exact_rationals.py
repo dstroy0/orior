@@ -34,9 +34,9 @@ import sys
 # A directory that is its own parent would otherwise loop the walk forever. Counting is what broke
 # every path in this tree the last time anything moved.
 ROOT = os.path.dirname(os.path.abspath(__file__))
-while ROOT != os.path.dirname(ROOT) and not os.path.isdir(os.path.join(ROOT, "src", "python")):
+while ROOT != os.path.dirname(ROOT) and not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     ROOT = os.path.dirname(ROOT)
-if not os.path.isdir(os.path.join(ROOT, "src", "python")):
+if not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     raise SystemExit("could not find archive/src/python above %s" % os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(ROOT, "src", "python"))
 import manifest  # noqa: E402,F401

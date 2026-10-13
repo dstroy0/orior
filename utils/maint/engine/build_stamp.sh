@@ -10,6 +10,11 @@ if [ ! -f "$ENGINE/engine_config.h" ]; then
     exit 1
 fi
 
+# the top of the repository TOP stands in, the project's own where it takes orior as a submodule, where every build
+# goes under build/; TOP itself where git gives none
+BUILD_ROOT="$(git -C "$TOP" rev-parse --show-toplevel 2> /dev/null)"
+[ -n "$BUILD_ROOT" ] || BUILD_ROOT="$TOP"
+
 # a build's path: cu/..., cu/... and sims/... are the engine's, and anything else the project's
 build_path()
 {
@@ -30,7 +35,7 @@ case "$(uname -s)" in
 esac
 if [ "${COMPILE_CACHE:-1}" != 0 ] && [ -n "$COMPILE_CACHE_NVCC" ] && [ -n "$COMPILE_CACHE_PYTHON" ]; then
     COMPILE_CACHE_SCRIPT="$ENGINE/../../../utils/maint/engine/compile_cache.py"
-    export COMPILE_CACHE_DIR="${COMPILE_CACHE_DIR:-$TOP/build/compile_cache}"
+    export COMPILE_CACHE_DIR="${COMPILE_CACHE_DIR:-$BUILD_ROOT/build/compile_cache}"
     export COMPILE_CACHE_KEY
     COMPILE_CACHE_KEY="$("$COMPILE_CACHE_PYTHON" "$COMPILE_CACHE_SCRIPT" key "$TOP" "$ENGINE/../../..")" || COMPILE_CACHE_KEY=""
     nvcc()
@@ -65,7 +70,7 @@ build_stamp()
         mkdir -p "$OUT"
         return 0
     fi
-    FINAL="$TOP/build"
+    FINAL="$BUILD_ROOT/build"
     mkdir -p "$FINAL"
     find "$FINAL" -mindepth 1 -maxdepth 1 -type d \
         -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]_*' \

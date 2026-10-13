@@ -68,6 +68,7 @@ pub mod purpose;
 pub mod qry;
 pub mod raised;
 pub mod python_paths;
+pub mod query;
 pub mod recording;
 pub mod report;
 pub mod root;

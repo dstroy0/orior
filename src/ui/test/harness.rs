@@ -23,7 +23,7 @@
 //!     [--driver cdp|webdriver] [--docker]
 //!
 //! The window goes on the monitor --monitor or ORIOR_TEST_MONITOR numbers, as --monitors lists them,
-//! else the highest numbered that is not the main one. The report goes to test/runs/<time>/report.md. The run fails where any test fails, the window
+//! else the highest numbered that is not the main one. The report goes to the top's build/ui_test/runs/<time>/report.md. The run fails where any test fails, the window
 //! throws, or a part has no test.
 
 mod bench;
@@ -615,6 +615,8 @@ fn main() -> ExitCode {
     };
     let here = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let ui = here.parent().map(Path::to_path_buf).unwrap_or_else(|| here.clone());
+    // the top of the tree's build/, two folders above the app's, where the run and the app built for it go
+    let built = ui.parent().and_then(Path::parent).map(|top| top.join("build")).unwrap_or_else(|| here.join("build"));
     if options.stop_servers {
         servers::stop();
         println!("the test servers are stopped");
@@ -630,7 +632,7 @@ fn main() -> ExitCode {
     if options.docker {
         return docker::run(&here, &ui, &options.passed);
     }
-    let run = here.join("runs").join(stamp());
+    let run = built.join("ui_test").join("runs").join(stamp());
     if let Err(error) = std::fs::create_dir_all(&run) {
         eprintln!("{}: {error}", run.display());
         return ExitCode::from(2);
@@ -681,8 +683,8 @@ fn main() -> ExitCode {
 
     if options.rust {
         println!("rust");
-        let app_target = here.join("target").join("app");
-        for (name, manifest, target) in [("cli", ui.join("cli").join("Cargo.toml"), None), ("src-tauri", ui.join("src-tauri").join("Cargo.toml"), Some(app_target.as_path())), ("test", here.join("Cargo.toml"), None)] {
+        let app_target = built.join("cargo").join("app");
+        for (name, manifest, target) in [("query", ui.join("query").join("Cargo.toml"), None), ("cli", ui.join("cli").join("Cargo.toml"), None), ("src-tauri", ui.join("src-tauri").join("Cargo.toml"), Some(app_target.as_path())), ("test", here.join("Cargo.toml"), None)] {
             println!("  {name}");
             let (outcomes, failures) = cargo_test(&manifest, target, &env);
             report.crates.push((name.to_string(), outcomes, failures));
@@ -742,7 +744,7 @@ fn main() -> ExitCode {
             .and_then(|_| own_repository(&tree))
             .and_then(|_| benched.as_ref().map_or(Ok(()), |folder| bench::placed(folder, &tree)))
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
-            .and_then(|_| window::build(&ui, &here.join("target").join("app")))
+            .and_then(|_| window::build(&ui, &built.join("cargo").join("app")))
             .and_then(|program| {
                 // The window's tunnels go through the harness's own ssh, its config and its key.
                 let extra: Vec<(String, String)> = env.iter().filter(|(key, _)| key == "ORIOR_TEST_SSH").map(|(_, value)| ("ORIOR_SSH".to_string(), value.clone())).collect();
@@ -795,7 +797,7 @@ fn main() -> ExitCode {
                 report.orphans.push(format!("test/src/{test}.test.js"));
             }
         }
-        for (folder, shown) in [(ui.join("cli").join("src"), "cli/src"), (ui.join("src-tauri").join("src"), "src-tauri/src")] {
+        for (folder, shown) in [(ui.join("query").join("src"), "query/src"), (ui.join("cli").join("src"), "cli/src"), (ui.join("src-tauri").join("src"), "src-tauri/src")] {
             for file in files_under(&folder, ".rs") {
                 if untested_rust(&folder.join(&file)) {
                     report.untested.push(format!("{shown}/{file}"));

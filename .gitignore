@@ -58,5 +58,5 @@ theory/*/*/*/main.pdf
 .DS_Store
 Thumbs.db
 
-# A host's own sweep of timings for the run's buffer, written by qry_sweep.sh for that host alone.
+# A host's own sweep of timings for the run's buffer, written by `orior protocol sweep` for that host alone.
 src/cu/types/file_defs/qry/qry_host.h

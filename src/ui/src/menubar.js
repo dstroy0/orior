@@ -529,6 +529,10 @@ const COMMANDS = {
   validate: () => editing().validate(),
   list: (args) => searchJobs(args[0]),
   show: (args) => searchJobs(args[0]),
+  query: () => {
+    showView("run");
+    showJob("protocol/query");
+  },
   new: newTerminal,
   toggle: () => toggleTerminal(),
   split: () => splitTerminal(),

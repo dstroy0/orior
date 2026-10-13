@@ -39,6 +39,11 @@ extern "C"
 // a question's slot where its code holds none: the carrier makes no place conservative past the wait on all six
 #define RUN_SLOT_NONE 0xffffffffu
 
+// the gate's hold under rule 3 of the airlock, an operation key unknown, as the carrier answers it: `skipped` and the
+// rule's number (cubin_safe.h, CUBIN_SAFE_KEY). An ask held so is open in R, as a timed-out one is: the part never saw
+// it, and a conference may admit it (overseer.h)
+#define RUN_GATE_KEY_RULE "skipped 5 "
+
 // what a run came to
 typedef enum
 {
@@ -97,7 +102,9 @@ typedef struct
 // A carrier whose only word is `dry` is a dry run: nothing carries a question and nothing answers it. Each question is
 // handed as question<n>.bin and cases<n>.txt, and as a line of questions.txt in the form a carrier's list takes,
 // `<code> <registers> <cases> <answers> <slot> <launches>`, the list handed whole once the channel closes, and it reads
-// RUN_HELD. What the protocol put is then checked by handing that list to a carrier that stops before the part.
+// RUN_HELD. What the protocol put is then checked by handing that list to a carrier that stops before the part. A
+// carrier whose own words hold --dry stops before the driver too, and every round reaches it through the airlock as a
+// live round does: nothing is launched, and R is read and nothing it answers is kept in R.
 //
 // Every round a live channel carries passes the airlock first, and nothing the vendor's reader has not read goes to the
 // part. The words after the carrier's may open one: `--pop <words>`, the carrier with the part taken out, which hands
@@ -107,7 +114,15 @@ typedef struct
 // own name, the pop and the cross are run over it, and the round is carried only where the cross read it and handed
 // the held list after it; the carrier then holds every code the vendor called out (cubin_safe.h). A channel with no
 // airlock carries a round only where its carrier is handed a held list of a cross that read the whole pass before it.
-// A round the airlock does not pass is carried by nothing and reads RUN_NO_CHANNEL, the airlock's reason its refusal
+// A round the airlock does not pass is carried by nothing and reads RUN_NO_CHANNEL, the airlock's reason its refusal.
+//
+// The round is checked, fixed and checked again before the part. The cross is handed one word more, the name of the
+// holds it hands the teacher, a line a hold with the count of registers that clears it (measuring_stick_query.c): a
+// question of no shape of its own held only for registers past the count its kernel allots is given the count that
+// clears every hold of it, and the round is listed again and read again, until no question is given one. A count
+// changes how a question is put and never what it asks. Every hold, every question kept held and every count given is
+// a line of the teacher's trace (QRY_TRACE, the path `teacher`), `teacher: <identity> checked: <what>`, so that a
+// branch the learner took is traced back to the check that put its question
 int run_channel_open(const char *const *carrier, unsigned long long limit_microseconds);
 
 // R, the part's record at `path` (kqr.h), opened for the channel: an untimed question R holds an answer to is
@@ -115,6 +130,17 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
 // carried is kept in R under a cycle of `mode`. R is written back when the channel is closed, where it changed and
 // was read whole. 1, or 0 with the reason printed. A dry run reads R and keeps nothing in it
 int run_channel_record(const char *path, const char *member, const char *mode);
+
+// How many registers past the highest its code names a container declares, read for the channel from the part's .ksc
+// at `ksc` as the part answered it (`run answers <past> register past`, sass_machine.h): a hold of the cross for a
+// register past a kernel's count is put again with the count that reaches that register by so many. Where the .ksc
+// holds no answer, or this is not called, no count clears such a hold and the question stays held. 1 where it holds
+// one, 0 where not
+int run_channel_registers_past(const char *ksc);
+
+// 1 where `refused`, what a carrier said of a question, is the gate's hold for an unknown operation key
+// (RUN_GATE_KEY_RULE)
+int run_channel_key_held(const char *refused);
 
 // `asked` put and answered. 1 where the outcome is RUN_ANSWERED, 0 otherwise, with `asked->outcome` saying which
 int run_channel_ask(RunQuestion *asked);
@@ -127,6 +153,11 @@ unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
 
 // the channel closed, R written back where it was opened, and what it held given back
 void run_channel_close(void);
+
+// the nanoseconds the airlock, its pop and its cross within it, and the carrier have taken since the channel opened,
+// each into its own
+void run_channel_clocks(unsigned long long *airlock, unsigned long long *pop, unsigned long long *cross,
+                        unsigned long long *carried);
 
 // what the channel is carried by, for a run to say where its words came from
 const char *run_channel_carrier(void);

@@ -72,6 +72,9 @@ typedef struct
     unsigned char right;
 } PreceptNode;
 
+// the most nodes a tree holds, the Word's own count (word_web.h)
+#define PRECEPT_NODES 12u
+
 // One precept written as a tree over the others: what a target that lacks it is given instead. These rewrites are
 // the difference between a web and a list. Every gate reaches every other gate, a part that answers yes to NAND
 // alone can still be compiled to, and a part that answers yes to XOR is spared the three nodes XOR costs from NAND.

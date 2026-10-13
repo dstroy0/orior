@@ -1,0 +1,22 @@
+where	who	kind	code	form	numbers	gloss
+row	cubin_run	verdict	-	verdict <ask> <rule> <held> <at> <reason> <carried>	<who> <ask> <rule> <held> <at> <reason text> <carried>	a question the gate read on the host before the driver, put past every rule or held off the part, a row of the table verdicts
+column 0	cubin_run	ask	-	<key>	<key>	the ask the gate read: the sequence of its code's blob in the run
+column 1	cubin_run	rule	-	<rule>	<code>	the first rule an instruction broke, by the codes below, 0 where the code is safe (cubin_safe.h)
+column 2	cubin_run	held	-	held|put	<0 or 1>	1 where the gate held the question off the part, 0 where it put it past every rule
+column 3	cubin_run	at	-	<byte>	<byte>	the byte of the code the gate held it at, 0 where it put it
+column 4	cubin_run	reason	-	<text>	<text>	the rule as the gate names it, by its number in the table of texts
+column 5	cubin_run	carried	-	carried|dry	<0 or 1>	1 where the part was there to carry what the gate put, 0 where the carrier ran with the part taken out
+rule	cubin_safe	safe	0x0	safe	-	safe
+rule	cubin_safe	size	0x1	size	-	not a whole count of instructions
+rule	cubin_safe	stall	0x2	stall	-	an instruction no form holds, stalled short of the longest
+rule	cubin_safe	wait	0x3	wait	-	a wait short of all six barriers
+rule	cubin_safe	control	0x4	control	-	a control transfer or a wait
+rule	cubin_safe	key	0x5	key	-	an operation key unknown or holding a control transfer or a wait
+rule	cubin_safe	unheld	0x6	unheld	-	a second instruction no form holds
+rule	cubin_safe	exit	0x7	exit	-	no EXIT without a guard
+rule	cubin_safe	barrier	0x8	barrier	-	a barrier set by an operation whose result is back in a measured count
+rule	cubin_safe	launch_timeout	0x9	launch_timeout	-	a launch the driver timed out, or not back inside the bound
+rule	cubin_safe	launch_fault	0xa	launch_fault	-	a launch that faulted the part, its context left corrupt
+rule	cubin_safe	register	0xb	register	-	a register the kernel did not allot
+rule	cubin_safe	held	0xc	held	-	an encoding the vendor held off the part
+any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (QryWho, qry_buffer.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, verdicts, and its key the blob's sequence in the run

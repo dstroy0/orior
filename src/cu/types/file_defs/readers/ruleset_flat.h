@@ -82,6 +82,12 @@ const char *ruleset_map_said(unsigned int kind);
 // the most files a ruleset is read from: its own, its part's .krs and .kdm, and the .ksc beside it
 #define RULESET_PATHS_MAX 4u
 
+// The file at `path` read whole onto the end of `text` as the run holds it, where the program is of a run and the run
+// holds it (qry_file_read), and from the disk where it is not: 1, or 0 where neither is there. A program built without
+// the run's buffer reads every file from the disk. The text stops once it reaches RULESET_FILE_MAX letters, which the
+// caller refuses
+int ruleset_bytes_read(const std::string &path, std::string *text);
+
 // the files the ruleset at `path` is read from, into `paths` in the order ruleset_text reads them: the file, where
 // the file names a part on its line part <part> the part's .krs and .kdm, and the .ksc beside the file where it opens.
 // Their count returned

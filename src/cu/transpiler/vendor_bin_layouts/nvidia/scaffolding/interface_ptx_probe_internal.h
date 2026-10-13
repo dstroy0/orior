@@ -84,4 +84,13 @@ void probe_case(unsigned int number, unsigned int *in);
 
 std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer);
 
+// the probe's runs (interface_ptx_probe_runs.cu): PTX's header, the cubins, and the membership, single, clocks and
+// cubin probes main runs
+std::string probe_header(int major, int minor);
+int probe_cubins(ProbeWriter *writer, const std::string &header, int major, int minor, const char *folder);
+int probe_membership(ProbeWriter *writer, const std::string &header, int major, int minor);
+int probe_single(ProbeWriter *writer, const std::string &header, const std::string &body, int major, int minor);
+int probe_clocks(int device);
+int probe_cubin_run(const char *path, int count, char **arguments);
+
 #endif

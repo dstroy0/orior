@@ -1,0 +1,14 @@
+where	who	kind	code	form	numbers	gloss
+row	overseer	account	-	account <conference> <expert> <account> <cause>	<who> <conference text> <expert text> <account text> <cause>	an account the overseer heard as it held a conference, once however often the run holds its line, a row of the table accounts
+column 0	overseer	conference	-	<text>	<text>	the conference it was heard in: the question's identity, by its number in the table of texts
+column 1	overseer	expert	-	<text>	<text>	the expert that gave it, by its number in the table of texts
+column 2	overseer	account	-	<text>	<text>	what the expert said past its name, by its number in the table of texts
+column 3	overseer	cause	-	<cause>	<code>	the cause the account reads, its last cause clause, by the codes below, 0 where it reads none
+cause	overseer	none	0x0	none	-	no cause read
+cause	overseer	instruction	0x1	instruction	-	the instruction's own encoding
+cause	overseer	address	0x2	address	-	an address the code reached
+cause	overseer	register	0x3	register	-	a register past what the kernel holds
+cause	overseer	time	0x4	time	-	a launch that did not return
+cause	overseer	exception	0x5	exception	-	an exception that names none of the others and agrees with each
+cause	overseer	admitted	0x6	admitted	-	no crash: the cause of a lesson that admits a slot encoding past the gate's rule 3, taught where a conference the gate called for an unknown operation key ruled admitted (overseer_admission)
+any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (QryWho, qry_buffer.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, accounts, and its key the blob's sequence in the run

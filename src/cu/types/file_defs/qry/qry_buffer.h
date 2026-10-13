@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qry_buffer.h: a query run's buffer, its .qry in shared memory (qry.h). One writer process owns it for the run and is
-// the only thing that writes the .qry to disk. Every other process of the run maps it by the .qry's path and hands its
-// blobs into it: a hand is a copy to the buffer's tail under a lock the processes share, and nothing more, and the
-// stretch past what is on disk is the writer's input queue. A process reads what it needs straight from the buffer, the
-// latest blob of a name or every blob of it, before or after it reaches disk.
+// the only thing that writes the .qry to disk. Every other process of the run maps it by the .qry's path and is a
+// member of the run: it hands its ordinary blobs into a ring of its own in the buffer, at the ring's tail, and nothing
+// more, with no lock another member takes. The writer takes the members in turn, in the order of their rings, and on a
+// member's turn moves every blob from its ring's head to its tail as it stands into the run's buffer in one go, each
+// given its sequence as it is moved; the member keeps adding past what is taken, and a member whose ring holds nothing
+// has a turn that does nothing. A panic and a critical blob wait for no turn: each goes in at the buffer's tail as it
+// is handed, ahead of every member. The stretch past what is on disk is the writer's input queue. A process reads what
+// it needs straight from the buffer, the latest blob of a name or every blob of it, before or after it reaches disk,
+// once the writer has moved it; a read waits first for the reading process's own ring to be moved (qry_moved).
 //
 // Every blob is handed with a priority, and the lowest number wins: everything stops to let it through.
 //
@@ -25,7 +30,7 @@
 // QRY_WRITE_MILLISECONDS pass with anything waiting, and the rest when it is stopped. An ordinary blob that would leave
 // less than QRY_CRITICAL_ROOM for the others is dumped, and a blob named QRY_DUMPED says which.
 //
-// The buffer keeps the run's table beside its blobs, a row a blob added as it is handed: the name's hash, the
+// The buffer keeps the run's table beside its blobs, a row a blob added as it goes in: the name's hash, the
 // sequence, the time, the priority and where the blob's name and bytes sit. A read of every blob of a name, or of
 // its first, goes down the rows and touches no blob but its own. As the run ends the writer dumps the run from memory
 // as the .qry: the table first, its rows put in the order of their names' hashes and then their sequences, then every
@@ -103,6 +108,17 @@ extern "C"
 #define QRY_CRITICAL_WAIT_MILLISECONDS 30000u
 #endif
 
+// the members a run's buffer keeps a ring for, each a process that hands the run an ordinary blob, and the bytes of
+// each ring, a power of two. A ring's memory is given as a member takes it, and a ring whose member ended with nothing
+// left in it is taken again. An ordinary blob past half a ring goes in at the buffer's tail as a critical one does,
+// once its member's ring is moved
+#ifndef QRY_MEMBERS
+#define QRY_MEMBERS 256u
+#endif
+#ifndef QRY_MEMBER_BYTES
+#define QRY_MEMBER_BYTES (4ull << 20u)
+#endif
+
 // the longest name a blob takes
 #define QRY_NAME_LONGEST 255u
 
@@ -161,12 +177,25 @@ extern "C"
     // the path of the .qry the buffer is of
     const char *qry_path(const QryBuffer *buffer);
 
-    // `size` bytes at `bytes` handed as a blob of `name` at `priority`: its sequence, or 0 where it was dumped, the
-    // name is none a blob takes, the priority is past QRY_ORDINARY, or it is critical and could not be put on disk. A
-    // critical blob is on disk when this returns; a panic is in the buffer, the writer woken for it and the line open,
-    // and nothing waits
+    // `size` bytes at `bytes` handed as a blob of `name` at `priority`. An ordinary blob goes into this process's ring
+    // and has its sequence once the writer moves it (qry_moved): 1, or 0 where the ring stayed full until the writer
+    // stopped. A panic or a critical blob goes in at the buffer's tail: its sequence, or 0 where it was dumped or it is
+    // critical and could not be put on disk. A critical blob is on disk when this returns; a panic is in the buffer,
+    // the writer woken for it and the line open, and nothing waits. 0 too where the name is none a blob takes or the
+    // priority is past QRY_ORDINARY
     unsigned long long qry_hand(QryBuffer *buffer, const char *name, const void *bytes, unsigned long long size,
                                 unsigned int priority);
+
+    // every ordinary blob this process has handed moved into the run's buffer, waiting for the writer's turn of this
+    // process where any waits: the sequence of the last of them, or 0 where it handed none or the writer stopped first.
+    // A process takes this before another process is to read what it handed: before it starts one, and before it waits
+    // on an answer to what it handed
+    unsigned long long qry_moved(QryBuffer *buffer);
+
+    // every ordinary blob any member has handed by now moved into the run's buffer, waiting for each member's turn: 1,
+    // or 0 where the writer stopped first. A process that started another takes this once the other has ended, and
+    // then reads what the other handed, whether it ended clean or not
+    int qry_settled(QryBuffer *buffer);
 
     // `size` bytes at `bytes` handed as a critical blob of `name` that the writer also writes into a named stream of
     // the .qry it writes, `<the .qry's path>:<name>`, for a program that reads its input only from a file's path, as
@@ -183,12 +212,13 @@ extern "C"
     // outside it, no top is named, or the name does not fit
     int qry_file_named(const char *path, char *name, size_t room);
 
+    // the top of the tree into `top`, which holds `room`: the one QRY_TOP_ENVIRONMENT names, or where it names none,
+    // the tree this file was built from. 1, or 0 where neither is had
+    int qry_top(char *top, size_t room);
+
 // the who table, from the top of the tree: every C and C++ source numbered in hex, a number never given twice
 // (who_table.sh)
 #define QRY_WHO_TABLE "src/cu/types/file_defs/who/who.tsv"
-
-// the name of the blob each file written is followed by in the run: its sequence and the who of the write, three words
-#define QRY_FILED_CALL "filed"
 
 // the letters of a who's code, without its end
 #define QRY_WHO_CODE_LETTERS 32u
@@ -231,12 +261,14 @@ extern "C"
     int qry_who_named(QryWho who, char *text, size_t room);
 
     // `size` bytes at `bytes` handed as the current file at `path`, critical: the run's writer, the only thing that
-    // writes a file, puts them in the .qry under the file's name (qry_file_named) and writes them in the file's place,
-    // beside it first and then put in its place whole, before the hand returns. Every file a run's programs make,
-    // their thin wrappers of this, is written so: the writer keeps the pressure of every write and the memory every
-    // one takes. The write is followed in the run by a blob QRY_FILED_CALL, critical, its sequence and `who` made the
-    // write. Its sequence once the file reads back as those bytes, or 0 where it was not written or stands outside
-    // the top of the tree
+    // writes a file, puts them in the .qry under the file's name (qry_file_named) before the hand returns, and once the
+    // run ends writes the latest of the name in the file's place, beside it first and then put in its place whole. A
+    // file does not change under a run in progress: while it runs, every program of the run reads the file as the run
+    // holds it (qry_file_read). Every file a run's programs make, their thin wrappers of this, is written so: the
+    // writer keeps the pressure of every write and the memory every one takes. The write is followed in the run by a
+    // row of the table of files, QRY_FILES_TABLE, critical: `who` made the write, its sequence and its path's number in
+    // the table of texts. Its sequence once the .qry holds it, or 0 where it does not or the path stands outside the
+    // top of the tree
     unsigned long long qry_filed_by(QryBuffer *buffer, const char *path, const void *bytes, unsigned long long size,
                                     QryWho who);
 
@@ -244,9 +276,14 @@ extern "C"
 #define qry_filed(buffer_, path_, bytes_, size_) qry_filed_by((buffer_), (path_), (bytes_), (size_), QRY_WHO_HERE)
 
     // The file at `path` as the run holds it: the latest blob of its name (qry_file_named) in the run's buffer, or
-    // where the run holds none, the file read whole. Into memory of the caller's to free; 1, or 0 where neither is
-    // there
+    // where the run holds none, the file read whole from the disk and taken into the run under its name, ordinary, so
+    // that every read of it after, by any process of the run, is from memory. Into memory of the caller's to free; 1,
+    // or 0 where neither is there. With no run, `buffer` NULL, the file is read from the disk
     int qry_file_read(QryBuffer *buffer, const char *path, unsigned char **bytes, unsigned long long *size);
+
+    // 1 where the run holds the file at `path` as a current file it is to write in its place as it ends (qry_filed),
+    // 0 where it does not or the path stands outside the top of the tree
+    int qry_file_held(QryBuffer *buffer, const char *path);
 
     // the line of `bytes`, `size` of them, from `*at` through its line's end copied into `line`, which holds `room`,
     // ended by a zero byte and cut to the room as fgets cuts one, and `*at` moved past what was copied: 1, or 0 where
@@ -283,6 +320,10 @@ extern "C"
     // the sequence of the first panic handed in the run, the line open from then on, or 0 where none has been
     unsigned long long qry_panicked(QryBuffer *buffer);
 
+    // the line the panic of `panic` opened closed, by a conference's ruling on it (overseer.h): the run goes on, and
+    // the next panic handed opens the line again
+    void qry_line_closed(QryBuffer *buffer, unsigned long long panic);
+
     // the latest blob of `name`, its bytes in the buffer and their count, and its sequence where `sequence` is not
     // NULL: 1, or 0 where none was handed. A reader that handed something before a blob it waits on tells that blob
     // from an older one of the name by the sequence. The bytes stand as long as this process holds the buffer
@@ -315,13 +356,67 @@ extern "C"
                                           unsigned long long size),
                              void *context, char *error, size_t room);
 
-    // The writer's work, its process's own: every blob handed written to the .qry at the buffer's path until the run is
-    // stopped, then the rest, the writer's own account of its writes handed last as the blob `writer`, and that
-    // printed. 1, or 0 where the file could not be written
+    // every blob of the .qry file at `path` handed to `each` with `context`, in the order of their sequences: its name,
+    // its sequence, its bytes and their count, in the mapped file and standing for the call alone. A run's tables are
+    // read by this, a row a blob and its key the blob's sequence. 1, or 0 and why in `error` where the file could not
+    // be read; a stretch no frame opens is stepped over and said, as qry_file_joined does
+    int qry_file_each(const char *path,
+                      void (*each)(void *context, const char *name, unsigned long long sequence,
+                                   const unsigned char *bytes, unsigned long long size),
+                      void *context, char *error, size_t room);
+
+    // The writer's work, its process's own: every blob handed written to the .qry at the buffer's path until the run
+    // is stopped, then the rest; then the oracle of every table the run holds, where the run holds none of its name,
+    // read from the tree, so that the .qry holds every table with the oracle it is read through: a table of the run's
+    // own its <table>.oracle.tsv under QRY_ORACLES, and a table whose first row is the head of a k-file QRY_KFILE_ROWS
+    // and its kind's oracle; then the writer's own account of its writes handed last as the blob `writer`, and that
+    // printed. An oracle a program of the run handed as a current file stands in the run, and is written in its place.
+    // 1, or 0 where the file could not be written
     int qry_write_until_stopped(QryBuffer *buffer);
 
     // the writer asked to write the rest and stop, and waited for: 1, or 0 where it did not stop within `milliseconds`
     int qry_stop(QryBuffer *buffer, unsigned int milliseconds);
+
+// A row of a table of the run: a blob of the table's name, the who of the code that handed it, its two words, then the
+// table's columns, each a 64-bit word, in the order the table's oracle gives (<table>.oracle.tsv beside this). A row's
+// key is its blob's sequence in the run. A text a row names is named by its number in the run's table of texts,
+// QRY_TEXTS_TABLE, the 64-bit FNV-1a hash of its bytes: a text's row is of no who, its number, its length and its bytes
+// filled out to a whole word with zeros, and each process hands it the first time it numbers the text, so that a text
+// two processes number stands in the table once for each, under one number.
+#define QRY_TEXTS_TABLE "texts"
+
+// The oracles a run's tables are read through, from the top of the tree: the folder of the oracles of the run's own
+// tables, each <table>.oracle.tsv; the oracle of the rows of a k-file's table (krep_tabled_by); and the folder a
+// k-file's own oracle stands under, <kind>/<kind>.oracle.tsv, its kind's letters in lower case. As the run ends, the
+// writer puts the oracle of every table the run holds into the run (qry_write_until_stopped)
+#define QRY_ORACLES "src/cu/types/file_defs/qry"
+#define QRY_KFILE_ROWS "src/cu/types/file_defs/krep_records.oracle.tsv"
+#define QRY_KFILE_ORACLES "src/cu/types/file_defs"
+
+// the run's table of files, a row each file written (qry_filed_by, files.oracle.tsv)
+#define QRY_FILES_TABLE "files"
+
+// the run's table of links, a row each relation between rows that one column of a row cannot hold: the key it is
+// from, the key it is to and its code, one of those below (links.oracle.tsv)
+#define QRY_LINKS_TABLE "links"
+// a file's bytes, the blob a write handed, written from the rows of a table keyed to the head row of the file's
+#define QRY_LINK_WRITTEN_FROM 0x1u
+
+// the most columns a row holds
+#define QRY_ROW_COLUMNS 32u
+
+    // a row of `count` columns from `columns` handed to the table `table` of the run `buffer` at `priority`, by `who`:
+    // 1, or 0 where no run is given, `count` is past QRY_ROW_COLUMNS or it could not be handed
+    int qry_row_handed_by(QryBuffer *buffer, const char *table, const unsigned long long *columns, unsigned int count,
+                          unsigned int priority, QryWho who);
+
+// qry_row_handed_by, ordinary, the who the code that calls it
+#define qry_row_handed(buffer_, table_, columns_, count_)                                                              \
+    qry_row_handed_by((buffer_), (table_), (columns_), (count_), QRY_ORDINARY, QRY_WHO_HERE)
+
+    // the number of the text of `length` bytes at `bytes` in the run's table of texts, its row handed the first time
+    // this process numbers it: the number, or 0 where the text is empty, no run is given or its row could not be handed
+    unsigned long long qry_row_text(QryBuffer *buffer, const char *bytes, unsigned long long length);
 
 #ifdef __cplusplus
 }

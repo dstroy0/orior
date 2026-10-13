@@ -45,7 +45,7 @@ for _category in os.scandir(HERE):
 # the import failed with a missing module instead of a wrong path.
 _at = os.path.dirname(os.path.abspath(__file__))
 while (_at != os.path.dirname(_at)) and not os.path.isdir(
-    os.path.join(_at, "src", "python")
+    os.path.join(_at, "src", "cu", "engine")
 ):
     _at = os.path.dirname(_at)
 sys.path.insert(0, os.path.join(_at, "src", "python", "engine", "nbody", "orior", "instrument"))
@@ -94,7 +94,7 @@ def _repository_root():
 
     climbed = start
     while (climbed != os.path.dirname(climbed)) and not os.path.isdir(
-        os.path.join(climbed, "src", "python")
+        os.path.join(climbed, "src", "cu", "engine")
     ):
         climbed = os.path.dirname(climbed)
     return climbed

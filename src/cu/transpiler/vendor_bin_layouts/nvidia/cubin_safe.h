@@ -14,7 +14,10 @@
 //      (sass_operation_control_or_wait), EXIT alone excepted;
 //   3. where no form holds it, its operation key holds forms and no form under the key transfers control or waits.
 //      Whatever its other bits say, it falls through to the next instruction. One instruction at most is held by no
-//      form: the one a probe asks about;
+//      form: the one a probe asks about. An encoding whose key holds no form is put only where a conference admitted
+//      it, exactly as its lesson gives it (overseer.h, cubin_safe_admitted): the cross read it as a legal instruction
+//      that is no control transfer, wait or memory access and names no register past the count, and no party held
+//      it;
 //   4. an EXIT with no guard is reached: no thread runs off the end of the code;
 //   5. an operation whose result is back in a fixed count of cycles sets no barrier, unless the encoding the system
 //      wrote its form with sets one. Nothing releases one it sets, and the next instruction's wait on all six never
@@ -116,6 +119,11 @@ int cubin_safe_verdict_load(const char *path);
 // (qry_buffer.h): 1, or 0 where it did not fit memory, and then nothing is loaded and every code is held off the part
 int cubin_safe_verdict_read(const char *bytes, unsigned long long size);
 
+// The encodings of `size` bytes at `bytes`, a line `<low> <high>` each, added to the verdict already loaded and held
+// off the part with it: those that faulted the part in a run before, which it never forgets (cubin_run.c, faulted.txt).
+// 1, or 0 where it did not fit memory, and then nothing is loaded and every code is held off the part
+int cubin_safe_verdict_added(const char *bytes, unsigned long long size);
+
 // 1 once a verdict is loaded, however many encodings it held: the airlock a live run passes through. A path that
 // reaches the part with none carries code the vendor's reader never read for a fault, and an unread encoding can be the
 // very one that faults the part and takes the machine with it: it reaches no part
@@ -124,6 +132,15 @@ int cubin_safe_verdict_ready(void);
 // 1 where the instruction `low` and `high`, its scheduler's bits masked off, is one the loaded verdict holds off the
 // part
 int cubin_safe_verdict_holds(unsigned long long low, unsigned long long high);
+
+// The encodings a conference admitted past rule 3, read from `size` bytes at `bytes`, the lessons blob as the overseer
+// hands it (overseer.h): each line `lesson admitted * <low> <high>` an encoding, its scheduler's bits masked off,
+// every other line passed over. Whatever was admitted before is let go. 1, or 0 where the list did not fit memory, and
+// then nothing is admitted
+int cubin_safe_admitted_read(const char *bytes, unsigned long long size);
+
+// 1 where the instruction `low` and `high`, its scheduler's bits masked off, is one a conference admitted
+int cubin_safe_admitted(unsigned long long low, unsigned long long high);
 
 // The verdict on `code`, `code_size` bytes of sixteen-byte instructions, against `machine`, for a kernel that allots
 // `registers` registers a thread, 0 where none is known and the part's ceiling (register_last) bounds them instead

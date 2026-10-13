@@ -1,0 +1,33 @@
+# The SASS instruction word's layout: where each field of the 128-bit word starts and how many bits it holds. khw_write
+# reads it to write the part's .ksc field rows, which the register walk and the predicate walk read (klq_identity);
+# sass_assemble.c fills the same places.
+#
+# field	<name>	<first>	<bits>	a place in the instruction word, in bits
+#
+# A constant's offset, an address's offset and a memory operand's descriptor carry a scale or a shown bit this row has
+# no column for, and sit in sass_assemble.c.
+#
+# the guard predicate: three bits its number, and the bit above them its negation
+field	guard	12	3
+#
+# the register places, in the order an instruction fills them
+field	rd	16	8
+field	ra	24	8
+field	rb	32	8
+field	rc	64	8
+#
+# the predicate places: pl a load's, holding its number inverted; pg the one an operation writes and po the second it
+# writes; pt the one it reads
+field	pl	64	3
+field	pu	68	3
+field	pv	77	3
+field	pg	81	3
+field	po	84	3
+field	pt	87	3
+#
+# the immediates: a word, and a byte above the registers
+field	immediate	32	32
+field	byte	72	8
+#
+# the scheduler's stall count
+field	stall	105	4

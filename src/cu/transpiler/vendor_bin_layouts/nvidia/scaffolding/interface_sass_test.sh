@@ -59,9 +59,9 @@ done
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$CUBIN")
 rm -f "$BINARY" "$PROBE"
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "${FILE_DEFS[@]}" \
-              "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.c" "$TEST/interface_sass_probe_main.c" "$TEST/interface_sass_probe_machine.c" \
-              "$TEST/interface_sass_probe_ask.c" "$TEST/interface_sass_probe_class.c" "$TEST/interface_sass_probe_cubin.c" \
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" \
+              "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TEST/interface_sass_probe_main.c" "$TEST"/interface_sass_probe_main/*.c "$TEST"/interface_sass_probe_machine/*.c \
+              "$TEST"/interface_sass_probe_ask/*.c "$TEST/interface_sass_probe_class.c" "$TEST/interface_sass_probe_cubin.c" \
               "$TEST/interface_sass_probe_read.c" "$TEST/interface_sass_probe_check.c"; do
     object="$OUT/$(basename "$source" .c).$EXTENSION"
     rm -f "$object"
@@ -79,7 +79,7 @@ nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}"
 # the probe reads rulesets and writes forms; the code generator's assembly printer (asm_printer_*.cu) and the code
 # generator on the device (codegen*.cu) run on the record machine, which the probe does not link
 CODEGEN_SOURCES=()
-for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu; do
+for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) ;;
         *) CODEGEN_SOURCES+=("$source") ;;

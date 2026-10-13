@@ -42,7 +42,7 @@ for _category in os.scandir(HERE):
 # counting parents. Counting put this at maint/data/instrument, which has never existed, and
 # the import failed with a missing module instead of a wrong path.
 _at = os.path.dirname(os.path.abspath(__file__))
-while (_at != os.path.dirname(_at)) and not os.path.isdir(os.path.join(_at, "src", "python")):
+while (_at != os.path.dirname(_at)) and not os.path.isdir(os.path.join(_at, "src", "cu", "engine")):
     _at = os.path.dirname(_at)
 sys.path.insert(0, os.path.join(_at, "src", "python", "engine", "nbody", "orior", "instrument"))
 

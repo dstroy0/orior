@@ -29,7 +29,7 @@
 #                                          [--port 9222] [--wait 8] [--frames all|moved|none]
 #                                          [--memory] [--sampling 64]
 #
-# Each run is kept in src/ui/test/runs/<time>/: report.md, report.json, shots/ and frames/, and
+# Each run is kept in the top's build/ui_test/runs/<time>/: report.md, report.json, shots/ and frames/, and
 # memory.md and memory.json from the memory pass.
 
 import argparse
@@ -202,7 +202,7 @@ class Walker:
         self.options = options
         self.conn = cdp.Connection(cdp.window_page(options.port))
         self.stamp = time.strftime("%Y%m%d-%H%M%S")
-        self.out = HERE / "runs" / self.stamp
+        self.out = HERE.parents[2] / "build" / "ui_test" / "runs" / self.stamp
         (self.out / "shots").mkdir(parents=True)
         (self.out / "frames").mkdir()
         self.scratch = Path(tempfile.gettempdir()) / "orior-walk" / self.stamp

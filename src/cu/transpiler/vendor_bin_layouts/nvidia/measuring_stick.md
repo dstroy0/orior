@@ -1,6 +1,6 @@
 # The measuring stick: nvcc's listing, the answer key
 
-Written by `measuring_stick.sh` whole on every run. Each kernel of the measuring stick (measuring_stick.py), every function of the CUDA language in a kernel of its own, is compiled by nvcc for sm_86 and read here. What the engine builds for each function is held against it, a kernel at parity where the engine's code uses the same operations as nvcc's, each as many times.
+Written by `orior protocol stick` whole on every run. Each kernel of the measuring stick (measuring_stick.py), every function of the CUDA language in a kernel of its own, is compiled by nvcc for sm_86 and read here. What the engine builds for each function is held against it, a kernel at parity where the engine's code uses the same operations as nvcc's, each as many times.
 
 - kernels: 1016
 - instructions: 55072

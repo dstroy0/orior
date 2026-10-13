@@ -4,11 +4,11 @@
 # left each one it changed, so that one .qry says what one iteration saw and did.
 #
 # As a run the script started ends, only the newest QRY_KEPT runs of its folder are kept, 64 where it is not set.
-# While the host is idle, qry_kept.sh keeps every other run of a folder still a .qry, and no writer's, as the engine's
+# While the host is idle, `orior protocol kept` keeps every other run of a folder still a .qry, and no writer's, as the engine's
 # crystal (qry_crystal.c), the folder query<n>-<datetime> beside where its .qry stood, and the .qry let go once the
 # crystal held byte for byte; the newest run stays a .qry for the next to read. A run kept as a crystal is read back
 # out of it where a run before it is read and no .qry holds what is sought. Nothing a script starts by waits on the
-# engine: only qry_kept.sh builds the crystal's program.
+# engine: only `orior protocol kept` builds the crystal's program.
 #
 #     source src/cu/types/file_defs/qry/qry_run.sh
 #     qry_writer_built <folder>    the writer built into <folder> where its sources are newer, QRY_WRITER its path, and
@@ -32,7 +32,8 @@
 #     run_left <file>...           each file handed to the run as the script ends, as the run leaves it, named the same
 #                                  way; run_named <file> prints the name
 #     run_filed <file>             the standard input handed as the current file <file>: the run's writer, the only
-#                                  thing that writes a file, writes it in the file's place (qry_writer file)
+#                                  thing that writes a file, writes it in the file's place once the run ends, and until
+#                                  then every program of the run reads it as the run holds it (qry_writer file)
 QRY_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # every C source of the file definitions a program of the run links, the writer and each format's reader and writer
 source "$QRY_SOURCE/../file_defs.sh"
@@ -56,11 +57,13 @@ qry_writer_built() {
     local binary="$QRY_WRITER"
     [ -f "$binary.exe" ] && binary="$binary.exe"
     if ! { [ -f "$binary" ] && [ "$binary" -nt "$QRY_SOURCE/qry_writer.c" ] &&
-        [ "$binary" -nt "$QRY_SOURCE/qry_buffer.c" ] && [ "$binary" -nt "$QRY_SOURCE/qry_buffer.h" ] &&
+        [ -z "$(find "$QRY_SOURCE/buffer" "$QRY_SOURCE/writer" -name '*.[ch]' -newer "$binary" -print -quit)" ] &&
+        [ "$binary" -nt "$QRY_SOURCE/qry_buffer.h" ] &&
         [ "$binary" -nt "$QRY_SOURCE/qry.h" ] && { [ ! -f "$QRY_SOURCE/qry_host.h" ] ||
         [ "$binary" -nt "$QRY_SOURCE/qry_host.h" ]; }; }; then
         mkdir -p "$1"
-        cc -std=c11 -O2 -Wall -Wextra -o "$QRY_WRITER" "$QRY_SOURCE/qry_writer.c" "$QRY_SOURCE/qry_buffer.c" ||
+        cc -std=c11 -O2 -Wall -Wextra -o "$QRY_WRITER" "$QRY_SOURCE/qry_writer.c" "$QRY_SOURCE"/writer/*.c \
+            "$QRY_SOURCE"/buffer/*.c ||
             { echo "  build failed: qry_writer did not compile"; exit 1; }
     fi
     QRY_CRYSTAL=""
@@ -177,7 +180,7 @@ run_started() {
 run_ended() {
     local left
     for left in "${QRY_LEFT[@]}"; do
-        [ -f "$left" ] && "$QRY_WRITER" hand "$(run_named "$left")" < "$left"
+        "$QRY_WRITER" left "$left"
     done
     QRY_LEFT=()
     [ -n "${QRY_WRITER_PROCESS:-}" ] || return 0

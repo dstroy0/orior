@@ -13,8 +13,9 @@
 
 #include "../teacher/run_channel.h"
 
-// the most questions one round carries to a process
-#define SCHEDULER_ROUND_MOST 256u
+// the most questions one round carries to a process: the airlock reads a round in waves of the vendor's readings, each
+// a whole start of the vendor whatever it holds, and a larger round spreads those waves over more questions
+#define SCHEDULER_ROUND_MOST 8192u
 
 // The `count` questions of `question`, each settling `settles` entries, carried as one round: the most settling first,
 // stable where two settle as many, SCHEDULER_ROUND_MOST to a process. Each question's outcome and answers its own. The

@@ -221,7 +221,10 @@ static void gate_put(unsigned int anchor, unsigned int alignments, const size_t 
     if (!put || (filed == 0ull))
     {
         printf("  %-8s the target's half was not written to %s\n", s_anchor_text[anchor], s_put_folder);
+        return;
     }
+    // said for the script that runs the descent, which reads the half from the run while the run runs
+    printf("  %-8s the target's half written to %s\n", s_anchor_text[anchor], s_put_folder);
 }
 
 // one relation measured; 1 where every reading agrees with its ground truth
