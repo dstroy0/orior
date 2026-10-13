@@ -257,7 +257,9 @@ pub fn run(root: &Path, programs: &dyn Programs, words: &[String], sink: &mut dy
     match first.as_str() {
         "learn" => crate::learn::run(&mut context, rest),
         "cross" => crate::cross::run(&mut context, rest),
-        "query" | "write" | "pairs" | "stick" | "kept" | "sweep" => {
+        "write" => crate::write::run(&mut context, rest),
+        "query" => crate::write::query(&mut context, rest),
+        "pairs" | "stick" | "kept" | "sweep" => {
             let _ = (&mut context, rest);
             Err(format!("{first} is not yet run from the crate"))
         }
@@ -287,7 +289,6 @@ mod dispatch {
     }
 
     #[test]
-    #[ignore = "until the write loop lands"]
     fn a_loop_names_what_it_needs_first() {
         struct Nothing;
         impl Programs for Nothing {

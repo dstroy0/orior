@@ -12,9 +12,11 @@ pub mod commands;
 pub mod cross;
 pub mod learn;
 pub mod leaves;
+pub mod pairs;
 pub mod programs;
 pub mod run;
 pub mod tools;
+pub mod write;
 pub mod writer;
 
 /// The top of the tree this crate stands in, for the tests: three folders up from the crate.
