@@ -177,6 +177,8 @@
     // Modifier keys held down until let go: Ctrl, Alt, Shift, or more of them joined, Ctrl+Shift.
     hold: async (keys) => ask({ op: "hold", keys }),
     release: async (keys) => ask({ op: "release", keys }),
+    // A key held down for `count` presses, one every `every` milliseconds, as the system's repeat sends it.
+    repeat: async (keys, count, every = 33) => ask({ op: "repeat", keys, count, every }),
     // The page is told it has the system's focus while the harness runs it; off, it has the focus
     // the window truly has, which a window behind another lacks.
     focusTold: async (on) => ask({ op: "focus", on }),

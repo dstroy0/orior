@@ -190,6 +190,53 @@ pub fn press(conn: &Connection, keys: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Holds the chord `keys` down for `count` presses, one every `every` milliseconds from its first, as
+/// the system's repeat sends a held key: the first press, then each after it marked a repeat, then
+/// the key let go. Each press is sent at its own time from the first, however long the page takes
+/// with the one before.
+pub fn repeat(conn: &Connection, keys: &str, count: u64, every: u64) -> Result<(), String> {
+    let (bits, pressed) = chord(keys)?;
+    hold(conn, bits)?;
+    let down = if pressed.text.is_some() && bits & (CTRL | ALT | META) == 0 { "keyDown" } else { "rawKeyDown" };
+    let began = std::time::Instant::now();
+    let mut sent = Ok(());
+    for at in 0..count.max(1) {
+        let due = began + std::time::Duration::from_millis(at * every);
+        if let Some(wait) = due.checked_duration_since(std::time::Instant::now()) {
+            std::thread::sleep(wait);
+        }
+        sent = send_key_repeating(conn, down, &pressed, bits, at > 0);
+        if sent.is_err() {
+            break;
+        }
+    }
+    let up = send_key(conn, "keyUp", &pressed, bits);
+    release(conn, bits)?;
+    sent.and(up)
+}
+
+fn send_key_repeating(conn: &Connection, kind: &str, key: &Key, bits: u32, repeating: bool) -> Result<(), String> {
+    if !repeating {
+        return send_key(conn, kind, key, bits);
+    }
+    let mut params = json!({
+        "type": kind,
+        "modifiers": bits,
+        "key": key.key,
+        "code": key.code,
+        "windowsVirtualKeyCode": key.key_code,
+        "nativeVirtualKeyCode": key.key_code,
+        "autoRepeat": true,
+    });
+    if kind == "keyDown" && bits & (CTRL | ALT | META) == 0 {
+        if let Some(text) = &key.text {
+            params["text"] = json!(text);
+            params["unmodifiedText"] = json!(text);
+        }
+    }
+    conn.call("Input.dispatchKeyEvent", params, WAIT).map(|_| ())
+}
+
 /// Types `text` key by key; a character no key of the keyboard types goes in as the system's input
 /// method puts it, and a line's end is Enter.
 pub fn type_text(conn: &Connection, text: &str) -> Result<(), String> {
@@ -333,6 +380,8 @@ pub fn perform(conn: &Connection, step: &Value) -> Result<(), String> {
         "hold" => hold(conn, modifier_bits(step["keys"].as_str().unwrap_or(""))?),
         "release" => release(conn, modifier_bits(step["keys"].as_str().unwrap_or(""))?),
         "type" => type_text(conn, step["text"].as_str().unwrap_or("")),
+        // A key held down, as the system's repeat sends it.
+        "repeat" => repeat(conn, step["keys"].as_str().unwrap_or(""), step["count"].as_u64().unwrap_or(1), step["every"].as_u64().unwrap_or(33)),
         other => Err(format!("the harness has no step {other:?}")),
     }
 }
@@ -485,6 +534,22 @@ pub fn perform_driven(session: &crate::webdriver::Session, step: &Value) -> Resu
         }
         "hold" => session.actions(json!([keys_source(driven_modifiers(modifier_bits(step["keys"].as_str().unwrap_or(""))?, false))])),
         "release" => session.actions(json!([keys_source(driven_modifiers(modifier_bits(step["keys"].as_str().unwrap_or(""))?, true))])),
+        // WebDriver sends no repeat of a key held down, as WebKitGTK's driver takes a key down that is
+        // down already as nothing: the key pressed and let go `count` times, one press every `every`
+        // milliseconds, as the system's repeat would send them.
+        "repeat" => {
+            let value = step["keys"].as_str().unwrap_or("").to_string();
+            let every = step["every"].as_u64().unwrap_or(33);
+            let mut ticks = Vec::new();
+            for at in 0..step["count"].as_u64().unwrap_or(1).max(1) {
+                if at > 0 {
+                    ticks.push(json!({"type": "pause", "duration": every}));
+                }
+                ticks.push(json!({"type": "keyDown", "value": value}));
+                ticks.push(json!({"type": "keyUp", "value": value}));
+            }
+            session.actions(json!([keys_source(ticks)]))
+        }
         "type" => {
             let mut ticks = Vec::new();
             for one in step["text"].as_str().unwrap_or("").chars() {
