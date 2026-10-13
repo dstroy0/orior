@@ -11,25 +11,21 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Perception
 
-1. **A caret that never trails a key.** The caret stands at the letter typed in the same frame; a glide is only for jumps.
-   - A caret that glides reads as a delay as one types ([JetBrains][54]).
-2. **A tree of any size that scrolls freely.** The explorer of a large monorepo and its thousands of generated files scrolls at the display's rate.
-   - The file tree lags in a large monorepo, and generated files slow the whole workspace ([Cursor forum][55], [Julia][56]).
-3. **Every wait told: what, how far, and how long.** A wait past 400 ms shows within that time that the act was taken, then its share done and the time left, and the reader can stop it.
+1. **Every wait told: what, how far, and how long.** A wait past 400 ms shows within that time that the act was taken, then its share done and the time left, and the reader can stop it.
    - Indexing shows a bar with no share done, a bar stuck for half an hour, or one that starts over and over ([IntelliJ][57], [IntelliJ][58], [IntelliJ][59]).
    - A wait shown as going on, and how far, takes away the doubt and feels shorter; a bar that slows toward its end feels shorter still ([NN/G][60], [arXiv 2507.22352][61], [study][62]).
    - Answers within 400 ms keep reader and machine from waiting on each other; 0.1 s reads as instant, 1 s keeps the thought, 10 s loses it ([Doherty threshold][63], [Kent Beck][64]).
-4. **No one part can freeze the window.** A plugin's stored history or a list's source read on each key never holds up a frame.
+2. **No one part can freeze the window.** A plugin's stored history or a list's source read on each key never holds up a frame.
    - The window freezes and a core is pinned by one extension's oversized history, and a list waits 1 to 2 s on each key ([Helge Klein][65]).
-5. **What is told sits at the edge of sight.** State shows quietly on the status bar and the gutter, and comes to the middle of the screen only when the reader must act.
+3. **What is told sits at the edge of sight.** State shows quietly on the status bar and the gutter, and comes to the middle of the screen only when the reader must act.
    - Calm design keeps most of what is told at the edge of attention, asks the least attention it can, and works even when it fails ([calm technology][66], [calmtech.com][67], [Fuzzy Math][68]).
-6. **A light theme as well as a dark.** orior's look comes in a light ground for bright rooms and small text, beside its dark one, and can follow the light of the system.
+4. **A light theme as well as a dark.** orior's look comes in a light ground for bright rooms and small text, beside its dark one, and can follow the light of the system.
    - Light text grounds read better for small text in good light, readers do not notice they do better, and a dark ground is easier in dim light ([NN/G][69], [TIDS 2025][70], [Gadget Hacks][71]).
-7. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that held it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
+5. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that held it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
    - A slow start, indexing, completion that drags, costly language servers and plugins that eat memory, with no way to see what takes the time; a feature that saves ten seconds later still angers where it adds a delay to every key. orior holds each key to its frame and names whatever runs past its budget.
    - Readers struggle to find which part causes a lag. Time and processor are put to each language server, plugin, index and piece of work behind, and the test of it slows each in turn and checks that the window names it.
    - "Why is indexing so slow" and "why is completion so slow" show the cost of the work and nothing of its cause.
-8. **Everything working behind, in sight.** The status bar lists each piece of work running behind the editor, what it is doing, what it costs and how far it has come, and any of it can be stopped; what the compiler decided and what an optimization cost are read beside the code they concern.
+6. **Everything working behind, in sight.** The status bar lists each piece of work running behind the editor, what it is doing, what it costs and how far it has come, and any of it can be stopped; what the compiler decided and what an optimization cost are read beside the code they concern.
    - Readers want transparency: background work, the compiler's decisions and the cost of an optimization kept hidden make them hate an IDE.
    - An IDE is to be deeply observable: the program's state, its data flow, the build's decisions, what each thing costs and what each change did, each open to the reader.
    - "Why does it keep reloading" shows behavior that breaks what the reader expects. Each thing orior does again on its own says why, where it does it.
