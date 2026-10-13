@@ -19,6 +19,8 @@ import { checkersNamed, setCheckers } from "../../src/servers.js";
 import { closePeek, peekShown } from "../../src/peek.js";
 import { bookmarksOf } from "../../src/bookmarks.js";
 import { boardShown, tasks } from "../../src/gather.js";
+import { paneOpen } from "../../src/explorer.js";
+import { forgetMacro, keptMacros, lastMacro, recording } from "../../src/macros.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -950,4 +952,299 @@ test("Edit, Find and Replace open the find bar, and Next Match and Previous Matc
   assert.ok(!view.find.replaceRow.hidden, "the replace row shown");
   view.find.close();
 });
+
+["create-file", "create-folder", "create-repository", "create-project", "open-file", "open-folder", "open-repository", "open-workspace", "open-remote", "add-folder", "add-file", "new-window", "open-folder-window"].forEach((command) => COVERED.add(command));
+["dev-container", "clone", "keep-template", "trust-tree", "save", "save-all", "print", "close-editor", "close-all", "preferences", "user-css", "reader-menus", "plugins", "new-plugin", "reload-plugins", "environment", "maven-settings", "toolchains", "exit"].forEach((command) => COVERED.add(command));
+["undo-history", "cut", "copy", "paste", "compare-clipboard", "macro-record", "macro-play", "macro-keep", "search", "shape-search", "format", "docstring", "docstring-form", "sort-methods", "fill-paragraph", "continuation", "doc-margin"].forEach((command) => COVERED.add(command));
+["rename", "extract-variable", "extract-constant", "extract-function", "inline-variable", "change-signature", "move-declaration", "quick-fix", "parameter-info", "quick-doc"].forEach((command) => COVERED.add(command));
+
+const TREE = () => window.__harness.servers.ORIOR_TEST_TREE.replace(/\\/g, "/");
+const HOME = () => window.__harness.servers.ORIOR_TEST_HOME.replace(/\\/g, "/");
+
+// The command line's own commands, run in the terminal: whether one ran, or how it failed.
+const ran = (command, ...words) => press(command, ...words).then(() => "ran", (error) => String(error));
+
+test("File, Create makes the file or folder the command line names, and asks for one where none is named", async () => {
+  await press("create-file", "made_by_command.txt");
+  assert.equal(editing().active, "made_by_command.txt", "the file made and opened");
+  await press("create-folder", "made_by_command");
+  assert.ok(made("folder_create").some((one) => one.args.path === "made_by_command"));
+  await press("create-file");
+  assert.equal((await sheetShown(".sheet-create")).querySelector("h2").textContent, "Create File");
+  await press("create-repository");
+  assert.equal((await sheetShown("form")).querySelector("h2").textContent, "Create Repository");
+  await press("create-project");
+  assert.equal((await sheetShown("h2")).textContent, "Project from Template");
+});
+
+test("File, Open opens a file, the tree's own folder, a workspace's folders and a machine's tree, and asks for a repository", async () => {
+  await press("open-file", "hello.py");
+  assert.equal(editing().active, "hello.py");
+  await press("open-folder", TREE());
+  await ui.waitFor(() => made("root_set").length, 5000, "the folder opened");
+  await invoke("file_write", { path: "made.code-workspace", text: JSON.stringify({ folders: [{ path: "." }] }) });
+  await press("open-workspace", `${TREE()}/made.code-workspace`);
+  await ui.waitFor(() => made("workspace_read").length, 5000, "the workspace read");
+  const opened = [];
+  calls.answer("window_open", (args) => opened.push(args));
+  await press("open-remote", "wsl:Ubuntu:/tmp");
+  assert.equal(opened.at(-1)?.remote, "wsl:Ubuntu:/tmp", "a window opened on the machine's tree");
+  await press("open-repository");
+  await sheetShown("form");
+});
+
+test("File, Add Folder, Add File, New Window and Open Folder in New Window", async () => {
+  const opened = [];
+  calls.answer("window_open", (args) => opened.push(args));
+  await press("add-folder", HOME());
+  assert.ok(made("tree_mount").some((one) => one.args.path === HOME()), "the folder mounted beside the tree");
+  await invoke("file_write_any", { path: `${HOME()}/added.txt`, text: "added\n" });
+  await press("add-file", `${HOME()}/added.txt`);
+  await ui.waitFor(() => editing().active?.startsWith("@"), 5000, "the file opened beside the tree");
+  await press("new-window");
+  assert.deepEqual(opened.at(-1)?.words, [], "a new window");
+  await press("open-folder-window", TREE());
+  assert.equal(opened.at(-1)?.root, TREE(), "a new window on the folder");
+});
+
+test("File, Open in Dev Container, Clone, Keep Tree as Template, Trust This Tree and Exit", async () => {
+  calls.answer("devcontainer_line", () => "echo dev-container");
+  await runCommand("dev-container");
+  await ui.waitFor(() => /dev-container/.test(document.getElementById("term-views").textContent), 10000, "the container's line run in the terminal");
+  await runCommand("clone");
+  await sheetShown("form");
+  const kept = [];
+  calls.answer("template_keep", ({ name }) => (kept.push(name), "templates/kept"));
+  await press("keep-template", "kept_template");
+  assert.deepEqual(kept, ["kept_template"]);
+  // A tree that holds code its tools run is asked about; the fixture's holds none, and is told so.
+  await press("trust-tree");
+  await ui.waitFor(() => !document.getElementById("trust-ask").hidden || told(/nothing to trust/), 3000, "the trust asked or told");
+  document.getElementById("trust-ask").hidden = true;
+  calls.answer("app_exit", () => null);
+  await press("exit");
+  assert.equal(made("app_exit").length, 1, "the window asked to end");
+  runCommand("toggle");
+});
+
+test("File, Save and Save All write the files changed", async () => {
+  const view = await given("saved by Save|");
+  await press("save");
+  assert.equal((await invoke("file_read", { path: GIVEN })).text, "saved by Save");
+  await openFile("hello.py");
+  const hello = editing().editor;
+  hello.change([{ from: { line: 0, col: 0 }, to: { line: 0, col: 0 }, text: "# saved by Save All\n" }], null);
+  await given("and this|");
+  await press("save-all");
+  assert.equal((await invoke("file_read", { path: GIVEN })).text, "and this");
+  assert.match((await invoke("file_read", { path: "hello.py" })).text, /^# saved by Save All\n/);
+  await openFile("hello.py");
+  editing().editor.change([{ from: { line: 0, col: 0 }, to: { line: 1, col: 0 }, text: "" }], null);
+  await press("save");
+  assert.ok(view);
+});
+
+test("File, Print shows the printers to print to", async () => {
+  calls.answer("printers_list", () => ({ printers: [{ name: "Test Printer", default: true }], silent: true }));
+  await given("printed|");
+  await press("print");
+  const shown = await sheetShown("select");
+  assert.ok([...shown.options].some((one) => one.textContent === "Save as PDF"));
+});
+
+test("File, Close Editor and Close All Editors close the tabs", async () => {
+  await press("save-all");
+  await openFile("hello.py");
+  await press("close-editor");
+  assert.notEqual(editing().active, "hello.py");
+  await press("close-all");
+  await ui.waitFor(() => !editing().open, 5000, "every tab closed");
+});
+
+test("File, Preferences, Plugins, New Language Plugin, Toolchains and the reader's own files", async () => {
+  await press("preferences");
+  await sheetShown(".sheet-prefs");
+  assert.equal(await ran("user-css"), "ran");
+  assert.ok(await invoke("file_read_any", { path: `${HOME()}/user.css` }).then(() => true, () => false), "the command line made user.css in orior's home");
+  const revealed = [];
+  calls.answer("home_reveal", ({ what }) => revealed.push(what));
+  await runCommand("user-css");
+  await press("reader-menus");
+  assert.deepEqual(revealed, ["user-css", "menus"]);
+  assert.equal(await ran("plugins"), "ran");
+  await runCommand("plugins");
+  await sheetShown(".sheet-plugins");
+  assert.equal(await ran("new-plugin", "madelang", "--ext", "madel"), "ran");
+  assert.ok(await invoke("file_read_any", { path: `${HOME()}/plugins/madelang/plugin.json` }).then(() => true, () => false), "the plugin made in orior's home");
+  await runCommand("new-plugin");
+  await sheetShown(".sheet-generator");
+  const before = made("plugins_read").length;
+  await press("reload-plugins");
+  assert.ok(made("plugins_read").length > before, "the plugins read again");
+  assert.equal(await ran("toolchains"), "ran");
+  await runCommand("toolchains");
+  await sheetShown("*");
+});
+
+test("File, Tree Environment and Maven Settings", async () => {
+  await press("environment", "none");
+  assert.ok(made("env_use").some((one) => one.args.kind === null), "the toolchains' own Python used");
+  calls.answer("maven_settings", () => [{ group: "pom", label: "Java Release", value: "17", settable: true, key: "release", file: "pom.xml" }]);
+  await press("maven-settings");
+  const shown = await sheetShown(".sheet-maven");
+  assert.ok(shown.textContent.includes("Java Release"));
+});
+
+test("Edit, Undo History shows the text's history", async () => {
+  await given("a|");
+  await press("undo-history");
+  assert.ok(paneOpen("undo"));
+});
+
+test("Edit, Cut, Copy and Paste take the selection and put the clipboard's text", async () => {
+  await given("[ab]c");
+  await press("copy");
+  assert.equal(editing().editor.clip?.text, "ab", "copied");
+  await given("[ab]c");
+  await press("cut");
+  assert.equal(editing().editor.doc.text(), "c", "cut");
+  calls.answer("clip_read", () => "XY");
+  await given("c|");
+  await press("paste");
+  assert.equal(marked(), "cXY|");
+  await press("compare-clipboard");
+  await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "the file beside the clipboard");
+});
+
+test("Edit, Macros records keys, plays them back and keeps them by name", async () => {
+  const view = await given("|");
+  await press("macro-record");
+  assert.ok(recording(), "recording");
+  view.focus();
+  await ui.type("z");
+  await press("macro-record");
+  assert.ok(!recording() && lastMacro()?.length, "a macro recorded");
+  await press("macro-play", "2");
+  assert.equal(view.doc.text(), "zzz", "played twice more");
+  await press("macro-keep", "made macro");
+  try {
+    assert.ok(keptMacros().some((one) => one.name === "made macro"));
+  } finally {
+    forgetMacro("made macro");
+  }
+});
+
+test("Edit, Find in Files from the command line and from the menu", async () => {
+  assert.equal(await ran("search", "greet"), "ran");
+  await runCommand("search", ["greet"]);
+  assert.ok(paneOpen("search"));
+});
+
+test("Edit, Format Document formats the file with its language's formatter", async () => {
+  // The command line's own format takes the files to format; the menu's formats the tab shown.
+  assert.match(await ran("format"), /exit code: 2/, "the command line asks for the files");
+  calls.answer("format_languages", () => ["python"]);
+  calls.answer("format_text", () => "x = 1\n");
+  await given("x=1\n|");
+  await runCommand("format");
+  await ui.waitFor(() => editing().editor.doc.text() === "x = 1\n", 5000, "the text formatted");
+});
+
+test("Edit, Docstring writes one in the form chosen, and Sort Methods sorts a class's methods", async () => {
+  const was = editing().docstringForm();
+  await press("docstring-form", "numpy");
+  assert.equal(editing().docstringForm(), "numpy");
+  await press("docstring-form", "google");
+  try {
+    await given("def add(a, b):\n    return a| + b\n");
+    await press("docstring");
+    await ui.waitFor(() => editing().editor.doc.text().includes('"""'), 5000, "the docstring");
+    assert.match(editing().editor.doc.text(), /Args:/);
+    await given("class C:\n    def b(self):\n        pass|\n\n    def a(self):\n        pass\n");
+    await press("sort-methods");
+    await ui.waitFor(() => editing().editor.doc.text().indexOf("def a") < editing().editor.doc.text().indexOf("def b"), 5000, "the methods sorted");
+  } finally {
+    editing().setDocstringForm(was);
+  }
+});
+
+test("Edit, Fill Paragraph fills a paragraph to the margin, and Continuation Indent and Documentation Margin take their columns", async () => {
+  const words = Array.from({ length: 40 }, (_, at) => `word${at}`).join(" ");
+  await given(`# ${words}|\n`);
+  await press("fill-paragraph");
+  await ui.waitFor(() => editing().editor.doc.count > 3, 5000, "the paragraph filled");
+  const width = editing().docMargin() ?? editing().editor.s.margin ?? 79;
+  assert.ok(editing().editor.doc.lines.every((line) => line.length <= width), `filled to ${width}: ${editing().editor.doc.text()}`);
+  assert.equal(editing().editor.doc.text().replace(/\s*#\s*/g, " ").trim(), words, "every word kept, in order");
+  const continued = editing().continuation();
+  const margin = editing().docMargin();
+  try {
+    await press("continuation", "4", "8", "2");
+    assert.deepEqual(editing().continuation(), { call: 4, declaration: 8, expression: 2 });
+    await press("doc-margin", "72");
+    assert.equal(editing().docMargin(), 72);
+    await press("doc-margin", "none");
+    assert.equal(editing().docMargin(), null);
+  } finally {
+    editing().setContinuation(continued);
+    editing().setDocMargin(margin);
+  }
+});
+
+test("Edit, Extract Variable, Extract Constant, Inline Variable and Extract Function", async () => {
+  await given("def f():\n    return [a + b] * 2\n");
+  await press("extract-variable");
+  assert.equal(editing().editor.doc.text(), "def f():\n    value = a + b\n    return value * 2\n");
+  await given("x = [3]\ny = 4");
+  await press("extract-constant");
+  assert.equal(editing().editor.doc.text(), "VALUE = 3\n\nx = VALUE\ny = 4");
+  await given("a = 1\nb = |a + 2");
+  await press("inline-variable");
+  assert.equal(editing().editor.doc.text(), "b = 1 + 2");
+  await given("def f(a):\n    [b = a * 2\n    c = b + 1]\n    return c\n");
+  await press("extract-function");
+  await ui.waitFor(() => (editing().editor.doc.text().match(/\bdef /g) ?? []).length === 2, 5000, "a function made of the lines");
+});
+
+test("Edit, Change Signature, Move and Search Structurally ask in their sheets", async () => {
+  await given("def f|(a, b):\n    return a + b\n\nf(1, 2)\n");
+  await press("change-signature");
+  await sheetShown("*");
+  await given("def f|(a, b):\n    return a + b\n");
+  await press("move-declaration");
+  await sheetShown("*");
+  await given("x = 1|\n");
+  await press("shape-search");
+  await sheetShown("*");
+});
+
+test("Edit, Rename, Quick Fix, Parameter Info and Quick Documentation ask the language server, here clangd", async () => {
+  await invoke("file_write", { path: "served.c", text: "int add(int a, int b) { return a + b; }\n\nint main(void) {\n  return add(1, 2)\n}\n" });
+  showView("edit");
+  await openFile("served.c");
+  await ui.waitFor(() => editing().active === "served.c" && editing().editor?.s, 5000, "served.c open");
+  const view = editing().editor;
+  await ui.waitFor(async () => {
+    view.goTo(3, 16);
+    await press("parameter-info");
+    return document.querySelector(".ed-signature:not([hidden])")?.textContent.includes("add");
+  }, 30000, "clangd to give the signature");
+  view.goTo(0, 5);
+  await press("quick-doc");
+  await ui.waitFor(() => !view.hover.el.hidden && /add/.test(view.hover.el.textContent), 10000, "the documentation of add");
+  view.hover.el.hidden = true;
+  view.goTo(0, 5);
+  await press("rename");
+  const field = await ui.waitFor(() => document.querySelector(".ed-rename"), 10000, "the rename field");
+  assert.equal(field.value, "add");
+  field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  // a + b selected in add: clangd offers to put it in a variable of its own.
+  await ui.waitFor(async () => {
+    view.select([{ anchor: { line: 0, col: 31 }, head: { line: 0, col: 36 }, goal: null }]);
+    await press("quick-fix");
+    return document.querySelector("body > .menu");
+  }, 15000, "clangd's refactorings of the selection");
+  assert.match(document.querySelector("body > .menu").textContent, /xtract/, "an extraction offered");
+  closeMenu(false);
+}, { timeout: 90000 });
 
