@@ -4,7 +4,8 @@
 # sm_86.khw from the forms the part answered for. Nothing reaches the part and nothing of a vendor's toolchain is run:
 # the vendor's writer reads the machine file, and the protocol reads which word each form writes off the word web.
 # The parameters are named as cu.krs names the same forms. It is one query run, query<n>-<datetime>.qry in
-# build/engine/krs/qry (qry_run.sh), which holds what the vendor's writer hands back and prints.
+# build/engine/krs/qry (qry_run.sh), which holds what the vendor's writer hands back and prints, and what krs_write
+# prints, its blob krs_write.console (qry_writer tee). The script exits as krs_write did.
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/krs_write.sh
 set -u
@@ -36,4 +37,5 @@ run_started "$WORK/qry"
 run_read "$COHERENCE/sm_86.khw" "$COHERENCE/sm_86.ksc" "$COHERENCE/sm_86.krs" "$COHERENCE/sass.krs" "$COHERENCE/cu.krs" \
     "$LAYOUTS/nvidia/elf64_nvidia.tsv" "$LAYOUTS/nvidia/mnemonic_nvidia.tsv"
 "$BINARY" sass sm_86 "$COHERENCE/sm_86.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv" "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" \
-    "$WRITER" "$COHERENCE/cu.krs"
+    "$WRITER" "$COHERENCE/cu.krs" 2>&1 | "$QRY_WRITER" tee krs_write
+exit "${PIPESTATUS[0]}"

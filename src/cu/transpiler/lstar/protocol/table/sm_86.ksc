@@ -53,3 +53,18 @@ run answers 0000000000002c00 cost 0000000700077210 004fca2007ffe0ff 000000000000
 run answers 0000000000000fe0 cost 0000000700077210 004fca4007ffe0ff 0000000000038f60
 run answers 0000000000000fff cost 0000000700077210 004fca8007ffe0ff 0000000000062421
 run answers 0000000000000fff cost 0000000700077210 004fcb0007ffe0ff 0000000000011421
+who -
+field guard 12 3
+field rd 16 8
+field ra 24 8
+field rb 32 8
+field rc 64 8
+field pl 64 3
+field pu 68 3
+field pv 77 3
+field pg 81 3
+field po 84 3
+field pt 87 3
+field immediate 32 32
+field byte 72 8
+field stall 105 4

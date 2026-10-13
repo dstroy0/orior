@@ -4,7 +4,8 @@
 # beside the rulesets (klq_write.cu). The code generator is host code in .cu files, compiled as C++, and needs no CUDA
 # toolchain and no device. It is one query run, query<n>-<datetime>.qry in build/engine/klq/qry (qry_run.sh), which
 # holds every ruleset it reads and the bridge as it read it, and hands the bridge and each map to the run's writer,
-# which writes them in their places.
+# which writes them in their places, and what klq_write prints, its blob klq_write.console (qry_writer tee). The
+# script exits as klq_write did.
 #
 #     utils/maint/engine/klq_write.sh
 #     utils/maint/engine/klq_write.sh cu.krs sass.krs
@@ -51,4 +52,5 @@ for given in "$@"; do
     run_read "$COHERENCE/$given"
 done
 run_read "$COHERENCE/Lstar.klq"
-"$BINARY" "$COHERENCE" "$@"
+"$BINARY" "$COHERENCE" "$@" 2>&1 | "$QRY_WRITER" tee klq_write
+exit "${PIPESTATUS[0]}"

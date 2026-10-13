@@ -68,7 +68,7 @@ cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvid
 BINARY="$OUT/khw_write"
 cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" \
     "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/query/answer_read.c" \
-    "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" \
+    "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" "$LAYOUTS/container_layout.c" \
     "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
     { echo "  build failed: khw_write did not compile"; exit 1; }
 
@@ -90,7 +90,7 @@ questions_counted()
 run_started "$RUNS"
 run_carried "$RUNS" "$WORK/forms_work.txt" "$WORK/forms.txt" faulted.txt
 run_read "$MACHINE" "${MACHINE%.khw}.ksc" "${MACHINE%.khw}.kqr" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
-    "$LAYOUTS/nvidia/mnemonic_nvidia.tsv"
+    "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" "$LAYOUTS/nvidia/sass_nvidia.tsv"
 if [ "$MODE" = "enumerate" ]; then
     # the slot's questions emitted off the part for the vendor's disassembler, seeded from the forms a prior run
     # learned where there are any: each known form's fields and register-runs listed, none carried, nothing reached
@@ -106,7 +106,8 @@ if [ "$MODE" = "enumerate" ]; then
         echo "  seeding from the $seeded forms in $FORMS"
     fi
     "$BINARY" sm_86 "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" \
-        "$WRITER" --slot "$SLOT" "${FORMS_WORDS[@]}" -- dry || { echo "  the enumerate did not run"; exit 1; }
+        "$LAYOUTS/nvidia/sass_nvidia.tsv" "$WRITER" --slot "$SLOT" "${FORMS_WORDS[@]}" -- dry ||
+        { echo "  the enumerate did not run"; exit 1; }
     [ "$(questions_counted)" != 0 ] || { echo "  the enumerate put no question"; exit 1; }
     echo "  the slot $SLOT's questions: questions.txt of $QRY, $(questions_counted) of them"
     echo "  cross-check them: $LAYOUTS/nvidia/measuring_stick_query.sh <base.cu>"
@@ -124,7 +125,7 @@ if [ "$MODE" = "live" ]; then
     [ -x "$NVDISASM" ] || [ -x "$NVDISASM.exe" ] ||
         { echo "  no nvdisasm beside nvcc: the airlock has no reader, and nothing goes to the part"; exit 2; }
     "$BINARY" sm_86 "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
-        "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" "$WRITER" "$ROUNDS" -- \
+        "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" "$LAYOUTS/nvidia/sass_nvidia.tsv" "$WRITER" "$ROUNDS" -- \
         "$CARRIER" --held held.txt "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
         --pop "$CARRIER" --dry --full "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
         --cross "$CROSS" "$NVDISASM" SM86 airlock.md held.txt
@@ -133,7 +134,7 @@ fi
 
 # the protocol, dry: every question it puts handed to the run and listed, none carried
 "$BINARY" sm_86 "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" \
-    "$WRITER" "$ROUNDS" -- dry
+    "$LAYOUTS/nvidia/sass_nvidia.tsv" "$WRITER" "$ROUNDS" -- dry
 [ "$(questions_counted)" != 0 ] || { echo "  the protocol put no question"; exit 1; }
 echo "  the protocol put $(questions_counted) questions; each held to cubin_safe with the part taken out:"
 # what it put, through the gate with the part taken out

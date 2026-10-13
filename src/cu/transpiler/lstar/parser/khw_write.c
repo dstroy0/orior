@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // khw_write.c: a part's forms learned by asking the part, and its .khw written from the answers
 //
-//     khw_write <part> <path.khw> <layout> <mnemonics> <machine writer> [<rounds>] -- <carrier word>...
+//     khw_write <part> <path.khw> <layout> <mnemonics> <fields> <machine writer> [<rounds>] -- <carrier word>...
 //
 // Every form in the file this writes is there because the part answered for it (P8). Nothing reads a listing, a
 // disassembler or a vendor's table of operations: the part is handed code and cases over the run channel
@@ -53,6 +53,7 @@
 
 #include "../../../types/file_defs/ksc/ksc.h"
 #include "../../../types/file_defs/qry/qry_buffer.h"
+#include "../../vendor_bin_layouts/container_layout.h"
 #include "../interface/interface.h"
 
 #include <stdarg.h>
@@ -121,6 +122,8 @@ static const char *s_path;
 static const char *s_part;
 static const char *s_layout;
 static const char *s_mnemonics;
+// the instruction word's layout, the fields the part's .ksc is given (sass_nvidia.tsv)
+static const char *s_fields;
 static const char *s_machine_writer;
 
 // one question, how many the run has put, and the launches the question is timed over, 0 where it is untimed
@@ -1155,6 +1158,49 @@ static unsigned int khw_costs_asked(const char *path)
     return timed;
 }
 
+// The part's operand fields written to the part's .ksc at `path` as `field <name> <first> <bits>`, where the register
+// walk and the predicate walk read them (klq_identity): every field row of the instruction word's layout table
+// `s_fields` (sass_nvidia.tsv, container_layout.h), the places the assembler fills. Every `field` line the file held
+// is let go, the rest kept, and the file handed to the run's writer whole (ksc.h). A table that does not read leaves
+// the file as it is
+static void khw_fields_written(const char *path)
+{
+    static ContainerLayout s_table;
+    if (!container_layout_read(&s_table, s_fields))
+    {
+        printf("  khw_write: %s gives no fields, and %s keeps those it holds\n", s_fields, path);
+        return;
+    }
+    static KscFile s_read;
+    static KscFile s_kept;
+    const QryWho who = QRY_WHO_HERE;
+    ksc_read(&s_read, path);
+    for (unsigned int at = 0u; at < s_read.lines; at += 1u)
+    {
+        if (strncmp(s_read.line[at], "field ", 6u) != 0)
+        {
+            ksc_line_add(&s_kept, s_read.line[at]);
+        }
+    }
+    ksc_free(&s_read);
+    for (unsigned int at = 0u; at < s_table.rows; at += 1u)
+    {
+        if (s_table.row[at].kind != LAYOUT_FIELD)
+        {
+            continue;
+        }
+        char line[LAYOUT_NAME_LONGEST + 48u];
+        snprintf(line, sizeof(line), "field %s %llu %u", s_table.row[at].name, s_table.row[at].offset,
+                 s_table.row[at].width);
+        ksc_line_add(&s_kept, line);
+    }
+    if (!ksc_write_by(&s_kept, path, who))
+    {
+        printf("  khw_write: the fields could not be written to %s\n", path);
+    }
+    ksc_free(&s_kept);
+}
+
 // The vendor's writer run through the interface in `mode`, handed the part, the file to write, the container layout,
 // the vendor's table and the answers file. Its output comes back over the interface's pipe, is printed, and is handed
 // to the run's buffer as KHW_MACHINE_NAME. 1 where it ended clean
@@ -1307,16 +1353,18 @@ int main(int count, char **word)
     {
         split += 1;
     }
-    if ((split < 6) || (split >= count) || ((count - split) < 2))
+    if ((split < 7) || (split >= count) || ((count - split) < 2))
     {
-        printf("khw_write <part> <path.khw> <layout> <mnemonics> <machine writer> [<rounds>] -- <carrier word>...\n");
+        printf("khw_write <part> <path.khw> <layout> <mnemonics> <fields> <machine writer> [<rounds>] -- "
+               "<carrier word>...\n");
         return 2;
     }
     s_part = word[1];
     s_path = word[2];
     s_layout = word[3];
     s_mnemonics = word[4];
-    s_machine_writer = word[5];
+    s_fields = word[5];
+    s_machine_writer = word[6];
     // [<rounds>] and, for a dry run tuned off the part, [--slot <n>] and [--forms <name>]: the slot whose questions are
     // emitted for the vendor's disassembler, and the blob of the run's buffer holding the forms a prior run learned to
     // seed them from, in place of the learn loop (khw_enumerate). The split's passes over the working set: [--discover]
@@ -1331,7 +1379,7 @@ int main(int count, char **word)
     int turns = 0;
     int registers = 0;
     int costs = 0;
-    for (int at = 6; at < split; at += 1)
+    for (int at = 7; at < split; at += 1)
     {
         if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
         {
@@ -1393,6 +1441,8 @@ int main(int count, char **word)
     // how far a container's code reaches, from the .ksc beside the machine file, for a register hold the cross gives
     char reach[1024];
     snprintf(reach, sizeof(reach), "%.*s.ksc", (int)stem, s_path);
+    // the part's operand fields into the .ksc the walks read them from
+    khw_fields_written(reach);
     if (!run_channel_registers_past(reach))
     {
         printf("  %s holds no answer of how far a container's code reaches: a register hold stays held\n", reach);

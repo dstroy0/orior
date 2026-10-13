@@ -85,6 +85,11 @@ class Target
     // the language's ruleset, read once a process; NULL where it errors, `report` saying which on stderr
     const Ruleset *ruleset(int report);
 
+    // the language's ruleset read open, once a process: a form the code generator writes that the file does not give
+    // is left ungiven (form_given 0) and the read holds, for a ruleset the part has not yet answered for whole; NULL
+    // where it errors otherwise, `report` saying which on stderr
+    const Ruleset *ruleset_open(int report);
+
     // the schema the language reads its ruleset against, read or not
     const RulesetSchema *schema(void) const;
 

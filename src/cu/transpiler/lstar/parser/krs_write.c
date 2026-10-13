@@ -556,7 +556,48 @@ int main(int count, char **word)
     }
     snprintf(path, sizeof(path), "%s/%s.krs", rulesets, language);
     QryText head = {0};
-    qry_text_printed(&head, "krs 1\nruleset %s\npart %s\n", language, part);
+    qry_text_printed(&head, "krs 1\nruleset %s\n", language);
+    // What turns the language's text into a program the part loads, and where the text's opening lines come from
+    // (krs.oracle.tsv): for sass the container writer, which lays the text into the container the system accepted
+    // (cubin_write.c), and the container's own kernel, whose opening the text takes as it stands
+    if (strcmp(language, "sass") == 0)
+    {
+        qry_text_printed(&head, "toolchain cubin_write\nheader container\n");
+    }
+    qry_text_printed(&head, "part %s\n", part);
+    // the part's register banks, each a naming template the code generator fills with the register's number: a general
+    // register R{n} for every role the part holds in its file, an even one for a wide's pair, a predicate P{n}, and an
+    // immediate the number itself. register last and predicate last in the part's .ksc bound the numbers; the bank
+    // line names, it does not bound
+    if (strcmp(language, "sass") == 0)
+    {
+        qry_text_printed(&head, "bank file = R{n}\n");
+        qry_text_printed(&head, "bank sign = R{n}\n");
+        qry_text_printed(&head, "bank out = R{n}\n");
+        qry_text_printed(&head, "bank atom = R{n}\n");
+        qry_text_printed(&head, "bank temporary = R{n}\n");
+        qry_text_printed(&head, "bank wide = R{n}\n");
+        qry_text_printed(&head, "bank predicate = P{n}\n");
+        qry_text_printed(&head, "bank member = R{n}\n");
+        qry_text_printed(&head, "bank immediate = {n}\n");
+        // the registers every lane holds throughout, the ones the code generator names (cu.krs gives the same
+        // fourteen): zero the part's RZ, and the rest the lowest general registers in cu.krs's order. Every bank
+        // writes R{n} from 0, and nothing here keeps a bank's numbers off the fixed registers' or another bank's
+        qry_text_printed(&head, "fixed zero = RZ\n");
+        qry_text_printed(&head, "fixed lane_number = R0\n");
+        qry_text_printed(&head, "fixed record = R1\n");
+        qry_text_printed(&head, "fixed index = R2\n");
+        qry_text_printed(&head, "fixed body = R3\n");
+        qry_text_printed(&head, "fixed bodies = R4\n");
+        qry_text_printed(&head, "fixed tables = R5\n");
+        qry_text_printed(&head, "fixed threads = R6\n");
+        qry_text_printed(&head, "fixed sign_base = R7\n");
+        qry_text_printed(&head, "fixed indexed = R8\n");
+        qry_text_printed(&head, "fixed one = R9\n");
+        qry_text_printed(&head, "fixed ok = R10\n");
+        qry_text_printed(&head, "fixed launch = R11\n");
+        qry_text_printed(&head, "fixed carry = R12\n");
+    }
     if (qry_text_filed(qry_run(), path, &head) == 0ull)
     {
         printf("  krs_write: %s could not be written\n", path);

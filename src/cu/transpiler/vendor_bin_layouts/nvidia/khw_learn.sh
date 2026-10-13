@@ -16,8 +16,10 @@
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh registers [<base.cu>]
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh cross [<base.cu>]
 #
-# Each part pass is one query run, query<n>-<datetime>.qry in build/engine/khw/qry (qry_run.sh). Each round of it is
-# handed to the airlock as airlock.txt: the carrier with the part taken out pops each question's container, the cross
+# Each part pass is one query run, query<n>-<datetime>.qry in build/engine/khw/qry (qry_run.sh). The part's k-files
+# are the tree's, sm_86.khw, sm_86.ksc and sm_86.kqr beside the rulesets: a pass reads each as the run holds it and
+# the run's writer writes each in its place as the pass ends, so that the query reads what the part has answered for.
+# Each round of it is handed to the airlock as airlock.txt: the carrier with the part taken out pops each question's container, the cross
 # reads every slot instruction and frame against the vendor's disassembler (measuring_stick_query.c) and hands held.txt
 # and the holds the teacher reads, and the round reaches the carrier only once the cross has read it. Where the vendor's
 # reader is not reached, the round is carried by nothing. Where a base source is given, the identical C is put through
@@ -40,9 +42,11 @@ LAYOUTS="$TOP/src/cu/transpiler/vendor_bin_layouts"
 PARSER="$TOP/src/cu/transpiler/lstar/parser"
 PROTOCOL="$TOP/src/cu/transpiler/lstar/protocol"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
-MACHINE="$WORK/sm_86.khw"
+COHERENCE="$PROTOCOL/table"
+MACHINE="$COHERENCE/sm_86.khw"
 LAYOUT="$LAYOUTS/nvidia/elf64_nvidia.tsv"
 MNEMONICS="$LAYOUTS/nvidia/mnemonic_nvidia.tsv"
+FIELDS="$LAYOUTS/nvidia/sass_nvidia.tsv"
 RUNS="$WORK/qry"
 mkdir -p "$WORK"
 source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
@@ -69,7 +73,7 @@ build_all()
     BINARY="$OUT/khw_write"
     cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" \
         "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/query/answer_read.c" \
-        "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" \
+        "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" "$LAYOUTS/container_layout.c" \
         "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
         { echo "  build failed: khw_write did not compile"; exit 1; }
     WRITER="$OUT/khw_machine_write"
@@ -106,16 +110,19 @@ carrier_words()
 
 # a part pass `$1`, one live run, every round of it checked before the part. The run holds what it ran against: the
 # forms the run before it left, carried in (the files beside the machine file where no run holds them), and every file
-# it reads as it read it, and those it changes as it left them
+# it reads as it read it, and those it changes as it left them; and what khw_write prints, its blob khw_write.console
+# (qry_writer tee). The pass exits as khw_write did
 pass()
 {
     build_all
     run_started "$RUNS"
     run_carried "$RUNS" "$WORK/forms_work.txt" "$WORK/forms.txt" faulted.txt
-    run_read "$MACHINE" "$WORK/sm_86.ksc" "$WORK/sm_86.kqr" "$LAYOUT" "$MNEMONICS" ${BASE:+"$BASE"}
+    run_read "$MACHINE" "${MACHINE%.khw}.ksc" "${MACHINE%.khw}.kqr" "$LAYOUT" "$MNEMONICS" "$FIELDS" ${BASE:+"$BASE"}
     base_compiled
     carrier_words
-    "$BINARY" sm_86 "$MACHINE" "$LAYOUT" "$MNEMONICS" "$WRITER" "--$1" -- "${CARRY[@]}"
+    "$BINARY" sm_86 "$MACHINE" "$LAYOUT" "$MNEMONICS" "$FIELDS" "$WRITER" "--$1" -- "${CARRY[@]}" 2>&1 |
+        "$QRY_WRITER" tee khw_write
+    return "${PIPESTATUS[0]}"
 }
 
 case "$STEP" in

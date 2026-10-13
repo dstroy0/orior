@@ -107,13 +107,15 @@ struct RulesetCoreConstruct
     unsigned int line_count;
 };
 
-// a read: the schema and the file, the capacities the caller sized, what the reader writes, and how it ended: the end,
-// the line it ended on, the bank, register or form it names and the word of the file it names
+// a read: the schema and the file, whether the read is open (ruleset_core_read), the capacities the caller sized, what
+// the reader writes, and how it ended: the end, the line it ended on, the bank, register or form it names and the
+// word of the file it names
 struct RulesetCoreRead
 {
     RulesetCoreSchema schema;
     const unsigned char *text;
     unsigned int text_length;
+    unsigned int open;
     unsigned int letter_capacity;
     unsigned int piece_capacity;
     unsigned int word_capacity;

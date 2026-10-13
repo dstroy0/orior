@@ -3093,7 +3093,7 @@ static int identity_stall(const char *engine, const char *answers, const char *k
         }
     }
     // the load's address written last by the other words that write a pair, every stall of the last link, in the round
-    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
+    const Ruleset *const sass = code_generator("sass.krs").ruleset_open(1);
     static SassMachine s_machine;
     const int writable = (sass != NULL) && (sass_machine_read(&s_machine, machine_path) != 0);
     const auto none_named = [](const std::string &) { return std::string(); };
@@ -3360,35 +3360,29 @@ static std::vector<unsigned char> register_renamed(const std::vector<unsigned ch
     return turned;
 }
 
-// The last register a question's code can name, asked of the part and walked down. A chain of ours the host also
-// computes is a probe where, with every stall the longest, it answers alike with the host, and still does with a
-// register it writes and then reads renamed, in every register field, to the lowest number those fields do not
-// hold. The walk
-// starts at the highest number a register field holds and steps down one at a time, skipping a number a probe holds:
-// a number is truthy where every probe answers alike with its register renamed to it, and falsy where one answers
-// apart, is refused, or is held by the gate. The last register is the first truthy number, and every number under
-// it is the code's to name. It is written to the .ksc as the part's answer on the run channel,
-// `run answers <last> register last`, and the run's blob register.txt holds every number asked with its verdict
-static int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                             const char *const *carrier)
+// The last value a question's code can name in a group of fields, asked of the part and walked down. A chain of ours
+// the host also computes is a probe where, with every stall the longest, it answers alike with the host, and still
+// does with a value it writes in the group's first field and then reads in another renamed, in every field of the
+// group, to the lowest number those fields do not hold. The walk starts at the highest number the group's first
+// field holds and steps down one at a time, skipping a number a probe holds: a number is truthy where every probe
+// answers alike with its value renamed to it, and falsy where one answers apart, is refused, or is held by the gate.
+// The last value is the first truthy number, and every number under it is the code's to name. It is written to the
+// .ksc as the part's answer on the run channel, `run answers <last> <answer>`, and the run's blob `blob` holds every
+// number asked with its verdict. `token` is the letter the group's values are printed with, R for registers and P
+// for predicates. The register walk and the predicate walk are this one walk over their own fields (P11 Step 9)
+static int identity_last(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                         const char *const *carrier, const StallField &stall,
+                         const std::vector<StallField> &group, const char *answer, const char *blob,
+                         const char *mode, char token)
 {
-    std::map<std::string, StallField> fields = stall_fields(ksc);
-    if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
-        (fields.count("rb") == 0u))
-    {
-        printf("klq_identity register: %s gives no stall field or not every register field\n", ksc);
-        return 1;
-    }
-    const StallField stall = fields["stall"];
-    const std::vector<StallField> registers = {fields["rd"], fields["ra"], fields["rb"]};
     const unsigned long long longest = (1ull << stall.bits) - 1ull;
-    const unsigned long long highest = (1ull << fields["rd"].bits) - 1ull;
+    const unsigned long long highest = (1ull << group[0].bits) - 1ull;
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
     if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
-    record_open(ksc, "register");
+    record_open(ksc, mode);
     // a chain of ours holds no slot, and the cross reads it whole (measuring_stick_query.c)
     static RunQuestion s_question;
     s_question.slot = RUN_SLOT_NONE;
@@ -3421,7 +3415,7 @@ static int identity_register(const char *engine, const char *answers, const char
         RegisterProbe probe{held.first, code, highest, {}};
         for (size_t index = 0u; index < (code.size() / 16u); index += 1u)
         {
-            for (const StallField &field : registers)
+            for (const StallField &field : group)
             {
                 probe.named.insert(stall_bits(code, index, field));
             }
@@ -3431,20 +3425,22 @@ static int identity_register(const char *engine, const char *answers, const char
         {
             lowest += 1ull;
         }
-        // the registers the chain writes and reads after, in the order it writes them, each tried until one renamed
-        // to the lowest number the chain does not hold still answers alike: a register written and never read again
-        // asks whether a number is written, and not whether it holds what is written
+        // the values the chain writes in the group's first field and reads after in another, in the order it writes
+        // them, each tried until one renamed to the lowest number the chain does not hold still answers alike: a value
+        // written and never read again asks whether a number is written, and not whether it holds what is written
         for (size_t index = 0u; (index < (code.size() / 16u)) && (probe.renamed == highest); index += 1u)
         {
-            const unsigned long long written = stall_bits(code, index, registers[0]);
+            const unsigned long long written = stall_bits(code, index, group[0]);
             int read_after = 0;
             for (size_t after = index + 1u; after < (code.size() / 16u); after += 1u)
             {
-                read_after = read_after || (stall_bits(code, after, registers[1]) == written) ||
-                             (stall_bits(code, after, registers[2]) == written);
+                for (size_t slot = 1u; slot < group.size(); slot += 1u)
+                {
+                    read_after = read_after || (stall_bits(code, after, group[slot]) == written);
+                }
             }
             if ((written == highest) || (lowest == highest) || !read_after ||
-                !stall_alike(register_renamed(code, registers, written, lowest), held.second, places, &s_question,
+                !stall_alike(register_renamed(code, group, written, lowest), held.second, places, &s_question,
                              &asks))
             {
                 continue;
@@ -3453,17 +3449,17 @@ static int identity_register(const char *engine, const char *answers, const char
         }
         if (probe.renamed != highest)
         {
-            printf("  probe %s: R%llu renamed\n", held.first.c_str(), probe.renamed);
+            printf("  probe %s: %c%llu renamed\n", held.first.c_str(), token, probe.renamed);
             probes.push_back(probe);
         }
     }
     if (probes.empty())
     {
-        printf("klq_identity register: no chain answers alike with a register renamed, and no probe\n");
+        printf("klq_identity %s: no chain answers alike with a value renamed, and no probe\n", mode);
         run_channel_close();
         return 1;
     }
-    RunWritten table = {(folder + "/register.txt"), 0, std::string()};
+    RunWritten table = {(folder + "/" + blob), 0, std::string()};
     // a number is the walk's to ask where no probe holds it
     const auto renamed_alike = [&](long long number) -> int {
         const int held_by_probe = std::any_of(probes.begin(), probes.end(), [&](const RegisterProbe &probe) {
@@ -3476,37 +3472,74 @@ static int identity_register(const char *engine, const char *answers, const char
         int truthy = 1;
         for (const RegisterProbe &probe : probes)
         {
-            truthy = truthy && stall_alike(register_renamed(probe.code, registers, probe.renamed,
+            truthy = truthy && stall_alike(register_renamed(probe.code, group, probe.renamed,
                                                             (unsigned long long)number),
                                            host[probe.number], places, &s_question, &asks);
         }
-        run_print(&table, "R%lld %s%s%s\n", number, truthy ? "truthy" : "falsy", truthy ? "" : ": ",
+        run_print(&table, "%c%lld %s%s%s\n", token, number, truthy ? "truthy" : "falsy", truthy ? "" : ": ",
                   truthy ? "" : s_question.refused);
-        printf("  R%lld: %s\n", number, truthy ? "truthy" : "falsy");
+        printf("  %c%lld: %s\n", token, number, truthy ? "truthy" : "falsy");
         return truthy;
     };
     const long long last = walk_step(renamed_alike, (long long)highest, -1, 0);
     if (!run_closed(&table))
     {
-        printf("klq_identity register: %s/register.txt could not be written\n", folder.c_str());
+        printf("klq_identity %s: %s/%s could not be written\n", mode, folder.c_str(), blob);
         run_channel_close();
         return 1;
     }
     run_channel_close();
     if (last < 0)
     {
-        printf("klq_identity register: no number answers alike, and no last register\n");
+        printf("klq_identity %s: no number answers alike, and no last value\n", mode);
         return 1;
     }
     char row[64];
-    snprintf(row, sizeof(row), "run answers %08llx register last", (unsigned long long)last);
-    if (!ksc_answers_write(ksc, "register", std::vector<std::string>{row}))
+    snprintf(row, sizeof(row), "run answers %08llx %s", (unsigned long long)last, answer);
+    if (!ksc_answers_write(ksc, mode, std::vector<std::string>{row}))
     {
-        printf("klq_identity register: %s could not be written\n", ksc);
+        printf("klq_identity %s: %s could not be written\n", mode, ksc);
         return 1;
     }
-    printf("klq_identity register: the last register R%lld, over %llu asks, written to %s\n", last, asks, ksc);
+    printf("klq_identity %s: the last %c%lld, over %llu asks, written to %s\n", mode, token, last, asks, ksc);
     return 0;
+}
+
+// The last register a question's code can name, its register fields rd, ra and rb, rd the one a chain writes
+// (identity_last): written to the .ksc as `run answers <last> register last`, R255 being RZ and excepted where
+// renaming a register to it drops the chain's value and answers apart
+static int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                             const char *const *carrier)
+{
+    std::map<std::string, StallField> fields = stall_fields(ksc);
+    if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
+        (fields.count("rb") == 0u))
+    {
+        printf("klq_identity register: %s gives no stall field or not every register field\n", ksc);
+        return 1;
+    }
+    const std::vector<StallField> registers = {fields["rd"], fields["ra"], fields["rb"]};
+    return identity_last(engine, answers, ksc, folder, carrier, fields["stall"], registers, "register last",
+                         "register.txt", "register", 'R');
+}
+
+// The last predicate a question's code can name, its predicate fields pg, the guard and pt (sass_nvidia.tsv), pg the
+// one a chain writes and the guard and pt those it reads after (identity_last): written to the .ksc as
+// `run answers <last> predicate last`, P7 being PT and excepted where renaming a predicate to it answers always and
+// apart from the chain's. The walk is the register walk over the predicate fields (P11 Step 9)
+static int identity_predicate(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                              const char *const *carrier)
+{
+    std::map<std::string, StallField> fields = stall_fields(ksc);
+    if ((fields.count("stall") == 0u) || (fields.count("pg") == 0u) || (fields.count("guard") == 0u) ||
+        (fields.count("pt") == 0u))
+    {
+        printf("klq_identity predicate: %s gives no stall field or not every predicate field\n", ksc);
+        return 1;
+    }
+    const std::vector<StallField> predicates = {fields["pg"], fields["guard"], fields["pt"]};
+    return identity_last(engine, answers, ksc, folder, carrier, fields["stall"], predicates, "predicate last",
+                         "predicate.txt", "predicate", 'P');
 }
 
 // the threads every point of a curve launches in all, and the launches its time is taken over; the asks in a row the
@@ -4805,7 +4838,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                          const char *machine_path, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
+    const Ruleset *const sass = code_generator("sass.krs").ruleset_open(1);
     static SassMachine s_machine;
     if ((sass == NULL) || (sass_machine_read(&s_machine, machine_path) == 0))
     {
@@ -6346,7 +6379,7 @@ static int identity_cost(const char *engine, const char *answers, const char *ks
                          const char *kdm, const char *machine_path, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
+    const Ruleset *const sass = code_generator("sass.krs").ruleset_open(1);
     static SassMachine s_machine;
     if ((sass == NULL) || (sass_machine_read(&s_machine, machine_path) == 0))
     {
@@ -6716,6 +6749,13 @@ int main(int count, char **words)
     {
         std::vector<const char *> carrier(words + 9, words + count);
         carrier.push_back(NULL);
+        // the banks walked first in the same run, the last register and the last predicate, each answer written to
+        // the .ksc and its record closed before the pairs open theirs; an ask the record holds is not put again. The
+        // part's fields the walks read are in the .ksc already, written by khw_write when the part was learned
+        identity_register(words[2], words[3], words[4], words[5], carrier.data());
+        record_close();
+        identity_predicate(words[2], words[3], words[4], words[5], carrier.data());
+        record_close();
         return identity_pair(words[2], words[3], words[4], words[6], words[7], carrier.data());
     }
     if ((count >= 10) && (std::string(words[1]) == "cost") && (std::string(words[8]) == "--"))

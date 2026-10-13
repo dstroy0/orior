@@ -1,3 +1,28 @@
 krs 1
 ruleset sass
+toolchain cubin_write
+header container
 part sm_86
+bank file = R{n}
+bank sign = R{n}
+bank out = R{n}
+bank atom = R{n}
+bank temporary = R{n}
+bank wide = R{n}
+bank predicate = P{n}
+bank member = R{n}
+bank immediate = {n}
+fixed zero = RZ
+fixed lane_number = R0
+fixed record = R1
+fixed index = R2
+fixed body = R3
+fixed bodies = R4
+fixed tables = R5
+fixed threads = R6
+fixed sign_base = R7
+fixed indexed = R8
+fixed one = R9
+fixed ok = R10
+fixed launch = R11
+fixed carry = R12

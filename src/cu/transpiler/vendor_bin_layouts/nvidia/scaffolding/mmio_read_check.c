@@ -48,8 +48,15 @@ int main(int count, char **words)
     const int live = (boot != 0u) && (boot != 0xffffffffu);
     if (offset == MMIO_CHECK_BOOT_0)
     {
-        printf("PMC_BOOT_0 = %08x, architecture %02x: the aperture is %s\n", boot, (boot >> 24u) & 0xffu,
-               live ? "live" : "not reading the part");
+        // NV_PMC_BOOT_0 names the chip: its architecture in bits 28:24, its implementation in 23:20, and its revision
+        // in the low byte, the major in 7:4 and the minor in 3:0. Architecture 0x17 is Ampere, and implementation 0x4
+        // under it is the GA104 of an RTX 3070
+        const unsigned int architecture = (boot >> 24u) & 0x1fu;
+        const unsigned int implementation = (boot >> 20u) & 0xfu;
+        const unsigned int major = (boot >> 4u) & 0xfu;
+        const unsigned int minor = boot & 0xfu;
+        printf("PMC_BOOT_0 = %08x: architecture 0x%02x, implementation 0x%x, revision %X%X: the aperture is %s\n", boot,
+               architecture, implementation, major, minor, live ? "live" : "not reading the part");
     }
     mmio_close(device);
     return live ? 0 : 1;

@@ -41,18 +41,26 @@ if (-not (Test-Path $Sys)) {
 }
 $Sys = (Resolve-Path $Sys).Path
 
-# BAR0: the 16 MiB (0x1000000) memory range the card was assigned, unless a base and size are given
+# BAR0: the 16 MiB (0x1000000) register aperture Windows assigns the NVIDIA card, unless a base and size are given. Every
+# NVIDIA generation's register aperture is 16 MiB, which tells BAR0 apart from the card's larger framebuffer apertures:
+# the display adapter is found by vendor (10DE) and its 16 MiB memory range taken as BAR0
 if ($Base -and $Size) {
     $base = [uint64]$Base
     $size = [uint64]$Size
 } else {
-    $dev = Get-CimInstance Win32_PnPEntity -Filter "DeviceID LIKE '%VEN_10DE&DEV_2484%'"
-    $ranges = Get-CimAssociatedInstance -InputObject $dev -Association Win32_PnPAllocatedResource |
-        Where-Object { $_.CimClass.CimClassName -eq 'Win32_DeviceMemoryAddress' }
-    $bar0 = $ranges | Where-Object { ([uint64]$_.EndingAddress - [uint64]$_.StartingAddress + 1) -eq 0x1000000 } |
-        Select-Object -First 1
+    $cards = Get-CimInstance Win32_PnPEntity -Filter "PNPClass = 'Display' AND DeviceID LIKE '%VEN_10DE%'"
+    $bar0 = $null
+    foreach ($card in $cards) {
+        $ranges = Get-CimAssociatedInstance -InputObject $card -Association Win32_PnPAllocatedResource |
+            Where-Object { $_.CimClass.CimClassName -eq 'Win32_DeviceMemoryAddress' }
+        $bar0 = $ranges | Where-Object { ([uint64]$_.EndingAddress - [uint64]$_.StartingAddress + 1) -eq 0x1000000 } |
+            Select-Object -First 1
+        if ($bar0) {
+            break
+        }
+    }
     if (-not $bar0) {
-        Write-Output "no 16 MiB BAR0 range found; pass -Base and -Size in hex"
+        Write-Output "no NVIDIA card with a 16 MiB BAR0 found; pass -Base and -Size in hex"
         exit 1
     }
     $base = [uint64]$bar0.StartingAddress
