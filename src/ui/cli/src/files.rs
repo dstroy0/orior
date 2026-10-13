@@ -371,7 +371,7 @@ pub fn fuzzy(query: &str, text: &str, from: usize) -> Option<(f64, Vec<usize>)> 
 }
 
 /// What a file named exactly as typed scores over the match itself, and one whose name starts with
-/// it half that: more than any match and the files opened lately score together, so a name as typed
+/// it half that: more than any match and the files opened lately score together. A name as typed
 /// stands above every looser match.
 const EXACT: f64 = 100_000.0;
 
