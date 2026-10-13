@@ -8,6 +8,7 @@
 //   reads    each file still being read, by path: the bytes in and the bytes in all
 //   colors   how many lines ahead of the view the idle coloring has reached
 //   runs     each run still going, by number: its job
+//   unread   whether the tree's files, and what they declare, are not read yet
 //   bridge   the coherence index: how many keys, maps and rulesets it holds, and when it was read
 //   input    whether a key or the pointer is working the editor now
 //
@@ -23,6 +24,7 @@ export const status = {
   reads: new Map(),
   colors: { ahead: 0 },
   runs: new Map(),
+  unread: { files: false, symbols: false },
   bridge: { keys: 0, maps: 0, rulesets: 0, at: 0 },
 };
 
@@ -60,6 +62,13 @@ export function watch(watcher) {
 // Whether the view is taking input or moving, the time for background work to stand back.
 export function pressed() {
   return status.input.active || status.scroll.speed > 0;
+}
+
+// The side the next slice is read from of a windowed file, or drawn on of the rows a view draws
+// outward, "below" or "above": the way the view heads while it scrolls, and below and above in turn
+// at rest, `below` saying whose turn it is.
+export function nextSlice({ canAbove, canBelow, moving, heading, below }) {
+  return canBelow && (!canAbove || (moving ? heading > 0 : below)) ? "below" : "above";
 }
 
 // Waits for an idle moment the view is not pressed in, checking each idle moment.

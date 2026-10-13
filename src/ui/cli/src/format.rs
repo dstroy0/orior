@@ -52,6 +52,11 @@ fn formatter_of(language: &str) -> Result<(toolchains::Tool, toolchains::Formatt
         })
 }
 
+/// The program that formats `language`, where orior has a formatter for it.
+pub fn program_of(language: &str) -> Option<String> {
+    formatter_of(language).ok().map(|(_, format)| format.program)
+}
+
 /// The first of the files `names` in the folder of `path` or the nearest folder above it that holds
 /// one, read whole.
 fn nearest(path: &Path, names: &[&str]) -> Option<String> {

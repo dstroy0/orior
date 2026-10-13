@@ -33,7 +33,7 @@ import { colorWith } from "./editor/tokens.js";
 import { findWith } from "./editor/find.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
-import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
+import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, folderIcon, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
 import { drawCommit, startCommit } from "./commit.js";
 import { closeDiff, showDiff } from "./diffview.js";
 import { showMerge } from "./mergeview.js";
@@ -41,7 +41,8 @@ import { anchor } from "./review.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
-import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, parseShown, serve, spansOf, startServers, stopServing, treeChecking, wrap } from "./servers.js";
+import { follow as followPaged, inWindow, jumpPaged, openPaged, PAGED_FROM, readPaged, releasePaged, savePaged } from "./paged.js";
+import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, parseShown, serve, spansOf, startServers, stopServing, stopTelling, treeChecking, wrap } from "./servers.js";
 import { callHierarchy, closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
 import { extractFunction } from "./extract.js";
@@ -62,7 +63,7 @@ import { cellFileOf, closeNotebook, drawNotebook, hideNotebook, isNotebook, mark
 import { onScheme } from "./scheme.js";
 import { iconsKey, kindColors } from "./themes.js";
 import { onFonts } from "./fonts.js";
-import { calm, status, write } from "./status.js";
+import { calm, nextSlice, status, write } from "./status.js";
 import { writeWithCare } from "./rights.js";
 import { marksOf, startScripts, syncPlugins, tabLabelOf, tell } from "./scripts.js";
 import { togglePane } from "./sides.js";
@@ -89,6 +90,8 @@ const state = {
   back: [],
   forward: [],
   moving: false,
+  // Whether the tabs the tree had open are being opened again as it starts.
+  restoring: false,
   // The tabs by when each was last shown, and the walk Last Editor is on while Ctrl is held.
   used: [],
   cycle: null,
@@ -362,8 +365,8 @@ function shownName(entry) {
   }
 }
 
-// A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon, the
-// name, and git's letter for it. An archive is a folder with its file's icon.
+// A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon or
+// the folder's, the name, and git's letter for it. An archive is a folder with its file's icon.
 function node(entry, depth) {
   const known = !entry.dir && state.known?.typeOf(entry.path);
   const mark = entry.dir ? state.rolled.get(entry.path) : state.changes.get(entry.path);
@@ -373,9 +376,7 @@ function node(entry, depth) {
     title: entry.path,
   });
   button.append(...guides(depth), element("span", { className: "twisty" }));
-  if (!entry.dir || entry.archive) {
-    button.append(iconOf(entry.name, Boolean(known)));
-  }
+  button.append(entry.dir && !entry.archive ? folderIcon() : iconOf(entry.name, Boolean(known)));
   button.append(element("span", { className: "name", textContent: shownName(entry) }));
   if (entry.archive) {
     button.dataset.archive = "true";
@@ -754,6 +755,7 @@ function closeTab(tab) {
   leaveSplit(tab.path);
   stopServing(tab);
   letGo(tab.session?.doc);
+  releasePaged(tab.session);
   if (tab.notebook) {
     closeNotebook(tab.notebook);
   }
@@ -809,12 +811,6 @@ async function sliceAt(path, start, end) {
   const head = new DataView(sent, 0, 24);
   const at = (offset) => Number(head.getBigUint64(offset, true));
   return { start: at(0), end: at(8), size: at(16), text: textOf.decode(new Uint8Array(sent, 24)) };
-}
-
-// The side of a windowed file the next slice is read from, "below" or "above": the way the view
-// heads while it scrolls, and below and above in turn at rest, `below` saying whose turn it is.
-export function nextSlice({ canAbove, canBelow, moving, heading, below }) {
-  return canBelow && (!canAbove || (moving ? heading > 0 : below)) ? "below" : "above";
 }
 
 // Reads the rest of a windowed file, a slice at a time, standing back whenever the status block says
@@ -931,7 +927,11 @@ async function load(path, as = null) {
     const opened = await invoke("file_read", { path });
     const tab = { path, file: path, size: opened.size, closing: false };
     const place = placeOf(path);
-    if (opened.windowed) {
+    if (opened.windowed && opened.size >= PAGED_FROM) {
+      tab.session = await openPaged(path, place?.line ?? 0, state.known.languageOf(path));
+      markSaved(tab);
+      settleAt(tab.session, place);
+    } else if (opened.windowed) {
       const shown = await invoke("file_window", { path, line: place?.line ?? 0, half: HALF });
       const held = { start: shown.start, end: shown.end, size: shown.size, lines: shown.lines };
       tab.session = new Session(shown.text, state.known.languageOf(path), { base: shown.line, window: held });
@@ -960,7 +960,7 @@ async function load(path, as = null) {
       tab.bytes = new Uint8Array(opened.bytes);
     }
     state.tabs.push(tab);
-    if (tab.session?.window) {
+    if (tab.session?.window && !tab.session.window.paged) {
       tab.reading = readOutward(tab);
     }
     serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
@@ -1256,7 +1256,11 @@ function show(path) {
     editorNode.hidden = false;
     binaryNode.hidden = true;
     state.editor.show(tab.session);
-    state.editor.focus();
+    // A tab shown as the session comes back takes the keys only where nothing else has them: what the
+    // reader began to type into at the start keeps them.
+    if (!state.restoring || !document.activeElement || document.activeElement === document.body) {
+      state.editor.focus();
+    }
     markChanges(tab);
   } else {
     state.editor.show(null);
@@ -1325,6 +1329,17 @@ async function saveActive(tab = tabOf(actingPath())) {
   if (!tab?.session || tab.readOnly) {
     return;
   }
+  // A paged file is written on the Rust side, with every edit made to it.
+  if (tab.session.window?.paged) {
+    const writing = tab.session.doc.id;
+    await savePaged(tab.session);
+    tab.saved = writing;
+    tab.closing = false;
+    drawTabs();
+    await loadChanges();
+    drawTree();
+    return;
+  }
   // A file still being read is written only once all of it is in.
   await tab.reading;
   if (saving("format")) {
@@ -1376,6 +1391,9 @@ export async function openAt(path, line, col = 0, { preview = false } = {}) {
   }
   if ((line < s.base || line >= s.base + s.doc.count) && tab.reading) {
     await tab.reading;
+  }
+  if (s.window?.paged && !inWindow(s, line)) {
+    await jumpPaged(s, line);
   }
   if (state.split?.focused && state.split.active === path) {
     state.split.editor.goTo(line - s.base, col);
@@ -1854,7 +1872,7 @@ async function holdMemory(budget) {
   for (const tab of state.tabs) {
     if (tab.served && files.has(plain(`${root}/${tab.file}`))) {
       Object.assign(tab, { served: undefined, untold: false, unserved: true });
-      window.clearTimeout(tab.telling);
+      stopTelling(tab);
       if (tab.session) {
         tab.session.diagnostics = null;
       }
@@ -2677,6 +2695,15 @@ function keepBackups() {
 
 // Opens the tabs the tree had open, and shows the one it showed.
 export async function restoreSession() {
+  state.restoring = true;
+  try {
+    await putSessionBack();
+  } finally {
+    state.restoring = false;
+  }
+}
+
+async function putSessionBack() {
   const kept = readKept(sessionKey(), { tabs: [], active: null });
   for (const path of kept.tabs ?? []) {
     await load(path).catch(() => {});
@@ -2940,7 +2967,15 @@ export async function startEdit(defs) {
       const tab = tabOfSession(s.of ?? s);
       return tab ? spansOf(tab, from, to) : Promise.resolve([]);
     },
-    onEdit: (s) => editListeners.forEach((listener) => listener(s.of ?? s)),
+    onEdit: (s) => {
+      // The tab's server hears of the change once the frame that draws it is drawn, and not once the
+      // keys rest: its marks come with no wait of the window's own (servers.js).
+      const tab = state.tabs.find((one) => one.session === (s.of ?? s));
+      if (tab) {
+        changed(tab);
+      }
+      editListeners.forEach((listener) => listener(s.of ?? s));
+    },
     pasteAs: (s, text) => {
       const path = tabOfSession(s.of ?? s)?.file ?? null;
       for (const listener of pasteListeners) {
@@ -2991,6 +3026,16 @@ export async function startEdit(defs) {
     },
   };
   state.editor = new Editor(document.getElementById("editor"), { ...state.editorHooks, statusHost: document.getElementById("statusbar") });
+  // A paged file's window moves with the view, looked at once a frame while the view scrolls.
+  let following = 0;
+  state.editor.scroller.addEventListener("scroll", () => {
+    if (!following && state.editor.s?.window?.paged) {
+      following = requestAnimationFrame(() => {
+        following = 0;
+        followPaged(state.editor.s, state.editor);
+      });
+    }
+  });
   startNotebooks({
     languageOf: (path) => state.known.languageOf(path),
     changed: () => drawTabs(),
@@ -3086,7 +3131,25 @@ export async function startEdit(defs) {
     tabsChanged: () => drawTabs(),
     active: () => (state.active ? tabOf(state.active)?.file ?? null : null),
     editor: () => state.editor,
-    textOf: async (path) => tabOf(path)?.session?.doc.text() ?? (await invoke("file_read", { path })).text,
+    textOf: async (path) => {
+      const s = tabOf(path)?.session;
+      if (s?.window?.paged) {
+        throw new Error(`${path} is held as pages: orior.editor.lines reads a part of it`);
+      }
+      await tabOf(path)?.reading;
+      return s?.doc.text() ?? (await invoke("file_read", { path })).text;
+    },
+    // A part of a file's lines: a paged file's from the Rust side, and any other's as its tab holds
+    // it or its file does.
+    linesOf: async (path, from, to) => {
+      const s = tabOf(path)?.session;
+      if (s?.window?.paged) {
+        return readPaged(s, from, to);
+      }
+      await tabOf(path)?.reading;
+      const lines = s ? s.doc.lines : ((await invoke("file_read", { path })).text ?? "").split(/\r?\n/);
+      return lines.slice(from - (s?.base ?? 0), to - (s?.base ?? 0));
+    },
     write: (one, path, text) => writeWithCare(path, text, { who: one.name }).then(() => null),
   });
   syncPlugins();
@@ -3790,6 +3853,8 @@ export function editing() {
     hints: (kind) => Boolean(state.editor?.hintKinds[kind]),
     setHints: (kind, on) => [state.editor, state.split?.editor].forEach((one) => one?.setHints(kind, on)),
     smoothScroll: () => Boolean(state.editor?.smoothOn),
+    wordWrap: () => Boolean(state.editor?.wrapOn),
+    setWordWrap: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setWrap(on)),
     setSmoothScroll: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setSmooth(on)),
     flickScroll: () => Boolean(state.editor?.flickOn),
     setFlickScroll: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setFlick(on)),

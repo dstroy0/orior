@@ -358,6 +358,22 @@ export class Highlight {
     this.count = this.doc.count;
   }
 
+  // Lines let go above the first: what was worked out moves up with its lines, and the new first
+  // line starts in the state worked out for it, or at root.
+  unshift(removed) {
+    if (!removed) {
+      return;
+    }
+    const first = this.starts[removed] ?? "root";
+    this.starts = this.starts.slice(removed);
+    this.starts[0] = first;
+    this.runs = this.runs.slice(removed);
+    this.stale = this.stale.slice(removed);
+    // An answer on its way was asked of the lines as they stood, and none of it is placed.
+    this.cut = 0;
+    this.count = this.doc.count;
+  }
+
   // Writes the state a line starts in. Where it differs from the one kept, everything worked out
   // from that line on was worked out from a wrong state, and is forgotten.
   startAt(line, state) {

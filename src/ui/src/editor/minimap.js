@@ -24,6 +24,8 @@ export class Minimap {
     this.canvas = canvas;
     this.colors = null;
     canvas.addEventListener("mousedown", (event) => this.down(event));
+    // The wheel over the map scrolls the text, as it does over the text.
+    canvas.addEventListener("wheel", (event) => editor.onWheel(event), { passive: false });
   }
 
   clear() {
@@ -260,6 +262,11 @@ export class Minimap {
     }
   }
 
+  // The row of the text at `y`, the map's own pixels from its top, the map standing as `found` says.
+  rowAt(y, found = this.geometry()) {
+    return found.start + y / ROW;
+  }
+
   down(event) {
     const ed = this.ed;
     if (!ed.s || event.button !== 0) {
@@ -275,7 +282,7 @@ export class Minimap {
       return;
     }
     if (y < found.sliderTop || y > found.sliderTop + found.sliderHeight) {
-      const row = found.start + y / ROW;
+      const row = this.rowAt(y, found);
       ed.place(row * ed.lineHeight - ed.scroller.clientHeight / 2);
       found = this.geometry();
     }

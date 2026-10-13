@@ -26,7 +26,7 @@ struct Collected {
 static COLLECTED: Mutex<Collected> = Mutex::new(Collected { on: false, events: Vec::new(), ended: false });
 
 /// The categories traced: the timeline of each frame, its frames, and the collector.
-const CATEGORIES: &str = "devtools.timeline,disabled-by-default-devtools.timeline.frame,v8.gc,cc,viz";
+const CATEGORIES: &str = "devtools.timeline,disabled-by-default-devtools.timeline.frame,disabled-by-default-devtools.timeline.stack,v8.gc,cc,viz";
 
 /// The lines of the summary handed: the threads' busiest events.
 const LINES: usize = 40;
@@ -95,11 +95,26 @@ fn summary(events: &[Value]) -> String {
     }
     let mut lines: Vec<_> = sums.into_iter().collect();
     lines.sort_by(|a, b| b.1 .1.total_cmp(&a.1 .1));
-    lines
+    let mut said: String = lines
         .into_iter()
         .take(LINES)
         .map(|((thread, name), (count, total, most, touched))| if touched > 0 { format!("{thread} {name} {count} {total:.1} {most:.1} touched {touched}\n") } else { format!("{thread} {name} {count} {total:.1} {most:.1}\n") })
-        .collect()
+        .collect();
+    // A style pass or a layout a script forced, out of the frame's own: summed by the call that forced
+    // it, the script's function and its place, the most time first.
+    let mut forced: HashMap<String, (u64, f64)> = HashMap::new();
+    for event in events.iter().filter(|event| event["ph"] == "X" && matches!(event["name"].as_str(), Some("UpdateLayoutTree" | "Layout"))) {
+        let Some(top) = event["args"]["beginData"]["stackTrace"].as_array().and_then(|stack| stack.first()) else { continue };
+        let at = format!("{} {} {}:{}", event["name"].as_str().unwrap_or(""), top["functionName"].as_str().filter(|name| !name.is_empty()).unwrap_or("(anonymous)"), top["url"].as_str().unwrap_or("").rsplit('/').next().unwrap_or(""), top["lineNumber"].as_u64().unwrap_or(0) + 1);
+        let sum = forced.entry(at).or_insert((0, 0.0));
+        *sum = (sum.0 + 1, sum.1 + event["dur"].as_f64().unwrap_or(0.0) / 1000.0);
+    }
+    let mut forced: Vec<_> = forced.into_iter().collect();
+    forced.sort_by(|a, b| b.1 .1.total_cmp(&a.1 .1));
+    for (at, (count, total)) in forced.into_iter().take(10) {
+        said.push_str(&format!("forced {at} {count} {total:.1}\n"));
+    }
+    said
 }
 
 #[cfg(test)]

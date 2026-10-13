@@ -37,11 +37,16 @@ test("an event reaches the handler listening for it, with its payload", async ()
 });
 
 test("each call goes through the watch where one is set, and straight out where none is", async () => {
+  // The calls the test makes, those the window makes of its own meanwhile, as git's view of the
+  // tree read again, left out.
   const seen = [];
+  const own = (name) => name === "app_version" || name === "root_get";
   try {
     assert.equal(
       watchCalls((name, args, send) => {
-        seen.push(name);
+        if (own(name)) {
+          seen.push(name);
+        }
         return name === "app_version" ? Promise.resolve("9.9.9") : send(name, args);
       }),
       true,

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Notices at the reader's breaks: one that answers a press shows at once, any other waits for a save,
-// a commit, a run's end or the keys at rest, and Focus holds every notice until it ends.
+// a commit, a run's end or the keys at rest, and Focus holds every notice until it ends. Not again,
+// beside a notice, puts its kind away for good, and Preferences brings it back.
 
 import { invoke } from "../../src/bridge.js";
 import { editing, openFile } from "../../src/edit.js";
 import { runCommand } from "../../src/menubar.js";
-import { focusOn, noticesHeld, noticesSaid, say, setFocus } from "../../src/statusbar.js";
+import { bringBack, focusOn, kindOf, noticesAway, noticesHeld, noticesSaid, noticesUnseen, say, setFocus } from "../../src/statusbar.js";
 import { showView } from "../../src/views.js";
 
 const { test, assert, ui } = window.__harness;
@@ -78,4 +79,46 @@ test("Focus holds every notice until it ends, even at a break, and then shows th
   assert.ok(bell.indexOf("First while focused") < bell.indexOf("Second while focused") && bell.indexOf("First while focused") >= 0, "each in the bell, in order");
   assert.equal(document.getElementById("status-focus").hidden, true);
   setFocus(false);
+});
+
+test("Not again beside a notice puts its kind away for good: said again, with another count, it shows no more", async () => {
+  const kind = kindOf("3 files could not be read");
+  bringBack(kind);
+  try {
+    await ui.click("#statusbar");
+    say("3 files could not be read");
+    assert.ok(shown("3 files could not be read"));
+    await ui.click("#status-said-away");
+    assert.ok(said().hidden && document.getElementById("status-said-away").hidden, "the notice and its press go");
+    assert.ok(noticesAway().includes(kind), "its kind is put away");
+    await ui.click("#statusbar");
+    const unseen = noticesUnseen();
+    say("7 files could not be read");
+    assert.ok(!shown("7 files could not be read"), "the same kind, with another count, shows no more");
+    assert.equal(noticesSaid().at(-1).text, "7 files could not be read", "the bell keeps it");
+    assert.equal(noticesUnseen(), unseen, "and counts it as nothing unseen");
+  } finally {
+    bringBack(kind);
+  }
+});
+
+test("Preferences lists each notice put away and shows its kind again on a press", async () => {
+  const kind = kindOf("The tree has 12 plugins to update");
+  bringBack(kind);
+  await ui.click("#statusbar");
+  say("The tree has 12 plugins to update");
+  await ui.click("#status-said-away");
+  try {
+    runCommand("preferences");
+    const row = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] .prefs-notice-away")].find((one) => one.textContent.includes(kind)), 5000);
+    await ui.click(row.querySelector("button"));
+    assert.ok(!noticesAway().includes(kind), "its kind is back");
+    document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+    await ui.click("#statusbar");
+    say("The tree has 12 plugins to update");
+    assert.ok(shown("The tree has 12 plugins to update"), "and shows again");
+  } finally {
+    bringBack(kind);
+    document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  }
 });

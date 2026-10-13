@@ -1,0 +1,67 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#
+# SonarQube Cloud over the app in src/ui, on each push to main and each pull request that changes
+# it: its JavaScript, its stylesheet and page, and its Rust with Clippy's findings read in.
+#
+# Three things are done by hand once. The project is made at sonarcloud.io from this repository, in
+# the organization dstroy0, its key dstroy0_orior. Its Automatic Analysis is turned off, since it and
+# this workflow cannot both run. Its token is kept as the repository's secret SONAR_TOKEN. Until all
+# three are done the scan fails, the failure to expect on the first run.
+
+name: sonarcloud
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/ui/**"
+      - ".github/workflows/sonarcloud.yml"
+  pull_request:
+    paths:
+      - "src/ui/**"
+      - ".github/workflows/sonarcloud.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    # A pull request from a fork is given no secrets, and its scan would fail on the missing token.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      # The whole history, which the scan reads to tell new code from old and to name each line's commit.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Linux libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev build-essential
+
+      # Clippy's findings as JSON, which the scan reads in as Rust's issues. The property that names
+      # the reports is given under both names SonarSource's pages give it.
+      - name: Clippy
+        run: |
+          for crate in cli src-tauri test; do
+            cargo clippy --manifest-path "src/ui/$crate/Cargo.toml" --all-targets --message-format=json > "clippy-$crate.json" || true
+          done
+
+      - uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=dstroy0
+            -Dsonar.projectKey=dstroy0_orior
+            -Dsonar.sources=src/ui
+            -Dsonar.tests=src/ui/test
+            -Dsonar.exclusions=src/ui/test/**,src/ui/**/target/**,src/ui/docs/**
+            -Dsonar.test.inclusions=src/ui/test/**
+            -Dsonar.test.exclusions=src/ui/test/target/**,src/ui/test/runs/**
+            -Dsonar.rust.clippy.reportPaths=clippy-cli.json,clippy-src-tauri.json,clippy-test.json
+            -Dsonar.rust.clippyReport.reportPaths=clippy-cli.json,clippy-src-tauri.json,clippy-test.json

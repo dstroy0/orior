@@ -505,6 +505,7 @@ impl Server {
             self.servers.let_go();
             self.symbols.forget();
             self.watch();
+            files::warm(&path);
         }
         Ok(path.to_string_lossy().into_owned())
     }
@@ -780,6 +781,16 @@ impl Server {
                 }
                 give(changed)
             }
+            // The tree's files and what they declare, read behind the window from the tree's
+            // opening, and whether each is not read yet.
+            "tree_read" => {
+                let root = self.root()?;
+                files::read_behind(&root);
+                let listed = root.clone();
+                self.symbols.refresh(&root, move || files::all(&listed));
+                give(())
+            }
+            "tree_unread" => give(serde_json::json!({ "files": files::unread(&self.root()?), "symbols": self.symbols.unread() })),
             "symbols_find" => {
                 let root = self.root()?;
                 let listed = root.clone();
@@ -820,6 +831,10 @@ impl Server {
                 let run = a.get::<Option<String>>("path")?.map(|path| at(&path)).transpose()?;
                 crate::qry::join_window(run);
                 give(crate::qry::joined().map(|run| run.to_string_lossy().into_owned()))
+            }
+            "cores_keep" => {
+                crate::cores::keep(a.get::<usize>("kept")?);
+                give(serde_json::json!({ "kept": crate::cores::kept(), "work": crate::cores::for_work(), "machine": crate::cores::machine() }))
             }
             "qry_window" => give(serde_json::json!({ "path": crate::qry::joined().map(|run| run.to_string_lossy().into_owned()), "queued": crate::qry::queued() })),
             "qry_joined" => crate::qry::joined_bytes(&at(&path()?)?, &a.get::<String>("name")?).map(|bytes| String::from_utf8_lossy(&bytes).into_owned()).and_then(give),
@@ -866,7 +881,50 @@ impl Server {
             "requests_from_curl" => requests::from_curl(&a.get::<String>("text")?).and_then(give),
             "requests_private" => requests::make_private(&self.root()?, &path()?).and_then(give),
             "latex_make" => latex::make(&self.root()?, &path()?, &a.get::<String>("text")?).and_then(give),
-            "format_text" => format::format(&at(&path()?)?, &a.get::<String>("language")?, &a.get::<String>("text")?).and_then(give),
+            "format_text" => {
+                let language = a.get::<String>("language")?;
+                if format::program_of(&language).as_deref() == Some("prettier") && crate::trust::prettier_held_back(&self.root()?) {
+                    return Err("Prettier would run the tree's own configuration, and the tree is not trusted: File, Trust This Tree".into());
+                }
+                format::format(&at(&path()?)?, &language, &a.get::<String>("text")?).and_then(give)
+            }
+            // Files from outside the window copied into a folder of the tree on a thread of their
+            // own, each telling how far along it is, and the copy telling where each went once done.
+            "files_bring" => {
+                let root = self.root()?;
+                let into = a.get::<String>("into")?;
+                let paths: Vec<PathBuf> = a.get::<Vec<String>>("paths")?.into_iter().map(PathBuf::from).collect();
+                let emit = self.emitting();
+                std::thread::spawn(move || {
+                    let told = |path: &str, done: u64, size: u64| emit("bring-progress", json!({"path": path, "done": done, "size": size}));
+                    match files::bring(&root, &into, &paths, &told) {
+                        Ok(brought) => emit("bring-done", json!({"into": into, "brought": brought})),
+                        Err(said) => emit("bring-done", json!({"into": into, "error": said})),
+                    }
+                });
+                give(())
+            }
+            // A file too large for the page, held here as the file and the lines written over it
+            // (pages.rs).
+            "pages_open" => crate::pages::open(&a.get::<String>("key")?, &at(&path()?)?).and_then(give),
+            "pages_shape" => crate::pages::shape(&a.get::<String>("key")?).and_then(give),
+            "pages_read" => crate::pages::read(&a.get::<String>("key")?, a.get("from")?, a.get("to")?).and_then(give),
+            "pages_edit" => crate::pages::edit(&a.get::<String>("key")?, &a.get::<Vec<Vec<crate::document::Edit>>>("changes")?).and_then(give),
+            "pages_changed" => crate::pages::changed(&a.get::<String>("key")?).and_then(give),
+            "pages_find" => crate::pages::find(&a.get::<String>("key")?, &a.get("sought")?, a.get("most")?).and_then(give),
+            "pages_save" => crate::pages::save(&a.get::<String>("key")?).and_then(give),
+            "pages_release" => {
+                crate::pages::release(&a.get::<String>("key")?);
+                give(())
+            }
+            "trust_read" => give(crate::trust::told(&self.root()?)),
+            "trust_set" => {
+                let folder = PathBuf::from(a.get::<String>("folder")?);
+                crate::trust::set(&folder, a.get("trusted")?)?;
+                // The servers start again, with the tree's code or without it as the answer has it.
+                self.servers.let_go();
+                give(())
+            }
             "format_width" => give(format::width(&at(&path()?)?, &a.get::<String>("language")?)),
             "format_margin" => give(format::margin(&at(&path()?)?, &a.get::<String>("language")?).map(|(width, by)| json!({"width": width, "by": by}))),
             "tree_mount" => root::mount(Path::new(&path()?)).and_then(give),

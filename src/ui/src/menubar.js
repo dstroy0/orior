@@ -39,11 +39,13 @@ import { offNetwork, setOffNetwork, showNetwork } from "./network.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
 import { runToolchains } from "./toolchains.js";
+import { askTrust } from "./trust.js";
 import { loadUserCss, openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { printText } from "./print.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
+import { markdownHtml } from "./markdown.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
@@ -373,6 +375,7 @@ const COMMANDS = {
   "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
   "git-authors": (args) => setAuthorsShown(onOff(args) ?? !authorsShown()),
   "smooth-scroll": (args) => editing().setSmoothScroll(onOff(args) ?? !editing().smoothScroll()),
+  "word-wrap": (args) => editing().setWordWrap(onOff(args) ?? !editing().wordWrap()),
   "type-hints": (args) => editing().setHints("type", onOff(args) ?? !editing().hints("type")),
   checkers: (args) => askCheckers(args.join(" ")),
   environment: (args) => chooseEnvironment(args[0]),
@@ -416,7 +419,7 @@ const COMMANDS = {
         { label: "Vim's Keys", on: vimKeys, set: setVimKeys },
       ],
     }),
-  "user-css": () => openUserCss(),
+  "user-css": () => openUserCss().catch((error) => say(String(error), { failed: true })),
   plugins: () => showPlugins(sheet),
   "new-plugin": (args) => showGenerator(sheet, args),
   "reload-plugins": () => loadPlugins(),
@@ -535,12 +538,18 @@ const COMMANDS = {
   report: (args) => reportForm(sheet, args),
   "auto-report": async (args) => {
     const on = args[0] === "on" ? true : args[0] === "off" ? false : !state.autoReport;
-    await invoke("report_auto_set", { on });
-    state.autoReport = on;
+    try {
+      await invoke("report_auto_set", { on });
+      state.autoReport = on;
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
   },
   network: () => showNetwork(sheet),
   "network-off": (args) => setOffNetwork(onOff(args) ?? !offNetwork()),
   about: showAbout,
+  "whats-new": showChanges,
+  "trust-tree": () => askTrust(),
 };
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
@@ -561,6 +570,7 @@ const CHECKS = {
   "line-history": () => editing().lineHistory(),
   "git-authors": () => authorsShown(),
   "smooth-scroll": () => editing().smoothScroll(),
+  "word-wrap": () => editing().wordWrap(),
   "operator-next-line": () => editing().operatorNext(),
   "type-hints": () => editing().hints("type"),
   "parameter-hints": () => editing().hints("parameter"),
@@ -1235,6 +1245,15 @@ function showShortcuts() {
     }
     body.append(block);
   }
+  sheet(body);
+}
+
+// Help, What's New: what each release of the window changed, as CHANGES.md built into the app gives
+// it. The window shows it here alone and opens on no page of its own.
+async function showChanges() {
+  const body = document.createElement("article");
+  body.className = "md-preview sheet-changes";
+  body.innerHTML = markdownHtml(await invoke("app_changes").catch(() => "# What's new in orior\n\nThe changes could not be read."));
   sheet(body);
 }
 

@@ -86,6 +86,10 @@ PRELUDES[2] = PRELUDES[1].replace("api: 1,", "api: 2,").replace("    files: Obje
 // The third form: the second's calls, and requests to the hosts the plugin asked to reach.
 PRELUDES[3] = PRELUDES[2].replace("api: 2,", "api: 3,").replace("    files: Object.freeze(", '    net: Object.freeze({ request: (request) => call("net.request", request) }),\n    files: Object.freeze(');
 
+// The fourth form: the third's calls, and a part of a file's lines, from a line to before another, the
+// one way a file held as pages is read (paged.js).
+PRELUDES[4] = PRELUDES[3].replace("api: 3,", "api: 4,").replace('active: () => call("editor.active") }),', 'active: () => call("editor.active"), lines: (path, from, to) => call("editor.lines", path, from, to) }),');
+
 // What each plugin was let read, write and reach, by its id, kept as the setting plugins.allowed.
 const ALLOWED = "orior.plugins.allowed";
 
@@ -311,6 +315,10 @@ const CALLS = {
     hold(one, "reads", String(path));
     return state.hooks.textOf(String(path));
   },
+  "editor.lines": async (one, path, from, to) => {
+    hold(one, "reads", String(path));
+    return state.hooks.linesOf(String(path), Math.max(0, Number(from) || 0), Math.max(0, Number(to) || 0));
+  },
   "editor.active": () => state.hooks?.active() ?? null,
   "files.read": async (one, path) => {
     hold(one, "reads", String(path));
@@ -435,7 +443,11 @@ function ask() {
 }
 
 // Starts each script plugin that is on and not running, and ends each running that is off or gone.
+// Starts each script plugin on and let run, and stops each no longer, once the frame being drawn has
+// been drawn: no plugin is waited on before the window takes keys, and each starts on its own, none
+// waiting on another's code to be read.
 export async function syncPlugins() {
+  await new Promise((drawn) => requestAnimationFrame(() => setTimeout(drawn, 0)));
   const off = pluginsOff();
   const scripts = pluginReadings().filter((reading) => reading.kind === "script" && !reading.error && !reading.replaced);
   for (const id of [...state.running.keys()]) {
@@ -443,6 +455,7 @@ export async function syncPlugins() {
       stopPlugin(id);
     }
   }
+  const starting = [];
   for (const reading of scripts) {
     const more = askedMore(reading);
     if (more && state.running.has(reading.id)) {
@@ -456,9 +469,10 @@ export async function syncPlugins() {
       continue;
     }
     if (!off.has(reading.id) && !state.running.has(reading.id)) {
-      await startPlugin(reading);
+      starting.push(startPlugin(reading));
     }
   }
+  await Promise.all(starting);
 }
 
 // Find the Slow Plugin: the plugins on halved, half of them off at a time, the reader asked each time

@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // File, Preferences: the color theme of each scheme and every color of its palette, the zoom, the
-// opacity of each part of the window, each item of the menus that is set on or off, the settings no menu
-// lists, each setting a settings file sets with its value and the file it comes from, the settings
-// carried to and from another machine, the patterns
-// that keep the explorer, the search and the watching of files from files, the sets of files Find in
-// Files searches in, and the keys: the set of keys, how a letter's key is bound, each key more than
-// one command holds, and each command's keys, set by pressing them. A color changed in the scheme's
-// own theme starts a theme of the reader's from it, and every change shows at once; the palette holds
-// a color for every kind of token a grammar names, and each color whose contrast with the color under
-// it is too low for text is marked. A theme lays an image behind the editor and gives files icons by
-// patterns of their names. A theme copies out as text and reads back in from the clipboard.
+// cores kept for the reader, the opacity of each part of the window, each item of the menus that is
+// set on or off, the settings no menu lists, each setting a settings file sets with its value and
+// the file it comes from, the settings carried to and from another machine, the patterns that keep
+// the explorer, the search and the watching of files from files, the sets of files Find in Files
+// searches in, and the keys: the set of keys, how a letter's key is bound, each key more than one
+// command holds, and each command's keys, set by pressing them. A color changed in the scheme's own
+// theme starts a theme of the reader's from it, and every change shows at once; the palette holds a
+// color for every kind of token a grammar names, and each color whose contrast with the color under
+// it is too low for text is marked. A theme lays an image behind the editor and gives files icons
+// by patterns of their names. A theme copies out as text and reads back in from the clipboard.
 
 import { FONT_SETTINGS, fontDefault, fonts, setFont } from "./fonts.js";
 import { buttonName, keySettings, pressName, setKeySettings, SETS, sharedKeys, wheelName } from "./keys.js";
@@ -24,7 +24,9 @@ import { setZoom, STEPS, zoom } from "./zoom.js";
 import { readSettings, settingsInForce, TREE_FILE } from "./settings.js";
 import { invoke, pick } from "./bridge.js";
 import { carryInto } from "./carry.js";
+import { coresKept, KEPT_LEAST, machineCores, setCoresKept } from "./cores.js";
 import { chosenLanguage, languages, setLanguage } from "./language.js";
+import { bringBack, noticesAway } from "./statusbar.js";
 
 const BASE_NAMES = { dark: "Dark", light: "Light" };
 
@@ -407,6 +409,11 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     });
     languageSelect.addEventListener("change", () => setLanguage(languageSelect.value));
     rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Language" }), languageSelect));
+    // The cores kept for the reader, from KEPT_LEAST to all the machine's but one.
+    const machine = machineCores();
+    const cores = element("select", { className: "report-field prefs-cores", ariaLabel: "Cores kept for you" }, ...Array.from({ length: Math.max(1, machine - KEPT_LEAST) }, (_, at) => KEPT_LEAST + at).map((kept) => element("option", { value: String(kept), textContent: `${kept} of ${machine}`, selected: kept === coresKept() })));
+    cores.addEventListener("change", () => setCoresKept(Number(cores.value)));
+    rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Cores kept for you" }), cores));
     // Each part's opacity a slider by the steps, its share said beside it, the window changing as it moves.
     for (const setting of OPACITY_SETTINGS) {
       const slider = element("input", { type: "range", className: "prefs-opacity-slider", min: String(OPACITY_STEPS[0]), max: String(OPACITY_STEPS.at(-1)), step: String(OPACITY_STEPS[1] - OPACITY_STEPS[0]), value: String(opacity(setting)), ariaLabel: setting.label });
@@ -539,6 +546,25 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
   }
 
   // Settings on every machine (carry.js): the file or folder they go through, and each taking kept.
+  // The notices put away for good, each with a press that shows its kind again.
+  function noticesSection() {
+    const away = noticesAway();
+    const rows = away.map((kind) => {
+      const back = element("button", { type: "button", className: "prefs-button", textContent: "Show Again", ariaLabel: `Show again: ${kind}` });
+      back.addEventListener("click", () => {
+        bringBack(kind);
+        draw();
+      });
+      return element("div", { className: "prefs-line prefs-notice-away" }, element("span", { textContent: kind }), back);
+    });
+    return element(
+      "section",
+      { className: "prefs-notices" },
+      element("h3", { textContent: "Notices" }),
+      ...(rows.length ? rows : [element("p", { className: "prefs-said", textContent: "No notice is put away. Not again, beside a notice on the status bar, puts its kind away." })]),
+    );
+  }
+
   function carrySection() {
     const section = element("section", { className: "prefs-carry" });
     carryInto(section, { reloadOwn, pick });
@@ -658,9 +684,12 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
   function draw() {
     const focused = document.activeElement;
     const focusName = body.contains(focused) ? focused.closest(".prefs-color")?.dataset.name : null;
+    // A field the reader was in, as a list stepped through with the keys, keeps the keys once the
+    // sheet is drawn again: found again by its label.
+    const focusLabel = body.contains(focused) && !focusName ? focused.getAttribute("aria-label") : null;
     const scroll = body.querySelector(".prefs-colors")?.scrollTop ?? 0;
     const keysScroll = body.querySelector(".prefs-key-rows")?.scrollTop ?? 0;
-    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), inForceSection(), carrySection(), keysSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
+    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), inForceSection(), noticesSection(), carrySection(), keysSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
     const keyRows = body.querySelector(".prefs-key-rows");
     if (keyRows) {
       keyRows.scrollTop = keysScroll;
@@ -669,6 +698,8 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     grid.scrollTop = scroll;
     if (focusName) {
       body.querySelector(`.prefs-color[data-name="${CSS.escape(focusName)}"] .prefs-value`)?.focus();
+    } else if (focusLabel) {
+      body.querySelector(`[aria-label="${CSS.escape(focusLabel)}"]`)?.focus();
     }
   }
 

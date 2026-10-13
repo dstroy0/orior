@@ -530,6 +530,11 @@ impl Index {
     }
 
     /// The declarations whose names answer `query`, at most `most` of them, the best first.
+    /// Whether the tree's files are being read for the first time, nothing of them read yet.
+    pub fn unread(&self) -> bool {
+        self.state.lock().is_ok_and(|state| state.reading && state.read_at.is_none())
+    }
+
     pub fn find(&self, query: &str, most: usize) -> Found {
         let Ok(state) = self.state.lock() else { return Found { symbols: Vec::new(), reading: false } };
         let mut scored: Vec<(i64, &str, &str, &'static str, u32)> = Vec::new();

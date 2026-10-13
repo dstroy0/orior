@@ -102,6 +102,10 @@ test("the word keys stop at the ends of words of either script, a letter's marks
 // A line of the window's trace: its indent, the call's name, when it was entered and how long it ran.
 const TRACED = /^( *)([\w.]+) (\d+\.\d{3}) (\d+\.\d{3})$/;
 
+// Where the view stood at its last scroll event, read without laying the page out as a read of the
+// scroller would in a frame the page has changed.
+const seen = (view) => (view.lastTop ?? view.scroller.scrollTop) - view.pad;
+
 // The frames the page is given over `ms`, as requestAnimationFrame calls it: the times of each.
 function framesOver(ms) {
   return new Promise((done) => {
@@ -136,8 +140,10 @@ test("a fast scroll through a long file holds the display's own rate, as files s
   const counting = framesOver(4000);
   const until = performance.now() + 4000;
   let saves = 0;
+  let wheels = 0;
   while (performance.now() < until) {
     await ui.wheel(at, 200);
+    wheels += 1;
     if (performance.now() > saves * 500 + (until - 4000)) {
       saves += 1;
       invoke("file_write", { path: `rate_save_${saves}.txt`, text: "saved while the editor scrolls\n".repeat(2000) });
@@ -146,7 +152,10 @@ test("a fast scroll through a long file holds the display's own rate, as files s
   const times = await counting;
   const gaps = times.slice(1).map((time, at) => time - times[at]);
   const rate = gaps.length / ((times.at(-1) - times[0]) / 1000);
-  assert.ok(view.scrollY() > 1000, "the view moved");
+  // As far as the wheel's steps carry the view, half of them at the least, a glide still under way at
+  // the end: the steps that came, however many the machine sends in the time.
+  const carried = Math.min(view.scroller.scrollHeight - view.scroller.clientHeight, wheels * 200 * 0.5);
+  assert.ok(view.scrollY() >= carried, `the view moved ${view.scrollY()} of the ${wheels * 200} px its ${wheels} steps sent, over ${times.length} frames at ${rate.toFixed(1)} a second`);
   assert.ok(saves >= 6, `files were saved as it scrolled: ${saves}`);
   assert.ok(rate >= display * 0.8, `${rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
   assert.ok(Math.max(...gaps) < 100, `the longest wait between two frames, ${Math.max(...gaps).toFixed(1)} ms`);
@@ -201,7 +210,7 @@ test("under a steady wheel every frame moves the text an even step", async () =>
   const frames = [];
   let wheeling = true;
   const tick = (now) => {
-    frames.push([now, view.scrollY()]);
+    frames.push([now, seen(view)]);
     if (wheeling) {
       requestAnimationFrame(tick);
     }
@@ -218,7 +227,7 @@ test("under a steady wheel every frame moves the text an even step", async () =>
   await ui.browserTraced(writer, `${root}/${traceRun}`, "browser.trace");
   await new Promise((done) => setTimeout(done, 300));
   const paints = paintsOf(await invoke("qry_joined", { path: traceRun, name: TRACE_BLOB }));
-  const browser = (await invoke("qry_joined", { path: traceRun, name: "browser.trace" })).split("\n").slice(0, 14).join("; ");
+  const browser = (await invoke("qry_joined", { path: traceRun, name: "browser.trace" })).split("\n").filter((line, at) => at < 8 || line.startsWith("forced")).join("; ");
   await ui.run(writer, ["stop", `${root}/${traceRun}`]);
   const slowest = [...paints].sort((a, b) => b.spent - a.spent).slice(0, 5).map((paint) => `${paint.spent.toFixed(2)} ms ${JSON.stringify(Object.fromEntries(Object.entries(paint.stages).map(([stage, ms]) => [stage, Number(ms.toFixed(2))])))}`).join("; ");
   // The glide's first frames gather speed, and its last ones after the wheel stops lose it.
@@ -239,6 +248,108 @@ test("under a steady wheel every frame moves the text an even step", async () =>
   assert.ok(late <= steps.length * (0.03 + missedAtRest), `frames the page missed: ${late} of ${steps.length}, ${(missedAtRest * 100).toFixed(1)}% at rest, each [frame, ms]: ${JSON.stringify(missed)}; the slowest frames the trace holds: ${slowest}; the browser's busiest work: ${browser}`);
   assert.ok(still <= 2, `frames the text stood still: ${still} of ${steps.length}`);
   assert.ok(spread < 0.3, `the steps spread by ${spread.toFixed(2)} of their middle, ${middle} px`);
+});
+
+// Fingers held on a trackpad: small steps in pixels, one each frame or so, which the view follows
+// as they come. The frames drawn at the display's own rate, and the text moved as far as the steps.
+async function trackpadOver(view, ms) {
+  const box = view.scroller.getBoundingClientRect();
+  const at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  const counting = framesOver(ms);
+  const before = view.scrollY();
+  const until = performance.now() + ms;
+  let sent = 0;
+  while (performance.now() < until) {
+    await ui.wheel(at, 7);
+    sent += 7;
+    await new Promise((done) => setTimeout(done, 6));
+  }
+  const times = await counting;
+  const gaps = times.slice(1).map((time, index) => time - times[index]);
+  return { rate: gaps.length / ((times.at(-1) - times[0]) / 1000), longest: Math.max(...gaps), moved: view.scrollY() - before, sent };
+}
+
+test("fingers held on a trackpad move the text at the display's own rate", async () => {
+  await openFile("rate.py");
+  await ui.waitFor(() => editing().active === "rate.py" && editing().editor?.s, 5000);
+  const view = editing().editor;
+  view.goTo(0, 0);
+  const rest = await framesOver(1000);
+  const display = (rest.length - 1) / ((rest.at(-1) - rest[0]) / 1000);
+  const held = await trackpadOver(view, 3000);
+  assert.ok(held.moved >= held.sent * 0.9, `the text moved ${held.moved} px of the ${held.sent} the fingers sent`);
+  assert.ok(held.rate >= display * 0.8, `${held.rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
+  assert.ok(held.longest < 100, `the longest wait between two frames, ${held.longest.toFixed(1)} ms`);
+});
+
+// A file of long lines of words, for word wrap.
+async function wrappedFile(name, count) {
+  const words = "wrap the long line of words at the view's edge and go on below it";
+  const lines = Array.from({ length: count }, (_, line) => `${line}: ${Array.from({ length: 6 }, () => words).join(" ")}`);
+  await invoke("file_write", { path: name, text: `${lines.join("\n")}\n` });
+  showView("edit");
+  await openFile(name);
+  await ui.waitFor(() => editing().active === name && editing().editor?.s, 5000);
+  return editing().editor;
+}
+
+test("word wrap shows a long line as rows that end after a space, each moved through and pressed on as a row", async () => {
+  const view = await wrappedFile("wrapped.txt", 40);
+  const kept = view.wrapped();
+  try {
+    view.setWrap(true);
+    // The view's width settles a frame later, its scrollbar across gone.
+    await new Promise((rest) => requestAnimationFrame(() => requestAnimationFrame(rest)));
+    const rows = view.rows();
+    const columns = view.wrapColumns();
+    const text = view.doc.line(0);
+    assert.ok(rows.size > 40, `the lines take ${rows.size} rows`);
+    assert.equal(rows.lineOf(rows.rowOf(1) - 1), 0, "the first line's rows come before the second's");
+    const second = rows.rowOf(0) + 1;
+    const start = rows.startOf(second);
+    assert.ok(start > 0 && start <= columns && text[start - 1] === " ", `the first row ends after a space, at ${start} of ${columns} columns`);
+    // The caret on the second row stands at the left, a row down.
+    view.goTo(0, start + 2);
+    await new Promise((rest) => requestAnimationFrame(() => requestAnimationFrame(rest)));
+    const at = view.rectOf({ line: 0, col: start + 2 });
+    const first = view.rectOf({ line: 0, col: 2 });
+    assert.equal(Math.round(at.left), Math.round(first.left), "a col two into the row stands where col two of the line does");
+    assert.equal(Math.round(at.top - first.top), view.lineHeight, "a row down");
+    // Down goes to the next row of the same line, Up back.
+    view.goTo(0, 2);
+    await ui.key("Down");
+    assert.deepEqual(view.head(), { line: 0, col: start + 2 }, "Down goes a row");
+    await ui.key("Up");
+    assert.deepEqual(view.head(), { line: 0, col: 2 }, "Up comes back");
+    // A press on the second row lands in it.
+    await ui.click({ x: at.left + 0.5, y: (at.top + at.bottom) / 2 });
+    assert.deepEqual(view.head(), { line: 0, col: start + 2 }, "a press on the row");
+    // Only the first row of a line has its number.
+    await new Promise((rest) => requestAnimationFrame(() => requestAnimationFrame(rest)));
+    const numbers = [...view.host.querySelectorAll(".ed-num-text")].map((node) => node.textContent);
+    assert.equal(numbers.filter((number) => number === "1").length, 1, "line 1's number once");
+    view.setWrap(false);
+    assert.equal(view.rows().size, view.doc.count, "unwrapped, a row a line");
+  } finally {
+    view.setWrap(kept);
+  }
+});
+
+test("fingers held on a trackpad move wrapped text at the display's own rate", async () => {
+  const view = await wrappedFile("wrapped_long.txt", 20000);
+  const kept = view.wrapped();
+  try {
+    view.setWrap(true);
+    view.goTo(0, 0);
+    const rest = await framesOver(1000);
+    const display = (rest.length - 1) / ((rest.at(-1) - rest[0]) / 1000);
+    const held = await trackpadOver(view, 3000);
+    assert.ok(held.moved >= held.sent * 0.9, `the text moved ${held.moved} px of the ${held.sent} the fingers sent`);
+    assert.ok(held.rate >= display * 0.8, `${held.rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
+    assert.ok(held.longest < 100, `the longest wait between two frames, ${held.longest.toFixed(1)} ms`);
+  } finally {
+    view.setWrap(kept);
+  }
 });
 
 // Whether the listener the test gives onEdit is listening: it stays given for the page's life.
@@ -330,8 +441,10 @@ test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000
     const late = timed.filter((one) => one.frame > 1.5 * interval).length;
     const said = `${path}: own ms ${own.map((ms) => ms.toFixed(1)).join(" ")}; frames after ${timed.map((one) => one.frame.toFixed(1)).join(" ")}`;
     assert.equal(timed.filter((one) => one.drawn).length, timed.length, `each letter in its row as the frame after it began: ${said}`);
-    assert.ok(own[Math.floor(own.length / 2)] <= 5, `the page's own work for a key, in the middle: ${said}`);
-    assert.ok(own.at(-1) <= 12, `and at most: ${said}`);
+    // The page's own work for a key as a share of the display's frame: at 144 frames a second, 5 ms
+    // in the middle and 12 at most, and the same shares of a frame on any display.
+    assert.ok(own[Math.floor(own.length / 2)] <= 0.72 * interval, `the page's own work for a key, in the middle, within ${(0.72 * interval).toFixed(1)} ms: ${said}`);
+    assert.ok(own.at(-1) <= 1.73 * interval, `and at most ${(1.73 * interval).toFixed(1)} ms: ${said}`);
     assert.ok(late <= 2, `frames after a key that came late: ${late} of ${timed.length}: ${said}`);
   }
 });
@@ -390,9 +503,9 @@ async function scrolledThrough(path, seconds) {
     // few lines on screen, whether each is drawn with a color.
     let sampling = true;
     const sample = () => {
-      const first = Math.floor(view.scrollY() / lineHeight());
+      const first = Math.floor(seen(view) / lineHeight());
       const lines = [first + 2, first + 12, first + 22].filter((line) => line < view.s.doc.count);
-      frames.push({ at: traceTime(), y: view.scrollY(), writes: view.textLayer.writes, colored: lines.map((line) => [line, /class="t-/.test(view.rowNode(line)?.innerHTML ?? "")]) });
+      frames.push({ at: traceTime(), y: seen(view), writes: view.textLayer.writes, colored: lines.map((line) => [line, /class="t-/.test(view.rowNode(line)?.innerHTML ?? "")]) });
       if (sampling) {
         requestAnimationFrame(sample);
       }
@@ -414,7 +527,7 @@ async function scrolledThrough(path, seconds) {
     await ui.waitFor(async () => (await invoke("qry_joined", { path: relative, name: TRACE_BLOB })).length > 0, 5000);
     await new Promise((done) => setTimeout(done, 300));
     const paints = paintsOf(await invoke("qry_joined", { path: relative, name: TRACE_BLOB }));
-    const browser = (await invoke("qry_joined", { path: relative, name: "browser.trace" })).split("\n").slice(0, 14).join("; ");
+    const browser = (await invoke("qry_joined", { path: relative, name: "browser.trace" })).split("\n").filter((line, at) => at < 8 || line.startsWith("forced")).join("; ");
     return { view, interval, missedAtRest, frames, paints, began, stopped, browser };
   } finally {
     view.smoothOn = smooth;

@@ -6,7 +6,10 @@
 //
 // A language's hover(doc, at) answers { from, to, parts } or null, each part a short text in which
 // **bold**, `code` and _slanted_ are marked, or { className, text } for a text drawn in a class. Its complete(doc, at) answers items { label, kind,
-// detail, doc, insert, snippet }, where a snippet's insert has stops written ${1:name}.
+// detail, doc, insert, snippet }, where a snippet's insert has stops written ${1:name}, or a promise of
+// them from a language server, and its completeNow(doc, at), where it has one, the items it answers
+// at once while the server's are awaited. The list stands at once on those and on the file's own
+// words, and the server's join them as they come.
 
 import { pos } from "./document.js";
 import { empty, endOfSel, escapeHtml, parseSnippet, startOf } from "./view.js";
@@ -186,6 +189,36 @@ export class Hover {
 
 const SHOWN_ROWS = 10;
 
+// The keys that act on an open list, before which any work put off on it is done.
+export const LIST_KEYS = new Set(["Up", "Down", "PageUp", "PageDown", "Enter", "Tab", "Escape"]);
+
+// How many lines either side of the cursor the file's own words are taken from, and the most taken.
+const NEAR_LINES = 3000;
+const MOST_WORDS = 4000;
+
+// The words of the file within NEAR_LINES of `at`, each of two letters or more once, as items, the
+// word being typed, `typed`, left out.
+export function fileWords(doc, at, typed) {
+  const seen = new Set([typed]);
+  const items = [];
+  const last = Math.min(doc.count - 1, at.line + NEAR_LINES);
+  for (let line = Math.max(0, at.line - NEAR_LINES); line <= last && items.length < MOST_WORDS; line += 1) {
+    for (const [word] of doc.line(line).matchAll(/[\p{L}_$][\p{L}\p{N}_$]+/gu)) {
+      if (!seen.has(word)) {
+        seen.add(word);
+        items.push({ label: word, kind: "word", insert: word });
+      }
+    }
+  }
+  return items;
+}
+
+// `first` and then each item of `rest` whose label `first` has not given.
+function joined(first, rest) {
+  const labels = new Set(first.map((item) => item.label));
+  return [...first, ...rest.filter((item) => !labels.has(item.label))];
+}
+
 // How well a label answers what is typed: a start beats a part, a part beats letters in order,
 // and nothing is 0.
 function score(label, typed) {
@@ -242,6 +275,29 @@ export class Suggest {
     editor.host.append(this.el);
   }
 
+  // Opens or filters the list for the word before the cursor once the frame that draws the key typed
+  // has been drawn: the letter shows before any of the list's work begins. Keys typed before then
+  // are taken together.
+  later(start) {
+    this.pending = { start: Boolean(this.pending?.start) || start };
+    if (this.pendingFrame) {
+      return;
+    }
+    this.pendingFrame = requestAnimationFrame(() => {
+      this.pendingFrame = 0;
+      setTimeout(() => this.flush(), 0);
+    });
+  }
+
+  // Does the work `later` put off now, as a key that acts on the list comes.
+  flush() {
+    const pending = this.pending;
+    this.pending = null;
+    if (pending) {
+      this.update(pending.start);
+    }
+  }
+
   // Opens or filters the list for the word before the cursor. `start` opens it where it is shut,
   // and `forced` opens it with nothing typed yet.
   update(start, forced = false) {
@@ -260,18 +316,24 @@ export class Suggest {
     }
     const moved = !this.at || this.at.line !== prefix.from.line || this.at.col !== prefix.from.col;
     // A question already asked for the word begun here is answered for every letter typed since:
-    // its answer is filtered by the word as it stands when it comes, and no letter asks again.
+    // its answer is filtered by the word as it stands when it comes, and no letter asks again. Each
+    // letter meanwhile filters the items the list stands on.
     if (this.waiting && !moved && !forced) {
+      this.filter(forced);
       return;
     }
     if (!this.items || moved || forced) {
       const asked = (this.asked = (this.asked ?? 0) + 1);
-      const items = language.complete(ed.doc, ed.primary().head) ?? [];
+      const head = ed.primary().head;
+      const items = language.complete(ed.doc, head) ?? [];
+      const words = fileWords(ed.doc, head, prefix.text);
       this.at = prefix.from;
-      // A language server answers later: the list opens on its answer, if the word asked about is
+      // A language server answers later: the list stands at once on the language's own items and the
+      // file's words, and the server's answer joins them, ahead of them, if the word asked about is
       // still the one before the cursor.
       if (typeof items.then === "function") {
-        this.items = null;
+        const now = joined(language.completeNow?.(ed.doc, head) ?? [], words);
+        this.items = now;
         this.waiting = true;
         items.then(
           (answer) => {
@@ -279,24 +341,25 @@ export class Suggest {
               return;
             }
             this.waiting = false;
-            const now = ed.prefix().from;
-            if (ed.s?.language === language && now.line === prefix.from.line && now.col === prefix.from.col) {
-              this.items = answer ?? [];
+            const here = ed.prefix().from;
+            if (ed.s?.language === language && here.line === prefix.from.line && here.col === prefix.from.col) {
+              this.items = joined(answer ?? [], now);
               this.at = prefix.from;
-              this.filter(forced);
+              this.filter(forced, this.open);
             }
           },
           () => asked === this.asked && (this.waiting = false),
         );
-        return;
+      } else {
+        this.items = joined(items, words);
       }
-      this.items = items;
     }
     this.filter(forced);
   }
 
-  // Shows the items that answer the word before the cursor, best first.
-  filter(forced) {
+  // Shows the items that answer the word before the cursor, best first. With `again`, the list
+  // stands open with the server's items joined, the row chosen kept where it is still there.
+  filter(forced, again = false) {
     const prefix = this.ed.prefix();
     const kept = this.shown[this.index]?.label;
     this.shown = this.items
@@ -306,7 +369,9 @@ export class Suggest {
       .slice(0, 400)
       .map((one) => one.item);
     if (!this.shown.length || (this.shown.length === 1 && this.shown[0].label === prefix.text && !forced)) {
-      this.close();
+      if (!again) {
+        this.close();
+      }
       return;
     }
     this.index = Math.max(0, this.shown.findIndex((item) => item.label === kept));
@@ -409,6 +474,7 @@ export class Suggest {
 
   close() {
     this.asked = (this.asked ?? 0) + 1;
+    this.pending = null;
     this.waiting = false;
     this.open = false;
     this.items = null;

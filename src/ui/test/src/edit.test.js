@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The editor's tabs and files: which side of a large file, read a slice at a time, is read next, a
-// zip in the tree opened as a folder, its files read, changed and saved back into it, and a large text
-// held on the Rust side, its changes following it there and its gutter's marks worked out there.
+// The editor's tabs and files: a zip in the tree opened as a folder, its files read, changed and saved
+// back into it, and a large text held on the Rust side, its changes following it there and its
+// gutter's marks worked out there, and the tabs opened again as the tree starts.
 
 import { invoke } from "../../src/bridge.js";
-import { chooseNames, editing, nextSlice, openFile } from "../../src/edit.js";
+import { chooseNames, editing, openFile, restoreSession } from "../../src/edit.js";
 import { lineChanges } from "../../src/editor/diff.js";
 import { togglePane } from "../../src/sides.js";
 import { showView } from "../../src/views.js";
@@ -14,23 +14,6 @@ import { showView } from "../../src/views.js";
 const { test, assert, ui } = window.__harness;
 
 const rowOf = (path) => document.getElementById("files").querySelector(`.node[data-key="${path}"]`);
-
-test("a large file is read the way the view heads while it scrolls", () => {
-  const both = { canAbove: true, canBelow: true, moving: true };
-  assert.equal(nextSlice({ ...both, heading: -1, below: true }), "above");
-  assert.equal(nextSlice({ ...both, heading: 1, below: false }), "below");
-});
-
-test("at rest a large file is read below and above in turn", () => {
-  const both = { canAbove: true, canBelow: true, moving: false, heading: -1 };
-  assert.equal(nextSlice({ ...both, below: true }), "below");
-  assert.equal(nextSlice({ ...both, below: false }), "above");
-});
-
-test("a side read to its end is read no more, whichever way the view heads", () => {
-  assert.equal(nextSlice({ canAbove: false, canBelow: true, moving: true, heading: -1, below: false }), "below");
-  assert.equal(nextSlice({ canAbove: true, canBelow: false, moving: true, heading: 1, below: true }), "above");
-});
 
 test("a zip in the tree opens as a folder, and a file in it opens, is changed and saved back into it", async () => {
   showView("edit");
@@ -107,9 +90,13 @@ test("a large text is held on the Rust side, each change follows it there, and i
   for (const hunk of own.hunks) {
     assert.deepEqual(s.changesThen.slice(hunk.then[0], hunk.then[1]), head.slice(hunk.then[0], hunk.then[1]), "the lines a change spans as the commit holds them");
   }
-  // Closed, its tab's text is let go on the Rust side.
-  await ui.click(document.querySelector(`#tabs .tab .close[title="held/held.py"]`));
-  await ui.click(document.querySelector(`#tabs .tab .close[title="held/held.py"]`));
+  // Closed, its tab's text is let go on the Rust side. The tab strip is drawn again as the marks
+  // come: each press is on the close button as it stands.
+  const closer = () => document.querySelector(`#tabs .tab .close[title="held/held.py"]`);
+  for (let press = 0; press < 2 && closer(); press += 1) {
+    await ui.waitFor(() => closer()?.checkVisibility(), 3000);
+    await ui.click(closer());
+  }
   await ui.waitFor(() => !document.querySelector(`#tabs .tab .close[title="held/held.py"]`), 3000);
   let gone = false;
   for (let tries = 0; tries < 30 && !gone; tries += 1) {
@@ -119,4 +106,23 @@ test("a large text is held on the Rust side, each change follows it there, and i
     }
   }
   assert.ok(gone, "no text is held under its key");
+});
+
+test("the tabs opened again as the tree starts leave the keys in the field the reader is typing in, and take them where nothing has them", async () => {
+  showView("edit");
+  await openFile("README.md");
+  await ui.waitFor(() => editing().active === "README.md", 5000);
+  const editorNode = document.getElementById("editor");
+  const field = document.createElement("input");
+  document.body.append(field);
+  try {
+    field.focus();
+    await restoreSession();
+    assert.equal(document.activeElement, field, "the field keeps the keys");
+    field.blur();
+    await restoreSession();
+    assert.ok(editorNode.contains(document.activeElement), "the editor takes the keys nothing has");
+  } finally {
+    field.remove();
+  }
 });

@@ -292,6 +292,25 @@ export class Doc {
     }
   }
 
+  // Whether any step of the history reaches a line `outside` says yes to.
+  reaches(outside) {
+    for (const step of this.steps.values()) {
+      for (const group of step.edits) {
+        if (group.some((edit) => outside(edit.from.line) || outside(edit.to.line))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Lets go of every step of the history: the text stays in the state it is in, and nothing undoes.
+  forgetSteps() {
+    this.steps.clear();
+    this.next.clear();
+    this.forks.clear();
+  }
+
   undo() {
     const step = this.steps.get(this.id);
     if (!step) {

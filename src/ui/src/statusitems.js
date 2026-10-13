@@ -34,6 +34,7 @@ const ITEMS = [
   ["wait", "What the Window Waits On", "bar"],
   ["focus", "Focus", "bar"],
   ["plugin", "A Plugin Not Answering", "bar"],
+  ["trust", "The Tree's Code Held Back", "bar"],
   ["editor", "The Editor's Line", "bar"],
   ["vim", "Vim Mode", "editor"],
   ["cursor", "Line and Column", "editor"],

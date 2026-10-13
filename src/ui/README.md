@@ -55,6 +55,16 @@ goes on the highest numbered monitor that is not the main one, or the one `--mon
 `ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while any test fails or any
 source file has no test, and its report is in `test/runs/<time>/report.md`.
 
+On Windows the window is driven through its debugging port. On Linux its web view is WebKitGTK,
+and the window is driven through WebKitWebDriver: every press, key, drag and wheel goes as
+WebDriver's actions. `--docker` runs the window's tests in the harness's own Docker image, from
+`test/docker/`, on any machine Docker runs on. The tree is brought into a volume of the
+container's own, the window is built there and drawn on a display in memory, and the report comes
+back to `test/runs/`. Every item of every menu and every option of Preferences is pressed there as
+a person presses it. While a run goes, a browser on this machine shows its window at
+`http://localhost:6080/vnc.html`, to be watched and not driven. `.github/workflows/ui.yml` runs the same on each pull request that changes the
+app, beside CodeQL and SonarQube Cloud.
+
 ## Running it
 
 It needs Rust 1.77 or later to build. Every line of the page is in `src/`, written for this tree,
@@ -172,8 +182,8 @@ one's own settings, `menus.json` and `user.css` to a file or to a folder of the 
 repository's commits made and pushed, and takes them in from one on another machine. What a taking
 would change shows first, a file at a time and `settings.json` a setting at a time, and nothing is
 written until the reader takes what is chosen; each taking is kept in `carried/` and undone from
-the list there. `machine`, `signing.`, `environment.`, `memory-budget` and `carry.place` stay
-on the machine that set them.
+the list there. `machine`, `signing.`, `environment.`, `memory-budget`, `cores-kept` and
+`carry.place` stay on the machine that set them.
 
 orior reaches an address off this machine only for what the reader asked of it: a request sent, a
 database connected, a debug adapter joined, a command run over ssh, a repository cloned, pulled or

@@ -13,11 +13,11 @@
 //! first frame of orior's own is in.
 //!
 //! Before anything leaves the machine the reporter's home folder, the tree's path and the reporter's
-//! name in a path are struck from it. Errors file on their own unless the reporter turns that off, a
-//! setting kept in orior's own folder and shared by the window and the command line. The reporter is
-//! asked once, yes the answer given by default: by the Windows installer, and otherwise on the first
-//! run, in the window or at the terminal. One error files once a run, and a run files at most
-//! AUTO_LIMIT on its own.
+//! name in a path are struck from it. Errors file on their own once the reporter says they may, a
+//! setting kept in orior's own folder and shared by the window and the command line, and nothing files
+//! before the reporter answers. The reporter is asked once, yes the answer given by default: by the
+//! Windows installer, and otherwise on the first run, in the window or at the terminal. One error
+//! files once a run, and a run files at most AUTO_LIMIT on its own.
 
 use std::collections::{BTreeSet, VecDeque};
 use std::io::Write;
@@ -98,9 +98,9 @@ fn settings() -> Settings {
         .unwrap_or_default()
 }
 
-/// Whether errors file on their own: as the reporter answered, and on where they have not answered.
+/// Whether errors file on their own: as the reporter answered, and not where they have not answered.
 pub fn auto() -> bool {
-    std::env::var_os("ORIOR_NO_REPORTS").is_none() && settings().auto_report.unwrap_or(true)
+    std::env::var_os("ORIOR_NO_REPORTS").is_none() && settings().auto_report.unwrap_or(false)
 }
 
 /// Whether the reporter has answered whether errors file on their own.

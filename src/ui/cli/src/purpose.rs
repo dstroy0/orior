@@ -199,13 +199,13 @@ pub fn said(root: &Path, path: &str) -> Result<String, String> {
 }
 
 /// The files of the tree `root` that use the file at `path`, the first MOST_USERS of them by their
-/// paths, and how many there are in all, the tree's files read on every core the machine has.
+/// paths, and how many there are in all, the tree's files read on every core orior's work may take.
 pub fn users(root: &Path, path: &str) -> Result<(Vec<String>, usize), String> {
     let file = root::inside(root, path)?;
     let name = file.file_name().map(|one| one.to_string_lossy().into_owned()).unwrap_or_default();
     let stem = file.file_stem().map(|one| one.to_string_lossy().into_owned()).unwrap_or_default();
     let others: Vec<String> = files::all(root).into_iter().filter(|other| other != path).collect();
-    let cores = std::thread::available_parallelism().map(|count| count.get()).unwrap_or(4).min(16);
+    let cores = crate::cores::for_work().min(16);
     let share = others.len().div_ceil(cores.max(1)).max(1);
     let mut found: Vec<String> = std::thread::scope(|scope| {
         let workers: Vec<_> = others

@@ -340,4 +340,75 @@ export class Session {
     this.top += added * (this.view?.lineHeight ?? 0);
     this.view?.grown(this, added, parts.slice(0, added));
   }
+
+  // Whole lines of a paged file read in above the window or below it, as `grow` reads a slice in.
+  growLines(lines, above) {
+    if (!lines.length) {
+      return;
+    }
+    this.view?.holdLine(this);
+    if (!above) {
+      const last = this.doc.lines.length - 1;
+      this.doc.lines.push(...lines);
+      this.highlight.forget(last + 1);
+      this.view?.grown(this, 0, lines);
+      return;
+    }
+    this.grow(`${lines.join("\n")}\n`, true);
+  }
+
+  // Lets go of `count` lines of a paged file's window, above it or below it. Neither is an edit; the
+  // history goes with them where any step of it reaches one, and every place held in the window
+  // moves up by the lines let go above it.
+  shrink(count, above) {
+    const doc = this.doc;
+    count = Math.min(count, doc.count - 1);
+    if (count <= 0) {
+      return;
+    }
+    this.view?.holdLine(this);
+    const kept = above ? [count, doc.count - 1] : [0, doc.count - 1 - count];
+    if (doc.reaches((line) => line < kept[0] || line > kept[1])) {
+      doc.forgetSteps();
+    }
+    const clamp = (p) => doc.clamp(pos(Math.max(kept[0], Math.min(kept[1], p.line)) - kept[0], p.col));
+    if (!above) {
+      doc.lines.length -= count;
+      this.selections = this.selections.map((sel) => ({ anchor: clamp(sel.anchor), head: clamp(sel.head), goal: null }));
+      this.folded = new Map([...this.folded].filter(([, end]) => end < doc.count));
+      this.foldings += 1;
+      this.highlight.forget(doc.count);
+      this.view?.shrunk(this, count, false);
+      return;
+    }
+    const before = this.selections;
+    doc.lines = doc.lines.slice(count);
+    this.selections = before.map((sel) => ({ anchor: clamp(sel.anchor), head: clamp(sel.head), goal: null }));
+    doc.shift(-count);
+    this.base += count;
+    this.folded = new Map([...this.folded].filter(([start]) => start >= count).map(([start, end]) => [start - count, end - count]));
+    this.foldings += 1;
+    this.snippet = null;
+    this.highlight.unshift(count);
+    this.foundAt = -1;
+    this.top = Math.max(0, this.top - count * (this.view?.lineHeight ?? 0));
+    this.view?.shrunk(this, count, true);
+  }
+
+  // Puts the window of a paged file at `base`, holding `lines`, its line `top` at the top of the
+  // view, in place of the one it held: the history, the folds and the colors worked out go with the
+  // lines let go.
+  replaceWindow(lines, base, top = 0) {
+    this.doc.lines = lines.length ? lines : [""];
+    this.doc.forgetSteps();
+    this.base = base;
+    this.selections = [{ anchor: pos(0, 0), head: pos(0, 0), goal: null }];
+    this.folded = new Map();
+    this.foldings += 1;
+    this.snippet = null;
+    this.highlight = new Highlight(this.doc, this.language?.grammar ?? null, () => this.view?.schedule());
+    this.foundAt = -1;
+    this.top = top;
+    this.view?.replaced(this);
+  }
 }

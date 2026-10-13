@@ -10,6 +10,9 @@
 //!   slow to scroll.
 //! - large-file.json, json-iterator's test file, the one Helix's readers measure a slow scroll on, with
 //!   lines of tens of thousands of characters.
+//!
+//! Beside them is huge.log, made here once: MADE_LINES lines of MADE_WIDTH bytes, each numbered, a
+//! file of hundreds of megabytes for the window to hold as pages.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -35,6 +38,33 @@ pub const FILES: &[(&str, &str, u64, &str)] = &[
         "4fc1e52c4e609febd05d75a24c84bc6957fa4d2cfb0d5fbebbac650bdc7ed8c0",
     ),
 ];
+
+/// The file made here: its name, how many lines it holds and how many bytes each line takes.
+pub const MADE: &str = "huge.log";
+pub const MADE_LINES: u64 = 3_000_000;
+pub const MADE_WIDTH: u64 = 100;
+
+/// The line `n` of the file made here, its line end with it.
+pub fn made_line(n: u64) -> String {
+    let line = format!("{n:09} a line of the paged file, the same width as every other, read from anywhere in it");
+    format!("{line:<width$}
+", width = (MADE_WIDTH - 1) as usize)
+}
+
+/// Makes the file at `path` where it is not there whole.
+fn make(path: &Path) -> Result<(), String> {
+    if path.metadata().is_ok_and(|meta| meta.len() == MADE_LINES * MADE_WIDTH) {
+        return Ok(());
+    }
+    let part = path.with_extension("part");
+    let mut out = std::io::BufWriter::with_capacity(1 << 20, std::fs::File::create(&part).map_err(|error| format!("{}: {error}", part.display()))?);
+    for n in 0..MADE_LINES {
+        std::io::Write::write_all(&mut out, made_line(n).as_bytes()).map_err(|error| format!("{}: {error}", part.display()))?;
+    }
+    std::io::Write::flush(&mut out).map_err(|error| format!("{}: {error}", part.display()))?;
+    drop(out);
+    std::fs::rename(&part, path).map_err(|error| format!("{}: {error}", path.display()))
+}
 
 /// The SHA-256 of `bytes`, as lowercase hex.
 pub fn sha256(bytes: &[u8]) -> String {
@@ -98,6 +128,7 @@ pub fn fetched(here: &Path) -> Result<PathBuf, String> {
         }
         std::fs::rename(&part, &path).map_err(|error| format!("{}: {error}", path.display()))?;
     }
+    make(&folder.join(MADE))?;
     Ok(folder)
 }
 
@@ -106,7 +137,7 @@ pub fn fetched(here: &Path) -> Result<PathBuf, String> {
 pub fn placed(folder: &Path, tree: &Path) -> Result<(), String> {
     let into = tree.join("bench");
     std::fs::create_dir_all(&into).map_err(|error| format!("{}: {error}", into.display()))?;
-    for &(name, ..) in FILES {
+    for name in FILES.iter().map(|&(name, ..)| name).chain([MADE]) {
         let (from, to) = (folder.join(name), into.join(name));
         if std::fs::hard_link(&from, &to).is_err() {
             std::fs::copy(&from, &to).map_err(|error| format!("{}: {error}", to.display()))?;
@@ -118,6 +149,13 @@ pub fn placed(folder: &Path, tree: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_line_made_is_as_wide_as_every_other() {
+        assert_eq!(made_line(0).len() as u64, MADE_WIDTH);
+        assert_eq!(made_line(MADE_LINES - 1).len() as u64, MADE_WIDTH);
+        assert!(made_line(42).starts_with("000000042 "));
+    }
 
     #[test]
     fn the_sha_256_is_the_standard_s() {

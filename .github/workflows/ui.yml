@@ -1,0 +1,83 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#
+# The app's tests, by its own harness, on each push to main and each pull request that changes the
+# app. Two jobs, each on Linux:
+#
+#   rust    the Rust tests of the command line, the app and the harness, with the test servers in
+#           Docker, and the command line on each other system Docker runs;
+#   window  every test of the window, the real window built in the harness's Docker image and driven
+#           through WebDriver, every press, key, drag and wheel sent as WebDriver's actions.
+#
+# A push to main that changes the app's Markdown alone runs nothing; a pull request is matched by
+# all it changes. Each job keeps the harness's report as an artifact. The harness fails a run where
+# any test fails or any part of the app has no test, and the job fails with it.
+
+name: ui
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/ui/**"
+      - "src/cu/**"
+      - ".github/workflows/ui.yml"
+      - "!src/ui/**/*.md"
+  pull_request:
+    paths:
+      - "src/ui/**"
+      - "src/cu/**"
+      - ".github/workflows/ui.yml"
+      - "!src/ui/**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch stops the run it makes stale.
+concurrency:
+  group: ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev build-essential
+
+      - name: Harness
+        working-directory: src/ui
+        run: cargo run --manifest-path test/Cargo.toml --release -- --no-window
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-rust
+          path: src/ui/test/runs/*/report.md
+
+  window:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Harness, in Docker
+        working-directory: src/ui
+        run: cargo run --manifest-path test/Cargo.toml --release -- --docker
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-window
+          path: |
+            src/ui/test/runs/*/report.md
+            src/ui/test/runs/*/window.log
+            src/ui/test/runs/*/webdriver.log

@@ -14,8 +14,13 @@
 //! 4. what has no test: each module of the window with no file in test/src, each file of Rust with
 //!    code and no test, and each test file whose module is gone.
 //!
+//! The window is driven through its debugging port where its web view is WebView2, on Windows, and
+//! through WebDriver where it is WebKitGTK, on Linux (driven.rs). --docker runs the window's tests in
+//! the harness's own Docker image on this machine, driven through WebDriver (docker.rs).
+//!
 //! cargo run --manifest-path test/Cargo.toml --release -- [--only TEXT] [--monitor N] [--monitors]
 //!     [--no-servers] [--no-rust] [--no-window] [--keep-window] [--stop-servers]
+//!     [--driver cdp|webdriver] [--docker]
 //!
 //! The window goes on the monitor --monitor or ORIOR_TEST_MONITOR numbers, as --monitors lists them,
 //! else the highest numbered that is not the main one. The report goes to test/runs/<time>/report.md. The run fails where any test fails, the window
@@ -23,10 +28,13 @@
 
 mod bench;
 mod cdp;
+mod docker;
+mod driven;
 mod frames;
 mod input;
 mod servers;
 mod systems;
+mod webdriver;
 mod window;
 
 use std::collections::BTreeMap;
@@ -53,15 +61,33 @@ struct Options {
     stop_servers: bool,
     monitors: bool,
     systems: bool,
+    /// Whether the window is driven through WebDriver, else through its debugging port.
+    webdriver: bool,
+    /// Whether the window's tests run in the harness's Docker image, and the words given to the
+    /// harness there.
+    docker: bool,
+    passed: Vec<String>,
 }
 
 impl Options {
     fn read() -> Result<Options, String> {
-        let mut options = Options { only: Vec::new(), monitor: std::env::var("ORIOR_TEST_MONITOR").ok().and_then(|named| named.parse().ok()), servers: true, rust: true, window: true, keep_window: false, stop_servers: false, monitors: false, systems: true };
+        let mut options = Options { only: Vec::new(), monitor: std::env::var("ORIOR_TEST_MONITOR").ok().and_then(|named| named.parse().ok()), servers: true, rust: true, window: true, keep_window: false, stop_servers: false, monitors: false, systems: true, webdriver: !cfg!(windows), docker: false, passed: Vec::new() };
         let mut args = std::env::args().skip(1);
         while let Some(arg) = args.next() {
             match arg.as_str() {
-                "--only" => options.only.push(args.next().ok_or("--only needs the text of a test file's path")?),
+                "--only" => {
+                    let only = args.next().ok_or("--only needs the text of a test file's path")?;
+                    options.passed.extend(["--only".to_string(), only.clone()]);
+                    options.only.push(only);
+                }
+                "--driver" => {
+                    options.webdriver = match args.next().as_deref() {
+                        Some("webdriver") => true,
+                        Some("cdp") => false,
+                        _ => return Err("--driver needs cdp, the debugging port, or webdriver".into()),
+                    }
+                }
+                "--docker" => options.docker = true,
                 "--monitor" => options.monitor = Some(args.next().and_then(|number| number.parse().ok()).ok_or("--monitor needs the monitor's number, as the system's display settings give it")?),
                 "--no-servers" => options.servers = false,
                 "--no-rust" => options.rust = false,
@@ -78,7 +104,7 @@ impl Options {
     }
 }
 
-const USAGE: &str = "harness [--only TEXT] [--monitor N] [--monitors] [--no-servers] [--no-rust] [--no-systems] [--no-window] [--keep-window] [--stop-servers]";
+const USAGE: &str = "harness [--only TEXT] [--monitor N] [--monitors] [--no-servers] [--no-rust] [--no-systems] [--no-window] [--keep-window] [--stop-servers] [--driver cdp|webdriver] [--docker]";
 
 /// A test's outcome: its name, whether it passed, and why not.
 pub struct Outcome {
@@ -86,6 +112,18 @@ pub struct Outcome {
     pub ok: bool,
     pub ms: u64,
     pub error: String,
+}
+
+impl Outcome {
+    /// Whether the test passed: run, and nothing said against it.
+    fn passed(&self) -> bool {
+        self.ok && !self.not_run()
+    }
+
+    /// Whether the test was not run on the window driven, for a step only another window can take.
+    fn not_run(&self) -> bool {
+        self.ok && self.error.starts_with(input::NOT_HERE)
+    }
 }
 
 /// What each part of the run found, for the report.
@@ -105,12 +143,17 @@ impl Report {
     }
 
     fn passed(&self) -> usize {
-        self.crates.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.ok).count()).sum::<usize>() + self.files.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.ok).count()).sum::<usize>()
+        self.crates.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.ok).count()).sum::<usize>() + self.files.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.passed()).count()).sum::<usize>()
+    }
+
+    /// The window's tests not run on the window driven, each for a step only another can take.
+    fn not_run(&self) -> usize {
+        self.files.iter().map(|(_, outcomes, _)| outcomes.iter().filter(|one| one.not_run()).count()).sum::<usize>()
     }
 
     fn write(&self) -> String {
         let mut out = String::from("# Test run\n\n");
-        let _ = writeln!(out, "{} passed, {} failed, {} parts with no test, {} tests with no part.\n", self.passed(), self.failed(), self.untested.len(), self.orphans.len());
+        let _ = writeln!(out, "{} passed, {} failed, {} not run on this window, {} parts with no test, {} tests with no part.\n", self.passed(), self.failed(), self.not_run(), self.untested.len(), self.orphans.len());
         if !self.said.is_empty() || !self.servers.is_empty() {
             out.push_str("## Servers and the window\n\n");
             for line in self.servers.iter().chain(&self.said) {
@@ -132,7 +175,11 @@ impl Report {
         out.push_str("\n## The window\n\n");
         for (file, outcomes, errors) in &self.files {
             let failed = outcomes.iter().filter(|one| !one.ok).count();
-            let _ = writeln!(out, "- {file}: {} passed, {failed} failed", outcomes.len() - failed);
+            let not_run = outcomes.iter().filter(|one| one.not_run()).count();
+            let _ = writeln!(out, "- {file}: {} passed, {failed} failed, {not_run} not run on this window", outcomes.len() - failed - not_run);
+            for one in outcomes.iter().filter(|one| one.not_run()) {
+                let _ = writeln!(out, "  - not run here: {}: {}", one.name, one.error);
+            }
             for one in outcomes.iter().filter(|one| !one.ok) {
                 let _ = writeln!(out, "  - FAILED {} ({} ms)\n\n    ```text\n{}\n    ```", one.name, one.ms, one.error.lines().map(|line| format!("    {line}")).collect::<Vec<_>>().join("\n"));
             }
@@ -229,6 +276,34 @@ fn files_under(folder: &Path, ending: &str) -> Vec<String> {
     }
     found.sort();
     found
+}
+
+/// The servers' settings named in `names`, as ORIOR_TEST_SERVERS gives them, each with its value
+/// as `read` gives it; a name with no value is left out.
+fn told_servers(names: Option<&str>, read: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
+    names.unwrap_or("").split(',').filter(|name| !name.is_empty()).filter_map(|name| read(name).map(|value| (name.to_string(), value))).collect()
+}
+
+/// Makes the run's tree a git repository of its own, its files committed: a test's git, as a branch
+/// made or a stash, acts on it, and never on the repository the tree's folder sits in. What
+/// bench::placed puts under bench/ is left out.
+fn own_repository(tree: &Path) -> Result<(), String> {
+    let git = |args: &[&str]| -> Result<(), String> {
+        let ran = Command::new("git")
+            .args(["-c", "user.name=orior harness", "-c", "user.email=harness@localhost", "-c", "commit.gpgsign=false"])
+            .args(args)
+            .current_dir(tree)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map_err(|error| format!("git: {error}"))?;
+        if ran.success() { Ok(()) } else { Err(format!("git {} in the run's tree ended {ran}", args.join(" "))) }
+    };
+    git(&["init", "-q", "-b", "main"])?;
+    std::fs::write(tree.join(".git").join("info").join("exclude"), "bench/\n").map_err(|error| format!("the run's tree: {error}"))?;
+    git(&["add", "-A"])?;
+    git(&["commit", "-q", "-m", "The run's tree."])
 }
 
 // ---- Rust ----
@@ -521,7 +596,8 @@ fn run_files(conn: &Arc<Connection>, page: &Arc<Page>, ui: &Path, files: &[Strin
             outcomes.push(Outcome { name: "the page threw nothing".into(), ok: false, ms: 0, error: threw.iter().map(|one| one.as_str()).collect::<Vec<_>>().join("\n") });
         }
         let failed = outcomes.iter().filter(|one| !one.ok).count();
-        println!("  {file}: {} passed, {failed} failed", outcomes.len() - failed);
+        let not_run = outcomes.iter().filter(|one| one.not_run()).count();
+        println!("  {file}: {} passed, {failed} failed, {not_run} not run on this window", outcomes.len() - failed - not_run);
         for one in outcomes.iter().filter(|one| !one.ok) {
             println!("    FAILED {}: {}", one.name, one.error.lines().next().unwrap_or(""));
         }
@@ -551,6 +627,9 @@ fn main() -> ExitCode {
         }
         return ExitCode::SUCCESS;
     }
+    if options.docker {
+        return docker::run(&here, &ui, &options.passed);
+    }
     let run = here.join("runs").join(stamp());
     if let Err(error) = std::fs::create_dir_all(&run) {
         eprintln!("{}: {error}", run.display());
@@ -571,6 +650,18 @@ fn main() -> ExitCode {
     match &benched {
         Ok(_) => env.push(("ORIOR_TEST_BENCH".into(), "bench".into())),
         Err(error) => report.said.push(format!("the benchmark files: {error}")),
+    }
+    // Where the servers run apart from this harness, as for its run in Docker, it is told where
+    // each listens in its environment: ORIOR_TEST_SERVERS names the settings, each read by its name.
+    if !options.servers {
+        env.extend(told_servers(std::env::var("ORIOR_TEST_SERVERS").ok().as_deref(), |key| std::env::var(key).ok()));
+        // The ssh server, where its port is told and its key's folder is read at /host/ssh.
+        if let Some(port) = std::env::var("ORIOR_TEST_SSH_PORT").ok().and_then(|port| port.parse().ok()) {
+            match servers::ssh_inside(Path::new("/host/ssh"), &here.join("target").join("ssh-inside"), port) {
+                Ok(told) => env.extend(told),
+                Err(error) => report.said.push(format!("the ssh server: {error}")),
+            }
+        }
     }
     if options.servers {
         println!("servers");
@@ -620,11 +711,35 @@ fn main() -> ExitCode {
     }
 
     let tests: Vec<String> = files_under(&here.join("src"), ".test.js").into_iter().map(|file| format!("src/{file}")).filter(|file| options.only.is_empty() || options.only.iter().any(|only| file.contains(only.as_str()))).collect();
-    if options.window && !tests.is_empty() {
+    if options.window && !tests.is_empty() && options.webdriver {
+        println!("window, through WebDriver");
+        let tree = run.join("tree");
+        let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
+            .map_err(|error| format!("the run's tree: {error}"))
+            .and_then(|_| own_repository(&tree))
+            .and_then(|_| benched.as_ref().map_or(Ok(()), |folder| bench::placed(folder, &tree)))
+            .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
+            .and_then(|_| driven::build(&ui, &here))
+            .and_then(|program| {
+                let extra: Vec<(String, String)> = env.iter().filter(|(key, _)| key == "ORIOR_TEST_SSH").map(|(_, value)| ("ORIOR_SSH".to_string(), value.clone())).collect();
+                driven::start(&program, &run, &tree, &extra)
+            });
+        match started {
+            Err(error) => {
+                println!("  {error}");
+                report.files.push(("the window".into(), vec![Outcome { name: "it starts".into(), ok: false, ms: 0, error }], Vec::new()));
+            }
+            Ok(driven) => {
+                driven::run_files(&driven, &here, &tests, &env, &mut report);
+                input::stop_started();
+            }
+        }
+    } else if options.window && !tests.is_empty() {
         println!("window");
         let tree = run.join("tree");
         let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
             .map_err(|error| format!("the run's tree: {error}"))
+            .and_then(|_| own_repository(&tree))
             .and_then(|_| benched.as_ref().map_or(Ok(()), |folder| bench::placed(folder, &tree)))
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
             .and_then(|_| window::build(&ui, &here.join("target").join("app")))
@@ -687,7 +802,7 @@ fn main() -> ExitCode {
                 }
             }
         }
-        for file in ["bench.rs", "cdp.rs", "frames.rs", "harness.rs", "input.rs", "servers.rs", "systems.rs", "window.rs"] {
+        for file in ["bench.rs", "cdp.rs", "docker.rs", "driven.rs", "frames.rs", "harness.rs", "input.rs", "servers.rs", "systems.rs", "webdriver.rs", "window.rs"] {
             if untested_rust(&here.join(file)) {
                 report.untested.push(format!("test/{file}"));
             }
@@ -696,7 +811,7 @@ fn main() -> ExitCode {
 
     let written = run.join("report.md");
     let _ = std::fs::write(&written, report.write());
-    println!("{} passed, {} failed, {} parts with no test, {} tests with no part", report.passed(), report.failed(), report.untested.len(), report.orphans.len());
+    println!("{} passed, {} failed, {} not run on this window, {} parts with no test, {} tests with no part", report.passed(), report.failed(), report.not_run(), report.untested.len(), report.orphans.len());
     println!("report: {}", written.display());
     if report.failed() == 0 && report.untested.is_empty() && report.orphans.is_empty() && report.said.is_empty() {
         ExitCode::SUCCESS
@@ -740,6 +855,34 @@ mod tests {
     }
 
     #[test]
+    fn the_servers_named_are_read_by_their_names() {
+        let read = |key: &str| match key {
+            "ORIOR_PG_ADDRESS" => Some("host.docker.internal:5432".to_string()),
+            "ORIOR_PG_PASSWORD" => Some("secret".to_string()),
+            _ => None,
+        };
+        let told = told_servers(Some("ORIOR_PG_ADDRESS,ORIOR_PG_PASSWORD,ORIOR_GONE"), read);
+        assert_eq!(told, [("ORIOR_PG_ADDRESS".to_string(), "host.docker.internal:5432".to_string()), ("ORIOR_PG_PASSWORD".to_string(), "secret".to_string())]);
+        assert!(told_servers(None, read).is_empty());
+    }
+
+    #[test]
+    fn the_run_s_tree_is_a_repository_of_its_own() {
+        let tree = std::env::temp_dir().join(format!("orior-harness-tree-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tree);
+        std::fs::create_dir_all(tree.join("bench")).unwrap();
+        std::fs::write(tree.join("hello.py"), "print('hello')\n").unwrap();
+        std::fs::write(tree.join("bench").join("big.txt"), "big\n").unwrap();
+        own_repository(&tree).unwrap();
+        let said = |args: &[&str]| String::from_utf8(Command::new("git").args(args).current_dir(&tree).output().unwrap().stdout).unwrap();
+        let top = PathBuf::from(said(&["rev-parse", "--show-toplevel"]).trim());
+        assert_eq!(top.canonicalize().unwrap(), tree.canonicalize().unwrap(), "git's top is the tree itself");
+        assert_eq!(said(&["ls-files"]).trim(), "hello.py", "the files committed, bench/ left out");
+        assert_eq!(said(&["status", "--porcelain"]).trim(), "", "nothing left to commit");
+        std::fs::remove_dir_all(&tree).unwrap();
+    }
+
+    #[test]
     fn a_stamp_is_the_date_and_time() {
         let made = stamp();
         assert_eq!(made.len(), 17, "{made}");
@@ -757,6 +900,17 @@ mod tests {
         assert!(!untested_rust(&dir.join("tested.rs")));
         assert!(!untested_rust(&dir.join("mods.rs")));
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_test_not_run_on_this_window_is_counted_apart_with_its_reason() {
+        let mut report = Report::default();
+        let reason = format!("{} it gives no trace of its frames", input::NOT_HERE);
+        report.files.push(("src/a.test.js".into(), vec![Outcome { name: "runs".into(), ok: true, ms: 1, error: String::new() }, Outcome { name: "traces".into(), ok: true, ms: 1, error: reason.clone() }], Vec::new()));
+        assert_eq!((report.passed(), report.failed(), report.not_run()), (1, 0, 1));
+        let written = report.write();
+        assert!(written.contains("1 passed, 0 failed, 1 not run on this window"), "{written}");
+        assert!(written.contains(&format!("not run here: traces: {reason}")), "{written}");
     }
 
     #[test]

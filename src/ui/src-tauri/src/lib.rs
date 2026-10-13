@@ -10,6 +10,7 @@ mod allocations;
 mod clip;
 mod dragging;
 mod memory;
+mod place;
 mod printing;
 
 #[global_allocator]
@@ -200,6 +201,12 @@ fn launch_take(app: State<App>) -> Option<Launch> {
 #[tauri::command]
 fn app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
+}
+
+/// What each release of the window changed, as CHANGES.md gives it, built into the app.
+#[tauri::command]
+fn app_changes() -> &'static str {
+    include_str!("../../CHANGES.md")
 }
 
 /// Ends the app, every window of it, from the File menu.
@@ -1089,6 +1096,24 @@ pub fn run() {
     open(Launch::default());
 }
 
+/// Puts the window where `kept` says, fitted to the monitors there are now, the main one first.
+fn put_back(window: &tauri::WebviewWindow, kept: place::Place) {
+    let area = |monitor: &tauri::Monitor| place::Area { x: monitor.position().x, y: monitor.position().y, width: monitor.size().width, height: monitor.size().height };
+    let main = window.primary_monitor().ok().flatten();
+    let mut areas: Vec<place::Area> = main.iter().map(area).collect();
+    for one in window.available_monitors().unwrap_or_default().iter().map(area) {
+        if !areas.contains(&one) {
+            areas.push(one);
+        }
+    }
+    let Some(fitted) = place::fit(kept, &areas) else { return };
+    let _ = window.set_size(tauri::PhysicalSize::new(fitted.width, fitted.height));
+    let _ = window.set_position(tauri::PhysicalPosition::new(fitted.x, fitted.y));
+    if fitted.maximized {
+        let _ = window.maximize();
+    }
+}
+
 /// Opens the window on the tree the launch names, else the one `root::find` finds, to run the
 /// launch's command once the page is up.
 fn open(launch: Launch) {
@@ -1117,6 +1142,12 @@ fn open(launch: Launch) {
                 // The system's own title bar where the reader asked for it, set before the window shows.
                 if system_title_bar() {
                     let _ = window.set_decorations(true);
+                }
+                // The tree's window where it was left, fitted to the monitors there are now.
+                if let Ok(tree) = app.state::<App>().server.root() {
+                    if let Some(kept) = place::kept(&tree) {
+                        put_back(&window, kept);
+                    }
                 }
                 std::thread::spawn(move || {
                     std::thread::sleep(SHOW_ANYWAY);
@@ -1188,6 +1219,7 @@ fn open(launch: Launch) {
             launch_take,
             window_open,
             app_version,
+            app_changes,
             app_exit,
             window_show,
             memory_use,
@@ -1238,6 +1270,17 @@ fn open(launch: Launch) {
             view_open,
             pick,
         ])
+        .on_window_event(|window, event| {
+            // The tree's window kept where it stands as it is asked to close.
+            if let (tauri::WindowEvent::CloseRequested { .. }, "main") = (event, window.label()) {
+                if let (Ok(tree), Ok(at), Ok(size)) = (window.state::<App>().server.root(), window.outer_position(), window.inner_size()) {
+                    let maximized = window.is_maximized().unwrap_or(false);
+                    if let Err(said) = place::keep(&tree, place::Place { x: at.x, y: at.y, width: size.width, height: size.height, maximized }) {
+                        eprintln!("orior: the window's place: {said}");
+                    }
+                }
+            }
+        })
         .build(tauri::generate_context!())
         .expect("the app failed to start")
         .run(|handle, event| {

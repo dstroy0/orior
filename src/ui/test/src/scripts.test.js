@@ -3,15 +3,17 @@
 
 // Plugins that run code of their own, each in a worker apart from the editor: what one draws through
 // orior's calls, one that stops answering named and stopped while the keys go on, Find the Slow
-// Plugin, and a write the system refuses told to the plugin after the reader is asked.
+// Plugin, plugins started once a frame is drawn and each on its own, a write the system refuses
+// told to the plugin after the reader is asked, and a part of a
+// file held as pages read where its whole text is refused.
 
-import { invoke } from "../../src/bridge.js";
+import { invoke, watchCalls } from "../../src/bridge.js";
 import { editing, openFile } from "../../src/edit.js";
 import { loadPlugins, pluginReadings, pluginsOff } from "../../src/plugins.js";
-import { allowPlugin, findSlowPlugin, finding, running } from "../../src/scripts.js";
+import { allowPlugin, findSlowPlugin, finding, running, stopPlugin, syncPlugins } from "../../src/scripts.js";
 import { showView } from "../../src/views.js";
 
-const { test, assert, ui } = window.__harness;
+const { test, assert, ui, calls } = window.__harness;
 
 const DRAWS = `orior.on("open", async ({ path }) => {
   if (!path.endsWith("drawn.py")) {
@@ -54,13 +56,13 @@ test("a plugin draws marks, a tab's label, a panel, an overlay and the chrome th
   await loadPlugins();
   assert.ok(!running().has("draws"), "a plugin that asks to write runs only once it is let");
   await allowPlugin("draws");
-  await ui.waitFor(() => running().has("draws"), 5000);
+  await ui.waitFor(() => running().has("draws"), 5000, "the plugin to run");
   await invoke("file_write", { path: "drawn.py", text: "first = 1\nsecond = 2\nthird = 3\n" });
   showView("edit");
   await openFile("drawn.py");
-  await ui.waitFor(() => document.querySelector(".ed-plugin-text"), 5000);
+  await ui.waitFor(() => document.querySelector(".ed-plugin-text"), 5000, "the plugin's mark");
   // The plugin's calls come one after another, the overlay the last of what it draws.
-  await ui.waitFor(() => document.querySelector(".plugin-overlay"), 5000);
+  await ui.waitFor(() => document.querySelector(".plugin-overlay"), 5000, "the plugin's overlay");
   assert.ok(document.querySelector(".ed-plugin.warn"), "a mark in the gutter in the color of its kind");
   assert.equal(document.querySelector(".ed-plugin-text").textContent, "two words");
   assert.equal(document.querySelector(".plugin-overlay").textContent, "over the first line");
@@ -69,9 +71,9 @@ test("a plugin draws marks, a tab's label, a panel, an overlay and the chrome th
   assert.equal(panel.querySelector("iframe").getAttribute("sandbox"), "", "a panel runs none of its scripts");
   assert.match(panel.querySelector("iframe").srcdoc, /from the plugin/);
   // The badge comes after the theme's colors are read, a call later than the overlay.
-  await ui.waitFor(() => document.getElementById("plugin-badge").textContent === "drawn in the theme's colors", 3000);
+  await ui.waitFor(() => document.getElementById("plugin-badge").textContent === "drawn in the theme's colors", 3000, "the plugin's badge");
   assert.equal(getComputedStyle(document.documentElement).getPropertyValue("--signal").trim(), "rgb(1, 2, 3)");
-  await ui.waitFor(() => !document.getElementById("rights-ask").hidden, 5000);
+  await ui.waitFor(() => !document.getElementById("rights-ask").hidden, 5000, `the question of rights: the tab says ${JSON.stringify(tabNamed("drawn.py")?.textContent)}`);
   assert.match(document.querySelector(".rights-said").textContent, /^Draws asks to write locked_by_plugin\.txt, and the system refuses it the rights/);
   await ui.click([...document.querySelectorAll(".rights-button")].find((one) => one.textContent === "Leave It"));
   await ui.waitFor(() => tabNamed("drawn.py")?.querySelector(".tab-label")?.textContent === "refused", 5000);
@@ -107,4 +109,54 @@ test("Find the Slow Plugin halves the plugins on until one is left, and sets eac
   assert.match(document.getElementById("status-said").textContent, /^Stuck is the plugin that slows the window/);
   assert.deepEqual([...pluginsOff()].sort(), before, "each set back as it was");
   assert.ok(pluginReadings().length > 2);
+});
+
+const PAGES = `orior.on("open", async ({ path }) => {
+  if (!path.endsWith("huge.log")) {
+    return;
+  }
+  const lines = await orior.editor.lines(path, 2000000, 2000002);
+  let whole = "given";
+  try {
+    await orior.editor.text(path);
+  } catch (error) {
+    whole = String(error.message).includes("held as pages") ? "refused" : "failed";
+  }
+  await orior.tabs.label(path, lines.length + " " + lines[0].slice(0, 9) + " " + lines[1].slice(0, 9) + " whole " + whole);
+});
+`;
+
+test("a plugin reads a part of a file held as pages, and is refused the whole of it", async () => {
+  const bench = window.__harness.servers.ORIOR_TEST_BENCH;
+  assert.ok(bench, "the harness made the file");
+  await plugin("pages", "Pages", PAGES, { api: 4, reads: [`${bench}/huge.log`] });
+  await loadPlugins();
+  await allowPlugin("pages");
+  await ui.waitFor(() => running().has("pages"), 5000, "the plugin to run");
+  showView("edit");
+  await openFile(`${bench}/huge.log`);
+  await ui.waitFor(() => tabNamed("huge.log")?.querySelector(".tab-label")?.textContent.startsWith("2 "), 20000, `the plugin's label: the tab says ${JSON.stringify(tabNamed("huge.log")?.textContent)}`);
+  assert.equal(tabNamed("huge.log").querySelector(".tab-label").textContent, "2 002000000 002000001 whole refused");
+});
+
+test("plugins start once the frame being drawn is drawn, each on its own and none waiting on another", async () => {
+  await plugin("first_quiet", "First Quiet", "");
+  await plugin("second_quiet", "Second Quiet", "");
+  await loadPlugins();
+  for (const id of ["first_quiet", "second_quiet"]) {
+    stopPlugin(id);
+  }
+  // Each plugin's code is held a while as it is read.
+  watchCalls((name, args, send) => (name === "plugin_code" ? new Promise((done) => setTimeout(() => done(calls.watcher(name, args, send)), 400)) : calls.watcher(name, args, send)));
+  try {
+    const began = performance.now();
+    const syncing = syncPlugins();
+    assert.ok(!running().has("first_quiet"), "nothing starts before the frame is drawn");
+    await syncing;
+    const spent = performance.now() - began;
+    assert.ok(running().has("first_quiet") && running().has("second_quiet"), "both run");
+    assert.ok(spent < 750, `both started together, in ${Math.round(spent)} ms, and not one after the other`);
+  } finally {
+    watchCalls(calls.watcher);
+  }
 });

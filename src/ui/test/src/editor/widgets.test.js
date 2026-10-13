@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The editor's widgets: what the pointer rests on stays open while the pointer is on its name, a step
-// off it, on its way to it or in it, and goes once the pointer has left all of them a moment.
+// off it, on its way to it or in it, and goes once the pointer has left all of them a moment; and the
+// completion list, which stands at once on the file's own words while a slow server is awaited.
 
 import { invoke } from "../../../src/bridge.js";
 import { editing, openFile } from "../../../src/edit.js";
@@ -67,4 +68,37 @@ test("what the pointer rests on stays while the pointer is on its name, a step o
   const left = performance.now();
   await ui.waitFor(() => !hover.shown, 3000);
   assert.ok(performance.now() - left >= 250, "not at once, but a moment after");
+});
+
+test("the completion list stands at once on the file's words and the language's, the server's join as they come, and no key typed fast is lost", async () => {
+  await invoke("file_write", { path: "words.hov", text: "alphabet alphaWord beta\n\n" });
+  showView("edit");
+  await openFile("words.hov");
+  await ui.waitFor(() => editing().active === "words.hov" && editing().editor?.s?.language, 5000);
+  const view = editing().editor;
+  const own = view.s.language;
+  let answer;
+  view.s.language = Object.assign(Object.create(own), {
+    complete: () => new Promise((done) => (answer = done)),
+    completeNow: () => [{ label: "alphaOwn", kind: "keyword", insert: "alphaOwn" }],
+  });
+  try {
+    const labels = () => [...view.suggest.list.querySelectorAll(".ed-item-label")].map((label) => label.textContent);
+    view.goTo(1, 0);
+    view.focus();
+    view.type("a");
+    assert.ok(view.suggest.pending && view.suggest.el.hidden, "the letter is drawn before the list's work begins");
+    await ui.type("lpha");
+    assert.equal(view.doc.line(1), "alpha", "every key typed fast, in order");
+    await ui.waitFor(() => view.suggest.open && view.suggest.typed === "alpha", 2000);
+    assert.deepEqual(labels().sort(), ["alphaOwn", "alphaWord", "alphabet"], "the language's word and the file's, before the server answers");
+    answer([{ label: "alphaServer", kind: "function", insert: "alphaServer" }]);
+    await ui.waitFor(() => labels().includes("alphaServer"), 2000);
+    assert.ok(labels().includes("alphaWord"), "the file's words stay beside the server's");
+    await ui.type("S");
+    await ui.key("Enter");
+    assert.equal(view.doc.line(1), "alphaServer", "Enter at once takes the item for the word as typed");
+  } finally {
+    view.s.language = own;
+  }
 });

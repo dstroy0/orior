@@ -29,6 +29,7 @@
         { "label": "Open in Dev Container", "command": "dev-container", "console": true },
         { "label": "Clone Repository…", "command": "clone", "args": "[url] [folder]", "console": true },
         { "label": "Keep Tree as Template…", "command": "keep-template", "args": "[name]" },
+        { "label": "Trust This Tree…", "command": "trust-tree" },
         "-",
         { "label": "Save", "command": "save", "keys": "Ctrl+S", "needs": "changed-active" },
         { "label": "Save All", "command": "save-all", "needs": "changed" },
@@ -153,6 +154,7 @@
         { "label": "Primary Side Bar", "command": "side-bar", "keys": "Ctrl+B", "args": "[show|hide]", "checks": "side-bar" },
         { "label": "Auto Collapse Panes", "command": "auto-collapse", "args": "[on|off]", "checks": "auto-collapse" },
         { "label": "Sticky Scroll", "command": "sticky-scroll", "args": "[on|off]", "checks": "sticky-scroll" },
+        { "label": "Word Wrap", "command": "word-wrap", "keys": "Alt+Z", "args": "[on|off]", "checks": "word-wrap" },
         { "label": "Smooth Scrolling", "command": "smooth-scroll", "args": "[on|off]", "checks": "smooth-scroll" },
         { "label": "Flick Scrolling", "command": "flick-scroll", "args": "[on|off]", "checks": "flick-scroll" },
         { "label": "Breadcrumbs", "command": "breadcrumbs", "args": "[on|off]", "checks": "breadcrumbs" },
@@ -357,6 +359,7 @@
         { "label": "Network…", "command": "network" },
         { "label": "Off the Network", "command": "network-off", "args": "[on|off]", "checks": "network-off" },
         "-",
+        { "label": "What's New", "command": "whats-new" },
         { "label": "About", "command": "about", "console": true }
       ]
     }

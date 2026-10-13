@@ -49,6 +49,9 @@ pub enum Arg {
     When(String, String, Vec<String>),
     /// No argument: the variable set to the value in the step's environment.
     Set(String, String),
+    /// No argument: the variable set to the value in the step's environment, where the param's value
+    /// is the value named: param, value, variable, the variable's value.
+    SetWhen(String, String, String, String),
     /// No argument: the step's PATH without the folders that hold the program named.
     Unpath(String),
     /// No argument: the step runs only where the param's value is the value named.
@@ -127,6 +130,18 @@ fn many(key: &str, choices: Vec<String>) -> Param {
 
 fn words() -> Param {
     param("arguments", "words")
+}
+
+/// How much of what a build does it says as it runs: every command it runs, as it runs it, where
+/// TRACE_VERBOSE, the first choice and so the one a build takes where none is given, and what its
+/// tools say of their own, where TRACE_QUIET. The developer who set a build up sees its toolchain at
+/// work each time it runs.
+pub const TRACE: &str = "trace";
+pub const TRACE_VERBOSE: &str = "verbose";
+pub const TRACE_QUIET: &str = "quiet";
+
+pub fn trace() -> Param {
+    Param { key: TRACE.into(), kind: "choice", choices: vec![TRACE_VERBOSE.into(), TRACE_QUIET.into()], default: TRACE_VERBOSE.into(), required: true }
 }
 
 /// The files in `dir` whose names pass `keep`, sorted, as paths.
@@ -231,8 +246,16 @@ fn short(file: &str) -> String {
 
 fn bash_alone(root: &Path, group: &'static str, path: &Path) -> Job {
     let file = relative(root, path);
-    let steps = vec![Step { program: Program::Bash(file.clone()), args: vec![Arg::Words("arguments".into(), false)] }];
-    let mut job = script_job(root, group, path, vec![words()], steps);
+    let mut args = vec![Arg::Words("arguments".into(), false)];
+    let mut params = vec![words()];
+    // A build script traced: bash takes SHELLOPTS from its environment as its own options, and gives
+    // it on, so that every script the build runs says each command as it runs it.
+    if group == "build" {
+        args.push(Arg::SetWhen(TRACE.into(), TRACE_VERBOSE.into(), "SHELLOPTS".into(), "xtrace".into()));
+        params.push(trace());
+    }
+    let steps = vec![Step { program: Program::Bash(file.clone()), args }];
+    let mut job = script_job(root, group, path, params, steps);
     job.title = short(&file);
     job
 }
@@ -634,6 +657,25 @@ mod reading {
     fn case_names_reads_the_line_after_the_case() {
         let script = "case \"$SIM\" in\n    a|b_c|d) ;;\n    *) exit 2 ;;\nesac\n";
         assert_eq!(case_names(script, "SIM"), vec!["a", "b_c", "d"]);
+    }
+
+    #[test]
+    fn a_build_script_is_traced_by_default_and_quiet_where_asked() {
+        let root = std::env::temp_dir().join(format!("orior_catalog_trace_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(root.join("src/build_it.sh"), "#!/usr/bin/env bash\necho built\n").unwrap();
+        let job = bash_alone(&root, "build", &root.join("src/build_it.sh"));
+        let trace = job.params.iter().find(|param| param.key == TRACE).expect("a build's trace");
+        assert_eq!((trace.default.as_str(), trace.choices.clone()), (TRACE_VERBOSE, vec![TRACE_VERBOSE.to_string(), TRACE_QUIET.to_string()]));
+        let given = |trace: &str| -> std::collections::HashMap<String, Vec<String>> { [(TRACE.to_string(), vec![trace.to_string()])].into_iter().collect() };
+        if let (Ok(verbose), Ok(quiet)) = (crate::runner::shown(&root, &job, &given(TRACE_VERBOSE)), crate::runner::shown(&root, &job, &given(TRACE_QUIET))) {
+            assert_eq!(verbose, vec!["SHELLOPTS=xtrace bash src/build_it.sh"]);
+            assert_eq!(quiet, vec!["bash src/build_it.sh"]);
+        }
+        let other = bash_alone(&root, "run", &root.join("src/build_it.sh"));
+        assert!(other.params.iter().all(|param| param.key != TRACE), "a script that is no build is not traced");
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

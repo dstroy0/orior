@@ -42,7 +42,7 @@ fn git(root: &Path, args: &[&str]) -> Option<Vec<u8>> {
     let mut command = Command::new("git");
     // A question takes no lock it can do without: a status asked while the window watches the tree,
     // or stopped as the window closes, leaves the index's lock to no one.
-    command.args(args).current_dir(root).env("GIT_OPTIONAL_LOCKS", "0");
+    command.args(crate::trust::git_words(root)).args(args).current_dir(root).env("GIT_OPTIONAL_LOCKS", "0");
     command.stdin(Stdio::null()).stderr(Stdio::null());
     crate::runner::quiet(&mut command);
     command.output().ok().filter(|out| out.status.success()).map(|out| out.stdout)
@@ -259,7 +259,7 @@ fn changed_at(root: &Path) -> Vec<Changed> {
 /// went wrong.
 pub(crate) fn run(root: &Path, args: &[&str]) -> Result<String, String> {
     let mut command = Command::new("git");
-    command.args(args).current_dir(root).env("GIT_TERMINAL_PROMPT", "0").stdin(Stdio::null());
+    command.args(crate::trust::git_words(root)).args(args).current_dir(root).env("GIT_TERMINAL_PROMPT", "0").stdin(Stdio::null());
     crate::runner::quiet(&mut command);
     let out = command.output().map_err(|error| format!("git: {error}"))?;
     let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
@@ -459,7 +459,7 @@ pub struct Part {
 fn run_on(root: &Path, index: &Path, args: &[&str], input: Option<&str>) -> Result<String, String> {
     use std::io::Write;
     let mut command = Command::new("git");
-    command.args(args).current_dir(root).env("GIT_TERMINAL_PROMPT", "0").env("GIT_INDEX_FILE", index);
+    command.args(crate::trust::git_words(root)).args(args).current_dir(root).env("GIT_TERMINAL_PROMPT", "0").env("GIT_INDEX_FILE", index);
     command.stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped());
     crate::runner::quiet(&mut command);
     let mut child = command.spawn().map_err(|error| format!("git: {error}"))?;
@@ -784,7 +784,7 @@ pub struct LineHistory {
 fn git_fed(root: &Path, args: &[&str], input: String) -> Option<Vec<u8>> {
     use std::io::Write;
     let mut command = Command::new("git");
-    command.args(args).current_dir(root).env("GIT_OPTIONAL_LOCKS", "0");
+    command.args(crate::trust::git_words(root)).args(args).current_dir(root).env("GIT_OPTIONAL_LOCKS", "0");
     command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
     crate::runner::quiet(&mut command);
     let mut child = command.spawn().ok()?;

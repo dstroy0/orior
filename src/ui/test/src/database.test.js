@@ -49,11 +49,18 @@ async function typeInto(label, text) {
 
 // Chooses an option of a select of the sheet by typing its first letters, as the keyboard does; the
 // select reads letters typed within a second of each other as one word, and a choice waits that long.
+// Chooses the option of the list `label` that begins with `letters`, stepping to it with the arrow
+// keys as a person does: WebKitGTK moves a closed list on no letter typed, WebView2 and WebKitGTK
+// alike on an arrow.
 async function choose(label, letters) {
   const select = field(label);
   select.focus();
-  await ui.rest(1100);
-  await ui.type(letters);
+  const wanted = (option) => option?.textContent.toLowerCase().startsWith(letters.toLowerCase());
+  const target = [...select.options].findIndex(wanted);
+  for (let step = 0; step < select.options.length && target >= 0 && select.selectedIndex !== target; step += 1) {
+    await ui.key(select.selectedIndex < target ? "Down" : "Up");
+  }
+  assert.ok(wanted(select.selectedOptions[0]), `${label} reaches an option that begins with ${letters}`);
   return select;
 }
 

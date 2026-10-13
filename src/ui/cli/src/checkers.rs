@@ -70,8 +70,12 @@ fn program_of(checker: &Checker) -> Result<PathBuf, String> {
         .ok_or_else(|| format!("{} is not found: File, Toolchains opens its install page or takes its folder", checker.name))
 }
 
-/// Runs a checker with `args` from `cwd`, `input` on its input where given, and gives what it wrote.
+/// Runs a checker with `args` from `cwd`, the tree's folder, `input` on its input where given, and
+/// gives what it wrote. A checker runs no tree whose own code is held back (trust.rs).
 fn run(checker: &Checker, args: &[String], cwd: &Path, input: Option<&str>) -> Result<String, String> {
+    if crate::trust::held_back(cwd) {
+        return Err(format!("{} does not run in a tree whose own code is held back", checker.name));
+    }
     let program = program_of(checker)?;
     let mut command = Command::new(&program);
     command.args(args).current_dir(cwd).env("PATH", toolchains::run_path()).stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped());

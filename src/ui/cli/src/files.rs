@@ -88,21 +88,54 @@ type Kept = Option<(PathBuf, Instant, Option<Arc<Seen>>)>;
 
 static KEPT: Mutex<Kept> = Mutex::new(None);
 
+/// Whether git's view is being read again behind the view kept.
+static RESEEING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Git's view of the tree: as kept, read again behind it once it is older than SEEN_FOR, or read now
+/// where none is kept, the view let go as files move.
 fn seen(root: &Path) -> Option<Arc<Seen>> {
     let mut kept = KEPT.lock().ok()?;
     if let Some((at, when, view)) = kept.as_ref() {
         if at == root && when.elapsed() < SEEN_FOR {
             return view.clone();
         }
+        if let (true, Some(view)) = (at == root, view) {
+            if !RESEEING.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                let root = root.to_path_buf();
+                std::thread::spawn(move || {
+                    let read = read_seen(&root);
+                    if let Ok(mut kept) = KEPT.lock() {
+                        // A view let go as it was read is not put back: the next one reads it anew.
+                        if matches!(kept.as_ref(), Some((at, ..)) if *at == root) {
+                            *kept = Some((root, Instant::now(), read));
+                        }
+                    }
+                    RESEEING.store(false, std::sync::atomic::Ordering::SeqCst);
+                });
+            }
+            return Some(view.clone());
+        }
     }
+    let view = read_seen(root);
+    *kept = Some((root.to_path_buf(), Instant::now(), view.clone()));
+    view
+}
+
+/// Reads git's view of the tree in the background, as a tree opens, for the first list or search.
+pub fn warm(root: &Path) {
+    let root = root.to_path_buf();
+    std::thread::spawn(move || {
+        seen(&root);
+    });
+}
+
+/// Git's view of the tree as git gives it now, or None where git cannot read it or lists nothing.
+fn read_seen(root: &Path) -> Option<Arc<Seen>> {
     let mut git = Command::new("git");
-    git.args(["ls-files", "--cached", "--others", "--exclude-standard", "-z"]).current_dir(root);
+    git.args(crate::trust::git_words(root)).args(["ls-files", "--cached", "--others", "--exclude-standard", "-z"]).current_dir(root);
     git.stdin(Stdio::null()).stderr(Stdio::null());
     crate::runner::quiet(&mut git);
-    let Some(out) = git.output().ok().filter(|out| out.status.success()) else {
-        *kept = Some((root.to_path_buf(), Instant::now(), None));
-        return None;
-    };
+    let out = git.output().ok().filter(|out| out.status.success())?;
     let mut files = BTreeSet::new();
     let mut dirs = BTreeSet::new();
     for path in String::from_utf8_lossy(&out.stdout).split('\0').filter(|p| !p.is_empty()) {
@@ -116,12 +149,9 @@ fn seen(root: &Path) -> Option<Arc<Seen>> {
     }
     // A tree in a folder its repository ignores is one git lists nothing of: it is read from the disk.
     if files.is_empty() {
-        *kept = Some((root.to_path_buf(), Instant::now(), None));
         return None;
     }
-    let view = Arc::new(Seen { files, dirs });
-    *kept = Some((root.to_path_buf(), Instant::now(), Some(view.clone())));
-    Some(view)
+    Some(Arc::new(Seen { files, dirs }))
 }
 
 /// Lets go of git's view of the tree, to be read again by the next list or search, as after files
@@ -371,12 +401,23 @@ impl Listed {
     }
 }
 
-/// The tree's files as the last quick open read them, when, and whether they are being read again.
+/// The tree's files as the last quick open read them, when, whether they are being read again,
+/// whether they have been read once, and how many reads of them have begun.
 struct Held {
     root: PathBuf,
     at: Instant,
     files: Arc<Vec<Listed>>,
     reading: bool,
+    read: bool,
+    begun: u64,
+}
+
+/// What a quick open found, the best first, and whether the tree's files were still being read for
+/// the first time.
+#[derive(Serialize)]
+pub struct Answer {
+    pub found: Vec<Found>,
+    pub reading: bool,
 }
 
 static HELD: Mutex<Option<Held>> = Mutex::new(None);
@@ -391,50 +432,83 @@ fn listed(root: &Path) -> Arc<Vec<Listed>> {
     Arc::new(files)
 }
 
-/// Lets go of the files the quick open holds, to be read again by the next search, as after the
-/// search's patterns change.
+/// Reads the files the quick open holds again behind the window, as after the search's patterns
+/// change, the files read so far answering meanwhile.
 pub fn forget_held() {
-    *HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+    let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(kept) = held.as_mut() {
+        read_into(kept);
+    }
 }
 
-/// The tree's files for a quick open: read now the first time, and after that the files last read,
-/// read again behind the search once they are older than SEEN_FOR.
-fn held(root: &Path) -> Arc<Vec<Listed>> {
+/// Reads the tree's files on a thread of their own into what the quick open holds, taken where no
+/// later read has begun.
+fn read_into(kept: &mut Held) {
+    kept.reading = true;
+    kept.begun += 1;
+    let (root, begun) = (kept.root.clone(), kept.begun);
+    std::thread::spawn(move || {
+        let files = listed(&root);
+        let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(kept) = held.as_mut().filter(|kept| kept.root == root && kept.begun == begun) {
+            kept.files = files;
+            kept.at = Instant::now();
+            kept.reading = false;
+            kept.read = true;
+        }
+    });
+}
+
+/// Starts reading the tree's files for the quick open behind the window, where they are neither held
+/// nor being read.
+pub fn read_behind(root: &Path) {
+    let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if held.as_ref().is_some_and(|kept| kept.root == root) {
+        return;
+    }
+    read_into(held.insert(Held { root: root.to_path_buf(), at: Instant::now(), files: Arc::new(Vec::new()), reading: true, read: false, begun: 0 }));
+}
+
+/// Whether the tree's files are not read yet for the quick open.
+pub fn unread(root: &Path) -> bool {
+    !HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).as_ref().is_some_and(|kept| kept.root == root && kept.read)
+}
+
+/// The tree's files for a quick open, and whether they have been read once: the files last read,
+/// read again behind the search once they are older than SEEN_FOR, and none until the first read,
+/// begun behind the window where it has not begun, ends.
+fn held(root: &Path) -> (Arc<Vec<Listed>>, bool) {
     let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     match held.as_mut() {
         Some(kept) if kept.root == root => {
-            if kept.at.elapsed() >= SEEN_FOR && !kept.reading {
-                kept.reading = true;
-                let root = root.to_path_buf();
-                std::thread::spawn(move || {
-                    let files = listed(&root);
-                    let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-                    if let Some(kept) = held.as_mut().filter(|kept| kept.root == root) {
-                        kept.files = files;
-                        kept.at = Instant::now();
-                        kept.reading = false;
-                    }
-                });
+            if kept.read && kept.at.elapsed() >= SEEN_FOR && !kept.reading {
+                read_into(kept);
             }
-            kept.files.clone()
+            (kept.files.clone(), kept.read)
         }
         _ => {
-            let files = listed(root);
-            *held = Some(Held { root: root.to_path_buf(), at: Instant::now(), files: files.clone(), reading: false });
-            files
+            drop(held);
+            read_behind(root);
+            (Arc::new(Vec::new()), false)
         }
     }
 }
 
-/// The tree's files that answer `query`, at most `most` of them, the best first. A file in `recent`
-/// scores LATELY more, and one named as typed, with or without its extension, EXACT more, as one
-/// whose name starts with what was typed scores half of EXACT more.
-pub fn ranked(root: &Path, query: &str, recent: &[String], most: usize) -> Vec<Found> {
+/// The tree's files that answer `query`, at most `most` of them, the best first, and whether the
+/// tree's files are not read yet: until they are, the files of `recent` alone answer. A file in
+/// `recent` scores LATELY more, and one named as typed, with or without its extension, EXACT more, as
+/// one whose name starts with what was typed scores half of EXACT more.
+pub fn ranked(root: &Path, query: &str, recent: &[String], most: usize) -> Answer {
+    let (files, read) = held(root);
+    let files = if read { files } else { Arc::new(recent.iter().map(|path| Listed::of(path)).collect()) };
+    Answer { found: ranked_in(&files, query, recent, most), reading: !read }
+}
+
+fn ranked_in(files: &[Listed], query: &str, recent: &[String], most: usize) -> Vec<Found> {
     let lowered: String = query.chars().map(Letter::lower).collect();
     let asked = lowered.rsplit('/').next().unwrap_or_default();
     let wanted_bytes: Vec<u8> = lowered.bytes().filter(|byte| !byte.is_ascii_whitespace()).collect();
     let wanted_chars: Vec<char> = lowered.chars().filter(|letter| !letter.is_whitespace()).collect();
-    let files = held(root);
     let mut found: Vec<Found> = Vec::new();
     for file in files.iter() {
         let matched = if file.path.is_ascii() && lowered.is_ascii() {
@@ -490,6 +564,18 @@ const HITS_LIMIT: usize = 2000;
 /// The most characters of a found line kept.
 const HIT_TEXT: usize = 240;
 
+/// The most heads a search's reader reads with.
+const HEADS: usize = 8;
+
+/// The files read between two looks at whether another head reads faster.
+const HEAD_SPAN: usize = 64;
+
+/// How much faster the reads must come since the head spawned last for the reader to spawn another.
+const HEAD_GAIN: f64 = 1.1;
+
+/// The files a search's reader reads ahead of each worker.
+const READ_AHEAD: usize = 2;
+
 /// The files larger than this a search of a tree git cannot read passes over.
 const SEARCHED_BYTES: u64 = 4 * 1024 * 1024;
 
@@ -498,9 +584,10 @@ fn hit(path: String, line: u64, col: u64, text: &str) -> Hit {
 }
 
 /// Every line in the tree's files that holds the query, at most HITS_LIMIT of them, less the files
-/// the search's patterns hide, and only in the files `set` names where it names any. Git searches
-/// what it tracks or would track; a tree git cannot read is searched a file at a time, the query
-/// read as the text itself.
+/// the search's patterns hide, and only in the files `set` names where it names any. The files are
+/// what git tracks or would track, or the whole tree where git cannot read it. Text is found by the
+/// sift: one reader reads the files, with as many heads as read faster, and a worker on each other
+/// core orior's work may take searches the next file read; a regular expression is git's to search.
 pub fn search(root: &Path, query: &str, how: Searching, set: &Patterns) -> Result<Vec<Hit>, String> {
     if query.is_empty() {
         return Ok(Vec::new());
@@ -515,79 +602,198 @@ pub fn search(root: &Path, query: &str, how: Searching, set: &Patterns) -> Resul
         specs.push(".".into());
     }
     specs.extend(patterns.hidden_specs().into_iter().chain(set.hidden_specs()));
+    if how.regex {
+        if let Some(found) = search_by_git(root, query, how, &specs, &searched) {
+            return found;
+        }
+    }
+    // The files: git's view of the tree, kept between lists and searches and let go as files change,
+    // or the tree's own files where git lists none of them.
+    let (paths, most): (Vec<String>, u64) = match seen(root) {
+        Some(view) => (view.files.iter().filter(|path| searched(path)).cloned().collect(), u64::MAX),
+        None => (all(root).into_iter().filter(|path| searched(path)).collect(), SEARCHED_BYTES),
+    };
+    // One reader takes the files from the disk and hands each, mapped or read, to the workers through a
+    // queue that holds READ_AHEAD files of each worker's at most; a mapped file's pages are brought in
+    // by the worker that searches it. The reader reads with one head, and spawns another each span of
+    // HEAD_SPAN files while the head it spawned last raised the files read a millisecond, at most
+    // HEADS of them: the disk is asked for no more at once than reading faster takes. The heads and
+    // the workers share the cores the reader's work may take (cores.rs), a quarter of them the heads'
+    // at most.
+    let budget = crate::cores::for_work();
+    let heads_most = HEADS.min((budget / 4).max(1));
+    let workers = budget.saturating_sub(heads_most).clamp(1, paths.len().max(1));
+    let (give, take) = std::sync::mpsc::sync_channel::<(usize, crate::mapped::Mapped)>(workers * READ_AHEAD);
+    let take = Mutex::new(take);
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let read = std::sync::atomic::AtomicUsize::new(0);
+    let mut found: Vec<(usize, Vec<Hit>)> = std::thread::scope(|scope| {
+        let paths = &paths;
+        let (next, read) = (&next, &read);
+        let head = move |give: std::sync::mpsc::SyncSender<(usize, crate::mapped::Mapped)>| loop {
+            let index = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let Some(path) = paths.get(index) else { break };
+            let opened = crate::mapped::Mapped::open(&root.join(path));
+            read.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let Ok(bytes) = opened else { continue };
+            if bytes.len() as u64 > most {
+                continue;
+            }
+            if give.send((index, bytes)).is_err() {
+                break;
+            }
+        };
+        scope.spawn(move || {
+            scope.spawn({
+                let give = give.clone();
+                move || head(give)
+            });
+            let mut heads = 1;
+            let mut rate = 0.0;
+            let mut since = (Instant::now(), 0);
+            while heads < heads_most {
+                std::thread::sleep(Duration::from_micros(200));
+                let done = read.load(std::sync::atomic::Ordering::Relaxed);
+                if done >= paths.len() {
+                    break;
+                }
+                if done - since.1 < HEAD_SPAN {
+                    continue;
+                }
+                let now = (done - since.1) as f64 / since.0.elapsed().as_secs_f64().max(1e-9);
+                if heads > 1 && now <= rate * HEAD_GAIN {
+                    break;
+                }
+                rate = now;
+                since = (Instant::now(), done);
+                heads += 1;
+                scope.spawn({
+                    let give = give.clone();
+                    move || head(give)
+                });
+            }
+        });
+        let handles: Vec<_> = (0..workers)
+            .map(|_| {
+                scope.spawn(|| {
+                    let mut mine = Vec::new();
+                    loop {
+                        let next = take.lock().map(|take| take.recv());
+                        let Ok(Ok((index, bytes))) = next else { break };
+                        if bytes[..bytes.len().min(8192)].contains(&0) {
+                            continue;
+                        }
+                        let hits = hits_in(&paths[index], &bytes, query, how);
+                        if !hits.is_empty() {
+                            mine.push((index, hits));
+                        }
+                    }
+                    mine
+                })
+            })
+            .collect();
+        handles.into_iter().flat_map(|handle| handle.join().unwrap_or_default()).collect()
+    });
+    found.sort_by_key(|(index, _)| *index);
+    Ok(found.into_iter().flat_map(|(_, hits)| hits).take(HITS_LIMIT).collect())
+}
+
+/// Whether a character joins a word, for a search of whole words.
+fn wordy(c: Option<char>) -> bool {
+    c.is_some_and(|c| c.is_alphanumeric() || c == '_')
+}
+
+/// The lines of one file that hold the query, the first place on each line it stands, at most
+/// HITS_LIMIT of them. Text in ASCII without case, and any text with case, is found by the sift over
+/// the file's bytes; text outside ASCII without case is found line by line in its lower case.
+fn hits_in(path: &str, bytes: &[u8], query: &str, how: Searching) -> Vec<Hit> {
+    let mut found = Vec::new();
+    if how.case || query.is_ascii() {
+        let mut line = 1u64;
+        let mut counted = 0;
+        let mut last_line = 0;
+        for at in crate::sift::find_all(bytes, query.as_bytes(), !how.case) {
+            line += bytes[counted..at].iter().filter(|&&byte| byte == b'\n').count() as u64;
+            counted = at;
+            if line == last_line {
+                continue;
+            }
+            let start = bytes[..at].iter().rposition(|&byte| byte == b'\n').map_or(0, |newline| newline + 1);
+            let end = bytes[at..].iter().position(|&byte| byte == b'\n').map_or(bytes.len(), |newline| at + newline);
+            let before = String::from_utf8_lossy(&bytes[start..at]);
+            if how.word {
+                let after = String::from_utf8_lossy(&bytes[at + query.len()..end]);
+                if wordy(before.chars().next_back()) || wordy(after.chars().next()) {
+                    continue;
+                }
+            }
+            last_line = line;
+            let text = String::from_utf8_lossy(&bytes[start..end]);
+            found.push(hit(path.to_string(), line, before.chars().count() as u64 + 1, text.trim_end_matches('\r')));
+            if found.len() >= HITS_LIMIT {
+                break;
+            }
+        }
+        return found;
+    }
+    let wanted = query.to_lowercase();
+    let text = String::from_utf8_lossy(bytes);
+    for (index, line) in text.lines().enumerate() {
+        let seen_as = line.to_lowercase();
+        let mut from = 0;
+        while let Some(at) = seen_as[from..].find(&wanted) {
+            let at = from + at;
+            if !how.word || (!wordy(seen_as[..at].chars().next_back()) && !wordy(seen_as[at + wanted.len()..].chars().next())) {
+                let col = line.get(..at).map_or(0, |before| before.chars().count()) as u64 + 1;
+                found.push(hit(path.to_string(), index as u64 + 1, col, line));
+                break;
+            }
+            from = at + wanted.len().max(1);
+        }
+        if found.len() >= HITS_LIMIT {
+            break;
+        }
+    }
+    found
+}
+
+/// A regular expression searched by git, over the files `specs` name and `searched` keeps, or nothing
+/// where git cannot search the tree, which is then searched for the query as text.
+fn search_by_git(root: &Path, query: &str, how: Searching, specs: &[String], searched: &dyn Fn(&str) -> bool) -> Option<Result<Vec<Hit>, String>> {
     let mut git = Command::new("git");
-    git.args(["grep", "-n", "--column", "-I", "--no-color", "--untracked", "--full-name"]).current_dir(root);
+    git.args(crate::trust::git_words(root)).args(["grep", "-n", "--column", "-I", "--no-color", "--untracked", "--full-name"]).current_dir(root);
     if !how.case {
         git.arg("-i");
     }
     if how.word {
         git.arg("-w");
     }
-    git.arg(if how.regex { "-E" } else { "-F" });
+    git.arg("-E");
     git.args(["-e", query, "--"]).args(specs);
     git.stdin(Stdio::null()).stderr(Stdio::piped());
     crate::runner::quiet(&mut git);
-    if let Ok(out) = git.output() {
-        // Git says 1 where nothing matched, and more where it could not search.
-        match out.status.code() {
-            Some(0) => {
-                let prefix = Command::new("git").args(["rev-parse", "--show-prefix"]).current_dir(root).output().ok().map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string()).unwrap_or_default();
-                return Ok(String::from_utf8_lossy(&out.stdout)
-                    .lines()
-                    .filter_map(|line| {
-                        let mut parts = line.splitn(4, ':');
-                        let path = parts.next()?;
-                        let number = parts.next()?.parse().ok()?;
-                        let col = parts.next()?.parse().ok()?;
-                        let path = path.strip_prefix(prefix.as_str()).unwrap_or(path).to_string();
-                        searched(&path).then(|| hit(path, number, col, parts.next().unwrap_or_default()))
-                    })
-                    .take(HITS_LIMIT)
-                    .collect());
-            }
-            Some(1) => return Ok(Vec::new()),
-            _ if String::from_utf8_lossy(&out.stderr).contains("regular expression") => {
-                return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
-            }
-            _ => {}
+    let out = git.output().ok()?;
+    // Git says 1 where nothing matched, and more where it could not search.
+    match out.status.code() {
+        Some(0) => {
+            let prefix = Command::new("git").args(["rev-parse", "--show-prefix"]).current_dir(root).output().ok().map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string()).unwrap_or_default();
+            Some(Ok(String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .filter_map(|line| {
+                    let mut parts = line.splitn(4, ':');
+                    let path = parts.next()?;
+                    let number = parts.next()?.parse().ok()?;
+                    let col = parts.next()?.parse().ok()?;
+                    let path = path.strip_prefix(prefix.as_str()).unwrap_or(path).to_string();
+                    searched(&path).then(|| hit(path, number, col, parts.next().unwrap_or_default()))
+                })
+                .take(HITS_LIMIT)
+                .collect()))
         }
+        Some(1) => Some(Ok(Vec::new())),
+        _ if String::from_utf8_lossy(&out.stderr).contains("regular expression") => Some(Err(String::from_utf8_lossy(&out.stderr).trim().to_string())),
+        _ => None,
     }
-    let wanted = if how.case { query.to_string() } else { query.to_lowercase() };
-    let boundary = |text: &str, at: usize, length: usize| {
-        let before = text[..at].chars().next_back();
-        let after = text[at + length..].chars().next();
-        let wordy = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
-        !wordy(before) && !wordy(after)
-    };
-    let mut found = Vec::new();
-    for path in all(root).into_iter().filter(|path| searched(path)) {
-        let full = root.join(&path);
-        if full.metadata().map_or(true, |meta| meta.len() > SEARCHED_BYTES) {
-            continue;
-        }
-        let Ok(bytes) = fs::read(&full) else { continue };
-        if bytes[..bytes.len().min(8192)].contains(&0) {
-            continue;
-        }
-        let text = String::from_utf8_lossy(&bytes);
-        for (index, line) in text.lines().enumerate() {
-            let seen_as = if how.case { line.to_string() } else { line.to_lowercase() };
-            let mut from = 0;
-            while let Some(at) = seen_as[from..].find(&wanted) {
-                let at = from + at;
-                if !how.word || boundary(&seen_as, at, wanted.len()) {
-                    let col = line.get(..at).map_or(0, |before| before.chars().count()) as u64 + 1;
-                    found.push(hit(path.clone(), index as u64 + 1, col, line));
-                    break;
-                }
-                from = at + wanted.len().max(1);
-            }
-            if found.len() >= HITS_LIMIT {
-                return Ok(found);
-            }
-        }
-    }
-    Ok(found)
 }
 
 /// The most paths a search returns.
@@ -854,6 +1060,63 @@ pub fn paste(root: &Path, into: &str, from: &[PathBuf], moving: bool) -> Result<
     Ok(pasted)
 }
 
+/// How often a file brought into the tree tells how far along its copy is.
+const BRING_TELLS: Duration = Duration::from_millis(100);
+
+/// Copies each of `from`, a file or a folder and all it holds, into the folder `into` of the tree,
+/// as a paste copies it, telling `told` the tree's path of each file as it is copied, the bytes
+/// copied of it and its size, every BRING_TELLS and once it is whole. Gives where each went.
+pub fn bring(root: &Path, into: &str, from: &[PathBuf], told: &dyn Fn(&str, u64, u64)) -> Result<Vec<Pasted>, String> {
+    let folder = inside(root, into)?;
+    if !folder.is_dir() {
+        return Err(format!("{into} is no folder"));
+    }
+    let mut brought = Vec::new();
+    for source in from {
+        let name = source.file_name().ok_or_else(|| format!("{} has no name", source.display()))?;
+        if source.is_dir() && folder.starts_with(source) {
+            return Err(format!("{} is not copied into itself", source.display()));
+        }
+        let target = free_name(&folder, Path::new(name));
+        bring_one(root, source, &target, told).map_err(|error| format!("{}: {error}", source.display()))?;
+        brought.push(Pasted { from: source.starts_with(root).then(|| relative(root, source)), to: relative(root, &target) });
+    }
+    forget_seen();
+    Ok(brought)
+}
+
+fn bring_one(root: &Path, source: &Path, target: &Path, told: &dyn Fn(&str, u64, u64)) -> std::io::Result<()> {
+    if source.is_dir() {
+        fs::create_dir(target)?;
+        for entry in fs::read_dir(source)? {
+            let entry = entry?;
+            bring_one(root, &entry.path(), &target.join(entry.file_name()), told)?;
+        }
+        return Ok(());
+    }
+    let size = fs::metadata(source)?.len();
+    let path = relative(root, target);
+    let mut input = fs::File::open(source)?;
+    let mut output = fs::File::create(target)?;
+    let mut buffer = vec![0u8; 1 << 20];
+    let (mut done, mut last) = (0u64, Instant::now());
+    told(&path, 0, size);
+    loop {
+        let read = input.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        output.write_all(&buffer[..read])?;
+        done += read as u64;
+        if last.elapsed() >= BRING_TELLS {
+            told(&path, done, size);
+            last = Instant::now();
+        }
+    }
+    told(&path, size.max(done), size.max(done));
+    Ok(())
+}
+
 /// `name` in `folder`, numbered where the folder holds that name already: `notes.txt`, then
 /// `notes (2).txt`, `notes (3).txt` and on.
 fn free_name(folder: &Path, name: &Path) -> PathBuf {
@@ -914,6 +1177,36 @@ mod pasting {
 }
 
 #[cfg(test)]
+mod bringing {
+    use super::bring;
+    use std::fs;
+    use std::sync::Mutex;
+
+    #[test]
+    fn a_file_and_a_folder_brought_in_are_copied_whole_each_file_telling_its_end() {
+        let base = std::env::temp_dir().join(format!("orior_ui_bring_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("tree/in")).unwrap();
+        fs::create_dir_all(base.join("outside/folder")).unwrap();
+        fs::write(base.join("outside/big.bin"), vec![7u8; 3 << 20]).unwrap();
+        fs::write(base.join("outside/folder/note.txt"), "note").unwrap();
+        fs::write(base.join("tree/in/big.bin"), "here first").unwrap();
+        let base = dunce::canonicalize(&base).unwrap();
+        let root = base.join("tree");
+        let heard = Mutex::new(Vec::new());
+        let brought = bring(&root, "in", &[base.join("outside/big.bin"), base.join("outside/folder")], &|path, done, size| heard.lock().unwrap().push((path.to_string(), done, size))).unwrap();
+        assert_eq!(brought.iter().map(|one| one.to.as_str()).collect::<Vec<_>>(), ["in/big (2).bin", "in/folder"]);
+        assert_eq!(fs::read(root.join("in/big (2).bin")).unwrap().len(), 3 << 20);
+        assert_eq!(fs::read_to_string(root.join("in/folder/note.txt")).unwrap(), "note");
+        assert_eq!(fs::read_to_string(root.join("in/big.bin")).unwrap(), "here first", "nothing is written over");
+        let heard = heard.into_inner().unwrap();
+        assert!(heard.contains(&("in/big (2).bin".to_string(), 3 << 20, 3 << 20)), "the big file tells its end");
+        assert!(heard.contains(&("in/folder/note.txt".to_string(), 4, 4)));
+        fs::remove_dir_all(&base).unwrap();
+    }
+}
+
+#[cfg(test)]
 mod listing {
     use super::all;
     use std::fs;
@@ -933,6 +1226,35 @@ mod listing {
         listed.sort();
         assert_eq!(listed, vec!["a.js".to_string(), "src/b.js".to_string()]);
         fs::remove_dir_all(&repo).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod reading {
+    use super::{ranked, unread};
+    use std::fs;
+
+    #[test]
+    fn a_quick_open_answers_from_the_recent_files_until_the_tree_is_read() {
+        let root = std::env::temp_dir().join(format!("orior_ui_reading_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("alpha.txt"), "one").unwrap();
+        fs::write(root.join("apple.txt"), "two").unwrap();
+        let root = dunce::canonicalize(&root).unwrap();
+        let first = ranked(&root, "a", &["apple.txt".to_string()], 10);
+        assert!(first.reading, "the tree is not read yet");
+        assert_eq!(first.found.iter().map(|one| one.path.as_str()).collect::<Vec<_>>(), ["apple.txt"]);
+        for _ in 0..100 {
+            if !unread(&root) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let read = ranked(&root, "alpha", &[], 10);
+        assert!(!read.reading, "the tree is read");
+        assert_eq!(read.found[0].path, "alpha.txt");
+        fs::remove_dir_all(&root).unwrap();
     }
 }
 
