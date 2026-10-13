@@ -1,122 +1,184 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// frames.c: the readings: the questions read in chunks by reader threads, the tails read a code at a time, each frame read against the vendor, and what the cross says of an instruction read clear or held
+// frames.c: the readings: the cross's work read by a pool of reader threads, a range of the slot encodings read as one run and read on past each stop, the tails read a code at a time, each frame read against the vendor, and what the cross says of an instruction read clear or held
 #include "msq_internal.h"
 
-// The slots of one chunk read: the run read again with every slot the vendor calls illegal put to a NOP, until it reads
-// clean, and that clean run gives every legal slot's operation at once; a chunk takes a reading for each illegal it
-// holds and one more
-static void msq_chunk_read(MsqReader *reader, const MsqDistinct *words, size_t first, size_t count,
-                           MsqReading *readings, _Atomic int *failed)
+// a reader's pause while the queue is empty and another reader may still put to it
+static void msq_paused(void)
 {
-    MsqBytes runs[MSQ_CHUNK];
-    unsigned char illegal[MSQ_CHUNK];
-    memset(illegal, 0, sizeof(illegal));
+#if defined(_WIN32)
+    Sleep(1u);
+#else
+    const struct timespec pause = {0, 1000000L};
+    nanosleep(&pause, NULL);
+#endif
+}
+
+// `work` put to the pool's queue, under its lock: 1, or 0 where the system gives the queue no memory
+int msq_pool_put(MsqPool *pool, MsqWork work)
+{
+    pthread_mutex_lock(&pool->lock);
+    int put = 1;
+    if (pool->queued == pool->room)
+    {
+        const size_t grown = (pool->room != 0u) ? (pool->room * 2u) : 64u;
+        MsqWork *const larger = (MsqWork *)realloc(pool->queue, grown * sizeof(MsqWork));
+        put = (larger != NULL);
+        pool->queue = put ? larger : pool->queue;
+        pool->room = put ? grown : pool->room;
+    }
+    if (put)
+    {
+        pool->queue[pool->queued] = work;
+        pool->queued += 1u;
+    }
+    pthread_mutex_unlock(&pool->lock);
+    return put;
+}
+
+// 1 where the pieces waiting on the pool's queue and the pieces its readers are at are fewer than its readers: a
+// reader then stands idle, and a piece split in two costs no time the idle reader would not have spent waiting
+int msq_pool_starving(MsqPool *pool)
+{
+    pthread_mutex_lock(&pool->lock);
+    const size_t in_hand = (pool->queued - pool->taken) + (size_t)atomic_load(&pool->active);
+    const int starving = in_hand < (size_t)atomic_load(&pool->readers);
+    pthread_mutex_unlock(&pool->lock);
+    return starving;
+}
+
+// A range of the distinct slot encodings, `count` from `first`, read as one run, each already read as illegal put to a
+// NOP: a clean run gives every other encoding's reading at once. The vendor stops at the first instruction it calls
+// illegal and names its address: that encoding is read as illegal, and the range is put back to the queue, whole where
+// it is short or the pool has work enough, and as two where it holds MSQ_SPLIT or more and the pool is starving, the
+// part to the stop, which then reads clean, and the part past it, so that a long range's stops are read past at once.
+// A reading costs the vendor's whole start whatever it holds: a range read again whole takes one reading more for its
+// stop, the two parts take two, and the two are taken only where readers would otherwise stand idle. A stop that names
+// no encoding of the range splits the range in two, down to the one encoding it stops at, read as the vendor says of it
+static void msq_range_read(MsqReader *reader, MsqPool *pool, size_t first, size_t count)
+{
+    MsqBytes *const runs = (MsqBytes *)malloc((count + 1u) * sizeof(MsqBytes));
+    if (runs == NULL)
+    {
+        atomic_store(&pool->failed, 1);
+        return;
+    }
+    const MsqBytes nop = {s_nop, sizeof(s_nop)};
+    MsqReading *const readings = pool->readings;
     for (size_t at = 0u; at < count; at += 1u)
     {
-        runs[at] = words->items[first + at];
+        runs[at] = (readings[first + at].kind == MSQ_ILLEGAL) ? nop : pool->words->items[first + at];
     }
-    MsqBytes nop = {s_nop, sizeof(s_nop)};
+    const int status = msq_read(reader, runs, count);
+    free(runs);
+    if (status < 0)
+    {
+        atomic_store(&pool->failed, 1);
+        return;
+    }
+    if (status == 0)
+    {
+        MsqListing listing;
+        if (!msq_listing_read(reader->output, (size_t)reader->output_size, &listing))
+        {
+            atomic_store(&pool->failed, 1);
+            return;
+        }
+        for (size_t at = 0u; at < count; at += 1u)
+        {
+            if (readings[first + at].kind != MSQ_ILLEGAL)
+            {
+                readings[first + at] = msq_listing_at(&listing, (unsigned long long)at * 16ull);
+            }
+        }
+        msq_listing_free(&listing);
+        return;
+    }
+    unsigned long long address = 0ull;
+    const int named = msq_stopped_at(reader->output, (size_t)reader->output_size, &address);
+    // an address within the range's run is an index a size_t holds
+    const size_t index = (size_t)(address / 16ull);
+    int put = 1;
+    if (named && (index < count) && (readings[first + index].kind != MSQ_ILLEGAL))
+    {
+        readings[first + index].kind = MSQ_ILLEGAL;
+        const MsqWork before = {MSQ_WORK_RANGE, first, index + 1u};
+        const MsqWork past = {MSQ_WORK_RANGE, first + index + 1u, count - index - 1u};
+        const MsqWork whole = {MSQ_WORK_RANGE, first, count};
+        const int split = (count >= MSQ_SPLIT) && (past.count != 0u) && msq_pool_starving(pool);
+        put = split ? (msq_pool_put(pool, before) && msq_pool_put(pool, past)) : msq_pool_put(pool, whole);
+    }
+    else if (count == 1u)
+    {
+        readings[first].kind =
+            msq_illegal_said(reader->output, (size_t)reader->output_size) ? MSQ_ILLEGAL : MSQ_NONE;
+    }
+    else
+    {
+        const MsqWork lower = {MSQ_WORK_RANGE, first, count / 2u};
+        const MsqWork upper = {MSQ_WORK_RANGE, first + (count / 2u), count - (count / 2u)};
+        put = msq_pool_put(pool, lower) && msq_pool_put(pool, upper);
+    }
+    if (!put)
+    {
+        atomic_store(&pool->failed, 1);
+    }
+}
+
+// a reader thread's work: pieces of the pool's work taken one after another until none is left and no reader is at
+// work to put more, each read under the thread's own ident and stream
+void *msq_pool_worker(void *argument)
+{
+    MsqPool *const pool = (MsqPool *)argument;
+    MsqReader reader;
+    memset(&reader, 0, sizeof(reader));
+    reader.output_room = 8ull << 20u;
+    reader.output = (char *)malloc((size_t)reader.output_room);
+    if (reader.output == NULL)
+    {
+        atomic_store(&pool->failed, 1);
+        return NULL;
+    }
+    reader.stream = atomic_fetch_add(&pool->readers, 1u) + 1u;
+    reader.ident = reader.stream;
     while (1)
     {
-        const int status = msq_read(reader, runs, count);
-        if (status < 0)
+        pthread_mutex_lock(&pool->lock);
+        const int taking = (pool->taken < pool->queued) && !atomic_load(&pool->failed);
+        const MsqWork work = taking ? pool->queue[pool->taken] : (MsqWork){MSQ_WORK_RANGE, 0u, 0u};
+        pool->taken += taking ? 1u : 0u;
+        if (taking)
         {
-            atomic_store(failed, 1);
-            return;
+            atomic_fetch_add(&pool->active, 1u);
         }
-        if (status == 0)
+        const int done = !taking && ((atomic_load(&pool->active) == 0u) || atomic_load(&pool->failed));
+        pthread_mutex_unlock(&pool->lock);
+        if (done)
         {
-            MsqListing listing;
-            if (!msq_listing_read(reader->output, (size_t)reader->output_size, &listing))
+            break;
+        }
+        if (!taking)
+        {
+            msq_paused();
+            continue;
+        }
+        if (work.kind == MSQ_WORK_RANGE)
+        {
+            msq_range_read(&reader, pool, work.first, work.count);
+        }
+        else if (work.kind == MSQ_WORK_FRAME)
+        {
+            if (!msq_frame_read(&reader, &pool->frames[work.first], &pool->frame_read[work.first]))
             {
-                atomic_store(failed, 1);
-                return;
+                atomic_store(&pool->failed, 1);
             }
-            for (size_t at = 0u; at < count; at += 1u)
-            {
-                if (illegal[at])
-                {
-                    readings[first + at].kind = MSQ_ILLEGAL;
-                }
-                else
-                {
-                    readings[first + at] = msq_listing_at(&listing, (unsigned long long)at * 16ull);
-                }
-            }
-            msq_listing_free(&listing);
-            return;
         }
-        unsigned long long address = 0ull;
-        const int named = msq_stopped_at(reader->output, (size_t)reader->output_size, &address);
-        const unsigned long long index = address / 16ull;
-        if (!named || (index >= count) || illegal[index])
+        else if (!msq_tails_read(&reader, pool->tails, pool->addressed))
         {
-            msq_readings_each(reader, words, first, count, illegal, readings, failed);
-            return;
+            atomic_store(&pool->failed, 1);
         }
-        illegal[index] = 1u;
-        runs[index] = nop;
+        atomic_fetch_sub(&pool->active, 1u);
     }
-}
-
-// a reader thread's work: chunks taken one after another until none is left, each read under the chunk's own ident
-void *msq_chunks_worker(void *argument)
-{
-    MsqChunks *const work = (MsqChunks *)argument;
-    MsqReader reader;
-    memset(&reader, 0, sizeof(reader));
-    reader.output_room = 8ull << 20u;
-    reader.output = (char *)malloc((size_t)reader.output_room);
-    if (reader.output == NULL)
-    {
-        atomic_store(&work->failed, 1);
-        return NULL;
-    }
-    // the thread's own stream, from 1: the reader after the chunks hands the stream 0
-    reader.stream = atomic_fetch_add(&work->readers, 1u) + 1u;
-    for (size_t chunk = atomic_fetch_add(&work->next, 1u); chunk < work->chunks;
-         chunk = atomic_fetch_add(&work->next, 1u))
-    {
-        // the chunk's index names its blobs
-        reader.ident = (unsigned int)chunk;
-        reader.calls = 0ull;
-        const size_t first = chunk * work->chunk_size;
-        const size_t count = ((first + work->chunk_size) <= work->words->count) ? work->chunk_size
-                                                                                 : (work->words->count - first);
-        msq_chunk_read(&reader, work->words, first, count, work->readings, &work->failed);
-        atomic_fetch_add(&work->calls, reader.calls);
-    }
-    free(reader.output);
-    free(reader.raw);
-    return NULL;
-}
-
-// a reader thread's work over the frames: frames taken one after another until none is left, each read whole under
-// the thread's own ident and stream, both past every chunk reader's
-void *msq_frames_worker(void *argument)
-{
-    MsqFrames *const work = (MsqFrames *)argument;
-    MsqReader reader;
-    memset(&reader, 0, sizeof(reader));
-    reader.output_room = 8ull << 20u;
-    reader.output = (char *)malloc((size_t)reader.output_room);
-    if (reader.output == NULL)
-    {
-        atomic_store(&work->failed, 1);
-        return NULL;
-    }
-    reader.stream = atomic_fetch_add(&work->readers, 1u) + 1u;
-    reader.ident = 0xfffffffeu - reader.stream;
-    for (size_t frame = atomic_fetch_add(&work->next, 1u); frame < work->count;
-         frame = atomic_fetch_add(&work->next, 1u))
-    {
-        reader.calls = 0ull;
-        if (!msq_frame_read(&reader, &work->frames[frame], &work->read[frame]))
-        {
-            atomic_store(&work->failed, 1);
-        }
-        atomic_fetch_add(&work->calls, reader.calls);
-    }
+    atomic_fetch_add(&pool->calls, reader.calls);
     free(reader.output);
     free(reader.raw);
     return NULL;

@@ -20,11 +20,14 @@
 #if defined(_WIN32)
 #include <windows.h>
 #else
+#include <time.h>
 #include <unistd.h>
 #endif
 
-// the encodings one run carries, enough that the readings a run takes are a few and the runs read many at once
-#define MSQ_CHUNK 512u
+// the least encodings a range the vendor stopped in is read on as two while the pool is starving, the part to its stop
+// and the part past it, so that a long range's stops are read past at once; a shorter range, or any while the pool has
+// a piece waiting for every reader, is read again whole with its stop put to a NOP, one reading more for each stop
+#define MSQ_SPLIT 128u
 
 // a NOP for the architecture: put in place of an instruction the vendor calls illegal so the run reads past it. The
 // instruction it stands in for is already held; its own reading is never used
@@ -136,20 +139,6 @@ typedef struct
     size_t slot_count;
 } MsqDistinct;
 
-// the readings of the distinct slot encodings, read in chunks by threads at once, and what the threads count: the
-// chunks are as many as the threads where the encodings allow, each at most MSQ_CHUNK, so that every thread reads
-typedef struct
-{
-    const MsqDistinct *words;
-    MsqReading *readings;
-    size_t chunks;
-    size_t chunk_size;
-    _Atomic size_t next;
-    _Atomic unsigned int readers;
-    _Atomic unsigned long long calls;
-    _Atomic int failed;
-} MsqChunks;
-
 // A frame's reading, a question's code with its slot put to a NOP where it holds one: the place of every instruction
 // the vendor calls illegal, and the listing it reads once each of those is put to a NOP. `readable` 0 where the vendor
 // stopped at no instruction it named, and the frame can be held by no encoding
@@ -161,18 +150,44 @@ typedef struct
     int readable;
 } MsqFrame;
 
-// the frames read by threads at once, each thread a reader of its own: the frames, each one's reading, and what the
-// threads count
+// one piece of the cross's work: a range of the distinct slot encodings read as one run, one frame read whole, or every
+// distinct tail read together
+typedef enum
+{
+    MSQ_WORK_RANGE = 0,
+    MSQ_WORK_FRAME = 1,
+    MSQ_WORK_TAILS = 2
+} MsqWorkKind;
+
 typedef struct
 {
-    const MsqBytes *frames;
-    MsqFrame *read;
+    MsqWorkKind kind;
+    size_t first;
     size_t count;
-    _Atomic size_t next;
+} MsqWork;
+
+// The cross's work, read by a pool of reader threads at once, each thread a reader of its own: the ranges of the
+// distinct slot encodings, each frame and the tails, taken off the queue in the order put. A range the vendor stops in
+// puts ranges of its own to the queue (msq_range_read). The queue is kept under its lock; `active` counts the readers
+// at work, so that a thread finding the queue empty waits while one of them may still put to it
+typedef struct
+{
+    const MsqDistinct *words;
+    MsqReading *readings;
+    const MsqBytes *frames;
+    MsqFrame *frame_read;
+    const MsqDistinct *tails;
+    MsqRegisters *addressed;
+    MsqWork *queue;
+    size_t queued;
+    size_t room;
+    size_t taken;
+    pthread_mutex_t lock;
+    _Atomic unsigned int active;
     _Atomic unsigned int readers;
     _Atomic unsigned long long calls;
     _Atomic int failed;
-} MsqFrames;
+} MsqPool;
 
 // what the cross holds, kept as it goes: the held list, the report, the lines it says of each hold, the holds the
 // teacher reads, and the slots it read clear, a line `<stem> <operation>` each, for a conference the gate may call
@@ -198,7 +213,10 @@ typedef struct
 extern QryBuffer *s_run;
 extern const char *s_nvdisasm;
 extern const char *s_architecture;
+extern _Atomic unsigned long long s_streamed_nanoseconds;
+extern _Atomic unsigned long long s_vendor_nanoseconds;
 
+unsigned long long msq_now(void);
 int msq_added(unsigned char **memory, size_t *held, size_t *room, const void *bytes, size_t size);
 int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count);
 int msq_space(char c);
@@ -216,9 +234,10 @@ int msq_container_code(const MsqBytes *container, MsqBytes *code);
 int msq_distinct_made(MsqDistinct *set, size_t most);
 size_t msq_distinct_index(MsqDistinct *set, const MsqBytes *item);
 void msq_distinct_free(MsqDistinct *set);
-void msq_readings_each(MsqReader *reader, const MsqDistinct *words, size_t first, size_t count, const unsigned char *illegal, MsqReading *readings, _Atomic int *failed);
-void *msq_chunks_worker(void *argument);
-void *msq_frames_worker(void *argument);
+int msq_illegal_said(const char *text, size_t length);
+int msq_pool_put(MsqPool *pool, MsqWork work);
+int msq_pool_starving(MsqPool *pool);
+void *msq_pool_worker(void *argument);
 unsigned int msq_processors(void);
 int msq_tails_read(MsqReader *reader, const MsqDistinct *tails, MsqRegisters *addressed);
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read);

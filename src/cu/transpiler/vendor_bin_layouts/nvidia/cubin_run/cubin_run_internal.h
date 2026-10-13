@@ -198,6 +198,25 @@ extern int s_driver_opened;
 extern int s_dry;
 extern unsigned int s_facets;
 
+// the carrier's clocks over a list, the host's nanoseconds in each stage of a question summed over every question and
+// said as the list ends: the inputs read; the container written and read by the gate; the module loaded and its
+// function found; the memory allotted, filled, read back and given back; the launch between its events; the fault
+// telemetry read; and the rows and the answer handed
+typedef struct
+{
+    unsigned long long input;
+    unsigned long long gate;
+    unsigned long long load;
+    unsigned long long memory;
+    unsigned long long launch;
+    unsigned long long telemetry;
+    unsigned long long handed;
+} CubinRunClocks;
+
+extern CubinRunClocks s_clocks;
+
+unsigned long long cubin_run_host_now(void);
+
 unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsigned long long room);
 unsigned long long cubin_run_ask_key(const char *code_path);
 void cubin_run_verdict_row(unsigned long long ask, unsigned int verdict, unsigned long long at, int dry);

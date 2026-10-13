@@ -253,9 +253,12 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     CubinRunSaying *const answers = &s_answer_said;
     answers->size = 0u;
     s_part_registers = CUBIN_RUN_REGISTERS_UNREAD;
+    const unsigned long long input_began = cubin_run_host_now();
     const unsigned long long ask = cubin_run_ask_key(code_path);
     const unsigned long long code_size = cubin_run_input(code_path, s_code, sizeof(s_code));
-    if ((pattern_size == 0ull) || (code_size == 0ull) || !cubin_run_cases(cases_path))
+    const int cased = (code_size != 0ull) && cubin_run_cases(cases_path);
+    s_clocks.input += cubin_run_host_now() - input_began;
+    if ((pattern_size == 0ull) || !cased)
     {
         fprintf(stderr, "the container, the code or the cases did not read\n");
         return 2;
@@ -272,6 +275,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     }
     // the scheduler's own word set here, before the gate and the part: the protocol sent the code as the part
     // accepted it and named the slot
+    const unsigned long long gate_began = cubin_run_host_now();
     cubin_run_safe_word(s_code, code_size, slot);
     CubinWrite written;
     memset(&written, 0, sizeof(written));
@@ -293,7 +297,10 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     // its register fields bound by the count this question's kernel allots (rule 6)
     unsigned long long at = 0ull;
     const unsigned int verdict = cubin_safe_image(&s_machine, s_container, size, registers, &at);
+    const unsigned long long row_began = cubin_run_host_now();
+    s_clocks.gate += row_began - gate_began;
     cubin_run_verdict_row(ask, verdict, at, s_dry);
+    s_clocks.handed += cubin_run_host_now() - row_began;
     if (s_dry)
     {
         if (s_facets & CUBIN_FACET_VENDOR)
@@ -375,9 +382,12 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     {
         cubin_run_say(answers, "timed %u %llu %llu %llu\n", launches, nanoseconds, s_timed_least, s_timed_most);
     }
+    const unsigned long long handed_began = cubin_run_host_now();
     cubin_run_launch_row(ask, CUBIN_RUN_ANSWERED, launches, (launches != 0u) ? nanoseconds : 0ull,
                          (launches != 0u) ? s_timed_least : 0ull, (launches != 0u) ? s_timed_most : 0ull, "");
-    return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
+    const int said = cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
+    s_clocks.handed += cubin_run_host_now() - handed_began;
+    return said;
 }
 
 // the held list named `name` loaded into the gate, the blob of it in the run's buffer, and with it every encoding that

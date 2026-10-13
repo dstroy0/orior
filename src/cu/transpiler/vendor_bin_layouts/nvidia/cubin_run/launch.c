@@ -2,8 +2,10 @@
 // launch.c: the launch: the host's clock and its turn given up, the launch bounded and timed, the answers read, the container out, and a dry run written
 #include "cubin_run_internal.h"
 
+CubinRunClocks s_clocks;
+
 // the host's clock in nanoseconds, from a start of its own and only ever read against itself
-static unsigned long long cubin_run_host_now(void)
+unsigned long long cubin_run_host_now(void)
 {
 #if defined(_WIN32)
     LARGE_INTEGER counter;
@@ -36,6 +38,40 @@ int s_launch_timed_out = 0;
 // the stop event: the part faulted, its context corrupt, and the launch is answered as refused
 int s_launch_faulted = 0;
 
+// the events a launch is carried between, made once for the process and recorded again for each launch
+static void *s_start = NULL;
+
+static void *s_stop = NULL;
+
+// the part's memory a launch takes, allotted once and kept to the largest a question of the process asks: the cases, a
+// word each thread, and the room each thread writes its answer in
+static CubinRunAddress s_in = 0ull;
+
+static size_t s_in_room = 0u;
+
+static CubinRunAddress s_out = 0ull;
+
+static size_t s_out_room = 0u;
+
+// the part's memory at `*held`, `*room` bytes of it, grown to `needed`: given back and allotted again where it is
+// smaller, kept where it is not. 0, or the status the driver gave
+static CubinRunStatus cubin_run_room(const CubinRunDriver *driver, CubinRunAddress *held, size_t *room, size_t needed)
+{
+    if (*room >= needed)
+    {
+        return 0;
+    }
+    if (*held != 0ull)
+    {
+        driver->release(*held);
+        *held = 0ull;
+        *room = 0u;
+    }
+    const CubinRunStatus status = driver->allocate(held, needed);
+    *room = (status == 0) ? needed : 0u;
+    return status;
+}
+
 // One launch of `function` over `arguments` carried under cubin_safe's rule 6: alone between two events the part stamps
 // from its own timer, its stop event read without waiting on it until the part reaches it, the driver gives an error,
 // or CUBIN_SAFE_LAUNCH_BOUND passes on the host's clock. Its block latency in nanoseconds into `nanoseconds`. 0, the
@@ -43,8 +79,6 @@ int s_launch_faulted = 0;
 static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *function, void **arguments,
                                         const CubinRunShape *shape, unsigned long long *nanoseconds)
 {
-    void *start = NULL;
-    void *stop = NULL;
     float milliseconds = 0.0f;
     *nanoseconds = 0ull;
     if (s_launch_timed_out)
@@ -52,19 +86,22 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
         return CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT;
     }
     // every fault already stamped thrown away first; only one the launch to come stamps then counts against it (rule 7)
+    const unsigned long long drain_began = cubin_run_host_now();
     cubin_run_telemetry_drain();
-    CubinRunStatus status = driver->event_create(&start, 0u);
-    status = (status == 0) ? driver->event_create(&stop, 0u) : status;
-    status = (status == 0) ? driver->event_record(start, NULL) : status;
+    const unsigned long long launch_began = cubin_run_host_now();
+    s_clocks.telemetry += launch_began - drain_began;
+    CubinRunStatus status = (s_start != NULL) ? 0 : driver->event_create(&s_start, 0u);
+    status = ((status == 0) && (s_stop == NULL)) ? driver->event_create(&s_stop, 0u) : status;
+    status = (status == 0) ? driver->event_record(s_start, NULL) : status;
     status = (status == 0) ? driver->launch(function, shape->blocks, 1u, 1u, shape->threads, 1u, 1u, 0u, NULL,
                                             arguments, NULL)
                            : status;
-    status = (status == 0) ? driver->event_record(stop, NULL) : status;
+    status = (status == 0) ? driver->event_record(s_stop, NULL) : status;
     const unsigned long long began = cubin_run_host_now();
     unsigned long long waited = 0ull;
     while (status == 0)
     {
-        const CubinRunStatus reached = driver->event_query(stop);
+        const CubinRunStatus reached = driver->event_query(s_stop);
         waited = cubin_run_host_now() - began;
         if (reached == 0)
         {
@@ -80,7 +117,11 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
     // rule 7: the part's fault telemetry read, and the driver's own word on the stop event with it. A launch that
     // faulted the part halts the process and is answered as refused, named by the driver's error or, where only the
     // stamp caught it, as a failed launch
-    if (cubin_safe_fault(cubin_run_telemetry_faulted(status), status) == CUBIN_SAFE_LAUNCH_FAULT)
+    const unsigned long long faulted_began = cubin_run_host_now();
+    s_clocks.launch += faulted_began - launch_began;
+    const int faulted = cubin_run_telemetry_faulted(status);
+    s_clocks.telemetry += cubin_run_host_now() - faulted_began;
+    if (cubin_safe_fault(faulted, status) == CUBIN_SAFE_LAUNCH_FAULT)
     {
         s_launch_timed_out = 1;
         s_launch_faulted = 1;
@@ -91,17 +132,9 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
         s_launch_timed_out = 1;
         return CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT;
     }
-    status = (status == 0) ? driver->event_elapsed(&milliseconds, start, stop) : status;
+    status = (status == 0) ? driver->event_elapsed(&milliseconds, s_start, s_stop) : status;
     // the driver gives the time as milliseconds in a float; a nanosecond is a millionth of one
     *nanoseconds = (unsigned long long)((double)milliseconds * 1000000.0);
-    if (start != NULL)
-    {
-        driver->event_destroy(start);
-    }
-    if (stop != NULL)
-    {
-        driver->event_destroy(stop);
-    }
     return status;
 }
 
@@ -172,12 +205,12 @@ static void cubin_run_answers_read(const unsigned int *written, unsigned int cou
 CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel, const CubinRunShape *shape,
                                        unsigned int launches, unsigned long long *nanoseconds)
 {
+    // the driver and the part's primary context, reached once for the process
+    static int s_context_set = 0;
     int device = 0;
     void *context = NULL;
     void *module = NULL;
     void *function = NULL;
-    CubinRunAddress in = 0ull;
-    CubinRunAddress out = 0ull;
     unsigned int count = shape->threads * shape->blocks;
     const size_t in_bytes = (size_t)count * sizeof(s_cases[0]);
     const size_t out_bytes = (size_t)count * CUBIN_RUN_OUT_ROOM * sizeof(unsigned int);
@@ -193,10 +226,12 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     {
         memcpy(given[thread], s_cases[thread % s_case_count], sizeof(s_cases[0]));
     }
-    CubinRunStatus status = driver->init(0u);
-    status = (status == 0) ? driver->device_get(&device, 0) : status;
-    status = (status == 0) ? driver->context_retain(&context, device) : status;
-    status = (status == 0) ? driver->context_set(context) : status;
+    const unsigned long long load_began = cubin_run_host_now();
+    CubinRunStatus status = s_context_set ? 0 : driver->init(0u);
+    status = ((status == 0) && !s_context_set) ? driver->device_get(&device, 0) : status;
+    status = ((status == 0) && !s_context_set) ? driver->context_retain(&context, device) : status;
+    status = ((status == 0) && !s_context_set) ? driver->context_set(context) : status;
+    s_context_set = s_context_set || (status == 0);
     status = (status == 0) ? driver->module_load(&module, s_container) : status;
     status = (status == 0) ? driver->function_get(&function, module, kernel) : status;
     if (status == 0)
@@ -209,12 +244,15 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
                 ? (unsigned int)reported
                 : CUBIN_RUN_REGISTERS_UNREAD;
     }
-    status = (status == 0) ? driver->allocate(&in, in_bytes) : status;
-    status = (status == 0) ? driver->allocate(&out, out_bytes) : status;
-    status = (status == 0) ? driver->copy_in(in, given, in_bytes) : status;
+    const unsigned long long memory_began = cubin_run_host_now();
+    s_clocks.load += memory_began - load_began;
+    status = (status == 0) ? cubin_run_room(driver, &s_in, &s_in_room, in_bytes) : status;
+    status = (status == 0) ? cubin_run_room(driver, &s_out, &s_out_room, out_bytes) : status;
+    status = (status == 0) ? driver->copy_in(s_in, given, in_bytes) : status;
     free(given);
-    status = (status == 0) ? driver->clear(out, CUBIN_RUN_FILL, out_bytes) : status;
-    void *arguments[] = {&in, &out, &count};
+    status = (status == 0) ? driver->clear(s_out, CUBIN_RUN_FILL, out_bytes) : status;
+    s_clocks.memory += cubin_run_host_now() - memory_began;
+    void *arguments[] = {&s_in, &s_out, &count};
     unsigned long long answered_latency = 0ull;
     status = (status == 0) ? cubin_run_bounded(driver, function, arguments, shape, &answered_latency) : status;
     if (s_launch_timed_out)
@@ -223,12 +261,14 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
         *nanoseconds = 0ull;
         return status;
     }
-    status = (status == 0) ? driver->copy_out(written, out, out_bytes) : status;
+    const unsigned long long read_began = cubin_run_host_now();
+    status = (status == 0) ? driver->copy_out(written, s_out, out_bytes) : status;
     if (status == 0)
     {
         cubin_run_answers_read(written, count);
     }
     free(written);
+    s_clocks.memory += cubin_run_host_now() - read_began;
     *nanoseconds = 0ull;
     status = ((status == 0) && (launches != 0u))
                  ? cubin_run_timed(driver, function, arguments, shape, launches, nanoseconds)
@@ -237,19 +277,14 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     {
         return status;
     }
-    // what the question held given back, so that a process carrying many holds one question's at a time
-    if (in != 0ull)
-    {
-        driver->release(in);
-    }
-    if (out != 0ull)
-    {
-        driver->release(out);
-    }
+    // the question's module given back, so that a process carrying many holds one question's code at a time; the
+    // memory its launch took is kept for the next question's
+    const unsigned long long freed_began = cubin_run_host_now();
     if (module != NULL)
     {
         driver->module_unload(module);
     }
+    s_clocks.memory += cubin_run_host_now() - freed_began;
     return status;
 }
 

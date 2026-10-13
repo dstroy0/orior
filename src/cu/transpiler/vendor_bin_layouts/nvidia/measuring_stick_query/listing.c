@@ -5,6 +5,27 @@ QryBuffer *s_run = NULL;
 const char *s_nvdisasm = NULL;
 const char *s_architecture = NULL;
 
+// the time the readings spent handing their runs to the writer's streams, and the time the vendor took over them,
+// each summed over every reader: the cross's account of where its time went
+_Atomic unsigned long long s_streamed_nanoseconds;
+_Atomic unsigned long long s_vendor_nanoseconds;
+
+// the host's clock in nanoseconds, from a start of its own and only ever read against itself
+unsigned long long msq_now(void)
+{
+#if defined(_WIN32)
+    LARGE_INTEGER counter;
+    LARGE_INTEGER frequency;
+    QueryPerformanceCounter(&counter);
+    QueryPerformanceFrequency(&frequency);
+    return (unsigned long long)(((double)counter.QuadPart * 1000000000.0) / (double)frequency.QuadPart);
+#else
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return ((unsigned long long)now.tv_sec * 1000000000ull) + (unsigned long long)now.tv_nsec;
+#endif
+}
+
 // the bytes `size` of them at `bytes` added to the end of `*memory`, which holds `*held` of `*room`: 1, or 0 where the
 // system gives no memory
 int msq_added(unsigned char **memory, size_t *held, size_t *room, const void *bytes, size_t size)
@@ -47,14 +68,18 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     char stream_name[64];
     char stream_path[1400];
     snprintf(stream_name, sizeof(stream_name), "msq_stream_%u", reader->stream);
-    if (!joined || (qry_streamed(s_run, stream_name, reader->raw, (unsigned long long)reader->raw_size, stream_path,
-                                 sizeof(stream_path)) == 0ull))
+    const unsigned long long streamed_began = msq_now();
+    const int streamed = joined && (qry_streamed(s_run, stream_name, reader->raw, (unsigned long long)reader->raw_size,
+                                                 stream_path, sizeof(stream_path)) != 0ull);
+    atomic_fetch_add(&s_streamed_nanoseconds, msq_now() - streamed_began);
+    if (!streamed)
     {
         return -1;
     }
     // the interface's command is a list of words it does not write to; the casts only meet its declared type
     char *const command[] = {(char *)s_nvdisasm, (char *)"--binary", (char *)s_architecture, stream_path, NULL};
     InterfaceAnswer answer;
+    const unsigned long long vendor_began = msq_now();
     // read again where the output ran past the room it was given, the room grown to hold it
     for (unsigned int tried = 0u; tried < 2u; tried += 1u)
     {
@@ -81,6 +106,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
         reader->output = larger;
         reader->output_room = room;
     }
+    atomic_fetch_add(&s_vendor_nanoseconds, msq_now() - vendor_began);
     reader->output_size =
         (answer.output_bytes < reader->output_room) ? answer.output_bytes : (reader->output_room - 1ull);
     // what the vendor printed of the run, the cross's trace (qry_buffer.h, QRY_TRACE)

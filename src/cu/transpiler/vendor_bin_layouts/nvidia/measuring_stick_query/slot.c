@@ -3,7 +3,7 @@
 #include "msq_internal.h"
 
 // 1 where the vendor's output says it found an illegal instruction
-static int msq_illegal_said(const char *text, size_t length)
+int msq_illegal_said(const char *text, size_t length)
 {
     static const char s_said[] = "Illegal instruction found";
     const size_t said = sizeof(s_said) - 1u;
@@ -316,41 +316,4 @@ void msq_distinct_free(MsqDistinct *set)
     free(set->items);
     free(set->slots);
     memset(set, 0, sizeof(*set));
-}
-
-// The slots of a chunk not already in `illegal` read one at a time: the way out where the vendor stops at an address no
-// slot of the chunk holds, and no single illegal can be found to read past
-void msq_readings_each(MsqReader *reader, const MsqDistinct *words, size_t first, size_t count,
-                              const unsigned char *illegal, MsqReading *readings, _Atomic int *failed)
-{
-    for (size_t at = 0u; at < count; at += 1u)
-    {
-        if (illegal[at])
-        {
-            readings[first + at].kind = MSQ_ILLEGAL;
-            continue;
-        }
-        const int status = msq_read(reader, &words->items[first + at], 1u);
-        if (status < 0)
-        {
-            atomic_store(failed, 1);
-            return;
-        }
-        if (status == 0)
-        {
-            MsqListing listing;
-            if (!msq_listing_read(reader->output, (size_t)reader->output_size, &listing))
-            {
-                atomic_store(failed, 1);
-                return;
-            }
-            readings[first + at] = msq_listing_at(&listing, 0ull);
-            msq_listing_free(&listing);
-        }
-        else
-        {
-            readings[first + at].kind =
-                msq_illegal_said(reader->output, (size_t)reader->output_size) ? MSQ_ILLEGAL : MSQ_NONE;
-        }
-    }
 }

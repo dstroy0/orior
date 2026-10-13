@@ -73,6 +73,11 @@
 //
 //     timed <launches> <nanoseconds> <least> <most>
 //
+// As a list ends the carrier says where its time went, one line of its own output: `carrier: <questions> questions;
+// input, gate, load, memory, launch, telemetry, handed`, the seconds each stage took summed over the list
+// (CubinRunClocks). The part's memory a launch takes and the events it is carried between are allotted once for the
+// process and kept to the largest a question asks; a question's module is given back as it is answered.
+//
 // Each question the gate reads is a row of the run's table of verdicts, put past every rule or held, and each launch a
 // row of its table of launches, each keyed to its ask, the sequence of the question's code's blob in the run
 // (verdicts.oracle.tsv, launches.oracle.tsv, qry_buffer.h).
@@ -210,6 +215,7 @@ int main(int count, char **words)
     }
     char line[4u * CUBIN_RUN_LINE];
     int carried = 0;
+    unsigned int questions = 0u;
     // a launch that faulted the part or hung ends the round: nothing is launched after it in this process, and the
     // questions left are answered by no one, for the teacher to put again once the conference has ruled
     while ((carried == 0) && !s_launch_timed_out && cubin_run_line(&list, line, sizeof(line)))
@@ -227,7 +233,15 @@ int main(int count, char **words)
         }
         carried = cubin_run_question(kernel, pattern_size, code_path, registers, cases_path, answers_path, slot,
                                      launches, unshaped, 0);
+        questions += 1u;
     }
     cubin_run_lines_close(&list);
+    // the carrier's account of where its time went over the list, a stage a clock, summed over every question
+    printf("carrier: %u questions; input %.3f s, gate %.3f s, load %.3f s, memory %.3f s, launch %.3f s, telemetry "
+           "%.3f s, handed %.3f s\n",
+           questions, (double)s_clocks.input / 1000000000.0, (double)s_clocks.gate / 1000000000.0,
+           (double)s_clocks.load / 1000000000.0, (double)s_clocks.memory / 1000000000.0,
+           (double)s_clocks.launch / 1000000000.0, (double)s_clocks.telemetry / 1000000000.0,
+           (double)s_clocks.handed / 1000000000.0);
     return (carried == 2) ? 2 : 0;
 }
