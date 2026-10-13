@@ -9,3 +9,13 @@
 //! toolchains.
 
 pub mod programs;
+pub mod tools;
+
+/// The top of the tree this crate stands in, for the tests: three folders up from the crate.
+#[cfg(test)]
+pub(crate) fn tree_root() -> std::path::PathBuf {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..").join("..");
+    let full = root.canonicalize().unwrap_or(root);
+    let text = full.to_string_lossy();
+    std::path::PathBuf::from(text.strip_prefix("\\\\?\\").unwrap_or(&text))
+}
