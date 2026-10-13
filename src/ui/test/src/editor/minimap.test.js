@@ -59,3 +59,20 @@ test("the wheel over the minimap scrolls the text", async () => {
   await ui.wheel({ x: box.left + box.width / 3, y: box.top + box.height / 2 }, 600);
   await ui.waitFor(() => view.scroller.scrollTop - before > 200, 3000, "the text to scroll");
 });
+
+test("a minimap with no room draws nothing and throws nothing", async () => {
+  showView("edit");
+  await openFile("hello.py");
+  await ui.waitFor(() => editing().editor?.s, 5000, "the editor");
+  const host = editing().editor.host;
+  const was = host.style.display;
+  host.style.display = "none";
+  try {
+    editing().editor.paint();
+    await ui.frame();
+  } finally {
+    host.style.display = was;
+  }
+  editing().editor.paint();
+});
+

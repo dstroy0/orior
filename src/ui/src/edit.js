@@ -581,9 +581,9 @@ export function setSideTabs(on = !sideTabs()) {
 
 const groupOf = (path) => state.groups.find((group) => group.paths.includes(path)) ?? null;
 
-async function addToGroup(tab) {
+async function addToGroup(tab, given = null) {
   const { askFor } = await import("./menubar.js");
-  const name = (await askFor("The group's name", groupOf(tab.path)?.name ?? state.groups.at(-1)?.name ?? ""))?.trim();
+  const name = (given ?? (await askFor("The group's name", groupOf(tab.path)?.name ?? state.groups.at(-1)?.name ?? "")))?.trim();
   if (!name) {
     return;
   }
@@ -3454,37 +3454,89 @@ const SHOWN_IN_WINDOW = new Set(["html", "htm", "svg", "png", "jpg", "jpeg"]);
 // A row of the tree's menu: open or close a folder, open a file in the editor or a page in a window
 // of its own, cut or copy it, paste files into its folder, copy where it is, or open the terminal in
 // its folder. Off the rows, files paste into the tree's top.
+// The tree's file menu and a tab's menu as commands, each by the name commands.json gives it, run
+// from the menu or from the command line with the words it gives: a path of the tree, a mount's name
+// for Remove from Window, and what each names besides.
+const rowOfPath = (path) => [...document.querySelectorAll("#files .node")].find((row) => row.dataset.key === path) ?? null;
+const parentOf = (path) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
+
+async function isFolder(path) {
+  const row = rowOfPath(path);
+  if (row) {
+    return row.classList.contains("dir");
+  }
+  return (await childrenOf(parentOf(path)).catch(() => [])).some((entry) => entry.path === path && entry.dir);
+}
+
+const folderOfPath = async (path) => ((await isFolder(path)) ? path : parentOf(path));
+const tabNamed = (path) => tabOf(path) ?? state.tabs.find((tab) => tab.file === path) ?? null;
+
+export const popupCommands = {
+  "file-open": async ([path]) => {
+    if (!(await isFolder(path))) {
+      await openFile(path);
+      return;
+    }
+    if (state.expanded.has(path)) {
+      state.expanded.delete(path);
+    } else {
+      state.expanded.add(path);
+    }
+    await drawTree();
+  },
+  "file-remove": ([name]) => removeFromWindow(name.replace(/^@/, "")),
+  "file-names": ([path, label = ""]) => chooseNames(path, label),
+  "file-open-window": ([path]) => invoke("view_open", { path }),
+  "file-cut": ([path]) => copyFiles(path, true),
+  "file-copy": ([path]) => copyFiles(path, false),
+  "file-paste": async ([path = ""]) => pasteFiles(path ? await folderOfPath(path) : ""),
+  "file-copy-path": ([path]) => copyText(path),
+  "file-terminal": async ([path = ""]) => terminalAt(path ? await folderOfPath(path) : ""),
+  "file-select-compare": ([path]) => (state.compareFrom = path),
+  "file-compare": ([path, other = state.compareFrom]) => other && compareFiles(other, path),
+  "tab-close": ([path]) => tabNamed(path) && closeTab(tabNamed(path)),
+  "tab-close-others": ([path]) => state.tabs.filter((one) => one !== tabNamed(path)).forEach(closeTab),
+  "tab-split-right": ([path]) => (show(tabNamed(path)?.path ?? path), splitEditor("right")),
+  "tab-split-down": ([path]) => (show(tabNamed(path)?.path ?? path), splitEditor("down")),
+  "tab-new-window": ([path]) => tabNamed(path) && tabToNewWindow(tabNamed(path)),
+  "tab-group": ([path, name]) => tabNamed(path) && addToGroup(tabNamed(path), name),
+  "tab-ungroup": ([path]) => (leaveGroup(tabNamed(path)?.path ?? path), drawTabs()),
+  "tab-mark": ([path]) => toggleMark(tabNamed(path)?.file ?? path),
+  "tab-open-as": ([path, as]) => tabNamed(path) && reopenAs(tabNamed(path), as === "notebook" ? "notebook" : "text"),
+};
+
+// An item that runs `command` with `args`, as the command line runs it, and says both.
+const act = (command, args, item) => ({ ...item, command, args, run: () => popupCommands[command](args) });
+
 function fileItems(event) {
   const row = event.target.closest(".node");
   if (!row) {
-    return event.target.closest("#files") ? [{ label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles, run: () => pasteFiles("") }] : null;
+    return event.target.closest("#files") ? [act("file-paste", [], { label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles })] : null;
   }
   const path = row.dataset.key;
   const folder = row.classList.contains("dir");
-  const open = folder
-    ? { label: state.expanded.has(path) ? "Close" : "Open", run: () => row.click() }
-    : { label: "Open", run: () => openFile(path) };
+  const open = act("file-open", [path], { label: folder && state.expanded.has(path) ? "Close" : "Open" });
   const mounted = row.classList.contains("mount") ? path.slice(1) : null;
   const names = namesChosen()[path] ?? "";
   return [
     open,
-    ...(mounted ? [{ label: "Remove from Window", run: () => removeFromWindow(mounted) }] : []),
-    ...(row.dataset.archive ? [{ label: "Names' Encoding", items: NAME_ENCODINGS.map(([label, shown]) => ({ label: shown, checked: names === label, run: () => chooseNames(path, label) })) }] : []),
-    ...(folder ? [] : [{ label: "Open in Next Split", run: () => openInSplit(path) }]),
-    ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
+    ...(mounted ? [act("file-remove", [mounted], { label: "Remove from Window" })] : []),
+    ...(row.dataset.archive ? [{ label: "Names' Encoding", items: NAME_ENCODINGS.map(([label, shown]) => act("file-names", [path, label], { label: shown, checked: names === label })) }] : []),
+    ...(folder ? [] : [{ label: "Open in Next Split", command: "open-in-split", args: [path], run: () => openInSplit(path) }]),
+    ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [act("file-open-window", [path], { label: "Open in a window" })] : []),
     "-",
-    { label: "Cut", keys: "Ctrl+X", run: () => copyFiles(path, true) },
-    { label: "Copy", keys: "Ctrl+C", run: () => copyFiles(path, false) },
-    { label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles, run: () => pasteFiles(folderOfRow(row)) },
+    act("file-cut", [path], { label: "Cut", keys: "Ctrl+X" }),
+    act("file-copy", [path], { label: "Copy", keys: "Ctrl+C" }),
+    act("file-paste", [folderOfRow(row)], { label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles }),
     "-",
-    { label: "Copy path", run: () => copyText(path) },
-    { label: "Open in terminal", run: () => terminalAt(folderOfRow(row)) },
+    act("file-copy-path", [path], { label: "Copy path" }),
+    act("file-terminal", [folderOfRow(row)], { label: "Open in terminal" }),
     ...(folder
       ? []
       : [
           "-",
-          { label: "Select for Compare", run: () => (state.compareFrom = path) },
-          { label: state.compareFrom ? `Compare with ${state.compareFrom.split("/").pop()}` : "Compare with Selected", disabled: !state.compareFrom || state.compareFrom === path, run: () => compareFiles(state.compareFrom, path) },
+          act("file-select-compare", [path], { label: "Select for Compare" }),
+          act("file-compare", [path], { label: state.compareFrom ? `Compare with ${state.compareFrom.split("/").pop()}` : "Compare with Selected", disabled: !state.compareFrom || state.compareFrom === path }),
         ]),
   ];
 }
@@ -3584,22 +3636,22 @@ function tabMenu(tab) {
   }
   const others = state.tabs.filter((one) => one !== tab);
   return [
-    { label: "Close", run: () => closeTab(tab) },
-    { label: "Close others", disabled: !others.length, run: () => others.forEach(closeTab) },
-    { label: "Close all", run: () => [...state.tabs].forEach(closeTab) },
+    act("tab-close", [tab.path], { label: "Close" }),
+    act("tab-close-others", [tab.path], { label: "Close others", disabled: !others.length }),
+    { label: "Close all", command: "close-all", args: [], run: () => [...state.tabs].forEach(closeTab) },
     "-",
-    { label: "Split Right", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("right")) },
-    { label: "Split Down", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("down")) },
-    { label: "Open in Next Split", disabled: !splittable(tab), run: () => openInSplit(tab.path) },
-    { label: "Open in New Window", disabled: Boolean(tab.commit), run: () => tabToNewWindow(tab) },
+    act("tab-split-right", [tab.path], { label: "Split Right", disabled: !tab.session || Boolean(tab.commit) }),
+    act("tab-split-down", [tab.path], { label: "Split Down", disabled: !tab.session || Boolean(tab.commit) }),
+    { label: "Open in Next Split", command: "open-in-split", args: [tab.path], disabled: !splittable(tab), run: () => openInSplit(tab.path) },
+    act("tab-new-window", [tab.path], { label: "Open in New Window", disabled: Boolean(tab.commit) }),
     "-",
-    { label: "Add to Group…", run: () => addToGroup(tab) },
-    { label: "Remove from Group", disabled: !groupOf(tab.path), run: () => (leaveGroup(tab.path), drawTabs()) },
-    { label: markedFiles().includes(tab.file) ? "Unmark File" : "Mark File", disabled: Boolean(tab.commit), run: () => toggleMark(tab.file) },
+    act("tab-group", [tab.path], { label: "Add to Group…" }),
+    act("tab-ungroup", [tab.path], { label: "Remove from Group", disabled: !groupOf(tab.path) }),
+    act("tab-mark", [tab.file], { label: markedFiles().includes(tab.file) ? "Unmark File" : "Mark File", disabled: Boolean(tab.commit) }),
     "-",
-    { label: "Copy path", run: () => copyText(tab.file) },
+    act("file-copy-path", [tab.file], { label: "Copy path" }),
     ...(tab.notebook || (tab.session && (isNotebook(tab.path) || /^\s*(#|\/\/|%|--) %%/m.test(tab.session.doc.text())))
-      ? ["-", { label: tab.notebook ? "Open as Text" : "Open as Notebook", disabled: Boolean(tab.commit), run: () => reopenAs(tab, tab.notebook ? "text" : "notebook") }]
+      ? ["-", act("tab-open-as", [tab.path, tab.notebook ? "text" : "notebook"], { label: tab.notebook ? "Open as Text" : "Open as Notebook", disabled: Boolean(tab.commit) })]
       : []),
   ];
 }
@@ -3641,30 +3693,30 @@ function editorItems() {
   };
   const served = Boolean(tabOf(state.active)?.served);
   return [
-    { label: "Go to Definition", keys: "F12", disabled: !served, run: () => goToDefinition(editor.head()) },
-    { label: "Find Usages", keys: "Shift+F12", run: findUsages },
-    { label: "Rename Symbol…", keys: "F2", disabled: !served, run: renameSymbol },
-    { label: "Quick Fix…", keys: "Ctrl+.", disabled: !served && !tabOf(state.active)?.inspected, run: quickFix },
+    { command: "definition", args: [], label: "Go to Definition", keys: "F12", disabled: !served, run: () => goToDefinition(editor.head()) },
+    { command: "usages", args: [], label: "Find Usages", keys: "Shift+F12", run: findUsages },
+    { command: "rename", args: [], label: "Rename Symbol…", keys: "F2", disabled: !served, run: renameSymbol },
+    { command: "quick-fix", args: [], label: "Quick Fix…", keys: "Ctrl+.", disabled: !served && !tabOf(state.active)?.inspected, run: quickFix },
     {
       label: "Refactor",
       items: [
-        { label: "Extract Variable", keys: "Ctrl+Alt+V", run: () => extractVariable(editor, fileOf(state.active)) },
-        { label: "Extract Constant", keys: "Ctrl+Alt+C", run: () => extractConstant(editor) },
-        { label: "Extract Function", keys: "Ctrl+Alt+M", run: () => extractFunction(editor, tabOfSession(editor.s)) },
-        { label: "Inline Variable", keys: "Ctrl+Alt+N", run: () => inlineVariable(editor) },
+        { command: "extract-variable", args: [], label: "Extract Variable", keys: "Ctrl+Alt+V", run: () => extractVariable(editor, fileOf(state.active)) },
+        { command: "extract-constant", args: [], label: "Extract Constant", keys: "Ctrl+Alt+C", run: () => extractConstant(editor) },
+        { command: "extract-function", args: [], label: "Extract Function", keys: "Ctrl+Alt+M", run: () => extractFunction(editor, tabOfSession(editor.s)) },
+        { command: "inline-variable", args: [], label: "Inline Variable", keys: "Ctrl+Alt+N", run: () => inlineVariable(editor) },
       ],
     },
     "-",
-    { label: "Cut", keys: "Ctrl+X", run: held("cut") },
-    { label: "Copy", keys: "Ctrl+C", run: held("copy") },
-    { label: "Paste", keys: "Ctrl+V", run: pasted },
+    { command: "cut", args: [], label: "Cut", keys: "Ctrl+X", run: held("cut") },
+    { command: "copy", args: [], label: "Copy", keys: "Ctrl+C", run: held("copy") },
+    { command: "paste", args: [], label: "Paste", keys: "Ctrl+V", run: pasted },
     "-",
-    { label: "Select all", keys: "Ctrl+A", run: () => editor.selectAll() },
-    { label: "Find", keys: "Ctrl+F", run: () => editor.find.open(false) },
-    { label: "Replace", keys: "Ctrl+H", run: () => editor.find.open(true) },
-    { label: "Go to line", keys: "Ctrl+G", run: () => editor.goto.open() },
+    { command: "select-all", args: [], label: "Select all", keys: "Ctrl+A", run: () => editor.selectAll() },
+    { command: "find", args: [], label: "Find", keys: "Ctrl+F", run: () => editor.find.open(false) },
+    { command: "replace", args: [], label: "Replace", keys: "Ctrl+H", run: () => editor.find.open(true) },
+    { command: "line", args: [], label: "Go to line", keys: "Ctrl+G", run: () => editor.goto.open() },
     "-",
-    { label: "Save", keys: "Ctrl+S", disabled: !dirty(tabOf(state.active)), run: saveActive },
+    { command: "save", args: [], label: "Save", keys: "Ctrl+S", disabled: !dirty(tabOf(state.active)), run: saveActive },
   ];
 }
 

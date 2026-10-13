@@ -29,7 +29,7 @@ import { focusOn, lastMemory, memoryBudget, say, setFocus, setMemoryBudget } fro
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
 import { authorsShown, setAuthorsShown } from "./authors.js";
-import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
+import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, popupCommands, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
@@ -45,7 +45,7 @@ import { loadUserCss, openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { printText } from "./print.js";
-import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
+import { clipText, closeMenu, copyText, menuOpen, showMenu } from "./menu.js";
 import { markdownHtml } from "./markdown.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
@@ -105,6 +105,15 @@ const inEditor = (act) => () => {
   editor.focus();
   act(editor);
 };
+
+// Takes the selections' text, or the cursors' whole lines, out of the editor for the clipboard, as
+// its keys do, and out of the text where `cut`: put on the clipboard through the window's own, which
+// needs no press of the reader's.
+function clipOut(editor, cut) {
+  const text = editor.takeOut(cut);
+  editor.note({ cut });
+  return copyText(text.replace(/\n/g, editor.doc.eol));
+}
 
 async function pasted(editor) {
   const text = await clipText();
@@ -319,8 +328,8 @@ const COMMANDS = {
   exit: () => invoke("app_exit"),
   undo: inEditor((e) => e.undo(true)),
   redo: inEditor((e) => e.undo(false)),
-  cut: inEditor(() => document.execCommand("cut")),
-  copy: inEditor(() => document.execCommand("copy")),
+  cut: inEditor((e) => clipOut(e, true)),
+  copy: inEditor((e) => clipOut(e, false)),
   paste: inEditor(pasted),
   find: inEditor((e) => e.find.open(false)),
   search: findInFiles,
@@ -559,6 +568,9 @@ const COMMANDS = {
   "whats-new": showChanges,
   "trust-tree": () => askTrust(),
 };
+
+// A command of the menus or of the popup menus, which take what each item is over, read as it is run.
+const commandNamed = (command) => (Object.hasOwn(COMMANDS, command) ? COMMANDS[command] : Object.hasOwn(popupCommands, command) ? popupCommands[command] : undefined);
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {
@@ -1170,16 +1182,16 @@ function askYes(question, yes) {
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
 export function runCommand(command, args = []) {
-  return COMMANDS[command]?.(args);
+  return commandNamed(command)?.(args);
 }
 
 // Whether the window answers `command` itself.
-export const hasCommand = (command) => Object.hasOwn(COMMANDS, command);
+export const hasCommand = (command) => Boolean(commandNamed(command));
 
 // Every command the menus list that can act now, for the quick open's >.
 function paletteCommands() {
   const found = [];
-  for (const menu of state.menus) {
+  for (const menu of state.menus.filter((one) => !one.popup)) {
     for (const item of menu.all) {
       if (item.command === "palette" || (item.needs && !NEEDS[item.needs]?.())) {
         continue;
@@ -1299,7 +1311,7 @@ export function sheet(body) {
 
 // The menus the bar has a title for: each of commands, and each of jobs that has a job in the tree.
 function shownMenus() {
-  return laidOut().filter((menu) => !menu.strip && (menu.items?.length || jobsIn(menu.groups ?? []).length));
+  return laidOut().filter((menu) => !menu.strip && !menu.popup && (menu.items?.length || jobsIn(menu.groups ?? []).length));
 }
 
 // Menus and a toolbar of the reader's, from menus.json in orior's own folder. Each item names a

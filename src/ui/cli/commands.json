@@ -352,6 +352,38 @@
       ]
     },
     {
+      "title": "Files",
+      "popup": true,
+      "items": [
+        { "label": "Open", "command": "file-open", "args": "<path>" },
+        { "label": "Remove from Window", "command": "file-remove", "args": "<name>" },
+        { "label": "Names' Encoding", "command": "file-names", "args": "<archive> [encoding]" },
+        { "label": "Open in a window", "command": "file-open-window", "args": "<file>" },
+        { "label": "Cut", "command": "file-cut", "args": "<path>" },
+        { "label": "Copy", "command": "file-copy", "args": "<path>" },
+        { "label": "Paste", "command": "file-paste", "args": "[folder]" },
+        { "label": "Copy path", "command": "file-copy-path", "args": "<path>" },
+        { "label": "Open in terminal", "command": "file-terminal", "args": "[path]" },
+        { "label": "Select for Compare", "command": "file-select-compare", "args": "<file>" },
+        { "label": "Compare with Selected", "command": "file-compare", "args": "<file> [other]" }
+      ]
+    },
+    {
+      "title": "Tab",
+      "popup": true,
+      "items": [
+        { "label": "Close", "command": "tab-close", "args": "<file>" },
+        { "label": "Close others", "command": "tab-close-others", "args": "<file>" },
+        { "label": "Split Right", "command": "tab-split-right", "args": "<file>" },
+        { "label": "Split Down", "command": "tab-split-down", "args": "<file>" },
+        { "label": "Open in New Window", "command": "tab-new-window", "args": "<file>" },
+        { "label": "Add to Group…", "command": "tab-group", "args": "<file> [group]" },
+        { "label": "Remove from Group", "command": "tab-ungroup", "args": "<file>" },
+        { "label": "Mark File", "command": "tab-mark", "args": "<file>" },
+        { "label": "Open as Notebook", "command": "tab-open-as", "args": "<file> <text|notebook>" }
+      ]
+    },
+    {
       "title": "Help",
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },

@@ -11,6 +11,8 @@ import { editing, openFile } from "../../src/edit.js";
 import { killTerminal, newTerminal, runInTerminal, toggleTerminal } from "../../src/terminal.js";
 import { showView } from "../../src/views.js";
 import { paletteOpen } from "../../src/palette.js";
+import { closeDiff } from "../../src/diffview.js";
+import { changeShown, closeChange } from "../../src/changeview.js";
 import { focusOn, memoryBudget, noticesHeld, noticesSaid } from "../../src/statusbar.js";
 import { previewMode } from "../../src/preview.js";
 import { scheme } from "../../src/scheme.js";
@@ -18,8 +20,9 @@ import { zoom } from "../../src/zoom.js";
 import { checkersNamed, setCheckers } from "../../src/servers.js";
 import { closePeek, peekShown } from "../../src/peek.js";
 import { bookmarksOf } from "../../src/bookmarks.js";
-import { boardShown, tasks } from "../../src/gather.js";
-import { paneOpen, panesNow, putPanes, showGroup, shownGroup } from "../../src/explorer.js";
+import { boardShown, closeBoard, tasks } from "../../src/gather.js";
+import { paneOpen, panesNow, putPanes, showGroup, showPane, shownGroup } from "../../src/explorer.js";
+import { togglePane } from "../../src/sides.js";
 import { forgetMacro, keptMacros, lastMacro, recording } from "../../src/macros.js";
 import { breakpointsOf, canStepBack, debugging, isPaused, pausedLineOf, toggleDebugPanel } from "../../src/debug.js";
 import { chosenJob, chosenLive, loadRun, showJob } from "../../src/run.js";
@@ -1110,18 +1113,22 @@ test("Edit, Undo History shows the text's history", async () => {
 });
 
 test("Edit, Cut, Copy and Paste take the selection and put the clipboard's text", async () => {
+  const clipped = [];
+  calls.answer("clip_write", ({ text }) => clipped.push(text));
   await given("[ab]c");
   await press("copy");
   assert.equal(editing().editor.clip?.text, "ab", "copied");
   await given("[ab]c");
   await press("cut");
   assert.equal(editing().editor.doc.text(), "c", "cut");
+  assert.deepEqual(clipped, ["ab", "ab"], "each put on the clipboard");
   calls.answer("clip_read", () => "XY");
   await given("c|");
   await press("paste");
   assert.equal(marked(), "cXY|");
   await press("compare-clipboard");
   await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "the file beside the clipboard");
+  closeDiff();
 });
 
 test("Edit, Macros records keys, plays them back and keeps them by name", async () => {
@@ -1150,7 +1157,7 @@ test("Edit, Find in Files from the command line and from the menu", async () => 
 
 test("Edit, Format Document formats the file with its language's formatter", async () => {
   // The command line's own format takes the files to format; the menu's formats the tab shown.
-  assert.match(await ran("format"), /exit code: 2/, "the command line asks for the files");
+  assert.match(await ran("format"), /exit (code|status): 2/, "the command line asks for the files");
   calls.answer("format_languages", () => ["python"]);
   calls.answer("format_text", () => "x = 1\n");
   await given("x=1\n|");
@@ -1341,6 +1348,8 @@ test("Run, Send Request, Copy as curl and Private Environment File on a file of 
 
 test("Run, Find Tests lists the tree's tests, Run Tests runs them, Run Failed Tests the failed, and Stop Tests stops them", async () => {
   await invoke("file_write", { path: "test_menus.py", text: "def test_passes():\n    assert True\n\n\ndef test_fails():\n    assert False\n" });
+  // The tree's index takes in a file as its watch tells of it.
+  await ui.waitFor(async () => (await invoke("tests_found")).some((one) => one.file === "test_menus.py"), 10000, "the file's tests found");
   assert.equal(await ran("tests"), "ran");
   await runCommand("tests");
   try {
@@ -1551,7 +1560,8 @@ test("Git, Commit, Review Structure, Push and Pull", async () => {
   assert.ok(paneOpen("changes"));
   await press("review-structure");
   await ui.waitFor(() => made("review_structure").length, 5000, "the change's structure read");
-  closeSheets();
+  await ui.waitFor(() => changeShown(), 5000, "the change's structure shown");
+  closeChange();
   calls.answer("git_push", () => "pushed by the test");
   calls.answer("git_pull", () => "pulled by the test");
   await press("push");
@@ -1597,9 +1607,159 @@ test("Git, Cherry-Pick applies the commit named, and Resolve Conflicts says wher
 
 // What the tests above made in the tree, each taken out by the last test.
 const MADE = [
-  GIVEN, "peek.c", "served.c", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
+  GIVEN, "peek.c", "served.c", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
   "made_by_command.txt", "made_by_command", "made.code-workspace", "marked_*.txt", "src/build_quick.sh", "src/build_slow.sh", "__pycache__", ".pytest_cache", "build",
 ];
+
+// The window's explorer as the file found it, and nothing over the window: no board of gathered
+// lines, diff, review of a change, peek, sheet, menu, terminal or debugger.
+function asFound() {
+  closeMenu(false);
+  closeSheets();
+  closeBoard();
+  closeDiff();
+  closeChange();
+  closePeek();
+  toggleTerminal(false);
+  toggleDebugPanel(false);
+  showGroup(FOUND.group);
+  putPanes(FOUND.panes);
+}
+
+// Every item of a menu shown, its own items' items among them: each with the command it runs.
+const itemsOfMenu = () => [...document.querySelectorAll("body > .menu .menu-item")].map((button) => button.item).filter(Boolean);
+const itemsUnder = (items) => items.flatMap((item) => (item === "-" ? [] : item.items ? itemsUnder(typeof item.items === "function" ? [] : item.items) : [item]));
+
+// The items of the menu a right click on `target` opens.
+async function menuOver(find) {
+  closeMenu(false);
+  find().scrollIntoView({ block: "center" });
+  await ui.frame();
+  // Found again, and its menu asked for at once, as a right click asks: a list draws its rows again
+  // as it scrolls or changes.
+  const target = find();
+  const { left, top, width, height } = target.getBoundingClientRect();
+  target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: left + Math.min(20, width / 2), clientY: top + height / 2 }));
+  await ui.waitFor(() => document.querySelector("body > .menu"), 3000, "the menu");
+  const first = document.querySelector("body > .menu .menu-item")?.item;
+  const all = [...document.querySelectorAll("body > .menu > .menu-item")].map((button) => button.item);
+  closeMenu(false);
+  return first ? all : [];
+}
+
+["file-open", "file-remove", "file-names", "file-open-window", "file-cut", "file-copy", "file-paste", "file-copy-path", "file-terminal", "file-select-compare", "file-compare"].forEach((command) => COVERED.add(command));
+["tab-close", "tab-close-others", "tab-split-right", "tab-split-down", "tab-new-window", "tab-group", "tab-ungroup", "tab-mark", "tab-open-as"].forEach((command) => COVERED.add(command));
+
+const rowOf = (path) => [...document.querySelectorAll("#files .node")].find((row) => row.dataset.key === path);
+const tabOfName = (path) => [...document.querySelectorAll("#tabs .tab")].find((tab) => tab.title === path);
+
+test("every item of the tree's menus, the tabs' and the editor's runs a command the command line runs", async () => {
+  asFound();
+  showView("edit");
+  togglePane(true, { take: false, pin: true });
+  showPane("folder");
+  await ui.waitFor(() => rowOf("hello.py") && rowOf("src") && rowOf("bundle.zip"), 10000, "the tree's rows");
+  await openFile("hello.py");
+  const named = new Set(allCommands().map((item) => item.command));
+  const wrong = [];
+  // Each found as its menu opens: the tree draws its rows again as it changes.
+  for (const [where, target] of [["a file", () => rowOf("hello.py")], ["a folder", () => rowOf("src")], ["an archive", () => rowOf("bundle.zip")], ["a tab", () => tabOfName("hello.py")], ["the editor", () => editing().editor.host]]) {
+    const items = itemsUnder(await menuOver(target));
+    assert.ok(items.length, `${where} has a menu`);
+    for (const item of items) {
+      if (!item.command || !named.has(item.command) || !hasCommand(item.command)) {
+        wrong.push(`${where}: ${item.label} runs ${item.command ?? "no command"}`);
+      }
+    }
+  }
+  assert.deepEqual(wrong, []);
+});
+
+test("the tree's file menu, from the command line: open, copy, cut and paste, the path, the terminal and comparing", async () => {
+  asFound();
+  showView("edit");
+  togglePane(true, { take: false, pin: true });
+  showPane("folder");
+  await ui.waitFor(() => rowOf("src"), 10000, "the tree");
+  const wasOpen = rowOf("src").getAttribute("aria-expanded") === "true";
+  await press("file-open", "src");
+  await ui.waitFor(() => (rowOf("src").getAttribute("aria-expanded") === "true") !== wasOpen, 3000, "the folder opened or closed");
+  await press("file-open", "src");
+  await press("file-open", "README.md");
+  assert.equal(editing().active, "README.md");
+  const copied = [];
+  calls.answer("clip_write", ({ text }) => copied.push(text));
+  await press("file-copy-path", "hello.py");
+  assert.deepEqual(copied, ["hello.py"]);
+  await press("file-copy", "hello.py");
+  await press("file-paste", "src");
+  await ui.waitFor(async () => (await invoke("tree_list", { dir: "src" })).some((entry) => /^hello.*\.py$/.test(entry.name)), 5000, "hello.py pasted into src");
+  await invoke("file_write", { path: "made_cut.txt", text: "cut\n" });
+  await press("file-cut", "made_cut.txt");
+  await press("file-paste", "src");
+  await ui.waitFor(async () => (await invoke("tree_list", { dir: "src" })).some((entry) => entry.name === "made_cut.txt") && !(await invoke("tree_list", { dir: "" })).some((entry) => entry.name === "made_cut.txt"), 5000, "made_cut.txt moved into src");
+  await press("file-terminal", "src");
+  await ui.waitFor(() => /src/.test(document.getElementById("term-views").textContent), 10000, "the terminal in src");
+  toggleTerminal(false);
+  await press("file-select-compare", "hello.py");
+  await press("file-compare", "README.md");
+  await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "hello.py beside README.md");
+  closeDiff();
+  calls.answer("view_open", () => null);
+  await press("file-open-window", "README.md");
+  assert.ok(made("view_open").some((one) => one.args.path === "README.md"), "the file asked to open in a window of its own");
+}, { timeout: 60000 });
+
+test("the tree's file menu, from the command line: an archive's names and a folder let go", async () => {
+  await press("file-names", "bundle.zip", "windows-1252");
+  assert.equal(JSON.parse(localStorage.getItem("orior.archive.names"))["bundle.zip"], "windows-1252");
+  await press("file-names", "bundle.zip");
+  assert.equal(JSON.parse(localStorage.getItem("orior.archive.names"))["bundle.zip"], undefined, "as the archive says again");
+  const name = await invoke("tree_mount", { path: HOME() });
+  assert.ok((await invoke("tree_mounts")).some((one) => one.name === name));
+  await press("file-remove", name);
+  assert.ok(!(await invoke("tree_mounts")).some((one) => one.name === name), "the folder let go");
+});
+
+test("a tab's menu, from the command line: close, close others, split, a new window, groups, marks and a notebook", async () => {
+  // A tab with changes not saved asks before it closes; every one is saved first.
+  asFound();
+  await press("save-all");
+  showView("edit");
+  await openFile("hello.py");
+  await openFile("README.md");
+  await press("tab-close", "hello.py");
+  assert.ok(!tabOfName("hello.py"), "hello.py's tab closed");
+  await openFile("hello.py");
+  await press("tab-close-others", "hello.py");
+  assert.deepEqual([...document.querySelectorAll("#tabs .tab")].map((tab) => tab.title), ["hello.py"]);
+  const desk = document.querySelector("#mode-edit .desk");
+  await press("tab-split-right", "hello.py");
+  assert.equal(desk.dataset.split, "right");
+  await press("unsplit");
+  await press("tab-split-down", "hello.py");
+  assert.equal(desk.dataset.split, "down");
+  await press("unsplit");
+  await press("tab-group", "hello.py", "Made Group");
+  await ui.waitFor(() => [...document.querySelectorAll(".tab-group-name")].some((one) => one.textContent === "Made Group"), 3000, "the group");
+  await press("tab-ungroup", "hello.py");
+  assert.ok(![...document.querySelectorAll(".tab-group-name")].some((one) => one.textContent === "Made Group"), "the group gone");
+  await press("tab-mark", "hello.py");
+  assert.ok(editing().markItems().some((item) => item.label.endsWith("hello.py")), "marked");
+  await press("tab-mark", "hello.py");
+  assert.ok(!editing().markItems().some((item) => item.label?.endsWith("hello.py")), "and let go");
+  await invoke("file_write", { path: "notebook_cells.py", text: "# %%\nx = 1\n\n# %%\nprint(x)\n" });
+  await openFile("notebook_cells.py");
+  await press("tab-open-as", "notebook_cells.py", "notebook");
+  await ui.waitFor(async () => (await menuOver(() => tabOfName("notebook_cells.py"))).some((item) => item.label === "Open as Text"), 5000, "the file open as a notebook");
+  await press("tab-open-as", "notebook_cells.py", "text");
+  await ui.waitFor(async () => (await menuOver(() => tabOfName("notebook_cells.py"))).some((item) => item.label === "Open as Notebook"), 5000, "and as its text again");
+  const opened = [];
+  calls.answer("window_open", (args) => opened.push(args.words));
+  await press("tab-new-window", "hello.py");
+  assert.deepEqual(opened.at(-1), ["file", "open-file", "hello.py"]);
+  await ui.waitFor(() => !tabOfName("hello.py"), 3000, "the tab gone to the new window");
+}, { timeout: 60000 });
 
 test("the window is put back as the file found it", async () => {
   const tree = TREE();
@@ -1610,10 +1770,7 @@ test("the window is put back as the file found it", async () => {
   for (const mounted of await invoke("tree_mounts").catch(() => [])) {
     await invoke("tree_unmount", { name: mounted.name }).catch(() => {});
   }
-  showGroup(FOUND.group);
-  putPanes(FOUND.panes);
-  toggleTerminal(false);
-  toggleDebugPanel(false);
+  asFound();
   // Key by key, as orior keeps each change in its own folder through the page's own setItem and
   // removeItem.
   const stored = new Map(STORED);
