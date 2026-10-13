@@ -419,6 +419,26 @@
       ]
     },
     {
+      "title": "Panels",
+      "popup": true,
+      "items": [
+        { "label": "Show Changes", "command": "change-show", "args": "<file>" },
+        { "label": "Start", "command": "job-start", "args": "<job>" },
+        { "label": "Stop", "command": "job-stop", "args": "<job>" },
+        { "label": "Edit", "command": "job-edit", "args": "<job>" },
+        { "label": "Copy path", "command": "job-copy-path", "args": "<job>" },
+        { "label": "Copy", "command": "output-copy" },
+        { "label": "Copy all", "command": "output-copy-all", "args": "[job]" },
+        { "label": "Select all", "command": "output-select-all" },
+        { "label": "Copy", "command": "terminal-copy" },
+        { "label": "Paste", "command": "terminal-paste", "args": "[text]" },
+        { "label": "Close", "command": "terminal-close" },
+        { "label": "Show or Hide", "command": "status-show", "args": "<item> [on|off]" },
+        { "label": "Move Left or Right", "command": "status-move", "args": "<item> <left|right>" },
+        { "label": "Reset the Status Bar", "command": "status-reset" }
+      ]
+    },
+    {
       "title": "Help",
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },

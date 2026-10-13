@@ -387,6 +387,12 @@ const draw = () => drawCommit();
 
 // `hooks` says whether the Changes pane shows, saves every open file, re-reads the open tabs of
 // files rolled back, reads the tree's changes again, and shows a file's changes.
+// The Changes pane's own command, by the name commands.json gives it: a file's changes since the last
+// commit, as a press on its row shows them.
+export const commitCommands = {
+  "change-show": ([path]) => state.hooks?.diff(path, state.changes.get(path) ?? "M"),
+};
+
 export function startCommit(hooks) {
   state.hooks = hooks;
   readSync().then(draw);
@@ -397,10 +403,10 @@ export function startCommit(hooks) {
     }
     const mark = state.changes.get(path);
     return [
-      { label: "Show Changes", run: () => hooks.diff(path, mark) },
-      { label: "Open File", disabled: mark === "D", run: () => hooks.open(path) },
+      { label: "Show Changes", command: "change-show", args: [path], run: () => commitCommands["change-show"]([path]) },
+      { label: "Open File", command: "file-open", args: [path], disabled: mark === "D", run: () => hooks.open(path) },
       "-",
-      { label: "Copy Path", run: () => copyText(path) },
+      { label: "Copy Path", command: "file-copy-path", args: [path], run: () => copyText(path) },
     ];
   });
 }

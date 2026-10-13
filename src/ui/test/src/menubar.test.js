@@ -12,6 +12,7 @@ import { killTerminal, newTerminal, runInTerminal, toggleTerminal } from "../../
 import { showView } from "../../src/views.js";
 import { paletteOpen } from "../../src/palette.js";
 import { closeDiff } from "../../src/diffview.js";
+import { itemShown } from "../../src/statusitems.js";
 import { changeShown, closeChange } from "../../src/changeview.js";
 import { focusOn, memoryBudget, noticesHeld, noticesSaid } from "../../src/statusbar.js";
 import { previewMode } from "../../src/preview.js";
@@ -1474,9 +1475,15 @@ test("Run, Show Bytecode reads a Python line's bytecode, and Memory, Watch Memor
     }
     const scopes = await invoke("debug_scopes", { session: session.id, frame: frames[0].id });
     const count = (await invoke("debug_variables", { session: session.id, reference: scopes[0].reference })).find((one) => one.name === "count");
-    await press("show-memory", count.memory);
+    // Where the debugger gives the variable no memory reference, its address read from `&count` is one.
+    let reference = count.memory;
+    if (!reference) {
+      const found = await invoke("debug_evaluate", { session: session.id, expression: "&count", frame: frames[0].id, context: "watch" });
+      reference = found.memory ?? found.value.match(/0x[0-9a-f]+/i)?.[0];
+    }
+    await press("show-memory", reference);
     const shown = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] pre.debug-memory")].find((pre) => /44 33 22 11/.test(pre.textContent)), 10000, "count's bytes").catch((error) => {
-      throw new Error(`${error.message}; the reference ${count.memory}; the sheet shows ${[...document.querySelectorAll("dialog[open] pre")].map((pre) => pre.textContent.slice(0, 200)).join(" | ")}`);
+      throw new Error(`${error.message}; the reference ${reference}; the sheet shows ${[...document.querySelectorAll("dialog[open] pre")].map((pre) => pre.textContent.slice(0, 200)).join(" | ")}`);
     });
     assert.ok(shown);
     closeSheets();
@@ -1874,6 +1881,95 @@ test("Review's menu, from the command line: a comment opened, its changes shown,
   await press("comment-delete", one.id);
   assert.ok(!comments().some((comment) => comment.id === one.id), "deleted");
   asFound();
+});
+
+["change-show", "job-start", "job-stop", "job-edit", "job-copy-path", "output-copy", "output-copy-all", "output-select-all"].forEach((command) => COVERED.add(command));
+["terminal-copy", "terminal-paste", "terminal-close", "status-show", "status-move", "status-reset"].forEach((command) => COVERED.add(command));
+
+test("the Changes pane's menu, from the command line: a file's changes shown", async () => {
+  asFound();
+  const before = (await invoke("file_read", { path: "README.md" })).text;
+  await invoke("file_write", { path: "README.md", text: `${before}a change of the test's\n` });
+  try {
+    await press("commit-view");
+    await ui.waitFor(() => document.querySelector('.change-row[data-path="README.md"]'), 10000, "README.md among the changes");
+    await press("change-show", "README.md");
+    await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "README.md's changes");
+  } finally {
+    closeDiff();
+    await invoke("file_write", { path: "README.md", text: before });
+    asFound();
+  }
+});
+
+test("the jobs' menu and their output's, from the command line: started, stopped, edited, their path and output copied", async () => {
+  asFound();
+  await invoke("file_write", { path: "src/build_quick.sh", text: "#!/usr/bin/env bash\necho quick\n" });
+  await invoke("file_write", { path: "src/build_slow.sh", text: "#!/usr/bin/env bash\nsleep 30\n" });
+  await loadRun();
+  const copied = [];
+  calls.answer("clip_write", ({ text }) => copied.push(text));
+  await press("job-start", SLOW);
+  await ui.waitFor(() => chosenJob()?.id === SLOW && chosenLive(), 10000, "the job running");
+  await press("job-stop", SLOW);
+  await ui.waitFor(() => !chosenLive(), 10000, "the job stopped");
+  await press("job-start", QUICK);
+  await ui.waitFor(() => chosenJob()?.id === QUICK && !chosenLive() && /quick/.test(document.getElementById("lines")?.textContent ?? ""), 15000, "the quick job run");
+  await press("output-copy-all", QUICK);
+  assert.match(copied.at(-1) ?? "", /quick/, "the output copied whole");
+  await press("output-select-all");
+  assert.match(window.getSelection().toString(), /quick/, "the output chosen whole");
+  await press("output-copy");
+  assert.match(copied.at(-1) ?? "", /quick/, "what is chosen copied");
+  await press("job-copy-path", QUICK);
+  assert.equal(copied.at(-1), "src/build_quick.sh");
+  await press("job-edit", QUICK);
+  await ui.waitFor(() => editing().active === "src/build_quick.sh", 5000, "the job's file open");
+  showView("edit");
+  asFound();
+}, { timeout: 60000 });
+
+test("the terminal's menu, from the command line: what is chosen copied, text pasted, and the panel closed", async () => {
+  asFound();
+  await press("new");
+  const view = () => document.querySelector("#term-views .term-view:not([hidden])");
+  await ui.waitFor(() => view()?.textContent.trim(), 15000, "the shell's prompt");
+  await press("terminal-paste", "echo pasted-by-the-test");
+  await ui.waitFor(() => /pasted-by-the-test/.test(view().textContent), 5000, "the text pasted into the shell");
+  const copied = [];
+  calls.answer("clip_write", ({ text }) => copied.push(text));
+  window.getSelection().selectAllChildren(view());
+  await press("terminal-copy");
+  assert.match(copied.at(-1) ?? "", /pasted-by-the-test/, "the screen's chosen text copied");
+  window.getSelection().removeAllRanges();
+  await press("kill");
+  await press("terminal-close");
+  assert.ok(document.getElementById("term").hidden, "the panel closed");
+  asFound();
+}, { timeout: 60000 });
+
+test("the status bar's menu, from the command line: an item hidden and shown, moved along its line, and the bar reset", async () => {
+  asFound();
+  // Memory's line as it stands on the screen, each line ordering its items as its style says.
+  const order = () => {
+    const line = document.querySelector('#statusbar [data-item="memory"]').parentElement;
+    return [...line.querySelectorAll(":scope > [data-item]")].filter((one) => one.getClientRects().length).sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left).map((one) => one.dataset.item);
+  };
+  await press("status-show", "zoom", "off");
+  assert.ok(!itemShown("zoom"), "Zoom hidden");
+  await press("status-show", "zoom", "on");
+  assert.ok(itemShown("zoom"), "and shown");
+  const before = order();
+  const left = before[before.indexOf("memory") - 1];
+  await press("status-move", "memory", "left");
+  if (left) {
+    assert.ok(order().indexOf("memory") < order().indexOf(left), `Memory moved past ${left}: ${order()}`);
+  }
+  await press("status-move", "memory", "right");
+  await press("status-show", "focus", "off");
+  await press("status-reset");
+  assert.ok(itemShown("focus"), "every item shown again");
+  assert.deepEqual(order(), before, "in the bar's own order");
 });
 
 test("the window is put back as the file found it", async () => {

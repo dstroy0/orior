@@ -32,6 +32,7 @@ import { authorsShown, setAuthorsShown } from "./authors.js";
 import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, popupCommands, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { explorerCommands, showPane } from "./explorer.js";
+import { commitCommands } from "./commit.js";
 import { openPalette, startPalette } from "./palette.js";
 import { fuzzy } from "./fuzzy.js";
 import { runAllTests, runFailedTests, setTestsParallel, stopTests, testsParallel } from "./tests.js";
@@ -47,12 +48,12 @@ import { zoomBy } from "./zoom.js";
 import { printText } from "./print.js";
 import { clipText, closeMenu, copyText, menuOpen, showMenu } from "./menu.js";
 import { markdownHtml } from "./markdown.js";
-import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
+import { chosenJob, chosenLive, listedJobs, runCommands, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { float, floatItems, solo, toolWindowsItems } from "./docks.js";
 import { openWindow } from "./windows.js";
-import { setStripEdge, statusItems, stripEdge } from "./statusitems.js";
+import { setStripEdge, statusCommands, statusItems, stripEdge } from "./statusitems.js";
 import { icon } from "./icons.js";
 import { focusFollows, setFocusFollows } from "./focusfollow.js";
 import { setSystemTitleBar, systemTitleBar } from "./strip.js";
@@ -69,7 +70,7 @@ import { findSlowPlugin } from "./scripts.js";
 import { previewMode, setPreview } from "./preview.js";
 import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
 import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
-import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
+import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalCommands, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
 import { askReports, reportForm } from "./reports.js";
@@ -570,7 +571,7 @@ const COMMANDS = {
 };
 
 // A command of the menus or of the popup menus, which take what each item is over, read as it is run.
-const commandNamed = (command) => [COMMANDS, popupCommands, explorerCommands].find((table) => Object.hasOwn(table, command))?.[command];
+const commandNamed = (command) => [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands].find((table) => Object.hasOwn(table, command))?.[command];
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {
