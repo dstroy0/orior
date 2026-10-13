@@ -51,12 +51,12 @@ import { markdownHtml } from "./markdown.js";
 import { chosenJob, chosenLive, listedJobs, runCommands, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
-import { float, floatItems, solo, toolWindowsItems } from "./docks.js";
+import { dockCommands, float, floatItems, solo, toolWindowsItems } from "./docks.js";
 import { openWindow } from "./windows.js";
 import { setStripEdge, statusCommands, statusItems, stripEdge } from "./statusitems.js";
 import { icon } from "./icons.js";
 import { focusFollows, setFocusFollows } from "./focusfollow.js";
-import { setSystemTitleBar, systemTitleBar } from "./strip.js";
+import { setSystemTitleBar, stripCommands, systemTitleBar } from "./strip.js";
 import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
 import { openRemote, remoteCommands } from "./remote.js";
 import { containerCommands, toggleContainers } from "./containers.js";
@@ -461,6 +461,14 @@ const COMMANDS = {
   "macro-record": () => recordMacro(),
   "macro-play": (args) => playBack(Number.parseInt(args[0], 10) || 1, args.slice(1).join(" ")),
   "macro-keep": (args) => keepLast(args.join(" ")),
+  // A kept macro's keys, as given or as pressed, empty taking its keys away.
+  "macro-keys": async ([name, keys]) => {
+    const pressed = keys ?? (await askKeys(`Keys for ${name}`));
+    if (pressed !== null) {
+      setMacroKeys(name, pressed);
+    }
+  },
+  "macro-forget": ([name]) => forgetMacro(name),
   "split-right": () => (showView("edit"), editing().split("right")),
   "split-down": () => (showView("edit"), editing().split("down")),
   unsplit: () => editing().unsplit(),
@@ -572,7 +580,7 @@ const COMMANDS = {
 
 // A command of the menus or of the popup menus, which take what each item is over, read as it is run.
 const commandNamed = (command) =>
-  [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands, containerCommands, databaseCommands, remoteCommands, debugCommands].find((table) => Object.hasOwn(table, command))?.[command];
+  [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands, containerCommands, databaseCommands, remoteCommands, debugCommands, dockCommands, stripCommands].find((table) => Object.hasOwn(table, command))?.[command];
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {
@@ -675,9 +683,11 @@ function macroItems() {
   const items = keptMacros().map((one) => ({
     label: one.name,
     items: [
-      { label: "Play", keys: one.keys || undefined, run: () => playBack(1, one.name) },
+      { label: "Play", keys: one.keys || undefined, command: "macro-play", args: ["1", one.name], run: () => playBack(1, one.name) },
       {
         label: "Play Many Times…",
+        command: "macro-play",
+        args: ["2", one.name],
         run: async () => {
           const times = Number.parseInt(await askFor(`Times to play ${one.name}`, "2"), 10);
           if (times > 0) {
@@ -685,16 +695,8 @@ function macroItems() {
           }
         },
       },
-      {
-        label: "Keys…",
-        run: async () => {
-          const keys = await askKeys(`Keys for ${one.name}`);
-          if (keys !== null) {
-            setMacroKeys(one.name, keys);
-          }
-        },
-      },
-      { label: "Forget", run: () => forgetMacro(one.name) },
+      { label: "Keys…", command: "macro-keys", args: [one.name], run: () => COMMANDS["macro-keys"]([one.name]) },
+      { label: "Forget", command: "macro-forget", args: [one.name], run: () => forgetMacro(one.name) },
     ],
   }));
   return items.length ? ["-", ...items] : [];
@@ -1101,7 +1103,12 @@ function showMemory() {
   const mb = (bytes) => `${Math.round(bytes / (1024 * 1024))} MB`;
   const parts = (read?.parts ?? []).map((part) => ({ label: `${part.name}: ${mb(part.working)}`, disabled: true }));
   const box = node.getBoundingClientRect();
-  showMenu(box.left, box.top, [...parts, ...(parts.length ? ["-"] : []), { label: `Memory Budget: ${memoryBudget()} MB…`, run: () => askBudget() }, { label: "Stop Servers No Open Tab Needs", run: () => editing().holdMemory(Number.MAX_SAFE_INTEGER) }], { anchor: node });
+  showMenu(
+    box.left,
+    box.top,
+    [...parts, ...(parts.length ? ["-"] : []), { label: `Memory Budget: ${memoryBudget()} MB…`, command: "memory-budget", args: [], run: () => askBudget() }, { label: "Stop Servers No Open Tab Needs", command: "servers-stop-idle", args: [], run: () => editing().holdMemory(Number.MAX_SAFE_INTEGER) }],
+    { anchor: node },
+  );
 }
 
 // Git, Stash Changes: every change put aside, new files with them, under the message given or asked

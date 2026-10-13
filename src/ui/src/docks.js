@@ -223,9 +223,9 @@ export function iconMenu(icon, x, y) {
   const name = ICONS[icon];
   const side = sideOf(name);
   showMenu(x, y, [
-    ...SIDES.map((one) => ({ label: `Dock ${TOOLS[name].label} ${one === "bottom" ? "at the Foot" : `at the ${one[0].toUpperCase()}${one.slice(1)}`}`, checked: side === one, run: () => dock(name, one) })),
+    ...SIDES.map((one) => ({ label: `Dock ${TOOLS[name].label} ${one === "bottom" ? "at the Foot" : `at the ${one[0].toUpperCase()}${one.slice(1)}`}`, checked: side === one, command: "tool-dock", args: [name, one], run: () => dock(name, one) })),
     "-",
-    { label: `Remove ${ICON_LABELS[icon]} from the Strip`, run: () => setIconRemoved(icon, true) },
+    { label: `Remove ${ICON_LABELS[icon]} from the Strip`, command: "strip-icon", args: [icon, "off"], run: () => setIconRemoved(icon, true) },
   ]);
 }
 
@@ -332,12 +332,19 @@ export function toolWindowsItems() {
   return [
     ...Object.entries(TOOLS).map(([name, tool]) => ({
       label: tool.label,
-      items: SIDES.map((side) => ({ label: side === "bottom" ? "At the Foot" : `At the ${side[0].toUpperCase()}${side.slice(1)}`, checked: sideOf(name) === side, run: () => dock(name, side) })),
+      items: SIDES.map((side) => ({ label: side === "bottom" ? "At the Foot" : `At the ${side[0].toUpperCase()}${side.slice(1)}`, checked: sideOf(name) === side, command: "tool-dock", args: [name, side], run: () => dock(name, side) })),
     })),
     "-",
-    ...Object.keys(ICONS).map((icon) => ({ label: `${ICON_LABELS[icon]} on the Strip`, checked: !iconRemoved(icon), run: () => setIconRemoved(icon, !iconRemoved(icon)) })),
+    ...Object.keys(ICONS).map((icon) => ({ label: `${ICON_LABELS[icon]} on the Strip`, checked: !iconRemoved(icon), command: "strip-icon", args: [icon, iconRemoved(icon) ? "on" : "off"], run: () => setIconRemoved(icon, !iconRemoved(icon)) })),
   ];
 }
+
+// The tool windows' menus as commands, by the names commands.json gives them: a tool window docked
+// at a side, and a tool window's icon put on the strip or taken off it.
+export const dockCommands = {
+  "tool-dock": ([name, side]) => dock(name, side),
+  "strip-icon": ([icon, on]) => ICONS[icon] && setIconRemoved(icon, on === "on" ? false : on === "off" ? true : !iconRemoved(icon)),
+};
 
 // A tool window in a window of its own: the terminal, the explorer or the jobs, each a new window
 // that shows it alone.
@@ -355,7 +362,7 @@ export async function float(name) {
 }
 
 // The tool windows that open alone in a window, each with what a press on it does.
-export const floatItems = (run) => Object.entries(FLOATING).map(([name, label]) => ({ label, checked: run === solo ? document.body.dataset.solo === name : undefined, run: () => run(name) }));
+export const floatItems = (run) => Object.entries(FLOATING).map(([name, label]) => ({ label, checked: run === solo ? document.body.dataset.solo === name : undefined, command: run === solo ? "solo" : "float", args: [name], run: () => run(name) }));
 
 // View, Show Only a Tool Window: this window shows the tool window alone, filling it, and a file
 // opened from it opens in the window `from` names, where one is named. With none named, or the one

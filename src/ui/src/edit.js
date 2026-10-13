@@ -606,21 +606,11 @@ function leaveGroup(path) {
 
 function groupMenu(group) {
   return [
-    { label: group.folded ? "Unfold" : "Fold", run: () => ((group.folded = !group.folded), drawTabs()) },
-    {
-      label: "Rename Group…",
-      run: async () => {
-        const { askFor } = await import("./menubar.js");
-        const name = (await askFor("The group's name", group.name))?.trim();
-        if (name) {
-          group.name = name;
-          drawTabs();
-        }
-      },
-    },
-    { label: "Ungroup", run: () => ((state.groups = state.groups.filter((one) => one !== group)), drawTabs()) },
+    act("group-fold", [group.name, group.folded ? "off" : "on"], { label: group.folded ? "Unfold" : "Fold" }),
+    act("group-rename", [group.name], { label: "Rename Group…" }),
+    act("group-ungroup", [group.name], { label: "Ungroup" }),
     "-",
-    { label: "Close the Group's Tabs", run: () => group.paths.map(tabOf).filter(Boolean).forEach(closeTab) },
+    act("group-close", [group.name], { label: "Close the Group's Tabs" }),
   ];
 }
 
@@ -677,9 +667,9 @@ function markItems() {
   return list.map((path, at) => ({
     label: `${at + 1}  ${path}`,
     items: [
-      { label: "Open", run: () => goMark(at + 1) },
-      { label: "Move Up", disabled: at === 0, run: () => keepMarks(list.map((one, index) => (index === at - 1 ? path : index === at ? list[at - 1] : one))) },
-      { label: "Let Go", run: () => keepMarks(list.filter((one) => one !== path)) },
+      { label: "Open", command: at < 9 ? `mark-${at + 1}` : "file-open", args: at < 9 ? [] : [path], run: () => goMark(at + 1) },
+      act("mark-up", [path], { label: "Move Up", disabled: at === 0 }),
+      act("mark-let-go", [path], { label: "Let Go" }),
     ],
   }));
 }
@@ -2157,7 +2147,7 @@ function symbolsBeside(s, parent, depth) {
 // A folder's entries as a list from the crumbs: a file opens at a press, and a folder opens its own
 // entries beside it.
 async function entryItems(dir) {
-  return (await childrenOf(dir)).map((entry) => (entry.dir ? { label: entry.name, items: () => entryItems(entry.path) } : { label: entry.name, run: () => openFile(entry.path) }));
+  return (await childrenOf(dir)).map((entry) => (entry.dir ? { label: entry.name, items: () => entryItems(entry.path) } : { label: entry.name, command: "file-open", args: [entry.path], run: () => openFile(entry.path) }));
 }
 
 // Opens the list of the files and folders in `dir` from a crumb, the one named `name` taking the keys.
@@ -3504,7 +3494,34 @@ export const popupCommands = {
   "tab-ungroup": ([path]) => (leaveGroup(tabNamed(path)?.path ?? path), drawTabs()),
   "tab-mark": ([path]) => toggleMark(tabNamed(path)?.file ?? path),
   "tab-open-as": ([path, as]) => tabNamed(path) && reopenAs(tabNamed(path), as === "notebook" ? "notebook" : "text"),
+  "group-fold": ([name, on]) => withGroup(name, (group) => ((group.folded = on === "on" ? true : on === "off" ? false : !group.folded), drawTabs())),
+  "group-rename": ([name, given]) =>
+    withGroup(name, async (group) => {
+      const { askFor } = await import("./menubar.js");
+      const to = (given ?? (await askFor("The group's name", group.name)))?.trim();
+      if (to) {
+        group.name = to;
+        drawTabs();
+      }
+    }),
+  "group-ungroup": ([name]) => withGroup(name, (group) => ((state.groups = state.groups.filter((one) => one !== group)), drawTabs())),
+  "group-close": ([name]) => withGroup(name, (group) => group.paths.map(tabOf).filter(Boolean).forEach(closeTab)),
+  "mark-up": ([path]) => {
+    const list = markedFiles();
+    const at = list.indexOf(path);
+    if (at > 0) {
+      keepMarks(list.map((one, index) => (index === at - 1 ? path : index === at ? list[at - 1] : one)));
+    }
+  },
+  "mark-let-go": ([path]) => keepMarks(markedFiles().filter((one) => one !== path)),
+  "servers-stop-idle": () => holdMemory(Number.MAX_SAFE_INTEGER),
 };
+
+// Runs `act` with the tab group named `name`, or says there is none.
+function withGroup(name, act) {
+  const group = state.groups.find((one) => one.name === name);
+  return group ? act(group) : say(`No group of tabs is named ${name}.`, { failed: true });
+}
 
 // An item that runs `command` with `args`, as the command line runs it, and says both.
 const act = (command, args, item) => ({ ...item, command, args, run: () => popupCommands[command](args) });

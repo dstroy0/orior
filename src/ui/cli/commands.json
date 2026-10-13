@@ -475,6 +475,24 @@
       ]
     },
     {
+      "title": "Layout",
+      "popup": true,
+      "items": [
+        { "label": "Dock a Tool Window", "command": "tool-dock", "args": "<tool> <left|right|bottom>" },
+        { "label": "An Icon on the Strip", "command": "strip-icon", "args": "<icon> [on|off]" },
+        { "label": "Open a Pane", "command": "pane-open", "args": "<pane>" },
+        { "label": "Fold", "command": "group-fold", "args": "<group> [on|off]" },
+        { "label": "Rename Group…", "command": "group-rename", "args": "<group> [name]" },
+        { "label": "Ungroup", "command": "group-ungroup", "args": "<group>" },
+        { "label": "Close the Group's Tabs", "command": "group-close", "args": "<group>" },
+        { "label": "Move Up", "command": "mark-up", "args": "<file>" },
+        { "label": "Let Go", "command": "mark-let-go", "args": "<file>" },
+        { "label": "Stop Servers No Open Tab Needs", "command": "servers-stop-idle" },
+        { "label": "Keys…", "command": "macro-keys", "args": "<macro> [keys]" },
+        { "label": "Forget", "command": "macro-forget", "args": "<macro>" }
+      ]
+    },
+    {
       "title": "Help",
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },

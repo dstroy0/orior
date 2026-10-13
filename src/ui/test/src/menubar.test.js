@@ -14,6 +14,7 @@ import { paletteOpen } from "../../src/palette.js";
 import { closeDiff } from "../../src/diffview.js";
 import { itemShown } from "../../src/statusitems.js";
 import { containersShown } from "../../src/containers.js";
+import { iconRemoved, sideOf } from "../../src/docks.js";
 import { changeShown, closeChange } from "../../src/changeview.js";
 import { focusOn, memoryBudget, noticesHeld, noticesSaid } from "../../src/statusbar.js";
 import { previewMode } from "../../src/preview.js";
@@ -1622,7 +1623,7 @@ test("Git, Cherry-Pick applies the commit named, and Resolve Conflicts says wher
 
 // What the tests above made in the tree, each taken out by the last test.
 const MADE = [
-  GIVEN, "peek.c", "served.c", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "history_file.txt", "vars.py", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
+  GIVEN, "peek.c", "served.c", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "history_file.txt", "vars.py", "grouped_*.txt", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
   "made_by_command.txt", "made_by_command", "made.code-workspace", "marked_*.txt", "src/build_quick.sh", "src/build_slow.sh", "__pycache__", ".pytest_cache", "build",
 ];
 
@@ -2102,6 +2103,97 @@ test("the debugger's menus, from the command line: breakpoints edited, an except
     asFound();
   }
 }, { timeout: 150000 });
+
+["tool-dock", "strip-icon", "pane-open", "group-fold", "group-rename", "group-ungroup", "group-close", "mark-up", "mark-let-go", "servers-stop-idle", "macro-keys", "macro-forget"].forEach((command) => COVERED.add(command));
+
+test("the tool windows' menus and the strip's, from the command line: a tool window docked, an icon taken off and put back, a pane opened", async () => {
+  asFound();
+  const side = sideOf("terminal");
+  try {
+    await press("tool-dock", "terminal", "right");
+    assert.equal(sideOf("terminal"), "right");
+  } finally {
+    await press("tool-dock", "terminal", side);
+  }
+  await press("strip-icon", "profile", "off");
+  assert.ok(iconRemoved("profile"), "the Profile icon off the strip");
+  await press("strip-icon", "profile", "on");
+  assert.ok(!iconRemoved("profile"), "and on it again");
+  await press("pane-open", "timeline");
+  assert.equal(document.body.dataset.view, "edit");
+  assert.ok(paneOpen("timeline"), "the Timeline shown");
+  asFound();
+});
+
+test("a tab group's menu, from the command line: folded, renamed, its tabs closed, and ungrouped", async () => {
+  asFound();
+  await press("save-all");
+  showView("edit");
+  for (const name of ["grouped_a.txt", "grouped_b.txt"]) {
+    await invoke("file_write", { path: name, text: `${name}\n` });
+    await openFile(name);
+    await press("tab-group", name, "Made Group");
+  }
+  const header = () => [...document.querySelectorAll(".tab-group")].find((one) => one.querySelector(".tab-group-name")?.textContent.startsWith("Made Group") || one.querySelector(".tab-group-name")?.textContent === "Named Again");
+  await ui.waitFor(() => header(), 3000, "the group");
+  await press("group-fold", "Made Group", "on");
+  assert.ok(header().classList.contains("folded"), "folded");
+  await press("group-fold", "Made Group", "off");
+  assert.ok(!header().classList.contains("folded"), "unfolded");
+  await press("group-rename", "Made Group", "Named Again");
+  assert.equal(header().querySelector(".tab-group-name").textContent, "Named Again");
+  await press("group-close", "Named Again");
+  await ui.waitFor(() => !tabOfName("grouped_a.txt") && !tabOfName("grouped_b.txt"), 3000, "the group's tabs closed");
+  await openFile("grouped_a.txt");
+  await press("tab-group", "grouped_a.txt", "Made Again");
+  await press("group-ungroup", "Made Again");
+  assert.ok(![...document.querySelectorAll(".tab-group-name")].some((one) => one.textContent === "Made Again"), "ungrouped");
+  asFound();
+});
+
+test("the marked files' menu, from the command line: a file moved up the list and let go", async () => {
+  asFound();
+  const names = ["grouped_a.txt", "grouped_b.txt"];
+  for (const name of names) {
+    await invoke("file_write", { path: name, text: `${name}\n` });
+    await openFile(name);
+    if (!editing().markItems().some((item) => item.label.endsWith(name))) {
+      await press("tab-mark", name);
+    }
+  }
+  const listed = () => editing().markItems().map((item) => item.label.replace(/^\d+ {2}/, ""));
+  const before = listed();
+  assert.ok(before.indexOf("grouped_b.txt") > before.indexOf("grouped_a.txt"), JSON.stringify(before));
+  await press("mark-up", "grouped_b.txt");
+  assert.ok(listed().indexOf("grouped_b.txt") < listed().indexOf("grouped_a.txt"), JSON.stringify(listed()));
+  for (const name of names) {
+    await press("mark-let-go", name);
+  }
+  assert.ok(!names.some((name) => listed().includes(name)), "both let go");
+  asFound();
+});
+
+test("the memory reading's menu, from the command line: the servers no open tab needs stopped", async () => {
+  await press("servers-stop-idle");
+  assert.ok(made("memory_hold").some((one) => one.args.budget === Number.MAX_SAFE_INTEGER), "every server no open tab needs let go");
+});
+
+test("a kept macro's menu, from the command line: keys given and the macro forgotten", async () => {
+  const view = await given("|");
+  await press("macro-record");
+  view.focus();
+  await ui.type("q");
+  await press("macro-record");
+  await press("macro-keep", "keyed macro");
+  try {
+    await press("macro-keys", "keyed macro", "Ctrl+Alt+9");
+    assert.equal(keptMacros().find((one) => one.name === "keyed macro")?.keys, "Ctrl+Alt+9");
+    await press("macro-forget", "keyed macro");
+    assert.ok(!keptMacros().some((one) => one.name === "keyed macro"), "forgotten");
+  } finally {
+    forgetMacro("keyed macro");
+  }
+});
 
 test("the window is put back as the file found it", async () => {
   const tree = TREE();
