@@ -50,6 +50,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 
 21. **A start no plugin can slow.** No plugin or shell profile is waited on before the window takes keys. Script plugins start once the frame being drawn is drawn, each on its own, none waiting for another's code to be read. On Linux and macOS the login shell's PATH is read on a thread of its own, given ten seconds, and its folders join the toolchains' once it is read.
 
+22. **The minimap goes where it is pressed.** A press on the minimap brings the line pressed to the middle of the view, a press on its strip goes to that part of the file, and the wheel over the map scrolls the text as it does over the text.
+
 ## The backend
 
 1. **One container, every process under it.** orior's window and its command line each put themselves at the head of a container as they start, and every process either starts, the language servers, kernels, debuggers, shells, database links and runs, and every process those start, stands under it. On Windows the container is a job object, which lists its processes and ends every one of them with orior however orior ends; on Linux and macOS the container reads its descendants from the system's list and ends them as it ends. What orior opens for the reader to keep, a page in the browser, a folder in the file manager or another window of orior's, starts outside it and stays.
