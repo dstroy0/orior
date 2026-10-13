@@ -9,11 +9,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - The editor is slow to type, scroll and find on a low-powered laptop with extensions off ([Lightrun][47]). orior is measured on the Raspberry Pi as well as here.
    - Completion and analysis can come late or get in the way of editing. Typing and the caret's moves answer at once whether analysis has finished or not, and the test of it types and moves through a file while analysis is still running.
 
-## The backend
-
-1. **Large files over a link without stalls.** A large file on another machine costs nothing until opened, and a large copy runs behind with its progress shown.
-   - A file of 300 MB on a remote machine makes the connection unusably slow even unopened, and large uploads send people to other tools ([Cursor forum][51], [Thunder Compute][52]).
-
 ## Perception
 
 1. **Every motion stilled when asked.** The system's reduced motion stills every animation in the window, plugins' drawing among them, and orior's own setting does the same.

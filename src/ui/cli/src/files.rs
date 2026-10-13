@@ -1145,6 +1145,87 @@ fn bring_one(root: &Path, source: &Path, target: &Path, told: &dyn Fn(&str, u64,
     Ok(())
 }
 
+/// How much of a file brought to a tree on another machine goes over the link in one part.
+const PART_BYTES: usize = 1 << 20;
+
+/// The tree's path for `name` in its folder `into`, numbered where the folder holds that name already.
+pub fn free_in(root: &Path, into: &str, name: &str) -> Result<String, String> {
+    let folder = inside(root, into)?;
+    if !folder.is_dir() {
+        return Err(format!("{into} is no folder"));
+    }
+    Ok(relative(root, &free_name(&folder, Path::new(name))))
+}
+
+/// Writes `data` at `at` of the file at the tree's `path` as it is brought a part at a time: the parts
+/// go to a file beside it, begun afresh by the part at 0, and that file is moved over it with the last.
+pub fn write_part(root: &Path, path: &str, at: u64, data: &[u8], last: bool) -> Result<(), String> {
+    let target = inside(root, path)?;
+    let name = target.file_name().ok_or_else(|| format!("{path} has no name"))?.to_string_lossy().to_string();
+    let part = target.with_file_name(format!(".{name}.orior-part"));
+    let said = |error: std::io::Error| format!("{}: {error}", part.display());
+    let mut file = if at == 0 { fs::File::create(&part).map_err(said)? } else { fs::OpenOptions::new().append(true).open(&part).map_err(said)? };
+    let has = file.metadata().map_err(said)?.len();
+    if has != at {
+        return Err(format!("{path}: a part at {at} came after {has} bytes"));
+    }
+    file.write_all(data).map_err(said)?;
+    drop(file);
+    if last {
+        fs::rename(&part, &target).map_err(|error| format!("{}: {error}", target.display()))?;
+        forget_seen();
+    }
+    Ok(())
+}
+
+/// Copies each of `from`, on this machine, into the folder `into` of a tree on another machine,
+/// through `call`, a call of the tree's side there: a folder made there and its files brought into
+/// it, each file read here and written there a PART_BYTES part at a time, `told` told as `bring` tells
+/// it. Gives where each went.
+pub fn bring_over(call: &dyn Fn(&str, serde_json::Value) -> Result<serde_json::Value, String>, into: &str, from: &[PathBuf], told: &dyn Fn(&str, u64, u64)) -> Result<Vec<Pasted>, String> {
+    let mut brought = Vec::new();
+    for source in from {
+        let name = source.file_name().ok_or_else(|| format!("{} has no name", source.display()))?.to_string_lossy().to_string();
+        let to = call("bring_name", serde_json::json!({ "into": into, "name": name }))?.as_str().ok_or("the tree's side gave no name")?.to_string();
+        bring_one_over(call, source, &to, told).map_err(|said| format!("{}: {said}", source.display()))?;
+        brought.push(Pasted { from: None, to });
+    }
+    Ok(brought)
+}
+
+fn bring_one_over(call: &dyn Fn(&str, serde_json::Value) -> Result<serde_json::Value, String>, source: &Path, to: &str, told: &dyn Fn(&str, u64, u64)) -> Result<(), String> {
+    if source.is_dir() {
+        call("folder_create", serde_json::json!({ "path": to }))?;
+        for entry in fs::read_dir(source).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            bring_one_over(call, &entry.path(), &format!("{to}/{}", entry.file_name().to_string_lossy()), told)?;
+        }
+        return Ok(());
+    }
+    let size = fs::metadata(source).map_err(|error| error.to_string())?.len();
+    let mut input = fs::File::open(source).map_err(|error| error.to_string())?;
+    let mut buffer = vec![0u8; PART_BYTES];
+    let mut at = 0u64;
+    told(to, 0, size);
+    loop {
+        let mut read = 0;
+        while read < buffer.len() {
+            let more = input.read(&mut buffer[read..]).map_err(|error| error.to_string())?;
+            if more == 0 {
+                break;
+            }
+            read += more;
+        }
+        let last = at + read as u64 >= size || read < buffer.len();
+        call("file_part", serde_json::json!({ "path": to, "at": at, "data": crate::serve::base64(&buffer[..read]), "last": last }))?;
+        at += read as u64;
+        told(to, at, size.max(at));
+        if last {
+            return Ok(());
+        }
+    }
+}
+
 /// `name` in `folder`, numbered where the folder holds that name already: `notes.txt`, then
 /// `notes (2).txt`, `notes (3).txt` and on.
 fn free_name(folder: &Path, name: &Path) -> PathBuf {
@@ -1201,6 +1282,49 @@ mod pasting {
         assert_eq!(brought[0].from, None);
         assert!(!outside.exists());
         fs::remove_dir_all(&root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod bringing_over {
+    use super::{bring_over, free_in, write_part};
+    use std::fs;
+    use std::path::Path;
+
+    #[test]
+    fn a_file_and_a_folder_go_to_a_tree_on_another_machine_a_part_at_a_time() {
+        let base = std::env::temp_dir().join(format!("orior_ui_bring_over_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("there/in")).unwrap();
+        fs::create_dir_all(base.join("here/folder")).unwrap();
+        let big: Vec<u8> = (0..(5 << 19)).map(|at| (at % 251) as u8).collect();
+        fs::write(base.join("here/big.bin"), &big).unwrap();
+        fs::write(base.join("here/folder/note.txt"), "note").unwrap();
+        fs::write(base.join("there/in/big.bin"), "here first").unwrap();
+        let base = dunce::canonicalize(&base).unwrap();
+        let there = base.join("there");
+        // The tree's side, as serve.rs answers the calls there.
+        let call = |name: &str, args: serde_json::Value| -> Result<serde_json::Value, String> {
+            let text = |key: &str| args[key].as_str().unwrap_or_default().to_string();
+            match name {
+                "bring_name" => free_in(&there, &text("into"), &text("name")).map(serde_json::Value::from),
+                "folder_create" => fs::create_dir_all(there.join(text("path"))).map(|_| serde_json::Value::Null).map_err(|error| error.to_string()),
+                "file_part" => write_part(&there, &text("path"), args["at"].as_u64().unwrap(), &crate::serve::unbase64(&text("data")).unwrap(), args["last"].as_bool().unwrap()).map(|_| serde_json::Value::Null),
+                other => Err(format!("no call {other}")),
+            }
+        };
+        let heard = std::sync::Mutex::new(Vec::new());
+        let brought = bring_over(&call, "in", &[base.join("here/big.bin"), base.join("here/folder")], &|path, done, size| heard.lock().unwrap().push((path.to_string(), done, size))).unwrap();
+        assert_eq!(brought.iter().map(|one| one.to.as_str()).collect::<Vec<_>>(), ["in/big (2).bin", "in/folder"]);
+        assert_eq!(fs::read(there.join("in/big (2).bin")).unwrap(), big, "the file whole, part by part");
+        assert_eq!(fs::read_to_string(there.join("in/folder/note.txt")).unwrap(), "note");
+        assert_eq!(fs::read_to_string(there.join("in/big.bin")).unwrap(), "here first", "nothing is written over");
+        assert!(!Path::new(&there.join("in/.big (2).bin.orior-part")).exists(), "the parts' file is moved over the file");
+        let heard = heard.into_inner().unwrap();
+        assert!(heard.iter().filter(|one| one.0 == "in/big (2).bin").count() >= 4, "each part told: {heard:?}");
+        assert!(heard.contains(&("in/big (2).bin".to_string(), big.len() as u64, big.len() as u64)));
+        assert!(write_part(&there, "in/late.txt", 5, b"x", true).is_err(), "a part out of its place is refused");
+        fs::remove_dir_all(&base).unwrap();
     }
 }
 

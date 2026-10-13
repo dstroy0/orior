@@ -917,6 +917,13 @@ impl Server {
                 crate::pages::release(&a.get::<String>("key")?);
                 give(())
             }
+            // A file brought from the window's machine, as files::bring_over sends it: a name for it,
+            // then its parts.
+            "bring_name" => files::free_in(&self.root()?, &a.get::<String>("into")?, &a.get::<String>("name")?).and_then(give),
+            "file_part" => {
+                let data = unbase64(&a.get::<String>("data")?).ok_or("a part not in base64")?;
+                files::write_part(&self.root()?, &a.get::<String>("path")?, a.get("at")?, &data, a.get("last")?).and_then(give)
+            }
             "trust_read" => give(crate::trust::told(&self.root()?)),
             "trust_set" => {
                 let folder = PathBuf::from(a.get::<String>("folder")?);

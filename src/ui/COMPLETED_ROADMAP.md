@@ -73,6 +73,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 
 4. **No process left behind.** Every server, analyzer, kernel, debugger, shell and run orior starts stands in its container and ends when orior does: on Windows a job ends them however orior ends, and on Linux and macOS orior ends them as it closes. orior serve, the window's server on a machine it reached, ends every process it started as soon as the window's link ends.
 
+5. **Large files over a link without stalls.** A file on another machine costs nothing until it is opened: the tree's side there reads what is read for the tree, its symbols, its tests and its inspections, only from files under their bounds, and a large file opened is read a window at a time, or held as pages. Files dropped on a window whose tree is on another machine are read here and written there a part of a megabyte at a time, behind the window, each with its bar on the status bar, into a file beside the one it makes and moved over it once whole.
+
 ## Perception
 
 1. **The lattice drawn at the rate it is seen.** A lattice draws a frame only where some point has moved by a whole pixel of the page since the frame before, no faster than one each 33 ms and only in a frame nothing else wants, and draws again at once in a new scheme or theme. Over its loop it draws about one frame in three of those offered, and none while it rests. No one follows its points one by one, and a frame that moves none of them by a pixel shows nothing a reader could see.
