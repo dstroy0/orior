@@ -4,19 +4,17 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Responsiveness
 
-1. **A start no plugin can slow.** No plugin or shell profile is waited on before the window takes keys.
-   - One extension's activation takes 20 s of the start, and a slow shell profile read at start blocks every extension ([vscode-cpptools #1640][34]). orior starts plugins after the first frame, each on its own, and reads the shell's environment behind.
-2. **The minimap goes where it is pressed.** A press on the minimap brings that place to the middle of the view, and the wheel over it scrolls the text.
+1. **The minimap goes where it is pressed.** A press on the minimap brings that place to the middle of the view, and the wheel over it scrolls the text.
    - A press jumps somewhere other than where it was pressed, and the wheel over the minimap does nothing ([Sublime forum][35], [Sublime forum][36]).
-3. **A trackpad held as smooth as a wheel.** Fingers held on a trackpad move the text at the display's own rate, wrapped or not.
+2. **A trackpad held as smooth as a wheel.** Fingers held on a trackpad move the text at the display's own rate, wrapped or not.
    - Scrolling with fingers held drops the editor to about one frame a second, worse with word wrap ([vscode #192027][37]).
-4. **Go to File as the reader means it.** An exact name stands above every looser match and above history, and fuzzy matching can be turned off.
+3. **Go to File as the reader means it.** An exact name stands above every looser match and above history, and fuzzy matching can be turned off.
    - An exact name ranks below a looser match, letters matched in the middle of words add noise, and people ask to turn fuzzy matching off ([vscode #164352][38], [#99171][39], [#27317][40], [#8673][41]).
-5. **Saved means saved, however one gets back.** A tab back at its saved text by an input method's character or Vim's undo shows no change.
+4. **Saved means saved, however one gets back.** A tab back at its saved text by an input method's character or Vim's undo shows no change.
    - A file stays marked after undoing to its saved text, after an input method's character typed and taken back, and after Vim's undo ([vscode #206720][42], [VSCodeVim][43]).
-6. **No window's changes lost.** Every window's changes not saved are kept as they are made, whichever window closes first.
+5. **No window's changes lost.** Every window's changes not saved are kept as they are made, whichever window closes first.
    - Changes not saved are lost when a window other than the last is closed ([kitemetric][44]).
-7. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
+6. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
    - A preview beside the editor delays each letter, the two sharing a process, and a Vim mode adds a tenth of a second to every key ([typst-preview #245][45], [VSCodeVim #2021][46]). orior draws previews and plugins off the editor's thread, and its Vim keys are its own.
    - The editor is slow to type, scroll and find on a low-powered laptop with extensions off ([Lightrun][47]). orior is measured on the Raspberry Pi as well as here.
    - Completion and analysis can come late or get in the way of editing. Typing and the caret's moves answer at once whether analysis has finished or not, and the test of it types and moves through a file while analysis is still running.

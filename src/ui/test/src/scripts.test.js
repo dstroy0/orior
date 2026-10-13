@@ -3,16 +3,17 @@
 
 // Plugins that run code of their own, each in a worker apart from the editor: what one draws through
 // orior's calls, one that stops answering named and stopped while the keys go on, Find the Slow
-// Plugin, a write the system refuses told to the plugin after the reader is asked, and a part of a
+// Plugin, plugins started once a frame is drawn and each on its own, a write the system refuses
+// told to the plugin after the reader is asked, and a part of a
 // file held as pages read where its whole text is refused.
 
-import { invoke } from "../../src/bridge.js";
+import { invoke, watchCalls } from "../../src/bridge.js";
 import { editing, openFile } from "../../src/edit.js";
 import { loadPlugins, pluginReadings, pluginsOff } from "../../src/plugins.js";
-import { allowPlugin, findSlowPlugin, finding, running } from "../../src/scripts.js";
+import { allowPlugin, findSlowPlugin, finding, running, stopPlugin, syncPlugins } from "../../src/scripts.js";
 import { showView } from "../../src/views.js";
 
-const { test, assert, ui } = window.__harness;
+const { test, assert, ui, calls } = window.__harness;
 
 const DRAWS = `orior.on("open", async ({ path }) => {
   if (!path.endsWith("drawn.py")) {
@@ -136,4 +137,26 @@ test("a plugin reads a part of a file held as pages, and is refused the whole of
   await openFile(`${bench}/huge.log`);
   await ui.waitFor(() => tabNamed("huge.log")?.querySelector(".tab-label")?.textContent.startsWith("2 "), 20000, `the plugin's label: the tab says ${JSON.stringify(tabNamed("huge.log")?.textContent)}`);
   assert.equal(tabNamed("huge.log").querySelector(".tab-label").textContent, "2 002000000 002000001 whole refused");
+});
+
+test("plugins start once the frame being drawn is drawn, each on its own and none waiting on another", async () => {
+  await plugin("first_quiet", "First Quiet", "");
+  await plugin("second_quiet", "Second Quiet", "");
+  await loadPlugins();
+  for (const id of ["first_quiet", "second_quiet"]) {
+    stopPlugin(id);
+  }
+  // Each plugin's code is held a while as it is read.
+  watchCalls((name, args, send) => (name === "plugin_code" ? new Promise((done) => setTimeout(() => done(calls.watcher(name, args, send)), 400)) : calls.watcher(name, args, send)));
+  try {
+    const began = performance.now();
+    const syncing = syncPlugins();
+    assert.ok(!running().has("first_quiet"), "nothing starts before the frame is drawn");
+    await syncing;
+    const spent = performance.now() - began;
+    assert.ok(running().has("first_quiet") && running().has("second_quiet"), "both run");
+    assert.ok(spent < 750, `both started together, in ${Math.round(spent)} ms, and not one after the other`);
+  } finally {
+    watchCalls(calls.watcher);
+  }
 });

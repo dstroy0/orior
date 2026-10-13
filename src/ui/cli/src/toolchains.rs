@@ -460,8 +460,63 @@ pub fn tree_tools() -> Vec<PathBuf> {
     ["node_modules/.bin", "vendor/bin"].iter().map(|folder| root.join(folder)).filter(|folder| folder.is_dir()).collect()
 }
 
+/// How long the login shell is given to say its PATH.
+const SHELL_PATIENCE: Duration = Duration::from_secs(10);
+
+/// The PATH the reader's login shell sets, read once on a thread of its own the first time the PATH's
+/// folders are asked for, and none until it is read: a program opened from the desktop starts with
+/// less of a PATH than a terminal gives, and a slow shell profile holds up nothing.
+static SHELL_PATH: std::sync::OnceLock<std::sync::Mutex<Option<OsString>>> = std::sync::OnceLock::new();
+
+fn shell_path() -> Option<OsString> {
+    let held = SHELL_PATH.get_or_init(|| {
+        if cfg!(unix) {
+            if let Some(shell) = std::env::var_os("SHELL") {
+                std::thread::spawn(move || {
+                    let read = path_of_shell(Path::new(&shell));
+                    if let Some(held) = SHELL_PATH.get() {
+                        if let Ok(mut held) = held.lock() {
+                            *held = read;
+                        }
+                    }
+                });
+            }
+        }
+        std::sync::Mutex::new(None)
+    });
+    held.lock().ok().and_then(|held| held.clone())
+}
+
+/// The PATH `shell` sets as a login shell, or none where it says none within SHELL_PATIENCE.
+fn path_of_shell(shell: &Path) -> Option<OsString> {
+    let mut child = Command::new(shell)
+        .args(["-l", "-c", "printf '%s' \"$PATH\""])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let began = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if began.elapsed() < SHELL_PATIENCE => std::thread::sleep(Duration::from_millis(20)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+        }
+    }
+    let mut said = Vec::new();
+    std::io::Read::read_to_end(&mut child.stdout.take()?, &mut said).ok()?;
+    let said = String::from_utf8(said).ok()?;
+    (!said.trim().is_empty()).then(|| OsString::from(said.trim()))
+}
+
 /// The PATH's folders, in order and each once: the tree's own tools' folders, then on Windows the
-/// system's and the reader's as the registry holds them now, then the PATH orior started with.
+/// system's and the reader's as the registry holds them now, then the PATH orior started with, then
+/// the folders the login shell's PATH adds, once it has been read.
 pub fn path_folders() -> Vec<PathBuf> {
     let mut all: Vec<PathBuf> = tree_tools();
     #[cfg(windows)]
@@ -471,6 +526,9 @@ pub fn path_folders() -> Vec<PathBuf> {
         }
     }
     if let Some(path) = std::env::var_os("PATH") {
+        all.extend(std::env::split_paths(&path));
+    }
+    if let Some(path) = shell_path() {
         all.extend(std::env::split_paths(&path));
     }
     let mut seen = HashSet::new();
@@ -904,6 +962,26 @@ mod registry {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    #[test]
+    fn the_login_shell_s_path_is_read_and_a_shell_that_says_nothing_gives_none() {
+        let dir = std::env::temp_dir().join(format!("orior_shell_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let shell = dir.join("shell");
+        std::fs::write(&shell, "#!/bin/sh
+printf '%s' /opt/from/profile:/usr/bin
+").unwrap();
+        std::fs::write(dir.join("quiet"), "#!/bin/sh
+exit 0
+").unwrap();
+        for name in ["shell", "quiet"] {
+            assert!(Command::new("chmod").arg("+x").arg(dir.join(name)).status().unwrap().success());
+        }
+        assert_eq!(path_of_shell(&shell), Some(OsString::from("/opt/from/profile:/usr/bin")));
+        assert_eq!(path_of_shell(&dir.join("quiet")), None);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     use super::*;
 
     #[test]

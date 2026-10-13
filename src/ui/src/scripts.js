@@ -443,7 +443,11 @@ function ask() {
 }
 
 // Starts each script plugin that is on and not running, and ends each running that is off or gone.
+// Starts each script plugin on and let run, and stops each no longer, once the frame being drawn has
+// been drawn: no plugin is waited on before the window takes keys, and each starts on its own, none
+// waiting on another's code to be read.
 export async function syncPlugins() {
+  await new Promise((drawn) => requestAnimationFrame(() => setTimeout(drawn, 0)));
   const off = pluginsOff();
   const scripts = pluginReadings().filter((reading) => reading.kind === "script" && !reading.error && !reading.replaced);
   for (const id of [...state.running.keys()]) {
@@ -451,6 +455,7 @@ export async function syncPlugins() {
       stopPlugin(id);
     }
   }
+  const starting = [];
   for (const reading of scripts) {
     const more = askedMore(reading);
     if (more && state.running.has(reading.id)) {
@@ -464,9 +469,10 @@ export async function syncPlugins() {
       continue;
     }
     if (!off.has(reading.id) && !state.running.has(reading.id)) {
-      await startPlugin(reading);
+      starting.push(startPlugin(reading));
     }
   }
+  await Promise.all(starting);
 }
 
 // Find the Slow Plugin: the plugins on halved, half of them off at a time, the reader asked each time
