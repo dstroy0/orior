@@ -56,6 +56,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 
 24. **Go to File as the reader means it.** A file named as typed, with or without its extension, stands above every looser match and above the files opened lately, and one whose name starts with it next. Go, Fuzzy Matching, turned off, has a file answer only where its path holds the text as typed, the part in its name first, and the choice is kept.
 
+25. **Saved means saved, however one gets back.** A tab is marked changed while its text differs from what was saved, its lines held against the saved lines, and not by the history it took to get there: a key taken back, an input method's character composed and taken back, and Vim's undo each leave the tab back at its saved text unmarked, and a composition left with nothing writes nothing.
+
 ## The backend
 
 1. **One container, every process under it.** orior's window and its command line each put themselves at the head of a container as they start, and every process either starts, the language servers, kernels, debuggers, shells, database links and runs, and every process those start, stands under it. On Windows the container is a job object, which lists its processes and ends every one of them with orior however orior ends; on Linux and macOS the container reads its descendants from the system's list and ends them as it ends. What orior opens for the reader to keep, a page in the browser, a folder in the file manager or another window of orior's, starts outside it and stays.
