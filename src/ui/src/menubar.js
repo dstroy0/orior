@@ -58,8 +58,8 @@ import { icon } from "./icons.js";
 import { focusFollows, setFocusFollows } from "./focusfollow.js";
 import { setSystemTitleBar, systemTitleBar } from "./strip.js";
 import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
-import { openRemote } from "./remote.js";
-import { toggleContainers } from "./containers.js";
+import { openRemote, remoteCommands } from "./remote.js";
+import { containerCommands, toggleContainers } from "./containers.js";
 import { toggleComms } from "./comms.js";
 import { reviewChange } from "./changeview.js";
 import { buttonName, keysOf as commandKeys, letterOf, onKeys, wheelName } from "./keys.js";
@@ -69,7 +69,7 @@ import { printHere } from "./prints.js";
 import { findSlowPlugin } from "./scripts.js";
 import { previewMode, setPreview } from "./preview.js";
 import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
-import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
+import { databaseCommands, runSqlFile, runStatement, toggleDatabase } from "./database.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalCommands, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
@@ -571,7 +571,8 @@ const COMMANDS = {
 };
 
 // A command of the menus or of the popup menus, which take what each item is over, read as it is run.
-const commandNamed = (command) => [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands].find((table) => Object.hasOwn(table, command))?.[command];
+const commandNamed = (command) =>
+  [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands, containerCommands, databaseCommands, remoteCommands].find((table) => Object.hasOwn(table, command))?.[command];
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {

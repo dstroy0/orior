@@ -439,6 +439,26 @@
       ]
     },
     {
+      "title": "Services",
+      "popup": true,
+      "items": [
+        { "label": "Docker or Kubernetes", "command": "containers-kind", "args": "<docker|pods>" },
+        { "label": "Read Again", "command": "containers-read" },
+        { "label": "Logs", "command": "container-logs", "args": "<container|namespace/pod> [container]" },
+        { "label": "Run a Command…", "command": "container-run", "args": "<container> [command]" },
+        { "label": "Open a Terminal", "command": "container-terminal", "args": "<container|namespace/pod> [container]" },
+        { "label": "Open a Folder in a Window…", "command": "container-open", "args": "<container> [folder]" },
+        { "label": "Start", "command": "container-start", "args": "<container>" },
+        { "label": "Stop", "command": "container-stop", "args": "<container>" },
+        { "label": "Restart", "command": "container-restart", "args": "<container>" },
+        { "label": "Show Its First Rows", "command": "db-first-rows", "args": "<schema> <table> [connection]" },
+        { "label": "Copy Name", "command": "db-copy-name", "args": "<name>" },
+        { "label": "Read Again", "command": "db-read-again", "args": "[schema [kind]]" },
+        { "label": "Join Again", "command": "remote-rejoin" },
+        { "label": "Copy Address", "command": "remote-copy-address" }
+      ]
+    },
+    {
       "title": "Help",
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },

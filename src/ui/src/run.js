@@ -532,9 +532,7 @@ export const runCommands = {
   "job-edit": ([id]) => jobNamed(id) && state.openFile(jobNamed(id).file),
   "job-copy-path": ([id]) => jobNamed(id) && copyText(jobNamed(id).file),
   "output-copy": () => {
-    const lines = shownLines();
-    const selection = window.getSelection();
-    const chosen = lines && selection && !selection.isCollapsed && lines.contains(selection.anchorNode) ? selection.toString() : "";
+    const chosen = chosenIn(shownLines());
     return chosen && copyText(chosen);
   },
   "output-copy-all": ([id]) => {
@@ -547,14 +545,20 @@ export const runCommands = {
   "output-select-all": () => shownLines() && window.getSelection().selectAllChildren(shownLines()),
 };
 
+// The text chosen in `lines`, as the document holds it: read from the range chosen, which gives it in a
+// window without the keys, where WebKit's selection gives none.
+function chosenIn(lines) {
+  const selection = window.getSelection();
+  return lines && selection?.rangeCount && !selection.isCollapsed && lines.contains(selection.anchorNode) ? selection.getRangeAt(0).toString() : "";
+}
+
 // The output's menu: copy what is chosen in it, or all of it, or choose all of it.
 function outputItems(event) {
   const lines = event.target.closest(".lines");
   if (!lines) {
     return null;
   }
-  const selection = window.getSelection();
-  const chosen = selection && !selection.isCollapsed && lines.contains(selection.anchorNode) ? selection.toString() : "";
+  const chosen = chosenIn(lines);
   return [
     { label: "Copy", keys: "Ctrl+C", command: "output-copy", args: [], disabled: !chosen, run: () => copyText(chosen) },
     { label: "Copy all", command: "output-copy-all", args: [], run: () => copyText(lines.textContent) },

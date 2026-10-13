@@ -13,6 +13,7 @@ import { showView } from "../../src/views.js";
 import { paletteOpen } from "../../src/palette.js";
 import { closeDiff } from "../../src/diffview.js";
 import { itemShown } from "../../src/statusitems.js";
+import { containersShown } from "../../src/containers.js";
 import { changeShown, closeChange } from "../../src/changeview.js";
 import { focusOn, memoryBudget, noticesHeld, noticesSaid } from "../../src/statusbar.js";
 import { previewMode } from "../../src/preview.js";
@@ -1487,8 +1488,11 @@ test("Run, Show Bytecode reads a Python line's bytecode, and Memory, Watch Memor
     });
     assert.ok(shown);
     closeSheets();
+    // A debugger stops where memory changes as the machine's own watchpoints let it: the window says
+    // the watch set, or the debugger's refusal.
+    const said = noticesSaid().length + noticesHeld().length;
     await press("watch-memory", "count");
-    await ui.waitFor(() => told(/stops where .*count.* changes|count/), 10000, "the watch set");
+    await ui.waitFor(() => made("debug_watch_data").some((one) => one.args.name === "count") && noticesSaid().length + noticesHeld().length > said, 10000, "the watch asked of the debugger and its answer said");
     await press("machine-code");
     await ui.waitFor(() => document.querySelector("body > .menu"), 5000, "the frame's menu of its instructions");
     closeMenu(false);
@@ -1918,7 +1922,7 @@ test("the jobs' menu and their output's, from the command line: started, stopped
   await press("output-copy-all", QUICK);
   assert.match(copied.at(-1) ?? "", /quick/, "the output copied whole");
   await press("output-select-all");
-  assert.match(window.getSelection().toString(), /quick/, "the output chosen whole");
+  assert.match(window.getSelection().getRangeAt(0).toString(), /quick/, "the output chosen whole");
   await press("output-copy");
   assert.match(copied.at(-1) ?? "", /quick/, "what is chosen copied");
   await press("job-copy-path", QUICK);
@@ -1970,6 +1974,78 @@ test("the status bar's menu, from the command line: an item hidden and shown, mo
   await press("status-reset");
   assert.ok(itemShown("focus"), "every item shown again");
   assert.deepEqual(order(), before, "in the bar's own order");
+});
+
+["containers-kind", "containers-read", "container-logs", "container-run", "container-terminal", "container-open", "container-start", "container-stop", "container-restart"].forEach((command) => COVERED.add(command));
+["db-first-rows", "db-copy-name", "db-read-again", "remote-rejoin", "remote-copy-address"].forEach((command) => COVERED.add(command));
+
+test("the Containers window's menu and controls, from the command line: logs, a command, a shell, a folder, start, stop and restart, Docker and Kubernetes", async () => {
+  asFound();
+  calls.answer("containers_list", () => ({ items: [{ name: "web", image: "nginx", status: "Up 2 minutes", state: "running" }] }));
+  calls.answer("pods_list", () => ({ items: [{ namespace: "shop", name: "api", containers: ["app", "side"], ready: "2/2", phase: "Running" }] }));
+  calls.answer("container_logs", ({ name }) => `the logs of ${name}`);
+  calls.answer("pod_logs", ({ name, container }) => `the logs of ${name} ${container}`);
+  calls.answer("container_run", ({ name, line }) => `${name} ran ${line}`);
+  const acted = [];
+  calls.answer("container_act", ({ name, act }) => acted.push(`${act} ${name}`));
+  const opened = [];
+  calls.answer("window_open", ({ remote }) => opened.push(remote));
+  await press("containers-kind", "docker");
+  await ui.waitFor(() => containersShown().rows.some(([key]) => key === "web"), 5000, "the container listed");
+  const read = made("containers_list").length;
+  await press("containers-read");
+  assert.ok(made("containers_list").length > read, "read again");
+  await press("container-logs", "web");
+  await ui.waitFor(() => containersShown().out === "the logs of web", 5000, "its logs");
+  await press("container-run", "web", "ls", "/");
+  await ui.waitFor(() => containersShown().out === "web ran ls /", 5000, "the command's output");
+  for (const how of ["start", "stop", "restart"]) {
+    await press(`container-${how}`, "web");
+  }
+  assert.deepEqual(acted, ["start web", "stop web", "restart web"]);
+  await press("container-open", "web", "/app");
+  assert.deepEqual(opened, ["docker:web:/app"]);
+  await press("container-terminal", "web");
+  await ui.waitFor(() => /docker exec -it 'web' sh/.test(document.getElementById("term-views").textContent), 10000, "a shell asked for in the container");
+  await press("containers-kind", "pods");
+  await ui.waitFor(() => containersShown().rows.some(([key]) => key === "shop/api"), 5000, "the pod listed");
+  await press("container-logs", "shop/api", "side");
+  await ui.waitFor(() => containersShown().out === "the logs of api side", 5000, "a pod's container's logs");
+  await press("container-terminal", "shop/api", "side");
+  await ui.waitFor(() => /kubectl exec -it -n 'shop' 'api' -c 'side' -- sh/.test(document.getElementById("term-views").textContent), 10000, "a shell asked for in the pod");
+  await press("containers-kind", "docker");
+  await press("kill").catch(() => {});
+  asFound();
+  runCommand("containers-view");
+  if (!document.getElementById("containers").hidden) {
+    runCommand("containers-view");
+  }
+}, { timeout: 60000 });
+
+test("the Database tree's menu, from the command line: a table's first rows, a name copied, and a level read again", async () => {
+  asFound();
+  calls.answer("db_list", () => [{ connection: { name: "made", kind: "postgres" }, open: true }]);
+  calls.answer("db_run", () => ({ done: "SELECT 0", ms: 1 }));
+  calls.answer("db_connect", () => ({ version: "the test's" }));
+  await press("db-first-rows", "public", "things", "made");
+  assert.ok(made("db_run").some((one) => one.args.name === "made" && one.args.sql === 'SELECT * FROM "public"."things" LIMIT 200'), JSON.stringify(made("db_run").map((one) => one.args)));
+  const copied = [];
+  calls.answer("clip_write", ({ text }) => copied.push(text));
+  await press("db-copy-name", "things");
+  assert.deepEqual(copied, ["things"]);
+  await press("db-read-again", "public");
+  if (!document.getElementById("database").hidden) {
+    runCommand("database-view");
+  }
+  asFound();
+});
+
+test("the machine button's menu, from the command line: joining again, and its address, which a tree on this machine has none of", async () => {
+  calls.answer("remote_rejoin", () => null);
+  await press("remote-rejoin");
+  assert.ok(made("remote_rejoin").length, "the link asked to join again");
+  await press("remote-copy-address");
+  assert.ok(told(/on this machine/), "no address for a tree on this machine");
 });
 
 test("the window is put back as the file found it", async () => {
