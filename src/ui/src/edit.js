@@ -3333,6 +3333,7 @@ export async function startEdit(defs) {
   });
   startExplorer({
     show,
+    open: (path) => openFile(path),
     sessionOf: (path) => (path ? tabOf(path)?.session ?? null : null),
     activePath: () => (state.active ? tabOf(state.active)?.file ?? null : null),
     close: (path) => tabOf(path) && closeTab(tabOf(path)),

@@ -31,7 +31,7 @@ import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debu
 import { authorsShown, setAuthorsShown } from "./authors.js";
 import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, popupCommands, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
-import { showPane } from "./explorer.js";
+import { explorerCommands, showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
 import { fuzzy } from "./fuzzy.js";
 import { runAllTests, runFailedTests, setTestsParallel, stopTests, testsParallel } from "./tests.js";
@@ -570,7 +570,7 @@ const COMMANDS = {
 };
 
 // A command of the menus or of the popup menus, which take what each item is over, read as it is run.
-const commandNamed = (command) => (Object.hasOwn(COMMANDS, command) ? COMMANDS[command] : Object.hasOwn(popupCommands, command) ? popupCommands[command] : undefined);
+const commandNamed = (command) => [COMMANDS, popupCommands, explorerCommands].find((table) => Object.hasOwn(table, command))?.[command];
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {

@@ -21,7 +21,8 @@ import { checkersNamed, setCheckers } from "../../src/servers.js";
 import { closePeek, peekShown } from "../../src/peek.js";
 import { bookmarksOf } from "../../src/bookmarks.js";
 import { boardShown, closeBoard, tasks } from "../../src/gather.js";
-import { paneOpen, panesNow, putPanes, showGroup, showPane, shownGroup } from "../../src/explorer.js";
+import { outlinePinned, paneOpen, panesNow, putPanes, showGroup, showPane, shownGroup } from "../../src/explorer.js";
+import { addComment, comments } from "../../src/review.js";
 import { togglePane } from "../../src/sides.js";
 import { forgetMacro, keptMacros, lastMacro, recording } from "../../src/macros.js";
 import { breakpointsOf, canStepBack, debugging, isPaused, pausedLineOf, toggleDebugPanel } from "../../src/debug.js";
@@ -1474,7 +1475,9 @@ test("Run, Show Bytecode reads a Python line's bytecode, and Memory, Watch Memor
     const scopes = await invoke("debug_scopes", { session: session.id, frame: frames[0].id });
     const count = (await invoke("debug_variables", { session: session.id, reference: scopes[0].reference })).find((one) => one.name === "count");
     await press("show-memory", count.memory);
-    const shown = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] pre.debug-memory")].find((pre) => /44 33 22 11/.test(pre.textContent)), 10000, "count's bytes");
+    const shown = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] pre.debug-memory")].find((pre) => /44 33 22 11/.test(pre.textContent)), 10000, "count's bytes").catch((error) => {
+      throw new Error(`${error.message}; the reference ${count.memory}; the sheet shows ${[...document.querySelectorAll("dialog[open] pre")].map((pre) => pre.textContent.slice(0, 200)).join(" | ")}`);
+    });
     assert.ok(shown);
     closeSheets();
     await press("watch-memory", "count");
@@ -1607,7 +1610,7 @@ test("Git, Cherry-Pick applies the commit named, and Resolve Conflicts says wher
 
 // What the tests above made in the tree, each taken out by the last test.
 const MADE = [
-  GIVEN, "peek.c", "served.c", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
+  GIVEN, "peek.c", "served.c", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "history_file.txt", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
   "made_by_command.txt", "made_by_command", "made.code-workspace", "marked_*.txt", "src/build_quick.sh", "src/build_slow.sh", "__pycache__", ".pytest_cache", "build",
 ];
 
@@ -1760,6 +1763,118 @@ test("a tab's menu, from the command line: close, close others, split, a new win
   assert.deepEqual(opened.at(-1), ["file", "open-file", "hello.py"]);
   await ui.waitFor(() => !tabOfName("hello.py"), 3000, "the tab gone to the new window");
 }, { timeout: 60000 });
+
+["pane-show", "explorer-refresh", "explorer-collapse", "outline-pin"].forEach((command) => COVERED.add(command));
+["commit-open", "commit-compare", "commit-copy-id", "commit-copy-message", "commit-files", "commit-file-changes", "history-difference", "history-revert"].forEach((command) => COVERED.add(command));
+["comment-open", "comment-changes", "comment-resolve", "comment-delete", "comment-copy"].forEach((command) => COVERED.add(command));
+
+test("the explorer's menu, from the command line: a pane shown and hidden, the tree read again, its folders closed, and the Outline pinned", async () => {
+  asFound();
+  showView("edit");
+  togglePane(true, { take: false, pin: true });
+  showPane("folder");
+  await press("pane-show", "todo", "on");
+  assert.ok(panesNow().todo.shown, "TODO shown");
+  await press("pane-show", "todo", "off");
+  assert.ok(!panesNow().todo.shown, "and hidden");
+  const read = made("tree_list").length;
+  await press("explorer-refresh");
+  await ui.waitFor(() => made("tree_list").length > read, 5000, "the tree read again");
+  if (rowOf("src")?.getAttribute("aria-expanded") !== "true") {
+    await press("file-open", "src");
+  }
+  await ui.waitFor(() => rowOf("src")?.getAttribute("aria-expanded") === "true", 3000, "src open");
+  await press("explorer-collapse");
+  await ui.waitFor(() => rowOf("src")?.getAttribute("aria-expanded") === "false", 3000, "src closed");
+  await press("outline-pin", "hello.py");
+  assert.equal(outlinePinned(), "hello.py");
+  await press("outline-pin", "none");
+  assert.equal(outlinePinned(), null);
+  asFound();
+});
+
+test("the commits' menus, from the command line: a revision opened, compared, its id and message copied, its files and changes shown", async () => {
+  asFound();
+  const tree = TREE();
+  const git = (...words) => ui.run("git", ["-C", tree, "-c", "user.name=orior", "-c", "user.email=orior@localhost", ...words]);
+  const before = (await invoke("file_read", { path: "hello.py" })).text;
+  await invoke("file_write", { path: "hello.py", text: `${before}# a second revision\n` });
+  await git("commit", "-qam", "a second revision of hello");
+  try {
+    const [newest, older] = await invoke("file_commits", { path: "hello.py" });
+    assert.ok(newest && older, "two revisions of hello.py");
+    await press("commit-open", "hello.py", older.id.slice(0, 7));
+    await ui.waitFor(() => editing().active === `hello.py@${older.id}`, 5000, "hello.py as the older revision left it");
+    await press("commit-compare", "hello.py", older.id.slice(0, 7));
+    await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "the revision beside the file");
+    closeDiff();
+    await press("commit-compare", "hello.py", newest.id.slice(0, 7), older.id.slice(0, 7));
+    await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "the revisions beside each other");
+    closeDiff();
+    const copied = [];
+    calls.answer("clip_write", ({ text }) => copied.push(text));
+    await press("commit-copy-id", newest.id.slice(0, 7));
+    await press("commit-copy-message", newest.id.slice(0, 7), "hello.py");
+    assert.deepEqual(copied, [newest.id, "a second revision of hello"]);
+    await press("commit-files", newest.id.slice(0, 7));
+    const row = () => [...document.querySelectorAll(".git-commit")].find((one) => one.dataset.key === newest.id);
+    await ui.waitFor(() => row()?.getAttribute("aria-expanded") === "true", 5000, "the commit's files shown");
+    await press("commit-file-changes", newest.id.slice(0, 7), "hello.py");
+    await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "the commit's change to hello.py");
+    closeDiff();
+    await press("commit-files", newest.id.slice(0, 7));
+    await ui.waitFor(() => row()?.getAttribute("aria-expanded") === "false", 5000, "and hidden again");
+  } finally {
+    await git("reset", "-q", "--hard", "HEAD~1");
+    asFound();
+  }
+}, { timeout: 60000 });
+
+test("Local History's menu, from the command line: a save's difference shown, and the file taken back to it", async () => {
+  asFound();
+  showView("edit");
+  await invoke("file_write", { path: "history_file.txt", text: "first\n" });
+  await openFile("history_file.txt");
+  const view = editing().editor;
+  view.change([{ from: { line: 0, col: 0 }, to: view.doc.end(), text: "second\n" }], null);
+  await press("save");
+  view.change([{ from: { line: 0, col: 0 }, to: view.doc.end(), text: "third\n" }], null);
+  await press("save");
+  const saves = await ui.waitFor(async () => {
+    const found = await invoke("history_list", { path: "history_file.txt" });
+    return found.length >= 2 && found;
+  }, 5000, "the saves kept");
+  const second = saves.find((one) => one.size === "second\n".length) ?? saves.at(-1);
+  await press("history-difference", "history_file.txt", String(second.at));
+  await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "the save beside the file");
+  closeDiff();
+  await press("history-revert", "history_file.txt", String(second.at));
+  await ui.waitFor(async () => (await invoke("file_read", { path: "history_file.txt" })).text === "second\n" || editing().editor.doc.text() === "second\n", 5000, "the file taken back");
+  asFound();
+});
+
+test("Review's menu, from the command line: a comment opened, its changes shown, resolved, copied and deleted", async () => {
+  asFound();
+  addComment("hello.py", 0, "def greet(name):", "a note of the test's");
+  const one = comments().find((comment) => comment.body === "a note of the test's");
+  assert.ok(one, "the comment left");
+  await press("comment-open", one.id);
+  await ui.waitFor(() => editing().active === "hello.py" && editing().editor.head().line === 0, 5000, "hello.py at the comment's line");
+  await press("comment-changes", one.id);
+  await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button") || told(/No change/), 5000, "the file's changes");
+  closeDiff();
+  await press("comment-resolve", one.id, "done");
+  assert.ok(comments().find((comment) => comment.id === one.id).done, "resolved");
+  await press("comment-resolve", one.id, "open");
+  assert.ok(!comments().find((comment) => comment.id === one.id).done, "and open again");
+  const copied = [];
+  calls.answer("clip_write", ({ text }) => copied.push(text));
+  await press("comment-copy", one.id);
+  assert.deepEqual(copied, ["a note of the test's"]);
+  await press("comment-delete", one.id);
+  assert.ok(!comments().some((comment) => comment.id === one.id), "deleted");
+  asFound();
+});
 
 test("the window is put back as the file found it", async () => {
   const tree = TREE();

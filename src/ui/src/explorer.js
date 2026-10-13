@@ -24,6 +24,7 @@ import { copyText, menuOn, showMenu } from "./menu.js";
 import { comments, onReview, removeComment, resolveComment } from "./review.js";
 import { structureOf } from "./outline.js";
 import { themeIcon } from "./themes.js";
+import { say } from "./statusbar.js";
 import { icon } from "./icons.js";
 
 const KEPT = "orior.panes";
@@ -312,18 +313,80 @@ export function paneOpen(name) {
 
 // The … menu, and each pane head's own menu: the panes to show, then reading the tree again and
 // closing its folders.
+// The explorer's menus as commands, each by the name commands.json gives it, run from the menus or
+// from the command line with the words it gives: a pane's name, a file of the tree, a commit by the
+// start of its id, a save of Local History by its number, a review comment by its id.
+
+// The commit `id` begins: one the panes hold, or else one of `path`'s, or one of the repository's.
+async function commitNamed(id, path = null) {
+  const held = [...state.timeline.commits, ...state.git.commits].find((one) => one.id.startsWith(id));
+  if (held) {
+    return held;
+  }
+  const found = path ? await invoke("file_commits", { path }).catch(() => []) : await invoke("git_graph", { query: null, repo: gitRepo(), authors: false }).catch(() => []);
+  return found.find((one) => one.id.startsWith(id)) ?? null;
+}
+
+// Runs `act` with the commit `id` begins, or says there is none.
+async function withCommit(id, path, act) {
+  const commit = await commitNamed(id, path);
+  if (!commit) {
+    say(`No commit ${path ? `of ${path} ` : ""}begins ${id}.`, { failed: true });
+    return;
+  }
+  return act(commit);
+}
+
+const commentNamed = (id) => comments().find((one) => one.id === id) ?? null;
+
+export const explorerCommands = {
+  "pane-show": ([name, on]) => state.panes[name] && setPane(name, { shown: on === "on" ? true : on === "off" ? false : !state.panes[name].shown }),
+  "explorer-refresh": () => state.hooks.refresh(),
+  "explorer-collapse": () => state.hooks.collapse(),
+  // A file not open opens first: the Outline is pinned to an open file's symbols.
+  "outline-pin": async ([path = "none"]) => {
+    if (path !== "none" && !state.hooks.sessionOf(path)) {
+      await state.hooks.open(path);
+    }
+    pinOutline(path === "none" ? null : path);
+  },
+  "commit-open": ([path, id]) => withCommit(id, path, (commit) => state.hooks.openCommit(path, commit)),
+  "commit-compare": ([path, id, other]) => withCommit(id, path, async (commit) => state.hooks.compareCommit(path, commit, other ? await commitNamed(other, path) : undefined)),
+  "commit-copy-id": ([id]) => withCommit(id, null, (commit) => copyText(commit.id)),
+  "commit-copy-message": ([id, path]) => withCommit(id, path, (commit) => copyText(commit.subject)),
+  "commit-files": async ([id]) => {
+    showPane("git");
+    await drawGit(state.git.branch);
+    const row = [...document.querySelectorAll(".git-commit")].find((one) => one.dataset.key.startsWith(id));
+    return row ? toggleCommit(row) : say(`The graph shows no commit beginning ${id}.`, { failed: true });
+  },
+  "commit-file-changes": ([id, path]) =>
+    withCommit(id, null, (commit) => state.hooks.openTouched(commit, state.git.files.get(commit.id)?.find((one) => one.path === path) ?? { path, state: "M" })),
+  "history-difference": ([path, at]) => state.hooks.showSnapshot(path, Number(at)),
+  "history-revert": ([path, at]) => state.hooks.revertSnapshot(path, Number(at)),
+  "comment-open": ([id]) => commentNamed(id) && state.hooks.openComment(commentNamed(id)),
+  "comment-changes": ([id]) => commentNamed(id) && state.hooks.showChanges(commentNamed(id).path),
+  "comment-resolve": ([id, as]) => commentNamed(id) && resolveComment(id, as === "open" ? false : as === "done" ? true : !commentNamed(id).done),
+  "comment-delete": ([id]) => removeComment(id),
+  "comment-copy": ([id]) => commentNamed(id) && copyText(commentNamed(id).body),
+};
+
+// An item that runs `command` with `args`, as the command line runs it, and says both.
+const act = (command, args, item) => ({ ...item, command, args, run: () => explorerCommands[command](args) });
+
 function paneItems() {
   const group = GROUPS[state.group];
   return [
-    ...PANES.filter(([name]) => group.includes(name)).map(([name, label]) => ({
-      label: label ?? document.querySelector('.pane[data-pane="folder"] .pane-head').textContent,
-      checked: state.panes[name].shown,
-      disabled: state.panes[name].shown && group.filter((one) => state.panes[one].shown).length === 1,
-      run: () => setPane(name, { shown: !state.panes[name].shown }),
-    })),
+    ...PANES.filter(([name]) => group.includes(name)).map(([name, label]) =>
+      act("pane-show", [name, state.panes[name].shown ? "off" : "on"], {
+        label: label ?? document.querySelector('.pane[data-pane="folder"] .pane-head').textContent,
+        checked: state.panes[name].shown,
+        disabled: state.panes[name].shown && group.filter((one) => state.panes[one].shown).length === 1,
+      }),
+    ),
     "-",
-    { label: "Refresh Explorer", run: () => state.hooks.refresh() },
-    { label: "Collapse Folders in Explorer", run: () => state.hooks.collapse() },
+    act("explorer-refresh", [], { label: "Refresh Explorer" }),
+    act("explorer-collapse", [], { label: "Collapse Folders in Explorer" }),
   ];
 }
 
@@ -494,7 +557,7 @@ function outlineItems() {
   const active = state.hooks.activePath?.();
   const pinned = state.outline.pinned;
   return [
-    pinned ? { label: `Unpin ${pinned.path.split("/").pop()}`, run: () => pinOutline(null) } : { label: active ? `Pin ${active.split("/").pop()}` : "Pin the File Shown", disabled: !active, run: () => pinOutline(active) },
+    pinned ? act("outline-pin", ["none"], { label: `Unpin ${pinned.path.split("/").pop()}` }) : act("outline-pin", [active ?? "none"], { label: active ? `Pin ${active.split("/").pop()}` : "Pin the File Shown", disabled: !active }),
   ];
 }
 
@@ -585,13 +648,13 @@ function timelineItems(event) {
   const path = state.timeline.path;
   const others = state.timeline.commits.filter((one) => one !== commit).slice(0, 40);
   return [
-    { label: "Open", run: () => state.hooks.openCommit(path, commit) },
+    act("commit-open", [path, commit.id], { label: "Open" }),
     "-",
-    { label: "Compare with Current", run: () => state.hooks.compareCommit(path, commit) },
-    { label: "Compare with Revision", disabled: !others.length, items: others.map((one) => ({ label: `${one.id.slice(0, 7)}  ${one.subject}`, run: () => state.hooks.compareCommit(path, commit, one) })) },
+    act("commit-compare", [path, commit.id], { label: "Compare with Current" }),
+    { label: "Compare with Revision", disabled: !others.length, items: others.map((one) => act("commit-compare", [path, commit.id, one.id], { label: `${one.id.slice(0, 7)}  ${one.subject}` })) },
     "-",
-    { label: "Copy Commit ID", run: () => copyText(commit.id) },
-    { label: "Copy Commit Message", run: () => copyText(commit.subject) },
+    act("commit-copy-id", [commit.id], { label: "Copy Commit ID" }),
+    act("commit-copy-message", [commit.id, path], { label: "Copy Commit Message" }),
   ];
 }
 
@@ -683,8 +746,8 @@ function localItems(event) {
   }
   const path = state.local.path;
   return [
-    { label: "Show Difference", run: () => state.hooks.showSnapshot(path, at) },
-    { label: "Revert to This", run: () => state.hooks.revertSnapshot(path, at) },
+    act("history-difference", [path, String(at)], { label: "Show Difference" }),
+    act("history-revert", [path, String(at)], { label: "Revert to This" }),
   ];
 }
 
@@ -976,19 +1039,19 @@ function gitItems(event) {
   if (row.classList.contains("git-file")) {
     const file = state.git.files.get(commit.id)?.find((one) => `${commit.id}:${one.path}` === row.dataset.key);
     return [
-      { label: "Show Changes", run: () => state.hooks.openTouched(commit, file) },
-      { label: "Open as It Was", disabled: file?.state === "D", run: () => state.hooks.openCommit(file.path, commit) },
+      act("commit-file-changes", [commit.id, file.path], { label: "Show Changes" }),
+      act("commit-open", [file.path, commit.id], { label: "Open as It Was", disabled: file?.state === "D" }),
       "-",
-      { label: "Copy Path", run: () => copyText(file.path) },
+      { label: "Copy Path", command: "file-copy-path", args: [file.path], run: () => copyText(file.path) },
     ];
   }
   return [
-    { label: state.git.open.has(commit.id) ? "Close Files" : "Open Files", run: () => toggleCommit(row) },
+    { label: state.git.open.has(commit.id) ? "Close Files" : "Open Files", command: "commit-files", args: [commit.id], run: () => toggleCommit(row) },
     "-",
-    { label: "Cherry-Pick", run: () => import("./menubar.js").then((menus) => menus.cherryPick(commit.id, gitRepo())) },
+    { label: "Cherry-Pick", command: "cherry-pick", args: [commit.id], run: () => import("./menubar.js").then((menus) => menus.cherryPick(commit.id, gitRepo())) },
     "-",
-    { label: "Copy Commit ID", run: () => copyText(commit.id) },
-    { label: "Copy Commit Message", run: () => copyText(commit.subject) },
+    act("commit-copy-id", [commit.id], { label: "Copy Commit ID" }),
+    act("commit-copy-message", [commit.id], { label: "Copy Commit Message" }),
   ];
 }
 
@@ -1029,13 +1092,13 @@ function reviewItems(event) {
     return null;
   }
   return [
-    { label: "Open", run: () => state.hooks.openComment(one) },
-    { label: "Show Changes", run: () => state.hooks.showChanges(one.path) },
+    act("comment-open", [one.id], { label: "Open" }),
+    act("comment-changes", [one.id], { label: "Show Changes" }),
     "-",
-    { label: one.done ? "Reopen" : "Resolve", run: () => resolveComment(one.id, !one.done) },
-    { label: "Delete", run: () => removeComment(one.id) },
+    act("comment-resolve", [one.id, one.done ? "open" : "done"], { label: one.done ? "Reopen" : "Resolve" }),
+    act("comment-delete", [one.id], { label: "Delete" }),
     "-",
-    { label: "Copy Comment", run: () => copyText(one.body) },
+    act("comment-copy", [one.id], { label: "Copy Comment" }),
   ];
 }
 

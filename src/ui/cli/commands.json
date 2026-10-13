@@ -384,6 +384,41 @@
       ]
     },
     {
+      "title": "Explorer",
+      "popup": true,
+      "items": [
+        { "label": "Show or Hide a Pane", "command": "pane-show", "args": "<pane> [on|off]" },
+        { "label": "Refresh Explorer", "command": "explorer-refresh" },
+        { "label": "Collapse Folders in Explorer", "command": "explorer-collapse" },
+        { "label": "Pin the File Shown", "command": "outline-pin", "args": "[file|none]" }
+      ]
+    },
+    {
+      "title": "Commits",
+      "popup": true,
+      "items": [
+        { "label": "Open", "command": "commit-open", "args": "<file> <commit>" },
+        { "label": "Compare with Current", "command": "commit-compare", "args": "<file> <commit> [other commit]" },
+        { "label": "Copy Commit ID", "command": "commit-copy-id", "args": "<commit>" },
+        { "label": "Copy Commit Message", "command": "commit-copy-message", "args": "<commit> [file]" },
+        { "label": "Open Files", "command": "commit-files", "args": "<commit>" },
+        { "label": "Show Changes", "command": "commit-file-changes", "args": "<commit> <file>" },
+        { "label": "Show Difference", "command": "history-difference", "args": "<file> <save>" },
+        { "label": "Revert to This", "command": "history-revert", "args": "<file> <save>" }
+      ]
+    },
+    {
+      "title": "Review",
+      "popup": true,
+      "items": [
+        { "label": "Open", "command": "comment-open", "args": "<comment>" },
+        { "label": "Show Changes", "command": "comment-changes", "args": "<comment>" },
+        { "label": "Resolve", "command": "comment-resolve", "args": "<comment> [done|open]" },
+        { "label": "Delete", "command": "comment-delete", "args": "<comment>" },
+        { "label": "Copy Comment", "command": "comment-copy", "args": "<comment>" }
+      ]
+    },
+    {
       "title": "Help",
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },

@@ -307,14 +307,14 @@ fn app_exit(handle: AppHandle) {
 /// it. Empty where the clipboard holds no text.
 #[tauri::command]
 fn clip_read() -> String {
-    arboard::Clipboard::new().and_then(|mut clip| clip.get_text()).unwrap_or_default()
+    clip::with(|clip| clip.get_text()).unwrap_or_default()
 }
 
 /// Puts text on the system clipboard, written here so the page never asks the reader for leave to
 /// write it.
 #[tauri::command]
 fn clip_write(text: String) -> Result<(), String> {
-    arboard::Clipboard::new().and_then(|mut clip| clip.set_text(text)).map_err(|error| error.to_string())
+    clip::with(|clip| clip.set_text(text))
 }
 
 /// Keeps the page's changed entries in orior's own folder, each key starting `orior.` with its new
