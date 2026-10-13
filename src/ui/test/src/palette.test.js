@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The quick open: Go to File while the tree's files are still being read, answered from the files
-// opened lately, saying so, and asked again until the tree is read.
+// opened lately, saying so, and asked again until the tree is read; and Go, Fuzzy Matching, off for
+// the text as typed alone.
 
 import { watchCalls } from "../../src/bridge.js";
+import { fuzzyFiles, runCommand } from "../../src/menubar.js";
 import { openPalette, paletteOpen } from "../../src/palette.js";
 
 const { test, assert, ui, calls } = window.__harness;
@@ -39,4 +41,24 @@ test("Go to File answers from the files opened lately while the tree's files are
     }
   }
   assert.ok(!paletteOpen(), "Escape closes it");
+});
+
+test("with Fuzzy Matching off, Go to File answers only the files whose paths hold the text as typed", async () => {
+  const kept = fuzzyFiles();
+  try {
+    runCommand("fuzzy-files", ["on"]);
+    openPalette("hlo");
+    await ui.waitFor(() => labels().includes("hello.py"), 5000, "hello.py for the letters in order");
+    await ui.key("Escape");
+    runCommand("fuzzy-files", ["off"]);
+    assert.equal(fuzzyFiles(), false);
+    openPalette("hlo");
+    await ui.waitFor(() => labels().length > 0 && !labels().includes("hello.py"), 5000, `not hello.py for letters apart: ${labels().join(", ")}`);
+    await ui.key("Escape");
+    openPalette("ello");
+    await ui.waitFor(() => labels().includes("hello.py"), 5000, "hello.py for the text as typed");
+    await ui.key("Escape");
+  } finally {
+    runCommand("fuzzy-files", [kept ? "on" : "off"]);
+  }
 });

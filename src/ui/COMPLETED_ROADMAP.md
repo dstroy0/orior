@@ -54,6 +54,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 
 23. **A trackpad held as smooth as a wheel.** Fingers held on a trackpad move the text at the display's own rate, wrapped or not, and as far as the fingers go. View, Word Wrap, Alt+Z, wraps each line longer than the view after the last space that fits, its rows moved through by Up and Down, pressed on and selected as rows, the line's number on its first row alone, and the choice kept.
 
+24. **Go to File as the reader means it.** A file named as typed, with or without its extension, stands above every looser match and above the files opened lately, and one whose name starts with it next. Go, Fuzzy Matching, turned off, has a file answer only where its path holds the text as typed, the part in its name first, and the choice is kept.
+
 ## The backend
 
 1. **One container, every process under it.** orior's window and its command line each put themselves at the head of a container as they start, and every process either starts, the language servers, kernels, debuggers, shells, database links and runs, and every process those start, stands under it. On Windows the container is a job object, which lists its processes and ends every one of them with orior however orior ends; on Linux and macOS the container reads its descendants from the system's list and ends them as it ends. What orior opens for the reader to keep, a page in the browser, a folder in the file manager or another window of orior's, starts outside it and stays.

@@ -371,8 +371,9 @@ pub fn fuzzy(query: &str, text: &str, from: usize) -> Option<(f64, Vec<usize>)> 
 }
 
 /// What a file named exactly as typed scores over the match itself, and one whose name starts with
-/// it half that.
-const EXACT: f64 = 40.0;
+/// it half that: more than any match and the files opened lately score together, so a name as typed
+/// stands above every looser match.
+const EXACT: f64 = 100_000.0;
 
 /// What a file opened lately scores over the match itself.
 const LATELY: f64 = 6.0;
@@ -498,20 +499,47 @@ fn held(root: &Path) -> (Arc<Vec<Listed>>, bool) {
 /// tree's files are not read yet: until they are, the files of `recent` alone answer. A file in
 /// `recent` scores LATELY more, and one named as typed, with or without its extension, EXACT more, as
 /// one whose name starts with what was typed scores half of EXACT more.
-pub fn ranked(root: &Path, query: &str, recent: &[String], most: usize) -> Answer {
+///
+/// With `fuzzy` off, a file answers only where its path holds the query as typed, case aside, and the
+/// part of it in the file's name scores above the part in its folders.
+pub fn ranked(root: &Path, query: &str, recent: &[String], most: usize, fuzzy: bool) -> Answer {
     let (files, read) = held(root);
     let files = if read { files } else { Arc::new(recent.iter().map(|path| Listed::of(path)).collect()) };
-    Answer { found: ranked_in(&files, query, recent, most), reading: !read }
+    Answer { found: ranked_in(&files, query, recent, most, fuzzy), reading: !read }
 }
 
-fn ranked_in(files: &[Listed], query: &str, recent: &[String], most: usize) -> Vec<Found> {
+/// The query's letters as typed in `lower`, a path in lower case, as a match: the last place the path
+/// holds them, in its name where it does, each char's place in it, and a score that puts a match in
+/// the name and at the start of a word first.
+fn typed_in(wanted: &str, lower: &str, from: usize) -> Option<(f64, Vec<usize>)> {
+    if wanted.is_empty() {
+        return Some((0.0, Vec::new()));
+    }
+    let at = lower.rfind(wanted)?;
+    let first = lower[..at].chars().count();
+    let hits: Vec<usize> = (first..first + wanted.chars().count()).collect();
+    let shown: Vec<char> = lower.chars().collect();
+    let mut score = 10.0 * hits.len() as f64;
+    if first >= from {
+        score += 20.0;
+    }
+    if starts_word(&shown, first) {
+        score += 10.0;
+    }
+    Some((score - shown.len() as f64 * 0.02, hits))
+}
+
+fn ranked_in(files: &[Listed], query: &str, recent: &[String], most: usize, fuzzy: bool) -> Vec<Found> {
     let lowered: String = query.chars().map(Letter::lower).collect();
     let asked = lowered.rsplit('/').next().unwrap_or_default();
     let wanted_bytes: Vec<u8> = lowered.bytes().filter(|byte| !byte.is_ascii_whitespace()).collect();
     let wanted_chars: Vec<char> = lowered.chars().filter(|letter| !letter.is_whitespace()).collect();
     let mut found: Vec<Found> = Vec::new();
+    let typed: String = wanted_chars.iter().collect();
     for file in files.iter() {
-        let matched = if file.path.is_ascii() && lowered.is_ascii() {
+        let matched = if !fuzzy {
+            typed_in(&typed, &file.lower, file.from)
+        } else if file.path.is_ascii() && lowered.is_ascii() {
             fuzzy_in(&wanted_bytes, file.path.as_bytes(), file.lower.as_bytes(), file.from)
         } else {
             let shown: Vec<char> = file.path.chars().collect();
@@ -1230,6 +1258,32 @@ mod listing {
 }
 
 #[cfg(test)]
+mod going {
+    use super::{ranked_in, Listed};
+
+    fn paths(found: Vec<super::Found>) -> Vec<String> {
+        found.into_iter().map(|one| one.path).collect()
+    }
+
+    #[test]
+    fn a_name_as_typed_stands_above_every_looser_match_and_above_the_files_opened_lately() {
+        let files: Vec<Listed> = ["src/view_tests/view_helpers.rs", "src/review.rs", "docs/view.md", "src/view.rs"].iter().map(|path| Listed::of(path)).collect();
+        let recent = vec!["src/review.rs".to_string(), "src/view_tests/view_helpers.rs".to_string()];
+        let found = paths(ranked_in(&files, "view", &recent, 10, true));
+        assert_eq!(&found[..2], ["src/view.rs", "docs/view.md"], "named as typed, with or without its extension, first");
+    }
+
+    #[test]
+    fn with_fuzzy_matching_off_only_the_text_as_typed_answers() {
+        let files: Vec<Listed> = ["src/review.rs", "src/vim_ew.rs", "src/view.rs"].iter().map(|path| Listed::of(path)).collect();
+        assert_eq!(paths(ranked_in(&files, "view", &[], 10, true)).len(), 3, "fuzzy: the letters in order anywhere");
+        let typed = ranked_in(&files, "view", &[], 10, false);
+        assert_eq!(typed.iter().map(|one| one.path.as_str()).collect::<Vec<_>>(), ["src/view.rs", "src/review.rs"]);
+        assert_eq!(typed[0].hits, [4, 5, 6, 7]);
+    }
+}
+
+#[cfg(test)]
 mod reading {
     use super::{ranked, unread};
     use std::fs;
@@ -1242,7 +1296,7 @@ mod reading {
         fs::write(root.join("alpha.txt"), "one").unwrap();
         fs::write(root.join("apple.txt"), "two").unwrap();
         let root = dunce::canonicalize(&root).unwrap();
-        let first = ranked(&root, "a", &["apple.txt".to_string()], 10);
+        let first = ranked(&root, "a", &["apple.txt".to_string()], 10, true);
         assert!(first.reading, "the tree is not read yet");
         assert_eq!(first.found.iter().map(|one| one.path.as_str()).collect::<Vec<_>>(), ["apple.txt"]);
         for _ in 0..100 {
@@ -1251,7 +1305,7 @@ mod reading {
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
-        let read = ranked(&root, "alpha", &[], 10);
+        let read = ranked(&root, "alpha", &[], 10, true);
         assert!(!read.reading, "the tree is read");
         assert_eq!(read.found[0].path, "alpha.txt");
         fs::remove_dir_all(&root).unwrap();

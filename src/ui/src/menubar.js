@@ -89,6 +89,11 @@ const state = { bar: null, menus: [], open: -1, titles: [], held: false, before:
 // The words on and off as true and false, and anything else as undefined, for the setting to flip.
 const onOff = (args) => (args[0] === "on" ? true : args[0] === "off" ? false : undefined);
 
+// Whether Go to File matches the letters typed in order anywhere in a path, or only the text as typed.
+const FUZZY_KEY = "orior.fuzzy-files";
+export const fuzzyFiles = () => localStorage.getItem(FUZZY_KEY) !== "false";
+export const setFuzzyFiles = (on) => localStorage.setItem(FUZZY_KEY, String(on));
+
 // The editor's command: the run view gives way to the edit view, and the editor takes the keys.
 const inEditor = (act) => () => {
   const { editor } = editing();
@@ -375,6 +380,7 @@ const COMMANDS = {
   "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
   "git-authors": (args) => setAuthorsShown(onOff(args) ?? !authorsShown()),
   "smooth-scroll": (args) => editing().setSmoothScroll(onOff(args) ?? !editing().smoothScroll()),
+  "fuzzy-files": (args) => setFuzzyFiles(onOff(args) ?? !fuzzyFiles()),
   "word-wrap": (args) => editing().setWordWrap(onOff(args) ?? !editing().wordWrap()),
   "type-hints": (args) => editing().setHints("type", onOff(args) ?? !editing().hints("type")),
   checkers: (args) => askCheckers(args.join(" ")),
@@ -570,6 +576,7 @@ const CHECKS = {
   "line-history": () => editing().lineHistory(),
   "git-authors": () => authorsShown(),
   "smooth-scroll": () => editing().smoothScroll(),
+  "fuzzy-files": () => fuzzyFiles(),
   "word-wrap": () => editing().wordWrap(),
   "operator-next-line": () => editing().operatorNext(),
   "type-hints": () => editing().hints("type"),
@@ -1652,7 +1659,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   });
   startPalette({
     commands: paletteCommands,
-    findFiles: (query, recent, most) => invoke("files_find", { query, recent, most }),
+    findFiles: (query, recent, most) => invoke("files_find", { query, recent, most, fuzzy: fuzzyFiles() }),
     recent: recentFiles,
     symbols: () => editing().symbols(),
     treeSymbols: (query) => invoke("symbols_find", { query }),

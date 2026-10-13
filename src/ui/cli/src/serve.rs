@@ -767,7 +767,7 @@ impl Server {
             "tree_list" => files::list(&self.root()?, &a.get::<String>("dir")?).and_then(give),
             "tree_find" => give(files::find(&self.root()?, &a.get::<String>("query")?)),
             "tree_files" => give(files::all(&self.root()?)),
-            "files_find" => give(files::ranked(&self.root()?, &a.get::<String>("query")?, &a.get::<Vec<String>>("recent")?, a.get("most")?)),
+            "files_find" => give(files::ranked(&self.root()?, &a.get::<String>("query")?, &a.get::<Vec<String>>("recent")?, a.get("most")?, a.get::<Option<bool>>("fuzzy")?.unwrap_or(true))),
             "git_branches" => give(git::branches(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?)),
             "git_branch" => git::branch_act(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, &a.get::<String>("act")?, &a.get::<String>("name")?, a.get::<Option<String>>("to")?.as_deref().unwrap_or("")).and_then(give),
             "git_commit_parts" => git::commit_parts(&self.root()?, &a.get::<String>("message")?, &a.get::<Vec<String>>("whole")?, &a.get::<Vec<git::Part>>("parts")?).and_then(give),
