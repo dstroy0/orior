@@ -16,7 +16,7 @@
 // own pane either way.
 
 import { menuOpen } from "./menu.js";
-import { preempt, still } from "./motion.js";
+import { motionReduced, preempt, still } from "./motion.js";
 
 const AUTO = "orior.panes.auto";
 
@@ -26,7 +26,7 @@ const REST = 700;
 // How long a pane takes to slide away, as style.css sets it, in milliseconds.
 const SLIDE = 220;
 
-const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+const reduced = { get matches() { return motionReduced(); } };
 
 const panes = [];
 

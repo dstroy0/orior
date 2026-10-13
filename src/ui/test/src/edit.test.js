@@ -3,17 +3,18 @@
 
 // The editor's tabs and files: a zip in the tree opened as a folder, its files read, changed and saved
 // back into it, and a large text held on the Rust side, its changes following it there and its
-// gutter's marks worked out there, and the tabs opened again as the tree starts.
+// gutter's marks worked out there, the tabs opened again as the tree starts, and a tab back at its
+// saved text, however it got back, marked saved; and the changes not saved kept as a window closes.
 
 import { invoke } from "../../src/bridge.js";
-import { chooseNames, editing, openFile, restoreSession } from "../../src/edit.js";
+import { chooseNames, editing, openFile, restoreSession, setVimKeys, treeRowShown, vimKeys } from "../../src/edit.js";
 import { lineChanges } from "../../src/editor/diff.js";
 import { togglePane } from "../../src/sides.js";
 import { showView } from "../../src/views.js";
 
 const { test, assert, ui } = window.__harness;
 
-const rowOf = (path) => document.getElementById("files").querySelector(`.node[data-key="${path}"]`);
+const rowOf = (path) => treeRowShown(path);
 
 test("a zip in the tree opens as a folder, and a file in it opens, is changed and saved back into it", async () => {
   showView("edit");
@@ -125,4 +126,65 @@ test("the tabs opened again as the tree starts leave the keys in the field the r
   } finally {
     field.remove();
   }
+});
+
+test("a tab back at its saved text shows no change, by a key taken back, an input method's character or Vim's undo", async () => {
+  await invoke("file_write", { path: "saved.txt", text: "first line\nsecond line\n" });
+  showView("edit");
+  await openFile("saved.txt");
+  await ui.waitFor(() => editing().active === "saved.txt" && editing().editor?.s, 5000);
+  const view = editing().editor;
+  const changed = () => editing().activeChanged;
+  view.goTo(0, 5);
+  view.focus();
+  await ui.type("x");
+  assert.ok(changed(), "a letter typed is a change");
+  await ui.key("Backspace");
+  assert.ok(!changed(), "taken back, none");
+  // An input method's character, composed and then taken back.
+  const input = view.input;
+  input.dispatchEvent(new CompositionEvent("compositionstart", { data: "" }));
+  input.value = "e";
+  input.dispatchEvent(new InputEvent("input", { data: "e", isComposing: true }));
+  input.dispatchEvent(new CompositionEvent("compositionend", { data: "é" }));
+  assert.equal(view.doc.line(0), "firstx line".replace("x", "é"), "the character written");
+  assert.ok(changed(), "a change");
+  await ui.key("Backspace");
+  assert.ok(!changed(), "the character taken back, none");
+  input.dispatchEvent(new CompositionEvent("compositionstart", { data: "" }));
+  input.dispatchEvent(new CompositionEvent("compositionend", { data: "" }));
+  assert.ok(!changed(), "a composition left with nothing writes nothing");
+  // Vim's undo.
+  const vim = vimKeys();
+  try {
+    setVimKeys(true);
+    view.goTo(1, 0);
+    view.focus();
+    await ui.key("Escape");
+    await ui.key("x");
+    assert.equal(view.doc.line(1), "econd line");
+    assert.ok(changed(), "Vim's x is a change");
+    await ui.key("u");
+    assert.equal(view.doc.line(1), "second line");
+    assert.ok(!changed(), "Vim's undo back to the saved text, none");
+  } finally {
+    setVimKeys(vim);
+  }
+});
+
+test("the changes not saved are kept at once as the window closes, and let go once the text is back as saved", async () => {
+  await invoke("file_write", { path: "closing.txt", text: "kept as typed\n" });
+  showView("edit");
+  await openFile("closing.txt");
+  await ui.waitFor(() => editing().active === "closing.txt" && editing().editor?.s, 5000);
+  const view = editing().editor;
+  const backup = () => Object.keys(localStorage).filter((key) => key.startsWith("orior.backup.") && key.endsWith("\nclosing.txt")).map((key) => localStorage.getItem(key))[0] ?? null;
+  view.goTo(0, 0);
+  view.focus();
+  await ui.type("Q");
+  window.dispatchEvent(new Event("pagehide"));
+  assert.equal(backup(), "Qkept as typed\n", "kept the moment the window closes, not a moment after typing rests");
+  await ui.key("Backspace");
+  window.dispatchEvent(new Event("pagehide"));
+  assert.equal(backup(), null, "back as saved, nothing kept");
 });

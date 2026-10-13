@@ -3,11 +3,12 @@
 
 // The explorer's Outline over a file of twenty thousand symbols: only the rows in sight on the page,
 // the symbol the cursor is in marked and scrolled to, and a press on a row going to its line; and
-// each file's mark standing on the line its name stands on.
+// each file's mark standing on the line its name stands on; and a folder of twenty thousand files
+// opened, scrolled fast and stepped through by the keys, with only the rows in sight on the page.
 
-import { invoke } from "../../src/bridge.js";
-import { editing, openFile } from "../../src/edit.js";
-import { iconOf, showGroup, showPane } from "../../src/explorer.js";
+import { invoke, onCalls } from "../../src/bridge.js";
+import { editing, openFile, treeRowShown } from "../../src/edit.js";
+import { drawProblems, iconOf, showGroup, showPane } from "../../src/explorer.js";
 import { togglePane } from "../../src/sides.js";
 import { showView } from "../../src/views.js";
 
@@ -137,3 +138,120 @@ test("each file's mark in the tree has its ink centered on the middle of its nam
     .filter((one) => Math.abs(one.by) > 0.75);
   assert.deepEqual(off, [], "each mark's ink centered on its name's capitals");
 });
+
+test("the tree's check says in Problems how far it has gone, and Stop lets the files waiting go", async () => {
+  const calls = window.__harness.calls;
+  calls.answer("problems_check_stop", () => null);
+  showView("edit");
+  togglePane(true, { take: false, pin: true });
+  showGroup("problems");
+  try {
+    drawProblems([], { done: 25, total: 100 });
+    const line = await ui.waitFor(() => document.querySelector("#problems .problems-checking"), 2000, "the check's line");
+    assert.match(line.textContent, /^Checking the tree: 25 of 100 files\. Stop$/);
+    await ui.click(line.querySelector(".pulse-stop"));
+    assert.ok(calls.made.some((one) => one.name === "problems_check_stop"), "Stop ends the check");
+    drawProblems([], { done: 100, total: 100 });
+    assert.equal(document.querySelector("#problems .problems-checking"), null, "and the line goes once it is done");
+  } finally {
+    showGroup("explorer");
+  }
+});
+
+// The frames drawn over `ms`, each the time it began.
+function framesOver(ms) {
+  return new Promise((done) => {
+    const times = [];
+    const tick = (now) => {
+      times.push(now);
+      if (now - times[0] < ms) {
+        requestAnimationFrame(tick);
+      } else {
+        done(times);
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+const BIG = 20000;
+
+test("a folder of twenty thousand generated files opens at once, scrolls fast at the display's own rate, and its rows step by the keys", async () => {
+  const tree = window.__harness.servers.ORIOR_TEST_TREE.replace(/\\/g, "/");
+  // Generated files, as a build's output is, are left out by git: shown in the tree, and not checked.
+  const ignoredBefore = await invoke("file_read", { path: ".gitignore" }).then((read) => read.text).catch(() => null);
+  await invoke("file_write", { path: ".gitignore", text: `${ignoredBefore ?? ""}generated/\n` });
+  // The calls the window makes as the files are written and a moment after.
+  const asked = [];
+  let hearing = true;
+  onCalls((name) => hearing && asked.push(name));
+  await ui.run("python", ["-c", `import os\nos.makedirs("${tree}/generated", exist_ok=True)\nfor at in range(${BIG}):\n    open(f"${tree}/generated/part_{at:05}.py", "w").write("x = 1\\n")\n`]);
+  await framesOver(3000);
+  hearing = false;
+  const parsed = asked.filter((name) => name === "parse_colors").length;
+  assert.ok(parsed <= 1, `files written elsewhere have the file open parsed again at most once: ${parsed} times`);
+  const files = document.getElementById("files");
+  const rowOf = (path) => treeRowShown(path);
+  try {
+    showView("edit");
+    togglePane(true, { take: false, pin: true });
+    showPane("folder");
+    await ui.waitFor(() => rowOf("generated")?.checkVisibility(), 20000, "the folder in the tree");
+    const rest = await framesOver(1000);
+    const display = (rest.length - 1) / ((rest.at(-1) - rest[0]) / 1000);
+    const pressed = performance.now();
+    const opening = framesOver(1500);
+    await ui.click(rowOf("generated"));
+    await ui.waitFor(() => rowOf(`generated/part_${String(BIG - 1).padStart(5, "0")}.py`), 20000, "the folder's last file");
+    const opened = performance.now() - pressed;
+    const openFrames = await opening;
+    const openGaps = openFrames.slice(1).map((time, step) => time - openFrames[step]);
+    files.scrollTop = 0;
+    const box = files.getBoundingClientRect();
+    const at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    const counting = framesOver(3000);
+    const until = performance.now() + 3000;
+    while (performance.now() < until) {
+      await ui.wheel(at, 400);
+    }
+    const times = await counting;
+    const gaps = times.slice(1).map((time, step) => time - times[step]);
+    const rate = gaps.length / ((times.at(-1) - times[0]) / 1000);
+    const said = `opened in ${opened.toFixed(0)} ms, its longest frame ${Math.max(...openGaps).toFixed(1)} ms; scrolled to ${files.scrollTop} at ${rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}, the longest wait ${Math.max(...gaps).toFixed(1)} ms, ${files.querySelectorAll(".node").length} rows on the page`;
+    assert.ok(files.scrollTop > box.height * 20, `the tree scrolled far: ${said}`);
+    assert.ok(rate >= display * 0.8, `the display's rate held: ${said}`);
+    assert.ok(Math.max(...gaps) < 100, `no frame held as it scrolled: ${said}`);
+    assert.ok(opened < 1000, `the folder open within a second: ${said}`);
+    assert.ok(Math.max(...openGaps) < 100, `no frame held as it opened: ${said}`);
+    assert.ok(files.querySelectorAll(".node").length < 200, `only the rows in sight and ahead on the page: ${said}`);
+    // The keys step through every row, on the page or not.
+    const focused = () => document.activeElement?.dataset.key;
+    files.scrollTop = 0;
+    rowOf("generated").focus();
+    await ui.key("ArrowDown");
+    assert.equal(focused(), "generated/part_00000.py", "Down into the folder's first file");
+    for (let step = 0; step < 60; step += 1) {
+      await ui.key("ArrowDown");
+    }
+    assert.equal(focused(), "generated/part_00060.py", "sixty rows on, past those that were on the page");
+    await ui.key("End");
+    assert.equal(focused(), files.rowModel.key(files.rowModel.count - 1), "End to the tree's last row");
+    rowOf("generated/part_00000.py").focus();
+    await ui.type("part_12345");
+    assert.equal(focused(), "generated/part_12345.py", "letters typed find a row far below");
+    await ui.key("Escape");
+    await ui.key("ArrowLeft");
+    assert.equal(focused(), "generated", "Left out to the folder that holds it");
+  } finally {
+    files.scrollTop = 0;
+    if (rowOf("generated")?.getAttribute("aria-expanded") === "true") {
+      await ui.click(rowOf("generated"));
+    }
+    await ui.run("python", ["-c", `import shutil\nshutil.rmtree("${tree}/generated", ignore_errors=True)\n`]);
+    if (ignoredBefore === null) {
+      await ui.run("python", ["-c", `import os\nos.remove("${tree}/.gitignore")\n`]);
+    } else {
+      await invoke("file_write", { path: ".gitignore", text: ignoredBefore });
+    }
+  }
+}, { timeout: 180000 });

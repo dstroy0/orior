@@ -158,7 +158,7 @@
       "programs": ["cargo", "rustc", "rustfmt"],
       "runs": {"rust": "{rustc} {file} -o {out} && {out}"},
       "builds": {"rust": ["{rustc}", "-g", "-C", "opt-level=0", "{path}", "-o", "{out}"]},
-      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml", "checks": "rust-analyzer/runFlycheck", "held": {"cargo": {"buildScripts": {"enable": false}}, "procMacro": {"enable": false}, "checkOnSave": false}},
+      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml", "checks": "rust-analyzer/runFlycheck", "held": {"cargo": {"buildScripts": {"enable": false}}, "procMacro": {"enable": false}, "checkOnSave": false}, "trusted": {"check": {"overrideCommand": ["cargo", "build", "--workspace", "--all-targets", "--message-format=json-diagnostic-rendered-ansi", "--keep-going"]}}},
       "version": ["--version"],
       "formats": ["rust"],
       "format": {"program": "rustfmt", "args": ["--edition", "{edition}"]},

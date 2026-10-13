@@ -117,8 +117,8 @@ async function act(name, how) {
   refresh();
 }
 
-async function runIn(name) {
-  const line = (await state.hooks.ask(`A command to run in ${name}`, ""))?.trim();
+async function runIn(name, given = null) {
+  const line = (given ?? (await state.hooks.ask(`A command to run in ${name}`, "")))?.trim();
   if (!line) {
     return;
   }
@@ -126,14 +126,53 @@ async function runIn(name) {
   show(`${name}: ${line}`, await invoke("container_run", { name, line }).catch((error) => String(error)));
 }
 
-async function openIn(name) {
-  const folder = (await state.hooks.ask(`The folder of ${name} to open`, "/"))?.trim();
+async function openIn(name, given = null) {
+  const folder = (given ?? (await state.hooks.ask(`The folder of ${name} to open`, "/")))?.trim();
   if (folder) {
     await invoke("window_open", { remote: `docker:${name}:${folder}`, words: [] }).catch((error) => state.hooks.say(String(error)));
   }
 }
 
 const quoted = (text) => `'${text.replace(/'/g, "'\\''")}'`;
+
+// The window shows `kind`, Docker's containers or Kubernetes' pods, and reads them again.
+async function showKind(kind) {
+  toggleContainers(true);
+  if (state.kind !== kind) {
+    state.kind = kind;
+    state.shown = null;
+    parts.bar.querySelectorAll(".profile-tab").forEach((one, at) => one.setAttribute("aria-pressed", String((at === 0 ? "docker" : "pods") === kind)));
+    parts.list.replaceChildren();
+    show("", "");
+  }
+  await refresh();
+}
+
+// The line that opens a shell in `key`, a container or a namespace's pod, in `container` of a pod.
+function shellLine(key, container = null) {
+  const pod = podOf(key);
+  if (pod) {
+    const inside = container ?? (pod.containers.length > 1 ? pod.containers[0] : null);
+    return `kubectl exec -it -n ${quoted(pod.namespace)} ${quoted(pod.name)}${inside ? ` -c ${quoted(inside)}` : ""} -- sh`;
+  }
+  return `docker exec -it ${quoted(key)} sh`;
+}
+
+// The window's menu and its controls as commands, by the names commands.json gives them, each run
+// from the window or from the command line with a container's name, or a pod as namespace/name.
+const kindOf = (key) => (key.includes("/") ? "pods" : "docker");
+
+export const containerCommands = {
+  "containers-kind": ([kind]) => showKind(kind === "pods" ? "pods" : "docker"),
+  "containers-read": () => refresh(),
+  "container-logs": async ([key, container]) => (await showKind(kindOf(key)), logsOf(key, container ?? null)),
+  "container-run": async ([name, ...line]) => (await showKind("docker"), runIn(name, line.length ? line.join(" ") : null)),
+  "container-terminal": async ([key, container]) => (await showKind(kindOf(key)), state.hooks.terminal(shellLine(key, container ?? null))),
+  "container-open": ([name, folder]) => openIn(name, folder ?? null),
+  "container-start": ([name]) => act(name, "start"),
+  "container-stop": ([name]) => act(name, "stop"),
+  "container-restart": ([name]) => act(name, "restart"),
+};
 
 function rowItems(event) {
   const key = event.target.closest(".containers-row")?.dataset.key;
@@ -146,9 +185,9 @@ function rowItems(event) {
       return null;
     }
     return [
-      ...pod.containers.map((one) => ({ label: pod.containers.length > 1 ? `Logs of ${one}` : "Logs", run: () => logsOf(key, one) })),
+      ...pod.containers.map((one) => ({ label: pod.containers.length > 1 ? `Logs of ${one}` : "Logs", command: "container-logs", args: [key, one], run: () => logsOf(key, one) })),
       "-",
-      { label: "Open a Terminal", run: () => state.hooks.terminal(`kubectl exec -it -n ${quoted(pod.namespace)} ${quoted(pod.name)}${pod.containers.length > 1 ? ` -c ${quoted(pod.containers[0])}` : ""} -- sh`) },
+      { label: "Open a Terminal", command: "container-terminal", args: [key], run: () => state.hooks.terminal(shellLine(key)) },
     ];
   }
   const one = containerOf(key);
@@ -157,14 +196,14 @@ function rowItems(event) {
   }
   const running = one.state === "running";
   return [
-    { label: "Logs", run: () => logsOf(key) },
-    { label: "Run a Command…", disabled: !running, run: () => runIn(key) },
-    { label: "Open a Terminal", disabled: !running, run: () => state.hooks.terminal(`docker exec -it ${quoted(key)} sh`) },
-    { label: "Open a Folder in a Window…", disabled: !running, run: () => openIn(key) },
+    { label: "Logs", command: "container-logs", args: [key], run: () => logsOf(key) },
+    { label: "Run a Command…", command: "container-run", args: [key], disabled: !running, run: () => runIn(key) },
+    { label: "Open a Terminal", command: "container-terminal", args: [key], disabled: !running, run: () => state.hooks.terminal(shellLine(key)) },
+    { label: "Open a Folder in a Window…", command: "container-open", args: [key], disabled: !running, run: () => openIn(key) },
     "-",
-    { label: "Start", disabled: running, run: () => act(key, "start") },
-    { label: "Stop", disabled: !running, run: () => act(key, "stop") },
-    { label: "Restart", disabled: !running, run: () => act(key, "restart") },
+    { label: "Start", command: "container-start", args: [key], disabled: running, run: () => act(key, "start") },
+    { label: "Stop", command: "container-stop", args: [key], disabled: !running, run: () => act(key, "stop") },
+    { label: "Restart", command: "container-restart", args: [key], disabled: !running, run: () => act(key, "restart") },
   ];
 }
 

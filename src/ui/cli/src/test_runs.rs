@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 //! Running a tree's Python tests: with pytest where the tree's Python has it, and with unittest where
-//! it has not, unittest running the tests of its `TestCase`s. The files of a run are spread over the
+//! it has not, unittest running the tests of its `TestCase`s. Its Rust tests run with cargo test in
+//! the same run, as cargo_tests.rs runs them. The files of a run are spread over the
 //! machine's cores, a process of pytest to each share, the files of most tests first, each to the
 //! share that holds the fewest so far; each test's result is passed on as its process prints it, and
 //! each failure's message and the line it failed at as its process ends, from pytest's report.
@@ -338,23 +339,44 @@ impl Runs {
         if given.is_empty() {
             return Err("No test is given to run".to_string());
         }
-        let python = python().ok_or("No Python is found to run the tests: File, Toolchains finds one")?;
-        let pytest = has_pytest(&python, root);
+        // Rust's tests run with cargo test (cargo_tests.rs), beside Python's in the same run.
+        let (rust, given): (Vec<String>, Vec<String>) = given.into_iter().partition(|one| crate::cargo_tests::is_rust(one));
+        if cover && !rust.is_empty() {
+            return Err("Coverage is recorded for Python's tests alone: run Rust's without it".to_string());
+        }
+        if !rust.is_empty() {
+            crate::executables::program("rust", "cargo")?;
+        }
+        let python = if given.is_empty() { None } else { Some(python().ok_or("No Python is found to run the tests: File, Toolchains finds one")?) };
+        let pytest = python.as_deref().is_some_and(|python| has_pytest(python, root));
         if cover && !pytest {
             return Err("Coverage is recorded by a run of pytest, which the tree's Python has not: python -m pip install pytest".to_string());
         }
+        let python = python.unwrap_or_default();
         let run = self.last.fetch_add(1, Ordering::SeqCst) + 1;
         self.stopped.store(false, Ordering::SeqCst);
         let cores = crate::cores::for_work();
-        let shares = if parallel { shares(&given, cores) } else { vec![given.clone()] };
-        let runner = if pytest { "pytest" } else { "unittest" };
-        tell(Heard::Started { run, given: given.len(), workers: shares.len(), runner: runner.to_string() });
-        let scratch = std::env::temp_dir().join(format!("orior-tests-{}-{run}", std::process::id()));
+        let shares = if given.is_empty() { Vec::new() } else if parallel { shares(&given, cores) } else { vec![given.clone()] };
+        let cargo_runs = if rust.is_empty() { 0 } else { crate::cargo_tests::targets_given(root, &rust) };
+        let python_runner = if pytest { "pytest" } else { "unittest" };
+        let runner = match (shares.is_empty(), cargo_runs == 0) {
+            (false, true) => python_runner.to_string(),
+            (true, _) => "cargo test".to_string(),
+            (false, false) => format!("{python_runner} and cargo test"),
+        };
+        tell(Heard::Started { run, given: given.len() + rust.len(), workers: shares.len() + cargo_runs, runner });
+        // Each run's own folder, numbered across every Runs of the process: two runs at once share none.
+        static SCRATCH: AtomicU64 = AtomicU64::new(0);
+        let scratch = std::env::temp_dir().join(format!("orior-tests-{}-{}", std::process::id(), SCRATCH.fetch_add(1, Ordering::SeqCst)));
         std::fs::create_dir_all(&scratch).map_err(|error| error.to_string())?;
         let started = Instant::now();
         let counts = Arc::new(Mutex::new((0usize, 0usize, 0usize)));
         let said = Arc::new(Mutex::new(String::new()));
         let mut workers = Vec::new();
+        if !rust.is_empty() {
+            let shared = crate::cargo_tests::Shared { run, tell: tell.clone(), counts: counts.clone(), said: said.clone(), stopped: self.stopped.clone(), children: self.children.clone() };
+            workers.extend(crate::cargo_tests::start(root, &rust, &shared)?);
+        }
         for (index, share) in shares.into_iter().enumerate() {
             let report = scratch.join(format!("report-{index}.xml"));
             let covered = scratch.join(format!("coverage-{index}.json"));

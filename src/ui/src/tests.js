@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Tests: the tree's Python tests in a window of their own, by file and by test, each marked passed,
+// Tests: the tree's Python and Rust tests in a window of their own, by file and by test, each marked passed,
 // failed, skipped or running as its run says, each result coming in as its test ends. A failed test
 // opens where it failed, any other where it is written, and Run Failed runs again those that failed.
 // A run spreads its files over the machine's cores; one run with coverage records which lines ran,
@@ -41,6 +41,12 @@ function element(tag, props = {}, ...children) {
 
 const fileOf = (id) => id.split("::")[0];
 
+// Whether a test or a file of tests is Rust's, run by cargo test, which records no coverage.
+const isRust = (id) => /\.rs(::|$)/.test(id);
+
+// A test's name in the window: its module or class and its own name, joined as its language joins them.
+const labelOf = (test) => (test.class ? `${test.class}${isRust(test.id) ? "::" : "."}${test.name}` : test.name);
+
 // Whether a run spreads its files over the machine's cores.
 export function testsParallel() {
   return localStorage.getItem(PARALLEL_KEY) !== "false";
@@ -72,6 +78,14 @@ export function forgetTests() {
 }
 
 // Runs `given`, tests by their names or files by their paths, recording coverage where `cover`.
+// The tests' menus as commands, by the names commands.json gives them: a test by its name as pytest
+// names it, or a file of tests by its path, run, run for its coverage, or debugged.
+export const testCommands = {
+  "test-run": (given) => runTests(given),
+  "test-cover": (given) => runTests(given, { cover: true }),
+  "test-debug": ([id]) => debugTest(id),
+};
+
 export async function runTests(given, { cover = false } = {}) {
   if (!given.length) {
     say("No test is found to run: Run, Find Tests says what is taken as one.", { failed: true });
@@ -89,10 +103,9 @@ export async function runTests(given, { cover = false } = {}) {
 
 // Run, Run All Tests: every file of tests the tree holds.
 export async function runAllTests({ cover = false } = {}) {
-  if (!state.loaded) {
-    await loadTests();
-  }
-  await runTests([...new Set(state.found.map((test) => test.file))], { cover });
+  // The tree's tests are read again first: a file of tests made since the last reading runs too.
+  await loadTests();
+  await runTests([...new Set(state.found.map((test) => test.file))].filter((file) => !cover || !isRust(file)), { cover });
 }
 
 // Run, Run Failed Tests: the tests whose last result failed.
@@ -132,12 +145,16 @@ export function testMenu(file, line, x, y) {
   if (!test) {
     return;
   }
-  const label = test.class ? `${test.class}.${test.name}` : test.name;
-  showMenu(x, y, [
-    { label: `Run ${label}`, run: () => runTests([test.id]) },
-    { label: `Run ${label} with Coverage`, run: () => runTests([test.id], { cover: true }) },
-    { label: `Debug ${label}`, run: () => debugTest(test.id) },
-  ]);
+  const label = labelOf(test);
+  showMenu(
+    x,
+    y,
+    [
+      { label: `Run ${label}`, command: "test-run", args: [test.id], run: () => runTests([test.id]) },
+      isRust(test.id) ? null : { label: `Run ${label} with Coverage`, command: "test-cover", args: [test.id], run: () => runTests([test.id], { cover: true }) },
+      { label: `Debug ${label}`, command: "test-debug", args: [test.id], run: () => debugTest(test.id) },
+    ].filter(Boolean),
+  );
 }
 
 // What a run tells as it goes.
@@ -186,7 +203,7 @@ function testsByFile() {
     if (!files.has(test.file)) {
       files.set(test.file, []);
     }
-    files.get(test.file).push({ id: test.id, label: test.class ? `${test.class}.${test.name}` : test.name, line: test.line });
+    files.get(test.file).push({ id: test.id, label: labelOf(test), line: test.line });
   }
   for (const id of state.results.keys()) {
     const file = fileOf(id);
@@ -194,7 +211,7 @@ function testsByFile() {
       if (!files.has(file)) {
         files.set(file, []);
       }
-      files.get(file).push({ id, label: id.split("::").slice(1).join("."), line: null });
+      files.get(file).push({ id, label: id.split("::").slice(1).join(isRust(id) ? "::" : "."), line: null });
     }
   }
   return files;
@@ -232,7 +249,7 @@ function draw() {
   }
   const files = testsByFile();
   if (!files.size) {
-    rows.push(element("p", { className: "pane-empty", textContent: state.loaded ? "No test is found: pytest and unittest take files named test_*.py, *_test.py and test*.py, and in them the functions and methods whose names start with test." : "Reading the tree's tests…" }));
+    rows.push(element("p", { className: "pane-empty", textContent: state.loaded ? "No test is found: pytest and unittest take files named test_*.py, *_test.py and test*.py, and in them the functions and methods whose names start with test; cargo test takes each function marked #[test] in a package's library, binaries and tests." : "Reading the tree's tests…" }));
   }
   for (const [file, tests] of files) {
     const outcomes = tests.map((test) => state.results.get(test.id)?.outcome ?? "none");
@@ -257,8 +274,8 @@ function draw() {
       event.preventDefault();
       event.stopPropagation();
       showMenu(event.clientX, event.clientY, [
-        { label: `Run ${file.slice(cut + 1)}`, run: () => runTests([file]) },
-        { label: `Run ${file.slice(cut + 1)} with Coverage`, run: () => runTests([file], { cover: true }) },
+        { label: `Run ${file.slice(cut + 1)}`, command: "test-run", args: [file], run: () => runTests([file]) },
+        { label: `Run ${file.slice(cut + 1)} with Coverage`, command: "test-cover", args: [file], run: () => runTests([file], { cover: true }) },
       ]);
     });
     rows.push(row);
@@ -282,9 +299,9 @@ function draw() {
         event.preventDefault();
         event.stopPropagation();
         showMenu(event.clientX, event.clientY, [
-          { label: "Run", run: () => runTests([test.id]) },
-          { label: "Run with Coverage", run: () => runTests([test.id], { cover: true }) },
-          { label: "Debug", run: () => debugTest(test.id) },
+          { label: "Run", command: "test-run", args: [test.id], run: () => runTests([test.id]) },
+          { label: "Run with Coverage", command: "test-cover", args: [test.id], run: () => runTests([test.id], { cover: true }) },
+          { label: "Debug", command: "test-debug", args: [test.id], run: () => debugTest(test.id) },
         ]);
       });
       rows.push(testRow);

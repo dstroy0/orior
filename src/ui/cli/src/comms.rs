@@ -52,6 +52,8 @@ pub struct Message {
 struct Part {
     name: String,
     process: Option<u32>,
+    /// Whether the door takes the key from any process that holds it.
+    held: bool,
     listen: Vec<String>,
     speak: Vec<String>,
     said: u64,
@@ -159,8 +161,23 @@ impl Comms {
     pub fn register(&self, name: &str, process: Option<u32>, listen: &[&str], speak: &[&str]) -> Result<Key, String> {
         let key = Key(secret(32)?.iter().map(|byte| format!("{byte:02x}")).collect());
         let mut inner = self.inner.lock().map_err(|_| "the comms layer is held")?;
-        inner.parts.insert(key.clone(), Part { name: name.to_string(), process, listen: listen.iter().map(|one| one.to_string()).collect(), speak: speak.iter().map(|one| one.to_string()).collect(), said: 0, refused: 0 });
+        inner.parts.insert(key.clone(), Part { name: name.to_string(), process, held: false, listen: listen.iter().map(|one| one.to_string()).collect(), speak: speak.iter().map(|one| one.to_string()).collect(), said: 0, refused: 0 });
         Ok(key)
+    }
+
+    /// Registers a part whose key the door takes from any process that holds it, as register does
+    /// otherwise: the key is kept where only the reader can read it, and holding it is the grant.
+    pub fn register_held(&self, name: &str, listen: &[&str], speak: &[&str]) -> Result<Key, String> {
+        let key = self.register(name, None, listen, speak)?;
+        if let Some(part) = self.inner.lock().map_err(|_| "the comms layer is held")?.parts.get_mut(&key) {
+            part.held = true;
+        }
+        Ok(key)
+    }
+
+    /// Whether the door takes the key of `key`'s part from any process that holds it.
+    pub fn held(&self, key: &Key) -> bool {
+        self.inner.lock().ok().and_then(|inner| inner.parts.get(key).map(|part| part.held)).unwrap_or(false)
     }
 
     /// Registers a part the part of `parent` starts, granted channels of the parent's own alone.

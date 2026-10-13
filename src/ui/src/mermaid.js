@@ -440,7 +440,8 @@ export function sequenceSvg(text) {
 
 // ---- Pie charts ----
 
-const SLICES = ["#ECECFF", "#ffffde", "#d4f1d4", "#ffd8b1", "#d0e3ff", "#f9d0e0", "#e1d5f5", "#fff0b3"];
+// Each slice's color, a lever of the theme's: --mm-slice-1 to --mm-slice-8.
+const SLICES = Array.from({ length: 8 }, (_, at) => `var(--mm-slice-${at + 1})`);
 
 export function pieSvg(text) {
   const lines = text.split("\n").map((line) => line.trim());
@@ -457,12 +458,12 @@ export function pieSvg(text) {
     const [x1, y1] = [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
     const [x2, y2] = [cx + r * Math.cos(angle + sweep), cy + r * Math.sin(angle + sweep)];
     const shape = slices.length === 1 ? `<circle cx="${cx}" cy="${cy}" r="${r}"` : `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${sweep > Math.PI ? 1 : 0},1 ${x2},${y2} Z"`;
-    parts.push(`${shape} class="mm-slice" fill="${SLICES[at % SLICES.length]}" />`);
+    parts.push(`${shape} class="mm-slice" style="fill: ${SLICES[at % SLICES.length]}" />`);
     const middle = angle + sweep / 2;
     parts.push(textAt(cx + r * 0.65 * Math.cos(middle), cy + r * 0.65 * Math.sin(middle), `${Math.round((slice.value / sum) * 100)}%`));
     angle += sweep;
   });
-  const legend = slices.map((slice, at) => `<rect x="${cx + r + 30}" y="${cy - r + at * 24}" width="14" height="14" fill="${SLICES[at % SLICES.length]}" class="mm-slice" />${textAt(cx + r + 52, cy - r + at * 24 + 7, slice.label, "start")}`).join("");
+  const legend = slices.map((slice, at) => `<rect x="${cx + r + 30}" y="${cy - r + at * 24}" width="14" height="14" style="fill: ${SLICES[at % SLICES.length]}" class="mm-slice" />${textAt(cx + r + 52, cy - r + at * 24 + 7, slice.label, "start")}`).join("");
   const wide = cx + r + 60 + Math.max(0, ...slices.map((slice) => width(slice.label)));
   return svg(wide, cy + r + 20, `${title ? textAt(wide / 2, 20, title, "middle", "mm-text strong") : ""}${parts.join("")}${legend}`, "pie");
 }
@@ -871,7 +872,8 @@ export function ganttSvg(text) {
 
 // ---- Journeys ----
 
-const SCORES = ["", "#f85149", "#f0883e", "#d29922", "#7ee787", "#3fb950"];
+// Each score's color, a lever of the theme's: --mm-score-1 to --mm-score-5.
+const SCORES = ["", ...Array.from({ length: 5 }, (_, at) => `var(--mm-score-${at + 1})`)];
 
 export function parseJourney(text) {
   let title = "";
@@ -907,7 +909,7 @@ export function journeySvg(text) {
     const cx = left + (column - 6) / 2;
     const cy = top + 120 + (5 - task.score) * 18;
     faces.push([cx, cy]);
-    parts.push(`<circle class="mm-face" cx="${cx}" cy="${cy}" r="11" fill="${SCORES[task.score]}" />${textAt(cx, cy, String(task.score), "middle", "mm-text small")}`);
+    parts.push(`<circle class="mm-face" cx="${cx}" cy="${cy}" r="11" style="fill: ${SCORES[task.score]}" />${textAt(cx, cy, String(task.score), "middle", "mm-text small")}`);
   });
   const path = faces.map(([fx, fy], at) => `${at ? "L" : "M"}${fx},${fy}`).join(" ");
   return svg(tasks.length * column + 40, top + 220, `<path class="mm-edge dotted" d="${path}" />${parts.join("")}`, "journey");
@@ -915,7 +917,8 @@ export function journeySvg(text) {
 
 // ---- Git graphs ----
 
-const LANES = ["#0969da", "#bf3989", "#1a7f37", "#9a6700", "#8250df", "#cf222e"];
+// Each lane's color, a lever of the theme's: --mm-lane-1 to --mm-lane-6.
+const LANES = Array.from({ length: 6 }, (_, at) => `var(--mm-lane-${at + 1})`);
 
 export function parseGitGraph(text) {
   const branches = [{ name: "main", lane: 0, head: null }];
@@ -955,8 +958,8 @@ export function gitGraphSvg(text) {
   const name = Math.max(60, ...branches.map((one) => width(one.name) + 20));
   const x = (at) => name + 30 + at * 50;
   const y = (lane) => 30 + lane * 40;
-  const parts = branches.map((branch) => `${textAt(10, y(branch.lane), branch.name, "start", "mm-text strong")}<line class="mm-lane" stroke="${LANES[branch.lane % LANES.length]}" x1="${name}" y1="${y(branch.lane)}" x2="${x(commits.length)}" y2="${y(branch.lane)}" />`);
-  const line = (from, to, lane) => `<path class="mm-git" stroke="${LANES[lane % LANES.length]}" d="M${x(from.at)},${y(from.lane)} C${x(from.at) + 25},${y(from.lane)} ${x(to.at) - 25},${y(to.lane)} ${x(to.at)},${y(to.lane)}" />`;
+  const parts = branches.map((branch) => `${textAt(10, y(branch.lane), branch.name, "start", "mm-text strong")}<line class="mm-lane" style="stroke: ${LANES[branch.lane % LANES.length]}" x1="${name}" y1="${y(branch.lane)}" x2="${x(commits.length)}" y2="${y(branch.lane)}" />`);
+  const line = (from, to, lane) => `<path class="mm-git" style="stroke: ${LANES[lane % LANES.length]}" d="M${x(from.at)},${y(from.lane)} C${x(from.at) + 25},${y(from.lane)} ${x(to.at) - 25},${y(to.lane)} ${x(to.at)},${y(to.lane)}" />`;
   for (const one of commits) {
     if (one.parent && one.parent.lane !== one.lane) {
       parts.push(line(one.parent, one, one.lane));
@@ -966,7 +969,7 @@ export function gitGraphSvg(text) {
     }
   }
   for (const one of commits) {
-    parts.push(`<circle class="mm-commit" cx="${x(one.at)}" cy="${y(one.lane)}" r="${one.merged ? 7 : 9}" fill="${LANES[one.lane % LANES.length]}" />${textAt(x(one.at), y(one.lane) + 20, one.id, "middle", "mm-text small")}`);
+    parts.push(`<circle class="mm-commit" cx="${x(one.at)}" cy="${y(one.lane)}" r="${one.merged ? 7 : 9}" style="fill: ${LANES[one.lane % LANES.length]}" />${textAt(x(one.at), y(one.lane) + 20, one.id, "middle", "mm-text small")}`);
     if (one.tag) {
       parts.push(`<rect class="mm-label" x="${x(one.at) - width(one.tag) / 2 - 5}" y="${y(one.lane) - 30}" width="${width(one.tag) + 10}" height="16" />${textAt(x(one.at), y(one.lane) - 22, one.tag, "middle", "mm-text small")}`);
     }

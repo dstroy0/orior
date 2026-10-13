@@ -74,6 +74,16 @@ const STRIP = {
   ],
 };
 
+// The strip's own command, by the name commands.json gives it: a pane of the explorer opened and
+// shown, as the strip's … menu opens it.
+export const stripCommands = {
+  "pane-open": ([name]) => {
+    showView("edit");
+    showPane(name);
+    togglePane(true, { take: false });
+  },
+};
+
 // The menu of the explorer's other panes, beside the more icon. Opened by the pointer resting on
 // the icon it leaves the keys where they are, and goes again once the pointer has left the icon and
 // the menu for RESTS; opened by a press it stays, as any menu does.
@@ -85,14 +95,7 @@ function moreMenu(button, rested = false) {
   const menu = showMenu(
     box.right + 4,
     box.top,
-    morePanes().map(({ name, label }) => ({
-      label,
-      run: () => {
-        showView("edit");
-        showPane(name);
-        togglePane(true, { take: false });
-      },
-    })),
+    morePanes().map(({ name, label }) => ({ label, command: "pane-open", args: [name], run: () => stripCommands["pane-open"]([name]) })),
     { anchor: button, focusFirst: !rested },
   );
   if (!rested) {

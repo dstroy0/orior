@@ -48,9 +48,9 @@ use crate::toolchains;
 /// line that installs it where the toolchain can be present without it, and the name of the file
 /// that marks a project, each of which in the tree the server is given as one of its linked
 /// projects where it does not look below the top folder for them itself; for a server that checks its
-/// projects as a whole and not a file at a time, the notification that has it check them; and the
+/// projects as a whole and not a file at a time, the notification that has it check them; the
 /// options it starts with in a tree whose own code is held back (trust.rs), which keep it from
-/// running that code.
+/// running that code; and those it starts with in a tree whose code runs.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ServerSpec {
     pub program: String,
@@ -66,6 +66,8 @@ pub struct ServerSpec {
     pub checks: Option<String>,
     #[serde(default)]
     pub held: Option<Value>,
+    #[serde(default)]
+    pub trusted: Option<Value>,
 }
 
 /// Folders a search for projects does not go into: what a build writes, and what git keeps.
@@ -369,6 +371,9 @@ pub struct Servers {
     checked_root: Mutex<Option<PathBuf>>,
     runs: Arc<Mutex<HashMap<(String, String), u64>>>,
     parses: Mutex<HashMap<String, (u64, Arc<Parse>)>>,
+    /// Held while a parse is read, so that a parse asked for again meanwhile waits for it and is
+    /// answered from what it kept, in place of reading the file once more beside it.
+    parsing: Mutex<()>,
 }
 
 /// A file's parse as the editor takes it: each line's runs of one class, as (from, to, class), every
@@ -724,6 +729,15 @@ impl Servers {
         let mut reopen = Vec::new();
         {
             let mut running = self.running.lock().map_err(|_| "held".to_string())?;
+            // clangd running when the build's database changed is started again on it, given back
+            // the files it held.
+            let reread = spec.program == "clangd" && running.get(&tool.id).is_some_and(|server| server.alive()) && crate::compile_db::refresh(root).changed;
+            if reread {
+                if let Some(old) = running.remove(&tool.id) {
+                    reopen = old.held();
+                    std::thread::spawn(move || old.stop());
+                }
+            }
             if let Some(server) = running.get(&tool.id) {
                 if server.alive() {
                     return Ok(Some((server.clone(), spec)));
@@ -752,15 +766,36 @@ impl Servers {
                 let published = self.published.clone();
                 let checks = self.checks.clone();
                 let mut options = spec.projects.as_deref().map_or(Value::Null, |name| json!({"linkedProjects": projects_in(root, name)}));
-                if let (Some(Value::Object(held)), true) = (&spec.held, crate::trust::held_back(root)) {
+                let added = if crate::trust::held_back(root) { &spec.held } else { &spec.trusted };
+                if let Some(Value::Object(added)) = added {
                     if !options.is_object() {
                         options = json!({});
                     }
                     if let Value::Object(given) = &mut options {
-                        given.extend(held.clone());
+                        given.extend(added.clone());
                     }
                 }
-                Server::start(&program, &spec.args, root, options, toolchains::run_path(), Box::new(move |method, params| heard(method, params, &emit, &published, &checks))).map_err(|said| match &spec.setup {
+                // clangd reads the build's own database and asks the build's own compilers; where
+                // one is cl, it runs in Visual Studio's environment, as cl does (compile_db.rs).
+                let mut args = spec.args.clone();
+                let mut env = vec![(std::ffi::OsString::from("PATH"), toolchains::run_path())];
+                if spec.program == "clangd" {
+                    let database = crate::compile_db::refresh(root).database;
+                    args.extend(database.words());
+                    if let Some(vs) = database.msvc.then(crate::compile_db::vs_environment).flatten() {
+                        for (key, value) in vs {
+                            if key.eq_ignore_ascii_case("PATH") {
+                                let mut path = std::ffi::OsString::from(value);
+                                path.push(if cfg!(windows) { ";" } else { ":" });
+                                path.push(toolchains::run_path());
+                                env[0].1 = path;
+                            } else {
+                                env.push((key.into(), value.into()));
+                            }
+                        }
+                    }
+                }
+                Server::start_in(&program, &args, root, options, &env, Box::new(move |method, params| heard(method, params, &emit, &published, &checks))).map_err(|said| match &spec.setup {
                     Some(setup) => format!("{} did not start ({said}): {setup} installs it", spec.program),
                     None => format!("{} did not start: {said}", spec.program),
                 })
@@ -1051,10 +1086,13 @@ impl Servers {
             return Ok(None);
         };
         let hash = hash_of(&text);
-        if let Some((kept, parse)) = self.parses.lock().map_err(|_| "held".to_string())?.get(&key) {
-            if *kept == hash {
-                return Ok(Some(parse.clone()));
-            }
+        let kept = |parses: &HashMap<String, (u64, Arc<Parse>)>| parses.get(&key).filter(|(kept, _)| *kept == hash).map(|(_, parse)| parse.clone());
+        if let Some(parse) = kept(&*self.parses.lock().map_err(|_| "held".to_string())?) {
+            return Ok(Some(parse));
+        }
+        let _parsing = self.parsing.lock().map_err(|_| "held".to_string())?;
+        if let Some(parse) = kept(&*self.parses.lock().map_err(|_| "held".to_string())?) {
+            return Ok(Some(parse));
         }
         let file = path.display().to_string();
         let parse = match inspect::language_of(&file).and_then(|language| inspect::parse(language, &text)) {
@@ -1328,6 +1366,22 @@ impl Servers {
         self.check_files(root, &files, emit)
     }
 
+    /// Stops the tree's check where it stands: the files waiting are let go and Problems is told the
+    /// check is done. The check stays on for the files that change after, each checked as it changes.
+    pub fn stop_check(&self) {
+        let told = {
+            let Ok(mut queue) = self.checks.queue.lock() else {
+                return;
+            };
+            queue.waiting.clear();
+            queue.total = queue.done;
+            queue.emit.clone().map(|emit| (emit, queue.done))
+        };
+        if let Some((emit, done)) = told {
+            emit(Told::Checking { done, total: done });
+        }
+    }
+
     /// Checks again the files of a batch of changes made on the disk, and the files whose includes or
     /// imports name one of them, where the tree's check is on; a file gone loses its diagnostics.
     pub fn changed(&self, root: &Path, files: &[String]) {
@@ -1338,8 +1392,9 @@ impl Servers {
             if !queue.on || queue.root.as_deref() != Some(root) {
                 return;
             }
+            let mut queued: HashSet<String> = queue.files.iter().cloned().collect();
             for file in files {
-                if !queue.files.contains(file) {
+                if queued.insert(file.clone()) {
                     queue.files.push(file.clone());
                 }
             }
@@ -2003,6 +2058,36 @@ fn names(path: &Path, stems: &[String]) -> bool {
 }
 
 #[cfg(test)]
+mod stopping_the_check {
+    use super::*;
+
+    #[test]
+    fn a_check_stopped_lets_its_files_waiting_go_and_says_it_is_done() {
+        let servers = Servers::default();
+        let told: Arc<Mutex<Vec<(usize, usize)>>> = Arc::default();
+        let heard = told.clone();
+        let emit: Emit = Arc::new(move |one| {
+            if let Told::Checking { done, total } = one {
+                heard.lock().unwrap().push((done, total));
+            }
+        });
+        {
+            let mut queue = servers.checks.queue.lock().unwrap();
+            queue.on = true;
+            queue.emit = Some(emit);
+            queue.done = 3;
+            queue.total = 10;
+        }
+        servers.stop_check();
+        let queue = servers.checks.queue.lock().unwrap();
+        assert!(queue.waiting.is_empty());
+        assert_eq!((queue.done, queue.total), (3, 3));
+        assert!(queue.on, "files that change after are still checked");
+        assert_eq!(*told.lock().unwrap(), vec![(3, 3)], "Problems is told the check is done");
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -2188,6 +2273,39 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "configures with CMake and starts clangd where they are installed"]
+    fn clangd_reads_the_build_s_own_compiler_includes_and_defines_from_a_cmake_build_orior_configured() {
+        let dir = std::env::temp_dir().join(format!("orior-one-compiler-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::create_dir_all(dir.join("include")).unwrap();
+        std::fs::write(dir.join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.16)\nproject(probe C)\nadd_executable(probe src/main.c)\ntarget_include_directories(probe PRIVATE include)\ntarget_compile_definitions(probe PRIVATE NEEDED=1)\n").unwrap();
+        std::fs::write(dir.join("include").join("thing.h"), "static int thing(void) { return NEEDED; }\n").unwrap();
+        let text = "#include <string.h>\n#include \"thing.h\"\n#ifndef NEEDED\n#error NEEDED is set by the build\n#endif\nint main(void) { return (int)strlen(\"x\") - thing(); }\n";
+        let file = dir.join("src").join("main.c");
+        std::fs::write(&file, text).unwrap();
+        // As orior's CMake job configures it: its file API asked, into build/cmake/Debug.
+        let build = dir.join("build").join("cmake").join("Debug");
+        let query = build.join(".cmake").join("api").join("v1").join("query");
+        std::fs::create_dir_all(&query).unwrap();
+        for kind in ["codemodel-v2", "toolchains-v1"] {
+            std::fs::write(query.join(kind), "").unwrap();
+        }
+        let configured = std::process::Command::new("cmake").arg("-S").arg(&dir).arg("-B").arg(&build).arg("-DCMAKE_BUILD_TYPE=Debug").output().unwrap();
+        assert!(configured.status.success(), "{}", String::from_utf8_lossy(&configured.stderr));
+        let (emit, found, _) = heard_by_name();
+        let servers = Servers::default();
+        let opened = servers.open(&dir, &file, "c", text, &emit);
+        assert!(opened.clone().unwrap_or_else(|said| panic!("{said}")), "{opened:?}");
+        assert!(until(60, || found.lock().unwrap().contains_key("main.c")), "clangd said nothing of main.c");
+        // A first word can come before the database is read; the last word stands.
+        std::thread::sleep(Duration::from_secs(3));
+        assert_eq!(found.lock().unwrap().get("main.c").copied(), Some(0), "no error: the include folder, the define and the compiler's own headers are the build's");
+        servers.stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     #[ignore = "starts clangd where it is installed"]
     fn the_tree_check_hands_each_c_file_to_clangd_and_checks_again_what_includes_a_change() {
         let dir = std::env::temp_dir().join(format!("orior-check-{}", std::process::id()));
@@ -2261,6 +2379,41 @@ mod tests {
         });
         assert!(checked, "{:?}", found.lock().unwrap());
         servers.stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[ignore = "starts rust-analyzer where it is installed"]
+    fn rust_analyzer_s_check_builds_every_target_so_the_build_and_the_tests_after_it_find_their_work_done() {
+        let dir = std::env::temp_dir().join(format!("orior-check-builds-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let krate = dir.join("tool");
+        std::fs::create_dir_all(krate.join("src")).unwrap();
+        std::fs::create_dir_all(krate.join("tests")).unwrap();
+        std::fs::write(krate.join("Cargo.toml"), "[package]\nname = \"tool\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[workspace]\n").unwrap();
+        std::fs::write(krate.join("src").join("main.rs"), "fn main() {\n    println!(\"built\");\n}\n").unwrap();
+        std::fs::write(krate.join("tests").join("whole.rs"), "#[test]\nfn runs() {}\n").unwrap();
+        let (emit, _, _) = heard_by_name();
+        let servers = Servers::default();
+        servers.check_tree(&dir, vec!["tool/src/main.rs".into()], &emit);
+        let debug = krate.join("target").join("debug");
+        let built = |name: &str| std::fs::read_dir(debug.join("deps")).into_iter().flatten().flatten().any(|entry| entry.file_name().to_string_lossy().starts_with(name) && entry.path().extension().is_none_or(|ext| ext == "exe"));
+        let program = debug.join(if cfg!(windows) { "tool.exe" } else { "tool" });
+        let done = until(240, || {
+            if program.is_file() && built("whole-") {
+                return true;
+            }
+            if let Some(server) = servers.running.lock().unwrap().get("rust") {
+                let _ = server.notify("rust-analyzer/runFlycheck", json!({"textDocument": null}));
+            }
+            std::thread::sleep(Duration::from_secs(2));
+            false
+        });
+        servers.stop_all();
+        assert!(done, "the program and the test's program built by the check");
+        let after = std::process::Command::new("cargo").args(["test", "--no-run", "--manifest-path"]).arg(krate.join("Cargo.toml")).output().unwrap();
+        let said = String::from_utf8_lossy(&after.stderr);
+        assert!(!said.contains("Compiling"), "the tests' build found its work done: {said}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -8,7 +8,8 @@
 
 import { coloringReach, lineHeight, runsRightToLeft, smoothScrolling } from "../../../src/editor/view.js";
 import { invoke } from "../../../src/bridge.js";
-import { editing, onEdit, openFile } from "../../../src/edit.js";
+import { editing, onEdit, openFile, setVimKeys, vimKeys } from "../../../src/edit.js";
+import { runCommand } from "../../../src/menubar.js";
 import { showView } from "../../../src/views.js";
 import { status, write } from "../../../src/status.js";
 import { joinRun, traceTime, TRACE_BLOB } from "../../../src/trace.js";
@@ -376,25 +377,31 @@ test("a letter typed is drawn before anything told of each edit hears of it", as
   assert.ok(heard[0].startsWith("xfirst"), `the row as the first told of the edit found it: ${JSON.stringify(heard[0])}`);
 });
 
-// Types `count` letters into the editor shown and gives, for each: whether the letter was in its row
-// when the frame after it began, the page's own milliseconds for it from its key to its row drawn,
-// and the milliseconds from the frame after it to the next, the display's interval where that frame
-// came on time.
+// Holds a letter down in the editor shown for `count` presses, as the system's repeat sends a held
+// key, and gives, for each press: whether the letter was in its row when the frame after it began,
+// how far the caret stood from where it stood before the key, the page's own milliseconds for it from
+// its key to its row drawn, and the milliseconds from the frame after it to the next, the display's
+// interval where that frame came on time. Each is kept as it comes and given once the key is let go.
 async function keysTimed(view, line, count) {
   const timed = [];
   let key = null;
   let typed = 0;
+  const caretAt = () => parseFloat(view.host.querySelector(".ed-caret.main")?.style.left ?? "NaN");
   const began = (event) => {
     if (event.inputType !== "insertText") {
       return;
     }
     const at = performance.now();
+    typed += 1;
     const want = event.data.repeat(typed);
-    const one = { at };
+    const one = { at, from: caretAt() };
     key = one;
     requestAnimationFrame((first) => {
       const drawn = (view.rowNode(line)?.textContent ?? "").includes(want);
-      requestAnimationFrame((second) => timed.push({ drawn, own: one.done - at, frame: second - first }));
+      const caret = view.host.querySelector(".ed-caret.main");
+      // A caret hidden by its blink in the frame after a key reads as one that trails it.
+      const moved = caret && getComputedStyle(caret).visibility !== "hidden" ? caretAt() - one.from : NaN;
+      requestAnimationFrame((second) => timed.push({ drawn, moved, own: one.done - at, frame: second - first }));
     });
   };
   const done = () => {
@@ -405,13 +412,8 @@ async function keysTimed(view, line, count) {
   document.addEventListener("beforeinput", began, true);
   document.addEventListener("input", done);
   try {
-    for (let at = 0; at < count; at += 1) {
-      const before = timed.length;
-      typed = at + 1;
-      await ui.type("q");
-      await ui.waitFor(() => timed.length > before, 2000);
-      await new Promise((rest) => setTimeout(rest, 40));
-    }
+    await ui.repeat("q", count, 33);
+    await ui.waitFor(() => timed.length >= count, 4000, "each press timed");
   } finally {
     document.removeEventListener("beforeinput", began, true);
     document.removeEventListener("input", done);
@@ -441,11 +443,55 @@ test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000
     const late = timed.filter((one) => one.frame > 1.5 * interval).length;
     const said = `${path}: own ms ${own.map((ms) => ms.toFixed(1)).join(" ")}; frames after ${timed.map((one) => one.frame.toFixed(1)).join(" ")}`;
     assert.equal(timed.filter((one) => one.drawn).length, timed.length, `each letter in its row as the frame after it began: ${said}`);
+    assert.deepEqual(timed.filter((one) => Math.abs(one.moved - view.cw) > 0.5).map((one) => one.moved), [], `the caret a letter on, past the letter typed, as the frame after it began: ${said}`);
     // The page's own work for a key as a share of the display's frame: at 144 frames a second, 5 ms
     // in the middle and 12 at most, and the same shares of a frame on any display.
     assert.ok(own[Math.floor(own.length / 2)] <= 0.72 * interval, `the page's own work for a key, in the middle, within ${(0.72 * interval).toFixed(1)} ms: ${said}`);
     assert.ok(own.at(-1) <= 1.73 * interval, `and at most ${(1.73 * interval).toFixed(1)} ms: ${said}`);
     assert.ok(late <= 2, `frames after a key that came late: ${late} of ${timed.length}: ${said}`);
+  }
+});
+
+test("a letter typed with the preview beside, Vim's keys on and the tree's check running is drawn in the frame after its key", async () => {
+  const rest = await framesOver(500);
+  const interval = (rest.at(-1) - rest[0]) / (rest.length - 1);
+  const lines = [];
+  for (let section = 0; section < 400; section += 1) {
+    lines.push(`## Section ${section}`, "", `Some text of section ${section}, with **bold** and \`code\` in it.`, "", "- one", "- two", "");
+  }
+  await invoke("file_write", { path: "keys_beside.md", text: `${lines.join("\n")}\n` });
+  showView("edit");
+  await openFile("keys_beside.md");
+  await ui.waitFor(() => editing().active === "keys_beside.md" && editing().editor?.s, 10000);
+  const view = editing().editor;
+  const vim = vimKeys();
+  try {
+    runCommand("preview", ["beside"]);
+    await ui.waitFor(() => document.querySelector(".md-preview")?.checkVisibility(), 10000, "the preview beside the editor");
+    setVimKeys(true);
+    view.goTo(1400, 0);
+    view.focus();
+    await ui.key("Escape");
+    await ui.key("i");
+    // The tree's check reads every file of the tree as the letters are typed.
+    invoke("problems_check").catch(() => {});
+    await framesOver(300);
+    const timed = await keysTimed(view, 1400, 20);
+    const own = timed.map((one) => one.own).sort((a, b) => a - b);
+    const late = timed.filter((one) => one.frame > 1.5 * interval).length;
+    const said = `own ms ${own.map((ms) => ms.toFixed(1)).join(" ")}; frames after ${timed.map((one) => one.frame.toFixed(1)).join(" ")}`;
+    assert.equal(timed.filter((one) => one.drawn).length, timed.length, `each letter in its row as the frame after it began: ${said}`);
+    assert.deepEqual(timed.filter((one) => Math.abs(one.moved - view.cw) > 0.5).map((one) => one.moved), [], `the caret a letter on, past the letter typed, as the frame after it began: ${said}`);
+    assert.ok(own[Math.floor(own.length / 2)] <= 0.72 * interval, `the page's own work for a key, in the middle, within ${(0.72 * interval).toFixed(1)} ms: ${said}`);
+    assert.ok(late <= 2, `frames after a key that came late: ${late} of ${timed.length}: ${said}`);
+    // The caret's moves answer at once too.
+    const before = view.head();
+    await ui.key("Escape");
+    await ui.key("j");
+    assert.equal(view.head().line, before.line + 1, "j moves down a line at once");
+  } finally {
+    runCommand("preview", ["off"]);
+    setVimKeys(vim);
   }
 });
 

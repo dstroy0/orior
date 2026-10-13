@@ -20,7 +20,7 @@
 
 import { Ahead } from "./ahead.js";
 import { invoke } from "./bridge.js";
-import { menuOn, showMenu } from "./menu.js";
+import { copyText, menuOn, showMenu } from "./menu.js";
 import { say } from "./statusbar.js";
 
 // The rows asked for at a time past the end, the height of a row of the grid, and the fewest rows
@@ -399,14 +399,25 @@ function treeItems(event) {
   }
   const path = JSON.parse(row.dataset.path || "[]");
   const connection = connectionOf(chosen());
-  const items = [{ label: "Copy Name", run: () => navigator.clipboard?.writeText(row.dataset.label) }];
+  const items = [{ label: "Copy Name", command: "db-copy-name", args: [row.dataset.label], run: () => copyText(row.dataset.label) }];
   if (path.length === 3 && ["table", "view", "materialized view", "foreign table"].includes(row.dataset.kind)) {
-    const name = `${quoteName(path[0], connection?.kind)}.${quoteName(path[2], connection?.kind)}`;
-    items.unshift({ label: "Show Its First Rows", run: () => runOn(chosen(), `SELECT * FROM ${name} LIMIT ${PAGE}`) });
+    items.unshift({ label: "Show Its First Rows", command: "db-first-rows", args: [path[0], path[2]], run: () => databaseCommands["db-first-rows"]([path[0], path[2]]) });
   }
-  items.push({ label: "Read Again", run: () => readAgain(path.length ? path : []) });
+  items.push({ label: "Read Again", command: "db-read-again", args: path, run: () => readAgain(path.length ? path : []) });
   return items;
 }
+
+// The tree's menu as commands, by the names commands.json gives them, each run from the menu or from
+// the command line: a table's first rows by its schema and name, on the connection chosen or the one
+// named after them, a name copied, and a level of the tree read again by its path.
+export const databaseCommands = {
+  "db-first-rows": ([schema, table, name = chosen()]) => {
+    const kind = connectionOf(name)?.kind;
+    return runOn(name, `SELECT * FROM ${quoteName(schema, kind)}.${quoteName(table, kind)} LIMIT ${PAGE}`);
+  },
+  "db-copy-name": ([name]) => copyText(name),
+  "db-read-again": (path) => readAgain(path),
+};
 
 // Asks before a guarded statement runs. Says whether to run it.
 function askToRun(name, statement, ask) {

@@ -43,6 +43,40 @@ export async function takeKept(reloadOwn) {
   return changed;
 }
 
+// The file or folder the settings are carried through, kept on this machine alone.
+export const carryPlace = () => ownItem(PLACE) ?? "";
+
+export const setCarryPlace = (path) => localStorage.setItem(PLACE, path.trim());
+
+// The settings sent to `to`, and what that says.
+export const carrySend = (to) => invoke("carry_send", { to });
+
+// What `from` carries that differs from this machine's taken in: each file and each setting of
+// settings.json named in `chosen`, or every one where `chosen` is empty. Answers what was taken, or
+// null where nothing differs or nothing is chosen.
+export async function carryTake(from, chosen, reloadOwn) {
+  const read = await invoke("carry_read", { from });
+  const wanted = (name) => !chosen.length || chosen.includes(name);
+  const places = read.differences.filter((one) => one.how !== "here" && one.place !== "settings.json" && wanted(one.place)).map((one) => one.place);
+  const keys = read.differences.flatMap((one) => one.settings.map((setting) => setting.key)).filter(wanted);
+  if (keys.length) {
+    places.push("settings.json");
+  }
+  if (!places.length) {
+    return null;
+  }
+  const taking = await invoke("carry_take", { from, there: read.there, places, keys });
+  await takeKept(reloadOwn);
+  return taking;
+}
+
+// The taking `id` undone.
+export async function carryUndo(id, reloadOwn) {
+  const taking = await invoke("carry_undo", { id });
+  await takeKept(reloadOwn);
+  return taking;
+}
+
 // Draws Settings on Every Machine into `section`: the file or folder, the buttons that choose one,
 // send there and take from there, what a taking would change, and the takings kept.
 export function carryInto(section, { reloadOwn = null, pick }) {
@@ -87,8 +121,7 @@ export function carryInto(section, { reloadOwn = null, pick }) {
       ...(takings.length ? [element("h4", { textContent: "Takings" })] : []),
       ...takings.map((taking) => {
         const undo = button("Undo", async () => {
-          await invoke("carry_undo", { id: taking.id });
-          await takeKept(reloadOwn);
+          await carryUndo(taking.id, reloadOwn);
           said.textContent = `The taking from ${taking.from} is undone.`;
           await drawTakings();
         });
@@ -166,7 +199,7 @@ export function carryInto(section, { reloadOwn = null, pick }) {
       "div",
       { className: "prefs-actions" },
       button("Send", async () => {
-        said.textContent = await invoke("carry_send", { to: where() });
+        said.textContent = await carrySend(where());
       }),
       button("Take…", () => drawDifferences(where())),
     ),

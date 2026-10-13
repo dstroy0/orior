@@ -7,7 +7,8 @@
 //! A frame is the length of its JSON in four bytes, least first, then the JSON. A process joins by its
 //! first frame, {"key": its key}; the container takes it only where the key is a part's and the
 //! key was given to the process at the other end, as the system says, or to a process it stands
-//! under, as a shell of the window's is given a key for every program run in it. Then the process
+//! under, as a shell of the window's is given a key for every program run in it. A part registered
+//! as held is taken from any process with its key, which is kept where only the reader can read it. Then the process
 //! asks {"listen": channel} and {"say": channel, "body": what}, each answered with {"ok": what was
 //! done} or {"refused": why}, and each message said on a channel it listens on comes as
 //! {"message": {"channel", "from", "body"}}.
@@ -164,13 +165,15 @@ fn serve(comms: Arc<Comms>, joined: Joined) {
         answer(json!({"refused": "that key is no part's"}));
         return;
     };
-    let Some(given) = comms.process_of(&key) else {
-        answer(json!({"refused": format!("the key of {name} was given to no process")}));
-        return;
-    };
-    if !peer.is_some_and(|peer| peer == given || crate::container::under(given, peer, &crate::container::parents())) {
-        answer(json!({"refused": format!("the key of {name} was given to another process")}));
-        return;
+    if !comms.held(&key) {
+        let Some(given) = comms.process_of(&key) else {
+            answer(json!({"refused": format!("the key of {name} was given to no process")}));
+            return;
+        };
+        if !peer.is_some_and(|peer| peer == given || crate::container::under(given, peer, &crate::container::parents())) {
+            answer(json!({"refused": format!("the key of {name} was given to another process")}));
+            return;
+        }
     }
     if !answer(json!({"ok": "joined", "name": name})) {
         return;
@@ -618,6 +621,25 @@ mod tests {
         let in_the_container = comms.register("the window", None, &["*"], &[]).unwrap();
         let refused = Client::join(&address, &in_the_container).err().unwrap();
         assert!(refused.contains("given to no process"), "{refused}");
+    }
+
+    #[test]
+    fn a_held_key_is_taken_from_any_process_and_grants_its_own_channels_alone() {
+        let comms = Arc::new(Comms::default());
+        let address = open(comms.clone()).unwrap();
+        let window = comms.register("window", None, &["command"], &["answer/*"]).unwrap();
+        let heard = comms.listen(&window, "command").unwrap();
+        let held = comms.register_held("command line", &["answer/*"], &["command"]).unwrap();
+        let client = Client::join(&address, &held).unwrap();
+        assert_eq!(client.name, "command line");
+        client.listen("answer/1").unwrap();
+        assert_eq!(client.say("command", json!({"id": "1"})).unwrap(), 1);
+        assert_eq!(heard.recv_timeout(Duration::from_secs(5)).unwrap().body["id"], "1");
+        comms.say(&window, "answer/1", json!({"done": true})).unwrap();
+        assert_eq!(client.next(Duration::from_secs(5)).unwrap().body["done"], true);
+        assert!(client.say("runs/1", json!({})).is_err(), "a channel the key does not name");
+        let unheld = comms.register("other", None, &[], &["command"]).unwrap();
+        assert!(Client::join(&address, &unheld).is_err(), "a key not held is taken from its own process alone");
     }
 
     #[test]

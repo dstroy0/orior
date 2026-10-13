@@ -4,14 +4,14 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { progressBar } from "./progress.js";
+import { progressBar, timeLeft } from "./progress.js";
 import { editing, forgetTree, loadMounts, onShown, openAt, openElsewhere, openFile, restoreSession, startEdit, takeSettings } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar, stripMenus } from "./menubar.js";
+import { drawMenubar, hearCommandLine, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar, stripMenus } from "./menubar.js";
 import { forgetRuns } from "./runs.js";
 import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
@@ -94,11 +94,16 @@ async function settle(root, said) {
   return true;
 }
 
-// The bars of the files being read, kept from one drawing to the next so each moves steadily.
+// The bars of the files being read, kept from one drawing to the next so each moves steadily, and
+// when each began; and the bar of the tree's reading of its symbols.
 const readBars = new Map();
+const readBegan = new Map();
+let symbolsBar = null;
 
 // The bar's reading of the status block: the runs going, the files still being read, each with a
-// bar of how far along it is, and what of the tree is not read yet.
+// bar of how far along it is and the time it has left, and what of the tree is not read yet: its
+// symbols, while they are read, with their bar, their share, their time left and Stop, which ends the
+// reading and keeps what it read.
 function drawPulse(held) {
   const parts = [];
   if (held.runs.size) {
@@ -109,20 +114,37 @@ function drawPulse(held) {
   for (const path of readBars.keys()) {
     if (!held.reads.has(path)) {
       readBars.delete(path);
+      readBegan.delete(path);
     }
   }
+  const now = performance.now();
   for (const [path, { read, size }] of held.reads) {
     const name = path.split("/").pop();
     const bar = readBars.get(path) ?? progressBar();
     readBars.set(path, bar);
+    readBegan.set(path, readBegan.get(path) ?? now);
     bar.set(read / Math.max(1, size));
     const reading = Object.assign(document.createElement("span"), { className: "pulse-read", title: path });
-    reading.append(`${name} `, bar, ` ${Math.floor((100 * read) / Math.max(1, size))}%`);
+    const left = timeLeft(now - readBegan.get(path), read / Math.max(1, size));
+    reading.append(`${name} `, bar, ` ${Math.floor((100 * read) / Math.max(1, size))}%${left ? `, ${left}` : ""}`);
     parts.push(reading);
   }
-  const unread = [held.unread.files && "files", held.unread.symbols && "symbols"].filter(Boolean);
-  if (unread.length) {
+  const { files, symbols, done = 0, of = 0, began = now } = held.unread;
+  const unread = [files && "files", symbols && "symbols"].filter(Boolean);
+  if (symbols && of > 0) {
+    symbolsBar ??= progressBar();
+    symbolsBar.set(done / of);
+    const reading = Object.assign(document.createElement("span"), { className: "pulse-unread" });
+    const left = timeLeft(now - began, done / of);
+    const stop = Object.assign(document.createElement("button"), { type: "button", className: "pulse-stop", textContent: "Stop" });
+    stop.addEventListener("click", () => invoke("tree_read_stop").catch(() => {}));
+    reading.append(`The tree's ${files ? "files and " : ""}symbols `, symbolsBar, ` ${done} of ${of}${left ? `, ${left}` : ""} `, stop);
+    parts.push(reading);
+  } else if (unread.length) {
     parts.push(Object.assign(document.createElement("span"), { className: "pulse-unread", textContent: `The tree's ${unread.join(" and ")} not read yet` }));
+  }
+  if (!symbols) {
+    symbolsBar = null;
   }
   document.getElementById("pulse").replaceChildren(...parts);
 }
@@ -137,13 +159,14 @@ let treeRead = 0;
 // keeps the status block told which are not read yet until both are.
 async function readTree() {
   const ticket = ++treeRead;
+  const began = performance.now();
   await invoke("tree_read").catch(() => {});
   while (ticket === treeRead) {
     const unread = await invoke("tree_unread").catch(() => ({ files: false, symbols: false }));
     if (ticket !== treeRead) {
       return;
     }
-    write("unread", unread);
+    write("unread", { ...unread, began });
     if (!unread.files && !unread.symbols) {
       return;
     }
@@ -298,6 +321,7 @@ async function start() {
   settlePanes();
   onView(settlePanes);
   await runLaunch();
+  await hearCommandLine();
   // The window is whole: the test harness and the walker wait for this before they press anything.
   document.documentElement.dataset.started = "";
 }

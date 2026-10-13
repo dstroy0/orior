@@ -214,7 +214,10 @@ export class Minimap {
     }
     pen.globalAlpha = 1;
     context.setTransform(1, 0, 0, 1, 0, 0);
-    context.drawImage(lines, 0, 0);
+    // A minimap with no room, as one hidden, has lines of no size, which a canvas cannot draw from.
+    if (lines.width && lines.height) {
+      context.drawImage(lines, 0, 0);
+    }
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.fillStyle = this.colorOf(this.dragging ? "ed-mini-slider-on" : "ed-mini-slider");
     context.fillRect(0, sliderTop, width, sliderHeight);

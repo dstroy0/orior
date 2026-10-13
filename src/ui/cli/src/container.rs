@@ -27,6 +27,32 @@ pub fn hold() -> bool {
     }
 }
 
+/// A run's own group of processes, ended together by Stop: on Windows a job of its own within
+/// orior's, which every process the run starts joins and none breaks away from, as the child of Git's
+/// bash launcher would. Elsewhere a run is its own process group already, and the group holds nothing.
+#[cfg(windows)]
+pub use windows::Group;
+
+#[cfg(not(windows))]
+pub struct Group;
+
+#[cfg(not(windows))]
+impl Group {
+    /// Starts `command`, and gives no group: the run's process group is its own already.
+    pub fn spawn(command: &mut std::process::Command) -> std::io::Result<(std::process::Child, Option<Group>)> {
+        command.spawn().map(|child| (child, None))
+    }
+
+    pub fn end(&self) {}
+}
+
+/// Ends the process group `leader` leads, as a run is its own group on Linux and macOS.
+#[cfg(unix)]
+pub fn end_group(leader: u32) {
+    const SIGTERM: i32 = 15;
+    unix::signal_group(leader, SIGTERM);
+}
+
 /// The processes started outside the container that have not yet ended.
 #[cfg(unix)]
 static OUTSIDE: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
@@ -38,7 +64,8 @@ pub fn start_outside(command: &mut std::process::Command) -> std::io::Result<u32
     {
         use std::os::windows::process::CommandExt;
         command.creation_flags(windows_sys::Win32::System::Threading::CREATE_BREAKAWAY_FROM_JOB);
-        command.spawn().map(|child| child.id())
+        // Inside a run's job, which lets nothing break away, it starts within the run.
+        command.spawn().or_else(|_| command.creation_flags(0).spawn()).map(|child| child.id())
     }
     #[cfg(unix)]
     {
@@ -168,9 +195,88 @@ mod windows {
     use std::sync::OnceLock;
     use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
     use windows_sys::Win32::System::JobObjects::{
-        AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicProcessIdList, JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject, JOBOBJECT_BASIC_PROCESS_ID_LIST, JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_BREAKAWAY_OK, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicProcessIdList, JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject, TerminateJobObject, JOBOBJECT_BASIC_PROCESS_ID_LIST, JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_BREAKAWAY_OK, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
     };
     use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcess, TerminateProcess, PROCESS_TERMINATE};
+
+    /// A run's job, kept as a number as the container's is.
+    pub struct Group(usize);
+
+    impl Group {
+        /// Starts `command` with no console of its own, suspended until it has joined a job of its
+        /// own, and gives the job; with no job made, the command runs as it would have, in none.
+        pub fn spawn(command: &mut std::process::Command) -> std::io::Result<(std::process::Child, Option<Group>)> {
+            use std::os::windows::io::AsRawHandle;
+            use std::os::windows::process::CommandExt;
+            use windows_sys::Win32::System::Threading::{CREATE_NO_WINDOW, CREATE_SUSPENDED};
+            command.creation_flags(CREATE_NO_WINDOW | CREATE_SUSPENDED);
+            let child = command.spawn()?;
+            // SAFETY: the job is made through the call Windows documents for it, with no limits, which
+            // lets nothing break away, and the child's own handle lent to it; a job the child does not
+            // join is closed.
+            let group = unsafe {
+                let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+                if job.is_null() {
+                    None
+                } else {
+                    if AssignProcessToJobObject(job, child.as_raw_handle() as HANDLE) == 0 {
+                        CloseHandle(job);
+                        None
+                    } else {
+                        Some(Group(job as usize))
+                    }
+                }
+            };
+            resume(child.id());
+            Ok((child, group))
+        }
+
+        /// Ends every process of the group.
+        pub fn end(&self) {
+            // SAFETY: the handle is the group's own, open until the group is dropped.
+            unsafe {
+                TerminateJobObject(self.0 as HANDLE, 1);
+            }
+        }
+    }
+
+    impl Drop for Group {
+        fn drop(&mut self) {
+            // SAFETY: the handle is the group's own and closed once, here.
+            unsafe {
+                CloseHandle(self.0 as HANDLE);
+            }
+        }
+    }
+
+    /// Lets each thread of process `id` run, as one started suspended waits to.
+    fn resume(id: u32) {
+        use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+        use windows_sys::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Thread32First, Thread32Next, TH32CS_SNAPTHREAD, THREADENTRY32};
+        use windows_sys::Win32::System::Threading::{OpenThread, ResumeThread, THREAD_SUSPEND_RESUME};
+        // SAFETY: the snapshot is checked before use and closed once, each entry given its own size,
+        // and each thread's handle checked and closed after it is let run.
+        unsafe {
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+            if snapshot == INVALID_HANDLE_VALUE {
+                return;
+            }
+            let mut entry: THREADENTRY32 = std::mem::zeroed();
+            entry.dwSize = std::mem::size_of::<THREADENTRY32>() as u32;
+            let mut more = Thread32First(snapshot, &mut entry) != 0;
+            while more {
+                if entry.th32OwnerProcessID == id {
+                    let thread = OpenThread(THREAD_SUSPEND_RESUME, 0, entry.th32ThreadID);
+                    if !thread.is_null() {
+                        ResumeThread(thread);
+                        CloseHandle(thread);
+                    }
+                }
+                more = Thread32Next(snapshot, &mut entry) != 0;
+            }
+            CloseHandle(snapshot);
+        }
+    }
 
     /// The job, kept as a number: a handle is a pointer, which a static cannot hold across threads.
     static JOB: OnceLock<usize> = OnceLock::new();
@@ -264,6 +370,14 @@ mod unix {
         fn kill(pid: i32, signal: i32) -> i32;
     }
 
+    /// Sends `signal` to every process of the group `leader` leads.
+    pub fn signal_group(leader: u32, signal: i32) {
+        // SAFETY: kill takes a group as its leader's id made negative, and any signal number.
+        unsafe {
+            kill(-(leader as i32), signal);
+        }
+    }
+
     pub fn signal(ids: &[u32], signal: i32) {
         for id in ids {
             // SAFETY: kill takes any process id and signal number, and says by its answer whether the
@@ -330,6 +444,58 @@ mod unix {
 mod tests {
     use super::*;
     use std::time::{Duration, Instant};
+
+    #[cfg(windows)]
+    #[test]
+    fn a_group_s_end_ends_every_process_its_first_started_and_their_output_with_them() {
+        use std::io::Read;
+        // A shell that starts a second, which waits half a minute before it writes.
+        let mut command = std::process::Command::new("cmd");
+        command.args(["/c", "cmd /c ping -n 30 127.0.0.1 >nul & echo late"]).stdout(std::process::Stdio::piped());
+        let (mut child, group) = Group::spawn(&mut command).unwrap();
+        let group = group.expect("a job of its own");
+        std::thread::sleep(Duration::from_millis(800));
+        let ended = Instant::now();
+        group.end();
+        let mut out = String::new();
+        child.stdout.take().unwrap().read_to_string(&mut out).unwrap();
+        child.wait().unwrap();
+        assert!(ended.elapsed() < Duration::from_secs(5), "the output closed {:?} after the end", ended.elapsed());
+        assert!(!out.contains("late"), "{out}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_process_started_in_a_group_runs() {
+        let mut command = std::process::Command::new("cmd");
+        command.args(["/c", "echo ran"]).stdout(std::process::Stdio::piped());
+        let (child, group) = Group::spawn(&mut command).unwrap();
+        assert!(group.is_some(), "a job of its own");
+        let out = child.wait_with_output().unwrap();
+        assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "ran");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_group_s_end_ends_a_script_s_processes_under_git_s_bash_launcher() {
+        use std::io::Read;
+        let Ok(bash) = crate::runner::bash() else { return };
+        let mut command = std::process::Command::new(bash);
+        command.args(["-c", "echo began; sleep 20; echo late"]).stdout(std::process::Stdio::piped());
+        let (mut child, group) = Group::spawn(&mut command).unwrap();
+        let group = group.expect("a job of its own");
+        let mut stdout = child.stdout.take().unwrap();
+        let mut first = [0u8; 5];
+        stdout.read_exact(&mut first).unwrap();
+        assert_eq!(&first, b"began", "the script runs in the group");
+        let ended = Instant::now();
+        group.end();
+        let mut out = String::new();
+        stdout.read_to_string(&mut out).unwrap();
+        child.wait().unwrap();
+        assert!(ended.elapsed() < Duration::from_secs(5), "the output closed {:?} after the end", ended.elapsed());
+        assert!(!out.contains("late"), "{out}");
+    }
 
     #[test]
     fn descendants_are_every_process_under_a_root_and_no_other() {
@@ -410,6 +576,36 @@ mod tests {
         {
             std::process::Command::new("kill").args(["-0", &id.to_string()]).status().is_ok_and(|status| status.success())
         }
+    }
+
+    /// The test's own program, run again as `orior serve` at the head of a container: it starts a
+    /// waiting program inside, serves until its input ends, at once, and says the program's id.
+    #[test]
+    fn orior_serve_ends_what_it_started_as_its_input_ends() {
+        if std::env::var_os("ORIOR_SERVE_HEAD").is_some() {
+            assert!(hold(), "the container holds");
+            let inside = waiting_program().spawn().unwrap();
+            std::thread::sleep(Duration::from_millis(300));
+            let _ = crate::cli::run(vec!["serve".to_string()]);
+            println!("ids {}", inside.id());
+            std::mem::forget(inside);
+            return;
+        }
+        let me = std::env::current_exe().unwrap();
+        let out = std::process::Command::new(me)
+            .args(["--exact", "container::tests::orior_serve_ends_what_it_started_as_its_input_ends", "--nocapture", "--test-threads", "1"])
+            .env("ORIOR_SERVE_HEAD", "1")
+            .stdin(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .output()
+            .unwrap();
+        let said = String::from_utf8_lossy(&out.stdout).to_string();
+        let id: u32 = said.split("ids ").nth(1).and_then(|rest| rest.split_whitespace().next()).and_then(|id| id.parse().ok()).unwrap_or_else(|| panic!("the head failed: {said}"));
+        let until = Instant::now() + Duration::from_secs(5);
+        while alive(id) && Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        assert!(!alive(id), "what serve started ended as its input did");
     }
 
     /// The test's own program, run again as the head of a container: it starts a waiting program

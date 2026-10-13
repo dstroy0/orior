@@ -18,13 +18,16 @@ pub const IMAGE: &str = "orior-test-window";
 pub const WATCH: &str = "http://localhost:6080/vnc.html?autoconnect=true&resize=scale";
 
 /// What the container runs: the tree brought in from /host/ui, less what is built there and the
-/// runs kept, then the harness, its window's tests alone, with the words `passed` besides. X's
+/// runs kept, then the harness, its window's tests alone, with the words `passed` besides. A file is
+/// brought in where its bytes differ, and takes the container's own time as it comes: the host's
+/// clock and the container's differ, and a file keeping the host's time can stand older than the
+/// last build of it, which cargo then keeps. X's
 /// display in memory is given 96 dots an inch, at which WebKitWebDriver puts each press where it
 /// is sent; at another it puts each one off by the scale between the two.
 pub fn inside(passed: &[String]) -> String {
     let words: Vec<String> = passed.iter().map(|word| format!("'{}'", word.replace('\'', "'\\''"))).collect();
     format!(
-        "rsync -a --delete --exclude /test/target --exclude /test/runs --exclude /cli/target --exclude /src-tauri/target --exclude __pycache__ /host/ui/ /src/ui/ \
+        "rsync -a --checksum --no-times --delete --exclude /test/target --exclude /test/runs --exclude /cli/target --exclude /src-tauri/target --exclude __pycache__ /host/ui/ /src/ui/ \
          && dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' orior-watch cargo run --manifest-path /src/ui/test/Cargo.toml --release -- --driver webdriver --no-servers --no-rust --no-systems {}",
         words.join(" ")
     )
@@ -104,7 +107,7 @@ mod tests {
     #[test]
     fn the_container_brings_the_tree_in_and_drives_the_window_alone() {
         let said = inside(&["--only".into(), "editor/view".into()]);
-        assert!(said.starts_with("rsync -a --delete "), "{said}");
+        assert!(said.starts_with("rsync -a --checksum --no-times --delete "), "{said}");
         assert!(said.contains("--exclude /test/runs"), "{said}");
         assert!(said.contains("xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' orior-watch cargo run"), "{said}");
         assert!(said.ends_with("--driver webdriver --no-servers --no-rust --no-systems '--only' 'editor/view'"), "{said}");

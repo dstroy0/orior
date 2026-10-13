@@ -4,7 +4,7 @@
 import { followsSystem, notifyScheme, onScheme, scheme, setFollowSystem, setScheme, toggleScheme } from "../../src/scheme.js";
 import { keepingStorage } from "../helpers.js";
 
-const { test, assert } = window.__harness;
+const { test, assert, ui } = window.__harness;
 
 const KEY = "orior.scheme";
 
@@ -49,4 +49,24 @@ test("a theme's change tells each listener with the scheme unchanged", () => {
   onScheme((name) => told.push(name));
   notifyScheme();
   assert.deepEqual(told, [scheme()]);
+});
+
+test("following the system, the window turns light and dark as the system's light changes while it is open", async () => {
+  const kept = localStorage.getItem(KEY);
+  try {
+    setFollowSystem(true);
+    await ui.media("prefers-color-scheme", "light");
+    await ui.waitFor(() => scheme() === "light", 2000, "light with the system");
+    assert.equal(document.documentElement.dataset.scheme, "light");
+    await ui.media("prefers-color-scheme", "dark");
+    await ui.waitFor(() => scheme() === "dark", 2000, "dark with the system");
+  } finally {
+    await ui.media("prefers-color-scheme", "").catch(() => {});
+    setScheme("dark");
+    if (kept === null) {
+      localStorage.removeItem(KEY);
+    } else {
+      localStorage.setItem(KEY, kept);
+    }
+  }
 });

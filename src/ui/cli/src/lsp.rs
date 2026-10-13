@@ -122,8 +122,13 @@ impl Server {
     /// Starts `program` with `args` at `root`, and has it read the tree there with the server's own
     /// `options`. `heard` takes what the server says on its own.
     pub fn start(program: &Path, args: &[String], root: &Path, options: Value, path_env: std::ffi::OsString, heard: Heard) -> Result<Server, String> {
+        Self::start_in(program, args, root, options, &[(std::ffi::OsString::from("PATH"), path_env)], heard)
+    }
+
+    /// Starts `program` as `start` does, with each of `env` set for it.
+    pub fn start_in(program: &Path, args: &[String], root: &Path, options: Value, env: &[(std::ffi::OsString, std::ffi::OsString)], heard: Heard) -> Result<Server, String> {
         let mut command = Command::new(program);
-        command.args(args).current_dir(root).env("PATH", path_env).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        command.args(args).current_dir(root).envs(env.iter().map(|(key, value)| (key, value))).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         crate::runner::quiet(&mut command);
         let mut child = command.spawn().map_err(|error| format!("{}: {error}", program.display()))?;
         let input = Arc::new(Mutex::new(child.stdin.take().ok_or("the server took no input")?));

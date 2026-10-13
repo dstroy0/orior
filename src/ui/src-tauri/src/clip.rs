@@ -15,10 +15,23 @@ use std::sync::Mutex;
 /// The files this window last cut, where the clipboard cannot say a cut.
 static CUT: Mutex<Option<Vec<PathBuf>>> = Mutex::new(None);
 
+/// The window's clipboard, made once and held while the window runs: on X11 what is put on the
+/// clipboard stays there only while the clipboard that put it is held, unless a clipboard manager
+/// takes it.
+static HELD: Mutex<Option<arboard::Clipboard>> = Mutex::new(None);
+
+/// Runs `act` with the window's clipboard, made the first time.
+pub fn with<T>(act: impl FnOnce(&mut arboard::Clipboard) -> Result<T, arboard::Error>) -> Result<T, String> {
+    let mut held = HELD.lock().map_err(|error| error.to_string())?;
+    if held.is_none() {
+        *held = Some(arboard::Clipboard::new().map_err(|error| error.to_string())?);
+    }
+    act(held.as_mut().expect("made above")).map_err(|error| error.to_string())
+}
+
 /// Puts the files on the clipboard, to be moved when pasted where `cut` and copied otherwise.
 pub fn put(paths: &[PathBuf], cut: bool) -> Result<(), String> {
-    let mut clip = arboard::Clipboard::new().map_err(|error| error.to_string())?;
-    clip.set().file_list(paths).map_err(|error| error.to_string())?;
+    with(|clip| clip.set().file_list(paths))?;
     effect::put(cut)?;
     if let Ok(mut held) = CUT.lock() {
         *held = cut.then(|| paths.to_vec());
@@ -28,7 +41,7 @@ pub fn put(paths: &[PathBuf], cut: bool) -> Result<(), String> {
 
 /// The files on the clipboard and whether they were cut. None where it holds no files.
 pub fn held() -> Option<(Vec<PathBuf>, bool)> {
-    let paths = arboard::Clipboard::new().ok()?.get().file_list().ok().filter(|paths| !paths.is_empty())?;
+    let paths = with(|clip| clip.get().file_list()).ok().filter(|paths| !paths.is_empty())?;
     let cut = effect::held().unwrap_or_else(|| CUT.lock().ok().and_then(|held| held.clone()).as_ref() == Some(&paths));
     Some((paths, cut))
 }
@@ -36,9 +49,7 @@ pub fn held() -> Option<(Vec<PathBuf>, bool)> {
 /// Clears the clipboard once files cut are moved, as the file manager does. A paste after it finds
 /// no files, and none from where they no longer are.
 pub fn let_go() {
-    if let Ok(mut clip) = arboard::Clipboard::new() {
-        let _ = clip.clear();
-    }
+    let _ = with(|clip| clip.clear());
     if let Ok(mut held) = CUT.lock() {
         *held = None;
     }

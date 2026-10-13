@@ -504,15 +504,24 @@ export function runInTerminal(line) {
 function terminalItems() {
   const text = chosen();
   return [
-    { label: "Copy", keys: "Ctrl+Shift+C", disabled: !text, run: () => copyText(text) },
-    { label: "Paste", keys: "Ctrl+Shift+V", run: async () => pasteText(await clipText()) },
+    { label: "Copy", keys: "Ctrl+Shift+C", command: "terminal-copy", args: [], disabled: !text, run: () => copyText(text) },
+    { label: "Paste", keys: "Ctrl+Shift+V", command: "terminal-paste", args: [], run: () => terminalCommands["terminal-paste"]([]) },
     "-",
-    { label: "Clear", keys: "Ctrl+L", run: () => send("\x0c") },
-    { label: "New Terminal", keys: "Ctrl+Shift+`", run: () => newTerminal() },
-    { label: "Split Terminal", checked: state.beside !== null, run: () => splitTerminal() },
-    { label: "Close", keys: "Ctrl+`", run: () => toggle(false) },
+    { label: "Clear", keys: "Ctrl+L", command: "clear", args: [], run: () => send("\x0c") },
+    { label: "New Terminal", keys: "Ctrl+Shift+`", command: "new", args: [], run: () => newTerminal() },
+    { label: "Split Terminal", command: "split", args: [], checked: state.beside !== null, run: () => splitTerminal() },
+    { label: "Close", keys: "Ctrl+`", command: "terminal-close", args: [], run: () => toggle(false) },
   ];
 }
+
+// The terminal's menu as commands, by the names commands.json gives those the Terminal menu has not:
+// the text chosen on the screen copied, the clipboard's or the words given pasted into the shell the
+// keys go to, and the panel closed.
+export const terminalCommands = {
+  "terminal-copy": () => chosen() && copyText(chosen()),
+  "terminal-paste": async (words) => pasteText(words.length ? words.join(" ") : await clipText()),
+  "terminal-close": () => toggle(false),
+};
 
 // Drags the panel's top edge.
 function grip(event) {

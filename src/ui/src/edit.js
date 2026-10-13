@@ -54,7 +54,8 @@ import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { startRuns } from "./runs.js";
 import { startTrace } from "./trace.js";
 import { coverageOf, startTests, testMenu, testsOf } from "./tests.js";
-import { focusedKey, keepListKeys, refocus } from "./lists.js";
+import { keepListKeys } from "./lists.js";
+import { RowList } from "./rowlist.js";
 import { clipText, copyText, menuOn, showMenu } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
 import { onPatterns, tellPatterns } from "./patterns.js";
@@ -214,8 +215,9 @@ async function loadChanges() {
 }
 
 // Draws the tree from the folders read, and ends once the latest draw has put its rows in. A draw that
-// a later one overtakes while it reads puts nothing in, and the row that holds the keys as the rows
-// are put in keeps them.
+// a later one overtakes while it reads puts nothing in. The rows are what each stands for, and a row
+// list puts on the page only those in sight and those the scroll heads into. A folder of any size
+// opens and scrolls at once, and the row that holds the keys keeps them.
 function drawTree() {
   state.drawn = drawTreeOnce(state.drawing + 1);
   return state.drawn;
@@ -224,13 +226,12 @@ function drawTree() {
 async function drawTreeOnce(drawing) {
   const list = document.getElementById("files");
   state.drawing = drawing;
+  state.rowList ??= new RowList(list, { height: TREE_ROW, gap: MOUNT_GAP, build: (row) => treeRowOf(row) });
   const put = (rows) => {
     if (drawing !== state.drawing) {
       return state.drawn;
     }
-    const focused = focusedKey(list);
-    list.replaceChildren(...rows);
-    refocus(list, focused);
+    state.rowList.set(rows, rows.findIndex((row) => row.mountFirst));
     return null;
   };
   const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
@@ -238,13 +239,13 @@ async function drawTreeOnce(drawing) {
   const query = document.getElementById("file-filter").value.trim();
   if (query) {
     const found = await invoke("tree_find", { query });
-    await put(found.map((path) => node({ name: path, path, dir: false, ignored: false }, 0)));
+    await put(found.map((path) => treeRow({ name: path, path, dir: false, ignored: false }, 0)));
     return;
   }
-  const nodes = [];
+  const rows = [];
   const walk = async (dir, depth) => {
     for (const entry of await childrenOf(dir)) {
-      nodes.push(node(entry, depth));
+      rows.push(treeRow(entry, depth));
       if (entry.dir && state.expanded.has(entry.path)) {
         await walk(entry.path, depth + 1);
       }
@@ -254,17 +255,38 @@ async function drawTreeOnce(drawing) {
   // Each folder or file from another place stands after the tree's own, under its own name.
   for (const [at, mounted] of state.mounts.entries()) {
     const path = `@${mounted.name}`;
-    const row = node({ name: mounted.name, path, dir: mounted.dir, ignored: false }, 0);
-    row.classList.add("mount");
-    row.classList.toggle("mount-first", at === 0);
-    row.title = mounted.path;
-    nodes.push(row);
+    rows.push({ ...treeRow({ name: mounted.name, path, dir: mounted.dir, ignored: false }, 0), mount: mounted.path, mountFirst: at === 0 });
     if (mounted.dir && state.expanded.has(path)) {
       await walk(path, 1);
     }
   }
-  await put(nodes);
+  await put(rows);
 }
+
+// The height of a row of the tree, and the room above the first folder or file from another place.
+const TREE_ROW = 22;
+const MOUNT_GAP = 4;
+
+// A row of the tree as the row list holds it: its key, depth, name and whether it is open, which the
+// list's keys read, and the entry it stands for.
+function treeRow(entry, depth) {
+  return { key: entry.path, depth, name: shownName(entry), open: entry.dir ? state.expanded.has(entry.path) : null, entry };
+}
+
+// A row of the tree's element, as it comes into sight.
+function treeRowOf(row) {
+  const button = node(row.entry, row.depth);
+  if (row.mount) {
+    button.classList.add("mount");
+    button.classList.toggle("mount-first", row.mountFirst);
+    button.title = row.mount;
+  }
+  return button;
+}
+
+// The element of the tree's row for `path`, put on the page and scrolled into sight, or null where
+// the tree shows no row for it.
+export const treeRowShown = (path) => state.rowList?.reveal(path) ?? null;
 
 // More than one tree in a window: folders from other places, and single files from them, mounted
 // beside the tree, each with its own place in the explorer and kept with the tree.
@@ -581,9 +603,9 @@ export function setSideTabs(on = !sideTabs()) {
 
 const groupOf = (path) => state.groups.find((group) => group.paths.includes(path)) ?? null;
 
-async function addToGroup(tab) {
+async function addToGroup(tab, given = null) {
   const { askFor } = await import("./menubar.js");
-  const name = (await askFor("The group's name", groupOf(tab.path)?.name ?? state.groups.at(-1)?.name ?? ""))?.trim();
+  const name = (given ?? (await askFor("The group's name", groupOf(tab.path)?.name ?? state.groups.at(-1)?.name ?? "")))?.trim();
   if (!name) {
     return;
   }
@@ -606,21 +628,11 @@ function leaveGroup(path) {
 
 function groupMenu(group) {
   return [
-    { label: group.folded ? "Unfold" : "Fold", run: () => ((group.folded = !group.folded), drawTabs()) },
-    {
-      label: "Rename Group…",
-      run: async () => {
-        const { askFor } = await import("./menubar.js");
-        const name = (await askFor("The group's name", group.name))?.trim();
-        if (name) {
-          group.name = name;
-          drawTabs();
-        }
-      },
-    },
-    { label: "Ungroup", run: () => ((state.groups = state.groups.filter((one) => one !== group)), drawTabs()) },
+    act("group-fold", [group.name, group.folded ? "off" : "on"], { label: group.folded ? "Unfold" : "Fold" }),
+    act("group-rename", [group.name], { label: "Rename Group…" }),
+    act("group-ungroup", [group.name], { label: "Ungroup" }),
     "-",
-    { label: "Close the Group's Tabs", run: () => group.paths.map(tabOf).filter(Boolean).forEach(closeTab) },
+    act("group-close", [group.name], { label: "Close the Group's Tabs" }),
   ];
 }
 
@@ -677,9 +689,9 @@ function markItems() {
   return list.map((path, at) => ({
     label: `${at + 1}  ${path}`,
     items: [
-      { label: "Open", run: () => goMark(at + 1) },
-      { label: "Move Up", disabled: at === 0, run: () => keepMarks(list.map((one, index) => (index === at - 1 ? path : index === at ? list[at - 1] : one))) },
-      { label: "Let Go", run: () => keepMarks(list.filter((one) => one !== path)) },
+      { label: "Open", command: at < 9 ? `mark-${at + 1}` : "file-open", args: at < 9 ? [] : [path], run: () => goMark(at + 1) },
+      act("mark-up", [path], { label: "Move Up", disabled: at === 0 }),
+      act("mark-let-go", [path], { label: "Let Go" }),
     ],
   }));
 }
@@ -1210,7 +1222,7 @@ async function reveal(path) {
     at = path.lastIndexOf("/", at - 1);
   }
   await drawTree();
-  [...document.querySelectorAll("#files .node")].find((row) => row.dataset.key === path)?.scrollIntoView({ block: "nearest" });
+  treeRowShown(path);
 }
 
 function show(path) {
@@ -2157,7 +2169,7 @@ function symbolsBeside(s, parent, depth) {
 // A folder's entries as a list from the crumbs: a file opens at a press, and a folder opens its own
 // entries beside it.
 async function entryItems(dir) {
-  return (await childrenOf(dir)).map((entry) => (entry.dir ? { label: entry.name, items: () => entryItems(entry.path) } : { label: entry.name, run: () => openFile(entry.path) }));
+  return (await childrenOf(dir)).map((entry) => (entry.dir ? { label: entry.name, items: () => entryItems(entry.path) } : { label: entry.name, command: "file-open", args: [entry.path], run: () => openFile(entry.path) }));
 }
 
 // Opens the list of the files and folders in `dir` from a crumb, the one named `name` taking the keys.
@@ -2930,6 +2942,12 @@ export async function startEdit(defs) {
     return along(held, () => invoke("document_find", { key: held.key, sought, most })).catch(() => null);
   });
   onOverBudget(holdMemory);
+  // The changes not saved are kept at once as the window closes, is hidden or loses the keys, and not
+  // only a moment after typing rests: no window's changes are lost, whichever closes first.
+  window.addEventListener("pagehide", keepBackups);
+  window.addEventListener("beforeunload", keepBackups);
+  window.addEventListener("blur", keepBackups);
+  document.addEventListener("visibilitychange", () => document.hidden && keepBackups());
   await loadPlugins();
   state.known = registerLanguages(defs);
   // A plugin read again, turned on or turned off colors every open file anew.
@@ -3327,6 +3345,7 @@ export async function startEdit(defs) {
   });
   startExplorer({
     show,
+    open: (path) => openFile(path),
     sessionOf: (path) => (path ? tabOf(path)?.session ?? null : null),
     activePath: () => (state.active ? tabOf(state.active)?.file ?? null : null),
     close: (path) => tabOf(path) && closeTab(tabOf(path)),
@@ -3448,37 +3467,116 @@ const SHOWN_IN_WINDOW = new Set(["html", "htm", "svg", "png", "jpg", "jpeg"]);
 // A row of the tree's menu: open or close a folder, open a file in the editor or a page in a window
 // of its own, cut or copy it, paste files into its folder, copy where it is, or open the terminal in
 // its folder. Off the rows, files paste into the tree's top.
+// The tree's file menu and a tab's menu as commands, each by the name commands.json gives it, run
+// from the menu or from the command line with the words it gives: a path of the tree, a mount's name
+// for Remove from Window, and what each names besides.
+const rowOfPath = (path) => treeRowShown(path);
+const parentOf = (path) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
+
+async function isFolder(path) {
+  const row = rowOfPath(path);
+  if (row) {
+    return row.classList.contains("dir");
+  }
+  return (await childrenOf(parentOf(path)).catch(() => [])).some((entry) => entry.path === path && entry.dir);
+}
+
+const folderOfPath = async (path) => ((await isFolder(path)) ? path : parentOf(path));
+const tabNamed = (path) => tabOf(path) ?? state.tabs.find((tab) => tab.file === path) ?? null;
+
+export const popupCommands = {
+  "file-open": async ([path]) => {
+    if (!(await isFolder(path))) {
+      await openFile(path);
+      return;
+    }
+    if (state.expanded.has(path)) {
+      state.expanded.delete(path);
+    } else {
+      state.expanded.add(path);
+    }
+    await drawTree();
+  },
+  "file-remove": ([name]) => removeFromWindow(name.replace(/^@/, "")),
+  "file-names": ([path, label = ""]) => chooseNames(path, label),
+  "file-open-window": ([path]) => invoke("view_open", { path }),
+  "file-cut": ([path]) => copyFiles(path, true),
+  "file-copy": ([path]) => copyFiles(path, false),
+  "file-paste": async ([path = ""]) => pasteFiles(path ? await folderOfPath(path) : ""),
+  "file-copy-path": ([path]) => copyText(path),
+  "file-terminal": async ([path = ""]) => terminalAt(path ? await folderOfPath(path) : ""),
+  "file-select-compare": ([path]) => (state.compareFrom = path),
+  "file-compare": ([path, other = state.compareFrom]) => other && compareFiles(other, path),
+  "tab-close": ([path]) => tabNamed(path) && closeTab(tabNamed(path)),
+  "tab-close-others": ([path]) => state.tabs.filter((one) => one !== tabNamed(path)).forEach(closeTab),
+  "tab-split-right": ([path]) => (show(tabNamed(path)?.path ?? path), splitEditor("right")),
+  "tab-split-down": ([path]) => (show(tabNamed(path)?.path ?? path), splitEditor("down")),
+  "tab-new-window": ([path]) => tabNamed(path) && tabToNewWindow(tabNamed(path)),
+  "tab-group": ([path, name]) => tabNamed(path) && addToGroup(tabNamed(path), name),
+  "tab-ungroup": ([path]) => (leaveGroup(tabNamed(path)?.path ?? path), drawTabs()),
+  "tab-mark": ([path]) => toggleMark(tabNamed(path)?.file ?? path),
+  "tab-open-as": ([path, as]) => tabNamed(path) && reopenAs(tabNamed(path), as === "notebook" ? "notebook" : "text"),
+  "group-fold": ([name, on]) => withGroup(name, (group) => ((group.folded = on === "on" ? true : on === "off" ? false : !group.folded), drawTabs())),
+  "group-rename": ([name, given]) =>
+    withGroup(name, async (group) => {
+      const { askFor } = await import("./menubar.js");
+      const to = (given ?? (await askFor("The group's name", group.name)))?.trim();
+      if (to) {
+        group.name = to;
+        drawTabs();
+      }
+    }),
+  "group-ungroup": ([name]) => withGroup(name, (group) => ((state.groups = state.groups.filter((one) => one !== group)), drawTabs())),
+  "group-close": ([name]) => withGroup(name, (group) => group.paths.map(tabOf).filter(Boolean).forEach(closeTab)),
+  "mark-up": ([path]) => {
+    const list = markedFiles();
+    const at = list.indexOf(path);
+    if (at > 0) {
+      keepMarks(list.map((one, index) => (index === at - 1 ? path : index === at ? list[at - 1] : one)));
+    }
+  },
+  "mark-let-go": ([path]) => keepMarks(markedFiles().filter((one) => one !== path)),
+  "servers-stop-idle": () => holdMemory(Number.MAX_SAFE_INTEGER),
+};
+
+// Runs `act` with the tab group named `name`, or says there is none.
+function withGroup(name, act) {
+  const group = state.groups.find((one) => one.name === name);
+  return group ? act(group) : say(`No group of tabs is named ${name}.`, { failed: true });
+}
+
+// An item that runs `command` with `args`, as the command line runs it, and says both.
+const act = (command, args, item) => ({ ...item, command, args, run: () => popupCommands[command](args) });
+
 function fileItems(event) {
   const row = event.target.closest(".node");
   if (!row) {
-    return event.target.closest("#files") ? [{ label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles, run: () => pasteFiles("") }] : null;
+    return event.target.closest("#files") ? [act("file-paste", [], { label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles })] : null;
   }
   const path = row.dataset.key;
   const folder = row.classList.contains("dir");
-  const open = folder
-    ? { label: state.expanded.has(path) ? "Close" : "Open", run: () => row.click() }
-    : { label: "Open", run: () => openFile(path) };
+  const open = act("file-open", [path], { label: folder && state.expanded.has(path) ? "Close" : "Open" });
   const mounted = row.classList.contains("mount") ? path.slice(1) : null;
   const names = namesChosen()[path] ?? "";
   return [
     open,
-    ...(mounted ? [{ label: "Remove from Window", run: () => removeFromWindow(mounted) }] : []),
-    ...(row.dataset.archive ? [{ label: "Names' Encoding", items: NAME_ENCODINGS.map(([label, shown]) => ({ label: shown, checked: names === label, run: () => chooseNames(path, label) })) }] : []),
-    ...(folder ? [] : [{ label: "Open in Next Split", run: () => openInSplit(path) }]),
-    ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
+    ...(mounted ? [act("file-remove", [mounted], { label: "Remove from Window" })] : []),
+    ...(row.dataset.archive ? [{ label: "Names' Encoding", items: NAME_ENCODINGS.map(([label, shown]) => act("file-names", [path, label], { label: shown, checked: names === label })) }] : []),
+    ...(folder ? [] : [{ label: "Open in Next Split", command: "open-in-split", args: [path], run: () => openInSplit(path) }]),
+    ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [act("file-open-window", [path], { label: "Open in a window" })] : []),
     "-",
-    { label: "Cut", keys: "Ctrl+X", run: () => copyFiles(path, true) },
-    { label: "Copy", keys: "Ctrl+C", run: () => copyFiles(path, false) },
-    { label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles, run: () => pasteFiles(folderOfRow(row)) },
+    act("file-cut", [path], { label: "Cut", keys: "Ctrl+X" }),
+    act("file-copy", [path], { label: "Copy", keys: "Ctrl+C" }),
+    act("file-paste", [folderOfRow(row)], { label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles }),
     "-",
-    { label: "Copy path", run: () => copyText(path) },
-    { label: "Open in terminal", run: () => terminalAt(folderOfRow(row)) },
+    act("file-copy-path", [path], { label: "Copy path" }),
+    act("file-terminal", [folderOfRow(row)], { label: "Open in terminal" }),
     ...(folder
       ? []
       : [
           "-",
-          { label: "Select for Compare", run: () => (state.compareFrom = path) },
-          { label: state.compareFrom ? `Compare with ${state.compareFrom.split("/").pop()}` : "Compare with Selected", disabled: !state.compareFrom || state.compareFrom === path, run: () => compareFiles(state.compareFrom, path) },
+          act("file-select-compare", [path], { label: "Select for Compare" }),
+          act("file-compare", [path], { label: state.compareFrom ? `Compare with ${state.compareFrom.split("/").pop()}` : "Compare with Selected", disabled: !state.compareFrom || state.compareFrom === path }),
         ]),
   ];
 }
@@ -3526,9 +3624,7 @@ async function pasteFiles(into) {
   await drawTree();
   const last = pasted.at(-1)?.to;
   if (last !== undefined) {
-    const row = [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === last);
-    row?.focus();
-    row?.scrollIntoView({ block: "nearest" });
+    treeRowShown(last)?.focus();
   }
 }
 
@@ -3578,22 +3674,22 @@ function tabMenu(tab) {
   }
   const others = state.tabs.filter((one) => one !== tab);
   return [
-    { label: "Close", run: () => closeTab(tab) },
-    { label: "Close others", disabled: !others.length, run: () => others.forEach(closeTab) },
-    { label: "Close all", run: () => [...state.tabs].forEach(closeTab) },
+    act("tab-close", [tab.path], { label: "Close" }),
+    act("tab-close-others", [tab.path], { label: "Close others", disabled: !others.length }),
+    { label: "Close all", command: "close-all", args: [], run: () => [...state.tabs].forEach(closeTab) },
     "-",
-    { label: "Split Right", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("right")) },
-    { label: "Split Down", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("down")) },
-    { label: "Open in Next Split", disabled: !splittable(tab), run: () => openInSplit(tab.path) },
-    { label: "Open in New Window", disabled: Boolean(tab.commit), run: () => tabToNewWindow(tab) },
+    act("tab-split-right", [tab.path], { label: "Split Right", disabled: !tab.session || Boolean(tab.commit) }),
+    act("tab-split-down", [tab.path], { label: "Split Down", disabled: !tab.session || Boolean(tab.commit) }),
+    { label: "Open in Next Split", command: "open-in-split", args: [tab.path], disabled: !splittable(tab), run: () => openInSplit(tab.path) },
+    act("tab-new-window", [tab.path], { label: "Open in New Window", disabled: Boolean(tab.commit) }),
     "-",
-    { label: "Add to Group…", run: () => addToGroup(tab) },
-    { label: "Remove from Group", disabled: !groupOf(tab.path), run: () => (leaveGroup(tab.path), drawTabs()) },
-    { label: markedFiles().includes(tab.file) ? "Unmark File" : "Mark File", disabled: Boolean(tab.commit), run: () => toggleMark(tab.file) },
+    act("tab-group", [tab.path], { label: "Add to Group…" }),
+    act("tab-ungroup", [tab.path], { label: "Remove from Group", disabled: !groupOf(tab.path) }),
+    act("tab-mark", [tab.file], { label: markedFiles().includes(tab.file) ? "Unmark File" : "Mark File", disabled: Boolean(tab.commit) }),
     "-",
-    { label: "Copy path", run: () => copyText(tab.file) },
+    act("file-copy-path", [tab.file], { label: "Copy path" }),
     ...(tab.notebook || (tab.session && (isNotebook(tab.path) || /^\s*(#|\/\/|%|--) %%/m.test(tab.session.doc.text())))
-      ? ["-", { label: tab.notebook ? "Open as Text" : "Open as Notebook", disabled: Boolean(tab.commit), run: () => reopenAs(tab, tab.notebook ? "text" : "notebook") }]
+      ? ["-", act("tab-open-as", [tab.path, tab.notebook ? "text" : "notebook"], { label: tab.notebook ? "Open as Text" : "Open as Notebook", disabled: Boolean(tab.commit) })]
       : []),
   ];
 }
@@ -3635,30 +3731,30 @@ function editorItems() {
   };
   const served = Boolean(tabOf(state.active)?.served);
   return [
-    { label: "Go to Definition", keys: "F12", disabled: !served, run: () => goToDefinition(editor.head()) },
-    { label: "Find Usages", keys: "Shift+F12", run: findUsages },
-    { label: "Rename Symbol…", keys: "F2", disabled: !served, run: renameSymbol },
-    { label: "Quick Fix…", keys: "Ctrl+.", disabled: !served && !tabOf(state.active)?.inspected, run: quickFix },
+    { command: "definition", args: [], label: "Go to Definition", keys: "F12", disabled: !served, run: () => goToDefinition(editor.head()) },
+    { command: "usages", args: [], label: "Find Usages", keys: "Shift+F12", run: findUsages },
+    { command: "rename", args: [], label: "Rename Symbol…", keys: "F2", disabled: !served, run: renameSymbol },
+    { command: "quick-fix", args: [], label: "Quick Fix…", keys: "Ctrl+.", disabled: !served && !tabOf(state.active)?.inspected, run: quickFix },
     {
       label: "Refactor",
       items: [
-        { label: "Extract Variable", keys: "Ctrl+Alt+V", run: () => extractVariable(editor, fileOf(state.active)) },
-        { label: "Extract Constant", keys: "Ctrl+Alt+C", run: () => extractConstant(editor) },
-        { label: "Extract Function", keys: "Ctrl+Alt+M", run: () => extractFunction(editor, tabOfSession(editor.s)) },
-        { label: "Inline Variable", keys: "Ctrl+Alt+N", run: () => inlineVariable(editor) },
+        { command: "extract-variable", args: [], label: "Extract Variable", keys: "Ctrl+Alt+V", run: () => extractVariable(editor, fileOf(state.active)) },
+        { command: "extract-constant", args: [], label: "Extract Constant", keys: "Ctrl+Alt+C", run: () => extractConstant(editor) },
+        { command: "extract-function", args: [], label: "Extract Function", keys: "Ctrl+Alt+M", run: () => extractFunction(editor, tabOfSession(editor.s)) },
+        { command: "inline-variable", args: [], label: "Inline Variable", keys: "Ctrl+Alt+N", run: () => inlineVariable(editor) },
       ],
     },
     "-",
-    { label: "Cut", keys: "Ctrl+X", run: held("cut") },
-    { label: "Copy", keys: "Ctrl+C", run: held("copy") },
-    { label: "Paste", keys: "Ctrl+V", run: pasted },
+    { command: "cut", args: [], label: "Cut", keys: "Ctrl+X", run: held("cut") },
+    { command: "copy", args: [], label: "Copy", keys: "Ctrl+C", run: held("copy") },
+    { command: "paste", args: [], label: "Paste", keys: "Ctrl+V", run: pasted },
     "-",
-    { label: "Select all", keys: "Ctrl+A", run: () => editor.selectAll() },
-    { label: "Find", keys: "Ctrl+F", run: () => editor.find.open(false) },
-    { label: "Replace", keys: "Ctrl+H", run: () => editor.find.open(true) },
-    { label: "Go to line", keys: "Ctrl+G", run: () => editor.goto.open() },
+    { command: "select-all", args: [], label: "Select all", keys: "Ctrl+A", run: () => editor.selectAll() },
+    { command: "find", args: [], label: "Find", keys: "Ctrl+F", run: () => editor.find.open(false) },
+    { command: "replace", args: [], label: "Replace", keys: "Ctrl+H", run: () => editor.find.open(true) },
+    { command: "line", args: [], label: "Go to line", keys: "Ctrl+G", run: () => editor.goto.open() },
     "-",
-    { label: "Save", keys: "Ctrl+S", disabled: !dirty(tabOf(state.active)), run: saveActive },
+    { command: "save", args: [], label: "Save", keys: "Ctrl+S", disabled: !dirty(tabOf(state.active)), run: saveActive },
   ];
 }
 

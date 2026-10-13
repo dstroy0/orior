@@ -1318,6 +1318,51 @@ pub fn run(given: Vec<String>) -> Outcome {
                 }
             };
         }
+        // A window open on the tree runs the command itself, as reach.rs says; with none, a window
+        // opens to run it.
+        let found = match named {
+            Some(dir) => tree(Some(dir)).ok(),
+            None => root::find(),
+        };
+        if !command.is_empty() {
+            match crate::reach::ask(found.as_deref(), &menu, &command, &args) {
+                Some(Ok(answer)) => {
+                    if !answer.said.is_empty() {
+                        if answer.done {
+                            out(&answer.said);
+                        } else {
+                            err(&answer.said);
+                        }
+                    }
+                    return Outcome::Exit(if answer.done { 0 } else { WRONG });
+                }
+                Some(Err(said)) => {
+                    err(&said);
+                    return Outcome::Exit(WRONG);
+                }
+                None => {}
+            }
+        }
+        // With no window open on the tree, a command the terminal can do runs here, as at_terminal.rs
+        // says; the others open a window.
+        if crate::at_terminal::runs(&command) {
+            let Some(root) = found.clone().or_else(|| std::env::current_dir().ok()) else {
+                err("orior finds no folder to run in");
+                return Outcome::Exit(WRONG);
+            };
+            return match crate::at_terminal::run(&root, &command, &args) {
+                Ok(said) => {
+                    if !said.is_empty() {
+                        out(&said);
+                    }
+                    Outcome::Exit(0)
+                }
+                Err(said) => {
+                    err(&said);
+                    Outcome::Exit(WRONG)
+                }
+            };
+        }
         match named.map(|dir| tree(Some(dir))).transpose() {
             Ok(root) => Outcome::Window(Launch { root, remote: None, menu, command, args }),
             Err(said) => {
@@ -1370,6 +1415,9 @@ pub fn run(given: Vec<String>) -> Outcome {
             }
         };
         crate::serve::serve(root, std::io::stdin().lock(), std::io::stdout());
+        // The window's link is gone: every run, shell and server still in the container ends with
+        // it, on the machine the window reached as on the window's own.
+        crate::container::end_all();
         return Outcome::Exit(0);
     }
     // write-raised copies a file orior staged over the file the reader gave the rights to write, as

@@ -3,7 +3,7 @@
 
 // Bars of progress: steady, never back, and faster toward their end.
 
-import { drawnShare, progressBar, SPEEDS_UP } from "../../src/progress.js";
+import { drawnShare, progressBar, SPEEDS_UP, timeLeft } from "../../src/progress.js";
 import { write } from "../../src/status.js";
 
 const { test, assert, ui } = window.__harness;
@@ -16,6 +16,15 @@ test("a bar draws the share done to a power: slower at first and faster toward i
   assert.ok(drawnShare(1) - drawnShare(0.5) > drawnShare(0.5) - drawnShare(0), "the second half moves farther than the first");
   assert.equal(drawnShare(-1), 0);
   assert.equal(drawnShare(2), 1);
+});
+
+test("the time a piece of work has left is read from its pace so far, and from nothing less than a second of it", () => {
+  assert.equal(timeLeft(500, 0.5), null, "under a second gone");
+  assert.equal(timeLeft(5000, 0), null, "nothing done");
+  assert.equal(timeLeft(5000, 1), null, "all done");
+  assert.equal(timeLeft(4000, 0.5), "about 4 s left");
+  assert.equal(timeLeft(10000, 0.1), "about 2 min left", "past a minute, in minutes");
+  assert.equal(timeLeft(2000, 0.99), "about 1 s left", "never less than a second said");
 });
 
 test("a bar moves at one pace toward a new share, and never back", () => {

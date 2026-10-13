@@ -119,11 +119,17 @@
     let why = "";
     // An element a scrolling part clips, as a sheet's own scroll does, is scrolled into view once.
     let scrolled = false;
+    // A scroll made here in a modal dialog is followed by the pointer moved onto the element and the
+    // element measured again: WebKitGTK undoes the first scroll a script makes in a modal dialog just
+    // opened when the pointer next moves. A move elsewhere would undo scrolls a test made itself.
+    let moveDue = false;
+    let moves = 0;
     while (performance.now() < until) {
       const node = elementOf(target);
       const box = node.getBoundingClientRect();
       if (box.bottom < 0 || box.top > innerHeight || box.right < 0 || box.left > innerWidth) {
         node.scrollIntoView({ block: "center", inline: "center" });
+        moveDue = Boolean(node.closest("dialog[open]"));
       }
       const seen = node.getBoundingClientRect();
       const point = { x: seen.left + seen.width / 2, y: seen.top + seen.height / 2 };
@@ -149,7 +155,15 @@
         if (!scrolled) {
           scrolled = true;
           node.scrollIntoView({ block: "center", inline: "nearest" });
+          moveDue = Boolean(node.closest("dialog[open]"));
         }
+      } else if (moveDue && moves < 2) {
+        // The scroll the move undoes is made again, once.
+        moveDue = false;
+        moves += 1;
+        scrolled = false;
+        last = null;
+        await ask({ op: "move", ...point });
       } else {
         return point;
       }
@@ -177,6 +191,8 @@
     // Modifier keys held down until let go: Ctrl, Alt, Shift, or more of them joined, Ctrl+Shift.
     hold: async (keys) => ask({ op: "hold", keys }),
     release: async (keys) => ask({ op: "release", keys }),
+    // A key held down for `count` presses, one every `every` milliseconds, as the system's repeat sends it.
+    repeat: async (keys, count, every = 33) => ask({ op: "repeat", keys, count, every }),
     // The page is told it has the system's focus while the harness runs it; off, it has the focus
     // the window truly has, which a window behind another lacks.
     focusTold: async (on) => ask({ op: "focus", on }),

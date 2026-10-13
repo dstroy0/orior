@@ -8,6 +8,9 @@
 import { invoke } from "../../src/bridge.js";
 import { write } from "../../src/status.js";
 
+const calls = window.__harness.calls;
+const made = (name) => calls.made.filter((one) => one.name === name);
+
 const { test, assert, ui } = window.__harness;
 
 test("the window opens with nothing in the way: no sheet, dialog, menu or page of its own", () => {
@@ -22,12 +25,28 @@ test("the window opens with nothing in the way: no sheet, dialog, menu or page o
 test("the tree's files and what they declare are read behind the window, and the status bar says what is not read yet until it is", async () => {
   const unreadNode = () => document.querySelector("#pulse .pulse-unread");
   await ui.waitFor(() => !unreadNode(), 10000);
-  assert.deepEqual(await invoke("tree_unread"), { files: false, symbols: false }, "both are read");
+  assert.deepEqual(await invoke("tree_unread"), { files: false, symbols: false, done: 0, of: 0 }, "both are read");
   write("unread", { files: true, symbols: true });
   await ui.waitFor(() => unreadNode()?.textContent === "The tree's files and symbols not read yet", 2000);
   write("unread", { files: false, symbols: true });
   await ui.waitFor(() => unreadNode()?.textContent === "The tree's symbols not read yet", 2000);
   write("unread", { files: false, symbols: false });
+  await ui.waitFor(() => !unreadNode(), 2000);
+});
+
+test("the tree's symbols, while they are read, show their bar, how many of how many, the time left, and Stop, which ends the reading", async () => {
+  const unreadNode = () => document.querySelector("#pulse .pulse-unread");
+  calls.answer("tree_read_stop", () => null);
+  try {
+    write("unread", { files: false, symbols: true, done: 250, of: 1000, began: performance.now() - 3000 });
+    await ui.waitFor(() => unreadNode()?.querySelector(".progress"), 2000, "the reading's bar");
+    assert.match(unreadNode().textContent, /^The tree's symbols\s+250 of 1000, about 9 s left\s+Stop$/);
+    assert.equal(unreadNode().querySelector(".progress").getAttribute("aria-valuenow"), "25");
+    await ui.click(unreadNode().querySelector(".pulse-stop"));
+    assert.ok(made("tree_read_stop").length, "Stop ends the reading");
+  } finally {
+    write("unread", { files: false, symbols: false, done: 0, of: 0, began: 0 });
+  }
   await ui.waitFor(() => !unreadNode(), 2000);
 });
 

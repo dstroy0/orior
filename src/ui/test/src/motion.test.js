@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { clock, frameMs, idle, judge, preempt, still, whenMoving } from "../../src/motion.js";
+import { clock, frameMs, idle, judge, motionReduced, moves, preempt, setReduceMotion, still, whenMoving } from "../../src/motion.js";
+import { smoothScrolling } from "../../src/editor/view.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -201,5 +202,40 @@ test("a twisty's turn, on a pseudo-element, is judged as it starts", async () =>
   } finally {
     box.remove();
     rule.remove();
+  }
+});
+
+test("View, Reduce Motion stills every motion of the window as the system's reduced motion does", async () => {
+  const kept = localStorage.getItem("orior.reduce-motion");
+  const smooth = localStorage.getItem("orior.smooth-scroll");
+  const moving = document.createElement("div");
+  moving.style.cssText = "transition: opacity 2s linear; animation: 2s linear infinite both spin-for-test";
+  document.body.append(moving);
+  try {
+    localStorage.removeItem("orior.smooth-scroll");
+    setReduceMotion(true);
+    assert.ok(motionReduced(), "less motion asked for");
+    assert.ok(document.documentElement.hasAttribute("data-reduced-motion"), "the page told");
+    const style = getComputedStyle(moving);
+    assert.equal(style.transitionDuration, "0s", "transitions end where they start");
+    assert.equal(style.animationDuration, "0s", "animations too");
+    assert.equal(moves(), false, "the window's own drawing stands still");
+    assert.equal(smoothScrolling(), false, "the editor scrolls without a glide unless the reader chose one");
+    setReduceMotion(false);
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      assert.ok(!document.documentElement.hasAttribute("data-reduced-motion"), "and moves again once turned off");
+      assert.equal(getComputedStyle(moving).transitionDuration, "2s");
+    }
+  } finally {
+    moving.remove();
+    if (kept === null) {
+      localStorage.removeItem("orior.reduce-motion");
+    } else {
+      localStorage.setItem("orior.reduce-motion", kept);
+    }
+    if (smooth !== null) {
+      localStorage.setItem("orior.smooth-scroll", smooth);
+    }
+    setReduceMotion(localStorage.getItem("orior.reduce-motion") === "true");
   }
 });

@@ -8,7 +8,7 @@
 //! finds only what git tracks or would track. A tree git cannot read is listed whole, less SKIPPED,
 //! and nothing in it is marked.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -76,10 +76,12 @@ pub struct Slice {
     pub text: String,
 }
 
-/// Git's view of the tree: every file it tracks or would track, and every folder holding one.
+/// Git's view of the tree: every file it tracks or would track, every folder holding one, and, for
+/// each folder outside it a file was found in, whether git ignores that folder, asked as it is met.
 struct Seen {
     files: BTreeSet<String>,
     dirs: BTreeSet<String>,
+    ignored: Mutex<HashMap<String, bool>>,
 }
 
 /// The tree git's view was last read for, when, and the view, None where git could not read the
@@ -151,7 +153,7 @@ fn read_seen(root: &Path) -> Option<Arc<Seen>> {
     if files.is_empty() {
         return None;
     }
-    Some(Arc::new(Seen { files, dirs }))
+    Some(Arc::new(Seen { files, dirs, ignored: Mutex::new(HashMap::new()) }))
 }
 
 /// Lets go of git's view of the tree, to be read again by the next list or search, as after files
@@ -162,12 +164,37 @@ pub fn forget_seen() {
     }
 }
 
-/// Whether git tracks the path or would: a file it lists, or a file in a folder holding one it lists
-/// or at the tree's top. Every path is, in a tree git cannot read.
+/// Whether git tracks the path or would: a file it lists, a file in a folder holding one it lists or
+/// at the tree's top, or a file in a folder the view does not hold, as one just made, that git does
+/// not ignore. Every path is, in a tree git cannot read.
 pub fn tracked(root: &Path, path: &str) -> bool {
     let Some(view) = seen(root) else { return true };
     let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
-    view.files.contains(path) || folder.is_empty() || view.dirs.contains(folder)
+    if view.files.contains(path) || folder.is_empty() || view.dirs.contains(folder) {
+        return true;
+    }
+    // The first folder down the path the view does not hold: an empty folder git lists nothing of, a
+    // folder made since the view was read, or one git ignores, as a build's output is.
+    let mut at = 0;
+    let outside = loop {
+        let end = path[at..].find('/').map_or(folder.len(), |slash| at + slash);
+        if !view.dirs.contains(&path[..end]) || end >= folder.len() {
+            break &path[..end];
+        }
+        at = end + 1;
+    };
+    if let Some(ignored) = view.ignored.lock().ok().and_then(|asked| asked.get(outside).copied()) {
+        return !ignored;
+    }
+    let mut git = Command::new("git");
+    git.args(crate::trust::git_words(root)).args(["check-ignore", "-q", "--"]).arg(format!("{outside}/")).current_dir(root);
+    git.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    crate::runner::quiet(&mut git);
+    let ignored = git.status().is_ok_and(|status| status.success());
+    if let Ok(mut asked) = view.ignored.lock() {
+        asked.insert(outside.to_string(), ignored);
+    }
+    !ignored
 }
 
 /// A folder's entries, less what the explorer's patterns hide. Where a pattern keeps only what it
@@ -370,9 +397,26 @@ pub fn fuzzy(query: &str, text: &str, from: usize) -> Option<(f64, Vec<usize>)> 
     fuzzy_in(&wanted, &shown, &lower, from)
 }
 
+/// The letters of `query` a match looks for, in lower case, the spaces left out.
+pub fn wanted(query: &str) -> Vec<char> {
+    query.chars().filter(|letter| !letter.is_whitespace()).map(Letter::lower).collect()
+}
+
+/// A text's characters in lower case, as a match reads them.
+pub fn lowered(shown: &[char]) -> Vec<char> {
+    shown.iter().map(|letter| letter.lower()).collect()
+}
+
+/// The match of the letters `wanted` in a text already split into its characters, `shown`, and those
+/// in lower case, `lower`, scored as `fuzzy` scores it.
+pub fn fuzzy_held(wanted: &[char], shown: &[char], lower: &[char]) -> Option<(f64, Vec<usize>)> {
+    fuzzy_in(wanted, shown, lower, 0)
+}
+
 /// What a file named exactly as typed scores over the match itself, and one whose name starts with
-/// it half that.
-const EXACT: f64 = 40.0;
+/// it half that: more than any match and the files opened lately score together. A name as typed
+/// stands above every looser match.
+const EXACT: f64 = 100_000.0;
 
 /// What a file opened lately scores over the match itself.
 const LATELY: f64 = 6.0;
@@ -498,20 +542,47 @@ fn held(root: &Path) -> (Arc<Vec<Listed>>, bool) {
 /// tree's files are not read yet: until they are, the files of `recent` alone answer. A file in
 /// `recent` scores LATELY more, and one named as typed, with or without its extension, EXACT more, as
 /// one whose name starts with what was typed scores half of EXACT more.
-pub fn ranked(root: &Path, query: &str, recent: &[String], most: usize) -> Answer {
+///
+/// With `fuzzy` off, a file answers only where its path holds the query as typed, case aside, and the
+/// part of it in the file's name scores above the part in its folders.
+pub fn ranked(root: &Path, query: &str, recent: &[String], most: usize, fuzzy: bool) -> Answer {
     let (files, read) = held(root);
     let files = if read { files } else { Arc::new(recent.iter().map(|path| Listed::of(path)).collect()) };
-    Answer { found: ranked_in(&files, query, recent, most), reading: !read }
+    Answer { found: ranked_in(&files, query, recent, most, fuzzy), reading: !read }
 }
 
-fn ranked_in(files: &[Listed], query: &str, recent: &[String], most: usize) -> Vec<Found> {
+/// The query's letters as typed in `lower`, a path in lower case, as a match: the last place the path
+/// holds them, in its name where it does, each char's place in it, and a score that puts a match in
+/// the name and at the start of a word first.
+fn typed_in(wanted: &str, lower: &str, from: usize) -> Option<(f64, Vec<usize>)> {
+    if wanted.is_empty() {
+        return Some((0.0, Vec::new()));
+    }
+    let at = lower.rfind(wanted)?;
+    let first = lower[..at].chars().count();
+    let hits: Vec<usize> = (first..first + wanted.chars().count()).collect();
+    let shown: Vec<char> = lower.chars().collect();
+    let mut score = 10.0 * hits.len() as f64;
+    if first >= from {
+        score += 20.0;
+    }
+    if starts_word(&shown, first) {
+        score += 10.0;
+    }
+    Some((score - shown.len() as f64 * 0.02, hits))
+}
+
+fn ranked_in(files: &[Listed], query: &str, recent: &[String], most: usize, fuzzy: bool) -> Vec<Found> {
     let lowered: String = query.chars().map(Letter::lower).collect();
     let asked = lowered.rsplit('/').next().unwrap_or_default();
     let wanted_bytes: Vec<u8> = lowered.bytes().filter(|byte| !byte.is_ascii_whitespace()).collect();
     let wanted_chars: Vec<char> = lowered.chars().filter(|letter| !letter.is_whitespace()).collect();
     let mut found: Vec<Found> = Vec::new();
+    let typed: String = wanted_chars.iter().collect();
     for file in files.iter() {
-        let matched = if file.path.is_ascii() && lowered.is_ascii() {
+        let matched = if !fuzzy {
+            typed_in(&typed, &file.lower, file.from)
+        } else if file.path.is_ascii() && lowered.is_ascii() {
             fuzzy_in(&wanted_bytes, file.path.as_bytes(), file.lower.as_bytes(), file.from)
         } else {
             let shown: Vec<char> = file.path.chars().collect();
@@ -1117,6 +1188,87 @@ fn bring_one(root: &Path, source: &Path, target: &Path, told: &dyn Fn(&str, u64,
     Ok(())
 }
 
+/// How much of a file brought to a tree on another machine goes over the link in one part.
+const PART_BYTES: usize = 1 << 20;
+
+/// The tree's path for `name` in its folder `into`, numbered where the folder holds that name already.
+pub fn free_in(root: &Path, into: &str, name: &str) -> Result<String, String> {
+    let folder = inside(root, into)?;
+    if !folder.is_dir() {
+        return Err(format!("{into} is no folder"));
+    }
+    Ok(relative(root, &free_name(&folder, Path::new(name))))
+}
+
+/// Writes `data` at `at` of the file at the tree's `path` as it is brought a part at a time: the parts
+/// go to a file beside it, begun afresh by the part at 0, and that file is moved over it with the last.
+pub fn write_part(root: &Path, path: &str, at: u64, data: &[u8], last: bool) -> Result<(), String> {
+    let target = inside(root, path)?;
+    let name = target.file_name().ok_or_else(|| format!("{path} has no name"))?.to_string_lossy().to_string();
+    let part = target.with_file_name(format!(".{name}.orior-part"));
+    let said = |error: std::io::Error| format!("{}: {error}", part.display());
+    let mut file = if at == 0 { fs::File::create(&part).map_err(said)? } else { fs::OpenOptions::new().append(true).open(&part).map_err(said)? };
+    let has = file.metadata().map_err(said)?.len();
+    if has != at {
+        return Err(format!("{path}: a part at {at} came after {has} bytes"));
+    }
+    file.write_all(data).map_err(said)?;
+    drop(file);
+    if last {
+        fs::rename(&part, &target).map_err(|error| format!("{}: {error}", target.display()))?;
+        forget_seen();
+    }
+    Ok(())
+}
+
+/// Copies each of `from`, on this machine, into the folder `into` of a tree on another machine,
+/// through `call`, a call of the tree's side there: a folder made there and its files brought into
+/// it, each file read here and written there a PART_BYTES part at a time, `told` told as `bring` tells
+/// it. Gives where each went.
+pub fn bring_over(call: &dyn Fn(&str, serde_json::Value) -> Result<serde_json::Value, String>, into: &str, from: &[PathBuf], told: &dyn Fn(&str, u64, u64)) -> Result<Vec<Pasted>, String> {
+    let mut brought = Vec::new();
+    for source in from {
+        let name = source.file_name().ok_or_else(|| format!("{} has no name", source.display()))?.to_string_lossy().to_string();
+        let to = call("bring_name", serde_json::json!({ "into": into, "name": name }))?.as_str().ok_or("the tree's side gave no name")?.to_string();
+        bring_one_over(call, source, &to, told).map_err(|said| format!("{}: {said}", source.display()))?;
+        brought.push(Pasted { from: None, to });
+    }
+    Ok(brought)
+}
+
+fn bring_one_over(call: &dyn Fn(&str, serde_json::Value) -> Result<serde_json::Value, String>, source: &Path, to: &str, told: &dyn Fn(&str, u64, u64)) -> Result<(), String> {
+    if source.is_dir() {
+        call("folder_create", serde_json::json!({ "path": to }))?;
+        for entry in fs::read_dir(source).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            bring_one_over(call, &entry.path(), &format!("{to}/{}", entry.file_name().to_string_lossy()), told)?;
+        }
+        return Ok(());
+    }
+    let size = fs::metadata(source).map_err(|error| error.to_string())?.len();
+    let mut input = fs::File::open(source).map_err(|error| error.to_string())?;
+    let mut buffer = vec![0u8; PART_BYTES];
+    let mut at = 0u64;
+    told(to, 0, size);
+    loop {
+        let mut read = 0;
+        while read < buffer.len() {
+            let more = input.read(&mut buffer[read..]).map_err(|error| error.to_string())?;
+            if more == 0 {
+                break;
+            }
+            read += more;
+        }
+        let last = at + read as u64 >= size || read < buffer.len();
+        call("file_part", serde_json::json!({ "path": to, "at": at, "data": crate::serve::base64(&buffer[..read]), "last": last }))?;
+        at += read as u64;
+        told(to, at, size.max(at));
+        if last {
+            return Ok(());
+        }
+    }
+}
+
 /// `name` in `folder`, numbered where the folder holds that name already: `notes.txt`, then
 /// `notes (2).txt`, `notes (3).txt` and on.
 fn free_name(folder: &Path, name: &Path) -> PathBuf {
@@ -1177,6 +1329,49 @@ mod pasting {
 }
 
 #[cfg(test)]
+mod bringing_over {
+    use super::{bring_over, free_in, write_part};
+    use std::fs;
+    use std::path::Path;
+
+    #[test]
+    fn a_file_and_a_folder_go_to_a_tree_on_another_machine_a_part_at_a_time() {
+        let base = std::env::temp_dir().join(format!("orior_ui_bring_over_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("there/in")).unwrap();
+        fs::create_dir_all(base.join("here/folder")).unwrap();
+        let big: Vec<u8> = (0..(5 << 19)).map(|at| (at % 251) as u8).collect();
+        fs::write(base.join("here/big.bin"), &big).unwrap();
+        fs::write(base.join("here/folder/note.txt"), "note").unwrap();
+        fs::write(base.join("there/in/big.bin"), "here first").unwrap();
+        let base = dunce::canonicalize(&base).unwrap();
+        let there = base.join("there");
+        // The tree's side, as serve.rs answers the calls there.
+        let call = |name: &str, args: serde_json::Value| -> Result<serde_json::Value, String> {
+            let text = |key: &str| args[key].as_str().unwrap_or_default().to_string();
+            match name {
+                "bring_name" => free_in(&there, &text("into"), &text("name")).map(serde_json::Value::from),
+                "folder_create" => fs::create_dir_all(there.join(text("path"))).map(|_| serde_json::Value::Null).map_err(|error| error.to_string()),
+                "file_part" => write_part(&there, &text("path"), args["at"].as_u64().unwrap(), &crate::serve::unbase64(&text("data")).unwrap(), args["last"].as_bool().unwrap()).map(|_| serde_json::Value::Null),
+                other => Err(format!("no call {other}")),
+            }
+        };
+        let heard = std::sync::Mutex::new(Vec::new());
+        let brought = bring_over(&call, "in", &[base.join("here/big.bin"), base.join("here/folder")], &|path, done, size| heard.lock().unwrap().push((path.to_string(), done, size))).unwrap();
+        assert_eq!(brought.iter().map(|one| one.to.as_str()).collect::<Vec<_>>(), ["in/big (2).bin", "in/folder"]);
+        assert_eq!(fs::read(there.join("in/big (2).bin")).unwrap(), big, "the file whole, part by part");
+        assert_eq!(fs::read_to_string(there.join("in/folder/note.txt")).unwrap(), "note");
+        assert_eq!(fs::read_to_string(there.join("in/big.bin")).unwrap(), "here first", "nothing is written over");
+        assert!(!Path::new(&there.join("in/.big (2).bin.orior-part")).exists(), "the parts' file is moved over the file");
+        let heard = heard.into_inner().unwrap();
+        assert!(heard.iter().filter(|one| one.0 == "in/big (2).bin").count() >= 4, "each part told: {heard:?}");
+        assert!(heard.contains(&("in/big (2).bin".to_string(), big.len() as u64, big.len() as u64)));
+        assert!(write_part(&there, "in/late.txt", 5, b"x", true).is_err(), "a part out of its place is refused");
+        fs::remove_dir_all(&base).unwrap();
+    }
+}
+
+#[cfg(test)]
 mod bringing {
     use super::bring;
     use std::fs;
@@ -1227,6 +1422,56 @@ mod listing {
         assert_eq!(listed, vec!["a.js".to_string(), "src/b.js".to_string()]);
         fs::remove_dir_all(&repo).unwrap();
     }
+
+    #[test]
+    fn a_file_in_a_folder_made_after_gits_view_was_read_is_tracked_and_one_in_an_ignored_folder_is_not() {
+        let repo = std::env::temp_dir().join(format!("orior_ui_tracked_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&repo);
+        fs::create_dir_all(repo.join("made")).unwrap();
+        fs::write(repo.join(".gitignore"), "out/\n").unwrap();
+        fs::write(repo.join("a.txt"), "one").unwrap();
+        let repo = dunce::canonicalize(&repo).unwrap();
+        assert!(Command::new("git").arg("init").arg("-q").current_dir(&repo).status().unwrap().success());
+        super::forget_seen();
+        assert!(super::tracked(&repo, "a.txt"));
+        // The view now read holds the empty folder as nothing.
+        fs::write(repo.join("made/new.txt"), "two").unwrap();
+        fs::create_dir_all(repo.join("made/deeper")).unwrap();
+        fs::write(repo.join("made/deeper/more.txt"), "three").unwrap();
+        fs::create_dir_all(repo.join("out/deep")).unwrap();
+        fs::write(repo.join("out/deep/x.o"), "four").unwrap();
+        assert!(super::tracked(&repo, "made/new.txt"), "a file in a folder made since");
+        assert!(super::tracked(&repo, "made/deeper/more.txt"), "and one a folder further down");
+        assert!(!super::tracked(&repo, "out/deep/x.o"), "a file under a folder git ignores");
+        super::forget_seen();
+        fs::remove_dir_all(&repo).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod going {
+    use super::{ranked_in, Listed};
+
+    fn paths(found: Vec<super::Found>) -> Vec<String> {
+        found.into_iter().map(|one| one.path).collect()
+    }
+
+    #[test]
+    fn a_name_as_typed_stands_above_every_looser_match_and_above_the_files_opened_lately() {
+        let files: Vec<Listed> = ["src/view_tests/view_helpers.rs", "src/review.rs", "docs/view.md", "src/view.rs"].iter().map(|path| Listed::of(path)).collect();
+        let recent = vec!["src/review.rs".to_string(), "src/view_tests/view_helpers.rs".to_string()];
+        let found = paths(ranked_in(&files, "view", &recent, 10, true));
+        assert_eq!(&found[..2], ["src/view.rs", "docs/view.md"], "named as typed, with or without its extension, first");
+    }
+
+    #[test]
+    fn with_fuzzy_matching_off_only_the_text_as_typed_answers() {
+        let files: Vec<Listed> = ["src/review.rs", "src/vim_ew.rs", "src/view.rs"].iter().map(|path| Listed::of(path)).collect();
+        assert_eq!(paths(ranked_in(&files, "view", &[], 10, true)).len(), 3, "fuzzy: the letters in order anywhere");
+        let typed = ranked_in(&files, "view", &[], 10, false);
+        assert_eq!(typed.iter().map(|one| one.path.as_str()).collect::<Vec<_>>(), ["src/view.rs", "src/review.rs"]);
+        assert_eq!(typed[0].hits, [4, 5, 6, 7]);
+    }
 }
 
 #[cfg(test)]
@@ -1242,7 +1487,7 @@ mod reading {
         fs::write(root.join("alpha.txt"), "one").unwrap();
         fs::write(root.join("apple.txt"), "two").unwrap();
         let root = dunce::canonicalize(&root).unwrap();
-        let first = ranked(&root, "a", &["apple.txt".to_string()], 10);
+        let first = ranked(&root, "a", &["apple.txt".to_string()], 10, true);
         assert!(first.reading, "the tree is not read yet");
         assert_eq!(first.found.iter().map(|one| one.path.as_str()).collect::<Vec<_>>(), ["apple.txt"]);
         for _ in 0..100 {
@@ -1251,7 +1496,7 @@ mod reading {
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
-        let read = ranked(&root, "alpha", &[], 10);
+        let read = ranked(&root, "alpha", &[], 10, true);
         assert!(!read.reading, "the tree is read");
         assert_eq!(read.found[0].path, "alpha.txt");
         fs::remove_dir_all(&root).unwrap();

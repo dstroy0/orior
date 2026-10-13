@@ -722,6 +722,8 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
                 vec![
                     tool("cmake", "cmake", vec![lit("-E"), lit("make_directory"), at("/.cmake/api/v1/query")]),
                     tool("cmake", "cmake", vec![lit("-E"), lit("touch"), at("/.cmake/api/v1/query/codemodel-v2")]),
+                    // The compilers, for the code help to read the build's own (compile_db.rs).
+                    tool("cmake", "cmake", vec![lit("-E"), lit("touch"), at("/.cmake/api/v1/query/toolchains-v1")]),
                     tool("cmake", "cmake", vec![lit("-S"), lit(folder), lit("-B"), at(""), Arg::Around("-DCMAKE_BUILD_TYPE=".into(), "config".into(), String::new()), verbose(&["--log-level=VERBOSE"])]),
                     tool("cmake", "cmake", vec![lit("--build"), at(""), lit("--target"), lit(name), lit("--config"), Arg::Value("config".into()), verbose(&["--verbose"])]),
                 ],
@@ -1557,8 +1559,9 @@ mod reading {
         let cmake = &found[2];
         let values: HashMap<String, Vec<String>> = [("config".to_string(), vec!["Release".to_string()])].into_iter().collect();
         if let Ok(lines) = crate::runner::shown(&dir, cmake, &values) {
-            assert_eq!(lines[2], "cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release");
-            assert_eq!(lines[3], "cmake --build build/cmake/c/Release --target cli --config Release");
+            assert_eq!(lines[2], "cmake -E touch build/cmake/c/Release/.cmake/api/v1/query/toolchains-v1", "the compilers asked of CMake");
+            assert_eq!(lines[3], "cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release");
+            assert_eq!(lines[4], "cmake --build build/cmake/c/Release --target cli --config Release");
         }
         let _ = fs::remove_dir_all(&dir);
     }
@@ -1587,11 +1590,11 @@ mod reading {
             assert!(!quiet[0].contains(" -vv"), "{}", quiet[0]);
         }
         if let Ok(verbose) = lines("executable/c/CMakeLists.txt:cli", "verbose", &[("config", "Release")]) {
-            assert_eq!(verbose[2], "cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release --log-level=VERBOSE");
-            assert_eq!(verbose[3], "cmake --build build/cmake/c/Release --target cli --config Release --verbose");
+            assert_eq!(verbose[3], "cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release --log-level=VERBOSE");
+            assert_eq!(verbose[4], "cmake --build build/cmake/c/Release --target cli --config Release --verbose");
         }
         if let Ok(quiet) = lines("executable/c/CMakeLists.txt:cli", "quiet", &[("config", "Release")]) {
-            assert_eq!(quiet[3], "cmake --build build/cmake/c/Release --target cli --config Release");
+            assert_eq!(quiet[4], "cmake --build build/cmake/c/Release --target cli --config Release");
         }
         if let Ok(verbose) = lines("executable/g/go.mod:g", "verbose", &[]) {
             assert!(verbose[0].contains(" -trimpath -v -x -o "), "{}", verbose[0]);

@@ -48,6 +48,10 @@ pub struct Server {
     /// at for a process of the container's.
     comms: Arc<crate::comms::Comms>,
     door: OnceLock<String>,
+    /// The server's own key, which speaks on every channel.
+    speaker: OnceLock<crate::comms::Key>,
+    /// The held key a command line joins the door with, once the window is open to it.
+    command_line: OnceLock<crate::comms::Key>,
 }
 
 /// A call's arguments, each found by its own name or by the page's, as the page writes names of more
@@ -339,9 +343,31 @@ impl Server {
             return;
         }
         let comms = self.comms.clone();
+        let _ = self.speaker.set(server.clone());
         let _ = self.emit.set(Arc::new(move |event, body| {
             let _ = comms.say(&server, event, body);
         }));
+    }
+
+    /// Opens the window to a command line run on its tree, as reach.rs says: a held key that speaks on
+    /// `command`, which the page hears, and listens on `answer/*`, kept in orior's home with the door
+    /// and the tree.
+    pub fn open_to_command_line(&self) -> Result<(), String> {
+        let address = self.open_door()?;
+        let key = match self.command_line.get() {
+            Some(key) => key.clone(),
+            None => {
+                let key = self.comms.register_held("command line", &["answer/*"], &["command"])?;
+                self.command_line.get_or_init(|| key).clone()
+            }
+        };
+        crate::reach::keep(self.root_now().as_deref(), &address, &key)
+    }
+
+    /// Says the page's answer to the command of `id` to the command line that asked it.
+    fn command_answer(&self, id: &str, done: bool, said: &str) -> Result<(), String> {
+        let speaker = self.speaker.get().ok_or("the server speaks on no channel yet")?;
+        self.comms.say(speaker, &format!("answer/{id}"), json!({"done": done, "said": said})).map(|_| ())
     }
 
     /// The comms layer every part of the container speaks through.
@@ -455,15 +481,32 @@ impl Server {
     }
 
     /// Watches the tree open for changes made outside the window, each batch told as tree-changed, in
-    /// place of the watch over the tree open before.
+    /// place of the watch over the tree open before. The page is told first; the servers and the
+    /// tree's check hear of the files on a thread of their own, the batches that come while they work
+    /// taken as one, so that no check of many files holds up the page's word of them. A file git
+    /// leaves out, as a build's output is, is shown in the tree and not checked.
     pub fn watch(&self) {
         let Ok(root) = self.root() else { return };
         let emit = self.emitting();
         let servers = self.servers.clone();
         let tree = root.clone();
+        let (hand, files) = std::sync::mpsc::channel::<Vec<String>>();
+        std::thread::spawn(move || {
+            while let Ok(first) = files.recv() {
+                let mut all: std::collections::BTreeSet<String> = first.into_iter().collect();
+                while let Ok(more) = files.try_recv() {
+                    all.extend(more);
+                }
+                let checked: Vec<String> = all.into_iter().filter(|file| files::tracked(&tree, file)).collect();
+                if !checked.is_empty() {
+                    servers.changed(&tree, &checked);
+                }
+            }
+        });
         let watcher = watch::start(root, move |changed| {
-            servers.changed(&tree, &changed.files);
+            let files = changed.files.clone();
             emit("tree-changed", serde_json::to_value(changed).unwrap_or(Value::Null));
+            let _ = hand.send(files);
         });
         if let Ok(mut held) = self.watcher.lock() {
             *held = Some(watcher);
@@ -506,6 +549,9 @@ impl Server {
             self.symbols.forget();
             self.watch();
             files::warm(&path);
+            if self.command_line.get().is_some() {
+                let _ = self.open_to_command_line();
+            }
         }
         Ok(path.to_string_lossy().into_owned())
     }
@@ -745,6 +791,7 @@ impl Server {
         match name {
             "root_get" => give(self.root_now().map(|p| p.to_string_lossy().into_owned())),
             "root_set" => self.root_set(a.get("path")?).and_then(give),
+            "command_answer" => self.command_answer(&a.get::<String>("id")?, a.get("done")?, &a.get::<String>("said").unwrap_or_default()).and_then(give),
             "catalog_read" => give(catalog::read(&self.root()?).into_iter().map(|job| Listed { steps: job.steps.len(), job }).collect::<Vec<_>>()),
             "definitions_read" => give(defs::read(&self.root()?)),
             "job_start" => match &self.keeping {
@@ -767,7 +814,7 @@ impl Server {
             "tree_list" => files::list(&self.root()?, &a.get::<String>("dir")?).and_then(give),
             "tree_find" => give(files::find(&self.root()?, &a.get::<String>("query")?)),
             "tree_files" => give(files::all(&self.root()?)),
-            "files_find" => give(files::ranked(&self.root()?, &a.get::<String>("query")?, &a.get::<Vec<String>>("recent")?, a.get("most")?)),
+            "files_find" => give(files::ranked(&self.root()?, &a.get::<String>("query")?, &a.get::<Vec<String>>("recent")?, a.get("most")?, a.get::<Option<bool>>("fuzzy")?.unwrap_or(true))),
             "git_branches" => give(git::branches(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?)),
             "git_branch" => git::branch_act(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, &a.get::<String>("act")?, &a.get::<String>("name")?, a.get::<Option<String>>("to")?.as_deref().unwrap_or("")).and_then(give),
             "git_commit_parts" => git::commit_parts(&self.root()?, &a.get::<String>("message")?, &a.get::<Vec<String>>("whole")?, &a.get::<Vec<git::Part>>("parts")?).and_then(give),
@@ -790,7 +837,27 @@ impl Server {
                 self.symbols.refresh(&root, move || files::all(&listed));
                 give(())
             }
-            "tree_unread" => give(serde_json::json!({ "files": files::unread(&self.root()?), "symbols": self.symbols.unread() })),
+            "tree_unread" => {
+                let (done, of) = self.symbols.progress().unwrap_or((0, 0));
+                give(serde_json::json!({ "files": files::unread(&self.root()?), "symbols": self.symbols.unread(), "done": done, "of": of }))
+            }
+            // The reading of the tree's symbols ended where it stands, Go to Symbol answering from
+            // what it read.
+            // A quick open's list held on this side, matched as each letter is typed, and let go.
+            // The rows' texts come joined by line ends, a list of none as no text.
+            "pick_hold" => {
+                let texts = a.get::<String>("texts")?;
+                give(crate::picks::hold(if texts.is_empty() { Vec::new() } else { texts.split('\n').map(str::to_string).collect() }))
+            }
+            "pick_find" => crate::picks::find(a.get("id")?, &a.get::<String>("query")?, a.get("most")?).and_then(give),
+            "pick_forget" => {
+                crate::picks::forget(a.get("id")?);
+                give(())
+            }
+            "tree_read_stop" => {
+                self.symbols.stop();
+                give(())
+            }
             "symbols_find" => {
                 let root = self.root()?;
                 let listed = root.clone();
@@ -917,6 +984,13 @@ impl Server {
                 crate::pages::release(&a.get::<String>("key")?);
                 give(())
             }
+            // A file brought from the window's machine, as files::bring_over sends it: a name for it,
+            // then its parts.
+            "bring_name" => files::free_in(&self.root()?, &a.get::<String>("into")?, &a.get::<String>("name")?).and_then(give),
+            "file_part" => {
+                let data = unbase64(&a.get::<String>("data")?).ok_or("a part not in base64")?;
+                files::write_part(&self.root()?, &a.get::<String>("path")?, a.get("at")?, &data, a.get("last")?).and_then(give)
+            }
             "trust_read" => give(crate::trust::told(&self.root()?)),
             "trust_set" => {
                 let folder = PathBuf::from(a.get::<String>("folder")?);
@@ -936,6 +1010,10 @@ impl Server {
             "lsp_open" => {
                 let root = self.root()?;
                 self.servers.open(&root, &root::full(&root, &path()?), &a.get::<String>("language")?, &a.get::<String>("text")?, &self.emitter(root.clone())).and_then(give)
+            }
+            "problems_check_stop" => {
+                self.servers.stop_check();
+                give(())
             }
             "problems_check" => {
                 let root = self.root()?;

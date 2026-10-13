@@ -7,6 +7,7 @@
 // opens orior's repository.
 
 import { invoke } from "./bridge.js";
+import { motionReduced } from "./motion.js";
 
 // The eye's strokes, each the center line of one line of the drawing, in the drawing's own units.
 const STROKES = [
@@ -188,7 +189,7 @@ function fly(node) {
         going.delete(node);
         home.classList.add("home");
       };
-      if (!from.width || !to.width || !bar || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (!from.width || !to.width || !bar || motionReduced()) {
         done();
         return;
       }

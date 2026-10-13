@@ -96,7 +96,14 @@ export function setItemShown(name, shown) {
 export function moveItem(name, by) {
   const line = ordered(lineOf(name));
   const at = line.indexOf(name);
-  const to = Math.max(0, Math.min(line.length - 1, at + by));
+  // It steps past the next item on the screen that way, and past those between that show nothing now,
+  // as Zoom at its own size does.
+  const showing = (one) => Boolean(document.querySelector(`[data-item="${one}"]`)?.getClientRects().length);
+  let to = at + by;
+  while (to > 0 && to < line.length - 1 && !showing(line[to])) {
+    to += by;
+  }
+  to = Math.max(0, Math.min(line.length - 1, to));
   line.splice(at, 1);
   line.splice(to, 0, name);
   place(line);
@@ -115,8 +122,20 @@ export function resetItems() {
 
 // The items, each shown or hidden by a press, as View, Status Bar and the bar's menu list them.
 export function statusItems() {
-  return [...ITEMS.map(([name, label]) => ({ label, checked: itemShown(name), run: () => setItemShown(name, !itemShown(name)) })), "-", { label: "Reset the Status Bar", run: resetItems }];
+  return [
+    ...ITEMS.map(([name, label]) => ({ label, checked: itemShown(name), command: "status-show", args: [name, itemShown(name) ? "off" : "on"], run: () => setItemShown(name, !itemShown(name)) })),
+    "-",
+    { label: "Reset the Status Bar", command: "status-reset", args: [], run: resetItems },
+  ];
 }
+
+// The status bar's menu as commands, by the names commands.json gives them, each run from the menus
+// or from the command line with an item's name.
+export const statusCommands = {
+  "status-show": ([name, on]) => ITEMS.some(([one]) => one === name) && setItemShown(name, on === "on" ? true : on === "off" ? false : !itemShown(name)),
+  "status-move": ([name, way]) => ITEMS.some(([one]) => one === name) && moveItem(name, way === "left" ? -1 : 1),
+  "status-reset": () => resetItems(),
+};
 
 function barMenu(event) {
   const name = event.target.closest?.("[data-item]")?.dataset.item;
@@ -124,9 +143,9 @@ function barMenu(event) {
   return [
     ...(name
       ? [
-          { label: `Move ${label} Left`, run: () => moveItem(name, -1) },
-          { label: `Move ${label} Right`, run: () => moveItem(name, 1) },
-          { label: `Hide ${label}`, run: () => setItemShown(name, false) },
+          { label: `Move ${label} Left`, command: "status-move", args: [name, "left"], run: () => moveItem(name, -1) },
+          { label: `Move ${label} Right`, command: "status-move", args: [name, "right"], run: () => moveItem(name, 1) },
+          { label: `Hide ${label}`, command: "status-show", args: [name, "off"], run: () => setItemShown(name, false) },
           "-",
         ]
       : []),

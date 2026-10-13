@@ -76,35 +76,56 @@ export function parseShown(tab, from, to) {
   if (have && !have.stale && have.from <= from && have.to >= Math.min(to, s.doc.count - 1)) {
     return;
   }
+  // One parse is asked for at a time: one wanted while another is out is asked for once that answers.
+  if (tab.parseOut) {
+    tab.parseWanted = [from, to];
+    return;
+  }
   window.clearTimeout(tab.parsing);
   tab.parsing = window.setTimeout(async () => {
-    await flush(tab);
-    classNames ??= await invoke("parse_classes").catch(() => null);
-    const version = s.doc.id;
-    const told = tab.told;
-    const low = Math.max(0, from - PARSE_AROUND);
-    const high = Math.min(s.doc.count - 1, to + PARSE_AROUND);
-    // A parse that fails, as a server still reading the tree's fails, is asked for again after a moment.
-    const found = await invoke("parse_colors", { path: tab.file, from: low, to: high }).catch(() => undefined);
-    if (found === undefined) {
-      tab.parseAgain = Date.now() + PARSE_AGAIN;
-      return;
+    tab.parseOut = true;
+    try {
+      await parseNow(tab, from, to);
+    } finally {
+      tab.parseOut = false;
     }
-    // A change told while the parse was read may not be in it.
-    if (s.doc.id !== version || tab.told !== told || !classNames) {
-      return;
+    const wanted = tab.parseWanted;
+    tab.parseWanted = null;
+    if (wanted) {
+      parseShown(tab, ...wanted);
     }
-    if (!found) {
-      tab.unparsed = version;
-      return;
-    }
-    const kept = s.highlight.parse;
-    const byLine = kept && !kept.stale ? kept.byLine : new Map();
-    found.lines.forEach((spans, index) => byLine.set(found.from + index, spans));
-    const span = kept && !kept.stale ? [Math.min(kept.from, found.from), Math.max(kept.to, found.from + found.lines.length - 1)] : [found.from, found.from + found.lines.length - 1];
-    s.highlight.parse = { byLine, names: classNames, whole: found.whole, from: span[0], to: span[1], folds: new Map(found.folds), stale: false };
-    s.view?.schedule();
   }, PARSE_REST);
+}
+
+// The parse of `tab`'s lines `from` to `to` and those around them, asked for now and laid over its colors.
+async function parseNow(tab, from, to) {
+  const s = tab.session;
+  await flush(tab);
+  classNames ??= await invoke("parse_classes").catch(() => null);
+  const version = s.doc.id;
+  const told = tab.told;
+  const low = Math.max(0, from - PARSE_AROUND);
+  const high = Math.min(s.doc.count - 1, to + PARSE_AROUND);
+  // A parse that fails, as a server still reading the tree's fails, is asked for again after a moment.
+  const found = await invoke("parse_colors", { path: tab.file, from: low, to: high }).catch(() => undefined);
+  if (found === undefined) {
+    tab.parseAgain = Date.now() + PARSE_AGAIN;
+    return;
+  }
+  // A change told while the parse was read may not be in it.
+  if (s.doc.id !== version || tab.told !== told || !classNames) {
+    return;
+  }
+  if (!found) {
+    tab.unparsed = version;
+    return;
+  }
+  const kept = s.highlight.parse;
+  const byLine = kept && !kept.stale ? kept.byLine : new Map();
+  found.lines.forEach((spans, index) => byLine.set(found.from + index, spans));
+  const span = kept && !kept.stale ? [Math.min(kept.from, found.from), Math.max(kept.to, found.from + found.lines.length - 1)] : [found.from, found.from + found.lines.length - 1];
+  s.highlight.parse = { byLine, names: classNames, whole: found.whole, from: span[0], to: span[1], folds: new Map(found.folds), stale: false };
+  s.view?.schedule();
 }
 
 // The spans of a served or an inspected tab that hold `from` to `to` and are more than it, the least
@@ -166,11 +187,12 @@ export function startServers({ tabs, paint }) {
     }
     painted();
   });
-  // A server that colors its files again has every tab's parse asked for again.
+  // A server that colors its files again has every tab's parse from a server asked for again; orior's
+  // own parse of a file, whole, does not change with the server's.
   listen("lsp-parse", () => {
     for (const tab of tabsOf()) {
       tab.unparsed = null;
-      if (tab.session?.highlight.parse) {
+      if (tab.session?.highlight.parse && !tab.session.highlight.parse.whole) {
         tab.session.highlight.parse.stale = true;
       }
     }

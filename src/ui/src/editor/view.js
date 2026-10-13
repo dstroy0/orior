@@ -10,6 +10,7 @@
 // input method opens its window.
 
 import { cmp, endOf, isWordChar, least, mapThrough, most, pos, same, wordAt, wordBefore } from "./document.js";
+import { motionReduced } from "../motion.js";
 import { Rows, hiddenSpans, indentOf, joinSpans, openersOf, wrapBreaks } from "./folding.js";
 import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
@@ -105,7 +106,7 @@ const FLICK_STOP = 0.02;
 const SMOOTH_KEY = "orior.smooth-scroll";
 // Smooth scrolling is on unless the reader turned it off, or turned on the system's reduced motion
 // and never turned it on here.
-export const smoothScrolling = () => (localStorage.getItem(SMOOTH_KEY) ?? String(!matchMedia("(prefers-reduced-motion: reduce)").matches)) !== "false";
+export const smoothScrolling = () => (localStorage.getItem(SMOOTH_KEY) ?? String(!motionReduced())) !== "false";
 
 // The kept settings of the reader's formatting: the continuation indent of each place a bracket
 // stands, in columns; whether an operator's sign goes to the next line where a line breaks after it

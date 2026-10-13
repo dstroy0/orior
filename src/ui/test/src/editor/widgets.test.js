@@ -6,6 +6,8 @@
 // completion list, which stands at once on the file's own words while a slow server is awaited.
 
 import { invoke } from "../../../src/bridge.js";
+import { Doc } from "../../../src/editor/document.js";
+import { fileWords } from "../../../src/editor/widgets.js";
 import { editing, openFile } from "../../../src/edit.js";
 import { loadPlugins } from "../../../src/plugins.js";
 import { togglePane } from "../../../src/sides.js";
@@ -102,3 +104,12 @@ test("the completion list stands at once on the file's words and the language's,
     view.s.language = own;
   }
 });
+
+test("the file's words offered leave out the word the cursor stands in, which typing makes", () => {
+  // "sys" typed before "import" on the first line makes "sysimport", which is no word to offer.
+  const doc = new Doc("sysimport os\nimport json\n");
+  const labels = fileWords(doc, { line: 0, col: 3 }, "sys").map((one) => one.label);
+  assert.ok(!labels.includes("sysimport"), labels.join(" "));
+  assert.deepEqual(labels, ["os", "import", "json"]);
+});
+

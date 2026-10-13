@@ -20,21 +20,23 @@
 // either side. Past a number of titles set by the window's width, and past what fits, the titles go
 // into the last, a menu of menus.
 
-import { invoke, pick } from "./bridge.js";
+import { invoke, listen, pick } from "./bridge.js";
+import { motionReduced, setReduceMotion } from "./motion.js";
 import { showClone } from "./clone.js";
 import { showCreate, showInit, showProject } from "./create.js";
 import { checkersNamed, setCheckers } from "./servers.js";
 import { focusOn, lastMemory, memoryBudget, say, setFocus, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
-import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
+import { askStepping, attachAddress, debugCommands, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
 import { authorsShown, setAuthorsShown } from "./authors.js";
-import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
+import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, popupCommands, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
-import { showPane } from "./explorer.js";
+import { explorerCommands, showPane } from "./explorer.js";
+import { commitCommands } from "./commit.js";
 import { openPalette, startPalette } from "./palette.js";
-import { fuzzy } from "./fuzzy.js";
-import { runAllTests, runFailedTests, setTestsParallel, stopTests, testsParallel } from "./tests.js";
-import { showPreferences } from "./preferences.js";
+import { runAllTests, runFailedTests, setTestsParallel, stopTests, testCommands, testsParallel } from "./tests.js";
+import { drawPreferences, prefsCommands, showPreferences } from "./preferences.js";
+import { carryPlace, carrySend, carryTake, carryUndo, setCarryPlace } from "./carry.js";
 import { offNetwork, setOffNetwork, showNetwork } from "./network.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
@@ -44,20 +46,20 @@ import { loadUserCss, openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { printText } from "./print.js";
-import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
+import { clipText, closeMenu, copyText, menuOpen, showMenu } from "./menu.js";
 import { markdownHtml } from "./markdown.js";
-import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
+import { chosenJob, chosenLive, listedJobs, runCommands, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
-import { float, floatItems, solo, toolWindowsItems } from "./docks.js";
+import { dockCommands, float, floatItems, solo, toolWindowsItems } from "./docks.js";
 import { openWindow } from "./windows.js";
-import { setStripEdge, statusItems, stripEdge } from "./statusitems.js";
+import { setStripEdge, statusCommands, statusItems, stripEdge } from "./statusitems.js";
 import { icon } from "./icons.js";
 import { focusFollows, setFocusFollows } from "./focusfollow.js";
-import { setSystemTitleBar, systemTitleBar } from "./strip.js";
-import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
-import { openRemote } from "./remote.js";
-import { toggleContainers } from "./containers.js";
+import { setSystemTitleBar, stripCommands, systemTitleBar } from "./strip.js";
+import { profileCommands, profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
+import { openRemote, remoteCommands } from "./remote.js";
+import { containerCommands, toggleContainers } from "./containers.js";
 import { toggleComms } from "./comms.js";
 import { reviewChange } from "./changeview.js";
 import { buttonName, keysOf as commandKeys, letterOf, onKeys, wheelName } from "./keys.js";
@@ -67,9 +69,9 @@ import { printHere } from "./prints.js";
 import { findSlowPlugin } from "./scripts.js";
 import { previewMode, setPreview } from "./preview.js";
 import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
-import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
-import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
-import { applyEdits } from "./intel.js";
+import { databaseCommands, runSqlFile, runStatement, toggleDatabase } from "./database.js";
+import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalCommands, terminalSplit, toggleTerminal } from "./terminal.js";
+import { applyEdits, intelCommands } from "./intel.js";
 import { showView } from "./views.js";
 import { askReports, reportForm } from "./reports.js";
 import { wordmark } from "./wordmark.js";
@@ -89,6 +91,11 @@ const state = { bar: null, menus: [], open: -1, titles: [], held: false, before:
 // The words on and off as true and false, and anything else as undefined, for the setting to flip.
 const onOff = (args) => (args[0] === "on" ? true : args[0] === "off" ? false : undefined);
 
+// Whether Go to File matches the letters typed in order anywhere in a path, or only the text as typed.
+const FUZZY_KEY = "orior.fuzzy-files";
+export const fuzzyFiles = () => localStorage.getItem(FUZZY_KEY) !== "false";
+export const setFuzzyFiles = (on) => localStorage.setItem(FUZZY_KEY, String(on));
+
 // The editor's command: the run view gives way to the edit view, and the editor takes the keys.
 const inEditor = (act) => () => {
   const { editor } = editing();
@@ -99,6 +106,15 @@ const inEditor = (act) => () => {
   editor.focus();
   act(editor);
 };
+
+// Takes the selections' text, or the cursors' whole lines, out of the editor for the clipboard, as
+// its keys do, and out of the text where `cut`: put on the clipboard through the window's own, which
+// needs no press of the reader's.
+function clipOut(editor, cut) {
+  const text = editor.takeOut(cut);
+  editor.note({ cut });
+  return copyText(text.replace(/\n/g, editor.doc.eol));
+}
 
 async function pasted(editor) {
   const text = await clipText();
@@ -227,6 +243,21 @@ async function openWorkspace(given) {
 }
 
 // What each command does in the window, given the words the command line passed it, if any.
+// The plugins, the stylesheet and the menus of the reader's own read again, as settings taken in
+// from another machine change them.
+async function reloadOwn() {
+  await loadPlugins();
+  await loadUserCss();
+  await loadReaderMenus();
+}
+
+// The settings no menu lists, which Preferences sets on and off, by the names the command line gives.
+const MORE_SETTINGS = {
+  trim: { label: "Trim Trailing Whitespace", on: () => saving("trim"), set: (on) => setSaving("trim", on) },
+  "final-newline": { label: "Insert Final Newline", on: () => saving("final-newline"), set: (on) => setSaving("final-newline", on) },
+  "vim-keys": { label: "Vim's Keys", on: vimKeys, set: setVimKeys },
+};
+
 const COMMANDS = {
   "create-file": (args) => create(false, args[0]),
   "create-folder": (args) => create(true, args[0]),
@@ -313,8 +344,8 @@ const COMMANDS = {
   exit: () => invoke("app_exit"),
   undo: inEditor((e) => e.undo(true)),
   redo: inEditor((e) => e.undo(false)),
-  cut: inEditor(() => document.execCommand("cut")),
-  copy: inEditor(() => document.execCommand("copy")),
+  cut: inEditor((e) => clipOut(e, true)),
+  copy: inEditor((e) => clipOut(e, false)),
   paste: inEditor(pasted),
   find: inEditor((e) => e.find.open(false)),
   search: findInFiles,
@@ -375,6 +406,8 @@ const COMMANDS = {
   "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
   "git-authors": (args) => setAuthorsShown(onOff(args) ?? !authorsShown()),
   "smooth-scroll": (args) => editing().setSmoothScroll(onOff(args) ?? !editing().smoothScroll()),
+  "reduce-motion": (args) => setReduceMotion(onOff(args) ?? !motionReduced()),
+  "fuzzy-files": (args) => setFuzzyFiles(onOff(args) ?? !fuzzyFiles()),
   "word-wrap": (args) => editing().setWordWrap(onOff(args) ?? !editing().wordWrap()),
   "type-hints": (args) => editing().setHints("type", onOff(args) ?? !editing().hints("type")),
   checkers: (args) => askCheckers(args.join(" ")),
@@ -407,18 +440,53 @@ const COMMANDS = {
         showView("edit");
         return openFile(path);
       },
-      reloadOwn: async () => {
-        await loadPlugins();
-        await loadUserCss();
-        await loadReaderMenus();
-      },
+      reloadOwn,
       checks: CHECKS,
-      more: [
-        { label: "Trim Trailing Whitespace", on: () => saving("trim"), set: (on) => setSaving("trim", on) },
-        { label: "Insert Final Newline", on: () => saving("final-newline"), set: (on) => setSaving("final-newline", on) },
-        { label: "Vim's Keys", on: vimKeys, set: setVimKeys },
-      ],
+      more: Object.values(MORE_SETTINGS),
     }),
+  // The settings no menu lists, on and off.
+  "prefs-setting": ([name, word]) => {
+    const setting = MORE_SETTINGS[name];
+    if (!setting) {
+      say(`The settings are ${Object.keys(MORE_SETTINGS).join(", ")}.`, { failed: true });
+      return;
+    }
+    setting.set(onOff([word]) ?? !setting.on());
+    drawPreferences();
+  },
+  "carry-place": async (words) => {
+    const path = words.length ? words.join(" ") : await pick("dir").catch(() => null);
+    if (typeof path === "string") {
+      setCarryPlace(path);
+      drawPreferences();
+    }
+  },
+  "carry-send": async (words) => {
+    const to = words.join(" ") || carryPlace();
+    try {
+      say(to ? await carrySend(to) : "Name a file or a folder first.", { failed: !to });
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
+  },
+  "carry-take": async ([from = carryPlace(), ...chosen]) => {
+    try {
+      const taking = from ? await carryTake(from, chosen, reloadOwn) : null;
+      say(!from ? "Name a file or a folder first." : taking ? `Took ${taking.files.length} file${taking.files.length === 1 ? "" : "s"} from ${from}.` : `${from} holds the settings this machine has.`, { failed: !from });
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
+    drawPreferences();
+  },
+  "carry-undo": async ([id]) => {
+    try {
+      const taking = await carryUndo(id, reloadOwn);
+      say(`The taking from ${taking.from} is undone.`);
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
+    drawPreferences();
+  },
   "user-css": () => openUserCss().catch((error) => say(String(error), { failed: true })),
   plugins: () => showPlugins(sheet),
   "new-plugin": (args) => showGenerator(sheet, args),
@@ -443,6 +511,28 @@ const COMMANDS = {
   "macro-record": () => recordMacro(),
   "macro-play": (args) => playBack(Number.parseInt(args[0], 10) || 1, args.slice(1).join(" ")),
   "macro-keep": (args) => keepLast(args.join(" ")),
+  // A kept macro's keys, as given or as pressed, empty taking its keys away.
+  "macro-keys": async ([name, keys]) => {
+    const pressed = keys ?? (await askKeys(`Keys for ${name}`));
+    if (pressed !== null) {
+      setMacroKeys(name, pressed);
+    }
+  },
+  "macro-forget": ([name]) => forgetMacro(name),
+  "branch-switch": ([name]) => branchDo("switch", name),
+  "branch-merge": ([name]) => branchDo("merge", name),
+  "branch-rebase": ([name]) => branchDo("rebase", name),
+  "branch-rename": ([name, to]) => renameBranch(name, to),
+  "branch-delete": ([name]) => removeBranch(name),
+  "stash-apply": ([name]) => stashDo("apply", name),
+  "stash-pop": ([name]) => stashDo("pop", name),
+  // A stash thrown away asks first, at the command line as in the menu.
+  "stash-drop": async ([name]) => {
+    const stash = (await invoke("git_stashes", { repo: editing().repo() }).catch(() => [])).find((one) => one.name === name);
+    if (stash && (await askYes(`Throw away ${stash.name}, ${stash.subject}?`, "Drop"))) {
+      await stashDo("drop", name);
+    }
+  },
   "split-right": () => (showView("edit"), editing().split("right")),
   "split-down": () => (showView("edit"), editing().split("down")),
   unsplit: () => editing().unsplit(),
@@ -497,7 +587,7 @@ const COMMANDS = {
       return;
     }
     const forms = { google: "Google", numpy: "NumPy", rest: "reStructuredText", plain: "Summary Line Alone" };
-    showMenu(window.innerWidth / 3, window.innerHeight / 4, Object.entries(forms).map(([form, label]) => ({ label, checked: editing().docstringForm() === form, run: () => editing().setDocstringForm(form) })));
+    showMenu(window.innerWidth / 3, window.innerHeight / 4, Object.entries(forms).map(([form, label]) => ({ label, checked: editing().docstringForm() === form, command: "docstring-form", args: [form], run: () => editing().setDocstringForm(form) })));
   },
   "quick-fix": inEditor(() => editing().quickFix()),
   "parameter-info": inEditor(() => editing().parameterInfo()),
@@ -556,6 +646,10 @@ const COMMANDS = {
   "trust-tree": () => askTrust(),
 };
 
+// A command of the menus or of the popup menus, which take what each item is over, read as it is run.
+const commandNamed = (command) =>
+  [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands, containerCommands, databaseCommands, remoteCommands, debugCommands, dockCommands, stripCommands, testCommands, profileCommands, intelCommands, prefsCommands].find((table) => Object.hasOwn(table, command))?.[command];
+
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {
   focus: () => focusOn(),
@@ -574,6 +668,8 @@ const CHECKS = {
   "line-history": () => editing().lineHistory(),
   "git-authors": () => authorsShown(),
   "smooth-scroll": () => editing().smoothScroll(),
+  "reduce-motion": () => motionReduced(),
+  "fuzzy-files": () => fuzzyFiles(),
   "word-wrap": () => editing().wordWrap(),
   "operator-next-line": () => editing().operatorNext(),
   "type-hints": () => editing().hints("type"),
@@ -594,6 +690,9 @@ const CHECKS = {
   "system-title": () => systemTitleBar(),
   "macro-recording": recording,
 };
+
+// Whether the item that is on or off by the name `name` is on, as its menu shows it.
+export const isChecked = (name) => Boolean(CHECKS[name]?.());
 
 // What a command needs before it can act, by the name commands.json gives the need.
 const NEEDS = {
@@ -652,9 +751,11 @@ function macroItems() {
   const items = keptMacros().map((one) => ({
     label: one.name,
     items: [
-      { label: "Play", keys: one.keys || undefined, run: () => playBack(1, one.name) },
+      { label: "Play", keys: one.keys || undefined, command: "macro-play", args: ["1", one.name], run: () => playBack(1, one.name) },
       {
         label: "Play Many Times…",
+        command: "macro-play",
+        args: ["2", one.name],
         run: async () => {
           const times = Number.parseInt(await askFor(`Times to play ${one.name}`, "2"), 10);
           if (times > 0) {
@@ -662,16 +763,8 @@ function macroItems() {
           }
         },
       },
-      {
-        label: "Keys…",
-        run: async () => {
-          const keys = await askKeys(`Keys for ${one.name}`);
-          if (keys !== null) {
-            setMacroKeys(one.name, keys);
-          }
-        },
-      },
-      { label: "Forget", run: () => forgetMacro(one.name) },
+      { label: "Keys…", command: "macro-keys", args: [one.name], run: () => COMMANDS["macro-keys"]([one.name]) },
+      { label: "Forget", command: "macro-forget", args: [one.name], run: () => forgetMacro(one.name) },
     ],
   }));
   return items.length ? ["-", ...items] : [];
@@ -762,50 +855,55 @@ async function newBranch(given) {
 
 // Every local branch, then every remote one, the tree's own checked: each to go on to, to merge into
 // the branch open or to rebase it onto, and a local one to rename or delete.
+// A branch switched to, merged in, rebased onto, renamed or deleted, as Git, Branches does it.
+const branchDo = (act, name, to) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_branch", { act, name, to, repo: editing().repo() }));
+
+async function removeBranch(name) {
+  try {
+    say(await invoke("git_branch", { act: "delete", name, repo: editing().repo() }));
+    await editing().treeChanged();
+  } catch (error) {
+    if (/not fully merged/.test(String(error)) && (await askYes(`${name} has commits no other branch holds. Delete it and them?`, "Delete"))) {
+      branchDo("delete-unmerged", name);
+    } else if (!/not fully merged/.test(String(error))) {
+      say(String(error), { failed: true });
+    }
+  }
+}
+
+async function renameBranch(name, given) {
+  const to = given ?? (await askFor(`New name for ${name}`, name));
+  if (to && to !== name) {
+    await branchDo("rename", name, to);
+  }
+}
+
+// An item of a list that runs `command` with `args`, as the command line runs it, and says both.
+const listed = (command, args, item) => ({ ...item, command, args, run: () => runCommand(command, args) });
+
 async function showBranches() {
   const list = await invoke("git_branches", { repo: editing().repo() }).catch(() => []);
   const open = list.find((one) => one.current)?.name ?? "HEAD";
-  const act = (act, name, to) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_branch", { act, name, to, repo: editing().repo() }));
-  const remove = async (name) => {
-    try {
-      say(await invoke("git_branch", { act: "delete", name, repo: editing().repo() }));
-      await editing().treeChanged();
-    } catch (error) {
-      if (/not fully merged/.test(String(error)) && (await askYes(`${name} has commits no other branch holds. Delete it and them?`, "Delete"))) {
-        act("delete-unmerged", name);
-      } else if (!/not fully merged/.test(String(error))) {
-        say(String(error), { failed: true });
-      }
-    }
-  };
   const itemOf = (branch) => {
     const items = [];
     if (!branch.current) {
       items.push(
-        { label: "Switch", run: () => act("switch", branch.name) },
-        { label: `Merge into ${open}`, run: () => act("merge", branch.name) },
-        { label: `Rebase ${open} onto it`, run: () => act("rebase", branch.name) },
+        listed("branch-switch", [branch.name], { label: "Switch" }),
+        listed("branch-merge", [branch.name], { label: `Merge into ${open}` }),
+        listed("branch-rebase", [branch.name], { label: `Rebase ${open} onto it` }),
       );
     }
     if (!branch.remote) {
-      items.push({
-        label: "Rename…",
-        run: async () => {
-          const to = await askFor(`New name for ${branch.name}`, branch.name);
-          if (to && to !== branch.name) {
-            act("rename", branch.name, to);
-          }
-        },
-      });
+      items.push(listed("branch-rename", [branch.name], { label: "Rename…" }));
       if (!branch.current) {
-        items.push({ label: "Delete", run: () => remove(branch.name) });
+        items.push(listed("branch-delete", [branch.name], { label: "Delete" }));
       }
     }
     return { label: branch.name, checked: branch.current, items };
   };
   const local = list.filter((one) => !one.remote).map(itemOf);
   const remote = list.filter((one) => one.remote).map(itemOf);
-  const items = [{ label: "New Branch…", run: () => newBranch("") }, ...(local.length ? ["-", ...local] : []), ...(remote.length ? ["-", ...remote] : [])];
+  const items = [listed("new-branch", [], { label: "New Branch…" }), ...(local.length ? ["-", ...local] : []), ...(remote.length ? ["-", ...remote] : [])];
   const anchor = document.getElementById("status-branch");
   const box = anchor.hidden ? { left: window.innerWidth / 3, top: window.innerHeight / 3 } : anchor.getBoundingClientRect();
   showMenu(box.left, (box.bottom ?? box.top) + 2, items, { anchor: anchor.hidden ? null : anchor });
@@ -925,17 +1023,10 @@ async function showTests() {
     custom: {
       placeholder: `${found.length} test${found.length === 1 ? "" : "s"}: type to filter, Enter to open one`,
       empty: "No test is found: pytest and unittest take files named test_*.py, *_test.py and test*.py, and in them the functions and methods whose names start with test.",
-      rows: (query) => {
-        const rows = [];
-        for (const test of found) {
-          const label = test.class ? `${test.class}.${test.name}` : test.name;
-          const hit = fuzzy(query, `${label} ${test.file}`);
-          if (hit) {
-            rows.push({ label, hits: hit.hits.filter((at) => at < label.length), detail: `${test.file}:${test.line + 1}`, score: query ? hit.score : 0, run: () => openFileAt(test.file, test.line, 0) });
-          }
-        }
-        return query ? rows.sort((a, b) => b.score - a.score) : rows;
-      },
+      items: found.map((test) => {
+        const label = test.class ? `${test.class}.${test.name}` : test.name;
+        return { text: `${label} ${test.file}`, label, detail: `${test.file}:${test.line + 1}`, run: () => openFileAt(test.file, test.line, 0) };
+      }),
     },
   });
 }
@@ -1016,9 +1107,9 @@ async function chooseEnvironment(given) {
     return;
   }
   const items = [
-    { label: "The Toolchains' Own Python", checked: !environmentInUse, run: () => useEnvironment(null) },
+    { label: "The Toolchains' Own Python", checked: !environmentInUse, command: "environment", args: ["none"], run: () => useEnvironment(null) },
     ...(found.length ? ["-"] : []),
-    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_KINDS[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: environmentInUse?.kind === env.kind && environmentInUse?.place === env.place, run: () => useEnvironment(env) })),
+    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_KINDS[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: environmentInUse?.kind === env.kind && environmentInUse?.place === env.place, command: "environment", args: [`${env.kind}:${env.place}`], run: () => useEnvironment(env) })),
   ];
   showMenu(window.innerWidth / 3, window.innerHeight / 4, items);
 }
@@ -1078,7 +1169,12 @@ function showMemory() {
   const mb = (bytes) => `${Math.round(bytes / (1024 * 1024))} MB`;
   const parts = (read?.parts ?? []).map((part) => ({ label: `${part.name}: ${mb(part.working)}`, disabled: true }));
   const box = node.getBoundingClientRect();
-  showMenu(box.left, box.top, [...parts, ...(parts.length ? ["-"] : []), { label: `Memory Budget: ${memoryBudget()} MB…`, run: () => askBudget() }, { label: "Stop Servers No Open Tab Needs", run: () => editing().holdMemory(Number.MAX_SAFE_INTEGER) }], { anchor: node });
+  showMenu(
+    box.left,
+    box.top,
+    [...parts, ...(parts.length ? ["-"] : []), { label: `Memory Budget: ${memoryBudget()} MB…`, command: "memory-budget", args: [], run: () => askBudget() }, { label: "Stop Servers No Open Tab Needs", command: "servers-stop-idle", args: [], run: () => editing().holdMemory(Number.MAX_SAFE_INTEGER) }],
+    { anchor: node },
+  );
 }
 
 // Git, Stash Changes: every change put aside, new files with them, under the message given or asked
@@ -1090,6 +1186,9 @@ async function stashChanges(given) {
   }
 }
 
+// A stash brought back and kept, brought back and dropped, or thrown away.
+const stashDo = (act, name) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_stash", { act, name, repo: editing().repo() }));
+
 // Git, Stashes: each stash, the newest first, to bring back and keep, bring back and drop, or throw
 // away.
 async function showStashes() {
@@ -1098,16 +1197,11 @@ async function showStashes() {
     say("No changes are put aside.");
     return;
   }
-  const act = (act, stash) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${stash.name}`, () => invoke("git_stash", { act, name: stash.name, repo: editing().repo() }));
   const items = list.map((stash) => ({
     label: `${stash.name}  ${stash.subject}`,
-    items: [
-      { label: "Apply", run: () => act("apply", stash) },
-      { label: "Pop", run: () => act("pop", stash) },
-      { label: "Drop", run: async () => (await askYes(`Throw away ${stash.name}, ${stash.subject}?`, "Drop")) && act("drop", stash) },
-    ],
+    items: [listed("stash-apply", [stash.name], { label: "Apply" }), listed("stash-pop", [stash.name], { label: "Pop" }), listed("stash-drop", [stash.name], { label: "Drop" })],
   }));
-  showMenu(window.innerWidth / 3, window.innerHeight / 4, [{ label: "Stash Changes…", run: () => stashChanges("") }, "-", ...items]);
+  showMenu(window.innerWidth / 3, window.innerHeight / 4, [listed("stash", [], { label: "Stash Changes…" }), "-", ...items]);
 }
 
 // Git, Cherry-Pick: the commit named, or one chosen from the commits of other branches the branch open
@@ -1124,7 +1218,7 @@ export async function cherryPick(given, repo = editing().repo()) {
     say("The branch open holds every commit of the other branches.");
     return;
   }
-  showMenu(window.innerWidth / 3, window.innerHeight / 4, list.map((commit) => ({ label: `${commit.id.slice(0, 7)}  ${commit.subject}`, run: () => pick(commit.id, commit.subject) })));
+  showMenu(window.innerWidth / 3, window.innerHeight / 4, list.map((commit) => ({ label: `${commit.id.slice(0, 7)}  ${commit.subject}`, command: "cherry-pick", args: [commit.id], run: () => pick(commit.id, commit.subject) })));
 }
 
 // Git, Resolve Conflicts: the file named, or a file a merge left in conflict where it is alone in
@@ -1137,7 +1231,7 @@ function resolveConflicts(given) {
   } else if (!files.length) {
     say("No file is in conflict.");
   } else {
-    showMenu(window.innerWidth / 3, window.innerHeight / 4, files.map((path) => ({ label: path, run: () => (showView("edit"), editing().openMerge(path)) })));
+    showMenu(window.innerWidth / 3, window.innerHeight / 4, files.map((path) => ({ label: path, command: "conflicts", args: [path], run: () => (showView("edit"), editing().openMerge(path)) })));
   }
 }
 
@@ -1161,16 +1255,16 @@ function askYes(question, yes) {
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
 export function runCommand(command, args = []) {
-  return COMMANDS[command]?.(args);
+  return commandNamed(command)?.(args);
 }
 
 // Whether the window answers `command` itself.
-export const hasCommand = (command) => Object.hasOwn(COMMANDS, command);
+export const hasCommand = (command) => Boolean(commandNamed(command));
 
 // Every command the menus list that can act now, for the quick open's >.
 function paletteCommands() {
   const found = [];
-  for (const menu of state.menus) {
+  for (const menu of state.menus.filter((one) => !one.popup)) {
     for (const item of menu.all) {
       if (item.command === "palette" || (item.needs && !NEEDS[item.needs]?.())) {
         continue;
@@ -1290,7 +1384,7 @@ export function sheet(body) {
 
 // The menus the bar has a title for: each of commands, and each of jobs that has a job in the tree.
 function shownMenus() {
-  return laidOut().filter((menu) => !menu.strip && (menu.items?.length || jobsIn(menu.groups ?? []).length));
+  return laidOut().filter((menu) => !menu.strip && !menu.popup && (menu.items?.length || jobsIn(menu.groups ?? []).length));
 }
 
 // Menus and a toolbar of the reader's, from menus.json in orior's own folder. Each item names a
@@ -1639,6 +1733,33 @@ export async function runLaunch() {
   }
 }
 
+// How long a command line waits on a command still running, one that asks the reader or works on,
+// before it is answered that the command began.
+const ANSWER_BY = 2000;
+
+// Runs each command a command line says to this window, as reach.rs sends it, as its menu runs it,
+// and answers whether it ran and what it said: a command that gives text gives it to the command line.
+export async function hearCommandLine() {
+  const heard = new Set();
+  await listen("command", async ({ payload }) => {
+    if (!payload?.id || heard.has(payload.id)) {
+      return;
+    }
+    heard.add(payload.id);
+    const answer = (done, said = "") => invoke("command_answer", { id: payload.id, done, said }).catch(() => {});
+    if (!hasCommand(payload.command)) {
+      answer(false, `the window has no command ${payload.command}`);
+      return;
+    }
+    try {
+      const ran = await Promise.race([Promise.resolve(runCommand(payload.command, payload.args ?? [])), new Promise((done) => setTimeout(done, ANSWER_BY))]);
+      answer(true, typeof ran === "string" ? ran : "");
+    } catch (error) {
+      answer(false, String(error?.message ?? error));
+    }
+  });
+}
+
 // Starts the menu bar and every key its commands are bound to. `commands` is the reading of the
 // commands, where it was asked for already. The page marks the moment the keys are bound as
 // "keys-bound" in its timeline.
@@ -1656,7 +1777,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   });
   startPalette({
     commands: paletteCommands,
-    findFiles: (query, recent, most) => invoke("files_find", { query, recent, most }),
+    findFiles: (query, recent, most) => invoke("files_find", { query, recent, most, fuzzy: fuzzyFiles() }),
     recent: recentFiles,
     symbols: () => editing().symbols(),
     treeSymbols: (query) => invoke("symbols_find", { query }),

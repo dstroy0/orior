@@ -79,7 +79,8 @@ function colorOf(node) {
   }
   const base = rgbOf(names[hash % names.length]);
   const rgb = mixed(base, rgbOf("--surface"), 0.62 + ((hash >> 8) % 30) / 100);
-  return { fill: `rgb(${rgb.join(",")})`, ink: rgb[0] * 0.3 + rgb[1] * 0.59 + rgb[2] * 0.11 > 140 ? "#131331" : "#f4f4fb" };
+  const ink = rgb[0] * 0.3 + rgb[1] * 0.59 + rgb[2] * 0.11 > 140 ? "--profile-ink-dark" : "--profile-ink-light";
+  return { fill: `rgb(${rgb.join(",")})`, ink: getComputedStyle(document.documentElement).getPropertyValue(ink).trim() };
 }
 
 // How much a bar took, as the view counts it.
@@ -193,13 +194,40 @@ function pathTo(target) {
 
 function graphMenu(event) {
   const hit = hitAt(event);
+  const name = hit?.node.name ?? "";
   showMenu(event.clientX, event.clientY, [
-    { label: hit?.node.file ? `Open ${hit.node.name}` : "Open", disabled: !hit?.node.file, run: () => openFunction(hit.node) },
-    { label: hit?.node.file ? `Zoom to ${hit.node.name}` : "Zoom to", disabled: !hit?.node.file, run: () => ((state.zoom = [...state.zoom, ...pathTo(hit.node)]), draw()) },
-    { label: "Zoom Out", disabled: !state.zoom.length, run: () => (state.zoom.pop(), draw()) },
-    { label: "Show the Whole Run", disabled: !state.zoom.length, run: () => ((state.zoom = []), draw()) },
+    { label: hit?.node.file ? `Open ${hit.node.name}` : "Open", command: "profile-open", args: [name], disabled: !hit?.node.file, run: () => openFunction(hit.node) },
+    { label: hit?.node.file ? `Zoom to ${hit.node.name}` : "Zoom to", command: "profile-zoom", args: [name], disabled: !hit?.node.file, run: () => ((state.zoom = [...state.zoom, ...pathTo(hit.node)]), draw()) },
+    { label: "Zoom Out", command: "profile-zoom-out", args: [], disabled: !state.zoom.length, run: () => (state.zoom.pop(), draw()) },
+    { label: "Show the Whole Run", command: "profile-whole", args: [], disabled: !state.zoom.length, run: () => ((state.zoom = []), draw()) },
   ]);
 }
+
+// The function of the profile shown named `name`, the first the graph holds from where it is zoomed.
+function nodeNamed(name) {
+  const root = state.counts && zoomed(treeOf(state.view === "time" ? state.counts.time : state.counts.memory));
+  const find = (node) => (node.name === name && node.file ? node : [...node.children.values()].map(find).find(Boolean) ?? null);
+  return root ? find(root) : null;
+}
+
+// The profile's menu as commands, by the names commands.json gives them, each a function by its name.
+export const profileCommands = {
+  "profile-open": ([name]) => (nodeNamed(name) ? openFunction(nodeNamed(name)) : state.hooks.say(`The profile shown holds no function ${name}.`)),
+  "profile-zoom": ([name]) => {
+    const node = nodeNamed(name);
+    if (!node) {
+      state.hooks.say(`The profile shown holds no function ${name}.`);
+      return;
+    }
+    state.zoom = [...state.zoom, ...pathTo(node)];
+    draw();
+  },
+  "profile-zoom-out": () => (state.zoom.pop(), draw()),
+  "profile-whole": () => ((state.zoom = []), draw()),
+};
+
+// How far the profile shown is zoomed in, by the functions it is zoomed through, for the tests.
+export const profileZoom = () => [...state.zoom];
 
 function drawBar() {
   for (const button of parts.bar.querySelectorAll("[data-view]")) {

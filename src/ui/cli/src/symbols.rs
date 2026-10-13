@@ -462,6 +462,11 @@ struct State {
     files: HashMap<String, Held>,
     reading: bool,
     read_at: Option<Instant>,
+    /// How many of the tree's files of a language the reading has gone through, of how many.
+    done: usize,
+    total: usize,
+    /// Set to end the reading: what it has read stays.
+    stop: bool,
 }
 
 /// The declarations of one tree's files, kept up to date as files change.
@@ -490,15 +495,26 @@ impl Index {
                 return;
             }
             state.reading = true;
+            state.stop = false;
         }
         let shared = self.state.clone();
         let root = root.to_path_buf();
         std::thread::spawn(move || {
-            let listed = files();
+            let listed: Vec<String> = files().into_iter().filter(|path| language_of(path).is_some()).collect();
+            if let Ok(mut state) = shared.lock() {
+                state.done = 0;
+                state.total = listed.len();
+            }
             let mut seen = std::collections::HashSet::new();
+            let mut stopped = false;
             for path in listed {
-                if language_of(&path).is_none() {
-                    continue;
+                {
+                    let Ok(mut state) = shared.lock() else { return };
+                    if state.stop {
+                        stopped = true;
+                        break;
+                    }
+                    state.done += 1;
                 }
                 let Ok(meta) = fs::metadata(root.join(&path)) else { continue };
                 if meta.len() > LARGEST {
@@ -521,12 +537,27 @@ impl Index {
             }
             if let Ok(mut state) = shared.lock() {
                 if state.root.as_deref() == Some(root.as_path()) {
-                    state.files.retain(|path, _| seen.contains(path));
+                    // A reading stopped keeps every file it has read, and those it had not come to.
+                    if !stopped {
+                        state.files.retain(|path, _| seen.contains(path));
+                    }
                     state.reading = false;
                     state.read_at = Some(Instant::now());
                 }
             }
         });
+    }
+
+    /// How far the first reading of the tree's files has gone, (done, of), while it goes.
+    pub fn progress(&self) -> Option<(usize, usize)> {
+        self.state.lock().ok().filter(|state| state.reading && state.read_at.is_none()).map(|state| (state.done, state.total))
+    }
+
+    /// Ends the reading going, keeping what it has read.
+    pub fn stop(&self) {
+        if let Ok(mut state) = self.state.lock() {
+            state.stop = true;
+        }
     }
 
     /// The declarations whose names answer `query`, at most `most` of them, the best first.
@@ -642,6 +673,44 @@ mod tests {
         assert_eq!(initials, score("gtf", "go_to_file").unwrap());
         assert!(camel > letters);
         assert_eq!(score("xyz", "paint"), None);
+    }
+
+    #[test]
+    fn a_first_reading_says_how_far_it_has_gone_and_a_stop_keeps_what_it_read() {
+        let root = std::env::temp_dir().join(format!("orior_symbols_stop_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let names: Vec<String> = (0..3000).map(|at| format!("f{at:04}.py")).collect();
+        for (at, name) in names.iter().enumerate() {
+            fs::write(root.join(name), format!("def step_{at}():\n    pass\n")).unwrap();
+        }
+        let index = Index::default();
+        let listed = names.clone();
+        index.refresh(&root, move || listed);
+        let mut seen = None;
+        for _ in 0..500 {
+            if let Some((done, of)) = index.progress().filter(|(done, _)| *done > 0) {
+                seen = Some((done, of));
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        let (done, of) = seen.expect("the reading says how far it has gone");
+        assert_eq!(of, 3000);
+        assert!(done <= of);
+        index.stop();
+        for _ in 0..500 {
+            if index.progress().is_none() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        assert_eq!(index.progress(), None, "the reading ended");
+        assert!(!index.unread(), "and is no longer the first reading");
+        let kept = index.state.lock().unwrap().files.len();
+        assert!(kept > 0 && kept < 3000, "what it read stays, and it read no further: {kept}");
+        assert_eq!(index.find("step_0", 1).symbols.len(), 1, "Go to Symbol answers from it");
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

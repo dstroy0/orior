@@ -4,47 +4,24 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Responsiveness
 
-1. **Go to File as the reader means it.** An exact name stands above every looser match and above history, and fuzzy matching can be turned off.
-   - An exact name ranks below a looser match, letters matched in the middle of words add noise, and people ask to turn fuzzy matching off ([vscode #164352][38], [#99171][39], [#27317][40], [#8673][41]).
-2. **Saved means saved, however one gets back.** A tab back at its saved text by an input method's character or Vim's undo shows no change.
-   - A file stays marked after undoing to its saved text, after an input method's character typed and taken back, and after Vim's undo ([vscode #206720][42], [VSCodeVim][43]).
-3. **No window's changes lost.** Every window's changes not saved are kept as they are made, whichever window closes first.
-   - Changes not saved are lost when a window other than the last is closed ([kitemetric][44]).
-4. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
+1. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
    - A preview beside the editor delays each letter, the two sharing a process, and a Vim mode adds a tenth of a second to every key ([typst-preview #245][45], [VSCodeVim #2021][46]). orior draws previews and plugins off the editor's thread, and its Vim keys are its own.
-   - The editor is slow to type, scroll and find on a low-powered laptop with extensions off ([Lightrun][47]). orior is measured on the Raspberry Pi as well as here.
+   - The editor is slow to type, scroll and find on a low-powered laptop with extensions off ([Lightrun][47]).
    - Completion and analysis can come late or get in the way of editing. Typing and the caret's moves answer at once whether analysis has finished or not, and the test of it types and moves through a file while analysis is still running.
-
-## The backend
-
-1. **No process left behind.** Every server, analyzer and run orior starts ends when orior does, here and on a machine it reached.
-   - Language servers and analyzers keep running after the editor closes and pile up over days, and a remote session closed leaves its server running ([SonarLint][48], [Julia][49], [Pawsey][50]).
-2. **Large files over a link without stalls.** A large file on another machine costs nothing until opened, and a large copy runs behind with its progress shown.
-   - A file of 300 MB on a remote machine makes the connection unusably slow even unopened, and large uploads send people to other tools ([Cursor forum][51], [Thunder Compute][52]).
 
 ## Perception
 
-1. **Every motion stilled when asked.** The system's reduced motion stills every animation in the window, plugins' drawing among them, and orior's own setting does the same.
-   - Animations cannot be turned off, and reduced motion is not followed by what extensions draw ([Cursor forum][53]).
-2. **A caret that never trails a key.** The caret stands at the letter typed in the same frame; a glide is only for jumps.
-   - A caret that glides reads as a delay as one types ([JetBrains][54]).
-3. **A tree of any size that scrolls freely.** The explorer of a large monorepo and its thousands of generated files scrolls at the display's rate.
-   - The file tree lags in a large monorepo, and generated files slow the whole workspace ([Cursor forum][55], [Julia][56]).
-4. **Every wait told: what, how far, and how long.** A wait past 400 ms shows within that time that the act was taken, then its share done and the time left, and the reader can stop it.
-   - Indexing shows a bar with no share done, a bar stuck for half an hour, or one that starts over and over ([IntelliJ][57], [IntelliJ][58], [IntelliJ][59]).
-   - A wait shown as going on, and how far, takes away the doubt and feels shorter; a bar that slows toward its end feels shorter still ([NN/G][60], [arXiv 2507.22352][61], [study][62]).
-   - Answers within 400 ms keep reader and machine from waiting on each other; 0.1 s reads as instant, 1 s keeps the thought, 10 s loses it ([Doherty threshold][63], [Kent Beck][64]).
-5. **No one part can freeze the window.** A plugin's stored history or a list's source read on each key never holds up a frame.
+1. **No one part can freeze the window.** A plugin's stored history or a list's source read on each key never holds up a frame.
    - The window freezes and a core is pinned by one extension's oversized history, and a list waits 1 to 2 s on each key ([Helge Klein][65]).
-6. **What is told sits at the edge of sight.** State shows quietly on the status bar and the gutter, and comes to the middle of the screen only when the reader must act.
+2. **What is told sits at the edge of sight.** State shows quietly on the status bar and the gutter, and comes to the middle of the screen only when the reader must act.
    - Calm design keeps most of what is told at the edge of attention, asks the least attention it can, and works even when it fails ([calm technology][66], [calmtech.com][67], [Fuzzy Math][68]).
-7. **A light theme as well as a dark.** orior's look comes in a light ground for bright rooms and small text, beside its dark one, and can follow the light of the system.
+3. **A light theme as well as a dark.** orior's look comes in a light ground for bright rooms and small text, beside its dark one, and can follow the light of the system.
    - Light text grounds read better for small text in good light, readers do not notice they do better, and a dark ground is easier in dim light ([NN/G][69], [TIDS 2025][70], [Gadget Hacks][71]).
-8. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that held it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
+4. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that held it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
    - A slow start, indexing, completion that drags, costly language servers and plugins that eat memory, with no way to see what takes the time; a feature that saves ten seconds later still angers where it adds a delay to every key. orior holds each key to its frame and names whatever runs past its budget.
    - Readers struggle to find which part causes a lag. Time and processor are put to each language server, plugin, index and piece of work behind, and the test of it slows each in turn and checks that the window names it.
    - "Why is indexing so slow" and "why is completion so slow" show the cost of the work and nothing of its cause.
-9. **Everything working behind, in sight.** The status bar lists each piece of work running behind the editor, what it is doing, what it costs and how far it has come, and any of it can be stopped; what the compiler decided and what an optimization cost are read beside the code they concern.
+5. **Everything working behind, in sight.** The status bar lists each piece of work running behind the editor, what it is doing, what it costs and how far it has come, and any of it can be stopped; what the compiler decided and what an optimization cost are read beside the code they concern.
    - Readers want transparency: background work, the compiler's decisions and the cost of an optimization kept hidden make them hate an IDE.
    - An IDE is to be deeply observable: the program's state, its data flow, the build's decisions, what each thing costs and what each change did, each open to the reader.
    - "Why does it keep reloading" shows behavior that breaks what the reader expects. Each thing orior does again on its own says why, where it does it.
@@ -165,15 +142,13 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Tool versions differ between machines, and a new hire spends a day getting the right Python, Ruby or Go ([moon][173], [Thoughtworks][174]). orior reads the versions a tree pins and warns where the machine's differ.
    - In C and C++ the build system and the toolchain are not tied together ([CMake Discourse][175]). orior shows which compiler each build uses, beside the build.
    - On Windows Python is left off PATH, and a package install fills the screen with compiler errors ([Medium][176]). orior finds each installed Python wherever it is, and says what a failed install lacks.
-2. **One compiler for the build, the code help and the debugger.** The code help and the debugger read the compiler the build uses, found without a file of settings.
-   - The compiler is not found or code help reads another, the include path file is hard to find and editing it does not help, three files of settings must agree by a label, and the debugger is not found ([Chemeketa][177], [GameDev.tv][178], [VS Code][179], [MSVC][180]).
-3. **One Python for the code help and the terminal.** Every terminal runs the interpreter the code help reads, and every environment of the tree is found.
+2. **One Python for the code help and the terminal.** Every terminal runs the interpreter the code help reads, and every environment of the tree is found.
    - The code help and the terminal use different interpreters, the tree points at the system Python, and an environment is missing from the picker ([SystemCraft][181], [DEV][182], [vscode-python #24573][183], [Arch forum][184], [Lightrun][185]).
-4. **PATH read again without a restart.** A tool put on PATH is seen at once by orior, its terminals and its runs.
+3. **PATH read again without a restart.** A tool put on PATH is seen at once by orior, its terminals and its runs.
    - A tool put on PATH is not seen until the IDE restarts, at times only after a reboot, and a tool must be named by its exact file name ([IntelliJ][186], [IntelliJ][187], [IntelliJ][188]).
-5. **Language support with no wait.** The languages orior knows are with it before a file opens, and the few plugins it needs do not slow it.
+4. **Language support with no wait.** The languages orior knows are with it before a file opens, and the few plugins it needs do not slow it.
    - Language support is downloaded only once a file opens, and a good setup needs many plugins that slow it ([G2][189], [G2][190]).
-6. **The setting that caused a failure, named.** Where a build or a run fails on a setting, orior names the setting, the file that set it and what else sets it: an SDK, a variable of the environment, a compiler's version or a plugin.
+5. **The setting that caused a failure, named.** Where a build or a run fails on a setting, orior names the setting, the file that set it and what else sets it: an SDK, a variable of the environment, a compiler's version or a plugin.
    - Trees work on one machine and not another, with SDKs, variables of the environment and compiler versions at odds and settings spread across many files, and no word of which setting caused the failure.
 
 ## Code intelligence
@@ -234,11 +209,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - CMake's generated files call back into cmake, there is no help with outside dependencies, and a release changes behavior ([annoying build systems][260], [cmake-developers][261], [curl][262]). orior names the CMake version a tree needs.
 6. **Python held in little memory.** Code help for a large package stays under a set memory, typing in a long file does not pin a core, and definitions answer at once.
    - The server passes 2 GB and must be restarted, a file over 1,000 lines pins a core, and a definition takes 60 s ([Genesys][263], [vscode-python #25357][264], [NVIDIA][265], [Cursor forum][266]).
-7. **Rust without the wait.** The editor and Cargo share one build, and check and build share their work.
-   - The IDE and Cargo block each other, check and build do not share a cache, and the server's speed and memory limit work ([Rust survey 2025][267], [The New Stack][268], [users.rust-lang.org][269]).
-8. **Compiler errors cut to the line that matters.** A long error is folded to its cause, with the rest a press away.
+7. **Compiler errors cut to the line that matters.** A long error is folded to its cause, with the rest a press away.
    - Compiler errors confuse, and a template error is eighty lines to search; readers take a message that says how to mend it ([NSF study][270], [gcc-help][271], [D #7768][272], [GameDev.net][273]).
-9. **JavaScript with nothing to choose first.** A JavaScript tree runs and is checked with what orior has, and the choices of build tools wait until wanted.
+8. **JavaScript with nothing to choose first.** A JavaScript tree runs and is checked with what orior has, and the choices of build tools wait until wanted.
    - Build tools, boilerplate and linters must be chosen before any code, the wiring is hard to follow, and dependencies explode ([JavaScript fatigue][274], [Tools for Radicals][275], [r/programming][276], [Vivian Voss][277]).
 
 ## Explorer and files

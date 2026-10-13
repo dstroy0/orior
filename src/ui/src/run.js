@@ -266,6 +266,10 @@ export async function startJob(id, values) {
   const steps = before.lines.filter((line) => line.stream === "command").map((line) => line.ms);
   const clock = performance.now() - (before.lines[before.lines.length - 1]?.ms ?? 0);
   state.runs.set(run, { run, job: id, lines: before.lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false });
+  // A run that ended before its number came back ends here as it comes.
+  if (before.end) {
+    onEnd({ payload: before.end });
+  }
   const kept = runsOf(id);
   for (const old of kept.filter((one) => one.done).slice(0, Math.max(0, kept.length - KEPT_RUNS))) {
     state.runs.delete(old.run);
@@ -507,19 +511,45 @@ function jobItems(event) {
     return null;
   }
   const live = runsOf(job.id).filter((run) => !run.done);
-  return [
-    {
-      label: "Start",
-      run: () => {
-        choose(job.id);
-        document.querySelector("#job-stage .actions .primary")?.click();
-      },
-    },
-    { label: "Stop", disabled: !live.length, run: () => live.forEach((run) => invoke("job_stop", { run: run.run }).catch(() => {})) },
-    "-",
-    { label: "Edit", run: () => state.openFile(job.file) },
-    { label: "Copy path", run: () => copyText(job.file) },
-  ];
+  const act = (command, label, more = {}) => ({ label, command, args: [job.id], run: () => runCommands[command]([job.id]), ...more });
+  return [act("job-start", "Start"), act("job-stop", "Stop", { disabled: !live.length }), "-", act("job-edit", "Edit"), act("job-copy-path", "Copy path")];
+}
+
+// The jobs' menu and their output's as commands, by the names commands.json gives them, each run
+// from the menus or from the command line with a job's id.
+const jobNamed = (id) => state.jobs.find((one) => one.id === id) ?? null;
+const shownLines = () => document.getElementById("lines");
+
+export const runCommands = {
+  "job-start": ([id]) => {
+    if (jobNamed(id)) {
+      showView("run");
+      choose(id);
+      document.querySelector("#job-stage .actions .primary")?.click();
+    }
+  },
+  "job-stop": ([id]) => runsOf(id).filter((run) => !run.done).forEach((run) => invoke("job_stop", { run: run.run }).catch(() => {})),
+  "job-edit": ([id]) => jobNamed(id) && state.openFile(jobNamed(id).file),
+  "job-copy-path": ([id]) => jobNamed(id) && copyText(jobNamed(id).file),
+  "output-copy": () => {
+    const chosen = chosenIn(shownLines());
+    return chosen && copyText(chosen);
+  },
+  "output-copy-all": ([id]) => {
+    if (id && jobNamed(id)) {
+      showView("run");
+      choose(id);
+    }
+    return shownLines() && copyText(shownLines().textContent);
+  },
+  "output-select-all": () => shownLines() && window.getSelection().selectAllChildren(shownLines()),
+};
+
+// The text chosen in `lines`, as the document holds it: read from the range chosen, which gives it in a
+// window without the keys, where WebKit's selection gives none.
+function chosenIn(lines) {
+  const selection = window.getSelection();
+  return lines && selection?.rangeCount && !selection.isCollapsed && lines.contains(selection.anchorNode) ? selection.getRangeAt(0).toString() : "";
 }
 
 // The output's menu: copy what is chosen in it, or all of it, or choose all of it.
@@ -528,13 +558,12 @@ function outputItems(event) {
   if (!lines) {
     return null;
   }
-  const selection = window.getSelection();
-  const chosen = selection && !selection.isCollapsed && lines.contains(selection.anchorNode) ? selection.toString() : "";
+  const chosen = chosenIn(lines);
   return [
-    { label: "Copy", keys: "Ctrl+C", disabled: !chosen, run: () => copyText(chosen) },
-    { label: "Copy all", run: () => copyText(lines.textContent) },
+    { label: "Copy", keys: "Ctrl+C", command: "output-copy", args: [], disabled: !chosen, run: () => copyText(chosen) },
+    { label: "Copy all", command: "output-copy-all", args: [], run: () => copyText(lines.textContent) },
     "-",
-    { label: "Select all", run: () => window.getSelection().selectAllChildren(lines) },
+    { label: "Select all", command: "output-select-all", args: [], run: () => window.getSelection().selectAllChildren(lines) },
   ];
 }
 

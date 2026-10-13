@@ -5,14 +5,14 @@
 // its first comment says and the files of the tree that use it.
 
 import { invoke } from "../../src/bridge.js";
-import { editing } from "../../src/edit.js";
+import { editing, treeRowShown } from "../../src/edit.js";
 import { shownCard } from "../../src/purpose.js";
 import { togglePane } from "../../src/sides.js";
 import { showView } from "../../src/views.js";
 
 const { test, assert, ui } = window.__harness;
 
-const rowOf = (path) => document.querySelector(`#files [data-key="${CSS.escape(path)}"]`);
+const rowOf = (path) => treeRowShown(path);
 
 test("the pointer resting on a file shows what its first comment says and the files that use it", async () => {
   await invoke("file_write", { path: "card_lib.js", text: "// SPDX-License-Identifier: MIT\n\n// Helpers the cards are drawn with.\nexport const one = 1;\n" });

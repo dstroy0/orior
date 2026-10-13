@@ -156,6 +156,7 @@
         { "label": "Sticky Scroll", "command": "sticky-scroll", "args": "[on|off]", "checks": "sticky-scroll" },
         { "label": "Word Wrap", "command": "word-wrap", "keys": "Alt+Z", "args": "[on|off]", "checks": "word-wrap" },
         { "label": "Smooth Scrolling", "command": "smooth-scroll", "args": "[on|off]", "checks": "smooth-scroll" },
+        { "label": "Reduce Motion", "command": "reduce-motion", "args": "[on|off]", "checks": "reduce-motion" },
         { "label": "Flick Scrolling", "command": "flick-scroll", "args": "[on|off]", "checks": "flick-scroll" },
         { "label": "Breadcrumbs", "command": "breadcrumbs", "args": "[on|off]", "checks": "breadcrumbs" },
         { "label": "Bracket Pair Colorization", "command": "bracket-pairs", "args": "[on|off]", "checks": "bracket-pairs" },
@@ -214,6 +215,7 @@
         { "label": "Search Everywhere…", "command": "search-everywhere", "keys": "Shift Shift" },
         { "label": "Recent Files…", "command": "recent-files", "keys": "Ctrl+E" },
         { "label": "Go to File…", "command": "file", "keys": "Ctrl+P", "args": "[path[:line[:column]]]" },
+        { "label": "Fuzzy Matching", "command": "fuzzy-files", "args": "[on|off]", "checks": "fuzzy-files" },
         { "label": "Go to Symbol in Editor…", "command": "symbol", "keys": "Ctrl+Shift+O", "args": "[name]", "needs": "text" },
         { "label": "Go to Symbol in Tree…", "command": "symbol-tree", "keys": "Ctrl+T", "args": "[name]" },
         { "label": "Go to Line…", "command": "line", "keys": "Ctrl+G", "args": "[line]", "needs": "editor" },
@@ -361,6 +363,207 @@
         "-",
         { "label": "Clear", "command": "clear" },
         { "label": "Kill Terminal", "command": "kill" }
+      ]
+    },
+    {
+      "title": "Files",
+      "popup": true,
+      "items": [
+        { "label": "Open", "command": "file-open", "args": "<path>" },
+        { "label": "Remove from Window", "command": "file-remove", "args": "<name>" },
+        { "label": "Names' Encoding", "command": "file-names", "args": "<archive> [encoding]" },
+        { "label": "Open in a window", "command": "file-open-window", "args": "<file>" },
+        { "label": "Cut", "command": "file-cut", "args": "<path>" },
+        { "label": "Copy", "command": "file-copy", "args": "<path>" },
+        { "label": "Paste", "command": "file-paste", "args": "[folder]" },
+        { "label": "Copy path", "command": "file-copy-path", "args": "<path>" },
+        { "label": "Open in terminal", "command": "file-terminal", "args": "[path]" },
+        { "label": "Select for Compare", "command": "file-select-compare", "args": "<file>" },
+        { "label": "Compare with Selected", "command": "file-compare", "args": "<file> [other]" }
+      ]
+    },
+    {
+      "title": "Tab",
+      "popup": true,
+      "items": [
+        { "label": "Close", "command": "tab-close", "args": "<file>" },
+        { "label": "Close others", "command": "tab-close-others", "args": "<file>" },
+        { "label": "Split Right", "command": "tab-split-right", "args": "<file>" },
+        { "label": "Split Down", "command": "tab-split-down", "args": "<file>" },
+        { "label": "Open in New Window", "command": "tab-new-window", "args": "<file>" },
+        { "label": "Add to Group…", "command": "tab-group", "args": "<file> [group]" },
+        { "label": "Remove from Group", "command": "tab-ungroup", "args": "<file>" },
+        { "label": "Mark File", "command": "tab-mark", "args": "<file>" },
+        { "label": "Open as Notebook", "command": "tab-open-as", "args": "<file> <text|notebook>" }
+      ]
+    },
+    {
+      "title": "Explorer",
+      "popup": true,
+      "items": [
+        { "label": "Show or Hide a Pane", "command": "pane-show", "args": "<pane> [on|off]" },
+        { "label": "Refresh Explorer", "command": "explorer-refresh" },
+        { "label": "Collapse Folders in Explorer", "command": "explorer-collapse" },
+        { "label": "Pin the File Shown", "command": "outline-pin", "args": "[file|none]" }
+      ]
+    },
+    {
+      "title": "Commits",
+      "popup": true,
+      "items": [
+        { "label": "Open", "command": "commit-open", "args": "<file> <commit>" },
+        { "label": "Compare with Current", "command": "commit-compare", "args": "<file> <commit> [other commit]" },
+        { "label": "Copy Commit ID", "command": "commit-copy-id", "args": "<commit>" },
+        { "label": "Copy Commit Message", "command": "commit-copy-message", "args": "<commit> [file]" },
+        { "label": "Open Files", "command": "commit-files", "args": "<commit>" },
+        { "label": "Show Changes", "command": "commit-file-changes", "args": "<commit> <file>" },
+        { "label": "Show Difference", "command": "history-difference", "args": "<file> <save>" },
+        { "label": "Revert to This", "command": "history-revert", "args": "<file> <save>" }
+      ]
+    },
+    {
+      "title": "Review",
+      "popup": true,
+      "items": [
+        { "label": "Open", "command": "comment-open", "args": "<comment>" },
+        { "label": "Show Changes", "command": "comment-changes", "args": "<comment>" },
+        { "label": "Resolve", "command": "comment-resolve", "args": "<comment> [done|open]" },
+        { "label": "Delete", "command": "comment-delete", "args": "<comment>" },
+        { "label": "Copy Comment", "command": "comment-copy", "args": "<comment>" }
+      ]
+    },
+    {
+      "title": "Panels",
+      "popup": true,
+      "items": [
+        { "label": "Show Changes", "command": "change-show", "args": "<file>" },
+        { "label": "Start", "command": "job-start", "args": "<job>" },
+        { "label": "Stop", "command": "job-stop", "args": "<job>" },
+        { "label": "Edit", "command": "job-edit", "args": "<job>" },
+        { "label": "Copy path", "command": "job-copy-path", "args": "<job>" },
+        { "label": "Copy", "command": "output-copy" },
+        { "label": "Copy all", "command": "output-copy-all", "args": "[job]" },
+        { "label": "Select all", "command": "output-select-all" },
+        { "label": "Copy", "command": "terminal-copy" },
+        { "label": "Paste", "command": "terminal-paste", "args": "[text]" },
+        { "label": "Close", "command": "terminal-close" },
+        { "label": "Show or Hide", "command": "status-show", "args": "<item> [on|off]" },
+        { "label": "Move Left or Right", "command": "status-move", "args": "<item> <left|right>" },
+        { "label": "Reset the Status Bar", "command": "status-reset" }
+      ]
+    },
+    {
+      "title": "Services",
+      "popup": true,
+      "items": [
+        { "label": "Docker or Kubernetes", "command": "containers-kind", "args": "<docker|pods>" },
+        { "label": "Read Again", "command": "containers-read" },
+        { "label": "Logs", "command": "container-logs", "args": "<container|namespace/pod> [container]" },
+        { "label": "Run a Command…", "command": "container-run", "args": "<container> [command]" },
+        { "label": "Open a Terminal", "command": "container-terminal", "args": "<container|namespace/pod> [container]" },
+        { "label": "Open a Folder in a Window…", "command": "container-open", "args": "<container> [folder]" },
+        { "label": "Start", "command": "container-start", "args": "<container>" },
+        { "label": "Stop", "command": "container-stop", "args": "<container>" },
+        { "label": "Restart", "command": "container-restart", "args": "<container>" },
+        { "label": "Show Its First Rows", "command": "db-first-rows", "args": "<schema> <table> [connection]" },
+        { "label": "Copy Name", "command": "db-copy-name", "args": "<name>" },
+        { "label": "Read Again", "command": "db-read-again", "args": "[schema [kind]]" },
+        { "label": "Join Again", "command": "remote-rejoin" },
+        { "label": "Copy Address", "command": "remote-copy-address" }
+      ]
+    },
+    {
+      "title": "Debugger",
+      "popup": true,
+      "items": [
+        { "label": "Edit Breakpoint…", "command": "breakpoint-edit", "args": "<file> <line> [condition [hits [message]]]" },
+        { "label": "Add Message Breakpoint…", "command": "breakpoint-message", "args": "<file> <line> [message]" },
+        { "label": "Remove Breakpoint", "command": "breakpoint-remove", "args": "<file> <line>" },
+        { "label": "Stop on an Exception", "command": "debug-exception", "args": "<exception> [on|off]" },
+        { "label": "Show Bytecode or Instructions", "command": "frame-code", "args": "[frame]" },
+        { "label": "Keep Value", "command": "variable-keep", "args": "<variable>" },
+        { "label": "Compare with Kept", "command": "variable-compare", "args": "<variable> [kept]" },
+        { "label": "Stop When It Changes", "command": "variable-watch", "args": "<variable>" },
+        { "label": "Show Memory", "command": "variable-memory", "args": "<variable>" },
+        { "label": "Values Through the Run", "command": "variable-history", "args": "<variable>" }
+      ]
+    },
+    {
+      "title": "Layout",
+      "popup": true,
+      "items": [
+        { "label": "Dock a Tool Window", "command": "tool-dock", "args": "<tool> <left|right|bottom>" },
+        { "label": "An Icon on the Strip", "command": "strip-icon", "args": "<icon> [on|off]" },
+        { "label": "Open a Pane", "command": "pane-open", "args": "<pane>" },
+        { "label": "Fold", "command": "group-fold", "args": "<group> [on|off]" },
+        { "label": "Rename Group…", "command": "group-rename", "args": "<group> [name]" },
+        { "label": "Ungroup", "command": "group-ungroup", "args": "<group>" },
+        { "label": "Close the Group's Tabs", "command": "group-close", "args": "<group>" },
+        { "label": "Move Up", "command": "mark-up", "args": "<file>" },
+        { "label": "Let Go", "command": "mark-let-go", "args": "<file>" },
+        { "label": "Stop Servers No Open Tab Needs", "command": "servers-stop-idle" },
+        { "label": "Keys…", "command": "macro-keys", "args": "<macro> [keys]" },
+        { "label": "Forget", "command": "macro-forget", "args": "<macro>" }
+      ]
+    },
+    {
+      "title": "Lists",
+      "popup": true,
+      "items": [
+        { "label": "Switch", "command": "branch-switch", "args": "<branch>" },
+        { "label": "Merge", "command": "branch-merge", "args": "<branch>" },
+        { "label": "Rebase onto It", "command": "branch-rebase", "args": "<branch>" },
+        { "label": "Rename…", "command": "branch-rename", "args": "<branch> [name]" },
+        { "label": "Delete", "command": "branch-delete", "args": "<branch>" },
+        { "label": "Apply", "command": "stash-apply", "args": "<stash>" },
+        { "label": "Pop", "command": "stash-pop", "args": "<stash>" },
+        { "label": "Drop", "command": "stash-drop", "args": "<stash>" },
+        { "label": "Run", "command": "test-run", "args": "<test|file>..." },
+        { "label": "Run with Coverage", "command": "test-cover", "args": "<test|file>..." },
+        { "label": "Debug", "command": "test-debug", "args": "<test>" },
+        { "label": "Open", "command": "profile-open", "args": "<function>" },
+        { "label": "Zoom to", "command": "profile-zoom", "args": "<function>" },
+        { "label": "Zoom Out", "command": "profile-zoom-out" },
+        { "label": "Show the Whole Run", "command": "profile-whole" },
+        { "label": "Quick Fix", "command": "quick-fix-apply", "args": "<title>" }
+      ]
+    },
+    {
+      "title": "Preferences",
+      "popup": true,
+      "items": [
+        { "label": "Zoom", "command": "prefs-zoom", "args": "<percent>" },
+        { "label": "Language", "command": "prefs-language", "args": "<tag|system>" },
+        { "label": "Cores kept for you", "command": "prefs-cores", "args": "<count>" },
+        { "label": "Opacity", "command": "prefs-opacity", "args": "<bar|menu|pane|tab|editor|panel|sheet> <percent>" },
+        { "label": "Settings", "command": "prefs-setting", "args": "<trim|final-newline|vim-keys> [on|off]" },
+        { "label": "Fonts", "command": "prefs-font", "args": "<head|text|code|code-size> [font]" },
+        { "label": "Files", "command": "prefs-patterns", "args": "<explorer|search|watching> [pattern]..." },
+        { "label": "Sets of files to search", "command": "prefs-search-sets", "args": "[line]..." },
+        { "label": "Color Theme", "command": "theme-choose", "args": "<dark|light|theme>" },
+        { "label": "New", "command": "theme-new" },
+        { "label": "Delete", "command": "theme-delete" },
+        { "label": "Name", "command": "theme-rename", "args": "<name>" },
+        { "label": "Export", "command": "theme-export" },
+        { "label": "Import", "command": "theme-import" },
+        { "label": "Colors", "command": "theme-color", "args": "<name> [color]" },
+        { "label": "Image behind the editor", "command": "theme-image", "args": "[file]" },
+        { "label": "The image's share", "command": "theme-image-share", "args": "<percent>" },
+        { "label": "Remove", "command": "theme-image-remove" },
+        { "label": "File icons", "command": "theme-icon", "args": "<pattern> [mark] [color]" },
+        { "label": "Take this icon off", "command": "theme-icon-remove", "args": "<pattern>" },
+        { "label": "Keys from", "command": "keys-from", "args": "<set>" },
+        { "label": "A letter's key is", "command": "keys-letter", "args": "<character|place>" },
+        { "label": "Set…", "command": "key-set", "args": "<command> <keys>" },
+        { "label": "Take Off", "command": "key-off", "args": "<command> <keys>" },
+        { "label": "Reset", "command": "key-reset", "args": "<command>" },
+        { "label": "Show Again", "command": "notice-show-again", "args": "<kind>" },
+        { "label": "Your settings.json", "command": "settings-own" },
+        { "label": "The tree's settings.json", "command": "settings-tree" },
+        { "label": "File or folder", "command": "carry-place", "args": "[path]" },
+        { "label": "Send", "command": "carry-send", "args": "[path]" },
+        { "label": "Take…", "command": "carry-take", "args": "[path] [file|setting]..." },
+        { "label": "Undo", "command": "carry-undo", "args": "<taking>" }
       ]
     },
     {

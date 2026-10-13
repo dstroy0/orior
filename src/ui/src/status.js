@@ -24,7 +24,7 @@ export const status = {
   reads: new Map(),
   colors: { ahead: 0 },
   runs: new Map(),
-  unread: { files: false, symbols: false },
+  unread: { files: false, symbols: false, done: 0, of: 0, began: 0 },
   bridge: { keys: 0, maps: 0, rulesets: 0, at: 0 },
 };
 

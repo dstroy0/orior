@@ -59,11 +59,39 @@ fn local_only(app: &App) -> Result<(), String> {
 
 /// Answers a command of the tree's side by its name, as serve.rs answers it.
 #[tauri::command(async)]
-fn call(app: State<App>, name: String, args: serde_json::Value) -> Result<serde_json::Value, String> {
-    allocations::measured(&name, || match app.link.get() {
-        Some(link) => link.call(&name, args),
-        None => app.server.call(&name, args),
+fn call(handle: AppHandle, app: State<App>, name: String, args: serde_json::Value) -> Result<serde_json::Value, String> {
+    match app.link.get() {
+        Some(link) if name == "files_bring" => bring_over(handle, link.clone(), args),
+        _ => tree_call(&app, &name, args),
+    }
+}
+
+/// A call of the tree's side: over the link where the tree is on another machine, and here where not.
+fn tree_call(app: &App, name: &str, args: serde_json::Value) -> Result<serde_json::Value, String> {
+    allocations::measured(name, || match app.link.get() {
+        Some(link) => link.call(name, args),
+        None => app.server.call(name, args),
     })
+}
+
+/// Files dropped on a window whose tree is on another machine: they are on this machine, and are read
+/// here and written there a part at a time on a thread of their own, each telling how far along it is
+/// as a copy on this machine does.
+fn bring_over(handle: AppHandle, link: Arc<Link>, args: serde_json::Value) -> Result<serde_json::Value, String> {
+    let into = args["into"].as_str().unwrap_or_default().to_string();
+    let paths: Vec<PathBuf> = args["paths"].as_array().map(|all| all.iter().filter_map(|one| one.as_str().map(PathBuf::from)).collect()).unwrap_or_default();
+    std::thread::spawn(move || {
+        let told = |path: &str, done: u64, size: u64| {
+            let _ = handle.emit("bring-progress", serde_json::json!({"path": path, "done": done, "size": size}));
+        };
+        let call = |name: &str, args: serde_json::Value| link.call(name, args);
+        let done = match orior_cli::files::bring_over(&call, &into, &paths, &told) {
+            Ok(brought) => serde_json::json!({"into": into, "brought": brought}),
+            Err(said) => serde_json::json!({"into": into, "error": said}),
+        };
+        let _ = handle.emit("bring-done", done);
+    });
+    Ok(serde_json::Value::Null)
 }
 
 /// The system's printers, and whether a page prints on them with no dialog of the system's.
@@ -279,14 +307,14 @@ fn app_exit(handle: AppHandle) {
 /// it. Empty where the clipboard holds no text.
 #[tauri::command]
 fn clip_read() -> String {
-    arboard::Clipboard::new().and_then(|mut clip| clip.get_text()).unwrap_or_default()
+    clip::with(|clip| clip.get_text()).unwrap_or_default()
 }
 
 /// Puts text on the system clipboard, written here so the page never asks the reader for leave to
 /// write it.
 #[tauri::command]
 fn clip_write(text: String) -> Result<(), String> {
-    arboard::Clipboard::new().and_then(|mut clip| clip.set_text(text)).map_err(|error| error.to_string())
+    clip::with(|clip| clip.set_text(text))
 }
 
 /// Keeps the page's changed entries in orior's own folder, each key starting `orior.` with its new
@@ -646,7 +674,7 @@ fn highlight_lines(key: String, state: String, lines: Vec<String>) -> Result<ori
 /// answers its shape for the page to compare with its own; null where the file is not text.
 #[tauri::command(async)]
 fn document_read(app: State<App>, key: String, path: String) -> Result<Option<orior_cli::document::Shape>, String> {
-    let opened = call(app.clone(), "file_read".into(), serde_json::json!({ "path": path }))?;
+    let opened = tree_call(&app, "file_read", serde_json::json!({ "path": path }))?;
     if let Some(text) = opened.get("text").and_then(|text| text.as_str()) {
         return Ok(Some(orior_cli::document::hold(&key, text)));
     }
@@ -654,7 +682,7 @@ fn document_read(app: State<App>, key: String, path: String) -> Result<Option<or
         return Ok(None);
     }
     let size = opened.get("size").and_then(|size| size.as_u64()).unwrap_or(0);
-    let slice = call(app, "file_slice".into(), serde_json::json!({ "path": path, "start": 0, "end": size }))?;
+    let slice = tree_call(&app, "file_slice", serde_json::json!({ "path": path, "start": 0, "end": size }))?;
     Ok(slice.get("text").and_then(|text| text.as_str()).map(|text| orior_cli::document::hold(&key, text)))
 }
 
@@ -682,7 +710,7 @@ fn document_release(key: String) {
 #[tauri::command(async)]
 fn document_changes(app: State<App>, key: String, path: String, fresh: bool) -> Result<Option<orior_cli::document::Marks>, String> {
     if fresh || !orior_cli::document::has_head(&key) {
-        let head = call(app, "file_head".into(), serde_json::json!({ "path": path }))?;
+        let head = tree_call(&app, "file_head", serde_json::json!({ "path": path }))?;
         return Ok(orior_cli::document::marks(&key, Some(head.as_str())));
     }
     Ok(orior_cli::document::marks(&key, None))
@@ -1162,6 +1190,7 @@ fn open(launch: Launch) {
             // The door of the comms layer is open from the start, for every process the container
             // starts to join.
             let _ = server.open_door();
+            let _ = server.open_to_command_line();
             server.watch();
             if let Some(address) = remote {
                 let handle = app.handle().clone();
@@ -1286,6 +1315,7 @@ fn open(launch: Launch) {
         .run(|handle, event| {
             // A language server orior started ends with it: on Windows a child outlives its parent.
             if let tauri::RunEvent::Exit = event {
+                orior_cli::reach::forget();
                 handle.state::<App>().server.stop_all();
                 if let Some(link) = handle.state::<App>().link.get() {
                     link.end();

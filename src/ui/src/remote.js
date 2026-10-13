@@ -111,10 +111,16 @@ function items() {
     return null;
   }
   return [
-    { label: "Join Again", run: () => invoke("remote_rejoin").catch(() => {}) },
-    { label: "Copy Address", run: () => copyText(state.remote.address) },
+    { label: "Join Again", command: "remote-rejoin", args: [], run: () => remoteCommands["remote-rejoin"]([]) },
+    { label: "Copy Address", command: "remote-copy-address", args: [], run: () => remoteCommands["remote-copy-address"]([]) },
   ];
 }
+
+// The machine button's menu as commands, by the names commands.json gives them.
+export const remoteCommands = {
+  "remote-rejoin": () => invoke("remote_rejoin").catch(() => {}),
+  "remote-copy-address": () => (state.remote ? copyText(state.remote.address) : state.hooks?.say?.("This window's tree is on this machine: it has no address to copy.")),
+};
 
 // `hooks` says a word on the status bar, and is told when the link is joined, and whether it had
 // dropped before.
