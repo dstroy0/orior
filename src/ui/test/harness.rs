@@ -550,6 +550,15 @@ fn wait_started(conn: &Connection, page: &Page) -> Result<(), String> {
     Err("the window did not finish starting in 90 s".into())
 }
 
+/// What the page is told besides where each test server listens: the window's home and tree, and,
+/// once it is built, its program, for a test to run the command line on the window.
+fn told_window(env: &[(String, String)], run: &Path, tree: &Path) -> Vec<(String, String)> {
+    let mut told = env.to_vec();
+    told.push(("ORIOR_TEST_HOME".into(), run.join("home").display().to_string()));
+    told.push(("ORIOR_TEST_TREE".into(), tree.display().to_string()));
+    told
+}
+
 /// Runs the test files `files`, each a path under test/, in the window at `conn`, the page loaded
 /// fresh for each and told, as window.__harness.servers, where each test server listens.
 fn run_files(conn: &Arc<Connection>, page: &Arc<Page>, ui: &Path, files: &[String], servers: &[(String, String)], report: &mut Report) {
@@ -714,6 +723,7 @@ fn main() -> ExitCode {
     if options.window && !tests.is_empty() && options.webdriver {
         println!("window, through WebDriver");
         let tree = run.join("tree");
+        let mut told = told_window(&env, &run, &tree);
         let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
             .map_err(|error| format!("the run's tree: {error}"))
             .and_then(|_| own_repository(&tree))
@@ -721,6 +731,7 @@ fn main() -> ExitCode {
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
             .and_then(|_| driven::build(&ui, &here))
             .and_then(|program| {
+                told.push(("ORIOR_TEST_PROGRAM".into(), program.display().to_string()));
                 let extra: Vec<(String, String)> = env.iter().filter(|(key, _)| key == "ORIOR_TEST_SSH").map(|(_, value)| ("ORIOR_SSH".to_string(), value.clone())).collect();
                 driven::start(&program, &run, &tree, &extra)
             });
@@ -730,13 +741,14 @@ fn main() -> ExitCode {
                 report.files.push(("the window".into(), vec![Outcome { name: "it starts".into(), ok: false, ms: 0, error }], Vec::new()));
             }
             Ok(driven) => {
-                driven::run_files(&driven, &here, &tests, &env, &mut report);
+                driven::run_files(&driven, &here, &tests, &told, &mut report);
                 input::stop_started();
             }
         }
     } else if options.window && !tests.is_empty() {
         println!("window");
         let tree = run.join("tree");
+        let mut told = told_window(&env, &run, &tree);
         let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
             .map_err(|error| format!("the run's tree: {error}"))
             .and_then(|_| own_repository(&tree))
@@ -744,6 +756,7 @@ fn main() -> ExitCode {
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
             .and_then(|_| window::build(&ui, &here.join("target").join("app")))
             .and_then(|program| {
+                told.push(("ORIOR_TEST_PROGRAM".into(), program.display().to_string()));
                 // The window's tunnels go through the harness's own ssh, its config and its key.
                 let extra: Vec<(String, String)> = env.iter().filter(|(key, _)| key == "ORIOR_TEST_SSH").map(|(_, value)| ("ORIOR_SSH".to_string(), value.clone())).collect();
                 window::start(&program, &ui, &run, &tree, options.monitor, &extra)
@@ -768,7 +781,7 @@ fn main() -> ExitCode {
                         Err(error) => report.said.push(format!("the window's debugging port: {error}")),
                         Ok(()) => {
                             window::keep_placed(&shown, options.monitor);
-                            run_files(&conn, &page, &ui, &tests, &env, &mut report);
+                            run_files(&conn, &page, &ui, &tests, &told, &mut report);
                             input::stop_started();
                         }
                     }

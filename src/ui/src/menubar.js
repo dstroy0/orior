@@ -601,6 +601,9 @@ const CHECKS = {
   "macro-recording": recording,
 };
 
+// Whether the item that is on or off by the name `name` is on, as its menu shows it.
+export const isChecked = (name) => Boolean(CHECKS[name]?.());
+
 // What a command needs before it can act, by the name commands.json gives the need.
 const NEEDS = {
   editor: () => Boolean(editing().editor),
