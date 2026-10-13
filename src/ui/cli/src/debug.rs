@@ -26,7 +26,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -320,15 +320,22 @@ pub struct Debugger {
 /// adapter of the first toolchain that has one for it on this system and is found, and that
 /// toolchain's id, whose compiler then builds the program so that its debugger reads what it wrote.
 fn adapter_for(language: &str) -> Result<(DebuggerSpec, String, String, PathBuf), String> {
+    adapter_preferring(language, "")
+}
+
+/// The debugger for `language`, as `adapter_for` finds it, the toolchain `ahead` names tried first:
+/// the debugger of the compiler that built the program, gdb for GCC's.
+fn adapter_preferring(language: &str, ahead: &str) -> Result<(DebuggerSpec, String, String, PathBuf), String> {
     let tools = toolchains::manifest();
     let system = toolchains::system();
-    let named: Vec<&toolchains::Tool> = tools
+    let mut named: Vec<&toolchains::Tool> = tools
         .iter()
         .filter(|tool| tool.debugger.as_ref().is_some_and(|spec| spec.languages.iter().any(|one| one == language) && (spec.systems.is_empty() || spec.systems.iter().any(|one| one == system))))
         .collect();
     if named.is_empty() {
         return Err(format!("orior has no debugger for {language}"));
     }
+    named.sort_by_key(|tool| tool.id != ahead);
     let path_folders = toolchains::path_folders();
     let kept = toolchains::chosen();
     for tool in &named {
@@ -340,6 +347,27 @@ fn adapter_for(language: &str) -> Result<(DebuggerSpec, String, String, PathBuf)
     }
     let names: Vec<&str> = named.iter().map(|tool| tool.name.as_str()).collect();
     Err(format!("{} debugs it, and is not found: File, Toolchains opens its install page or takes its folder", names.join(" or ")))
+}
+
+/// Builds `made` as its own build builds it, with the build's own compiler and words, and gives the
+/// program it makes.
+fn build_program(made: &crate::compile_db::Program) -> Result<PathBuf, String> {
+    let tool = crate::executables::program(&made.tool, &made.tool)?;
+    let mut command = Command::new(&tool);
+    if made.tool == "meson" {
+        command.arg("compile").arg("-C").arg(&made.build).arg(&made.target);
+    } else {
+        command.arg("--build").arg(&made.build).args(["--target", &made.target, "--config", &made.config]);
+    }
+    command.env("PATH", toolchains::run_path()).stdin(Stdio::null());
+    crate::runner::quiet(&mut command);
+    let out = command.output().map_err(|error| format!("{}: {error}", tool.display()))?;
+    if !out.status.success() {
+        let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        let tail: Vec<&str> = said.lines().filter(|line| !line.trim().is_empty()).collect();
+        return Err(format!("The build of {} failed:\n{}", made.target, tail[tail.len().saturating_sub(12)..].join("\n")));
+    }
+    Ok(made.program.clone())
 }
 
 /// Builds the file at `path` for debugging where its language is built, with the toolchain `ahead`
@@ -551,16 +579,27 @@ impl Debugger {
             Start::Child { .. } => parent_language.clone().unwrap_or_else(|| "python".to_string()),
         };
         let recording = matches!(start, Start::Record { .. });
+        // A C or C++ file of a CMake or Meson program orior configured: the program the build makes from it
+        // (compile_db.rs), debugged under its compiler's debugger.
+        let made = match start {
+            Start::File { path, language } if language == "c" => crate::compile_db::program_of(root, &crate::root::full(root, path)),
+            _ => None,
+        };
         let (spec, tool, tool_id, adapter_program) = if recording {
             let spec = DebuggerSpec { program: "orior".into(), args: Vec::new(), languages: vec![language.clone()], launch: json!({}), attach: None, path: HashMap::new(), systems: Vec::new(), setup: None };
             (spec, "orior's recorder".to_string(), String::new(), PathBuf::new())
+        } else if let Some(made) = &made {
+            adapter_preferring(&language, if made.compiler == "GNU" { "gcc" } else { "llvm" })?
         } else {
             adapter_for(&language)?
         };
         let (request, mut arguments, name, parent) = match start {
             Start::File { path, .. } => {
                 let file = crate::root::full(root, path);
-                let program = build(root, &file, &language, &tool_id)?;
+                let program = match &made {
+                    Some(made) => Some(build_program(made)?),
+                    None => build(root, &file, &language, &tool_id)?,
+                };
                 let names = [
                     ("program", program.as_ref().map_or_else(|| file.display().to_string(), |out| out.display().to_string())),
                     ("path", file.display().to_string()),
@@ -1459,6 +1498,81 @@ mod tests {
         debugger.step(id, "continue", thread).unwrap();
         wait_for(&heard, id, &["terminated", "exited"]);
         debugger.stop(id);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[ignore = "configures and builds with CMake and starts its compiler's debugger where they are installed"]
+    fn a_file_of_a_cmake_program_is_debugged_in_the_program_its_build_makes() {
+        let dir = std::env::temp_dir().join(format!("orior-debug-cmake-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::create_dir_all(dir.join("include")).unwrap();
+        std::fs::write(dir.join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.16)\nproject(probe C)\nadd_executable(probe src/main.c src/helper.c)\ntarget_include_directories(probe PRIVATE include)\ntarget_compile_definitions(probe PRIVATE NEEDED=1)\n").unwrap();
+        std::fs::write(dir.join("include").join("thing.h"), "static int thing(void) { return NEEDED; }\n").unwrap();
+        std::fs::write(dir.join("src").join("helper.c"), "int helper(void) { return 3; }\n").unwrap();
+        std::fs::write(dir.join("src").join("main.c"), "#include \"thing.h\"\nint helper(void);\nint main(void)\n{\n    int y = thing() + helper();\n    y = y * 2;\n    return y - 8;\n}\n").unwrap();
+        // As orior's CMake job configures it: its file API asked, into build/cmake/Debug.
+        let build = dir.join("build").join("cmake").join("Debug");
+        let query = build.join(".cmake").join("api").join("v1").join("query");
+        std::fs::create_dir_all(&query).unwrap();
+        for kind in ["codemodel-v2", "toolchains-v1"] {
+            std::fs::write(query.join(kind), "").unwrap();
+        }
+        let configured = std::process::Command::new("cmake").arg("-S").arg(&dir).arg("-B").arg(&build).arg("-DCMAKE_BUILD_TYPE=Debug").output().unwrap();
+        assert!(configured.status.success(), "{}", String::from_utf8_lossy(&configured.stderr));
+        let (sender, heard) = mpsc::channel();
+        let sender = Mutex::new(sender);
+        let emit: Emit = Arc::new(move |id, event, body| {
+            let _ = sender.lock().unwrap().send((id, event.to_string(), body));
+        });
+        let debugger = Debugger::default();
+        let options = Options { breakpoints: HashMap::from([("src/main.c".to_string(), vec![Breakpoint { line: 5, ..Breakpoint::default() }])]), ..Options::default() };
+        let info = debugger.start(&dir, &Start::File { path: "src/main.c".into(), language: "c".into() }, &options, emit).unwrap_or_else(|said| panic!("{said}"));
+        let (_, stopped) = wait_for(&heard, info.id, &["stopped", "terminated"]);
+        let thread = stopped["threadId"].as_i64().unwrap_or_else(|| debugger.threads(info.id).unwrap()[0].id);
+        let frames = debugger.stack(info.id, thread).unwrap();
+        assert_eq!(frames[0].line, 5, "{frames:?}");
+        let value = debugger.evaluate(info.id, "y", Some(frames[0].id), "watch").unwrap().value;
+        assert!(value.contains('4'), "the build's define and its other source in the value: {value}");
+        debugger.step(info.id, "continue", thread).unwrap();
+        wait_for(&heard, info.id, &["terminated", "exited"]);
+        debugger.stop(info.id);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[ignore = "configures and builds with Meson and starts its compiler's debugger where they are installed"]
+    fn a_file_of_a_meson_program_is_debugged_in_the_program_its_build_makes() {
+        let dir = std::env::temp_dir().join(format!("orior-debug-meson-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::create_dir_all(dir.join("include")).unwrap();
+        std::fs::write(dir.join("meson.build"), "project('probe', 'c')\nexecutable('probe', 'src/main.c', 'src/helper.c', include_directories: include_directories('include'), c_args: ['-DNEEDED=1'])\n").unwrap();
+        std::fs::write(dir.join("include").join("thing.h"), "static int thing(void) { return NEEDED; }\n").unwrap();
+        std::fs::write(dir.join("src").join("helper.c"), "int helper(void) { return 3; }\n").unwrap();
+        std::fs::write(dir.join("src").join("main.c"), "#include \"thing.h\"\nint helper(void);\nint main(void)\n{\n    int y = thing() + helper();\n    y = y * 2;\n    return y - 8;\n}\n").unwrap();
+        // As orior's Meson job sets it up, into build/meson/debug.
+        let build = dir.join("build").join("meson").join("debug");
+        let set_up = std::process::Command::new("meson").arg("setup").arg(&build).arg(&dir).arg("--buildtype=debug").output().unwrap();
+        assert!(set_up.status.success(), "{}", String::from_utf8_lossy(&set_up.stdout));
+        let (sender, heard) = mpsc::channel();
+        let sender = Mutex::new(sender);
+        let emit: Emit = Arc::new(move |id, event, body| {
+            let _ = sender.lock().unwrap().send((id, event.to_string(), body));
+        });
+        let debugger = Debugger::default();
+        let options = Options { breakpoints: HashMap::from([("src/main.c".to_string(), vec![Breakpoint { line: 5, ..Breakpoint::default() }])]), ..Options::default() };
+        let info = debugger.start(&dir, &Start::File { path: "src/main.c".into(), language: "c".into() }, &options, emit).unwrap_or_else(|said| panic!("{said}"));
+        let (_, stopped) = wait_for(&heard, info.id, &["stopped", "terminated"]);
+        let thread = stopped["threadId"].as_i64().unwrap_or_else(|| debugger.threads(info.id).unwrap()[0].id);
+        let frames = debugger.stack(info.id, thread).unwrap();
+        assert_eq!(frames[0].line, 5, "{frames:?}");
+        let value = debugger.evaluate(info.id, "y", Some(frames[0].id), "watch").unwrap().value;
+        assert!(value.contains('4'), "the build's define and its other source in the value: {value}");
+        debugger.step(info.id, "continue", thread).unwrap();
+        wait_for(&heard, info.id, &["terminated", "exited"]);
+        debugger.stop(info.id);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

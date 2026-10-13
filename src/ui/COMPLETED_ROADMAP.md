@@ -2,6 +2,10 @@
 
 What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each time given is measured with real keys on a file of 2,677 lines, from the key's press to the screen showing its answer.
 
+## Getting set up to work
+
+1. **One compiler for the build, the code help and the debugger.** A tree that holds its own compilation database keeps it; otherwise orior writes build/orior/compile_commands.json from the builds it configured: each CMake project's targets from CMake's file API, for every generator, Visual Studio's among them, and each Meson build's own database. clangd reads it, asks each compiler but MSVC's cl for its own headers and target, runs in Visual Studio's environment where the compiler is cl, and is started again when a build is configured anew. Debug on a C or C++ file of a CMake or Meson program builds its target with the build itself, from a configuration with debugging information where one is configured, and debugs the program the build makes, under gdb where GCC built it and lldb-dap where Clang or MSVC did. A file that needs its build's include folder and define, in a program of two files, is read by clangd with no error and stopped in at its breakpoint with the value both give: with MSVC through Visual Studio's generator on Windows, and with GCC through Makefiles and through Meson on Linux. Before, clangd read two errors in it and Debug did not find its header. A file no build holds is read by clangd's own default and built for Debug by the debugger's own compiler.
+
 ## When it opens
 
 1. **Nothing in the way as it opens.** The window opens on the tree and the tabs left, with no page of welcome, of release notes, of walkthroughs or of plugins to try, and no plugin updates as it opens. Help, What's New shows what each release changed, from CHANGES.md, for the reader who asks. Not again, beside a notice on the status bar, puts that kind of notice away for good, a number in it read as any, and the bell still keeps it; Preferences, Notices, brings a kind back.

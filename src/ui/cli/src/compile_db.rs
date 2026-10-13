@@ -324,6 +324,85 @@ fn cmake_entries(index: &Path) -> Option<(String, Vec<Value>)> {
     Some((source.display().to_string(), entries))
 }
 
+/// A program a CMake or Meson build orior configured makes from a source: the build tool, cmake or
+/// meson, the build's folder, the target's name, the configuration, the program's path, and the
+/// source's compiler as GNU, Clang or MSVC.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Program {
+    pub tool: String,
+    pub build: PathBuf,
+    pub target: String,
+    pub config: String,
+    pub program: PathBuf,
+    pub compiler: String,
+}
+
+/// The program a CMake or Meson build orior configured makes from `file`, where one does: from a
+/// configuration with debugging information, Debug or RelWithDebInfo, or Meson's debug or
+/// debugoptimized, where one is configured, and from the one configured last where not.
+pub fn program_of(root: &Path, file: &Path) -> Option<Program> {
+    let same = |path: &str| {
+        let path = path.replace('\\', "/");
+        if cfg!(windows) { path.to_lowercase() } else { path }
+    };
+    let wanted = same(&file.display().to_string());
+    let mut found: Vec<(bool, SystemTime, Program)> = Vec::new();
+    for reply in folders_named(&root.join("build").join("cmake"), &[".cmake", "api", "v1", "reply"]) {
+        let Some((index, time)) = std::fs::read_dir(&reply).into_iter().flatten().flatten().map(|entry| entry.path()).filter(|path| path.file_name().is_some_and(|name| name.to_string_lossy().starts_with("index-"))).max().and_then(stamped) else { continue };
+        let Some(told) = read_json(&index) else { continue };
+        let Some(model) = told["reply"]["codemodel-v2"]["jsonFile"].as_str().and_then(|file| read_json(&reply.join(file))) else { continue };
+        let mut ids: HashMap<String, String> = HashMap::new();
+        if let Some(chains) = told["reply"]["toolchains-v1"]["jsonFile"].as_str().and_then(|file| read_json(&reply.join(file))) {
+            for one in chains["toolchains"].as_array().into_iter().flatten() {
+                if let (Some(language), Some(id)) = (one["language"].as_str(), one["compiler"]["id"].as_str()) {
+                    ids.insert(language.to_string(), id.to_string());
+                }
+            }
+        }
+        let (Some(source), Some(build)) = (model["paths"]["source"].as_str(), model["paths"]["build"].as_str()) else { continue };
+        let named = Path::new(build).file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
+        let configurations = model["configurations"].as_array().cloned().unwrap_or_default();
+        let Some(configuration) = configurations.iter().find(|one| one["name"].as_str().is_some_and(|name| name.eq_ignore_ascii_case(&named))).or_else(|| configurations.first()) else { continue };
+        let config = configuration["name"].as_str().unwrap_or_default().to_string();
+        for target in configuration["targets"].as_array().into_iter().flatten() {
+            let Some(target) = target["jsonFile"].as_str().and_then(|file| read_json(&reply.join(file))) else { continue };
+            if target["type"] != "EXECUTABLE" {
+                continue;
+            }
+            let sources = target["sources"].as_array().cloned().unwrap_or_default();
+            let Some(at) = sources.iter().position(|one| one["path"].as_str().is_some_and(|path| {
+                let full = if Path::new(path).is_absolute() { PathBuf::from(path) } else { Path::new(source).join(path) };
+                same(&full.display().to_string()) == wanted
+            })) else { continue };
+            let language = sources[at]["compileGroupIndex"].as_u64().and_then(|group| target["compileGroups"][group as usize]["language"].as_str()).unwrap_or("C");
+            let Some(program) = target["artifacts"].as_array().into_iter().flatten().filter_map(|one| one["path"].as_str()).find(|path| !path.ends_with(".pdb") && !path.ends_with(".lib")) else { continue };
+            let program = if Path::new(program).is_absolute() { PathBuf::from(program) } else { Path::new(build).join(program) };
+            let debugging = ["debug", "relwithdebinfo"].contains(&config.to_lowercase().as_str());
+            found.push((debugging, time, Program { tool: "cmake".into(), build: PathBuf::from(build), target: target["name"].as_str().unwrap_or_default().to_string(), config: config.clone(), program, compiler: ids.get(language).cloned().unwrap_or_default() }));
+        }
+    }
+    // Meson's: the targets it writes to meson-info/intro-targets.json as it configures, each source
+    // and program by its whole path.
+    for info in folders_named(&root.join("build").join("meson"), &["meson-info"]) {
+        let Some((targets, time)) = stamped(info.join("intro-targets.json")) else { continue };
+        let Some(build) = info.parent() else { continue };
+        let config = build.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
+        for target in read_json(&targets).and_then(|all| all.as_array().cloned()).unwrap_or_default() {
+            if target["type"] != "executable" {
+                continue;
+            }
+            let Some(group) = target["target_sources"].as_array().into_iter().flatten().find(|group| group["sources"].as_array().into_iter().flatten().filter_map(Value::as_str).any(|path| same(path) == wanted)) else { continue };
+            let Some(program) = target["filename"].as_array().and_then(|names| names.first()).and_then(Value::as_str) else { continue };
+            let compiler = group["compiler"].as_array().and_then(|words| words.first()).and_then(Value::as_str).unwrap_or_default();
+            let stem = Path::new(compiler).file_stem().map(|stem| stem.to_string_lossy().to_lowercase()).unwrap_or_default();
+            let id = if stem == "cl" { "MSVC" } else if stem.contains("clang") { "Clang" } else { "GNU" };
+            let debugging = ["debug", "debugoptimized"].contains(&config.to_lowercase().as_str());
+            found.push((debugging, time, Program { tool: "meson".into(), build: build.to_path_buf(), target: target["name"].as_str().unwrap_or_default().to_string(), config: config.clone(), program: PathBuf::from(program), compiler: id.into() }));
+        }
+    }
+    found.into_iter().max_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1))).map(|(_, _, program)| program)
+}
+
 /// Visual Studio's environment, as its vcvars64.bat sets it, for a program that runs as cl does:
 /// read once, from the newest Visual Studio with its C++ tools that vswhere finds.
 pub fn vs_environment() -> Option<Vec<(String, String)>> {
