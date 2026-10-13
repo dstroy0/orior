@@ -217,13 +217,19 @@ pub fn used_most(given: Option<&str>) -> i64 {
     given.and_then(|v| v.trim().parse().ok()).unwrap_or(10)
 }
 
+/// 1 where a line of `apps`, nvidia-smi's processes on the part, names a program under `root`,
+/// whichever separators and case the host writes the path with.
+fn on_the_part(apps: &str, root: &Path) -> bool {
+    let top = text(root).to_ascii_lowercase();
+    apps.lines().any(|line| line.replace('\\', "/").to_ascii_lowercase().contains(&top))
+}
+
 /// Whether the part is free: no process of the tree on it, and its use at most `QRY_PART_USED`
 /// percent, 10 where it is not set, over five readings a second apart. Why not, where it is not.
 pub fn part_free(context: &Context) -> Result<(), String> {
     let smi = context.program(Role::NvidiaSmi).map_err(|_| "no nvidia-smi: the part is not read".to_string())?;
     let apps = std::process::Command::new(&smi).args(["--query-compute-apps=process_name", "--format=csv,noheader"]).output().map_err(|e| e.to_string())?;
-    let top = text(context.root).to_ascii_lowercase();
-    if String::from_utf8_lossy(&apps.stdout).lines().any(|line| line.to_ascii_lowercase().contains(&top)) {
+    if on_the_part(&String::from_utf8_lossy(&apps.stdout), context.root) {
         return Err("a process of the tree is on the part".into());
     }
     let most = used_most(std::env::var("QRY_PART_USED").ok().as_deref());
@@ -455,6 +461,15 @@ mod keeping {
         assert!(account_read("nothing here").is_none());
         let still = account_read("1 blobs handed, 0 dumped, 10 bytes in 1 writes, the slowest 0.100 ms for 10 bytes, 0.000 ms writing in all; 0 panics, the slowest 0.000 ms from its hand to the disk").unwrap();
         assert_eq!(still.rate(), 0.0, "no time writing is no rate");
+    }
+
+    #[test]
+    fn a_process_of_the_tree_on_the_part_is_found_whichever_way_its_path_is_written() {
+        let root = Path::new("C:/Users/x/anchor_sift");
+        assert!(on_the_part("C:\\Users\\x\\anchor_sift\\build\\engine\\cubin_run.exe\n", root), "nvidia-smi writes the host's separators");
+        assert!(on_the_part("c:/users/x/anchor_sift/build/engine/khw_write.exe\n", root), "and either case");
+        assert!(!on_the_part("C:\\Users\\x\\other_tree\\build\\engine\\cubin_run.exe\n", root));
+        assert!(!on_the_part("", root));
     }
 
     #[test]
