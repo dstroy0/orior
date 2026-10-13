@@ -338,6 +338,45 @@ fn swept_within(folder: &Path, hours: u64) -> bool {
     run::each(folder).into_iter().any(|(_, held)| held.extension().is_some_and(|e| e == "qry") && std::fs::metadata(&held).and_then(|m| m.modified()).is_ok_and(|m| m > since))
 }
 
+/// Why no crystal is made this time, said before any folder: the part not free, its reading on a
+/// line of its own, or the crystal's program not built. Nothing where a crystal is to be made.
+fn crystals_refused(free: &Result<(), String>, crystal: Option<&Path>) -> Vec<String> {
+    match (free, crystal) {
+        (Err(why), _) => vec!["  no run is kept as its crystal this time:".into(), format!("  {why}")],
+        (Ok(()), None) => vec!["  no run is kept as its crystal this time: the crystal's program is not built".into()],
+        _ => Vec::new(),
+    }
+}
+
+/// What the keepers say of the folders, sorted into the writers' accounts, the crystals' lines and
+/// the runs kept.
+pub struct Said {
+    pub writers: Vec<String>,
+    pub crystals: Vec<String>,
+    pub kept: Vec<String>,
+}
+
+/// Every folder given kept and its writers read; the sweeps' folder like the rest but made no
+/// crystal.
+pub fn folders_said(root: &Path, programs: &dyn Programs, folders: &[PathBuf], sweeps: &Path, crystal: Option<&Path>, most: usize, own: &Writer) -> Said {
+    let mut said = Said { writers: Vec::new(), crystals: Vec::new(), kept: Vec::new() };
+    for folder in folders {
+        let crystal_here = if crate::run::plain(folder) == crate::run::plain(sweeps) { None } else { crystal };
+        let mut lines = Vec::new();
+        kept_folder(root, programs, folder, crystal_here, most, own, &mut |line| lines.push(line.to_string()));
+        for line in lines {
+            if line.contains(" runs kept") || line.contains("left as it is") {
+                said.kept.push(line);
+            } else if line.contains("crystal") || line.contains(" ms") && !line.contains("ms writing") {
+                said.crystals.push(line);
+            } else {
+                said.writers.push(line);
+            }
+        }
+    }
+    said
+}
+
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     if !words.is_empty() {
         return Err("kept takes no words".into());
@@ -349,32 +388,12 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
         Ok(()) => crystal_built(context),
         Err(_) => None,
     };
-    let mut crystals_said = Vec::new();
-    match (&free, &crystal) {
-        (Err(why), _) => crystals_said.push(format!("  no run is kept as its crystal this time: {why}")),
-        (Ok(()), None) => crystals_said.push("  no run is kept as its crystal this time: the crystal's program is not built".into()),
-        _ => {}
-    }
-    let mut writers_said = Vec::new();
-    let mut kept_said = Vec::new();
+    let mut crystals_said = crystals_refused(&free, crystal.as_deref());
     let sweeps = context.at(SWEEPS);
-    let most = run::kept_most();
-    for folder in folders_with_runs(context.root) {
-        if crate::run::plain(&folder) == crate::run::plain(&sweeps) {
-            continue;
-        }
-        let mut said = Vec::new();
-        kept_folder(context.root, context.programs, &folder, crystal.as_deref(), most, own.writer(), &mut |line| said.push(line.to_string()));
-        for line in said {
-            if line.contains(" runs kept") || line.contains("left as it is") {
-                kept_said.push(line);
-            } else if line.contains("crystal") || line.contains(" ms") && !line.contains("ms writing") {
-                crystals_said.push(line);
-            } else {
-                writers_said.push(line);
-            }
-        }
-    }
+    let said = folders_said(context.root, context.programs, &folders_with_runs(context.root), &sweeps, crystal.as_deref(), run::kept_most(), own.writer());
+    let writers_said = said.writers;
+    crystals_said.extend(said.crystals);
+    let kept_said = said.kept;
     for (name, lines) in [("writers", &writers_said), ("crystals", &crystals_said), ("kept", &kept_said)] {
         own.writer().hand(name, format!("{}\n", lines.join("\n")).as_bytes(), Priority::Ordinary)?;
         for line in lines {
@@ -463,6 +482,40 @@ mod keeping {
         std::fs::write(base.join("b/other.qry"), "").unwrap();
         assert_eq!(folders_with_runs(&base), [base.join("a").join("qry")]);
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn the_sweeps_folder_is_kept_and_read_but_made_no_crystal() {
+        if OnPath.program(Role::C).is_err() {
+            return;
+        }
+        let root = crate::tree_root();
+        let base = root.join("build/query_test/kept_sweeps");
+        let _ = std::fs::remove_dir_all(&base);
+        let live = Run::started(&root, &base.join("own"), &OnPath).unwrap();
+        let sweeps = base.join("sweep").join("qry");
+        let other = base.join("other").join("qry");
+        std::fs::create_dir_all(&sweeps).unwrap();
+        std::fs::create_dir_all(&other).unwrap();
+        std::fs::write(sweeps.join("query1-20250101T000001.qry"), "").unwrap();
+        std::fs::write(sweeps.join("query2-20250101T000002.qry"), "").unwrap();
+        std::fs::write(other.join("query1-20250101T000003.qry"), "").unwrap();
+        std::fs::write(other.join("query2-20250101T000004.qry"), "").unwrap();
+        let said = folders_said(&root, &OnPath, &[sweeps.clone(), other.clone()], &sweeps, Some(&base.join("no_crystal_here")), 64, live.writer());
+        assert!(said.kept.iter().any(|l| l.contains("sweep") && l.contains("2 of 2 runs kept")), "{:?}", said.kept);
+        assert!(said.crystals.iter().any(|l| l.contains("000003")), "{:?}", said.crystals);
+        assert!(!said.crystals.iter().any(|l| l.contains("000001") || l.contains("000002")), "{:?}", said.crystals);
+        drop(live);
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn the_part_held_used_is_said_on_a_line_of_its_own_as_the_script_says_it() {
+        let said = crystals_refused(&Err("the part is used 3 percent".into()), None);
+        assert_eq!(said, ["  no run is kept as its crystal this time:", "  the part is used 3 percent"]);
+        let unbuilt = crystals_refused(&Ok(()), None);
+        assert_eq!(unbuilt, ["  no run is kept as its crystal this time: the crystal's program is not built"]);
+        assert!(crystals_refused(&Ok(()), Some(Path::new("x"))).is_empty());
     }
 
     #[test]
