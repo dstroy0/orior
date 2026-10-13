@@ -188,7 +188,10 @@ fn engine(context: &mut Context) -> Result<i32, String> {
     run.read(&[table.join("cu.krs"), table.join("sass.krs"), table.join("sass.ksc"), table.join("sm_86.khw"), paths.cu.clone(), paths.sass.clone(), paths.tsv.clone()])?;
     run.left(&[table.join("sass.krs"), record.clone(), out.join("engine.tsv")]);
     if context.handed(&run, "assembler.log", &engine, &[&native(&paths.cu), &native(&paths.sass), &native(&out)])? != 0 {
-        return Err("the engine did not write the stick".into());
+        // the engine's refusal ends the loop as its script's did: the leaves handed as the run holds them, exit 1
+        context.say("  the engine did not write the stick");
+        context.ended(run)?;
+        return Ok(1);
     }
     read_back(context, &run, &nvdisasm, &out)?;
     let code = context.said(&run, &reader, &[&native(&paths.sass), &native(&paths.tsv), &native(&table.join("sass.krs")), &native(&record), &native(&out.join("engine.tsv")), &native(&out)])?;
