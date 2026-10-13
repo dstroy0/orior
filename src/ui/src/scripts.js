@@ -23,11 +23,15 @@
 // it was.
 
 import { invoke, onCalls } from "./bridge.js";
+import { motionReduced } from "./motion.js";
 import { pluginReadings, pluginsOff, setPluginOn } from "./plugins.js";
 import { say } from "./statusbar.js";
 
 // How long a plugin may go without answering before it is named stuck, and how often each is asked.
 const STUCK = 2000;
+
+// What a plugin's panel is drawn with where less motion is asked for.
+const STILL_PANEL = "<style>*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}</style>";
 const ASK = 1000;
 
 // The forms of the calls, each the code that sets `orior` in a plugin's worker before the plugin's own.
@@ -223,7 +227,8 @@ function drawPanels() {
         frame = element("iframe", { className: "plugin-panel-frame", title: String(panel.title ?? id) });
         frame.setAttribute("sandbox", "");
       }
-      const html = String(panel.html ?? "");
+      // A panel draws still where less motion is asked for, its animations and transitions ended.
+      const html = String(panel.html ?? "") + (motionReduced() ? STILL_PANEL : "");
       if (frame.dataset.html !== html) {
         frame.dataset.html = html;
         frame.srcdoc = html;

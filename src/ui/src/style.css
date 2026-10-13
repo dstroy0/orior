@@ -691,6 +691,19 @@ body[data-strip-edge] .strip-edge {
   z-index: 44;
 }
 
+/* Less motion asked for, by the system or by View, Reduce Motion: every animation and transition of the
+   page ends where it starts. */
+[data-reduced-motion] *,
+[data-reduced-motion] *::before,
+[data-reduced-motion] *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   body[data-strip-edge] .strip {
     transition: none;

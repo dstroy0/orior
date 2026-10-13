@@ -20,7 +20,7 @@
 // motion gets the eye held still and open, with one iris.
 
 import { cssOf, rgbOf, withAlpha } from "./colors.js";
-import { clock, still as paused, whenMoving } from "./motion.js";
+import { clock, motionReduced, still as paused, whenMoving } from "./motion.js";
 import { addArc, cornersOf, dusk, orchid, plasmaOn, plum } from "./plasma.js";
 
 const OPENING = 1.4;
@@ -853,7 +853,7 @@ const LIT = 0.6;
 export function startEye(canvas) {
   const pen = canvas.getContext("2d");
   const lit = canvas.parentElement?.querySelector("canvas.plasma") ?? null;
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const still = motionReduced();
   const draw = seeded(Date.now());
   const state = {
     open: still ? 1 : OPEN_FROM,

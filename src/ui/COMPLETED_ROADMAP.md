@@ -94,6 +94,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 8. **Waits that read as short.** A bar of progress, where the work tells its size, moves at one pace from one report to the next and never back, and faster toward its end: it draws the share done to the power 1.5, the words beside it saying the share as it is. Each file the editor reads a slice at a time shows one on the status bar, and so does a wait past ten seconds whose work tells its whole.
    - A bar that slows or stops near its end reads as a longer wait than the same time spent steadily.
 
+9. **Every motion stilled when asked.** The system's reduced motion, or orior's own View, Reduce Motion, stills every animation and transition of the window, its own drawing and the editor's glide, and a plugin's panel is drawn with its animations ended.
+
 ## Tools
 
 1. **Databases.** The Database window, from the tool strip or View, Database, holds the connections the tree's databases.json names, PostgreSQL, MySQL or MariaDB, and SQLite, each made, changed or taken out from its sheet. orior speaks PostgreSQL's and MySQL's protocols itself, SCRAM, md5 and the clear for one and the native and SHA-2 sign-ins for the other, and reads SQLite through the sqlite3 of the tree's Python, with no driver and nothing fetched. A password goes to the system's keychain only where the reader asks, and never to a file. A connection through ssh goes through the system's ssh, or the one ORIOR_SSH names, with the reader's config, keys and agent, and a tunnel that drops is made again at the next statement.

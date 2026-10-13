@@ -55,7 +55,7 @@ const ANSWERS = {
 };
 
 // What puts the window back after a command: its own press again for a setting that turns on and
-// off, and the command that closes what it opened.
+// off, and the command that closes what it opened. A setting the menus check is pressed again too.
 const AFTER = {
   "zoom-in": "zoom-reset",
   "zoom-out": "zoom-reset",
@@ -143,6 +143,8 @@ test(
   "every item of every menu is pressed from its menu as a person presses it, and none throws",
   async () => {
     const commandOf = new Map();
+    // A setting the menus check turns on and off: pressed again, it stands as the walk found it.
+    const checking = new Set(allCommands().filter((item) => item.checks).map((item) => item.command));
     for (const item of allCommands()) {
       for (const label of [item.label, ...Object.values(item.labels ?? {})]) {
         commandOf.set(label, item.command);
@@ -212,8 +214,8 @@ test(
             unreached.push(`${pressing}: ${error.message}`);
           }
           await putBack();
-          if (AFTER[command]) {
-            runCommand(AFTER[command]);
+          if (AFTER[command] || checking.has(command)) {
+            runCommand(AFTER[command] ?? command);
             await wait(150);
             await putBack();
           }

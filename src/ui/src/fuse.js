@@ -19,7 +19,7 @@
 // quick waves that never line up, and throws its sparks from wherever it is.
 
 import { rgbOf } from "./colors.js";
-import { clock, still as paused, whenMoving } from "./motion.js";
+import { clock, motionReduced, still as paused, whenMoving } from "./motion.js";
 import { addArc, addSpot, cornersOf, plasmaOn } from "./plasma.js";
 
 const PEAK = 0.5;
@@ -58,7 +58,7 @@ export function makeFuse(place) {
   canvas.setAttribute("aria-hidden", "true");
   const drawer = plasmaOn(canvas);
   const corners = cornersOf();
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const still = motionReduced();
   const fire = { run: null, flare: 0, endedAt: null, sparks: [], sparkUntil: 0 };
   let frame = 0;
   let last = 0;

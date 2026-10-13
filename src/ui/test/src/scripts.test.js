@@ -8,6 +8,7 @@
 // file held as pages read where its whole text is refused.
 
 import { invoke, watchCalls } from "../../src/bridge.js";
+import { setReduceMotion } from "../../src/motion.js";
 import { editing, openFile } from "../../src/edit.js";
 import { loadPlugins, pluginReadings, pluginsOff } from "../../src/plugins.js";
 import { allowPlugin, findSlowPlugin, finding, running, stopPlugin, syncPlugins } from "../../src/scripts.js";
@@ -158,5 +159,28 @@ test("plugins start once the frame being drawn is drawn, each on its own and non
     assert.ok(spent < 750, `both started together, in ${Math.round(spent)} ms, and not one after the other`);
   } finally {
     watchCalls(calls.watcher);
+  }
+});
+
+test("a plugin's panel is drawn still where less motion is asked for", async () => {
+  const code = `orior.on("open", async ({ path }) => {
+  if (path.endsWith("still.txt")) {
+    await orior.panels.show("moving", { title: "Moving", html: "<p style='animation: 1s infinite spin'>turns</p>" });
+  }
+});
+`;
+  await plugin("still_panel", "Still Panel", code);
+  await loadPlugins();
+  await ui.waitFor(() => running().has("still_panel"), 5000, "the plugin to run");
+  await invoke("file_write", { path: "still.txt", text: "still\n" });
+  setReduceMotion(true);
+  try {
+    showView("edit");
+    await openFile("still.txt");
+    await ui.waitFor(() => [...document.querySelectorAll(".plugin-panel-frame")].some((frame) => frame.srcdoc.includes("turns")), 5000, "the plugin's panel");
+    const frame = [...document.querySelectorAll(".plugin-panel-frame")].find((one) => one.srcdoc.includes("turns"));
+    assert.match(frame.srcdoc, /animation:none!important/, "the panel drawn with its animations ended");
+  } finally {
+    setReduceMotion(false);
   }
 });

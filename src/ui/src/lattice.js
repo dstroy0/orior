@@ -14,7 +14,7 @@
 // still, ordered at the left.
 
 import { rgbOf } from "./colors.js";
-import { clock, idle, still as paused, whenMoving } from "./motion.js";
+import { clock, idle, motionReduced, still as paused, whenMoving } from "./motion.js";
 import { onScheme } from "./scheme.js";
 
 // The spacing of the points, and how far the most disordered point goes from its place, in pixels.
@@ -379,7 +379,7 @@ function paint(canvas, laid, seconds) {
   });
 }
 
-const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const still = () => motionReduced();
 
 export function drawLattice(canvas) {
   const laid = layOut(canvas);

@@ -156,6 +156,7 @@
         { "label": "Sticky Scroll", "command": "sticky-scroll", "args": "[on|off]", "checks": "sticky-scroll" },
         { "label": "Word Wrap", "command": "word-wrap", "keys": "Alt+Z", "args": "[on|off]", "checks": "word-wrap" },
         { "label": "Smooth Scrolling", "command": "smooth-scroll", "args": "[on|off]", "checks": "smooth-scroll" },
+        { "label": "Reduce Motion", "command": "reduce-motion", "args": "[on|off]", "checks": "reduce-motion" },
         { "label": "Flick Scrolling", "command": "flick-scroll", "args": "[on|off]", "checks": "flick-scroll" },
         { "label": "Breadcrumbs", "command": "breadcrumbs", "args": "[on|off]", "checks": "breadcrumbs" },
         { "label": "Bracket Pair Colorization", "command": "bracket-pairs", "args": "[on|off]", "checks": "bracket-pairs" },

@@ -54,9 +54,25 @@ export function idle(now) {
 
 export const still = () => state.hidden;
 
-// Whether the page draws motion of its own: not while it is hidden, and not where the reader's system
-// asks for less motion.
-export const moves = () => !still() && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Reduced motion: asked for by the reader's system, or by orior's own View, Reduce Motion, kept under
+// REDUCE_KEY. Either stills every animation of the window: the page's own, which the root's
+// `data-reduced-motion` stills, its drawing, which reads `motionReduced()`, and plugins' panels.
+const REDUCE_KEY = "orior.reduce-motion";
+const systemReduced = matchMedia("(prefers-reduced-motion: reduce)");
+export const motionReduced = () => localStorage.getItem(REDUCE_KEY) === "true" || systemReduced.matches;
+
+function markReduced() {
+  document.documentElement.toggleAttribute("data-reduced-motion", motionReduced());
+}
+
+export function setReduceMotion(on) {
+  localStorage.setItem(REDUCE_KEY, String(on));
+  markReduced();
+}
+
+// Whether the page draws motion of its own: not while it is hidden, and not where less motion is asked
+// for.
+export const moves = () => !still() && !motionReduced();
 
 // The display's frame, in milliseconds.
 export const frameMs = () => state.frame;
@@ -183,6 +199,8 @@ function settle() {
 }
 
 export async function startMotion() {
+  markReduced();
+  systemReduced.addEventListener("change", markReduced);
   document.addEventListener("transitionrun", judgeTransitions, true);
   // The display's frame, from the shortest of a few gaps between frames as the page starts.
   let last = 0;

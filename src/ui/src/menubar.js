@@ -21,6 +21,7 @@
 // into the last, a menu of menus.
 
 import { invoke, pick } from "./bridge.js";
+import { motionReduced, setReduceMotion } from "./motion.js";
 import { showClone } from "./clone.js";
 import { showCreate, showInit, showProject } from "./create.js";
 import { checkersNamed, setCheckers } from "./servers.js";
@@ -380,6 +381,7 @@ const COMMANDS = {
   "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
   "git-authors": (args) => setAuthorsShown(onOff(args) ?? !authorsShown()),
   "smooth-scroll": (args) => editing().setSmoothScroll(onOff(args) ?? !editing().smoothScroll()),
+  "reduce-motion": (args) => setReduceMotion(onOff(args) ?? !motionReduced()),
   "fuzzy-files": (args) => setFuzzyFiles(onOff(args) ?? !fuzzyFiles()),
   "word-wrap": (args) => editing().setWordWrap(onOff(args) ?? !editing().wordWrap()),
   "type-hints": (args) => editing().setHints("type", onOff(args) ?? !editing().hints("type")),
@@ -576,6 +578,7 @@ const CHECKS = {
   "line-history": () => editing().lineHistory(),
   "git-authors": () => authorsShown(),
   "smooth-scroll": () => editing().smoothScroll(),
+  "reduce-motion": () => motionReduced(),
   "fuzzy-files": () => fuzzyFiles(),
   "word-wrap": () => editing().wordWrap(),
   "operator-next-line": () => editing().operatorNext(),
