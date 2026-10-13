@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use crate::commands::{Context, TABLE};
 use crate::programs::Role;
 use crate::run::Run;
+use crate::tools::text;
 use crate::writer::Priority;
 
 const NVIDIA: &str = "src/cu/transpiler/vendor_bin_layouts/nvidia";
@@ -87,10 +88,6 @@ impl Step {
             _ => Err(usage.into()),
         }
     }
-}
-
-fn text(path: &Path) -> String {
-    path.to_string_lossy().into_owned()
 }
 
 /// The carrier's words for a live pass: the held list it will not reach the part without, the
@@ -286,6 +283,15 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
 #[cfg(test)]
 mod passes {
     use super::*;
+
+    #[test]
+    fn the_files_are_handed_with_forward_slashes_as_the_scripts_hand_them() {
+        let files = Files::of(Path::new("D:\\top\\tree"), "sm_86");
+        let costs = text(&files.costs);
+        assert!(!costs.contains('\\'), "{costs}");
+        assert!(costs.ends_with("/table/sm_86.ksc"), "{costs}");
+        assert!(!text(&files.layout).contains('\\'));
+    }
 
     #[test]
     fn the_carrier_s_words_are_the_script_s() {

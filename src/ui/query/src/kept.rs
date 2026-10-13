@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use crate::commands::Context;
 use crate::programs::{Programs, Role};
 use crate::run;
+use crate::tools::text;
 use crate::writer::{Priority, Writer};
 
 /// The keepers' own run folder, and the sweeps'.
@@ -25,10 +26,6 @@ const SWEEPS: &str = "build/qry_sweep/qry";
 
 /// The header the sweeps write, beside the buffer's.
 const HOST_HEADER: &str = "src/cu/types/file_defs/qry/qry_host.h";
-
-fn text(path: &Path) -> String {
-    path.to_string_lossy().into_owned()
-}
 
 /// A writer's account of its run, as `qry_write_until_stopped` says it.
 pub struct Account {

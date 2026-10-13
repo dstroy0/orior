@@ -436,9 +436,10 @@ fn compiled_at_once(compiles: &[Compile], programs: &dyn Programs) -> Result<(),
     Ok(())
 }
 
-/// A path as a compiler is given it: forward slashes throughout, which is what a source's `__FILE__`
-/// then holds and what the readers walk `..` through.
-fn text(path: &Path) -> String {
+/// A path as the compilers and the tools are given it: forward slashes throughout, which is what a
+/// source's `__FILE__` then holds, what the readers walk `..` through, and how every tool's words and
+/// console show a path.
+pub(crate) fn text(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 

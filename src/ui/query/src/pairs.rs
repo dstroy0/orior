@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use crate::commands::{Context, TABLE};
 use crate::programs::Role;
 use crate::run::Run;
+use crate::tools::text;
 
 const NVIDIA: &str = "src/cu/transpiler/vendor_bin_layouts/nvidia";
 
@@ -27,10 +28,6 @@ const WORK: &str = "build/engine/identity";
 const FOLDER: &str = "build/engine/qry";
 
 const MODES: &[&str] = &["pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"];
-
-fn text(path: &Path) -> String {
-    path.to_string_lossy().into_owned()
-}
 
 /// What a pairs' words ask for: the mode, its own words, the part and the language, dry or not,
 /// the seed the links' order is drawn from, and the folder the run goes in.
@@ -344,10 +341,12 @@ mod modes {
     fn the_modes_and_their_targets_are_the_script_s() {
         let root = Path::new("T");
         let table = root.join(TABLE);
-        assert_eq!(targets(root, "queue", "sm_86", &[]), [root.join(STICK).join("measuring_stick.tsv").to_string_lossy().into_owned()]);
-        assert_eq!(targets(root, "pair", "sm_86", &[]), [table.join("Lstar.klq").to_string_lossy().into_owned(), table.join("sm_86.khw").to_string_lossy().into_owned()]);
-        assert_eq!(targets(root, "stall", "sm_86", &[]), [table.join("sm_86.khw").to_string_lossy().into_owned()]);
-        assert_eq!(targets(root, "cost", "sm_86", &[]), [table.join("sm_86.kdm").to_string_lossy().into_owned(), table.join("sm_86.khw").to_string_lossy().into_owned()]);
+        // forward-slashed throughout, as the scripts hand them
+        assert_eq!(targets(root, "queue", "sm_86", &[]), [text(&root.join(STICK).join("measuring_stick.tsv"))]);
+        assert_eq!(targets(root, "pair", "sm_86", &[]), [text(&table.join("Lstar.klq")), text(&table.join("sm_86.khw"))]);
+        assert_eq!(targets(root, "stall", "sm_86", &[]), [text(&table.join("sm_86.khw"))]);
+        assert_eq!(targets(root, "cost", "sm_86", &[]), [text(&table.join("sm_86.kdm")), text(&table.join("sm_86.khw"))]);
+        assert!(targets(root, "pair", "sm_86", &[]).iter().all(|t| !t.contains('\\')));
         assert_eq!(targets(root, "curve", "sm_86", &said(&["1006", "1007"])), ["1006", "1007"]);
         assert_eq!(targets(root, "register", "sm_86", &[]), Vec::<String>::new());
     }

@@ -12,6 +12,7 @@ use crate::commands::Context;
 use crate::learn::{self, Files};
 use crate::programs::Role;
 use crate::run;
+use crate::tools::text;
 use crate::writer::Writer;
 
 /// The base source the words name, where they do.
@@ -21,10 +22,6 @@ pub fn base_of(words: &[String]) -> Result<Option<String>, String> {
         [flag, path] if flag == "--base" => Ok(Some(path.clone())),
         _ => Err("cross takes [--base <cu>]".into()),
     }
-}
-
-fn text(path: &Path) -> String {
-    path.to_string_lossy().into_owned()
 }
 
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {

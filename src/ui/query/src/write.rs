@@ -12,10 +12,7 @@ use std::path::{Path, PathBuf};
 
 use crate::commands::{Context, TABLE};
 use crate::learn::Files;
-
-fn text(path: &Path) -> String {
-    path.to_string_lossy().into_owned()
-}
+use crate::tools::text;
 
 /// Which writer the words name.
 #[derive(Debug, PartialEq, Eq)]
