@@ -844,3 +844,4 @@ number	source
 0x034d	src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.h
 0x034e	src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read_check.c
 0x034f	src/cu/types/file_defs/kqr/kqr_merge.c
+0x0350	src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c
