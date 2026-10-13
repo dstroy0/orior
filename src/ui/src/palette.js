@@ -11,13 +11,14 @@
 // the files that answer it, then what the tree's files declare, then the commands, each under its
 // heading.
 
+import { invoke } from "./bridge.js";
 import { fuzzy, marked } from "./fuzzy.js";
 
 const MOST = 200;
 
 const RECENT_COMMANDS = "orior.palette.recent";
 
-const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, drawing: 0, everywhere: false, custom: null };
+const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, drawing: 0, everywhere: false, custom: null, held: null };
 
 // How many of each kind Search Everywhere shows, and how close two presses of Shift come to open it,
 // in milliseconds.
@@ -177,6 +178,9 @@ async function everywhereRows(text) {
 }
 
 async function rowsFor(text) {
+  if (state.custom?.items) {
+    return heldRows(text.trim());
+  }
   if (state.custom) {
     return state.custom.rows(text.trim());
   }
@@ -196,6 +200,27 @@ async function rowsFor(text) {
     return treeSymbolRows(text.slice(1).trim());
   }
   return fileRows(text);
+}
+
+// The rows of a list given as items, matched on the Rust side, picks.rs, where its texts are held:
+// the best MOST of them for what is typed, each item's own label marked where it matched.
+async function heldRows(query) {
+  const { items } = state.custom;
+  const id = await state.held;
+  const found = await invoke("pick_find", { id, query, most: MOST }).catch(() => []);
+  return found
+    .filter(({ at }) => items[at])
+    .map(({ at, hits }) => {
+      const item = items[at];
+      return { label: item.label, hits: hits.filter((one) => one < item.label.length), detail: item.detail, run: item.run };
+    });
+}
+
+// Lets go of the list held on the Rust side for the list shown, where one is.
+function letGo() {
+  const held = state.held;
+  state.held = null;
+  held?.then((id) => invoke("pick_forget", { id })).catch(() => {});
 }
 
 function placeholderOf(text) {
@@ -256,9 +281,10 @@ async function draw(again = false) {
   if (items.some((item) => item.reading)) {
     setTimeout(() => drawing === state.drawing && !state.node.hidden && draw(true), AGAIN);
   }
-  state.items = items;
-  const kept = was ? items.findIndex((item) => item.run && item.label === was.label && item.detail === was.detail) : -1;
-  state.chosen = kept >= 0 ? kept : Math.max(0, items.findIndex((item) => !item.heading));
+  // Every list draws its best MOST rows at most, whatever its source gives: what is typed narrows it.
+  state.items = items.length > MOST ? items.slice(0, MOST) : items;
+  const kept = was ? state.items.findIndex((item) => item.run && item.label === was.label && item.detail === was.detail) : -1;
+  state.chosen = kept >= 0 ? kept : Math.max(0, state.items.findIndex((item) => !item.heading));
   state.input.placeholder = placeholderOf(text);
   if (!items.length) {
     state.items = [{ label: state.custom?.empty ?? (text.startsWith(">") ? "No matching commands" : "No matching results"), hits: [], run: null }];
@@ -271,6 +297,7 @@ function close(refocus = true) {
     return;
   }
   state.node.hidden = true;
+  letGo();
   state.drawing += 1;
   if (refocus && state.before?.isConnected) {
     state.before.focus();
@@ -288,13 +315,18 @@ function go() {
 
 // Opens the quick open holding `text`: "" for files, ">" for commands, ":" for a line, "@" for what
 // the file declares. With `everywhere` it searches all of them at once, and with `custom`, as
-// { placeholder, rows(query) }, it lists the rows that gives.
+// { placeholder, rows(query) }, it lists the rows that gives; a list of many rows gives them as
+// { placeholder, items }, each item { text, label, detail, run }, matched by its text on the Rust side.
 export function openPalette(text = "", { everywhere = false, custom = null } = {}) {
   if (state.node.hidden) {
     state.before = document.activeElement;
   }
+  letGo();
   state.everywhere = everywhere;
   state.custom = custom;
+  if (custom?.items) {
+    state.held = invoke("pick_hold", { texts: custom.items.map((item) => item.text.replace(/\n/g, " ")).join("\n") });
+  }
   state.node.classList.toggle("everywhere", everywhere);
   state.node.hidden = false;
   state.input.value = text;

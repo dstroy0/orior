@@ -843,6 +843,17 @@ impl Server {
             }
             // The reading of the tree's symbols ended where it stands, Go to Symbol answering from
             // what it read.
+            // A quick open's list held on this side, matched as each letter is typed, and let go.
+            // The rows' texts come joined by line ends, a list of none as no text.
+            "pick_hold" => {
+                let texts = a.get::<String>("texts")?;
+                give(crate::picks::hold(if texts.is_empty() { Vec::new() } else { texts.split('\n').map(str::to_string).collect() }))
+            }
+            "pick_find" => crate::picks::find(a.get("id")?, &a.get::<String>("query")?, a.get("most")?).and_then(give),
+            "pick_forget" => {
+                crate::picks::forget(a.get("id")?);
+                give(())
+            }
             "tree_read_stop" => {
                 self.symbols.stop();
                 give(())

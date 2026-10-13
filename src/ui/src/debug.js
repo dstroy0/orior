@@ -578,21 +578,14 @@ export async function debugTest(id) {
 export async function attachProcess() {
   const found = await invoke("debug_processes").catch(() => []);
   const { openPalette } = await import("./palette.js");
-  const { fuzzy } = await import("./fuzzy.js");
   openPalette("", {
     custom: {
       placeholder: "Attach to a process: type to filter, Enter to debug it",
       empty: "No process is found.",
-      rows: (query) =>
-        found
-          .map((one) => {
-            const label = `${one.name} ${one.pid}`;
-            const hit = fuzzy(query, `${label} ${one.command}`);
-            return hit ? { label, hits: hit.hits.filter((at) => at < label.length), detail: one.command.slice(0, 160), score: query ? hit.score : 0, run: () => attachTo(one) } : null;
-          })
-          .filter(Boolean)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 300),
+      items: found.map((one) => {
+        const label = `${one.name} ${one.pid}`;
+        return { text: `${label} ${one.command}`, label, detail: one.command.slice(0, 160), run: () => attachTo(one) };
+      }),
     },
   });
 }

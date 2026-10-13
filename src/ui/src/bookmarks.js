@@ -6,7 +6,6 @@
 // them all in the quick open, each with its line's text, a press going there. They are kept between
 // visits, by tree.
 
-import { fuzzy } from "./fuzzy.js";
 import { openPalette } from "./palette.js";
 
 const KEPT = "orior.bookmarks";
@@ -76,27 +75,17 @@ export function showBookmarks() {
     custom: {
       placeholder: "Bookmarks: type to filter, Enter to go there",
       empty: "No bookmarks. Go, Toggle Bookmark (Ctrl+F11) sets one on the cursor's line.",
-      rows: (query) => {
-        const rows = [];
-        for (const [path, lines] of [...state.marks].sort(([a], [b]) => a.localeCompare(b))) {
-          for (const line of [...lines].sort((a, b) => a - b)) {
-            const label = `${path.split("/").pop()}:${line + 1}`;
-            const text = (state.hooks.lineOf(path, line) ?? "").trim();
-            const found = fuzzy(query, `${label} ${text}`);
-            if (!found) {
-              continue;
-            }
-            rows.push({
-              label,
-              hits: found.hits.filter((at) => at < label.length),
-              detail: text.slice(0, 120),
-              score: query ? found.score : 0,
-              run: () => state.hooks.openAt(path, line, 0),
-            });
-          }
-        }
-        return query ? rows.sort((a, b) => b.score - a.score) : rows;
-      },
+      items: [...state.marks]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .flatMap(([path, lines]) =>
+          [...lines]
+            .sort((a, b) => a - b)
+            .map((line) => {
+              const label = `${path.split("/").pop()}:${line + 1}`;
+              const text = (state.hooks.lineOf(path, line) ?? "").trim();
+              return { text: `${label} ${text}`, label, detail: text.slice(0, 120), run: () => state.hooks.openAt(path, line, 0) };
+            }),
+        ),
     },
   });
 }

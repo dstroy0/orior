@@ -34,7 +34,6 @@ import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, rec
 import { explorerCommands, showPane } from "./explorer.js";
 import { commitCommands } from "./commit.js";
 import { openPalette, startPalette } from "./palette.js";
-import { fuzzy } from "./fuzzy.js";
 import { runAllTests, runFailedTests, setTestsParallel, stopTests, testCommands, testsParallel } from "./tests.js";
 import { drawPreferences, prefsCommands, showPreferences } from "./preferences.js";
 import { carryPlace, carrySend, carryTake, carryUndo, setCarryPlace } from "./carry.js";
@@ -1020,17 +1019,10 @@ async function showTests() {
     custom: {
       placeholder: `${found.length} test${found.length === 1 ? "" : "s"}: type to filter, Enter to open one`,
       empty: "No test is found: pytest and unittest take files named test_*.py, *_test.py and test*.py, and in them the functions and methods whose names start with test.",
-      rows: (query) => {
-        const rows = [];
-        for (const test of found) {
-          const label = test.class ? `${test.class}.${test.name}` : test.name;
-          const hit = fuzzy(query, `${label} ${test.file}`);
-          if (hit) {
-            rows.push({ label, hits: hit.hits.filter((at) => at < label.length), detail: `${test.file}:${test.line + 1}`, score: query ? hit.score : 0, run: () => openFileAt(test.file, test.line, 0) });
-          }
-        }
-        return query ? rows.sort((a, b) => b.score - a.score) : rows;
-      },
+      items: found.map((test) => {
+        const label = test.class ? `${test.class}.${test.name}` : test.name;
+        return { text: `${label} ${test.file}`, label, detail: `${test.file}:${test.line + 1}`, run: () => openFileAt(test.file, test.line, 0) };
+      }),
     },
   });
 }

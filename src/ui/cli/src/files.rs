@@ -370,6 +370,22 @@ pub fn fuzzy(query: &str, text: &str, from: usize) -> Option<(f64, Vec<usize>)> 
     fuzzy_in(&wanted, &shown, &lower, from)
 }
 
+/// The letters of `query` a match looks for, in lower case, the spaces left out.
+pub fn wanted(query: &str) -> Vec<char> {
+    query.chars().filter(|letter| !letter.is_whitespace()).map(Letter::lower).collect()
+}
+
+/// A text's characters in lower case, as a match reads them.
+pub fn lowered(shown: &[char]) -> Vec<char> {
+    shown.iter().map(|letter| letter.lower()).collect()
+}
+
+/// The match of the letters `wanted` in a text already split into its characters, `shown`, and those
+/// in lower case, `lower`, scored as `fuzzy` scores it.
+pub fn fuzzy_held(wanted: &[char], shown: &[char], lower: &[char]) -> Option<(f64, Vec<usize>)> {
+    fuzzy_in(wanted, shown, lower, 0)
+}
+
 /// What a file named exactly as typed scores over the match itself, and one whose name starts with
 /// it half that: more than any match and the files opened lately score together. A name as typed
 /// stands above every looser match.

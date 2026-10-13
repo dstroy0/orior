@@ -60,6 +60,7 @@ pub mod regexp;
 pub mod requests;
 pub mod review;
 pub mod pg;
+pub mod picks;
 pub mod plugin_catalog;
 pub mod plugins;
 pub mod print;
