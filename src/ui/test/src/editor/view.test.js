@@ -8,7 +8,8 @@
 
 import { coloringReach, lineHeight, runsRightToLeft, smoothScrolling } from "../../../src/editor/view.js";
 import { invoke } from "../../../src/bridge.js";
-import { editing, onEdit, openFile } from "../../../src/edit.js";
+import { editing, onEdit, openFile, setVimKeys, vimKeys } from "../../../src/edit.js";
+import { runCommand } from "../../../src/menubar.js";
 import { showView } from "../../../src/views.js";
 import { status, write } from "../../../src/status.js";
 import { joinRun, traceTime, TRACE_BLOB } from "../../../src/trace.js";
@@ -446,6 +447,48 @@ test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000
     assert.ok(own[Math.floor(own.length / 2)] <= 0.72 * interval, `the page's own work for a key, in the middle, within ${(0.72 * interval).toFixed(1)} ms: ${said}`);
     assert.ok(own.at(-1) <= 1.73 * interval, `and at most ${(1.73 * interval).toFixed(1)} ms: ${said}`);
     assert.ok(late <= 2, `frames after a key that came late: ${late} of ${timed.length}: ${said}`);
+  }
+});
+
+test("a letter typed with the preview beside, Vim's keys on and the tree's check running is drawn in the frame after its key", async () => {
+  const rest = await framesOver(500);
+  const interval = (rest.at(-1) - rest[0]) / (rest.length - 1);
+  const lines = [];
+  for (let section = 0; section < 400; section += 1) {
+    lines.push(`## Section ${section}`, "", `Some text of section ${section}, with **bold** and \`code\` in it.`, "", "- one", "- two", "");
+  }
+  await invoke("file_write", { path: "keys_beside.md", text: `${lines.join("\n")}\n` });
+  showView("edit");
+  await openFile("keys_beside.md");
+  await ui.waitFor(() => editing().active === "keys_beside.md" && editing().editor?.s, 10000);
+  const view = editing().editor;
+  const vim = vimKeys();
+  try {
+    runCommand("preview", ["beside"]);
+    await ui.waitFor(() => document.querySelector(".md-preview")?.checkVisibility(), 10000, "the preview beside the editor");
+    setVimKeys(true);
+    view.goTo(1400, 0);
+    view.focus();
+    await ui.key("Escape");
+    await ui.key("i");
+    // The tree's check reads every file of the tree as the letters are typed.
+    invoke("problems_check").catch(() => {});
+    await framesOver(300);
+    const timed = await keysTimed(view, 1400, 20);
+    const own = timed.map((one) => one.own).sort((a, b) => a - b);
+    const late = timed.filter((one) => one.frame > 1.5 * interval).length;
+    const said = `own ms ${own.map((ms) => ms.toFixed(1)).join(" ")}; frames after ${timed.map((one) => one.frame.toFixed(1)).join(" ")}`;
+    assert.equal(timed.filter((one) => one.drawn).length, timed.length, `each letter in its row as the frame after it began: ${said}`);
+    assert.ok(own[Math.floor(own.length / 2)] <= 0.72 * interval, `the page's own work for a key, in the middle, within ${(0.72 * interval).toFixed(1)} ms: ${said}`);
+    assert.ok(late <= 2, `frames after a key that came late: ${late} of ${timed.length}: ${said}`);
+    // The caret's moves answer at once too.
+    const before = view.head();
+    await ui.key("Escape");
+    await ui.key("j");
+    assert.equal(view.head().line, before.line + 1, "j moves down a line at once");
+  } finally {
+    runCommand("preview", ["off"]);
+    setVimKeys(vim);
   }
 });
 
