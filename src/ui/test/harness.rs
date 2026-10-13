@@ -508,7 +508,7 @@ fn main() -> ExitCode {
     if options.rust {
         println!("rust");
         let app_target = built.join("cargo").join("app");
-        for (name, manifest, target) in [("cli", ui.join("cli").join("Cargo.toml"), None), ("src-tauri", ui.join("src-tauri").join("Cargo.toml"), Some(app_target.as_path())), ("test", here.join("Cargo.toml"), None)] {
+        for (name, manifest, target) in [("query", ui.join("query").join("Cargo.toml"), None), ("cli", ui.join("cli").join("Cargo.toml"), None), ("src-tauri", ui.join("src-tauri").join("Cargo.toml"), Some(app_target.as_path())), ("test", here.join("Cargo.toml"), None)] {
             println!("  {name}");
             let (outcomes, failures) = cargo_test(&manifest, target, &env);
             report.crates.push((name.to_string(), outcomes, failures));
@@ -570,7 +570,7 @@ fn main() -> ExitCode {
                 report.orphans.push(format!("test/src/{test}.test.js"));
             }
         }
-        for (folder, shown) in [(ui.join("cli").join("src"), "cli/src"), (ui.join("src-tauri").join("src"), "src-tauri/src")] {
+        for (folder, shown) in [(ui.join("query").join("src"), "query/src"), (ui.join("cli").join("src"), "cli/src"), (ui.join("src-tauri").join("src"), "src-tauri/src")] {
             for file in files_under(&folder, ".rs") {
                 if untested_rust(&folder.join(&file)) {
                     report.untested.push(format!("{shown}/{file}"));

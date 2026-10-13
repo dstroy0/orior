@@ -17,6 +17,7 @@ name = "orior-cli"
 path = "src/main.rs"
 
 [dependencies]
+orior-query = { path = "../query" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 dunce = "1"
