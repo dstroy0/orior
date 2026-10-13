@@ -121,10 +121,12 @@ fn vendor_read(context: &mut Context, run: &Run) -> Result<(), String> {
 fn vendor(context: &mut Context) -> Result<i32, String> {
     let reader = context.tool("measuring_stick_read")?;
     let paths = vendor_paths(context.root);
-    let run = context.started(&format!("{OUT}/qry"))?;
+    let mut run = context.started(&format!("{OUT}/qry"))?;
     vendor_read(context, &run)?;
     let record = context.at(NVIDIA).join("measuring_stick.md");
     let krs = context.at(TABLE).join("sass.krs");
+    // the record is the read's to write through the run's writer; named here as a leaf, so that it is shown and asked
+    run.left(&[record.clone()]);
     let code = context.said(&run, &reader, &[&native(&paths.sass), &native(&paths.tsv), &native(&krs), &native(&record)])?;
     context.ended(run)?;
     Ok(code)
