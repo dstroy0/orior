@@ -93,7 +93,7 @@ for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_identity.cu" "
     OBJECTS+=("$object")
 done
 # the run channel, the interface it carries each question through, the overseer and the run's buffer, in C
-for source in "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/overseer/overseer.c" \
+for source in "$PROTOCOL"/teacher/run_channel/*.c "$PROTOCOL/overseer/overseer.c" \
     "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$LAYOUTS/nvidia/sass_assemble.c" \
     "$LAYOUTS/nvidia/sass_machine.c" "${FILE_DEFS[@]}"; do
     object="$OUT/$(basename "$source")_identity.o"
@@ -110,7 +110,7 @@ qry_writer_built "$OUT"
 # the carrier, every channel input read from the run's buffer and every answer handed to it
 carrier_built() {
     CARRIER="$OUT/cubin_run"
-    cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvidia/cubin_safe.c" \
+    cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS"/nvidia/cubin_run/*.c "$LAYOUTS/nvidia/cubin_safe.c" \
         "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
         "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
         "${FILE_DEFS[@]}" || { echo "  build failed: cubin_run did not compile"; exit 1; }
@@ -118,7 +118,8 @@ carrier_built() {
     # compiler
     CROSS="$OUT/measuring_stick_query"
     cc -std=c11 -O2 -Wall -Wextra -pthread -I "$TOP/src/cu/engine" -o "$CROSS" \
-        "$LAYOUTS/nvidia/measuring_stick_query.c" "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
+        "$LAYOUTS/nvidia/measuring_stick_query.c" "$LAYOUTS"/nvidia/measuring_stick_query/*.c \
+        "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
         "${FILE_DEFS[@]}" || { echo "  build failed: the cross did not compile"; exit 1; }
     NVDISASM="$(dirname "$(command -v nvcc)")/nvdisasm"
     [ -x "$NVDISASM" ] || [ -x "$NVDISASM.exe" ] || { echo "  no nvdisasm beside nvcc: the airlock has no reader"; exit 1; }
@@ -209,9 +210,15 @@ if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" =
     if [ "$MODE" = "pair" ] && "$QRY_WRITER" latest log > /dev/null 2>&1; then
         DECODER="$OUT/klq_decoder"
         rm -f "$DECODER"
-        cc -std=c11 -O2 -Wall -Wextra -c "$QRY_SOURCE/qry_buffer.c" -o "$OUT/qry_buffer_decoder.o" &&
-            c++ -std=c++17 -O2 -Wall -Wextra -I "$PROTOCOL/table" -I "$PARSER" -I "$QRY_SOURCE" -o "$DECODER" -x c++ \
-                "$PROTOCOL/table/klq_decoder.cu" "$PARSER/query_trace.cu" -x none "$OUT/qry_buffer_decoder.o" -static ||
+        BUFFER_OBJECTS=()
+        for source in "$QRY_SOURCE"/buffer/*.c; do
+            object="$OUT/$(basename "$source")_decoder.o"
+            cc -std=c11 -O2 -Wall -Wextra -c "$source" -o "$object" ||
+                { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
+            BUFFER_OBJECTS+=("$object")
+        done
+        c++ -std=c++17 -O2 -Wall -Wextra -I "$PROTOCOL/table" -I "$PARSER" -I "$QRY_SOURCE" -o "$DECODER" -x c++ \
+            "$PROTOCOL/table/klq_decoder.cu" "$PARSER/query_trace.cu" -x none "${BUFFER_OBJECTS[@]}" -static ||
             { echo "  build failed: klq_decoder did not compile"; exit 1; }
         traced klq_decoder "$DECODER" "$QRY" "$STICK/engine" "$COHERENCE/Lstar.klq"
         exit $?

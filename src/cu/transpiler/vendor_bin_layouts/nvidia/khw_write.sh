@@ -60,14 +60,14 @@ fi
 ROUNDS="${1:-1}"
 
 CARRIER="$OUT/cubin_run"
-cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvidia/cubin_safe.c" \
+cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS"/nvidia/cubin_run/*.c "$LAYOUTS/nvidia/cubin_safe.c" \
     "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
     "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
     "${FILE_DEFS[@]}" || { echo "  build failed: cubin_run did not compile"; exit 1; }
 
 BINARY="$OUT/khw_write"
-cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" \
-    "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/overseer/overseer.c" "$PROTOCOL/query/answer_read.c" \
+cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" "$PARSER"/khw_write/*.c \
+    "$PROTOCOL"/teacher/run_channel/*.c "$PROTOCOL/overseer/overseer.c" "$PROTOCOL/query/answer_read.c" \
     "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" "$LAYOUTS/container_layout.c" \
     "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
     { echo "  build failed: khw_write did not compile"; exit 1; }
@@ -119,7 +119,8 @@ if [ "$MODE" = "live" ]; then
     # every encoding the round's held.txt names off the part before the driver sees it, however our own gate read it
     CROSS="$OUT/measuring_stick_query"
     cc -std=c11 -O2 -Wall -Wextra -pthread -I "$TOP/src/cu/engine" -o "$CROSS" \
-        "$LAYOUTS/nvidia/measuring_stick_query.c" "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
+        "$LAYOUTS/nvidia/measuring_stick_query.c" "$LAYOUTS"/nvidia/measuring_stick_query/*.c \
+        "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
         "${FILE_DEFS[@]}" || { echo "  build failed: the cross did not compile"; exit 1; }
     NVDISASM="$(dirname "$(command -v nvcc)")/nvdisasm"
     [ -x "$NVDISASM" ] || [ -x "$NVDISASM.exe" ] ||

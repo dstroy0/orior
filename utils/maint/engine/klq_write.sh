@@ -27,10 +27,14 @@ qry_writer_built "$OUT"
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$PARSER" -I "$QRY_SOURCE")
 BINARY="$OUT/klq_write"
 rm -f "$BINARY"
-OBJECTS=("$OUT/qry_buffer_klq.o")
-rm -f "${OBJECTS[0]}"
-cc -std=c11 -O2 -Wall -Wextra -c "$QRY_SOURCE/qry_buffer.c" -o "${OBJECTS[0]}" ||
-    { echo "  build failed: qry_buffer.c did not compile"; exit 1; }
+OBJECTS=()
+for source in "$QRY_SOURCE"/buffer/*.c; do
+    object="$OUT/$(basename "$source")_klq.o"
+    rm -f "$object"
+    cc -std=c11 -O2 -Wall -Wextra -c "$source" -o "$object" ||
+        { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
+    OBJECTS+=("$object")
+done
 for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_write.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) continue ;;

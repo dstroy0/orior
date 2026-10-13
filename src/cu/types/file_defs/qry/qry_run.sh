@@ -57,11 +57,12 @@ qry_writer_built() {
     local binary="$QRY_WRITER"
     [ -f "$binary.exe" ] && binary="$binary.exe"
     if ! { [ -f "$binary" ] && [ "$binary" -nt "$QRY_SOURCE/qry_writer.c" ] &&
-        [ "$binary" -nt "$QRY_SOURCE/qry_buffer.c" ] && [ "$binary" -nt "$QRY_SOURCE/qry_buffer.h" ] &&
+        [ -z "$(find "$QRY_SOURCE/buffer" -name '*.[ch]' -newer "$binary" -print -quit)" ] &&
+        [ "$binary" -nt "$QRY_SOURCE/qry_buffer.h" ] &&
         [ "$binary" -nt "$QRY_SOURCE/qry.h" ] && { [ ! -f "$QRY_SOURCE/qry_host.h" ] ||
         [ "$binary" -nt "$QRY_SOURCE/qry_host.h" ]; }; }; then
         mkdir -p "$1"
-        cc -std=c11 -O2 -Wall -Wextra -o "$QRY_WRITER" "$QRY_SOURCE/qry_writer.c" "$QRY_SOURCE/qry_buffer.c" ||
+        cc -std=c11 -O2 -Wall -Wextra -o "$QRY_WRITER" "$QRY_SOURCE/qry_writer.c" "$QRY_SOURCE"/buffer/*.c ||
             { echo "  build failed: qry_writer did not compile"; exit 1; }
     fi
     QRY_CRYSTAL=""

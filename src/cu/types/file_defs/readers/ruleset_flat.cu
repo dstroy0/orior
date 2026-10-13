@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// The run's buffer (qry_buffer.c) is linked into a program of a run, and many a program reads rulesets with no run at
+// The run's buffer (qry/buffer) is linked into a program of a run, and many a program reads rulesets with no run at
 // all. Where it is not linked these stand in for its two calls the reader makes, weakly: no run, and every file read
 // whole from the disk, as qry_file_read reads one where no run holds it. Linked, its own are taken
 extern "C" QryBuffer *ruleset_run_none(void)

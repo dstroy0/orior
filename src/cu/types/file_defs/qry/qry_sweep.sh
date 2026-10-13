@@ -14,7 +14,7 @@ OUT="$TOP/build/qry_sweep"
 mkdir -p "$OUT"
 source "$HERE/qry_run.sh"
 qry_writer_built "$OUT"
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_sweep" "$HERE/qry_sweep.c" "$HERE/qry_buffer.c" ||
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_sweep" "$HERE/qry_sweep.c" "$HERE"/buffer/*.c ||
     { echo "  qry_sweep did not compile"; exit 1; }
 
 unset QRY
