@@ -863,3 +863,7 @@ number	source
 0x0360	src/cu/transpiler/lstar/protocol/table/identity/stall.cu
 0x0361	src/cu/transpiler/lstar/protocol/table/identity/text.cu
 0x0362	src/cu/transpiler/lstar/protocol/table/identity/walk.cu
+0x0363	src/cu/transpiler/lstar/protocol/table/identity/pair.h
+0x0364	src/cu/transpiler/lstar/protocol/table/identity/pair_product.cu
+0x0365	src/cu/transpiler/lstar/protocol/table/identity/pair_put.cu
+0x0366	src/cu/transpiler/lstar/protocol/table/identity/pair_witness.cu

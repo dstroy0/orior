@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// alike.cu: a question put and read alike or apart with the host, the host's answers read, and a chain's code read from the engine
+// alike.cu: a question put and read alike or apart with the host, the host's questions written and its answers read, and a chain's code read from the engine
 #include "identity_internal.h"
 
 // 1 where the part answers `code`, put as `question` says of its registers, shape and launches, alike with the host
@@ -242,3 +242,115 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
                                const StallField &stall, unsigned long long longest,
                                const std::set<std::pair<std::string, std::string>> &held, size_t most,
                                std::vector<StallAsk> *asks, std::vector<std::vector<unsigned char>> *codes);
+
+// the kernel `number` of the stick's text, from its signature to the brace that closes it
+static std::string kernel_text(const std::string &stick, const std::string &number)
+{
+    const std::string signature = "extern \"C\" __global__ void measuring_stick_" + number + "(";
+    const size_t first = stick.find(signature);
+    if (first == std::string::npos)
+    {
+        return std::string();
+    }
+    const size_t last = stick.find("\n}\n", first);
+    return stick.substr(first, last + 3u - first);
+}
+
+// the type a kernel's first operand is cast to, as its text declares it, const or not: a compound assignment writes it
+static std::string first_type(const std::string &kernel)
+{
+    static const std::regex s_first("\\b(?:const )?([a-z][a-z ]*) a = \\(");
+    std::smatch found;
+    return std::regex_search(kernel, found, s_first) ? found[1].str() : std::string("int");
+}
+
+int host_questions_write(const std::string &path, const std::string &stick, const std::set<std::string> &numbers)
+{
+    RunWritten file = {path, 0, std::string()};
+    run_print(&file, "// the stick's integer questions as the host computes them, written by klq_identity\n");
+    run_print(&file, "#include <limits>\n#include <stdio.h>\n\n");
+    run_print(&file, "struct HostIndex\n{\n    unsigned int x, y, z;\n};\n");
+    run_print(&file,
+              "static const HostIndex threadIdx = {0u, 0u, 0u};\nstatic const HostIndex blockIdx = {0u, 0u, 0u};\n");
+    run_print(&file, "static const HostIndex blockDim = {1u, 1u, 1u};\n#define __global__\n\n");
+    std::vector<std::string> written;
+    for (const std::string &number : numbers)
+    {
+        const std::string kernel = kernel_text(stick, number);
+        if (kernel.empty())
+        {
+            continue;
+        }
+        run_print(&file, "%s\n", kernel.c_str());
+        const std::string type = first_type(kernel);
+        const int divides = (kernel.find(" / b") != std::string::npos) || (kernel.find(" % b") != std::string::npos) ||
+                            (kernel.find("/=") != std::string::npos) || (kernel.find("%=") != std::string::npos) ||
+                            (kernel.find(" / ") != std::string::npos);
+        const int shifts = (kernel.find("<<") != std::string::npos) || (kernel.find(">>") != std::string::npos);
+        // 1 where the host's C would trap on the case or leave it undefined: a divisor of zero, the least value over -1,
+        // or a shift by the width or past it
+        run_print(&file, "static int refused_%s(const unsigned long long *in)\n{\n", number.c_str());
+        run_print(&file, "    const %s a = (%s)in[0];\n    const %s b = (%s)in[1];\n    (void)a;\n    (void)b;\n",
+                  type.c_str(), type.c_str(), type.c_str(), type.c_str());
+        if (divides)
+        {
+            run_print(&file,
+                      "    if ((b == 0) || (std::numeric_limits<%s>::is_signed && (b == (%s)-1) && "
+                      "(a == std::numeric_limits<%s>::min())))\n    {\n        return 1;\n    }\n",
+                      type.c_str(), type.c_str(), type.c_str());
+        }
+        if (shifts)
+        {
+            run_print(
+                &file,
+                "    if (((unsigned long long)b >= (unsigned long long)(sizeof(a + 0) * 8u)) || ((long long)b < 0))\n"
+                "    {\n        return 1;\n    }\n");
+        }
+        run_print(&file, "    return 0;\n}\n\n");
+        written.push_back(number);
+    }
+    run_print(&file, "typedef void (*HostKernel)(const unsigned long long *, unsigned long long *, unsigned int);\n");
+    run_print(&file, "typedef int (*HostRefused)(const unsigned long long *);\n");
+    run_print(&file,
+              "static const struct\n{\n    const char *number;\n    HostKernel kernel;\n    HostRefused refused;\n} "
+              "s_questions[] = {\n");
+    for (const std::string &number : written)
+    {
+        run_print(&file, "    {\"%s\", measuring_stick_%s, refused_%s},\n", number.c_str(), number.c_str(),
+                  number.c_str());
+    }
+    run_print(&file, "};\n\nstatic const unsigned long long s_values[] = {");
+    for (unsigned int at = 0u; at < IDENTITY_VALUES; at += 1u)
+    {
+        run_print(&file, "%s0x%llxull", (at == 0u) ? "" : ", ", s_values[at]);
+    }
+    run_print(&file, "};\n\n");
+    run_print(
+        &file,
+        "// each question a line: its number, then its answer to every case in order, - where the case is refused\n");
+    run_print(&file, "int main(void)\n{\n");
+    run_print(&file,
+              "    for (unsigned int at = 0u; at < sizeof(s_questions) / sizeof(s_questions[0]); at += 1u)\n    {\n");
+    run_print(&file, "        printf(\"%%s\", s_questions[at].number);\n");
+    run_print(&file, "        for (unsigned int third = 0u; third < %uu; third += 1u)\n        {\n", IDENTITY_THIRDS);
+    run_print(&file, "            for (unsigned int left = 0u; left < %uu; left += 1u)\n            {\n",
+              (unsigned int)IDENTITY_VALUES);
+    run_print(&file, "                for (unsigned int right = 0u; right < %uu; right += 1u)\n                {\n",
+              (unsigned int)IDENTITY_VALUES);
+    run_print(&file,
+              "                    const unsigned long long in[4] = {s_values[left], s_values[right], third, 0ull};\n");
+    run_print(&file, "                    unsigned long long out[2] = {0ull, 0ull};\n");
+    run_print(&file, "                    if (s_questions[at].refused(in))\n                    {\n");
+    run_print(&file,
+              "                        printf(\" -\");\n                        continue;\n                    }\n");
+    run_print(&file, "                    s_questions[at].kernel(in, out, 1u);\n");
+    run_print(&file, "                    printf(\" %%llx\", out[0]);\n                }\n            }\n        }\n");
+    run_print(&file, "        printf(\"\\n\");\n    }\n    return 0;\n}\n");
+    if (!run_closed(&file))
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 0;
+    }
+    printf("  %s: %u questions the host computes\n", path.c_str(), (unsigned int)written.size());
+    return 1;
+}
