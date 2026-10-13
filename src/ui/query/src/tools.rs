@@ -440,6 +440,14 @@ fn text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
+/// The object a source is compiled to under `objects`, named by the source's path from the top of
+/// the tree with its separators made `_`, so that two sources of one base name in two folders
+/// stand apart.
+fn object_of(root: &Path, objects: &Path, source: &Path) -> PathBuf {
+    let under = source.strip_prefix(root).unwrap_or(source).to_string_lossy().replace(['/', '\\'], "_");
+    objects.join(format!("{under}.o"))
+}
+
 /// The tool `name` built into `out` where stale: every source an object under `out/objects/<name>`,
 /// compiled where it is missing or older than its source, then every object linked. The compilers
 /// are asked for before anything is compiled, so a missing one is said and nothing is half built.
@@ -455,12 +463,11 @@ pub fn built_into(root: &Path, programs: &dyn Programs, name: &str, out: &Path) 
     let objects_dir = out.join("objects").join(name);
     std::fs::create_dir_all(&objects_dir).map_err(|e| format!("{}: {e}", objects_dir.display()))?;
     let includes: Vec<String> = tool.includes.iter().flat_map(|folder| ["-I".to_string(), text(&root.join(folder))]).collect();
-    let object_of = |source: &Path| objects_dir.join(format!("{}.o", source.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()));
     let fresh = |source: &Path, object: &Path| modified(object).is_some_and(|o| modified(source).is_some_and(|s| s <= o));
     let mut compiles = Vec::new();
     let mut objects = Vec::new();
     for source in &c_sources {
-        let object = object_of(source);
+        let object = object_of(root, &objects_dir, source);
         if !fresh(source, &object) {
             let mut words: Vec<String> = tool.c_flags.iter().map(|w| w.to_string()).collect();
             words.extend(includes.iter().cloned());
@@ -471,7 +478,7 @@ pub fn built_into(root: &Path, programs: &dyn Programs, name: &str, out: &Path) 
     }
     for (as_cxx, group) in [(true, &cxx_sources), (false, &tool_sources)] {
         for source in group {
-            let object = object_of(source);
+            let object = object_of(root, &objects_dir, source);
             if !fresh(source, &object) {
                 let mut words: Vec<String> = tool.cxx_flags.iter().map(|w| w.to_string()).collect();
                 words.extend(includes.iter().cloned());
@@ -513,6 +520,19 @@ mod building {
             for pattern in groups.chain(tool.cxx_tool.iter()) {
                 assert!(!sources(&root, &[pattern]).is_empty(), "{}: {pattern} reaches nothing", tool.name);
             }
+        }
+    }
+
+    #[test]
+    fn no_two_sources_of_a_tool_share_an_object() {
+        let root = root();
+        for tool in EVERY {
+            let (c, cxx, tools) = every_source(&root, tool);
+            let mut objects: Vec<PathBuf> = c.iter().chain(cxx.iter()).chain(tools.iter()).map(|source| object_of(&root, Path::new("objects"), source)).collect();
+            let all = objects.len();
+            objects.sort();
+            objects.dedup();
+            assert_eq!(objects.len(), all, "{}: two sources name one object", tool.name);
         }
     }
 

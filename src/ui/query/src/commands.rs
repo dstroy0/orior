@@ -289,7 +289,7 @@ mod dispatch {
     }
 
     #[test]
-    fn a_loop_names_what_it_needs_first() {
+    fn a_loop_missing_a_program_says_so_and_starts_no_run() {
         struct Nothing;
         impl Programs for Nothing {
             fn program(&self, role: Role) -> Result<PathBuf, String> {
@@ -300,8 +300,13 @@ mod dispatch {
             }
         }
         let root = crate::tree_root();
-        let said = run(&root, &Nothing, &["write".into(), "gsm".into()], &mut |_| {}).unwrap_err();
-        assert_eq!(said, "the C compiler is not found");
+        let folder = root.join(crate::learn::FOLDER);
+        let before = crate::run::each(&folder).len();
+        // a learn needs the C compiler where a tool is stale, and nvdisasm either way: with nothing found it says
+        // the first it misses and starts no run
+        let said = run(&root, &Nothing, &["learn".into(), "turns".into()], &mut |_| {}).unwrap_err();
+        assert!(said.contains("is not found") || said.contains("no nvdisasm"), "{said}");
+        assert_eq!(crate::run::each(&folder).len(), before, "no run was started");
     }
 
     #[test]
