@@ -16,6 +16,9 @@ import { previewMode } from "../../src/preview.js";
 import { scheme } from "../../src/scheme.js";
 import { zoom } from "../../src/zoom.js";
 import { checkersNamed, setCheckers } from "../../src/servers.js";
+import { closePeek, peekShown } from "../../src/peek.js";
+import { bookmarksOf } from "../../src/bookmarks.js";
+import { boardShown, tasks } from "../../src/gather.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -97,10 +100,12 @@ const openMenus = () => [...document.querySelectorAll("body > .menu")];
 const itemsIn = (menu) => [...menu.querySelectorAll(":scope > .menu-item")];
 const labelOf = (button) => button.querySelector("span")?.textContent ?? "";
 
-// Every menu closed, every sheet and dialog closed, and the keys let go.
+// Every menu closed, every sheet and dialog closed, a finding of the slow plugin stopped, and the
+// keys let go.
 async function putBack() {
   closeMenu(false);
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  [...document.querySelectorAll("#slow-finder:not([hidden]) .slow-finder-button")].find((button) => button.textContent === "Stop")?.click();
   await ui.release("Ctrl+Shift+Alt").catch(() => {});
   await wait(60);
 }
@@ -674,7 +679,10 @@ test("View, Checkers runs the checkers named, and says a name none answers to", 
   }
 });
 
-test("View, Find the Slow Plugin halves the plugins on until one is named, or says none is on", async () => {
+test("View, Find the Slow Plugin halves the plugins on until one is named, or says none is on, and sets each back", async () => {
+  const off = localStorage.getItem("orior.plugins.off");
+  await press("find-slow-plugin");
+  // Begun again before it ends, it starts over from the plugins off before the first began.
   await press("find-slow-plugin");
   const finder = document.getElementById("slow-finder");
   while (!finder.hidden) {
@@ -682,6 +690,7 @@ test("View, Find the Slow Plugin halves the plugins on until one is named, or sa
     await frame();
   }
   assert.ok(told(/No plugin is on|is the plugin that slows the window/), "the finding ends with what it found");
+  assert.equal(localStorage.getItem("orior.plugins.off"), off ?? "[]", "each plugin set back as it was");
 });
 
 test("the Terminal menu opens, splits, clears and kills shells", async () => {
@@ -731,5 +740,214 @@ test("Help, Keyboard Shortcuts and About, from the command line and from the men
 test("Help, Report a Problem shows its form", async () => {
   await runCommand("report");
   await sheetShown(".sheet-report");
+});
+
+["definition", "peek-definition", "peek-usages", "peek-callers", "usages", "calls"].forEach((command) => COVERED.add(command));
+["back", "forward", "last-editor", "search-everywhere", "recent-files", "file", "symbol", "symbol-tree", "jump", "mark-file", "marked-files", "bookmark", "bookmarks", "bridge"].forEach((command) => COVERED.add(command));
+[1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((n) => COVERED.add(`mark-${n}`));
+["gather-lines", "gathered-lines", "next-problem", "previous-problem", "next-change", "previous-change", "find", "replace", "next-match", "previous-match"].forEach((command) => COVERED.add(command));
+
+const PEEKED = "peek.c";
+const PLUGINS_OFF = "orior.plugins.off";
+
+// A C file clangd serves, open with the cursor on the call of helper on its fourth line.
+async function served() {
+  await invoke("file_write", { path: PEEKED, text: "int helper(void) { return 1; }\n\nint main(void) {\n  return helper() + helper();\n}\n" });
+  showView("edit");
+  await openFile(PEEKED);
+  await ui.waitFor(() => editing().active === PEEKED && editing().editor?.s, 5000, "peek.c open");
+  editing().editor.goTo(3, 10);
+}
+
+test("Go, Definition, the peeks, Find Usages and Call Hierarchy ask the language server, here clangd", async () => {
+  await served();
+  await ui.waitFor(async () => {
+    editing().editor.goTo(3, 10);
+    await press("peek-definition");
+    return peekShown()?.places.length > 0;
+  }, 30000, "clangd to find the definition").catch((error) => {
+    throw new Error(`${error.message}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesHeld()].slice(-4).map((one) => one.text))}; calls: ${JSON.stringify(made("lsp_definition").slice(-2))}; the language: ${editing().editor.s.language?.name}; plugins off: ${localStorage.getItem(PLUGINS_OFF)}`);
+  });
+  assert.equal(peekShown().title, "Definition of helper");
+  closePeek();
+  editing().editor.goTo(3, 10);
+  await press("peek-usages");
+  await ui.waitFor(() => peekShown()?.places.length >= 2, 10000, "the usages");
+  closePeek();
+  editing().editor.goTo(0, 6);
+  await press("peek-callers");
+  await ui.waitFor(() => peekShown()?.title === "Callers of helper", 10000, "the callers");
+  closePeek();
+  editing().editor.goTo(3, 10);
+  await press("definition");
+  await ui.waitFor(() => editing().editor.head().line === 0, 10000, "the cursor at the definition");
+  editing().editor.goTo(3, 10);
+  await press("usages");
+  await ui.waitFor(() => document.getElementById("usages-hits").children.length >= 2, 10000, "the usages listed");
+  editing().editor.goTo(0, 6);
+  await press("calls");
+  await ui.waitFor(() => /helper/.test(document.getElementById("calls-said").textContent), 10000, "the call hierarchy of helper");
+}, { timeout: 90000 });
+
+test("Go, Go to File opens the file at its line and column, and Back and Forward step through where the cursor was", async () => {
+  await given("a|b\ncd");
+  await press("file", "hello.py:2:5");
+  assert.equal(editing().active, "hello.py");
+  assert.deepEqual(editing().editor.head(), { line: 1, col: 4 });
+  await press("back");
+  await ui.waitFor(() => editing().active === GIVEN, 3000, "back to the given file");
+  await press("forward");
+  await ui.waitFor(() => editing().active === "hello.py", 3000, "forward to hello.py");
+  await press("last-editor");
+  await ui.waitFor(() => editing().active === GIVEN, 3000, "the editor used before");
+});
+
+test("Go, Search Everywhere, Recent Files, Symbol and Symbol in the Tree open the quick open as each asks", async () => {
+  await given("a|b");
+  const input = () => document.querySelector(".quick-input");
+  const quick = () => document.querySelector(".quick");
+  for (const [command, words, value, everywhere] of [["search-everywhere", [], "", true], ["recent-files", [], "", false], ["symbol", ["greet"], "@greet", false], ["symbol-tree", ["greet"], "#greet", false]]) {
+    await press(command, ...words);
+    try {
+      await ui.waitFor(() => paletteOpen(), 3000, `${command}'s quick open`);
+      assert.equal(input().value, value, command);
+      assert.equal(quick().classList.contains("everywhere"), everywhere, `${command} everywhere`);
+    } finally {
+      await ui.key("Escape");
+    }
+  }
+});
+
+test("Go, Jump marks the places to jump to", async () => {
+  await given("ab cd ef|");
+  await press("jump");
+  assert.equal(editing().editor.host.dataset.jump, "true");
+  editing().editor.endJump();
+});
+
+test("Go, Mark File marks files, Marked Files lists them, and each Go to Marked File opens its own", async () => {
+  const names = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `marked_${n}.txt`);
+  showView("edit");
+  for (const name of names) {
+    await invoke("file_write", { path: name, text: `${name}\n` });
+    await openFile(name);
+    await press("mark-file");
+  }
+  const listed = () => editing().markItems().map((item) => item.label.replace(/^\d+ {2}/, ""));
+  try {
+    assert.deepEqual(listed().slice(-9), names, "each marked in turn");
+    await press("marked-files");
+    const menu = await ui.waitFor(() => document.querySelector("body > .menu"), 3000, "the marked files' menu");
+    assert.ok(menu.textContent.includes(names[0]));
+    closeMenu(false);
+    for (const [at, name] of names.entries()) {
+      const n = listed().indexOf(name) + 1;
+      if (n > 9) {
+        continue;
+      }
+      await press(`mark-${n}`);
+      assert.equal(editing().active, name, `mark-${n}`);
+      assert.equal(at + 1 <= 9, true);
+    }
+  } finally {
+    for (const name of names) {
+      await openFile(name);
+      if (listed().includes(name)) {
+        await runCommand("mark-file");
+      }
+    }
+  }
+  assert.ok(!names.some((name) => listed().includes(name)), "Mark File again lets each go");
+});
+
+test("Go, Toggle Bookmark sets and takes off a bookmark on the cursor's line, and Bookmarks lists them", async () => {
+  await given("ab\nc|d");
+  await press("bookmark");
+  assert.ok(bookmarksOf(GIVEN)?.has(1), "the second line bookmarked");
+  await press("bookmarks");
+  try {
+    await ui.waitFor(() => paletteOpen(), 3000, "the bookmarks");
+    assert.match(document.querySelector(".quick-input").placeholder, /^Bookmarks/);
+  } finally {
+    await ui.key("Escape");
+  }
+  await press("bookmark");
+  assert.equal(bookmarksOf(GIVEN), null, "taken off");
+});
+
+test("Go, Bridge Key opens Lstar.klq at the key's line", async () => {
+  calls.answer("bridge_read", () => ({ klq: { path: "hello.py", keys: { greet: { line: 4 } } } }));
+  await runCommand("bridge", ["greet"]);
+  await ui.waitFor(() => editing().active === "hello.py" && editing().editor.head().line === 4, 3000, "hello.py at the key's line");
+});
+
+test("Go, Gather Lines gathers the cursor's line and Gathered Lines shows and hides them", async () => {
+  await given("ab\nc|d");
+  await press("gather-lines");
+  const kept = tasks();
+  assert.ok((kept.tasks[kept.current] ?? []).some((piece) => piece.path === GIVEN && piece.from === 1), JSON.stringify(kept));
+  const was = Boolean(boardShown());
+  await press("gathered-lines");
+  assert.equal(Boolean(boardShown()), !was);
+  await press("gathered-lines");
+  assert.equal(Boolean(boardShown()), was);
+});
+
+test("Go, Next Problem and Previous Problem step through the diagnostics", async () => {
+  const view = await given("a|b\ncd\nef");
+  // The checks that run as the text rests come first; the diagnostics are set after them.
+  await ui.rest(800);
+  view.s.diagnostics = [
+    { from: { line: 2, col: 0 }, to: { line: 2, col: 1 }, severity: 1, message: "second" },
+    { from: { line: 1, col: 1 }, to: { line: 1, col: 2 }, severity: 2, message: "first" },
+  ];
+  try {
+    await press("next-problem");
+    assert.equal(marked(), "ab\nc|d\nef");
+    await press("next-problem");
+    assert.equal(marked(), "ab\ncd\n|ef");
+    await press("previous-problem");
+    assert.equal(marked(), "ab\nc|d\nef");
+  } finally {
+    view.s.diagnostics = [];
+  }
+});
+
+test("Go, Next Change and Previous Change step through the changes since the last commit, each peeked", async () => {
+  showView("edit");
+  await openFile("hello.py");
+  const view = editing().editor;
+  view.goTo(0, 0);
+  view.change([{ from: { line: 0, col: 0 }, to: { line: 0, col: 0 }, text: "# changed\n" }], null);
+  try {
+    await ui.waitFor(() => view.s.changes?.hunks?.length, 10000, "the change against the last commit");
+    view.goTo(5, 0);
+    await press("previous-change");
+    assert.equal(view.head().line, 0, "the change before");
+    await ui.waitFor(() => document.querySelector(".peek .peek-title")?.textContent.startsWith("Change 1 of"), 3000, "the change peeked");
+    view.goTo(5, 0);
+    await press("next-change");
+    assert.equal(view.head().line, 0, "the first change, after the last");
+  } finally {
+    closePeek();
+    document.querySelector(".peek")?.remove();
+    view.change([{ from: { line: 0, col: 0 }, to: { line: 1, col: 0 }, text: "" }], null);
+  }
+});
+
+test("Edit, Find and Replace open the find bar, and Next Match and Previous Match step through its matches", async () => {
+  const view = await given("[xy] ab xy");
+  await press("find");
+  assert.ok(view.find.shown, "the find bar open");
+  assert.equal(view.find.query.value, "xy");
+  assert.ok(view.find.replaceRow.hidden, "without the replace row");
+  await ui.waitFor(() => view.find.matches.length === 2, 3000, "both matches found");
+  await press("next-match");
+  assert.equal(marked(), "xy ab [xy]");
+  await press("previous-match");
+  assert.equal(marked(), "[xy] ab xy");
+  await press("replace");
+  assert.ok(!view.find.replaceRow.hidden, "the replace row shown");
+  view.find.close();
 });
 

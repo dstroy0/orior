@@ -483,7 +483,8 @@ export async function syncPlugins() {
 // Find the Slow Plugin: the plugins on halved, half of them off at a time, the reader asked each time
 // whether the window is still slow, until one is left; then each set back as it was.
 export function findSlowPlugin() {
-  const off = pluginsOff();
+  // A finding begun again starts from the plugins the reader had off before the first began.
+  const off = state.finding?.was ?? pluginsOff();
   const on = pluginReadings().map((reading) => reading.id).filter((id) => !off.has(id));
   if (!on.length) {
     say("No plugin is on");
