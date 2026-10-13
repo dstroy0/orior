@@ -76,11 +76,11 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/survivors_check" "$TOP/utils/test/src/cu/
     "$TOP/src/cu/transpiler/lstar/protocol/gate/survivors.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/scheduler_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/scheduler_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/order/scheduler.c" "$TOP"/src/cu/transpiler/lstar/protocol/teacher/run_channel/*.c \
-    "$TOP/src/cu/transpiler/lstar/protocol/overseer/overseer.c" "$TOP/src/cu/transpiler/lstar/interface/interface.c" \
+    "$TOP"/src/cu/transpiler/lstar/protocol/overseer/*.c "$TOP/src/cu/transpiler/lstar/interface/interface.c" "$TOP"/src/cu/transpiler/lstar/interface/platform/*.c \
     "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/overseer_check.c" \
-    "$TOP/src/cu/transpiler/lstar/protocol/overseer/overseer.c" "$TOP"/src/cu/transpiler/lstar/protocol/teacher/run_channel/*.c \
-    "$TOP/src/cu/transpiler/lstar/interface/interface.c" \
+    "$TOP"/src/cu/transpiler/lstar/protocol/overseer/*.c "$TOP"/src/cu/transpiler/lstar/protocol/teacher/run_channel/*.c \
+    "$TOP/src/cu/transpiler/lstar/interface/interface.c" "$TOP"/src/cu/transpiler/lstar/interface/platform/*.c \
     "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_carrier" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/overseer_carrier.c" \
     "${FILE_DEFS[@]}" || exit 1
@@ -89,7 +89,7 @@ BOOT="$TOP/src/cu/transpiler/lstar/protocol"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_walk" "$BOOT/query/query_walk.c" "$BOOT/query/query_ask.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/query_interface_check" \
-    "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_interface_check.c" "$BOOT/query/query_interface.c" "$INTERFACE/interface.c" \
+    "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_interface_check.c" "$BOOT/query/query_interface.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
     "$INTERFACE/interface_names.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_order_check.c" \
     "$BOOT/order/query_order.c" "$BOOT/query/query_ask.c" "$BOOT/order/ask_order.c" \
@@ -104,7 +104,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/host_entry_check" "$TOP/utils/test/src/cu
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/classify_walk" "$BOOT/query/classify_walk.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/bus_enum_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/bus_enum_check.c" "$BOOT/query/bus_enum.c" "$BOOT/query/bus_enum_walk.c" "$BOOT/query/query_interface.c" \
-    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" || exit 1
+    "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" || exit 1
 WALK="$OUT/query_walk"
 if [ -f "$WALK.exe" ]; then
     WALK="$WALK.exe"

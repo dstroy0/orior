@@ -52,7 +52,7 @@ done
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE")
 rm -f "$BINARY" "$PROBE"
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TEST/interface_ptx_test.c"; do
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_ptx_test.c"; do
     object="$OUT/$(basename "$source" .c).$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
@@ -76,7 +76,7 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu; do
     esac
 done
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$PROBE" \
-    "$TEST_CU"/interface_ptx_probe_{questions,main}.cu \
+    "$TEST_CU"/interface_ptx_probe_{questions,runs,main}.cu \
     "${CODEGEN_SOURCES[@]}" -lnvrtc -lnvJitLink
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }
 

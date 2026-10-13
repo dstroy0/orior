@@ -35,7 +35,7 @@ for source in "$QRY_SOURCE"/buffer/*.c; do
         { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_write.cu"; do
+for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PARSER"/ruleset_flat/*.cu "$PROTOCOL/table/klq_write.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) continue ;;
     esac

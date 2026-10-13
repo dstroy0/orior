@@ -22,14 +22,14 @@ qry_writer_built "$OUT"
 
 BINARY="$OUT/gsm_write"
 cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/gsm_write.c" \
-    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
+    "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
     { echo "  build failed: gsm_write did not compile"; exit 1; }
 
 # the vendor's writer, a program the protocol runs through the interface to read the machine file it laid out
 WRITER="$OUT/khw_machine_write"
-cc -std=c11 -O2 -Wall -o "$WRITER" "$LAYOUTS/nvidia/khw_machine_write.c" \
+cc -std=c11 -O2 -Wall -o "$WRITER" "$LAYOUTS/nvidia/khw_machine_write.c" "$LAYOUTS"/nvidia/khw_machine_write/*.c \
     "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
-    "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS/nvidia/sass_machine.c" \
+    "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS"/nvidia/sass_machine/*.c \
     "${FILE_DEFS[@]}" || { echo "  build failed: khw_machine_write did not compile"; exit 1; }
 
 run_started "$WORK/qry"

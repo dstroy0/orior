@@ -80,7 +80,8 @@ stale() {
     [ ! -f "$2" ] || [ "$1" -nt "$2" ] ||
         [ -n "$(find "$CODEGEN" "$PARSER" "$TOP/src/cu/types/file_defs" "$PROTOCOL" "$INTERFACE" "$LAYOUTS" "$TOP/src/cu/engine" -name '*.h' -newer "$2" -print -quit)" ]
 }
-for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_identity.cu" "$PROTOCOL/table/identity"/*.cu; do
+for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PARSER"/ruleset_flat/*.cu "$PROTOCOL/table/klq_identity.cu" \
+    "$PROTOCOL/table/identity"/*.cu; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) continue ;;
     esac
@@ -93,9 +94,9 @@ for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_identity.cu" "
     OBJECTS+=("$object")
 done
 # the run channel, the interface it carries each question through, the overseer and the run's buffer, in C
-for source in "$PROTOCOL"/teacher/run_channel/*.c "$PROTOCOL/overseer/overseer.c" \
-    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$LAYOUTS"/nvidia/sass_assemble/*.c \
-    "$LAYOUTS/nvidia/sass_machine.c" "${FILE_DEFS[@]}"; do
+for source in "$PROTOCOL"/teacher/run_channel/*.c "$PROTOCOL"/overseer/*.c \
+    "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$LAYOUTS"/nvidia/sass_assemble/*.c \
+    "$LAYOUTS"/nvidia/sass_machine/*.c "${FILE_DEFS[@]}"; do
     object="$OUT/$(basename "$source")_identity.o"
     if stale "$source" "$object"; then
         rm -f "$object"
@@ -110,16 +111,16 @@ qry_writer_built "$OUT"
 # the carrier, every channel input read from the run's buffer and every answer handed to it
 carrier_built() {
     CARRIER="$OUT/cubin_run"
-    cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS"/nvidia/cubin_run/*.c "$LAYOUTS/nvidia/cubin_safe.c" \
+    cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS"/nvidia/cubin_run/*.c "$LAYOUTS"/nvidia/cubin_safe/*.c \
         "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
-        "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS/nvidia/sass_machine.c" \
+        "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS"/nvidia/sass_machine/*.c \
         "${FILE_DEFS[@]}" || { echo "  build failed: cubin_run did not compile"; exit 1; }
     # the cross the airlock runs over every round before the part (run_channel.h), the vendor's reader beside the
     # compiler
     CROSS="$OUT/measuring_stick_query"
     cc -std=c11 -O2 -Wall -Wextra -pthread -I "$TOP/src/cu/engine" -o "$CROSS" \
         "$LAYOUTS/nvidia/measuring_stick_query.c" "$LAYOUTS"/nvidia/measuring_stick_query/*.c \
-        "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
+        "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" \
         "${FILE_DEFS[@]}" || { echo "  build failed: the cross did not compile"; exit 1; }
     NVDISASM="$(dirname "$(command -v nvcc)")/nvdisasm"
     [ -x "$NVDISASM" ] || [ -x "$NVDISASM.exe" ] || { echo "  no nvdisasm beside nvcc: the airlock has no reader"; exit 1; }
@@ -218,7 +219,8 @@ if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" =
             BUFFER_OBJECTS+=("$object")
         done
         c++ -std=c++17 -O2 -Wall -Wextra -I "$PROTOCOL/table" -I "$PARSER" -I "$QRY_SOURCE" -o "$DECODER" -x c++ \
-            "$PROTOCOL/table/klq_decoder.cu" "$PARSER/query_trace.cu" -x none "${BUFFER_OBJECTS[@]}" -static ||
+            "$PROTOCOL/table/klq_decoder.cu" "$PROTOCOL"/table/decoder/*.cu "$PARSER/query_trace.cu" \
+            -x none "${BUFFER_OBJECTS[@]}" -static ||
             { echo "  build failed: klq_decoder did not compile"; exit 1; }
         traced klq_decoder "$DECODER" "$QRY" "$STICK/engine" "$COHERENCE/Lstar.klq"
         exit $?

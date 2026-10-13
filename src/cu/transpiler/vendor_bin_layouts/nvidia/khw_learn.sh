@@ -62,14 +62,14 @@ build_all()
 {
     qry_writer_built "$OUT"
     CARRIER="$OUT/cubin_run"
-    cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS"/nvidia/cubin_run/*.c "$LAYOUTS/nvidia/cubin_safe.c" \
+    cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS"/nvidia/cubin_run/*.c "$LAYOUTS"/nvidia/cubin_safe/*.c \
         "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
-        "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS/nvidia/sass_machine.c" \
+        "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS"/nvidia/sass_machine/*.c \
         "${FILE_DEFS[@]}" || { echo "  build failed: cubin_run did not compile"; exit 1; }
     CROSS="$OUT/measuring_stick_query"
     cc -std=c11 -O2 -Wall -Wextra -pthread -I "$TOP/src/cu/engine" -o "$CROSS" \
         "$LAYOUTS/nvidia/measuring_stick_query.c" "$LAYOUTS"/nvidia/measuring_stick_query/*.c \
-        "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
+        "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" \
         "${FILE_DEFS[@]}" || { echo "  build failed: the cross did not compile"; exit 1; }
     NVCC="$(command -v nvcc)"
     NVDISASM="$(dirname "$NVCC")/nvdisasm"
@@ -77,14 +77,14 @@ build_all()
         { echo "  no nvdisasm beside nvcc: the airlock has no reader, and nothing goes to the part"; exit 2; }
     BINARY="$OUT/khw_write"
     cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" "$PARSER"/khw_write/*.c \
-        "$PROTOCOL"/teacher/run_channel/*.c "$PROTOCOL/overseer/overseer.c" "$PROTOCOL/query/answer_read.c" \
+        "$PROTOCOL"/teacher/run_channel/*.c "$PROTOCOL"/overseer/*.c "$PROTOCOL/query/answer_read.c" \
         "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" "$LAYOUTS/container_layout.c" \
-        "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
+        "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
         { echo "  build failed: khw_write did not compile"; exit 1; }
     WRITER="$OUT/khw_machine_write"
-    cc -std=c11 -O2 -Wall -o "$WRITER" "$LAYOUTS/nvidia/khw_machine_write.c" \
+    cc -std=c11 -O2 -Wall -o "$WRITER" "$LAYOUTS/nvidia/khw_machine_write.c" "$LAYOUTS"/nvidia/khw_machine_write/*.c \
         "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
-        "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS/nvidia/sass_machine.c" \
+        "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS"/nvidia/sass_machine/*.c \
         "${FILE_DEFS[@]}" || { echo "  build failed: khw_machine_write did not compile"; exit 1; }
 }
 
