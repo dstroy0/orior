@@ -266,6 +266,10 @@ export async function startJob(id, values) {
   const steps = before.lines.filter((line) => line.stream === "command").map((line) => line.ms);
   const clock = performance.now() - (before.lines[before.lines.length - 1]?.ms ?? 0);
   state.runs.set(run, { run, job: id, lines: before.lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false });
+  // A run that ended before its number came back ends here as it comes.
+  if (before.end) {
+    onEnd({ payload: before.end });
+  }
   const kept = runsOf(id);
   for (const old of kept.filter((one) => one.done).slice(0, Math.max(0, kept.length - KEPT_RUNS))) {
     state.runs.delete(old.run);

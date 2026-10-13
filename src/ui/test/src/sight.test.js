@@ -40,7 +40,9 @@ test("the rows the tree scrolls toward are drawn ahead of it", async () => {
     await ui.wheel(list, 400);
     await ui.rest(20);
   }
-  await ui.waitFor(() => aheadOf(list).length >= 8, 2000);
+  await ui.waitFor(() => aheadOf(list).length >= 8, 2000).catch((error) => {
+    throw new Error(`${error.message}; ahead ${aheadOf(list).length}, the list ${Math.round(list.getBoundingClientRect().height)} px tall, scrolled to ${list.scrollTop}, ${list.querySelectorAll(".node").length} rows; its bottom at ${Math.round(list.getBoundingClientRect().bottom)} of ${innerHeight}, where ${document.elementFromPoint(list.getBoundingClientRect().left + 20, Math.min(innerHeight - 1, list.getBoundingClientRect().bottom - 2))?.outerHTML.slice(0, 160)} stands; the docks ${localStorage.getItem("orior.docks")}; under it ${document.elementFromPoint(list.getBoundingClientRect().left + 20, Math.min(innerHeight - 1, list.getBoundingClientRect().bottom + 30))?.closest("section, aside, [id]")?.id}`);
+  });
   const bottom = list.getBoundingClientRect().bottom;
   const marked = aheadOf(list);
   assert.ok(marked.every((row) => row.getBoundingClientRect().top >= bottom - 22), "each lies past the view's lower edge");

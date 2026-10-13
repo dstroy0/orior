@@ -672,7 +672,11 @@ function summaryOf(session) {
 
 export async function step(how) {
   const session = chosen();
-  const thread = session?.paused?.thread ?? session?.thread;
+  let thread = session?.paused?.thread ?? session?.thread;
+  // A program that has not stopped yet is paused on its first thread, as the debugger lists them.
+  if (session && thread === undefined && how === "pause") {
+    thread = (await invoke("debug_threads", { session: session.info.id }).catch(() => []))[0]?.id;
+  }
   if (!session || thread === undefined) {
     return;
   }

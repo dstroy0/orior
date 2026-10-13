@@ -33,6 +33,8 @@ use crate::root::relative;
 pub struct Runs {
     next: AtomicU64,
     live: Arc<Mutex<HashMap<u64, u32>>>,
+    /// The group of each detached step still running, which Stop ends whole.
+    groups: Arc<Mutex<HashMap<u64, crate::container::Group>>>,
     stopped: Arc<Mutex<HashSet<u64>>>,
     attached: bool,
 }
@@ -483,6 +485,7 @@ impl Runs {
         // once. The folder is named by both and emptied before the run writes to it.
         let view_out = root.join("build").join("ui").join("views").join(format!("{}-{run}", std::process::id()));
         let live = self.live.clone();
+        let groups = self.groups.clone();
         let stopped = self.stopped.clone();
         let attached = self.attached;
         let began = Instant::now();
@@ -568,8 +571,21 @@ impl Runs {
                     quiet(&mut cmd);
                 }
                 let step_began = since(began);
-                let mut child: Child = match cmd.spawn() {
-                    Ok(child) => child,
+                // The groups are held from the last look at whether the run was stopped until the step's
+                // process has joined its group: Stop, which marks the run and then reads the groups,
+                // either finds the process there or keeps it from starting.
+                let held = groups.lock();
+                if holds(&stopped, run) {
+                    break;
+                }
+                let spawned = if attached { cmd.spawn().map(|child| (child, None)) } else { crate::container::Group::spawn(&mut cmd) };
+                let mut child: Child = match spawned {
+                    Ok((child, group)) => {
+                        if let (Some(group), Ok(mut groups)) = (group, held) {
+                            groups.insert(run, group);
+                        }
+                        child
+                    }
                     Err(error) => {
                         say(format!("could not start: {error}"));
                         code = None;
@@ -589,6 +605,9 @@ impl Runs {
                 }
                 if let Ok(mut live) = live.lock() {
                     live.remove(&run);
+                }
+                if let Ok(mut groups) = groups.lock() {
+                    groups.remove(&run);
                 }
                 code = status.ok().and_then(|s| s.code());
                 if made_step {
@@ -620,24 +639,57 @@ impl Runs {
         Ok((run, waits))
     }
 
-    /// Stops a run and everything it started: the whole process tree on Windows, the process group
-    /// elsewhere.
+    /// Stops a run and everything it started: its job on Windows, its process group elsewhere.
     pub fn stop(&self, run: u64) -> Result<(), String> {
         self.stopped.lock().map_err(|e| e.to_string())?.insert(run);
+        if let Some(group) = self.groups.lock().map_err(|e| e.to_string())?.get(&run) {
+            group.end();
+        }
         let pid = self.live.lock().map_err(|e| e.to_string())?.get(&run).copied();
         let Some(pid) = pid else { return Ok(()) };
-        let mut kill = if cfg!(windows) {
+        #[cfg(unix)]
+        {
+            crate::container::end_group(pid);
+            Ok(())
+        }
+        #[cfg(windows)]
+        {
             let mut kill = Command::new("taskkill");
             kill.args(["/T", "/F", "/PID", &pid.to_string()]);
-            kill
-        } else {
-            let mut kill = Command::new("kill");
-            kill.args(["-TERM", &format!("-{pid}")]);
-            kill
-        };
-        quiet(&mut kill);
-        kill.stdout(Stdio::null()).stderr(Stdio::null());
-        kill.status().map(|_| ()).map_err(|e| e.to_string())
+            quiet(&mut kill);
+            kill.stdout(Stdio::null()).stderr(Stdio::null());
+            kill.status().map(|_| ()).map_err(|e| e.to_string())
+        }
+    }
+}
+
+#[cfg(test)]
+mod stopping {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn stop_ends_a_build_and_every_process_it_started_at_once() {
+        if super::bash().is_err() {
+            return;
+        }
+        // From inside orior's container, as the window runs.
+        crate::container::hold();
+        let root = std::env::temp_dir().join(format!("orior_ui_stop_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/build_slow.sh"), "#!/usr/bin/env bash\nsleep 30\necho late\n").unwrap();
+        let job = crate::catalog::read(&root).into_iter().find(|job| job.id == "build/src/build_slow.sh").expect("the build read as a job");
+        let runs = super::Runs::default();
+        let values = HashMap::from([("arguments".to_string(), vec![String::new()]), ("trace".to_string(), vec!["quiet".to_string()])]);
+        let (run, waits) = runs.start(Arc::new(|_| {}), root.clone(), job, values).unwrap_or_else(|said| panic!("{said}"));
+        std::thread::sleep(Duration::from_millis(1500));
+        let asked = Instant::now();
+        runs.stop(run).unwrap();
+        waits.join().unwrap();
+        assert!(asked.elapsed() < Duration::from_secs(5), "the run ended {:?} after Stop", asked.elapsed());
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
 

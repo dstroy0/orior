@@ -295,6 +295,17 @@ export function morePanes() {
   return GROUPS.explorer.concat("timeline").map((name) => ({ name, label: PANES.find(([one]) => one === name)[1] ?? "Files" }));
 }
 
+// Every pane's state, and each pane put back as `kept` holds it, for the tests that change them.
+export const panesNow = () => JSON.parse(JSON.stringify(state.panes));
+
+export function putPanes(kept) {
+  for (const [name, pane] of Object.entries(kept)) {
+    if (state.panes[name]) {
+      setPane(name, pane);
+    }
+  }
+}
+
 export function paneOpen(name) {
   return state.panes[name]?.shown && state.panes[name]?.open;
 }

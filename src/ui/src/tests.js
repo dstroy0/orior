@@ -89,9 +89,8 @@ export async function runTests(given, { cover = false } = {}) {
 
 // Run, Run All Tests: every file of tests the tree holds.
 export async function runAllTests({ cover = false } = {}) {
-  if (!state.loaded) {
-    await loadTests();
-  }
+  // The tree's tests are read again first: a file of tests made since the last reading runs too.
+  await loadTests();
   await runTests([...new Set(state.found.map((test) => test.file))], { cover });
 }
 

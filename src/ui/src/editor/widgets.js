@@ -197,13 +197,17 @@ const NEAR_LINES = 3000;
 const MOST_WORDS = 4000;
 
 // The words of the file within NEAR_LINES of `at`, each of two letters or more once, as items, the
-// word being typed, `typed`, left out.
+// word being typed, `typed`, left out, and the word the cursor stands in, which typing makes.
 export function fileWords(doc, at, typed) {
   const seen = new Set([typed]);
   const items = [];
   const last = Math.min(doc.count - 1, at.line + NEAR_LINES);
   for (let line = Math.max(0, at.line - NEAR_LINES); line <= last && items.length < MOST_WORDS; line += 1) {
-    for (const [word] of doc.line(line).matchAll(/[\p{L}_$][\p{L}\p{N}_$]+/gu)) {
+    for (const found of doc.line(line).matchAll(/[\p{L}_$][\p{L}\p{N}_$]+/gu)) {
+      const word = found[0];
+      if (line === at.line && found.index <= at.col && at.col <= found.index + word.length) {
+        continue;
+      }
       if (!seen.has(word)) {
         seen.add(word);
         items.push({ label: word, kind: "word", insert: word });

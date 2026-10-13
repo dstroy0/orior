@@ -5,7 +5,7 @@
 // kind the file shown is. And every item of every menu, pressed from its menu as a person presses it.
 
 import { allCommands, firstKeys, hasCommand, isChecked, runCommand } from "../../src/menubar.js";
-import { invoke } from "../../src/bridge.js";
+import { invoke, listen } from "../../src/bridge.js";
 import { closeMenu } from "../../src/menu.js";
 import { editing, openFile } from "../../src/edit.js";
 import { killTerminal, newTerminal, runInTerminal, toggleTerminal } from "../../src/terminal.js";
@@ -19,10 +19,18 @@ import { checkersNamed, setCheckers } from "../../src/servers.js";
 import { closePeek, peekShown } from "../../src/peek.js";
 import { bookmarksOf } from "../../src/bookmarks.js";
 import { boardShown, tasks } from "../../src/gather.js";
-import { paneOpen } from "../../src/explorer.js";
+import { paneOpen, panesNow, putPanes, showGroup, shownGroup } from "../../src/explorer.js";
 import { forgetMacro, keptMacros, lastMacro, recording } from "../../src/macros.js";
+import { breakpointsOf, canStepBack, debugging, isPaused, pausedLineOf, toggleDebugPanel } from "../../src/debug.js";
+import { chosenJob, chosenLive, loadRun, showJob } from "../../src/run.js";
+import { testsOf } from "../../src/tests.js";
 
 const { test, assert, ui } = window.__harness;
+
+// The page's storage as the file found it, put back by its last test.
+const STORED = Object.entries(localStorage);
+// The explorer's group and panes as the file found them, put back by its last test.
+const FOUND = { group: shownGroup(), panes: panesNow() };
 
 test("a key two commands for different kinds of file share goes to the one the file shown is for", () => {
   const items = [
@@ -1247,4 +1255,376 @@ test("Edit, Rename, Quick Fix, Parameter Info and Quick Documentation ask the la
   assert.match(document.querySelector("body > .menu").textContent, /xtract/, "an extraction offered");
   closeMenu(false);
 }, { timeout: 90000 });
+
+["start", "stop", "list", "show", "run-file", "validate", "update-snapshots", "run-statement", "run-sql-file", "send-request", "copy-as-curl", "private-environment"].forEach((command) => COVERED.add(command));
+["tests", "run-tests", "run-failed-tests", "cover-tests", "stop-tests", "profile", "profile-remote", "stop-profile", "print-here", "breakpoint"].forEach((command) => COVERED.add(command));
+["debug", "continue", "step-over", "step-into", "step-out", "stop-debug", "pause", "restart-debug", "record", "step-back", "reverse-continue", "debug-mixed"].forEach((command) => COVERED.add(command));
+["attach-process", "attach-address", "stepping", "export-breakpoints", "import-breakpoints", "show-memory", "watch-memory", "machine-code"].forEach((command) => COVERED.add(command));
+["commit-view", "review-structure", "push", "pull", "branches", "new-branch", "stash", "stashes", "cherry-pick", "conflicts"].forEach((command) => COVERED.add(command));
+
+const QUICK = "build/src/build_quick.sh";
+const SLOW = "build/src/build_slow.sh";
+
+test("Run, Start and Stop run the job chosen, and the command line lists, shows and starts the tree's jobs", async () => {
+  await invoke("file_write", { path: "src/build_quick.sh", text: "#!/usr/bin/env bash\necho quick\n" });
+  await invoke("file_write", { path: "src/build_slow.sh", text: "#!/usr/bin/env bash\nsleep 30\n" });
+  await loadRun();
+  assert.equal(await ran("list"), "ran");
+  assert.equal(await ran("show", QUICK), "ran");
+  assert.equal(await ran("start", QUICK), "ran", "the job run in the terminal, and ended well");
+  await runCommand("list", ["slow"]);
+  assert.equal(document.body.dataset.view, "run");
+  assert.equal(document.getElementById("job-filter").value, "slow");
+  showJob(SLOW);
+  assert.equal(chosenJob()?.id, SLOW);
+  const ends = [];
+  await listen("run-end", ({ payload }) => ends.push(payload));
+  await runCommand("start");
+  await ui.waitFor(() => chosenLive(), 10000, "the job running");
+  await press("stop");
+  await ui.waitFor(() => !chosenLive(), 10000, "the job stopped").catch((error) => {
+    throw new Error(`${error.message}; asked to stop: ${JSON.stringify(made("job_stop").map((one) => one.args))}; started: ${JSON.stringify(made("job_start").map((one) => one.args.job))}; ended: ${JSON.stringify(ends)}; the console: ${document.getElementById("lines")?.textContent.slice(0, 400)}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesHeld()].slice(-3).map((one) => one.text))}`);
+  });
+}, { timeout: 60000 });
+
+test("Run, Run File runs the file shown, from the window and from the command line", async () => {
+  assert.equal(await ran("run-file", `${TREE()}/hello.py`), "ran", "Python ran hello.py");
+  showView("edit");
+  await openFile("hello.py");
+  const before = made("run_file_line").length;
+  await runCommand("run-file");
+  await ui.waitFor(() => made("run_file_line").length > before, 5000, "the file's run asked for");
+  await ui.waitFor(() => /hello, orior/.test(document.getElementById("term-views").textContent), 15000, "its output in the terminal");
+}, { timeout: 60000 });
+
+test("Run, Validate says where no tool plugin validates the file, from the window and the command line", async () => {
+  assert.match(await ran("validate", `${TREE()}/hello.py`), /ended/, "the command line refuses a file no tool validates");
+  showView("edit");
+  await openFile("hello.py");
+  await runCommand("validate");
+  assert.ok(told(/No tool plugin validates Python/));
+});
+
+test("Run, Update Snapshots runs its line in the terminal", async () => {
+  calls.answer("snapshots_line", () => ["", "echo snapshots-updated"]);
+  await press("update-snapshots");
+  await ui.waitFor(() => /snapshots-updated/.test(document.getElementById("term-views").textContent), 10000, "the line run");
+});
+
+test("Run, Run Statement and Run File of a SQL file read its statements", async () => {
+  showView("edit");
+  await openFile("queries.sql");
+  editing().editor.goTo(0, 1);
+  await press("run-statement");
+  assert.ok(made("db_statement_at").length, "the statement at the cursor read");
+  await press("run-sql-file");
+  assert.ok(made("db_statements").length, "every statement read");
+});
+
+test("Run, Send Request, Copy as curl and Private Environment File on a file of requests", async () => {
+  await invoke("file_write", { path: "asked.http", text: "GET http://127.0.0.1:9/asked\n" });
+  showView("edit");
+  await openFile("asked.http");
+  editing().editor.goTo(0, 0);
+  calls.answer("requests_send", () => ({ status: 200, reason: "OK", headers: [], body: "", ms: 1, size: 0 }));
+  await press("send-request");
+  assert.ok(made("requests_send").some((one) => one.args.path === "asked.http"), "the request sent");
+  const copied = [];
+  calls.answer("clip_write", ({ text }) => copied.push(text));
+  await press("copy-as-curl");
+  await ui.waitFor(() => copied.length, 5000, "the curl line copied");
+  assert.match(copied[0], /^curl\b[\s\S]*127\.0\.0\.1:9\/asked/);
+  await openFile("asked.http");
+  await press("private-environment");
+  await ui.waitFor(() => made("requests_private").length, 5000, "the private environment asked for");
+});
+
+test("Run, Find Tests lists the tree's tests, Run Tests runs them, Run Failed Tests the failed, and Stop Tests stops them", async () => {
+  await invoke("file_write", { path: "test_menus.py", text: "def test_passes():\n    assert True\n\n\ndef test_fails():\n    assert False\n" });
+  assert.equal(await ran("tests"), "ran");
+  await runCommand("tests");
+  try {
+    await ui.waitFor(() => paletteOpen() && /tests?: type to filter/.test(document.querySelector(".quick-input").placeholder), 5000, "the tests listed");
+  } finally {
+    await ui.key("Escape");
+  }
+  await press("run-tests");
+  await ui.waitFor(() => testsOf("test_menus.py")?.get(0) === "passed" && testsOf("test_menus.py")?.get(4) === "failed", 60000, "each test's result").catch((error) => {
+    throw new Error(`${error.message}; the results: ${JSON.stringify([...(testsOf("test_menus.py") ?? [])])}; run: ${JSON.stringify(made("tests_run").map((one) => one.args))}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesHeld()].slice(-3).map((one) => one.text))}`);
+  });
+  const asked = made("tests_run").length;
+  await press("run-failed-tests");
+  await ui.waitFor(() => made("tests_run").length > asked, 5000, "the failed test run again");
+  assert.deepEqual(made("tests_run").at(-1).args.given, ["test_menus.py::test_fails"]);
+  await press("cover-tests");
+  await ui.waitFor(() => made("tests_run").at(-1).args.cover === true, 5000, "the tests run for their coverage");
+  await press("stop-tests");
+  assert.ok(made("tests_stop").length);
+}, { timeout: 120000 });
+
+test("Run, Profile profiles the file shown, Stop Profiling stops it, and Profile on a Machine profiles there", async () => {
+  await invoke("file_write", { path: "profiled.py", text: "import time\nfor _ in range(200):\n    time.sleep(0.05)\n" });
+  showView("edit");
+  await openFile("profiled.py");
+  await press("profile");
+  assert.ok(!document.getElementById("profile").hidden, "the profile shown");
+  assert.ok(made("profile_start").some((one) => one.args.path === "profiled.py" && !one.args.remote));
+  await press("stop-profile");
+  assert.ok(made("profile_stop").length);
+  calls.answer("profile_start", () => null);
+  await press("profile-remote", "me@machine:/tree");
+  assert.ok(made("profile_start").some((one) => one.args.remote === "me@machine:/tree"));
+  runCommand("profile-view");
+});
+
+test("Run, Toggle Breakpoint and Print Here set the cursor's line to stop or to print", async () => {
+  await given("x = 1\ny = |x + 1\n");
+  await press("breakpoint");
+  assert.ok(breakpointsOf(GIVEN)?.has(1), "a breakpoint on the second line");
+  await press("breakpoint");
+  assert.equal(breakpointsOf(GIVEN), null);
+  await press("print-here");
+  assert.ok(breakpointsOf(GIVEN)?.get(1)?.log, "a breakpoint that prints");
+  await press("breakpoint");
+});
+
+const DEBUGGED = "debugged.py";
+
+// Ends every debugging session, after a test of the debugger.
+async function endSessions() {
+  for (let left = 5; debugging() && left > 0; left -= 1) {
+    await runCommand("stop-debug");
+    await ui.rest(200);
+  }
+}
+
+test("Run, Debug stops at a breakpoint, and Step Into, Step Out, Step Over and Continue go on from it", async () => {
+  await invoke("file_write", { path: DEBUGGED, text: "def inner():\n    x = 1\n    return x\n\n\ny = inner()\nprint(y)\n" });
+  showView("edit");
+  await openFile(DEBUGGED);
+  editing().editor.goTo(5, 0);
+  await press("breakpoint");
+  const at = () => pausedLineOf(DEBUGGED);
+  await press("debug");
+  await ui.waitFor(() => isPaused() && at() === 5, 30000, "stopped at the breakpoint");
+  await press("step-into");
+  await ui.waitFor(() => at() === 1, 10000, "inside inner");
+  await press("step-out");
+  await ui.waitFor(() => at() === 5 || at() === 6, 10000, "back in the caller");
+  if (at() === 5) {
+    await press("step-over");
+    await ui.waitFor(() => at() === 6, 10000, "the next line");
+  }
+  await press("continue");
+  await ui.waitFor(() => !debugging(), 15000, "the program run to its end").finally(endSessions);
+}, { timeout: 90000 });
+
+test("Run, Pause stops a running program, Restart starts it again, and Stop ends it", async () => {
+  await invoke("file_write", { path: "looped.py", text: "import time\nwhile True:\n    time.sleep(0.05)\n" });
+  showView("edit");
+  await openFile("looped.py");
+  try {
+    await press("debug");
+    // Pause takes the thread the program runs on, which the debugger tells once the program runs.
+    await ui.waitFor(async () => {
+      await press("pause");
+      return isPaused();
+    }, 30000, "the program paused");
+    await press("restart-debug");
+    await ui.waitFor(() => debugging() && !isPaused(), 30000, "the program running again");
+    await press("stop-debug");
+    await ui.waitFor(() => !debugging(), 10000, "the program ended");
+  } finally {
+    await endSessions();
+  }
+}, { timeout: 90000 });
+
+test("Run, Show Bytecode reads a Python line's bytecode, and Memory, Watch Memory and Instructions read a stopped C program", async () => {
+  await endSessions();
+  await given("a = 1 + 2|\n");
+  await press("machine-code");
+  assert.match((await sheetShown("h2")).textContent, /^Bytecode of /);
+  await invoke("file_write", { path: "mem.c", text: "#include <stdio.h>\nint main(void)\n{\n    volatile int count = 0x11223344;\n    int other = 5;\n    other += 1;\n    count = 7;\n    printf(\"%d %d\\n\", count, other);\n    return 0;\n}\n" });
+  showView("edit");
+  await openFile("mem.c");
+  editing().editor.goTo(4, 0);
+  await press("breakpoint");
+  try {
+    await press("debug");
+    await ui.waitFor(() => isPaused() && pausedLineOf("mem.c") === 4, 60000, "the C program stopped").catch((error) => {
+      throw new Error(`${error.message}; the debugger said: ${document.getElementById("debug-said").textContent}; ${document.getElementById("debug-out").textContent.slice(-600)}`);
+    });
+    const [session] = (await invoke("debug_sessions")).slice(-1);
+    let frames = [];
+    for (const thread of await invoke("debug_threads", { session: session.id })) {
+      frames = await invoke("debug_stack", { session: session.id, thread: thread.id }).catch(() => []);
+      if (frames[0]?.path?.endsWith("mem.c")) {
+        break;
+      }
+    }
+    const scopes = await invoke("debug_scopes", { session: session.id, frame: frames[0].id });
+    const count = (await invoke("debug_variables", { session: session.id, reference: scopes[0].reference })).find((one) => one.name === "count");
+    await press("show-memory", count.memory);
+    const shown = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] pre.debug-memory")].find((pre) => /44 33 22 11/.test(pre.textContent)), 10000, "count's bytes");
+    assert.ok(shown);
+    closeSheets();
+    await press("watch-memory", "count");
+    await ui.waitFor(() => told(/stops where .*count.* changes|count/), 10000, "the watch set");
+    await press("machine-code");
+    await ui.waitFor(() => document.querySelector("body > .menu"), 5000, "the frame's menu of its instructions");
+    closeMenu(false);
+    await press("stop-debug");
+    await ui.waitFor(() => !debugging(), 15000, "the session ended");
+  } finally {
+    await endSessions();
+    editing().editor.goTo(4, 0);
+    if (breakpointsOf("mem.c")) {
+      await runCommand("breakpoint");
+    }
+  }
+}, { timeout: 120000 });
+
+test("Run, Record and Debug records the run, and Step Back and Reverse Continue go back through it", async () => {
+  showView("edit");
+  await openFile(DEBUGGED);
+  await press("record");
+  await ui.waitFor(() => canStepBack(), 60000, "the run recorded and stopped").catch(async (error) => {
+    await endSessions();
+    throw error;
+  });
+  const from = pausedLineOf(DEBUGGED);
+  await press("step-back");
+  await ui.waitFor(() => isPaused() && pausedLineOf(DEBUGGED) !== from, 10000, "a step back");
+  await press("reverse-continue");
+  await ui.waitFor(() => isPaused(), 10000, "stopped going back");
+  await press("stop-debug");
+  await ui.waitFor(() => !debugging(), 10000, "the session ended").finally(endSessions);
+}, { timeout: 120000 });
+
+test("Run, Debug File with Its C starts the Python stopped before its first line", async () => {
+  showView("edit");
+  await openFile(DEBUGGED);
+  await press("debug-mixed");
+  assert.ok(made("debug_start").some((one) => one.args.start.path === DEBUGGED && one.args.options.entry === true), "started at its entry");
+  await ui.waitFor(() => debugging(), 30000, "the session");
+  await press("stop-debug");
+  await ui.waitFor(() => !debugging(), 15000, "the sessions ended").finally(endSessions);
+}, { timeout: 90000 });
+
+test("Run, Attach to Process lists the processes, and Attach to Address debugs the program listening there", async () => {
+  await press("attach-process");
+  try {
+    await ui.waitFor(() => paletteOpen() && /^Attach to a process/.test(document.querySelector(".quick-input").placeholder), 10000, "the processes listed");
+  } finally {
+    await ui.key("Escape");
+  }
+  await press("attach-address", "127.0.0.1:notaport");
+  assert.ok(told(/is no address/), "an address with no port refused");
+  await invoke("file_write", { path: "listened.py", text: "import time\nwhile True:\n    time.sleep(0.05)\n" });
+  await ui.run("python", ["-m", "debugpy", "--listen", "127.0.0.1:5694", "--wait-for-client", `${TREE()}/listened.py`], { wait: false });
+  await ui.waitFor(async () => {
+    await press("attach-address", "127.0.0.1:5694");
+    return debugging();
+  }, 30000, "the program at the address debugged");
+  await press("stop-debug");
+  await ui.waitFor(() => !debugging(), 10000, "the session ended").finally(endSessions);
+}, { timeout: 90000 });
+
+test("Run, Stepping asks how steps go, and Export and Import Breakpoints write and take in a file of them", async () => {
+  await press("stepping");
+  assert.equal((await sheetShown("h2")).textContent, "Stepping");
+  const file = `${HOME()}/breakpoints.json`;
+  calls.answer("pick", () => file);
+  await given("a = 1|\n");
+  await press("breakpoint");
+  await press("export-breakpoints");
+  await ui.waitFor(async () => (await invoke("file_read_any", { path: file }).catch(() => "")).includes(GIVEN), 5000, "the breakpoints written");
+  await press("breakpoint");
+  assert.equal(breakpointsOf(GIVEN), null);
+  await press("import-breakpoints");
+  await ui.waitFor(() => breakpointsOf(GIVEN)?.has(0), 5000, "the breakpoints taken in");
+  await press("breakpoint");
+});
+
+test("Git, Commit, Review Structure, Push and Pull", async () => {
+  await press("commit-view");
+  assert.ok(paneOpen("changes"));
+  await press("review-structure");
+  await ui.waitFor(() => made("review_structure").length, 5000, "the change's structure read");
+  closeSheets();
+  calls.answer("git_push", () => "pushed by the test");
+  calls.answer("git_pull", () => "pulled by the test");
+  await press("push");
+  await ui.waitFor(() => told(/pushed by the test/), 5000, "the push said");
+  await press("pull");
+  await ui.waitFor(() => told(/pulled by the test/), 5000, "the pull said");
+});
+
+test("Git, Branches lists them and New Branch makes one", async () => {
+  const repo = editing().repo();
+  await press("branches");
+  const menu = await ui.waitFor(() => document.querySelector("body > .menu"), 5000, "the branches");
+  assert.ok(menu.textContent.includes("New Branch…"));
+  closeMenu(false);
+  await press("new-branch", "made-by-command");
+  await ui.waitFor(async () => (await invoke("git_branches", { repo })).some((one) => one.name === "made-by-command"), 10000, "the branch made");
+  await invoke("git_branch", { act: "delete", name: "made-by-command", repo }).catch(() => {});
+});
+
+test("Git, Stash Changes puts the changes aside and Stashes lists them", async () => {
+  const repo = editing().repo();
+  const before = (await invoke("file_read", { path: "README.md" })).text;
+  await invoke("file_write", { path: "README.md", text: `${before}stashed by the test\n` });
+  await press("stash", "stashed by the test");
+  await ui.waitFor(async () => !(await invoke("file_read", { path: "README.md" })).text.includes("stashed by the test"), 10000, "the change put aside");
+  await press("stashes");
+  const menu = await ui.waitFor(() => document.querySelector("body > .menu"), 5000, "the stashes");
+  assert.ok(menu.textContent.includes("stashed by the test"));
+  closeMenu(false);
+  // The stash holds the tree's other changes too: each is given back, and README as it was.
+  const [stash] = await invoke("git_stashes", { repo });
+  await invoke("git_stash", { act: "pop", name: stash.name, repo });
+  await invoke("file_write", { path: "README.md", text: before });
+});
+
+test("Git, Cherry-Pick applies the commit named, and Resolve Conflicts says where none is in conflict", async () => {
+  calls.answer("git_cherry_pick", () => "picked by the test");
+  await press("cherry-pick", "abc1234");
+  assert.ok(made("git_cherry_pick").some((one) => one.args.id === "abc1234"));
+  await press("conflicts");
+  assert.ok(told(/No file is in conflict/));
+});
+
+// What the tests above made in the tree, each taken out by the last test.
+const MADE = [
+  GIVEN, "peek.c", "served.c", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
+  "made_by_command.txt", "made_by_command", "made.code-workspace", "marked_*.txt", "src/build_quick.sh", "src/build_slow.sh", "__pycache__", ".pytest_cache", "build",
+];
+
+test("the window is put back as the file found it", async () => {
+  const tree = TREE();
+  const git = (...words) => ui.run("git", ["-C", tree, ...words]).catch(() => {});
+  await press("close-all").catch(() => {});
+  await git("clean", "-fdqx", "--", ...MADE);
+  await git("checkout", "--", "hello.py", "README.md");
+  for (const mounted of await invoke("tree_mounts").catch(() => [])) {
+    await invoke("tree_unmount", { name: mounted.name }).catch(() => {});
+  }
+  showGroup(FOUND.group);
+  putPanes(FOUND.panes);
+  toggleTerminal(false);
+  toggleDebugPanel(false);
+  // Key by key, as orior keeps each change in its own folder through the page's own setItem and
+  // removeItem.
+  const stored = new Map(STORED);
+  for (const key of Object.keys(localStorage).filter((one) => !stored.has(one))) {
+    localStorage.removeItem(key);
+  }
+  for (const [key, value] of STORED) {
+    localStorage.setItem(key, value);
+  }
+  assert.deepEqual(Object.entries(localStorage).sort(), [...STORED].sort());
+  // orior keeps the settings in its own folder once they rest, which the next page reads.
+  await ui.rest(1500);
+});
 
