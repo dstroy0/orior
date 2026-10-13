@@ -522,16 +522,11 @@ int krep_tabled_by(KrepFile *file, QryBuffer *buffer, const char *table, const c
     return file->key != 0ull;
 }
 
-int krep_viewed(const KrepFile *file, KrepFile *view)
+// the file the rows among `bytes`, `size` of them, of the key `key` put together into `view`, which stands open and
+// empty of its kind: the rows joined, each whole words, its opening, the numbers its change gives, then its bytes or
+// its words. 1, or 0 where a row does not fit the file it puts together or the bytes are not whole rows
+static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size, unsigned long long key, KrepFile *view)
 {
-    krep_open(view, file->kind);
-    unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    if ((file->key == 0ull) || !qry_joined(file->run, file->table, &bytes, &size))
-    {
-        return 0;
-    }
-    // the rows joined, each whole words: its opening, the numbers its change gives, then its bytes or its words
     const unsigned long long words = size / sizeof(unsigned long long);
     unsigned long long at = 0ull;
     int held = ((size % sizeof(unsigned long long)) == 0ull);
@@ -567,7 +562,7 @@ int krep_viewed(const KrepFile *file, KrepFile *view)
         const unsigned char *const after = bytes + (at * sizeof(unsigned long long));
         at += following;
         // a head's key is 0 and is no file's; a row of another file's key is passed over
-        if (opening[0] != file->key)
+        if (opening[0] != key)
         {
             continue;
         }
@@ -601,12 +596,122 @@ int krep_viewed(const KrepFile *file, KrepFile *view)
             break;
         }
     }
+    return held && (at == words);
+}
+
+int krep_viewed(const KrepFile *file, KrepFile *view)
+{
+    krep_open(view, file->kind);
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if ((file->key == 0ull) || !qry_joined(file->run, file->table, &bytes, &size))
+    {
+        return 0;
+    }
+    const int held = krep_rows_viewed(bytes, size, file->key, view);
     free(bytes);
-    held = held && (at == words);
     if (!held)
     {
         krep_open(view, file->kind);
     }
+    return held;
+}
+
+// the rows of one table gathered from a finished .qry (krep_row_gathered): the table's name; the name of the file
+// sought, NULL for the first the table holds; the rows' bytes joined in the order of their sequences, their count and
+// the room they have; the key of the file's head row and the file's kind, 0 and empty until the head is seen; and
+// whether memory ran out
+typedef struct
+{
+    const char *table;
+    const char *name;
+    unsigned char *bytes;
+    unsigned long long size;
+    unsigned long long room;
+    unsigned long long key;
+    char kind[5];
+    int failed;
+} KrepGathered;
+
+// the words of a head row before its name: the opening, then the kind, the version and the name's length
+#define KREP_HEAD_WORDS (KREP_ROW_OPENING + 3u)
+
+// one blob of the .qry, handed by qry_file_each in the order of the sequences: a row of the table gathered whole, and
+// the first head row of the file sought, or of any file where none is sought, giving the key and the kind
+static void krep_row_gathered(void *context, const char *name, unsigned long long sequence, const unsigned char *bytes,
+                              unsigned long long size)
+{
+    KrepGathered *const gathered = (KrepGathered *)context;
+    if (gathered->failed || (strcmp(name, gathered->table) != 0))
+    {
+        return;
+    }
+    const unsigned long long words = size / sizeof(unsigned long long);
+    unsigned long long opening[KREP_HEAD_WORDS] = {0ull, 0ull, 0ull, 0ull, 0ull, 0ull, 0ull};
+    if (words >= KREP_HEAD_WORDS)
+    {
+        memcpy(opening, bytes, sizeof(opening));
+    }
+    if ((gathered->key == 0ull) && (words >= KREP_HEAD_WORDS) && (opening[3] == KREP_ROW_HEAD))
+    {
+        const unsigned long long length = opening[KREP_HEAD_WORDS - 1u];
+        const unsigned long long named_at = KREP_HEAD_WORDS * sizeof(unsigned long long);
+        const int sought = (gathered->name == NULL) ||
+                           ((length == strlen(gathered->name)) && (length <= (size - named_at)) &&
+                            (memcmp(bytes + named_at, gathered->name, (size_t)length) == 0));
+        if (sought)
+        {
+            gathered->key = sequence;
+            for (unsigned int at = 0u; at < 4u; at += 1u)
+            {
+                // the kind's four bytes stand the low first in its word
+                gathered->kind[at] = (char)((opening[KREP_ROW_OPENING] >> (8u * at)) & 0xffull);
+            }
+            gathered->kind[4] = '\0';
+        }
+    }
+    if ((gathered->size + size) > gathered->room)
+    {
+        unsigned long long room = (gathered->room != 0ull) ? gathered->room : 65536ull;
+        while (room < (gathered->size + size))
+        {
+            room *= 2ull;
+        }
+        // a row's bytes fit a size_t: every blob of a .qry is mapped whole
+        unsigned char *const grown = (unsigned char *)realloc(gathered->bytes, (size_t)room);
+        if (grown == NULL)
+        {
+            gathered->failed = 1;
+            return;
+        }
+        gathered->bytes = grown;
+        gathered->room = room;
+    }
+    memcpy(gathered->bytes + gathered->size, bytes, (size_t)size);
+    gathered->size += size;
+}
+
+int krep_viewed_at(const char *path, const char *table, const char *name, KrepFile *view, char *error, size_t room)
+{
+    KrepGathered gathered = {table, name, NULL, 0ull, 0ull, 0ull, "", 0};
+    const int read = qry_file_each(path, krep_row_gathered, &gathered, error, room);
+    int held = read && !gathered.failed && (gathered.key != 0ull);
+    if (read && gathered.failed)
+    {
+        snprintf(error, room, "%s: no memory for the rows of %s", path, table);
+    }
+    else if (read && (gathered.key == 0ull))
+    {
+        snprintf(error, room, "%s: the table %s holds no head of %s", path, table, (name != NULL) ? name : "a file");
+    }
+    krep_open(view, held ? gathered.kind : "\0\0\0\0");
+    if (held && !krep_rows_viewed(gathered.bytes, gathered.size, gathered.key, view))
+    {
+        snprintf(error, room, "%s: a row of %s does not fit the file it puts together", path, table);
+        krep_open(view, gathered.kind);
+        held = 0;
+    }
+    free(gathered.bytes);
     return held;
 }
 

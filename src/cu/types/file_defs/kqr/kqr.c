@@ -671,6 +671,33 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
     return 1;
 }
 
+int kqr_viewed_at(KqrRecord *record, const char *path, const char *name, const char *member, char *error, size_t room)
+{
+    if (!kqr_opened(record, member))
+    {
+        snprintf(error, room, "%s: no room for the table of asks", path);
+        return 0;
+    }
+    int held = krep_viewed_at(path, KQR_TABLE, name, &record->file, error, room);
+    if (held && (memcmp(record->file.kind, KQR_KIND, 4u) != 0))
+    {
+        snprintf(error, room, "%s: the record in %s is no .kqr", path, KQR_TABLE);
+        held = 0;
+    }
+    if (held && ((record->file.records == 0u) || (record->file.record[0].code != KQR_MEMBER_RECORD)))
+    {
+        const unsigned long long named = krep_text_number(&record->file, member, strlen(member));
+        held = krep_record_put(&record->file, 0u, KQR_MEMBER_RECORD, &named, 1u);
+    }
+    if (!held)
+    {
+        kqr_opened(record, member);
+        return 0;
+    }
+    kqr_indexed(record);
+    return 1;
+}
+
 int kqr_tabled_by(KqrRecord *record, QryBuffer *buffer, const char *path, QryWho who)
 {
     return record->open && krep_tabled_by(&record->file, buffer, KQR_TABLE, path, who);

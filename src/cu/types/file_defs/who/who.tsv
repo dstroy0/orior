@@ -838,3 +838,9 @@ number	source
 0x0345	examples/navier_stokes/src/core_tangent/core_tangent.cu
 0x0346	src/cu/types/file_defs/khw/khw.h
 0x0349	utils/test/src/cu/types/file_defs/qry/qry_rows_check.c
+0x034a	src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/bar0_driver.c
+0x034b	src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio.h
+0x034c	src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.c
+0x034d	src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.h
+0x034e	src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read_check.c
+0x034f	src/cu/types/file_defs/kqr/kqr_merge.c

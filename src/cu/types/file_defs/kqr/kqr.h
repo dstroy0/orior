@@ -156,6 +156,13 @@ extern "C"
     // one of `member` where it stopped
     int kqr_read(KqrRecord *record, const char *path, const char *member, char *error, size_t room);
 
+    // the record of `member` put together from the rows of the table KQR_TABLE of the finished run at `path`, the
+    // record named `name` in the run or the first it holds where `name` is NULL (krep_viewed_at), into `record`,
+    // whatever it held before let go: 1, or 0 and why in `error`, which holds `room`. The record is open either way,
+    // an empty one of `member` where it stopped
+    int kqr_viewed_at(KqrRecord *record, const char *path, const char *name, const char *member, char *error,
+                      size_t room);
+
     // `record` made a view of the table KQR_TABLE of the run `buffer`, as the file at `path`, by `who`
     // (krep_tabled_by): every record it holds a row of the table, every record kept after a row as it is kept, and the
     // record written as its rows put it together. 1, or 0 where it is not open, no run is given or a row could not be

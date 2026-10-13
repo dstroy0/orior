@@ -115,6 +115,13 @@ extern "C"
     // file it puts together
     int krep_viewed(const KrepFile *file, KrepFile *view);
 
+    // the file named `name` in the run, its path from the top of the tree (qry_file_named), put together from the rows
+    // of the table `table` of the finished .qry at `path`, in the order of their sequences, into `view`, an empty file
+    // of its kind first; the first file the table holds where `name` is NULL. 1, or 0 and why in `error`, which holds
+    // `room`, where the .qry could not be read, the table holds no head of the file, or a row does not fit the file it
+    // puts together
+    int krep_viewed_at(const char *path, const char *table, const char *name, KrepFile *view, char *error, size_t room);
+
     // everything `file` holds let go, and the file zeros again
     void krep_free(KrepFile *file);
 
