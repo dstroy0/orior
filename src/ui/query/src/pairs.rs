@@ -261,7 +261,7 @@ fn judged(context: &mut Context, mode: &Mode, identity: &Path, folder: &str) -> 
     let mut run = context.started(folder)?;
     let host_answers = text(&work.join("host_answers.txt"));
     let overseer = text(&work.join("overseer.txt"));
-    run.carried(&context.at(folder), &[host_answers.as_str(), overseer.as_str(), "faulted.txt"], None)?;
+    run.carried(&context.at(folder), &[host_answers.as_str(), overseer.as_str(), "faulted.txt"], crate::run::crystal(context.root).as_deref())?;
     if run.writer().latest("host_answers.txt").is_none() {
         return Err("no host answers: run orior protocol pairs stick first".into());
     }

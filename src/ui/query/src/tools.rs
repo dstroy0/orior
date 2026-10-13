@@ -436,8 +436,10 @@ fn compiled_at_once(compiles: &[Compile], programs: &dyn Programs) -> Result<(),
     Ok(())
 }
 
+/// A path as a compiler is given it: forward slashes throughout, which is what a source's `__FILE__`
+/// then holds and what the readers walk `..` through.
 fn text(path: &Path) -> String {
-    path.to_string_lossy().into_owned()
+    path.to_string_lossy().replace('\\', "/")
 }
 
 /// The object a source is compiled to under `objects`, named by the source's path from the top of
@@ -521,6 +523,16 @@ mod building {
                 assert!(!sources(&root, &[pattern]).is_empty(), "{}: {pattern} reaches nothing", tool.name);
             }
         }
+    }
+
+    #[test]
+    fn paths_given_to_the_compilers_are_forward_slashed() {
+        // a source's path becomes its __FILE__, which the readers walk `..` through: the scripts gave
+        // forward slashes, and so does every word a compiler is given
+        let root = root();
+        let source = root.join("src").join("cu").join("types").join("file_defs").join("ktext.c");
+        assert!(!text(&source).contains('\\'), "{}", text(&source));
+        assert!(!text(&object_of(&root, &root.join("build").join("objects"), &source)).contains('\\'));
     }
 
     #[test]

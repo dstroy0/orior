@@ -150,7 +150,7 @@ fn carried(context: &Context, run: &Run, lessons: bool) -> Result<(), String> {
     if lessons {
         files.push("overseer.txt");
     }
-    run.carried(&context.at(FOLDER), &files, None)
+    run.carried(&context.at(FOLDER), &files, crate::run::crystal(context.root).as_deref())
 }
 
 /// The teacher's first words: the part, its machine file, the vendor's tables and the vendor's writer.

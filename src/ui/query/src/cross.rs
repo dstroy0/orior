@@ -37,7 +37,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let folder = context.at(learn::FOLDER);
     if !here.joined() {
         // the latest listed questions carried in, with every code and cases the list names
-        let latest = run::latest(&folder, "questions.txt", Some(&here.writer().qry), here.writer(), None).ok_or_else(|| format!("no run in {} holds a questions.txt to read", folder.display()))?;
+        let latest = run::latest(&folder, "questions.txt", Some(&here.writer().qry), here.writer(), run::crystal(context.root).as_deref()).ok_or_else(|| format!("no run in {} holds a questions.txt to read", folder.display()))?;
         let other = Writer { binary: here.writer().binary.clone(), qry: latest.clone(), top: here.writer().top.clone(), path: here.writer().path.clone() };
         let list = other.latest("questions.txt").unwrap_or_default();
         let mut names = String::from("questions.txt\n");
@@ -55,7 +55,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
         let work = context.at(learn::WORK);
         let forms_work = text(&work.join("forms_work.txt"));
         let forms = text(&work.join("forms.txt"));
-        here.carried(&folder, &[forms_work.as_str(), forms.as_str(), "held.txt"], None)?;
+        here.carried(&folder, &[forms_work.as_str(), forms.as_str(), "held.txt"], run::crystal(context.root).as_deref())?;
     }
     if here.writer().latest("questions.txt").is_none() {
         return Err("the run holds no questions.txt".into());

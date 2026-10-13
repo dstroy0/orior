@@ -43,11 +43,11 @@ pub fn vendor_paths(root: &Path) -> Paths {
     }
 }
 
-/// `path` as the vendor's programs and Python take it: absolute, without the `\\?\` prefix, with
-/// the host's own separators.
+/// `path` as the vendor's programs, Python and the engine take it: absolute, without the `\\?\`
+/// prefix, its separators forward slashes, which every program of the tree parses and Windows
+/// opens.
 pub fn native(path: &Path) -> String {
-    let text = crate::run::plain(path).to_string_lossy().into_owned();
-    if cfg!(windows) { text.replace('/', "\\") } else { text }
+    crate::run::plain(path).to_string_lossy().replace('\\', "/")
 }
 
 /// 1 where the stick's text at `new` differs from the one at `cu` nvcc compiled, or no container is there.
@@ -224,8 +224,9 @@ mod reading {
         let shown = native(&crate::tree_root().join("build").join("x.cu"));
         assert!(!shown.contains("\\\\?\\"), "{shown}");
         assert!(!shown.starts_with("/c/"), "no cygwin path reaches the vendor: {shown}");
+        assert!(!shown.contains('\\'), "the separators are forward slashes, which the tree's programs parse: {shown}");
         if cfg!(windows) {
-            assert!(!shown.contains('/'), "{shown}");
+            assert!(shown.chars().nth(1) == Some(':'), "a Windows path with its drive: {shown}");
         }
     }
 

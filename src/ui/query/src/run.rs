@@ -108,6 +108,13 @@ pub fn opened(held: &Path, crystal: Option<&Path>) -> Option<PathBuf> {
     Some(named)
 }
 
+/// The crystal's program where it is built, `build/qry_crystal/engine/qry_crystal`, through which a
+/// run kept as its crystal is read back; none where it is not.
+pub fn crystal(root: &Path) -> Option<PathBuf> {
+    let program = root.join("build").join("qry_crystal").join("engine").join(tools::binary_name("qry_crystal"));
+    program.is_file().then_some(program)
+}
+
 /// How many runs of a folder are kept: `QRY_KEPT`, 64 where it is not set.
 pub fn kept_most() -> usize {
     std::env::var("QRY_KEPT").ok().and_then(|v| v.parse().ok()).unwrap_or(64)
@@ -292,6 +299,19 @@ mod runs {
         assert_eq!(left, [5, 4]);
         assert!(!folder.join("restored").exists());
         let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_crystal_s_program_is_given_where_it_is_built() {
+        let root = root().join("build/query_test/crystal");
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(crystal(&root), None);
+        let engine = root.join("build/qry_crystal/engine");
+        std::fs::create_dir_all(&engine).unwrap();
+        let program = engine.join(crate::tools::binary_name("qry_crystal"));
+        std::fs::write(&program, "").unwrap();
+        assert_eq!(crystal(&root), Some(program));
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
