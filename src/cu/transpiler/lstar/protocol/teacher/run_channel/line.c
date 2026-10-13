@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ruling.c: the ruling: a gate hold on an unknown operation key read, the conference a fault or refusal calls, the line a panic opens ruled on and closed, the halt, and what the teacher said
+// line.c: the line: a gate hold on an unknown operation key read, the conference a fault or refusal calls, the line a panic opens ruled on and closed, the halt, and what the teacher said
 #include "run_channel_internal.h"
 
 int run_channel_key_held(const char *refused)

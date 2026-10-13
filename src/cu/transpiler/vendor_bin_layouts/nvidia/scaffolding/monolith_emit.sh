@@ -48,7 +48,7 @@ nvcc "${HOST_FLAGS[@]}" -cubin -arch="$ARCH" -O3 -DMONOLITH_TAGGED=1 -o "$OUT/mo
 cuobjdump -sass -fun monolith "$OUT/monolith_tagged.cubin" > "$OUT/monolith_tagged.listing" || exit 1
 
 OBJECTS=()
-for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$HERE/sass_target.cu"; do
+for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu "$HERE/sass_target.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac

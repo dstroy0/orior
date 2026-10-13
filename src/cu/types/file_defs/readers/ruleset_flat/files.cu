@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// read.cu: the read: a file's bytes from the run or the disk, a file appended, the paths of a part, a ruleset's text, and what the relations and the maps said
+// files.cu: the files read: a file's bytes from the run or the disk, a file appended, the paths of a part, a ruleset's text, and what the relations and the maps said
 #include "ruleset_flat_internal.h"
 
 // The run's buffer (qry/buffer) is linked into a program of a run, and many a program reads rulesets with no run at

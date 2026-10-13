@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// machine.c: the machine: a form's fields, an operation named, what a widening holds, the machine widened, its fields, the sweep's carriers, the machine swept, and two machines the same
+// widened.c: the machine widened: a form's fields, an operation named, what a widening holds, the machine widened, its fields, the sweep's carriers, the machine swept, and two machines the same
 #include "probe_machine_internal.h"
 
 // one form's fields found: each of its 128 bits turned over and decoded, and each run of bits that changes one

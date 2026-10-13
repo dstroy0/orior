@@ -22,7 +22,7 @@ OUT="$TOP/build/sass_krs_check"
 mkdir -p "$OUT"
 
 OBJECTS=()
-for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CUBIN/sass_target.cu"; do
+for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu "$CUBIN/sass_target.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac

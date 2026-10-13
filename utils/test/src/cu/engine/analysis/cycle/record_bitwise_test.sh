@@ -77,7 +77,7 @@ tessera_build bitwise "${SCRIPTURA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST"/record_bitwise_test_{oracle,prove,lifting}.cu "$TOP/src/sims/cu/sim_job.cu" "$CYCLE_CU"/cycle*.cu \
-    "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu \
+    "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu \
     "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" "${TESSERA_SEAL[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 

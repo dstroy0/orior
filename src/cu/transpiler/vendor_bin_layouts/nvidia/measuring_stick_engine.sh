@@ -55,7 +55,7 @@ for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.
 done
 # the assembly printer and the device's code generator run on the record machine and call the host oracle, which
 # nothing here runs
-for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CUBIN/cu_target.cu" "$CUBIN/sass_target.cu"; do
+for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu "$CUBIN/cu_target.cu" "$CUBIN/sass_target.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac

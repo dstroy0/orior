@@ -79,7 +79,7 @@ nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}"
 # the probe reads rulesets and writes forms; the code generator's assembly printer (asm_printer_*.cu) and the code
 # generator on the device (codegen*.cu) run on the record machine, which the probe does not link
 CODEGEN_SOURCES=()
-for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu; do
+for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) ;;
         *) CODEGEN_SOURCES+=("$source") ;;

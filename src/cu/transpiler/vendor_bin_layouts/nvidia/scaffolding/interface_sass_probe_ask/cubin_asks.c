@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// asks.c: the asks: every ask of the container put to the part in turn
+// cubin_asks.c: the container asked: every ask of the container put to the part in turn
 #include "probe_ask_internal.h"
 
 // a question of the interface's own, asked in the part's code: the instruction to put in place of form_0's own, and the
