@@ -15,6 +15,7 @@ pub mod leaves;
 pub mod pairs;
 pub mod programs;
 pub mod run;
+pub mod stick;
 pub mod tools;
 pub mod write;
 pub mod writer;
