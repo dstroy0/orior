@@ -207,11 +207,12 @@ export function setMessageBreakpoint(path, line, log) {
 // writes a message, or take it away.
 export function breakpointMenu(path, line, x, y) {
   const here = state.breaks.get(path)?.get(line);
+  const at = String(line + 1);
   showMenu(x, y, [
-    { label: here ? "Edit Breakpoint…" : "Add Breakpoint…", run: () => editBreakpoint(path, line) },
-    { label: "Add Message Breakpoint…", disabled: Boolean(here?.log), run: () => editBreakpoint(path, line, { focus: "log" }) },
+    { label: here ? "Edit Breakpoint…" : "Add Breakpoint…", command: "breakpoint-edit", args: [path, at], run: () => editBreakpoint(path, line) },
+    { label: "Add Message Breakpoint…", command: "breakpoint-message", args: [path, at], disabled: Boolean(here?.log), run: () => editBreakpoint(path, line, { focus: "log" }) },
     "-",
-    { label: "Remove Breakpoint", disabled: !here, run: () => toggleBreakpoint(path, line) },
+    { label: "Remove Breakpoint", command: "breakpoint-remove", args: [path, at], disabled: !here, run: () => toggleBreakpoint(path, line) },
   ]);
 }
 
@@ -342,12 +343,9 @@ function exceptionsMenu(button) {
     session.info.filters.map((filter) => ({
       label: filter.label,
       checked: filter.on,
-      run: async () => {
-        filter.on = !filter.on;
-        const on = session.info.filters.filter((one) => one.on).map((one) => one.filter);
-        keepExceptions(session.info.language, on);
-        await invoke("debug_exceptions", { session: session.info.id, on }).catch((error) => say(String(error), { failed: true }));
-      },
+      command: "debug-exception",
+      args: [filter.filter, filter.on ? "off" : "on"],
+      run: () => debugCommands["debug-exception"]([filter.filter, filter.on ? "off" : "on"]),
     })),
     { anchor: button },
   );
@@ -846,8 +844,9 @@ function drawFrames() {
 function frameMenu(frame, x, y) {
   const session = chosen();
   const python = session?.info.language === "python";
+  const at = String(pausedOf()?.frames.indexOf(frame) ?? 0);
   showMenu(x, y, [
-    { label: python ? "Show Bytecode" : "Show Instructions", disabled: python ? !frame.path : !(session?.info.disassembly && frame.ip), run: () => (python ? showBytecode(frame) : showInstructions(frame)) },
+    { label: python ? "Show Bytecode" : "Show Instructions", command: "frame-code", args: [at], disabled: python ? !frame.path : !(session?.info.disassembly && frame.ip), run: () => (python ? showBytecode(frame) : showInstructions(frame)) },
   ]);
 }
 
@@ -894,15 +893,91 @@ function flip(set, key) {
 // the memory it stands in.
 function variableMenu(variable, container, x, y) {
   const session = chosen();
+  const name = variable.name;
   showMenu(x, y, [
-    { label: "Keep Value", run: () => keepValue(variable) },
-    { label: "Compare with Kept", disabled: !state.kept.length, items: state.kept.map((kept) => ({ label: kept.label, run: async () => compareValues(kept, await readWhole(variable)) })) },
+    { label: "Keep Value", command: "variable-keep", args: [name], run: () => keepValue(variable) },
+    { label: "Compare with Kept", disabled: !state.kept.length, items: state.kept.map((kept) => ({ label: kept.label, command: "variable-compare", args: [name, kept.label], run: async () => compareValues(kept, await readWhole(variable)) })) },
     "-",
-    { label: "Stop When It Changes", disabled: !session?.info.data, run: () => watchData(variable.name, container) },
-    { label: "Show Memory", disabled: !(session?.info.memory && variable.memory), run: () => showMemory(variable.memory, variable.name) },
-    ...(session?.info.recorded ? ["-", { label: "Values Through the Run", run: () => showHistory(variable) }] : []),
+    { label: "Stop When It Changes", command: "variable-watch", args: [name], disabled: !session?.info.data, run: () => watchData(variable.name, container) },
+    { label: "Show Memory", command: "variable-memory", args: [name], disabled: !(session?.info.memory && variable.memory), run: () => showMemory(variable.memory, variable.name) },
+    ...(session?.info.recorded ? ["-", { label: "Values Through the Run", command: "variable-history", args: [name], run: () => showHistory(variable) }] : []),
   ]);
 }
+
+// The variable `name` of the frame stopped at, as the first of its scopes that holds it gives it,
+// with that scope's reference, or null.
+async function variableNamed(name) {
+  const session = chosen();
+  const paused = pausedOf();
+  const frame = paused?.frames[paused.at];
+  if (!session || !frame) {
+    say("Nothing is stopped: a variable is read from the frame a program stops at.", { failed: true });
+    return null;
+  }
+  for (const scope of await invoke("debug_scopes", { session: session.info.id, frame: frame.id }).catch(() => [])) {
+    const found = (await invoke("debug_variables", { session: session.info.id, reference: scope.reference }).catch(() => [])).find((one) => one.name === name);
+    if (found) {
+      return { variable: found, container: scope.reference };
+    }
+  }
+  say(`The frame stopped at holds no variable ${name}.`, { failed: true });
+  return null;
+}
+
+// The debugger's menus as commands, by the names commands.json gives them, each run from the menus or
+// from the command line: a breakpoint by its file and its line counted from 1, an exception by the
+// debugger's name for it, a frame by its place in the stack from 0, a variable by its name.
+const lineOf = (line) => Math.max(0, Number(line) - 1);
+
+export const debugCommands = {
+  "breakpoint-edit": ([path, line, condition, hits, log]) =>
+    condition === undefined ? editBreakpoint(path, lineOf(line)) : setBreakpoint(path, lineOf(line), { condition, hits: hits ?? "", log: log ?? "" }),
+  "breakpoint-message": ([path, line, ...message]) => (message.length ? setMessageBreakpoint(path, lineOf(line), message.join(" ")) : editBreakpoint(path, lineOf(line), { focus: "log" })),
+  "breakpoint-remove": ([path, line]) => state.breaks.get(path)?.has(lineOf(line)) && toggleBreakpoint(path, lineOf(line)),
+  "debug-exception": async ([name, on]) => {
+    const session = chosen();
+    const filter = session?.info.filters.find((one) => one.filter === name || one.label === name);
+    if (!filter) {
+      say(`The session's debugger stops on no exception named ${name}.`, { failed: true });
+      return;
+    }
+    filter.on = on === "on" ? true : on === "off" ? false : !filter.on;
+    const kept = session.info.filters.filter((one) => one.on).map((one) => one.filter);
+    keepExceptions(session.info.language, kept);
+    await invoke("debug_exceptions", { session: session.info.id, on: kept }).catch((error) => say(String(error), { failed: true }));
+  },
+  "frame-code": ([at]) => {
+    const paused = pausedOf();
+    const frame = paused?.frames[at === undefined ? paused.at : Number(at)];
+    if (!frame) {
+      say("Nothing is stopped: a frame's code is read where a program stops.", { failed: true });
+      return;
+    }
+    return chosen()?.info.language === "python" ? showBytecode(frame) : showInstructions(frame);
+  },
+  "variable-keep": async ([name]) => {
+    const found = await variableNamed(name);
+    return found && keepValue(found.variable);
+  },
+  "variable-compare": async ([name, label]) => {
+    const found = await variableNamed(name);
+    const kept = state.kept.find((one) => one.label === label || one.label.startsWith(`${label ?? name}`)) ?? state.kept[0];
+    return found && kept && compareValues(kept, await readWhole(found.variable));
+  },
+  "variable-watch": async ([name]) => {
+    const found = await variableNamed(name);
+    return found && watchData(name, found.container);
+  },
+  "variable-memory": async ([name]) => {
+    const found = await variableNamed(name);
+    return found && (found.variable.memory ? showMemory(found.variable.memory, name) : say(`The debugger gives ${name} no place in memory.`, { failed: true }));
+  },
+  "variable-history": async ([name]) => {
+    const found = await variableNamed(name);
+    return found && showHistory(found.variable);
+  },
+};
+
 
 async function variablesUnder(reference, depth, prefix, into, asked) {
   const session = chosen();

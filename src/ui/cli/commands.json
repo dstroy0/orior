@@ -459,6 +459,22 @@
       ]
     },
     {
+      "title": "Debugger",
+      "popup": true,
+      "items": [
+        { "label": "Edit Breakpoint…", "command": "breakpoint-edit", "args": "<file> <line> [condition [hits [message]]]" },
+        { "label": "Add Message Breakpoint…", "command": "breakpoint-message", "args": "<file> <line> [message]" },
+        { "label": "Remove Breakpoint", "command": "breakpoint-remove", "args": "<file> <line>" },
+        { "label": "Stop on an Exception", "command": "debug-exception", "args": "<exception> [on|off]" },
+        { "label": "Show Bytecode or Instructions", "command": "frame-code", "args": "[frame]" },
+        { "label": "Keep Value", "command": "variable-keep", "args": "<variable>" },
+        { "label": "Compare with Kept", "command": "variable-compare", "args": "<variable> [kept]" },
+        { "label": "Stop When It Changes", "command": "variable-watch", "args": "<variable>" },
+        { "label": "Show Memory", "command": "variable-memory", "args": "<variable>" },
+        { "label": "Values Through the Run", "command": "variable-history", "args": "<variable>" }
+      ]
+    },
+    {
       "title": "Help",
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },

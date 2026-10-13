@@ -1691,6 +1691,42 @@ debugger.step(native, "stepOut", native_thread).unwrap();
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// A Python program debugged with lldb attached to its process as well, and stopped, leaves the
+    /// next Python session free to start and stop at its breakpoint.
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "starts debugpy and lldb-dap where they are installed"]
+    fn a_python_session_starts_after_one_debugged_with_its_c_has_ended() {
+        let dir = std::env::temp_dir().join(format!("orior-debug-after-mixed-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("main.py"), "y = 21\ny = y * 2\nprint(y)\n").unwrap();
+        let (sender, heard) = mpsc::channel();
+        let sender = Mutex::new(sender);
+        let emit: Emit = Arc::new(move |id, event, body| {
+            let _ = sender.lock().unwrap().send((id, event.to_string(), body));
+        });
+        let debugger = Debugger::default();
+        let first = Options { entry: true, ..Options::default() };
+        let py = debugger.start(&dir, &Start::File { path: "main.py".into(), language: "python".into() }, &first, emit.clone()).unwrap_or_else(|said| panic!("{said}")).id;
+        let (_, process) = wait_for(&heard, py, &["process"]);
+        let (_, entry) = wait_for(&heard, py, &["stopped"]);
+        let pid = process["systemProcessId"].as_u64().unwrap() as u32;
+        debugger.process(py, pid);
+        // As the window does: the native session attached, the Python let run on, and Stop ending the
+        // session chosen, the native one, and then the Python.
+        let native = debugger.start(&dir, &Start::Process { pid, language: "c".into(), parent: Some(py) }, &first, emit.clone()).unwrap_or_else(|said| panic!("{said}")).id;
+        debugger.step(py, "continue", entry["threadId"].as_i64().unwrap()).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        debugger.stop(native);
+        debugger.stop(py);
+        let next = Options { breakpoints: HashMap::from([("main.py".to_string(), vec![Breakpoint { line: 1, ..Breakpoint::default() }])]), ..Options::default() };
+        let again = debugger.start(&dir, &Start::File { path: "main.py".into(), language: "python".into() }, &next, emit).unwrap_or_else(|said| panic!("the next session: {said}")).id;
+        let (event, body) = wait_for(&heard, again, &["stopped", "terminated", "adapterStopped"]);
+        assert_eq!(event, "stopped", "{body}");
+        debugger.stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     #[ignore = "starts debugpy where it is installed"]
     fn debugpy_debugs_a_python_script() {

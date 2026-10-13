@@ -1492,7 +1492,7 @@ test("Run, Show Bytecode reads a Python line's bytecode, and Memory, Watch Memor
     // the watch set, or the debugger's refusal.
     const said = noticesSaid().length + noticesHeld().length;
     await press("watch-memory", "count");
-    await ui.waitFor(() => made("debug_watch_data").some((one) => one.args.name === "count") && noticesSaid().length + noticesHeld().length > said, 10000, "the watch asked of the debugger and its answer said");
+    await ui.waitFor(() => (made("debug_watch_data").some((one) => one.args.name === "count") || told(/cannot stop where memory changes/)) && noticesSaid().length + noticesHeld().length > said, 10000, "the watch asked of the debugger and its answer said");
     await press("machine-code");
     await ui.waitFor(() => document.querySelector("body > .menu"), 5000, "the frame's menu of its instructions");
     closeMenu(false);
@@ -1543,7 +1543,8 @@ test("Run, Attach to Process lists the processes, and Attach to Address debugs t
   }
   await press("attach-address", "127.0.0.1:notaport");
   assert.ok(told(/is no address/), "an address with no port refused");
-  await invoke("file_write", { path: "listened.py", text: "import time\nwhile True:\n    time.sleep(0.05)\n" });
+  // A program a detached session leaves running, which ends by itself once the test is done with it.
+  await invoke("file_write", { path: "listened.py", text: "import time\nfor _ in range(200):\n    time.sleep(0.05)\n" });
   await ui.run("python", ["-m", "debugpy", "--listen", "127.0.0.1:5694", "--wait-for-client", `${TREE()}/listened.py`], { wait: false });
   await ui.waitFor(async () => {
     await press("attach-address", "127.0.0.1:5694");
@@ -1621,7 +1622,7 @@ test("Git, Cherry-Pick applies the commit named, and Resolve Conflicts says wher
 
 // What the tests above made in the tree, each taken out by the last test.
 const MADE = [
-  GIVEN, "peek.c", "served.c", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "history_file.txt", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
+  GIVEN, "peek.c", "served.c", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "history_file.txt", "vars.py", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
   "made_by_command.txt", "made_by_command", "made.code-workspace", "marked_*.txt", "src/build_quick.sh", "src/build_slow.sh", "__pycache__", ".pytest_cache", "build",
 ];
 
@@ -2047,6 +2048,60 @@ test("the machine button's menu, from the command line: joining again, and its a
   await press("remote-copy-address");
   assert.ok(told(/on this machine/), "no address for a tree on this machine");
 });
+
+["breakpoint-edit", "breakpoint-message", "breakpoint-remove", "debug-exception", "frame-code", "variable-keep", "variable-compare", "variable-watch", "variable-memory", "variable-history"].forEach((command) => COVERED.add(command));
+
+const VARS = "vars.py";
+
+test("the debugger's menus, from the command line: breakpoints edited, an exception, a frame's code, and a variable kept, compared, watched and read", async () => {
+  asFound();
+  await invoke("file_write", { path: VARS, text: 'data = {"a": 1}\ncount = 3\ncount = 4\nprint(count)\n' });
+  showView("edit");
+  await openFile(VARS);
+  await press("breakpoint-edit", VARS, "3", "count > 2");
+  assert.equal(breakpointsOf(VARS)?.get(2)?.condition, "count > 2", "a breakpoint on the third line, with its condition");
+  await press("breakpoint-message", VARS, "4", "count is {count}");
+  assert.equal(breakpointsOf(VARS)?.get(3)?.log, "count is {count}", "one on the fourth that prints");
+  await press("breakpoint-remove", VARS, "4");
+  assert.ok(!breakpointsOf(VARS)?.has(3), "taken off");
+  await press("breakpoint-edit", VARS, "3");
+  assert.match((await sheetShown("h2")).textContent, /^Breakpoint at vars\.py:3$/);
+  try {
+    await press("debug");
+    await ui.waitFor(() => isPaused() && pausedLineOf(VARS) === 2, 30000, "stopped where count is 3").catch((error) => {
+      throw new Error(`${error.message}; the breakpoints ${JSON.stringify([...(breakpointsOf(VARS) ?? [])])}; the debugger said: ${document.getElementById("debug-said").textContent}; ${document.getElementById("debug-out").textContent.slice(-400)}`);
+    });
+    await press("debug-exception", "uncaught", "off");
+    assert.deepEqual(made("debug_exceptions").at(-1)?.args.on, [], "no exception stops it");
+    await press("debug-exception", "uncaught", "on");
+    assert.deepEqual(made("debug_exceptions").at(-1)?.args.on, ["uncaught"], "and uncaught ones again");
+    await press("frame-code", "0");
+    assert.match((await sheetShown("h2")).textContent, /^Bytecode of /);
+    await press("variable-keep", "count");
+    await ui.waitFor(() => told(/count is kept as it stands/), 5000, "count kept");
+    await press("variable-compare", "count");
+    assert.ok((await sheetShown(".debug-compare")).textContent.includes("3"), "the kept value beside the one now");
+    await press("variable-memory", "count");
+    await ui.waitFor(() => told(/gives count no place in memory|Memory at count/) || document.querySelector("dialog[open] pre.debug-memory"), 5000, "count's memory, or the debugger's word that it gives none");
+    closeSheets();
+    const watched = made("debug_watch_data").length;
+    await press("variable-watch", "count");
+    await ui.waitFor(() => made("debug_watch_data").length > watched, 5000, "the watch asked of the debugger");
+    await press("stop-debug");
+    await ui.waitFor(() => !debugging(), 10000, "the session ended");
+    await press("record");
+    await ui.waitFor(() => canStepBack(), 60000, "the run recorded");
+    await press("variable-history", "count");
+    assert.match((await sheetShown("h2")).textContent, /^count: \d+ values? through the run$/);
+  } finally {
+    await endSessions();
+    editing().editor.goTo(2, 0);
+    if (breakpointsOf(VARS)) {
+      await runCommand("breakpoint");
+    }
+    asFound();
+  }
+}, { timeout: 150000 });
 
 test("the window is put back as the file found it", async () => {
   const tree = TREE();

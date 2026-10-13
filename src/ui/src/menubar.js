@@ -27,7 +27,7 @@ import { showCreate, showInit, showProject } from "./create.js";
 import { checkersNamed, setCheckers } from "./servers.js";
 import { focusOn, lastMemory, memoryBudget, say, setFocus, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
-import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
+import { askStepping, attachAddress, debugCommands, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
 import { authorsShown, setAuthorsShown } from "./authors.js";
 import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, popupCommands, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
@@ -572,7 +572,7 @@ const COMMANDS = {
 
 // A command of the menus or of the popup menus, which take what each item is over, read as it is run.
 const commandNamed = (command) =>
-  [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands, containerCommands, databaseCommands, remoteCommands].find((table) => Object.hasOwn(table, command))?.[command];
+  [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands, containerCommands, databaseCommands, remoteCommands, debugCommands].find((table) => Object.hasOwn(table, command))?.[command];
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {
