@@ -9,6 +9,7 @@
 //! toolchains.
 
 pub mod programs;
+pub mod run;
 pub mod tools;
 pub mod writer;
 
