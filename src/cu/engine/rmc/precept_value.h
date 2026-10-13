@@ -19,9 +19,8 @@
 // the widths a case is run at. A word is 32 bits here, as every ruleset's word bank is
 #define PRECEPT_WORD_BITS 32u
 #define PRECEPT_WORD_MASK 0xffffffffu
-// the most operands a case carries, and the most nodes a tree holds, the Word's own count (word_web.h)
+// the most operands a case carries
 #define PRECEPT_OPERANDS 8u
-#define PRECEPT_NODES 12u
 
 // one case: the operands a tree is applied to, by their place
 typedef struct

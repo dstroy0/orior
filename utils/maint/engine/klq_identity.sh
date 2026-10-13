@@ -70,7 +70,7 @@ for kind in khw ksc kqr; do
     [ -f "$COHERENCE/$PART.$kind" ] || { echo "  no $PART.$kind beside the bridge: KLQ_PART names no part the tree holds"; exit 1; }
 done
 
-INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$PARSER" -I "$QRY_SOURCE")
+INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$PARSER" -I "$QRY_SOURCE" -I "$PROTOCOL/table")
 BINARY="$OUT/klq_identity"
 rm -f "$BINARY"
 OBJECTS=()
@@ -80,7 +80,7 @@ stale() {
     [ ! -f "$2" ] || [ "$1" -nt "$2" ] ||
         [ -n "$(find "$CODEGEN" "$PARSER" "$TOP/src/cu/types/file_defs" "$PROTOCOL" "$INTERFACE" "$LAYOUTS" "$TOP/src/cu/engine" -name '*.h' -newer "$2" -print -quit)" ]
 }
-for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_identity.cu"; do
+for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_identity.cu" "$PROTOCOL/table/identity"/*.cu; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) continue ;;
     esac
@@ -187,7 +187,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "text_identity" ]; then
     exit $?
 fi
 
-if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" = "queue" ] || [ "$1" = "pair" ] || [ "$1" = "cost" ]; }; } || { [ "$#" -ge 2 ] && [ "$1" = "curve" ]; }; then
+if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" = "past" ] || [ "$1" = "queue" ] || [ "$1" = "pair" ] || [ "$1" = "cost" ]; }; } || { [ "$#" -ge 2 ] && [ "$1" = "curve" ]; }; then
     carrier_built
     MODE="$1"
     shift
