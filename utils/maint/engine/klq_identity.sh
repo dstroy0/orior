@@ -94,7 +94,7 @@ for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_identity.cu" "
 done
 # the run channel, the interface it carries each question through, the overseer and the run's buffer, in C
 for source in "$PROTOCOL"/teacher/run_channel/*.c "$PROTOCOL/overseer/overseer.c" \
-    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$LAYOUTS/nvidia/sass_assemble.c" \
+    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$LAYOUTS"/nvidia/sass_assemble/*.c \
     "$LAYOUTS/nvidia/sass_machine.c" "${FILE_DEFS[@]}"; do
     object="$OUT/$(basename "$source")_identity.o"
     if stale "$source" "$object"; then
@@ -112,7 +112,7 @@ carrier_built() {
     CARRIER="$OUT/cubin_run"
     cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS"/nvidia/cubin_run/*.c "$LAYOUTS/nvidia/cubin_safe.c" \
         "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
-        "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
+        "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS/nvidia/sass_machine.c" \
         "${FILE_DEFS[@]}" || { echo "  build failed: cubin_run did not compile"; exit 1; }
     # the cross the airlock runs over every round before the part (run_channel.h), the vendor's reader beside the
     # compiler

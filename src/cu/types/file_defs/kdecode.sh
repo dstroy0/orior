@@ -14,7 +14,7 @@ source "$TOP/src/cu/types/file_defs/file_defs.sh"
 OUT="$TOP/build/engine"
 mkdir -p "$OUT"
 BINARY="$OUT/kdecode"
-SOURCES=("$HERE/kdecode.c" "${FILE_DEFS[@]}")
+SOURCES=("$HERE/kdecode.c" "$HERE"/kdecode/*.c "${FILE_DEFS[@]}")
 built="$BINARY"
 [ -f "$built.exe" ] && built="$built.exe"
 stale=0

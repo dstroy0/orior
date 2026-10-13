@@ -7,5 +7,5 @@
 #     source src/cu/types/file_defs/file_defs.sh
 #     cc ... "${FILE_DEFS[@]}"
 FILE_DEFS_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FILE_DEFS=("$FILE_DEFS_SOURCE"/qry/buffer/*.c "$FILE_DEFS_SOURCE/krep_records.c" "$FILE_DEFS_SOURCE/ktext.c"
-    "$FILE_DEFS_SOURCE/kqr/kqr.c" "$FILE_DEFS_SOURCE/ksc/ksc.c" "$FILE_DEFS_SOURCE/kdm/kdm.c")
+FILE_DEFS=("$FILE_DEFS_SOURCE"/qry/buffer/*.c "$FILE_DEFS_SOURCE"/krep_records/*.c "$FILE_DEFS_SOURCE/ktext.c"
+    "$FILE_DEFS_SOURCE"/kqr/record/*.c "$FILE_DEFS_SOURCE/ksc/ksc.c" "$FILE_DEFS_SOURCE/kdm/kdm.c")

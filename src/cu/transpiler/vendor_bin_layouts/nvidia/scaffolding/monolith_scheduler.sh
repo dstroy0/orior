@@ -59,7 +59,7 @@ while IFS= read -r source; do
 done < <(find "$TOP/src/cu" -name '*.cu' | sort)
 
 cc -std=c11 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$KRS_C" -I "$INT" \
-    -o "$OUT/monolith_scheduler" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "${FILE_DEFS[@]}" \
+    -o "$OUT/monolith_scheduler" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "${FILE_DEFS[@]}" \
     "$INT/interface.c" "$INT/interface_names.c" || exit 1
 
 echo "  sources built $built, passed over $passed"

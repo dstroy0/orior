@@ -43,7 +43,7 @@ BASE="${1:-}"
 CARRIER="$OUT/cubin_run"
 cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS"/nvidia/cubin_run/*.c "$LAYOUTS/nvidia/cubin_safe.c" \
     "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
-    "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
+    "$LAYOUTS/container_layout.c" "$LAYOUTS"/nvidia/sass_assemble/*.c "$LAYOUTS/nvidia/sass_machine.c" \
     "${FILE_DEFS[@]}" || { echo "  the carrier did not compile"; exit 2; }
 CROSS="$OUT/measuring_stick_query"
 cc -std=c11 -O2 -Wall -Wextra -pthread -I "$TOP/src/cu/engine" -o "$CROSS" "$TEST/measuring_stick_query.c" \

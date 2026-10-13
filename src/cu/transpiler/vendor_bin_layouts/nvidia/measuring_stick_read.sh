@@ -13,7 +13,7 @@ source "$TOP/src/cu/types/file_defs/file_defs.sh"
 OUT="${BUILD_OUT:-$TOP/build/measuring_stick}"
 mkdir -p "$OUT"
 BINARY="$OUT/measuring_stick_read"
-SOURCES=("$HERE/measuring_stick_read.c" "${FILE_DEFS[@]}")
+SOURCES=("$HERE/measuring_stick_read.c" "$HERE"/measuring_stick_read/*.c "${FILE_DEFS[@]}")
 built="$BINARY"
 [ -f "$built.exe" ] && built="$built.exe"
 stale=0
