@@ -17,7 +17,8 @@
 //              text and every record in its order, before and after what a run puts, and the bytes written are linked
 //              to the rows they were written from; with no run it is no table's
 //   a part's   every ask of the record named on the command line, where one is, is found by its identity, and the
-//              record, a view of the run's table, written as records and read back is its text form byte for byte
+//              record, kept as records and a view of the run's table, written as records again and read back renders
+//              its text form byte for byte
 //
 //     kqr_check <folder> [<a part's .kqr>]...
 //
@@ -159,15 +160,18 @@ static KqrIdentity identity_of(const char *text)
     return identity;
 }
 
-// the record of a part at `part`, every ask found by its identity, and written as records under `folder` and read
-// back, its text form byte for byte
+// the record of a part at `part`, kept as records: every ask of its text form found by its identity, and the record
+// written as records under `folder` and read back renders the same text form byte for byte
 static void part_checked(const char *part, const char *folder, unsigned int number)
 {
     char error[1280];
-    size_t size = 0u;
-    char *const text = file_read(part, &size);
-    check_that(text != NULL, "a part's record reads");
+    size_t records_size = 0u;
+    char *const records = file_read(part, &records_size);
+    check_that(records != NULL, "a part's record reads");
     check_that(kqr_read(&s_record, part, "part", error, sizeof(error)) == 1, "a part's record opens");
+    size_t size = 0u;
+    char *const text = rendered(&s_record, &size);
+    check_that(text != NULL, "a part's record renders its text form");
     char again[1024];
     snprintf(again, sizeof(again), "%s/kqr_check_part_%u.kqr", folder, number);
     check_that(kqr_tabled(&s_record, qry_run(), again) == 1, "a part's record is made a view of the run's table");
@@ -217,6 +221,7 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
            part, asks, found, s_record.samples, s_record.cycles, size, numbered_size, same ? "the same" : "DIFFERING");
     check_that((asks != 0u) && (found == asks), "every ask of a part's record is found by its identity");
     free(text);
+    free(records);
     free(numbered);
     free(again_text);
     kqr_free(&s_record);
