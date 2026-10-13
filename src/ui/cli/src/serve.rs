@@ -481,15 +481,32 @@ impl Server {
     }
 
     /// Watches the tree open for changes made outside the window, each batch told as tree-changed, in
-    /// place of the watch over the tree open before.
+    /// place of the watch over the tree open before. The page is told first; the servers and the
+    /// tree's check hear of the files on a thread of their own, the batches that come while they work
+    /// taken as one, so that no check of many files holds up the page's word of them. A file git
+    /// leaves out, as a build's output is, is shown in the tree and not checked.
     pub fn watch(&self) {
         let Ok(root) = self.root() else { return };
         let emit = self.emitting();
         let servers = self.servers.clone();
         let tree = root.clone();
+        let (hand, files) = std::sync::mpsc::channel::<Vec<String>>();
+        std::thread::spawn(move || {
+            while let Ok(first) = files.recv() {
+                let mut all: std::collections::BTreeSet<String> = first.into_iter().collect();
+                while let Ok(more) = files.try_recv() {
+                    all.extend(more);
+                }
+                let checked: Vec<String> = all.into_iter().filter(|file| files::tracked(&tree, file)).collect();
+                if !checked.is_empty() {
+                    servers.changed(&tree, &checked);
+                }
+            }
+        });
         let watcher = watch::start(root, move |changed| {
-            servers.changed(&tree, &changed.files);
+            let files = changed.files.clone();
             emit("tree-changed", serde_json::to_value(changed).unwrap_or(Value::Null));
+            let _ = hand.send(files);
         });
         if let Ok(mut held) = self.watcher.lock() {
             *held = Some(watcher);

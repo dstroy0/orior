@@ -369,6 +369,9 @@ pub struct Servers {
     checked_root: Mutex<Option<PathBuf>>,
     runs: Arc<Mutex<HashMap<(String, String), u64>>>,
     parses: Mutex<HashMap<String, (u64, Arc<Parse>)>>,
+    /// Held while a parse is read, so that a parse asked for again meanwhile waits for it and is
+    /// answered from what it kept, in place of reading the file once more beside it.
+    parsing: Mutex<()>,
 }
 
 /// A file's parse as the editor takes it: each line's runs of one class, as (from, to, class), every
@@ -1051,10 +1054,13 @@ impl Servers {
             return Ok(None);
         };
         let hash = hash_of(&text);
-        if let Some((kept, parse)) = self.parses.lock().map_err(|_| "held".to_string())?.get(&key) {
-            if *kept == hash {
-                return Ok(Some(parse.clone()));
-            }
+        let kept = |parses: &HashMap<String, (u64, Arc<Parse>)>| parses.get(&key).filter(|(kept, _)| *kept == hash).map(|(_, parse)| parse.clone());
+        if let Some(parse) = kept(&*self.parses.lock().map_err(|_| "held".to_string())?) {
+            return Ok(Some(parse));
+        }
+        let _parsing = self.parsing.lock().map_err(|_| "held".to_string())?;
+        if let Some(parse) = kept(&*self.parses.lock().map_err(|_| "held".to_string())?) {
+            return Ok(Some(parse));
         }
         let file = path.display().to_string();
         let parse = match inspect::language_of(&file).and_then(|language| inspect::parse(language, &text)) {
@@ -1338,8 +1344,9 @@ impl Servers {
             if !queue.on || queue.root.as_deref() != Some(root) {
                 return;
             }
+            let mut queued: HashSet<String> = queue.files.iter().cloned().collect();
             for file in files {
-                if !queue.files.contains(file) {
+                if queued.insert(file.clone()) {
                     queue.files.push(file.clone());
                 }
             }
