@@ -53,6 +53,49 @@ run answers 0000000000002c00 cost 0000000700077210 004fca2007ffe0ff 000000000000
 run answers 0000000000000fe0 cost 0000000700077210 004fca4007ffe0ff 0000000000038f60
 run answers 0000000000000fff cost 0000000700077210 004fca8007ffe0ff 0000000000062421
 run answers 0000000000000fff cost 0000000700077210 004fcb0007ffe0ff 0000000000011421
+who 01dd0dad01dd000018ddf970851bb274
+run answers 000000fc register last
+who 01dd0dad01dd000018ddf97400a656d0
+run answers 00000006 predicate last
+who 01dd08a601dd000018ddf974023ca6d4
+run answers ffffffff ask 039fce7cb4762c2c 255 0 0 8786cfcd63ae10d1 877e325e6ee2a10b
+run answers ffffffff ask 090973ea4754dbd4 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
+run answers ffffffff ask 0b00e952047356ca 255 0 0 8786cfcd63ae10d1 877e325e6ee2a10b
+run answers ffffffff ask 0e0ac8ade72824ea 255 0 0 8786cfcd63ae10d1 0f0357b887f50ec3
+run answers 00000005 ask 11bb9660dd904f58 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
+run answers ffffffff ask 179e9dbea9f5f64b 255 0 0 8786cfcd63ae10d1 eb7c63fbaa282773
+run illegal 00000000 ask 1bb8dd14cdd12683 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted
+run answers ffffffff ask 1cfffd6f45ec5a6d 255 0 0 8786cfcd63ae10d1 92d971d40c6caff5
+run answers 000000f5 ask 1dee8b93cdb24873 255 0 0 8786cfcd63ae10d1 92d971d40c6caff5
+run illegal 00000000 ask 20eea50a171f54ca 255 0 0 8786cfcd63ae10d1 68d01fd9a717d6c3 refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted
+run answers ffffffff ask 227baa51e677952f 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef880b
+run answers ffffffff ask 3ba359e48adca695 255 0 0 8786cfcd63ae10d1 92d971d40c6caff5
+run answers ffffffff ask 3e047e4ed8e84452 255 0 0 8786cfcd63ae10d1 877e325e6ee2a10b
+run illegal 00000000 ask 4135480e45bf6d80 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745 refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted
+run answers ffffffff ask 4d6a11fdd697f2cb 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
+run illegal 00000000 ask 50482830185d0000 255 0 0 8786cfcd63ae10d1 eb7c63fbaa282773 refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted
+run answers ffffffff ask 5393a7062fc57b34 255 0 0 8786cfcd63ae10d1 0f0357b887f50ec3
+run answers ffffffff ask 590f4f7108378041 255 0 0 8786cfcd63ae10d1 68d01fd9a717d6c3
+run answers ffffffff ask 5d0dd19157533f56 255 0 0 8786cfcd63ae10d1 877e325e6ee2a10b
+run illegal 00000000 ask 69525f9d0598e5c7 255 0 0 8786cfcd63ae10d1 1035267d15e1626b refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted
+run illegal 00000000 ask 6e8a94158873074a 255 0 0 8786cfcd63ae10d1 9da584cdcb889065 refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted
+run answers ffffffff ask 86ae8d74ef69f2ab 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef880b
+run answers 00000013 ask 8b4838bb7cfb3355 255 0 0 8786cfcd63ae10d1 92d971d40c6caff5
+run answers ffffffff ask 8dcc15ac39ad4fef 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef880b
+run answers ffffffff ask 95a94bf9fdad6d55 255 0 0 8786cfcd63ae10d1 92d971d40c6caff5
+run illegal 00000000 ask 97a3ba91f04b6f62 255 0 0 8786cfcd63ae10d1 0f0357b887f50ec3 refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted
+run answers ffffffff ask 9ae2b4303c4490de 255 0 0 8786cfcd63ae10d1 0f0357b887f50ec3
+run answers 00000013 ask a7596aeb68d4f4ce 255 0 0 8786cfcd63ae10d1 0f0357b887f50ec3
+run answers 00000037 ask b5b8920f8af09b91 255 0 0 8786cfcd63ae10d1 92d971d40c6caff5
+run answers 00000013 ask c7047377205f50da 255 0 0 8786cfcd63ae10d1 877e325e6ee2a10b
+run answers ffffffff ask cba55144c4110148 255 0 0 8786cfcd63ae10d1 877e325e6ee2a10b
+run illegal 00000000 ask cd2981d1c58a0147 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5 refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted
+run answers ffffffff ask cf8419aaf463248c 255 0 0 8786cfcd63ae10d1 0f0357b887f50ec3
+run answers ffffffff ask d53c44aaa72709d8 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb
+run illegal 00000000 ask d80fae5cb3fed8ed 255 0 0 8786cfcd63ae10d1 92d971d40c6caff5 refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted
+run answers ffffffff ask e50daf9fd70cf3c1 255 0 0 8786cfcd63ae10d1 9da584cdcb889065
+run answers ffffffff ask f9abf64022d07005 255 0 0 8786cfcd63ae10d1 0f0357b887f50ec3
+run answers ffffffff ask ff268be4d40a6754 255 0 0 8786cfcd63ae10d1 1035267d15e1626b
 who -
 field guard 12 3
 field rd 16 8

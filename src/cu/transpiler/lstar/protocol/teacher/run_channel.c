@@ -34,14 +34,10 @@
 #define RUN_AIRLOCK_LIST "airlock.txt"
 #define RUN_AIRLOCK_ANSWERS "airlock_"
 #define RUN_AIRLOCK_HOLDS "airlock_holds.txt"
-// the slots the cross read clear, a line `<stem> <operation>` each, for the conferences the gate calls
+// what the cross read clear, a line `<stem> <operation> <low> <high>` each, for the conferences the gate calls
 #define RUN_AIRLOCK_READ "airlock_read.txt"
-// the gate's hold under rule 3 of the airlock, an operation key unknown, as the carrier answers it: `skipped` and
-// the rule's number (cubin_safe.h, CUBIN_SAFE_KEY)
-#define RUN_GATE_KEY_RULE "skipped 5 "
 
-// 1 where `refused` is the gate's hold for an unknown operation key
-static int run_channel_key_held(const char *refused)
+int run_channel_key_held(const char *refused)
 {
     return strncmp(refused, RUN_GATE_KEY_RULE, sizeof(RUN_GATE_KEY_RULE) - 1u) == 0;
 }
@@ -142,10 +138,46 @@ static void run_channel_conference_called(const RunQuestion *asked, const char *
 }
 
 // The sequence of the panic on the line, or 0 while it is quiet: once a panic opens it the run is halted, and the
-// teacher puts no question after it (qry_buffer.h)
+// teacher puts no question until a conference's ruling closes it (qry_buffer.h, run_channel_line_ruled)
 static unsigned long long run_channel_on_line(void)
 {
     return qry_panicked(s_channel.buffer);
+}
+
+static void run_channel_check_traced(const RunQuestion *asked, const char *said);
+
+// The conference a refusal calls, held at once where the refusal put a panic on the line (overseer_convened): where
+// every cause the parties read is the question's own, its instruction, an address it reached or a register it named,
+// whichever clause each names, the line closes, R holding the question off the part for good, and the run goes on
+// in a fresh carrier; a launch that did not return read by any party, or no cause read at all, leaves the line open,
+// and the run is halted. The ruling is traced
+static void run_channel_line_ruled(const RunQuestion *asked)
+{
+    const unsigned long long panic = run_channel_on_line();
+    if (panic == 0ull)
+    {
+        return;
+    }
+    KqrIdentity numbered;
+    char identity[96];
+    run_channel_identity(asked, &numbered);
+    kqr_identity_text(&numbered, identity, sizeof(identity));
+    OverseerRuling ruling;
+    char said[OVERSEER_RULING_LONGEST + 128u];
+    if (!overseer_convened(s_channel.buffer, identity, 0, &ruling))
+    {
+        snprintf(said, sizeof(said), "the line stays open: the conference heard no account");
+    }
+    else if (ruling.own)
+    {
+        qry_line_closed(s_channel.buffer, panic);
+        snprintf(said, sizeof(said), "the line closed on the ruling: %s", ruling.said);
+    }
+    else
+    {
+        snprintf(said, sizeof(said), "the line stays open on the ruling: %s", ruling.said);
+    }
+    run_channel_check_traced(asked, said);
 }
 
 // the questions of `asked` from `first` to `count` answered as held by the line: no question is put after a panic
@@ -176,7 +208,7 @@ static void run_channel_teacher_said(unsigned int questions, unsigned long long 
         snprintf(said, sizeof(said),
                  "teacher: the round questions.txt of %u questions, handed at sequence %llu; the carrier "
                  "%s, code %llx; %u answered before it ended; the question it was carrying: %s%sno "
-                 "question is put after this\n",
+                 "question is put until a conference rules\n",
                  questions, round, interface_ending_name(answer->ending), answer->code, answered, carrying,
                  ((carrying[0] != '\0') && (carrying[strlen(carrying) - 1u] == '\n')) ? "" : "\n");
     // the account fits its room, and its length is not negative
@@ -310,7 +342,10 @@ static void run_channel_read(RunQuestion *asked, const char *answers_name, unsig
     unsigned long long sequence = 0ull;
     if (!qry_latest(s_channel.buffer, answers_name, &bytes, &size, &sequence) || (sequence <= after) || (size == 0ull))
     {
-        snprintf(asked->refused, sizeof(asked->refused), "the carrier wrote no answer");
+        // a question the carrier ended the round before, after a launch that faulted the part or hung: carried by no
+        // one, kept nowhere, and put again once the conference has ruled
+        asked->outcome = RUN_NO_CHANNEL;
+        snprintf(asked->refused, sizeof(asked->refused), "the carrier wrote no answer: it ended the round before it");
         return;
     }
     // the first line, and the second where there is one
@@ -347,6 +382,7 @@ static void run_channel_read(RunQuestion *asked, const char *answers_name, unsig
             const unsigned long long said_at =
                 (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ull : size;
             run_channel_conference_called(asked, how, bytes + said_at, size - said_at);
+            run_channel_line_ruled(asked);
         }
         return;
     }
@@ -874,11 +910,12 @@ static unsigned int run_channel_raised(RunQuestion *const *asked, unsigned int f
 }
 
 // The conferences the gate calls for the round the airlock last read: each question of `asked` from `first` to
-// `count` whose answer the pop gave is a hold under the key rule (RUN_GATE_KEY_RULE), read against the slots the cross
-// read clear (RUN_AIRLOCK_READ) by its answers' stem. Where the cross read its slot clear, the accounts are handed,
-// the cross's, the gate's and the record's, and the conference held (overseer_admission): a question admitted has its
-// slot encoding a lesson the carrier loads (--lessons), and is put as the round is carried; every other stays held.
-// Each is traced. The count admitted
+// `count` whose answer the pop gave is a hold under the key rule (RUN_GATE_KEY_RULE), read against what the cross
+// read clear (RUN_AIRLOCK_READ) by its answers' stem, its slot or every instruction of a question read whole. Where
+// the cross read any of it clear, the accounts are handed, the cross's, the gate's and the record's, and the conference
+// held for each encoding (overseer_admission): each admitted is a lesson the carrier loads (--lessons), and the
+// question is put as the round is carried; every other stays held. Each is traced. The count of lessons taught
+// that the run did not hold
 static unsigned int run_channel_admitted(RunQuestion *const *asked, unsigned int first, unsigned int count, int alone)
 {
     const unsigned char *read = NULL;
@@ -917,39 +954,26 @@ static unsigned int run_channel_admitted(RunQuestion *const *asked, unsigned int
         {
             continue;
         }
-        // the cross's reading of its slot, the line of the read list that leads with its stem
-        char operation[64] = "";
+        // the cross's clear readings of the question, the lines of the read list that lead with its stem: its slot's,
+        // or every instruction's of a question read whole, each `<operation> <low> <high>`
         const size_t stem_length = strlen(stem);
-        for (unsigned long long walk = 0ull; (operation[0] == '\0') && (walk < size);)
+        unsigned int clear = 0u;
+        for (unsigned long long walk = 0ull; walk < size;)
         {
             const char *const line = (const char *)(read + walk);
             const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ull;
-            if ((length > stem_length) && (memcmp(line, stem, stem_length) == 0) && (line[stem_length] == ' '))
-            {
-                snprintf(operation, sizeof(operation), "%.*s", (int)(length - stem_length - 1u),
-                         line + stem_length + 1u);
-            }
+            clear += ((length > stem_length) && (memcmp(line, stem, stem_length) == 0) && (line[stem_length] == ' '))
+                         ? 1u
+                         : 0u;
         }
-        if (operation[0] == '\0')
+        if (clear == 0u)
         {
             run_channel_check_traced(asked[at],
-                                     "kept held: the gate holds its key unknown, and the cross did not read its slot clear");
+                                     "kept held: the gate holds its key unknown, and the cross read nothing of it clear");
             continue;
         }
-        if ((asked[at]->slot == RUN_SLOT_NONE) ||
-            ((((unsigned long long)asked[at]->slot * 16ull) + 16ull) > asked[at]->code_size))
-        {
-            run_channel_check_traced(asked[at], "kept held: the gate holds its key unknown, and it holds no slot to admit");
-            continue;
-        }
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
-        memcpy(&low, asked[at]->code + ((size_t)asked[at]->slot * 16u), 8u);
-        memcpy(&high, asked[at]->code + ((size_t)asked[at]->slot * 16u) + 8u, 8u);
-        char encoding[48];
-        snprintf(encoding, sizeof(encoding), "%016llx %016llx", low, high);
         KqrIdentity numbered;
         char identity[96];
         run_channel_identity(asked[at], &numbered);
@@ -957,9 +981,9 @@ static unsigned int run_channel_admitted(RunQuestion *const *asked, unsigned int
         // the accounts: the cross's reading, the gate's hold, and what the record holds of the identity
         char account[512];
         snprintf(account, sizeof(account),
-                 "reads %s at the slot, a legal instruction, no control transfer, wait, memory access or register "
-                 "past the count; admit",
-                 operation);
+                 "reads %u instruction(s) of it clear, each legal, no control transfer, wait, memory access or "
+                 "register past the count; admit",
+                 clear);
         overseer_account(s_channel.buffer, identity, "cross", account);
         snprintf(account, sizeof(account), "holds it, %s; gray", verdict);
         overseer_account(s_channel.buffer, identity, "gate", account);
@@ -983,12 +1007,41 @@ static unsigned int run_channel_admitted(RunQuestion *const *asked, unsigned int
                      s_recorded.refusal);
         }
         overseer_account(s_channel.buffer, identity, "record", account);
+        // the conference held for each encoding read clear: a lesson taught for each the run did not hold
+        unsigned int taught = 0u;
+        unsigned int ruled = 0u;
         OverseerRuling ruling;
-        char said[RUN_LINE_LONGEST + 640u];
-        if (overseer_admission(s_channel.buffer, identity, encoding, &ruling))
+        memset(&ruling, 0, sizeof(ruling));
+        for (unsigned long long walk = 0ull; walk < size;)
         {
-            admitted += 1u;
-            snprintf(said, sizeof(said), "admitted by its conference: %s", ruling.said);
+            const char *const line = (const char *)(read + walk);
+            const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
+            const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
+            walk += (unsigned long long)length + 1ull;
+            if ((length <= stem_length) || (memcmp(line, stem, stem_length) != 0) || (line[stem_length] != ' '))
+            {
+                continue;
+            }
+            char operation[64];
+            unsigned long long low = 0ull;
+            unsigned long long high = 0ull;
+            char text[400];
+            snprintf(text, sizeof(text), "%.*s", (int)(length - stem_length - 1u), line + stem_length + 1u);
+            if (sscanf(text, "%63s %llx %llx", operation, &low, &high) != 3)
+            {
+                continue;
+            }
+            char encoding[48];
+            snprintf(encoding, sizeof(encoding), "%016llx %016llx", low, high);
+            ruled += overseer_admission(s_channel.buffer, identity, encoding, &ruling) ? 1u : 0u;
+            taught += ruling.taught ? 1u : 0u;
+        }
+        admitted += taught;
+        char said[OVERSEER_RULING_LONGEST + 128u];
+        if (ruled != 0u)
+        {
+            snprintf(said, sizeof(said), "admitted by its conference: %u encoding(s), %u lesson(s) new; %s", ruled,
+                     taught, ruling.said);
         }
         else
         {
@@ -1016,12 +1069,11 @@ static int run_channel_checked(RunQuestion *const *asked, unsigned int first, un
             return 0;
         }
         // the conferences the gate calls, each question it holds for an unknown key the cross read clear admitted
-        // or kept held, before the round's registers are raised
-        if (s_channel.pop_words != 0u)
-        {
-            run_channel_admitted(asked, first, count, alone);
-        }
-        if ((s_channel.pop_words == 0u) || (run_channel_raised(asked, first, count, alone) == 0u))
+        // or kept held, before the round's registers are raised; a round that taught a lesson is read again, so that
+        // the pop puts what the carrier will
+        const unsigned int taught = (s_channel.pop_words != 0u) ? run_channel_admitted(asked, first, count, alone) : 0u;
+        if ((s_channel.pop_words == 0u) ||
+            ((run_channel_raised(asked, first, count, alone) == 0u) && (taught == 0u)))
         {
             return 1;
         }

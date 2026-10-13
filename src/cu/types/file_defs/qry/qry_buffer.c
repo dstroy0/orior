@@ -75,7 +75,7 @@ typedef struct
 // `written` the bytes on disk in order from the start, the writer's alone. A panic's or a critical blob's place is kept
 // in `span` before the tail passes it, and the writer reads the places and the tail together under the lock: it
 // finds every one before the tail it reads. `critical_handed` is the latest panic or critical sequence handed and
-// `critical_written` the latest on disk; `panicked` the run's first panic, the line open from then on
+// `critical_written` the latest on disk; `panicked` the panic on the line, the first handed and the first after a conference closed the line, and `closed` the panic whose line a conference's ruling closed (qry_line_closed)
 typedef struct
 {
     char magic[8];
@@ -97,6 +97,7 @@ typedef struct
     _Atomic unsigned long long critical_handed;
     _Atomic unsigned long long critical_written;
     _Atomic unsigned long long panicked;
+    _Atomic unsigned long long closed;
     _Atomic unsigned int stopping;
     _Atomic unsigned int writing;
     // the rows of the table published, each of a blob before the tail; the table's bytes given memory; and 1 once a
@@ -593,10 +594,14 @@ static unsigned long long qry_appended(QryBuffer *buffer, const char *name, size
         head->span[spans % QRY_CRITICAL_SPANS] = (QrySpan){tail, framed, sequence, priority};
         atomic_store(&head->spans, spans + 1ull);
         atomic_store(&head->critical_handed, sequence);
-        unsigned long long none = 0ull;
         if (priority == QRY_PANIC)
         {
-            atomic_compare_exchange_strong(&head->panicked, &none, sequence);
+            // the line opened by the first panic, and by the first after a conference closed it
+            unsigned long long before = atomic_load(&head->panicked);
+            while (((before == 0ull) || (before == atomic_load(&head->closed))) &&
+                   !atomic_compare_exchange_weak(&head->panicked, &before, sequence))
+            {
+            }
         }
     }
     // its row of the table, where the table holds one more: the name's hash, the places of its name and bytes in the
@@ -940,7 +945,20 @@ const char *qry_path(const QryBuffer *buffer)
 
 unsigned long long qry_panicked(QryBuffer *buffer)
 {
-    return (buffer != NULL) ? atomic_load(&buffer->head->panicked) : 0ull;
+    if (buffer == NULL)
+    {
+        return 0ull;
+    }
+    const unsigned long long panic = atomic_load(&buffer->head->panicked);
+    return (panic != atomic_load(&buffer->head->closed)) ? panic : 0ull;
+}
+
+void qry_line_closed(QryBuffer *buffer, unsigned long long panic)
+{
+    if (buffer != NULL)
+    {
+        atomic_store(&buffer->head->closed, panic);
+    }
 }
 
 // 1 once the critical blob of `sequence` is on disk, 0 where the writer stopped or QRY_CRITICAL_WAIT_MILLISECONDS

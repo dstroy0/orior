@@ -39,6 +39,11 @@ extern "C"
 // a question's slot where its code holds none: the carrier makes no place conservative past the wait on all six
 #define RUN_SLOT_NONE 0xffffffffu
 
+// the gate's hold under rule 3 of the airlock, an operation key unknown, as the carrier answers it: `skipped` and the
+// rule's number (cubin_safe.h, CUBIN_SAFE_KEY). An ask held so is open in R, as a timed-out one is: the part never saw
+// it, and a conference may admit it (overseer.h)
+#define RUN_GATE_KEY_RULE "skipped 5 "
+
 // what a run came to
 typedef enum
 {
@@ -132,6 +137,10 @@ int run_channel_record(const char *path, const char *member, const char *mode);
 // holds no answer, or this is not called, no count clears such a hold and the question stays held. 1 where it holds
 // one, 0 where not
 int run_channel_registers_past(const char *ksc);
+
+// 1 where `refused`, what a carrier said of a question, is the gate's hold for an unknown operation key
+// (RUN_GATE_KEY_RULE)
+int run_channel_key_held(const char *refused);
 
 // `asked` put and answered. 1 where the outcome is RUN_ANSWERED, 0 otherwise, with `asked->outcome` saying which
 int run_channel_ask(RunQuestion *asked);

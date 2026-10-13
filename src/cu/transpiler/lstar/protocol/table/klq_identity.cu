@@ -2538,7 +2538,9 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
             continue;
         }
         static KqrAsk s_held;
-        if (kqr_find(&s_query_record, &identities[at], &s_held) && (s_held.answer != KQR_TIMED_OUT))
+        // an ask the gate held for an unknown key is open as a timed-out one is (run_channel.h, RUN_GATE_KEY_RULE)
+        if (kqr_find(&s_query_record, &identities[at], &s_held) && (s_held.answer != KQR_TIMED_OUT) &&
+            !((s_held.answer == KQR_CENSORED) && run_channel_key_held(s_held.refusal)))
         {
             answer_given(question, s_held);
             s_round_held += 1ull;

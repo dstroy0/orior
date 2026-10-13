@@ -1593,7 +1593,9 @@ int main(int count, char **words)
     }
     char line[4u * CUBIN_RUN_LINE];
     int carried = 0;
-    while ((carried == 0) && cubin_run_line(&list, line, sizeof(line)))
+    // a launch that faulted the part or hung ends the round: nothing is launched after it in this process, and the
+    // questions left are answered by no one, for the teacher to put again once the conference has ruled
+    while ((carried == 0) && !s_launch_timed_out && cubin_run_line(&list, line, sizeof(line)))
     {
         char code_path[CUBIN_RUN_LINE];
         char cases_path[CUBIN_RUN_LINE];

@@ -124,6 +124,10 @@ extern "C"
     {
         // 1 where the experts agreed a cause
         int agreed;
+        // 1 where every cause an expert reads is the question's own, its instruction, an address it reached or a
+        // register it named, an exception among them, and one at least reads a cause: the part was left whole and
+        // the question is to blame, whichever clause the experts name, and a run may go on past it
+        int own;
         unsigned int cause;
         unsigned int side;
         unsigned int guidance;

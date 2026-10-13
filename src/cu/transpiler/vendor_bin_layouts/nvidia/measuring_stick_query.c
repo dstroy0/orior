@@ -1124,6 +1124,54 @@ typedef struct
     size_t read_room;
 } MsqHolds;
 
+// 1 where the instruction `body` is a control transfer or a wait (s_control) other than the EXIT a kernel ends in, by
+// its first word short of its modifiers
+static int msq_control_read(const char *body)
+{
+    size_t start = 0u;
+    const size_t word = msq_first_word(body, &start);
+    size_t length = 0u;
+    while ((length < word) && (body[start + length] != '.'))
+    {
+        length += 1u;
+    }
+    if ((length == 4u) && (memcmp(body + start, "EXIT", 4u) == 0))
+    {
+        return 0;
+    }
+    for (size_t at = 0u; at < (sizeof(s_control) / sizeof(s_control[0])); at += 1u)
+    {
+        if ((strlen(s_control[at]) == length) && (memcmp(body + start, s_control[at], length) == 0))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// one instruction of `question` the cross read clear, its text `body` and its sixteen bytes at `encoding`, added to
+// the slots and instructions read clear the teacher reads: `<stem> <operation> <low> <high>`, the operation the
+// instruction's first word short of its modifiers
+static void msq_clear_said(MsqHolds *holds, const MsqQuestion *question, const char *body,
+                           const unsigned char *encoding)
+{
+    size_t start = 0u;
+    const size_t word = msq_first_word(body, &start);
+    size_t length = 0u;
+    while ((length < word) && (body[start + length] != '.'))
+    {
+        length += 1u;
+    }
+    unsigned long long low = 0ull;
+    unsigned long long high = 0ull;
+    memcpy(&low, encoding, 8u);
+    memcpy(&high, encoding + 8u, 8u);
+    char clear[400];
+    const int written = snprintf(clear, sizeof(clear), "%s %.*s %016llx %016llx\n", question->stem, (int)length,
+                                 body + start, low, high);
+    msq_added(&holds->read, &holds->read_size, &holds->read_room, clear, (size_t)written);
+}
+
 // the count of registers that clears a hold of a register past the count, `reached` the highest register it reaches:
 // one past it, or 0 where that is past MSQ_ALLOTTED_MOST
 static unsigned int msq_clearing(unsigned long long reached)
@@ -1413,8 +1461,8 @@ int main(int count, char **words)
         {
             const MsqLine *const read_line = &frame->listing.lines[line];
             unsigned long long frame_reached = 0ull;
-            if (((read_line->offset + 16ull) <= question->code.size) &&
-                msq_register_reached(read_line->body, question->registers, &frame_reached))
+            const int in_code = (read_line->offset + 16ull) <= question->code.size;
+            if (in_code && msq_register_reached(read_line->body, question->registers, &frame_reached))
             {
                 char why[200];
                 snprintf(why, sizeof(why),
@@ -1424,6 +1472,13 @@ int main(int count, char **words)
                 msq_hold_said(&kept, question, question->code.bytes + read_line->offset, why,
                               msq_clearing(frame_reached));
                 held_question = 1;
+            }
+            else if (in_code && !question->slotted && !msq_control_read(read_line->body))
+            {
+                // an instruction of a whole question read clear: legal, within the registers its kernel allots and no
+                // control transfer but the EXIT a kernel ends in; said to the teacher with its encoding, for the
+                // conference the gate calls where it holds the instruction's key unknown (overseer.h)
+                msq_clear_said(&kept, question, read_line->body, question->code.bytes + read_line->offset);
             }
         }
         holds += held_question ? 1u : 0u;
@@ -1485,11 +1540,9 @@ int main(int count, char **words)
         if ((why[0] == '\0') && (kind == MSQ_READ))
         {
             // the slot read clear: a legal instruction that is no control transfer, names no register past the count,
-            // overwrites no register the code addresses memory through and reaches no memory; said to the teacher,
-            // whose conference admits it where the gate holds its key unknown (overseer.h)
-            char clear[320];
-            const int length = snprintf(clear, sizeof(clear), "%s %s\n", question->stem, reading->operation);
-            msq_added(&kept.read, &kept.read_size, &kept.read_room, clear, (size_t)length);
+            // overwrites no register the code addresses memory through and reaches no memory; said to the teacher
+            // with its encoding, whose conference admits it where the gate holds its key unknown (overseer.h)
+            msq_clear_said(&kept, question, body, question->word);
         }
         if (why[0] == '\0')
         {

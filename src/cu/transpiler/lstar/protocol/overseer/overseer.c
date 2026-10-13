@@ -16,7 +16,7 @@
 
 // the most lessons a run holds, the longest carrier name, the most experts a conference names, and the most causes it
 // hears read
-#define OVERSEER_LESSONS_MOST 4096u
+#define OVERSEER_LESSONS_MOST 16384u
 #define OVERSEER_CARRIER_LONGEST 64u
 #define OVERSEER_EXPERTS_MOST 32u
 #define OVERSEER_EXPERT_LONGEST 32u
@@ -377,6 +377,14 @@ int overseer_convened(QryBuffer *run, const char *identity, int other_way_put, O
     ruling->cause = !agreed                             ? (unsigned int)OVERSEER_CAUSE_NONE
                     : (specific != OVERSEER_CAUSE_NONE) ? specific
                                                         : (unsigned int)OVERSEER_CAUSE_EXCEPTION;
+    // every cause read the question's own: none reads a launch that did not return
+    int own = (heard->vote_count != 0u);
+    for (unsigned int at = 0u; at < heard->vote_count; at += 1u)
+    {
+        own = own && (heard->votes[at].cause != (unsigned int)OVERSEER_CAUSE_TIME) &&
+              (heard->votes[at].cause != (unsigned int)OVERSEER_CAUSE_NONE);
+    }
+    ruling->own = own;
     char count[96];
     snprintf(count, sizeof(count), "%u accounts heard, from", heard->accounts);
     overseer_said(ruling, "%s", count);
@@ -387,6 +395,17 @@ int overseer_convened(QryBuffer *run, const char *identity, int other_way_put, O
     if (agreed)
     {
         overseer_said(ruling, "; the cause agreed: %s", s_cause_words[ruling->cause]);
+    }
+    else if (own)
+    {
+        overseer_said(ruling, "%s", "; no consensus on the clause, every cause read the question's own:");
+        for (unsigned int at = 0u; at < heard->vote_count; at += 1u)
+        {
+            char vote[96];
+            snprintf(vote, sizeof(vote), "%s%s reads %s", (at == 0u) ? " " : ", ", heard->votes[at].expert,
+                     s_cause_words[heard->votes[at].cause]);
+            overseer_said(ruling, "%s", vote);
+        }
     }
     else if (heard->vote_count == 0u)
     {

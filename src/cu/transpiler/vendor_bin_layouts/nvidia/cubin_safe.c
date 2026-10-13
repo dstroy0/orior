@@ -180,12 +180,14 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
             {
                 return CUBIN_SAFE_STALL;
             }
-            // an encoding a conference admitted is put past the key alone, exactly as the lesson gives it
-            if (!cubin_key_straight(machine, low) && !cubin_safe_admitted(low, high))
+            // an encoding a conference admitted is put past the key alone, exactly as the lesson gives it, and
+            // counts as one a form holds: the cross read it, and the airlock's own word stands for a form's
+            const int admitted = cubin_safe_admitted(low, high);
+            if (!cubin_key_straight(machine, low) && !admitted)
             {
                 return CUBIN_SAFE_KEY;
             }
-            unheld += 1u;
+            unheld += admitted ? 0u : 1u;
             if (unheld > 1u)
             {
                 return CUBIN_SAFE_UNHELD;

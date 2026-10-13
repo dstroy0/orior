@@ -320,6 +320,10 @@ extern "C"
     // the sequence of the first panic handed in the run, the line open from then on, or 0 where none has been
     unsigned long long qry_panicked(QryBuffer *buffer);
 
+    // the line the panic of `panic` opened closed, by a conference's ruling on it (overseer.h): the run goes on, and
+    // the next panic handed opens the line again
+    void qry_line_closed(QryBuffer *buffer, unsigned long long panic);
+
     // the latest blob of `name`, its bytes in the buffer and their count, and its sequence where `sequence` is not
     // NULL: 1, or 0 where none was handed. A reader that handed something before a blob it waits on tells that blob
     // from an older one of the name by the sequence. The bytes stand as long as this process holds the buffer

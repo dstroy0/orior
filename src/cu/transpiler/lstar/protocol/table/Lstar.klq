@@ -39,8 +39,8 @@ key word_sub_last
 key word_borrow_read
 key word_copy
 pair word_copy thread_idx_x
+open 0
 unknown_coherence
-
 key word_set
 key word_bitand
 key word_bitor
@@ -76,8 +76,8 @@ key test_sign_gt
 key test_wide_nonzero
 key test_wide_eq
 pair test_wide_eq test_wide_zero
+open 0
 unknown_coherence
-
 key test_wide_lt
 key test_wide_lt_and
 key predicate_bitxor
@@ -113,39 +113,39 @@ key kernel_close
 key thread_idx_x
 key thread_idx_y
 pair thread_idx_y thread_idx_x
+open 0
 unknown_coherence
-
 key thread_idx_z
 pair thread_idx_z thread_idx_x
+open 0
 unknown_coherence
-
 key block_idx_x
 key block_idx_y
 pair block_idx_y block_idx_x
+open 0
 unknown_coherence
-
 key block_idx_z
 pair block_idx_z block_idx_x
+open 0
 unknown_coherence
-
 key block_dim_x
 key block_dim_y
 pair block_dim_y block_dim_x
+open 0
 unknown_coherence
-
 key block_dim_z
 pair block_dim_z block_dim_x
+open 0
 unknown_coherence
-
 key grid_dim_x
 key grid_dim_y
 pair grid_dim_y grid_dim_x
+open 0
 unknown_coherence
-
 key grid_dim_z
 pair grid_dim_z grid_dim_x
+open 0
 unknown_coherence
-
 key warp_size
 key parameter_load_word
 key parameter_load_wide
@@ -161,12 +161,12 @@ key exit_if
 key test_word_le
 key test_word_ne
 pair test_word_ne test_word_nonzero
+open 0
 unknown_coherence
-
 key test_word_eq
 pair test_word_eq test_word_zero
+open 0
 unknown_coherence
-
 key test_word_gt
 key test_signed_word_lt
 key test_signed_word_ge
@@ -174,8 +174,8 @@ key test_signed_word_le
 key test_signed_word_gt
 key test_wide_ne
 pair test_wide_ne test_word_nonzero
+open 0
 unknown_coherence
-
 key test_wide_le
 key test_wide_gt
 key test_wide_ge
