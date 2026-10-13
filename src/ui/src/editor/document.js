@@ -64,7 +64,7 @@ export function mapThrough(p, edits, after = false) {
   return at;
 }
 
-const WORD_CHAR = /[\p{L}\p{N}_$]/u;
+const WORD_CHAR = /[\p{L}\p{M}\p{N}_$]/u;
 
 export function isWordChar(char) {
   return char !== undefined && WORD_CHAR.test(char);
@@ -290,6 +290,25 @@ export class Doc {
       step.before = step.before?.map(sel);
       step.after = step.after?.map(sel);
     }
+  }
+
+  // Whether any step of the history reaches a line `outside` says yes to.
+  reaches(outside) {
+    for (const step of this.steps.values()) {
+      for (const group of step.edits) {
+        if (group.some((edit) => outside(edit.from.line) || outside(edit.to.line))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Lets go of every step of the history: the text stays in the state it is in, and nothing undoes.
+  forgetSteps() {
+    this.steps.clear();
+    this.next.clear();
+    this.forks.clear();
   }
 
   undo() {

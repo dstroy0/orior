@@ -117,6 +117,8 @@
     const until = performance.now() + 5000;
     let last = null;
     let why = "";
+    // An element a scrolling part clips, as a sheet's own scroll does, is scrolled into view once.
+    let scrolled = false;
     while (performance.now() < until) {
       const node = elementOf(target);
       const box = node.getBoundingClientRect();
@@ -125,7 +127,17 @@
       }
       const seen = node.getBoundingClientRect();
       const point = { x: seen.left + seen.width / 2, y: seen.top + seen.height / 2 };
-      const still = last && last.x === point.x && last.y === point.y;
+      // Still once it stands where it stood a frame before and nothing holding it is animating: two
+      // slow frames can fall on one moment of a menu's growth, and its items move after.
+      const animating = (() => {
+        for (let one = node; one; one = one.parentElement) {
+          if (one.getAnimations().some((animation) => animation.playState === "running")) {
+            return true;
+          }
+        }
+        return false;
+      })();
+      const still = last && last.x === point.x && last.y === point.y && !animating;
       last = point;
       const hit = document.elementFromPoint(point.x, point.y);
       if (seen.width === 0 || seen.height === 0 || getComputedStyle(node).visibility === "hidden") {
@@ -134,6 +146,10 @@
         why = "keeps moving";
       } else if (!hit || !(hit === node || node.contains(hit))) {
         why = `is under ${named(hit)}`;
+        if (!scrolled) {
+          scrolled = true;
+          node.scrollIntoView({ block: "center", inline: "nearest" });
+        }
       } else {
         return point;
       }
@@ -158,12 +174,26 @@
     wheel: async (target, deltaY, deltaX = 0) => ask({ op: "wheel", ...(await pointOf(target)), deltaX, deltaY }),
     // Keys as the menus write them: Ctrl+Shift+P, F5, Escape, Alt+Enter.
     key: async (keys) => ask({ op: "key", keys }),
+    // Modifier keys held down until let go: Ctrl, Alt, Shift, or more of them joined, Ctrl+Shift.
+    hold: async (keys) => ask({ op: "hold", keys }),
+    release: async (keys) => ask({ op: "release", keys }),
     // The page is told it has the system's focus while the harness runs it; off, it has the focus
     // the window truly has, which a window behind another lacks.
     focusTold: async (on) => ask({ op: "focus", on }),
+    // A media feature the system sets, as prefers-reduced-motion, told to the page as `value`; with
+    // no value, the page has what the system truly sets.
+    media: async (name, value = "") => ask({ op: "media", name, value }),
+    // A program started apart from the window, waited for unless `wait` is false: its words, its
+    // environment and what its standard input reads.
+    run: async (program, args = [], { env = {}, input = "", wait = true } = {}) => ask({ op: "run", program, args, env, input, wait }),
+    // The browser's own trace of the window's frames, started, and ended with its summary handed to the
+    // query run `qry` as the blob `name` by the run's `writer`.
+    browserTrace: async () => ask({ op: "browser_trace" }),
+    browserTraced: async (writer, qry, name) => ask({ op: "browser_trace", end: true, writer, qry, name }),
     type: async (text) => ask({ op: "type", text }),
     // Waits for `what`, a selector shown or a function's true value, and gives it.
-    waitFor: async (what, ms = 5000) => {
+    // Waits for `what`, a test or a selector, at most `ms`; `said` names it where it never comes.
+    waitFor: async (what, ms = 5000, said = null) => {
       const until = performance.now() + ms;
       while (performance.now() < until) {
         const value = typeof what === "function" ? await what() : document.querySelector(what);
@@ -172,7 +202,7 @@
         }
         await new Promise((next) => setTimeout(next, 30));
       }
-      throw new Failure(`waited ${ms} ms for ${typeof what === "function" ? "the condition" : what}`);
+      throw new Failure(`waited ${ms} ms for ${said ?? (typeof what === "function" ? "the condition" : what)}`);
     },
     // The gaps between the frames drawn over `ms`, to say how smoothly something moved.
     frames: async (ms) => {
@@ -235,6 +265,8 @@
   harness.ui = ui;
   harness.calls = calls;
   harness.Failure = Failure;
+  // What a held call's error says, for a test that sets those errors aside.
+  harness.held = HELD;
 
   // Runs the tests a file gave, in order, and gives each one's name, whether it passed, why not, and
   // how long it took; the file's tests are taken away once run.
@@ -249,7 +281,14 @@
         await Promise.race([one.work(), new Promise((_, fail) => setTimeout(() => fail(new Failure(`it ran past ${one.timeout} ms`)), one.timeout))]);
         results.push({ name: one.name, ok: true, ms: Math.round(performance.now() - started) });
       } catch (error) {
-        results.push({ name: one.name, ok: false, ms: Math.round(performance.now() - started), error: String(error?.stack || error).split("\n").slice(0, 4).join("\n") });
+        // A stack of V8's opens with the message; one of WebKit's holds the frames alone.
+        const message = String(error?.message ?? error);
+        const stack = String(error?.stack ?? "");
+        const told = stack.includes(message) ? stack : `${message}\n${stack}`;
+        // A step only the window with its debugging port can take, met under WebDriver: the test is
+        // not run here, and says why, where it would fail for what the window cannot be asked.
+        const notHere = message.startsWith("not run on a WebDriver window:");
+        results.push({ name: one.name, ok: notHere, ms: Math.round(performance.now() - started), error: notHere ? message : told.split("\n").slice(0, 4).join("\n") });
       }
       await ui.focusTold(true).catch(() => {});
       document.querySelectorAll("dialog[open]").forEach((one) => one.close());

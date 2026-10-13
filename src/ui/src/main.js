@@ -4,35 +4,57 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { editing, forgetTree, loadMounts, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
+import { progressBar } from "./progress.js";
+import { editing, forgetTree, loadMounts, onShown, openAt, openElsewhere, openFile, restoreSession, startEdit, takeSettings } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, restoreEnvironment, runCommand, runLaunch, startMenubar, stripMenus } from "./menubar.js";
+import { drawMenubar, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar, stripMenus } from "./menubar.js";
+import { forgetRuns } from "./runs.js";
 import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
 import { closeIcon, refreshStrip, startStrip } from "./strip.js";
+import { startKeyHints } from "./keyhints.js";
+import { startSight } from "./sight.js";
+import { startWaits } from "./waits.js";
+import { startGather } from "./gather.js";
+import { startPeek } from "./peek.js";
+import { startPreview } from "./preview.js";
+import { startPurpose } from "./purpose.js";
+import { startRequests } from "./requests.js";
 import { startDocks } from "./docks.js";
+import { startDrop } from "./drop.js";
 import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
 import { startProfile } from "./profile.js";
 import { startContainers } from "./containers.js";
+import { startComms } from "./comms.js";
+import { drawStatus as drawDatabaseStatus, startDatabase } from "./database.js";
 import { loadRun, readRunsAgain, startRun } from "./run.js";
 import { linkJoined, startRemote } from "./remote.js";
 import { serveAgain } from "./servers.js";
 import { catchErrors } from "./reports.js";
-import { keepScheme } from "./scheme.js";
+import { keepScheme, showKeptScheme } from "./scheme.js";
+import { onSettings, readSettings, startSettings } from "./settings.js";
+import { startNetwork } from "./network.js";
+import { startLanguage } from "./language.js";
+import { applyThemes } from "./themes.js";
+import { applyFonts } from "./fonts.js";
+import { showOpacity } from "./opacity.js";
+import { giveCores } from "./cores.js";
+import { keysChanged } from "./keys.js";
 import { startSearch } from "./search.js";
 import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
-import { watch } from "./status.js";
+import { watch, write } from "./status.js";
 import { focusTerminalView, newTerminal, runInTerminal, startTerminal } from "./terminal.js";
+import { readTrust, startTrust } from "./trust.js";
 import { onView, showView, shownView } from "./views.js";
 import { onTold, showWindow } from "./windows.js";
 import { startWordmark } from "./wordmark.js";
-import { keepZoom } from "./zoom.js";
-import { keepMemory, say } from "./statusbar.js";
+import { keepZoom, showZoom } from "./zoom.js";
+import { keepMemory, say, startNotices } from "./statusbar.js";
 import { startMotion } from "./motion.js";
 import { keepUserCss } from "./usercss.js";
 
@@ -72,7 +94,11 @@ async function settle(root, said) {
   return true;
 }
 
-// The bar's reading of the status block: the runs going and the files still being read.
+// The bars of the files being read, kept from one drawing to the next so each moves steadily.
+const readBars = new Map();
+
+// The bar's reading of the status block: the runs going, the files still being read, each with a
+// bar of how far along it is, and what of the tree is not read yet.
 function drawPulse(held) {
   const parts = [];
   if (held.runs.size) {
@@ -80,11 +106,80 @@ function drawPulse(held) {
     runs.addEventListener("click", () => showView("run"));
     parts.push(runs);
   }
+  for (const path of readBars.keys()) {
+    if (!held.reads.has(path)) {
+      readBars.delete(path);
+    }
+  }
   for (const [path, { read, size }] of held.reads) {
     const name = path.split("/").pop();
-    parts.push(Object.assign(document.createElement("span"), { textContent: `${name} ${Math.floor((100 * read) / Math.max(1, size))}%`, title: path }));
+    const bar = readBars.get(path) ?? progressBar();
+    readBars.set(path, bar);
+    bar.set(read / Math.max(1, size));
+    const reading = Object.assign(document.createElement("span"), { className: "pulse-read", title: path });
+    reading.append(`${name} `, bar, ` ${Math.floor((100 * read) / Math.max(1, size))}%`);
+    parts.push(reading);
+  }
+  const unread = [held.unread.files && "files", held.unread.symbols && "symbols"].filter(Boolean);
+  if (unread.length) {
+    parts.push(Object.assign(document.createElement("span"), { className: "pulse-unread", textContent: `The tree's ${unread.join(" and ")} not read yet` }));
   }
   document.getElementById("pulse").replaceChildren(...parts);
+}
+
+// How often the tree's reading is asked after while it goes, in milliseconds.
+const UNREAD_EVERY = 250;
+
+// Which reading of the tree is the last begun: a tree opened in place of another ends the other's.
+let treeRead = 0;
+
+// Reads the tree's files and what they declare behind the window, every key at work meanwhile, and
+// keeps the status block told which are not read yet until both are.
+async function readTree() {
+  const ticket = ++treeRead;
+  await invoke("tree_read").catch(() => {});
+  while (ticket === treeRead) {
+    const unread = await invoke("tree_unread").catch(() => ({ files: false, symbols: false }));
+    if (ticket !== treeRead) {
+      return;
+    }
+    write("unread", unread);
+    if (!unread.files && !unread.symbols) {
+      return;
+    }
+    await new Promise((rest) => setTimeout(rest, UNREAD_EVERY));
+  }
+}
+
+// Shows again each setting a settings file changed whose part of the page took it as the window
+// started: the scheme, the themes, the fonts, the opacity, the zoom, the cores kept, the keys and the
+// editor's own.
+function showSettings(changed) {
+  const has = (name) => [...changed].some((key) => (name.endsWith(".") ? key.startsWith(name) : key === name));
+  if (has("scheme")) {
+    showKeptScheme();
+  }
+  if (has("theme.") || has("themes")) {
+    applyThemes();
+  }
+  if (has("fonts")) {
+    applyFonts();
+  }
+  if (has("opacity.")) {
+    showOpacity();
+  }
+  if (has("zoom")) {
+    showZoom();
+  }
+  if (has("cores-kept")) {
+    giveCores();
+  }
+  if (has("keys")) {
+    keysChanged();
+  }
+  if (started) {
+    takeSettings();
+  }
 }
 
 // The window and the keys come first: the window is asked for, and the commands the keys run read,
@@ -94,10 +189,14 @@ function drawPulse(held) {
 async function start() {
   invoke("window_show").catch(() => {});
   const commands = invoke("commands_read");
+  giveCores();
   catchErrors();
   await startMotion();
   startWordmark();
   keepScheme();
+  applyThemes();
+  onSettings(showSettings);
+  startSettings();
   const styled = keepUserCss();
   keepZoom();
   keepMemory();
@@ -135,6 +234,14 @@ async function start() {
     },
     say: (text) => say(text, { failed: true }),
   });
+  startDatabase({
+    editor: () => editing().editor,
+    file: () => editing().fileHere(),
+    sheet: menubarSheet,
+    ask: async (label, start) => (await import("./menubar.js")).askFor(label, start),
+  });
+  onShown(drawDatabaseStatus);
+  startComms();
   startFocusFollows({ terminal: focusTerminalView });
   startDocks({
     close: closeIcon,
@@ -165,6 +272,14 @@ async function start() {
     (line === null || line === undefined ? openFile(path) : openAt(path, line, col ?? 0)).then(showWindow);
   });
   startStrip({ run: runCommand, jobMenus: stripMenus });
+  startKeyHints();
+  startSight();
+  startWaits();
+  startNotices();
+  startNetwork();
+  startLanguage();
+  startTrust();
+  startDrop({ changed: () => editing().treeChanged() });
   // A tree on another machine: once the link to it is made, the runs kept there are read, and once
   // it is made again after a drop, every open tab is handed to its server there again.
   await startRemote({
@@ -226,10 +341,18 @@ async function begin(root) {
     if (!(await settle(root))) {
       return;
     }
+    await readSettings(root);
+    readTree();
+    readTrust();
     const defs = await invoke("definitions_read");
     if (!started) {
       started = true;
       await startEdit(defs);
+      startPreview();
+      startRequests();
+      startPeek();
+      startPurpose();
+      startGather();
     }
     await loadRun();
     drawMenubar();
@@ -239,6 +362,7 @@ async function begin(root) {
     await restoreSession();
     // The tests of the tree open before are forgotten, and this tree's read where their window shows.
     forgetTests();
+    forgetRuns();
     if (paneOpen("tests")) {
       loadTests();
     }

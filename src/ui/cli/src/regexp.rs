@@ -11,12 +11,19 @@
 //! lower case; any other flag is no matter for a single line. Lookbehind and named groups are
 //! refused, and a grammar that holds one is colored by the page instead.
 //!
-//! Matching backtracks. A quantifier over one character steps along without going deeper for each
-//! character it takes, and a long run costs no stack; any other repeats by going one level deeper an
-//! iteration. A match that takes more than STEPS steps is given up as no match.
+//! Matching backtracks. A quantifier over what takes the text one way at a place or not at all, one
+//! character, a sequence of them, or alternatives of those no two of which start with the same
+//! character, steps along without going deeper for each pass it takes, and a long run costs no stack;
+//! a string's `"(?:[^"\\]|\\.)*"` is one. Any other repeats by going one level deeper a pass. A match
+//! that takes more than STEPS steps, or whose passes take more than STACK_MOST bytes of the stack
+//! below where it began, is given up as no match.
 
 /// The most steps one attempt at a match takes before it is given up.
 const STEPS: usize = 200_000;
+
+/// The most bytes of the stack a match's passes take before it is given up: well inside the stack any
+/// thread of the window is given, in a build with its checks as in one without.
+const STACK_MOST: usize = 512 * 1024;
 
 #[derive(Debug, Clone)]
 enum Item {
@@ -60,7 +67,9 @@ enum Node {
     Look(Box<Node>, bool),
     Concat(Vec<Node>),
     Alt(Vec<Node>, Vec<First>),
-    Repeat(Box<Node>, usize, Option<usize>, bool),
+    // The node repeated, the fewest and most passes, whether greedy, and whether a pass takes the text
+    // one way or none, which fill works out.
+    Repeat(Box<Node>, usize, Option<usize>, bool, bool),
     Back(usize),
 }
 
@@ -200,7 +209,7 @@ impl Reader<'_> {
             return self.fail("a quantifier after an assertion");
         }
         let greedy = !self.eat('?');
-        Ok(Node::Repeat(Box::new(atom), min, max, greedy))
+        Ok(Node::Repeat(Box::new(atom), min, max, greedy, false))
     }
 
     fn hex(&mut self, count: usize) -> Option<char> {
@@ -386,11 +395,12 @@ impl Reader<'_> {
     }
 }
 
-/// Where a match stands: each group's span, the steps taken, and whether the steps ran out.
+/// Where a match stands: each group's span, the steps taken, and where its stack stood as it began.
 struct Run<'a> {
     text: &'a [char],
     groups: Vec<Option<(usize, usize)>>,
     steps: usize,
+    base: usize,
 }
 
 impl Regexp {
@@ -418,7 +428,11 @@ impl Regexp {
                 }
                 *firsts = options.iter().map(|option| self.first_of(option)).collect();
             }
-            Node::Group(inner, _) | Node::Look(inner, _) | Node::Repeat(inner, ..) => self.fill(inner),
+            Node::Repeat(inner, .., one_way) => {
+                self.fill(inner);
+                *one_way = self.one_way(inner);
+            }
+            Node::Group(inner, _) | Node::Look(inner, _) => self.fill(inner),
             Node::Concat(parts) => parts.iter_mut().for_each(|part| self.fill(part)),
             _ => {}
         }
@@ -443,7 +457,7 @@ impl Regexp {
                 }
                 First { empty: true, ..set }
             }
-            Node::Repeat(inner, min, _, _) => {
+            Node::Repeat(inner, min, ..) => {
                 let own = self.first_of(inner);
                 First { empty: own.empty || *min == 0, ..own }
             }
@@ -466,7 +480,8 @@ impl Regexp {
         }
         groups.clear();
         groups.resize(self.groups + 1, None);
-        let mut run = Run { text, groups: std::mem::take(groups), steps: 0 };
+        let mark = 0u8;
+        let mut run = Run { text, groups: std::mem::take(groups), steps: 0, base: std::ptr::addr_of!(mark) as usize };
         let mut end = None;
         let found = self.walk(&self.node, at, &mut run, &mut |to, _| {
             end = Some(to);
@@ -561,7 +576,7 @@ impl Regexp {
                 let next = text.get(at).copied();
                 options.iter().zip(firsts).any(|(option, first)| (first.empty || next.is_some_and(|letter| first.allows(letter))) && self.walk(option, at, run, then))
             }
-            Node::Repeat(inner, min, max, greedy) => {
+            Node::Repeat(inner, min, max, greedy, one_way) => {
                 if matches!(**inner, Node::Char(_) | Node::Any | Node::Class(..)) {
                     // One character at a time: count how far the run goes, then hand on from the
                     // longest to the shortest, or the other way where lazy.
@@ -577,6 +592,30 @@ impl Regexp {
                         (*min..=reach).rev().any(|count| then(at + count, run))
                     } else {
                         (*min..=reach).any(|count| then(at + count, run))
+                    }
+                } else if *one_way {
+                    // One way a pass or none: count the passes, each where the one before ended, then
+                    // hand on from the most to the fewest, or the other way where lazy.
+                    let most = max.unwrap_or(usize::MAX);
+                    let mut ends = vec![at];
+                    while ends.len() - 1 < most {
+                        run.steps += 1;
+                        if run.steps > STEPS {
+                            return false;
+                        }
+                        let from = ends[ends.len() - 1];
+                        match self.pass(inner, text, from) {
+                            Some(to) if to > from => ends.push(to),
+                            _ => break,
+                        }
+                    }
+                    if ends.len() - 1 < *min {
+                        return false;
+                    }
+                    if *greedy {
+                        (*min..ends.len()).rev().any(|count| then(ends[count], run))
+                    } else {
+                        (*min..ends.len()).any(|count| then(ends[count], run))
                     }
                 } else {
                     self.repeat(inner, *min, *max, *greedy, 0, at, run, then)
@@ -620,10 +659,16 @@ impl Regexp {
         self.again(inner, min, max, greedy, count, at, run, then)
     }
 
-    // One more iteration of a repetition, and the rest of it after.
+    // One more iteration of a repetition, and the rest of it after, one pass deeper.
     #[allow(clippy::too_many_arguments)]
     fn again(&self, inner: &Node, min: usize, max: Option<usize>, greedy: bool, count: usize, at: usize, run: &mut Run, then: &mut dyn FnMut(usize, &mut Run) -> bool) -> bool {
         if max.is_some_and(|most| count >= most) {
+            return false;
+        }
+        let mark = 0u8;
+        if run.base.abs_diff(std::ptr::addr_of!(mark) as usize) > STACK_MOST {
+            // Given up as STEPS gives up: no step after it goes on.
+            run.steps = STEPS + 1;
             return false;
         }
         self.walk(inner, at, run, &mut |to, run| {
@@ -633,6 +678,63 @@ impl Regexp {
             }
             self.repeat(inner, min, max, greedy, count + 1, to, run, then)
         })
+    }
+
+    // The characters a node can take first, those past ASCII as one: a character of the text no two
+    // alternatives can both take first leaves a pass one way to go.
+    fn starts(&self, node: &Node) -> Option<(u128, bool)> {
+        let ascii = |test: &dyn Fn(char) -> bool| (0u8..128).filter(|&code| test(char::from(code))).fold(0u128, |set, code| set | (1u128 << code));
+        match node {
+            Node::Char(own) => Some((ascii(&|letter| self.same(*own, letter)), !own.is_ascii() || (self.fold && own.is_alphabetic()))),
+            Node::Any => Some((ascii(&|letter| !ends_line(letter)), true)),
+            Node::Class(items, negated) => {
+                let past = *negated
+                    || items.iter().any(|item| match *item {
+                        Item::Range(_, high) => !high.is_ascii() || self.fold,
+                        Item::Digit(not) => not,
+                        Item::Word(_) | Item::Space(_) | Item::Property(..) => true,
+                    });
+                Some((ascii(&|letter| self.holds(items, *negated, letter)), past))
+            }
+            Node::Group(inner, None) => self.starts(inner),
+            Node::Concat(parts) => parts.first().and_then(|first| self.starts(first)),
+            Node::Alt(options, _) => options.iter().try_fold((0u128, false), |(set, past), option| self.starts(option).map(|(own, other)| (set | own, past || other))),
+            _ => None,
+        }
+    }
+
+    // Whether a pass of a node takes the text at any place one way or not at all: one character, a
+    // sequence of such, or alternatives of such no two of which can take the same character first.
+    fn one_way(&self, node: &Node) -> bool {
+        match node {
+            Node::Char(_) | Node::Any | Node::Class(..) => true,
+            Node::Group(inner, None) => self.one_way(inner),
+            Node::Concat(parts) => !parts.is_empty() && parts.iter().all(|part| self.one_way(part)),
+            Node::Alt(options, _) => {
+                let mut seen = (0u128, false);
+                options.iter().all(|option| {
+                    let Some((own, past)) = self.starts(option).filter(|_| self.one_way(option)) else {
+                        return false;
+                    };
+                    let apart = seen.0 & own == 0 && !(seen.1 && past);
+                    seen = (seen.0 | own, seen.1 || past);
+                    apart
+                })
+            }
+            _ => false,
+        }
+    }
+
+    // Where a pass of a node that takes the text one way, at `at`, ends, or none where it takes none.
+    fn pass(&self, node: &Node, text: &[char], at: usize) -> Option<usize> {
+        match node {
+            Node::Char(_) | Node::Any | Node::Class(..) => text.get(at).filter(|&&letter| self.one(node, letter) == Some(true)).map(|_| at + 1),
+            Node::Group(inner, _) => self.pass(inner, text, at),
+            Node::Concat(parts) => parts.iter().try_fold(at, |to, part| self.pass(part, text, to)),
+            // No two alternatives take the same character first: the first that passes takes the pass.
+            Node::Alt(options, _) => options.iter().find_map(|option| self.pass(option, text, at)),
+            _ => None,
+        }
     }
 }
 
@@ -724,6 +826,43 @@ mod tests {
         assert!(Regexp::new(r"(a", "").is_err());
         assert!(Regexp::new(r"a)", "").is_err());
         assert!(Regexp::new(r"*a", "").is_err());
+    }
+
+    /// `run` on a thread of its own with `stack` bytes of stack, as a worker thread is given.
+    fn on_stack<T: Send + 'static>(stack: usize, run: impl FnOnce() -> T + Send + 'static) -> T {
+        std::thread::Builder::new().stack_size(stack).spawn(run).unwrap().join().unwrap()
+    }
+
+    #[test]
+    fn a_string_of_any_length_is_taken_a_pass_at_a_time_in_little_stack() {
+        let string = r#"(?:[^"\\]|\\.)*"#;
+        assert_eq!(at(&format!("\"{string}\""), "", r#""a\"b\\" rest"#, 0).as_deref(), Some(r#""a\"b\\""#));
+        assert_eq!(at(&format!("\"{string}\"(?=\\s*:)"), "", r#""key" : 1"#, 0).as_deref(), Some(r#""key""#));
+        assert_eq!(at(&format!("\"{string}\"(?=\\s*:)"), "", r#""value", 1"#, 0), None);
+        let long: String = std::iter::once('"').chain((0..200_000).map(|at| if at % 997 == 0 { '\\' } else { 'x' })).chain("\"".chars()).collect();
+        let taken = on_stack(256 * 1024, move || at(&format!("\"{string}\""), "", &(long.clone() + ", next"), 0).map(|found| found.len()));
+        assert_eq!(taken, Some(200_002), "the whole string, its escapes taken with the character after each");
+    }
+
+    #[test]
+    fn a_repetition_taken_a_pass_at_a_time_matches_as_backtracking_does() {
+        assert_eq!(at(r"(?:ab|c)*", "", "ababcx", 0).as_deref(), Some("ababc"));
+        assert_eq!(at(r"(?:ab|c)+?c", "", "abcc", 0).as_deref(), Some("abc"), "lazy: the fewest passes the rest takes");
+        assert_eq!(at(r"(?:ab|c){2}", "", "ababab", 0).as_deref(), Some("abab"));
+        assert_eq!(at(r"(?:ab|c){2,3}c", "", "ababcc", 0).as_deref(), Some("ababcc"), "greedy gives a pass back for the rest");
+        assert_eq!(at(r"(?:ab|cd)*e", "", "ababcde", 0).as_deref(), Some("ababcde"));
+        assert_eq!(at(r"(?:ab|cd)+", "", "ac", 0), None);
+        assert_eq!(at(r"(?:ab|a)*", "", "aba", 0).as_deref(), Some("aba"), "alternatives that start alike go deeper, as before");
+        assert_eq!(at(r"(?:a|b)+", "i", "AbAc", 0).as_deref(), Some("AbA"));
+        assert_eq!(at(r"(?:\d|x)+", "", "1x2y", 0).as_deref(), Some("1x2"));
+    }
+
+    #[test]
+    fn a_repetition_that_goes_deeper_gives_up_before_a_worker_s_stack_runs_out() {
+        let text: String = "a".repeat(100_000) + "!";
+        let found = on_stack(2 * 1024 * 1024, move || at(r"(?:a|ab)*!", "", &text, 0));
+        assert_eq!(found, None, "given up, and the thread lives");
+        assert_eq!(at(r"(?:a|ab)*!", "", &("a".repeat(20) + "!"), 0).map(|found| found.len()), Some(21), "inside its stack it matches");
     }
 
     #[test]

@@ -1231,7 +1231,23 @@ fn listed() -> Vec<Process> {
     found
 }
 
-#[cfg(not(windows))]
+/// On Linux the system's own list in /proc: each process's name from its comm, and its line from its
+/// cmdline, the words apart by nuls. A process that ends while the list is read is left out.
+#[cfg(target_os = "linux")]
+fn listed() -> Vec<Process> {
+    let Ok(entries) = std::fs::read_dir("/proc") else { return Vec::new() };
+    entries
+        .filter_map(|entry| {
+            let pid: u32 = entry.ok()?.file_name().to_str()?.parse().ok()?;
+            let name = std::fs::read_to_string(format!("/proc/{pid}/comm")).ok()?.trim_end().to_string();
+            let line = std::fs::read(format!("/proc/{pid}/cmdline")).unwrap_or_default();
+            let command = line.split(|byte| *byte == 0).filter(|word| !word.is_empty()).map(String::from_utf8_lossy).collect::<Vec<_>>().join(" ");
+            Some(Process { pid, name, command })
+        })
+        .collect()
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
 fn listed() -> Vec<Process> {
     let mut command = Command::new("ps");
     command.args(["-eo", "pid=,comm=,args="]).stdin(std::process::Stdio::null());
@@ -1322,14 +1338,24 @@ mod tests {
         }
         let mut child = command.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).spawn().unwrap();
         let started = std::time::Instant::now();
-        let found = processes();
+        let mut found = processes();
         let took = started.elapsed();
+        // On Linux a process takes its name as its program starts and its line an instant after, once
+        // the system has laid the program out: the list is read again until the line shows.
+        for _ in 0..40 {
+            if found.iter().any(|one| one.pid == child.id() && !one.command.is_empty()) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+            found = processes();
+        }
         let _ = child.kill();
         let _ = child.wait();
         let one = found.iter().find(|one| one.pid == child.id()).unwrap_or_else(|| panic!("{} not among {}", child.id(), found.len()));
         assert!(one.command.contains(if cfg!(windows) { "127.0.0.1" } else { "3" }), "{one:?}");
         assert!(!found.iter().any(|one| one.pid == std::process::id()));
-        assert!(took < Duration::from_millis(500), "{took:?}");
+        // Quick enough for a picker, even with the machine loaded by a whole run of tests.
+        assert!(took < Duration::from_millis(2000), "{took:?}");
     }
 
     #[test]

@@ -1,0 +1,32 @@
+{
+  "id": "http",
+  "name": "HTTP Requests",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["http","rest"],
+  "comments": {"line":"#"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\""],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "perLine": true,
+    "tokenizer": {
+      "root": [
+        ["^###.*$","keyword"],
+        ["^\\s*(?:#|//).*$","comment"],
+        ["^(@)([\\w.\\-]+)(\\s*=)",["operator","variable","operator"]],
+        ["^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|TRACE|CONNECT)\\b","keyword"],
+        ["\\{\\{[^}]*\\}\\}","variable"],
+        ["https?://[^\\s{]+","string"],
+        ["\\bHTTP/[\\d.]+","keyword"],
+        ["^([\\w\\-]+)(:)",["type","delimiter"]],
+        ["^[<>] .*$","string"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["-?\\d+(?:\\.\\d+)?","number"],
+        ["\\b(?:true|false|null)\\b","keyword"],
+        ["[{}[\\]]","@brackets"],
+        ["[^\\s{}[\\]\"#/<>]+|\\s+|.",""]
+      ]
+    }
+  }
+}

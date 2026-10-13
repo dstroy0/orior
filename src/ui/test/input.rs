@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 //! Real input for the window: each step runner.js asks for, sent through the debugging port as the
-//! mouse and keyboard send it: the page receives the same events, in the same order, with the
-//! same keys and codes, as it does from a person. Keys are those of a US keyboard, named as the
+//! mouse and keyboard send it, or as WebDriver's actions where the window is driven through
+//! WebDriver: the page receives the same events, in the same order, with the same keys and codes,
+//! as it does from a person. Keys are those of a US keyboard, named as the
 //! menus write them: Ctrl+Shift+P, Alt+Left, F5, Ctrl+K Ctrl+0.
 
 use std::time::Duration;
@@ -219,6 +220,8 @@ fn button_bit(button: &str) -> u32 {
         "left" => 1,
         "right" => 2,
         "middle" => 4,
+        "back" => 8,
+        "forward" => 16,
         _ => 0,
     }
 }
@@ -239,6 +242,41 @@ fn modifier_bits(keys: &str) -> Result<u32, String> {
 
 fn number(step: &Value, name: &str) -> Result<f64, String> {
     step[name].as_f64().ok_or_else(|| format!("the step has no {name}"))
+}
+
+/// The programs a step left running, each stopped once the window's tests have run.
+static STARTED: std::sync::Mutex<Vec<std::process::Child>> = std::sync::Mutex::new(Vec::new());
+
+/// Runs the program a step names with its words, its environment and what its standard input reads.
+fn run(step: &Value) -> Result<(), String> {
+    use std::io::Write as _;
+    let program = step["program"].as_str().ok_or("the step names no program")?;
+    let words: Vec<&str> = step["args"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
+    let mut command = std::process::Command::new(program);
+    command.args(&words).stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    for (key, value) in step["env"].as_object().into_iter().flatten() {
+        command.env(key, value.as_str().unwrap_or(""));
+    }
+    let mut child = command.spawn().map_err(|error| format!("{program}: {error}"))?;
+    if let Some(mut input) = child.stdin.take() {
+        input.write_all(step["input"].as_str().unwrap_or("").as_bytes()).map_err(|error| format!("{program}: {error}"))?;
+    }
+    if step["wait"].as_bool() == Some(false) {
+        STARTED.lock().map_err(|error| error.to_string())?.push(child);
+        return Ok(());
+    }
+    let ended = child.wait().map_err(|error| format!("{program}: {error}"))?;
+    if ended.success() { Ok(()) } else { Err(format!("{program} {} ended {ended}", words.join(" "))) }
+}
+
+/// Stops each program a step left running.
+pub fn stop_started() {
+    if let Ok(mut started) = STARTED.lock() {
+        for mut child in started.drain(..) {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
 }
 
 /// Performs one step runner.js asked for.
@@ -276,8 +314,186 @@ pub fn perform(conn: &Connection, step: &Value) -> Result<(), String> {
         }
         // The page told it has the system's focus, as the harness tells it, or told what is so.
         "focus" => conn.call("Emulation.setFocusEmulationEnabled", json!({"enabled": step["on"].as_bool().unwrap_or(true)}), WAIT).map(|_| ()),
+        // A media feature the system sets told to the page, as prefers-reduced-motion, or with no
+        // value, what the system truly sets.
+        "media" => {
+            let feature = json!({"name": step["name"].as_str().unwrap_or(""), "value": step["value"].as_str().unwrap_or("")});
+            conn.call("Emulation.setEmulatedMedia", json!({"features": [feature]}), WAIT).map(|_| ())
+        }
+        // A program started apart from the window, as a script in a terminal of the system's starts
+        // one: waited for, and failed where it fails, or left running where `wait` is false.
+        "run" => run(step),
+        "browser_trace" if step["end"] == true => {
+            let word = |key: &str| step[key].as_str().ok_or_else(|| format!("the step names no {key}"));
+            crate::frames::end(conn, word("writer")?, word("qry")?, word("name")?)
+        }
+        "browser_trace" => crate::frames::start(conn),
         "key" => press(conn, step["keys"].as_str().unwrap_or("")),
+        // Modifier keys pressed down and held, or let go, as a reader holds Ctrl to see what it does.
+        "hold" => hold(conn, modifier_bits(step["keys"].as_str().unwrap_or(""))?),
+        "release" => release(conn, modifier_bits(step["keys"].as_str().unwrap_or(""))?),
         "type" => type_text(conn, step["text"].as_str().unwrap_or("")),
+        other => Err(format!("the harness has no step {other:?}")),
+    }
+}
+
+// ---- The same steps through WebDriver ----
+
+/// The keys WebDriver names by a code of its own, each by the key the page receives.
+const DRIVEN_CODES: &[(&str, char)] = &[
+    ("Enter", '\u{E007}'),
+    ("Escape", '\u{E00C}'),
+    ("Tab", '\u{E004}'),
+    ("Backspace", '\u{E003}'),
+    ("Delete", '\u{E017}'),
+    ("Insert", '\u{E016}'),
+    ("Home", '\u{E011}'),
+    ("End", '\u{E010}'),
+    ("PageUp", '\u{E00E}'),
+    ("PageDown", '\u{E00F}'),
+    ("ArrowUp", '\u{E013}'),
+    ("ArrowDown", '\u{E015}'),
+    ("ArrowLeft", '\u{E012}'),
+    ("ArrowRight", '\u{E014}'),
+    ("Control", '\u{E009}'),
+    ("Shift", '\u{E008}'),
+    ("Alt", '\u{E00A}'),
+    ("Meta", '\u{E03D}'),
+];
+
+/// What WebDriver sends for `key`: the character a key that types gives, F1 to F12 and the keys of
+/// DRIVEN_CODES by WebDriver's own codes.
+fn driven_value(key: &Key) -> Result<String, String> {
+    if let Some((_, code)) = DRIVEN_CODES.iter().find(|(name, _)| *name == key.key) {
+        return Ok(code.to_string());
+    }
+    if key.key.chars().count() == 1 {
+        return Ok(key.key.clone());
+    }
+    let number: u32 = key.key.strip_prefix('F').and_then(|number| number.parse().ok()).ok_or_else(|| format!("WebDriver has no key {}", key.key))?;
+    if (1..=12).contains(&number) { Ok(char::from_u32(0xE031 + number - 1).unwrap_or('\u{E031}').to_string()) } else { Err(format!("WebDriver has no key F{number}")) }
+}
+
+/// WebDriver's key actions that press the modifier keys of `bits` down, in order, or let them go
+/// where `up`, in the reverse order.
+fn driven_modifiers(bits: u32, up: bool) -> Vec<Value> {
+    let mut ticks: Vec<Value> = MODIFIERS
+        .iter()
+        .filter(|(_, bit, ..)| bits & bit != 0)
+        .filter_map(|(_, _, key, ..)| DRIVEN_CODES.iter().find(|(name, _)| name == key))
+        .map(|(_, code)| json!({"type": if up { "keyUp" } else { "keyDown" }, "value": code.to_string()}))
+        .collect();
+    if up {
+        ticks.reverse();
+    }
+    ticks
+}
+
+/// The key actions of one chord: its modifiers down, its key down and up, its modifiers up.
+fn driven_chord(text: &str) -> Result<Vec<Value>, String> {
+    let (bits, pressed) = chord(text)?;
+    let value = driven_value(&pressed)?;
+    let mut ticks = driven_modifiers(bits, false);
+    ticks.push(json!({"type": "keyDown", "value": value}));
+    ticks.push(json!({"type": "keyUp", "value": value}));
+    ticks.extend(driven_modifiers(bits, true));
+    Ok(ticks)
+}
+
+fn keys_source(ticks: Vec<Value>) -> Value {
+    json!({"type": "key", "id": "keyboard", "actions": ticks})
+}
+
+fn pointer_source(ticks: Vec<Value>) -> Value {
+    json!({"type": "pointer", "id": "mouse", "parameters": {"pointerType": "mouse"}, "actions": ticks})
+}
+
+/// WebDriver's number for a button, as the page's MouseEvent.button gives it.
+fn driven_button(button: &str) -> u32 {
+    match button {
+        "middle" => 1,
+        "right" => 2,
+        "back" => 3,
+        "forward" => 4,
+        _ => 0,
+    }
+}
+
+/// A move of the pointer to `x`, `y` of the page, taking `ms`.
+fn driven_move(x: f64, y: f64, ms: u64) -> Value {
+    json!({"type": "pointerMove", "origin": "viewport", "x": x.round() as i64, "y": y.round() as i64, "duration": ms})
+}
+
+/// How a step no WebDriver window can take begins what it says: runner.js finds the words, and
+/// the test is said as not run on this window, where the window with its debugging port runs it.
+pub const NOT_HERE: &str = "not run on a WebDriver window:";
+
+/// Performs one step runner.js asked for, through a WebDriver session: the same steps as `perform`,
+/// sent as WebDriver's actions. A step only the debugging port can take, as a trace of the browser's
+/// frames or a media feature told to the page, is said not to be taken.
+pub fn perform_driven(session: &crate::webdriver::Session, step: &Value) -> Result<(), String> {
+    match step["op"].as_str().unwrap_or("") {
+        "click" => {
+            let (x, y) = (number(step, "x")?, number(step, "y")?);
+            let button = driven_button(step["button"].as_str().unwrap_or("left"));
+            let count = step["count"].as_u64().unwrap_or(1).max(1);
+            let bits = modifier_bits(step["keys"].as_str().unwrap_or(""))?;
+            session.actions(json!([keys_source(driven_modifiers(bits, false))]))?;
+            let mut ticks = vec![driven_move(x, y, 0)];
+            for _ in 0..count {
+                ticks.push(json!({"type": "pointerDown", "button": button}));
+                ticks.push(json!({"type": "pointerUp", "button": button}));
+            }
+            let clicked = session.actions(json!([pointer_source(ticks)]));
+            session.actions(json!([keys_source(driven_modifiers(bits, true))]))?;
+            clicked
+        }
+        "move" => session.actions(json!([pointer_source(vec![driven_move(number(step, "x")?, number(step, "y")?, 0)])])),
+        "drag" => {
+            let (x, y, to_x, to_y) = (number(step, "x")?, number(step, "y")?, number(step, "toX")?, number(step, "toY")?);
+            let steps = step["steps"].as_u64().unwrap_or(12).max(1);
+            let mut ticks = vec![driven_move(x, y, 0), json!({"type": "pointerDown", "button": 0})];
+            for at in 1..=steps {
+                let part = at as f64 / steps as f64;
+                ticks.push(driven_move(x + (to_x - x) * part, y + (to_y - y) * part, 16));
+            }
+            ticks.push(json!({"type": "pointerUp", "button": 0}));
+            session.actions(json!([pointer_source(ticks)]))
+        }
+        "wheel" => {
+            let scroll = json!({"type": "scroll", "origin": "viewport", "x": number(step, "x")?.round() as i64, "y": number(step, "y")?.round() as i64, "deltaX": step["deltaX"].as_f64().unwrap_or(0.0).round() as i64, "deltaY": step["deltaY"].as_f64().unwrap_or(0.0).round() as i64, "duration": 0});
+            // Each step a wheel source of its own: WebKitWebDriver passes the first scroll of a source on
+            // to the page and none after it.
+            static WHEELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let id = format!("wheel-{}", WHEELS.fetch_add(1, std::sync::atomic::Ordering::SeqCst));
+            session.actions(json!([{"type": "wheel", "id": id, "actions": [scroll]}]))
+        }
+        // The page told it has the system's focus, its document answering so, or what is so.
+        "focus" => {
+            let script = "const on = arguments[0]; window.__harnessHasFocus ??= document.hasFocus.bind(document); document.hasFocus = on ? () => true : window.__harnessHasFocus; window.dispatchEvent(new Event(on ? 'focus' : 'blur')); return true;";
+            session.execute(script, json!([step["on"].as_bool().unwrap_or(true)])).map(|_| ())
+        }
+        "media" => Err(format!("{NOT_HERE} it is told no media feature, which the window with its debugging port is told")),
+        "browser_trace" => Err(format!("{NOT_HERE} it gives no trace of its frames, which the window with its debugging port gives")),
+        "run" => run(step),
+        "key" => {
+            let mut ticks = Vec::new();
+            for text in step["keys"].as_str().unwrap_or("").split(' ').filter(|text| !text.is_empty()) {
+                ticks.extend(driven_chord(text)?);
+            }
+            session.actions(json!([keys_source(ticks)]))
+        }
+        "hold" => session.actions(json!([keys_source(driven_modifiers(modifier_bits(step["keys"].as_str().unwrap_or(""))?, false))])),
+        "release" => session.actions(json!([keys_source(driven_modifiers(modifier_bits(step["keys"].as_str().unwrap_or(""))?, true))])),
+        "type" => {
+            let mut ticks = Vec::new();
+            for one in step["text"].as_str().unwrap_or("").chars() {
+                let value = if one == '\n' { '\u{E007}'.to_string() } else { one.to_string() };
+                ticks.push(json!({"type": "keyDown", "value": value}));
+                ticks.push(json!({"type": "keyUp", "value": value}));
+            }
+            session.actions(json!([keys_source(ticks)]))
+        }
         other => Err(format!("the harness has no step {other:?}")),
     }
 }
@@ -314,5 +530,29 @@ mod tests {
         assert_eq!(typed('A', false).unwrap().text.as_deref(), Some("A"));
         assert_eq!(typed('(', false).unwrap().code, "Digit9");
         assert!(typed('é', false).is_none());
+    }
+
+    #[test]
+    fn a_chord_through_webdriver_holds_its_modifiers_around_its_key() {
+        let ticks = driven_chord("Ctrl+Shift+P").unwrap();
+        let said: Vec<(String, String)> = ticks.iter().map(|tick| (tick["type"].as_str().unwrap().to_string(), tick["value"].as_str().unwrap().to_string())).collect();
+        let pairs: Vec<(&str, &str)> = said.iter().map(|(kind, value)| (kind.as_str(), value.as_str())).collect();
+        assert_eq!(pairs, [("keyDown", "\u{E009}"), ("keyDown", "\u{E008}"), ("keyDown", "P"), ("keyUp", "P"), ("keyUp", "\u{E008}"), ("keyUp", "\u{E009}")]);
+    }
+
+    #[test]
+    fn a_named_key_is_webdriver_s_code() {
+        assert_eq!(driven_value(&key("Enter", false).unwrap()).unwrap(), "\u{E007}");
+        assert_eq!(driven_value(&key("F5", false).unwrap()).unwrap(), "\u{E035}");
+        assert_eq!(driven_value(&key("Space", false).unwrap()).unwrap(), " ");
+        assert_eq!(driven_value(&key("f", true).unwrap()).unwrap(), "F");
+        assert!(driven_value(&key("F13", false).unwrap()).unwrap_err().contains("F13"));
+        assert!(driven_value(&key("ContextMenu", false).unwrap()).unwrap_err().contains("ContextMenu"));
+    }
+
+    #[test]
+    fn a_button_is_numbered_as_the_page_numbers_it() {
+        assert_eq!((driven_button("left"), driven_button("middle"), driven_button("right")), (0, 1, 2));
+        assert_eq!(driven_move(10.4, 20.6, 16), json!({"type": "pointerMove", "origin": "viewport", "x": 10, "y": 21, "duration": 16}));
     }
 }

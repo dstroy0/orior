@@ -1,0 +1,9 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#
+# Alpine with flatpak-builder and the checkers of a desktop file and of AppStream metadata, to check
+# orior's Flatpak as check_flatpak.sh does: its files read and checked, and no runtime fetched.
+
+FROM alpine:3.22
+RUN apk add --no-cache flatpak-builder appstream desktop-file-utils python3
+WORKDIR /tree

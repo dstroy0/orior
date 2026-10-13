@@ -94,6 +94,15 @@ pub fn read() -> Option<Memory> {
         }
         at += 1;
     }
+    // A process of the container's whose parent has ended stands apart from the tree, and counts all
+    // the same.
+    for pid in orior_cli::container::members() {
+        if !found.iter().any(|(seen, _)| *seen == pid) {
+            if let Some(measured) = measure(pid) {
+                found.push((pid, measured));
+            }
+        }
+    }
 
     // Each process counts with the process the app started it from: a server's helpers with the
     // server, the web view's renderers with its browser.
@@ -124,7 +133,87 @@ pub fn read() -> Option<Memory> {
     Some(memory)
 }
 
-#[cfg(not(windows))]
+/// What the app holds on Linux and macOS: its own process and each of the container's, each counted
+/// with the process the app started it from. On Linux a process's working set is its private pages
+/// in RAM and its commit its anonymous pages in RAM and swapped out; on macOS both are its physical
+/// footprint, as the system counts it against a process's limit.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub fn read() -> Option<Memory> {
+    use std::collections::{BTreeMap, HashMap};
+    let own = std::process::id();
+    let parents: HashMap<u32, u32> = orior_cli::container::parents().into_iter().collect();
+    let started_from = |pid: u32| {
+        let mut at = pid;
+        while let Some(&parent) = parents.get(&at) {
+            if parent == own || parent == at || parent <= 1 {
+                break;
+            }
+            at = parent;
+        }
+        at
+    };
+    let mut parts: BTreeMap<u32, Part> = BTreeMap::new();
+    let mut memory = Memory::default();
+    for pid in std::iter::once(own).chain(orior_cli::container::members()) {
+        let Some((working, commit)) = measure(pid) else { continue };
+        let root = if pid == own { own } else { started_from(pid) };
+        let name = if root == own { "orior".to_string() } else { name_of(root) };
+        let part = parts.entry(root).or_insert_with(|| Part { name, pid: root, ..Part::default() });
+        part.processes += 1;
+        part.working += working;
+        part.commit += commit;
+        memory.working += working;
+        memory.commit += commit;
+    }
+    memory.parts = parts.into_values().collect();
+    memory.parts.sort_by_key(|part| std::cmp::Reverse(part.working));
+    Some(memory)
+}
+
+/// A process's private pages in RAM, and its anonymous pages in RAM and in swap, in bytes.
+#[cfg(target_os = "linux")]
+fn measure(pid: u32) -> Option<(u64, u64)> {
+    let field = |text: &str, name: &str| text.lines().find_map(|line| line.strip_prefix(name)?.split_whitespace().next()?.parse::<u64>().ok()).unwrap_or(0) * 1024;
+    let rollup = std::fs::read_to_string(format!("/proc/{pid}/smaps_rollup")).ok()?;
+    let status = std::fs::read_to_string(format!("/proc/{pid}/status")).ok()?;
+    Some((field(&rollup, "Private_Clean:") + field(&rollup, "Private_Dirty:"), field(&status, "RssAnon:") + field(&status, "VmSwap:")))
+}
+
+#[cfg(target_os = "linux")]
+fn name_of(pid: u32) -> String {
+    std::fs::read_to_string(format!("/proc/{pid}/comm")).map(|name| name.trim().to_string()).unwrap_or_default()
+}
+
+/// A process's physical footprint, in bytes, as the system counts it, for both.
+#[cfg(target_os = "macos")]
+fn measure(pid: u32) -> Option<(u64, u64)> {
+    unsafe extern "C" {
+        fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut std::ffi::c_void) -> i32;
+    }
+    // RUSAGE_INFO_V4's answer, a rusage_info_v4, holds the physical footprint 72 bytes in.
+    const RUSAGE_INFO_V4: i32 = 4;
+    let mut info = [0u8; 296];
+    // SAFETY: the buffer is larger than the rusage_info_v4 the call writes.
+    let read = unsafe { proc_pid_rusage(pid as i32, RUSAGE_INFO_V4, info.as_mut_ptr().cast()) };
+    if read != 0 {
+        return None;
+    }
+    let footprint = u64::from_ne_bytes(info[72..80].try_into().ok()?);
+    Some((footprint, footprint))
+}
+
+#[cfg(target_os = "macos")]
+fn name_of(pid: u32) -> String {
+    unsafe extern "C" {
+        fn proc_name(pid: i32, buffer: *mut std::ffi::c_void, size: u32) -> i32;
+    }
+    let mut name = [0u8; 256];
+    // SAFETY: the buffer is as long as the size told, and read only as far as the call wrote.
+    let length = unsafe { proc_name(pid as i32, name.as_mut_ptr().cast(), name.len() as u32) };
+    String::from_utf8_lossy(&name[..length.max(0) as usize]).to_string()
+}
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 pub fn read() -> Option<Memory> {
     None
 }

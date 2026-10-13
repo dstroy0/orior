@@ -13,11 +13,11 @@
 //! first frame of orior's own is in.
 //!
 //! Before anything leaves the machine the reporter's home folder, the tree's path and the reporter's
-//! name in a path are struck from it. Errors file on their own unless the reporter turns that off, a
-//! setting kept in orior's own folder and shared by the window and the command line. The reporter is
-//! asked once, yes the answer given by default: by the Windows installer, and otherwise on the first
-//! run, in the window or at the terminal. One error files once a run, and a run files at most
-//! AUTO_LIMIT on its own.
+//! name in a path are struck from it. Errors file on their own once the reporter says they may, a
+//! setting kept in orior's own folder and shared by the window and the command line, and nothing files
+//! before the reporter answers. The reporter is asked once, yes the answer given by default: by the
+//! Windows installer, and otherwise on the first run, in the window or at the terminal. One error
+//! files once a run, and a run files at most AUTO_LIMIT on its own.
 
 use std::collections::{BTreeSet, VecDeque};
 use std::io::Write;
@@ -98,9 +98,9 @@ fn settings() -> Settings {
         .unwrap_or_default()
 }
 
-/// Whether errors file on their own: as the reporter answered, and on where they have not answered.
+/// Whether errors file on their own: as the reporter answered, and not where they have not answered.
 pub fn auto() -> bool {
-    std::env::var_os("ORIOR_NO_REPORTS").is_none() && settings().auto_report.unwrap_or(true)
+    std::env::var_os("ORIOR_NO_REPORTS").is_none() && settings().auto_report.unwrap_or(false)
 }
 
 /// Whether the reporter has answered whether errors file on their own.
@@ -322,7 +322,8 @@ pub fn open_url(url: &str) -> Result<(), String> {
         command
     };
     command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
-    command.spawn().map(|_| ()).map_err(|e| e.to_string())
+    // The browser is the reader's, and stays as orior ends.
+    crate::container::start_outside(&mut command).map(|_| ()).map_err(|e| e.to_string())
 }
 
 /// Files a report: as an issue through the reporter's GitHub CLI where it is signed in, as nothing
@@ -341,7 +342,7 @@ fn file_as(given: &Report, root: Option<&Path>, open: bool) -> Filed {
         logs: scrub(&given.logs, root),
     };
     let print = fingerprint(&report.category, &format!("{}\n{}", report.title, report.logs));
-    if gh(&["auth", "status"], None).is_some() {
+    if crate::net::reach(&format!("https://github.com/{REPOSITORY}"), "an error report").is_ok() && gh(&["auth", "status"], None).is_some() {
         let search = format!("\"orior-report {print}\" in:body");
         if let Some(url) = gh(&["issue", "list", "--repo", REPOSITORY, "--state", "open", "--search", &search, "--json", "url", "--jq", ".[0].url"], None).filter(|url| !url.is_empty()) {
             return Filed::Known(url);
@@ -382,7 +383,7 @@ pub fn recent() -> String {
 /// the GitHub CLI cannot file opens no page: the page waits on the status bar for the reader to open.
 pub fn error(category: &str, message: &str, detail: &str, root: Option<&Path>) -> Option<Filed> {
     keep(&format!("{message}\n{detail}"), root);
-    if !auto() {
+    if !auto() || crate::net::held() {
         return None;
     }
     let first = message.lines().next().unwrap_or("error").trim();

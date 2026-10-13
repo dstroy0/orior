@@ -11,6 +11,7 @@
 // has no use for is taken off the strip, and its window closed, until Tool Windows brings it back.
 
 import { showMenu } from "./menu.js";
+import { moves } from "./motion.js";
 import { holdPane, movePane } from "./sides.js";
 import { openWindow, tell, windowId } from "./windows.js";
 
@@ -27,6 +28,8 @@ const TOOLS = {
   terminal: { node: "term", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 480, right: 480, bottom: 256 }, label: "Terminal", height: "orior.terminal.height" },
   profile: { node: "profile", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 520, right: 520, bottom: 300 }, label: "Profile" },
   containers: { node: "containers", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 520, right: 520, bottom: 300 }, label: "Containers" },
+  database: { node: "database", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 560, right: 560, bottom: 320 }, label: "Database" },
+  comms: { node: "comms", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 520, right: 520, bottom: 300 }, label: "Comms" },
 };
 
 const SIDES = ["left", "right", "bottom"];
@@ -44,10 +47,12 @@ const ICONS = {
   terminal: "terminal",
   profile: "profile",
   containers: "containers",
+  database: "database",
+  comms: "comms",
   definitions: "definitions",
 };
 
-const ICON_LABELS = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", containers: "Containers", definitions: "Definitions" };
+const ICON_LABELS = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", containers: "Containers", database: "Database", comms: "Comms", definitions: "Definitions" };
 
 // The smallest a docked window is made, and the share of its place it can take at most.
 const LEAST = 120;
@@ -388,6 +393,21 @@ export const iconNames = () => Object.keys(ICONS);
 // `hooks` closes the window of an icon taken off the strip, draws the strip again as the docks
 // change, shows and closes a tool window, and sends the files opened in this window to another, or
 // with null keeps them here.
+// How far a tool window comes in from the edge it docks at as it shows, in pixels, and how long it
+// takes, in milliseconds.
+const ARRIVES = 14;
+const ARRIVING = 140;
+
+// Brings the tool window `name` in from the edge it docks at, the way the press that showed it points.
+function arrive(name, node) {
+  if (!moves()) {
+    return;
+  }
+  const side = sideOf(name);
+  const from = side === "bottom" ? `translateY(${ARRIVES}px)` : side === "left" ? `translateX(-${ARRIVES}px)` : `translateX(${ARRIVES}px)`;
+  node.animate([{ transform: from, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: ARRIVING, easing: "ease-out" });
+}
+
 export function startDocks(hooks) {
   state.hooks = hooks;
   load();
@@ -395,6 +415,17 @@ export function startDocks(hooks) {
     const node = document.getElementById(TOOLS[name].node);
     if (node.classList.contains("collapsible")) {
       movePane(node, sideOf(name));
+    } else {
+      // A window that shows comes in from its edge; the collapsible panes slide on their own.
+      let shown = !node.hidden;
+      new MutationObserver(() => {
+        if (shown !== !node.hidden) {
+          shown = !node.hidden;
+          if (shown) {
+            arrive(name, node);
+          }
+        }
+      }).observe(node, { attributes: true, attributeFilter: ["hidden"] });
     }
     sash(name);
   }

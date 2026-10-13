@@ -47,8 +47,8 @@
   }
 }
 
-// The kept scheme, the colors of the theme chosen for each scheme, the reader's fonts and the bar's
-// and the menus' opacity, set before the page draws anything, so that its first frame is already in
+// The kept scheme, the colors of the theme chosen for each scheme, the reader's fonts and the opacity
+// of each part of the window, set before the page draws anything, so that its first frame is already in
 // them. themes.js, fonts.js and opacity.js keep them under the same keys, and fonts.js writes the
 // same rule.
 const kept = localStorage.getItem("orior.scheme");
@@ -95,6 +95,11 @@ try {
 for (const [name, key] of [
   ["--bar-opacity", "orior.opacity.bar"],
   ["--menu-opacity", "orior.opacity.menu"],
+  ["--pane-opacity", "orior.opacity.pane"],
+  ["--tab-opacity", "orior.opacity.tab"],
+  ["--editor-opacity", "orior.opacity.editor"],
+  ["--panel-opacity", "orior.opacity.panel"],
+  ["--sheet-opacity", "orior.opacity.sheet"],
 ]) {
   // A share is a step of opacity.js's, 0 to 100 by tens; anything else leaves the stylesheet's own.
   const kept = localStorage.getItem(key) ?? "";

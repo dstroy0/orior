@@ -17,11 +17,14 @@
 // A pane's head is a row of the explorer's list one level above its rows, and the list's keys open
 // and close it as they do a folder.
 
+import { authorsShown, onAuthors } from "./authors.js";
 import { invoke } from "./bridge.js";
 import { escapeHtml } from "./editor/view.js";
 import { copyText, menuOn, showMenu } from "./menu.js";
 import { comments, onReview, removeComment, resolveComment } from "./review.js";
 import { structureOf } from "./outline.js";
+import { themeIcon } from "./themes.js";
+import { icon } from "./icons.js";
 
 const KEPT = "orior.panes";
 
@@ -41,6 +44,7 @@ const PANES = [
   ["problems", "Problems"],
   ["tests", "Tests"],
   ["git", "Git"],
+  ["runs", "Runs"],
 ];
 
 // The panes each icon of the tool strip shows, one group at a time.
@@ -51,6 +55,7 @@ const GROUPS = {
   problems: ["problems"],
   tests: ["tests"],
   git: ["git"],
+  runs: ["runs"],
 };
 
 const GROUP_KEPT = "orior.panes.group";
@@ -60,7 +65,7 @@ const groupOf = (name) => Object.keys(GROUPS).find((group) => GROUPS[group].incl
 const state = {
   panes: {},
   hooks: null,
-  outline: { session: null, symbols: [], rows: [], closed: new Set(), pinned: null },
+  outline: { session: null, shownIn: null, symbols: [], rows: new Map(), lit: -1, above: null, below: null, closed: new Set(), pinned: null },
   timeline: { path: null, commits: [] },
   local: { path: null, snapshots: [] },
   undo: { session: null, wait: 0 },
@@ -77,28 +82,143 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// A file's icon: a mark for its type in a color of the palette, or a page where the type has no mark.
+// A file's icon: the one the theme gives its name, else a mark for its type or its name in a color
+// of the palette, else the first two letters of its type, or of its name where it has none, quieter
+// than a mark: no file is drawn without one. A folder's icon is the folder's shape.
 const ICONS = {
-  js: ["JS", 3], mjs: ["JS", 3], json: ["{}", 3], cfg: ["{}", 3], rs: ["rs", 1], py: ["py", 4],
-  sh: ["$", 2], bash: ["$", 2], ps1: ["PS", 4], psm1: ["PS", 4], bat: ["$", 7], cmd: ["$", 7],
-  c: ["C", 4], h: ["h", 5], cu: ["cu", 2], cuh: ["cu", 5], cpp: ["C", 4], cc: ["C", 4], hpp: ["h", 5],
-  md: ["M", 4], html: ["<>", 1], htm: ["<>", 1], svg: ["<>", 3], xml: ["<>", 1], css: ["#", 4],
-  tex: ["T", 2], sty: ["T", 2], cls: ["T", 2], bib: ["T", 6], toml: ["≡", 7], ini: ["≡", 7],
-  yml: ["≡", 5], yaml: ["≡", 5], tsv: ["⊞", 2], csv: ["⊞", 2], lock: ["≡", 8],
-  png: ["▣", 5], jpg: ["▣", 5], jpeg: ["▣", 5], gif: ["▣", 5], pdf: ["▤", 1],
+  js: ["JS", 3], mjs: ["JS", 3], cjs: ["JS", 3], jsx: ["JS", 3], ts: ["TS", 4], tsx: ["TS", 4], mts: ["TS", 4], cts: ["TS", 4],
+  json: ["{}", 3], jsonc: ["{}", 3], cfg: ["{}", 3], rs: ["rs", 1], py: ["py", 4], pyi: ["py", 5], ipynb: ["nb", 3],
+  sh: ["$", 2], bash: ["$", 2], zsh: ["$", 2], fish: ["$", 2], ps1: ["PS", 4], psm1: ["PS", 4], bat: ["$", 7], cmd: ["$", 7],
+  c: ["C", 4], h: ["h", 5], cu: ["cu", 2], cuh: ["cu", 5], cpp: ["C", 4], cc: ["C", 4], cxx: ["C", 4], hpp: ["h", 5], hh: ["h", 5],
+  cs: ["C#", 6], fs: ["F#", 4], go: ["go", 4], java: ["jv", 1], kt: ["kt", 6], kts: ["kt", 6], scala: ["sc", 1], swift: ["sw", 1],
+  rb: ["rb", 1], php: ["ph", 6], lua: ["lu", 4], r: ["R", 4], jl: ["jl", 6], hs: ["hs", 6], ml: ["ml", 3], ex: ["ex", 6], exs: ["ex", 6],
+  erl: ["er", 1], dart: ["dt", 4], zig: ["zg", 3], nim: ["nm", 3], lean: ["L", 4], m: ["m", 3], mojo: ["mo", 1], v: ["v", 2], sv: ["sv", 2],
+  vhd: ["vh", 2], vhdl: ["vh", 2], asm: ["as", 8], s: ["as", 8], sql: ["sq", 5], qry: ["q", 2], graphql: ["gq", 6], proto: ["pb", 4],
+  md: ["M", 4], mdx: ["M", 4], rst: ["rs", 7], txt: ["tx", 8], log: ["lg", 8], html: ["<>", 1], htm: ["<>", 1], svg: ["<>", 3],
+  xml: ["<>", 1], vue: ["<>", 2], svelte: ["<>", 1], css: ["#", 4], scss: ["#", 6], less: ["#", 4],
+  tex: ["T", 2], sty: ["T", 2], cls: ["T", 2], bib: ["T", 6], toml: ["≡", 7], ini: ["≡", 7], env: ["≡", 7],
+  yml: ["≡", 5], yaml: ["≡", 5], tsv: ["⊞", 2], csv: ["⊞", 2], parquet: ["⊞", 5], lock: ["≡", 8],
+  png: ["▣", 5], jpg: ["▣", 5], jpeg: ["▣", 5], gif: ["▣", 5], webp: ["▣", 5], bmp: ["▣", 5], ico: ["▣", 5], pdf: ["▤", 1],
+  wav: ["au", 6], mp3: ["au", 6], flac: ["au", 6], ogg: ["au", 6], mp4: ["av", 6], mkv: ["av", 6], webm: ["av", 6],
+  zip: ["zp", 7], tar: ["zp", 7], gz: ["zp", 7], tgz: ["zp", 7], xz: ["zp", 7], bz2: ["zp", 7], "7z": ["zp", 7], rar: ["zp", 7],
+  bin: ["01", 8], exe: ["01", 8], dll: ["01", 8], so: ["01", 8], dylib: ["01", 8], o: ["01", 8], a: ["01", 8], obj: ["01", 8], wasm: ["01", 3],
 };
 
-const NAMED = { ".gitignore": ["◆", 1], ".gitattributes": ["◆", 1], ".gitmodules": ["◆", 1], ".clang-format": ["≡", 7] };
+const NAMED = {
+  ".gitignore": ["◆", 1], ".gitattributes": ["◆", 1], ".gitmodules": ["◆", 1], ".clang-format": ["≡", 7], ".editorconfig": ["≡", 7],
+  makefile: ["mk", 7], gnumakefile: ["mk", 7], "cmakelists.txt": ["cm", 2], dockerfile: ["dk", 4], containerfile: ["dk", 4],
+  license: ["Li", 8], licence: ["Li", 8], copying: ["Li", 8], readme: ["M", 4], changelog: ["M", 4], justfile: ["mk", 7], procfile: ["≡", 7],
+};
+
+// The quieter mark a file of no type or name above is drawn with: the first two letters of its type,
+// or of its name where it has none.
+function markOf(name, ext) {
+  const from = ext || name.replace(/^\.+/, "");
+  return from.slice(0, 2).toLowerCase() || "··";
+}
+
+// How far up each mark is moved, in pixels, for its ink to center on the middle of the capitals of
+// the name beside it: a mark of small letters, as py or zp, stands with its ink lower than the name's,
+// and the mark's line and the name's are not the same in every engine. Each is measured once the
+// fonts are in, as a row sets the mark and the name.
+const lifts = new Map();
+let fonts = null;
+
+// The ink of `text` in `font`, as { font, wide }: how far above its line it reaches, and below, in
+// pixels, the font scaled to set a "0" `wide` pixels wide, as the page sets it. The text is drawn at
+// 100px and its ink found row by row.
+function inkOf(font, text) {
+  const canvas = (inkOf.canvas ??= Object.assign(document.createElement("canvas"), { width: 400, height: 240 }));
+  const pen = canvas.getContext("2d", { willReadFrequently: true });
+  pen.font = font.font;
+  pen.clearRect(0, 0, canvas.width, canvas.height);
+  pen.fillStyle = "#000";
+  pen.textBaseline = "alphabetic";
+  pen.fillText(text, 10, 160);
+  const { data } = pen.getImageData(0, 0, canvas.width, canvas.height);
+  let top = -1;
+  let bottom = -1;
+  for (let row = 0; row < canvas.height; row += 1) {
+    for (let at = row * canvas.width * 4 + 3; at < (row + 1) * canvas.width * 4; at += 4) {
+      if (data[at] > 96) {
+        top = top < 0 ? row : top;
+        bottom = row + 1;
+        break;
+      }
+    }
+  }
+  const scale = font.wide / pen.measureText("0").width;
+  return top < 0 ? { above: 0, below: 0 } : { above: (160 - top) * scale, below: (bottom - 160) * scale };
+}
+
+export function liftOf(mark) {
+  if (lifts.has(mark)) {
+    return lifts.get(mark);
+  }
+  if (document.fonts?.status !== "loaded") {
+    return 0;
+  }
+  if (!fonts) {
+    // Each font's "0" measured as the row sets it, in a box of ten of them.
+    const zeros = (className) => element("span", { className, textContent: "0000000000" });
+    const icon = zeros("icon");
+    const name = zeros("name");
+    const row = element("div", { className: "node" }, icon, name);
+    row.style.cssText = "position:fixed;visibility:hidden;width:auto";
+    icon.style.width = "auto";
+    name.style.flex = "none";
+    document.body.append(row);
+    // A box of no height set in a text stands on the text's line.
+    const lineOf = (node) => {
+      const probe = element("span");
+      probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+      node.append(probe);
+      const at = probe.getBoundingClientRect().bottom;
+      probe.remove();
+      return at;
+    };
+    const of = (node) => {
+      const style = getComputedStyle(node);
+      return { font: `${style.fontWeight} 100px ${style.fontFamily}`, wide: node.getBoundingClientRect().width / 10 };
+    };
+    fonts = { icon: of(icon), name: of(name), below: lineOf(icon) - lineOf(name) };
+    row.remove();
+  }
+  const ink = inkOf(fonts.icon, mark);
+  const lift = inkOf(fonts.name, "H").above / 2 - (ink.above - ink.below) / 2 + fonts.below;
+  lifts.set(mark, lift);
+  return lift;
+}
 
 export function iconOf(name, known = false) {
   const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
-  const [mark, color] = known ? ["K", 2] : (NAMED[name] ?? ICONS[ext] ?? [null, 0]);
-  const icon = element("span", { className: mark ? "icon" : "icon page", textContent: mark ?? "" });
+  const themed = known ? null : themeIcon(name);
+  // A name looked up whole, and without its type where the type has no mark: Dockerfile.dev is a
+  // Dockerfile, and license.py is Python.
+  const named = NAMED[name] ?? NAMED[name.toLowerCase()] ?? (ICONS[ext] ? null : NAMED[name.toLowerCase().split(".")[0]]);
+  const [mark, color] = themed ? [themed.mark, null] : known ? ["K", 2] : (named ?? ICONS[ext] ?? [markOf(name, ext), 8]);
+  const icon = element("span", { className: "icon", textContent: mark });
   icon.setAttribute("aria-hidden", "true");
-  if (mark) {
+  const lift = liftOf(mark);
+  if (Math.abs(lift) > 0.1) {
+    icon.style.transform = `translateY(${(-lift).toFixed(2)}px)`;
+  }
+  if (!themed && !known && !named && !ICONS[ext]) {
+    icon.classList.add("unmarked");
+  }
+  if (themed?.color) {
+    icon.style.color = themed.color;
+  } else if (mark && color !== null) {
     icon.style.color = `var(--t${color})`;
   }
   return icon;
+}
+
+// A folder's icon: the folder's shape.
+export function folderIcon() {
+  const shape = element("span", { className: "icon folder" }, icon("folder"));
+  shape.setAttribute("aria-hidden", "true");
+  return shape;
 }
 
 // The panes: which show, which are open.
@@ -136,7 +256,7 @@ export function shownGroup() {
   return state.group;
 }
 
-const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git" };
+const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", runs: "Runs" };
 
 // The explorer's title, and its group on it, which shows the tree's filter only with the files.
 function drawGroupTitle() {
@@ -231,6 +351,13 @@ export function drawOpenEditors(tabs) {
 
 const KIND_MARKS = { function: ["ƒ", 5], method: ["ƒ", 5], class: ["◇", 3], module: ["{}", 4], constant: ["▪", 4], field: ["▪", 6], heading: ["#", 4], label: ["›", 6], region: ["▤", 2] };
 
+// The Outline holds the rows in sight and OUTLINE_MARGIN more on either side, space above and below
+// standing for the rest, each row made as it first comes near: a file of many thousands of symbols
+// would otherwise hold a row of each, which the page tracks in every frame. A row already in place
+// stays where it is as the rows round it change, and keeps the keys where it has them.
+const OUTLINE_ROW = 22;
+const OUTLINE_MARGIN = 40;
+
 export function drawOutline(session) {
   const body = document.getElementById("outline");
   const pinned = state.outline.pinned;
@@ -250,42 +377,95 @@ export function drawOutline(session) {
   const closed = state.outline.closed;
   const hidden = (symbol) => symbols.some((region) => region.kind === "region" && closed.has(`${region.line}:${region.name}`) && region.line < symbol.line && symbol.line <= region.end);
   state.outline.symbols = symbols.filter((symbol) => !hidden(symbol));
-  state.outline.rows = state.outline.symbols.map((symbol) => {
-    const [mark, color] = KIND_MARKS[symbol.kind] ?? ["▪", 7];
-    const key = `${symbol.line}:${symbol.name}`;
-    const region = symbol.kind === "region";
-    const row = element("button", { className: region ? "sym dir sym-region" : "sym", type: "button", title: `${symbol.name}, line ${shown.base + symbol.line + 1}` });
-    row.dataset.key = key;
-    row.dataset.depth = String(symbol.depth);
-    row.append(...guides(symbol.depth));
-    if (region) {
-      row.setAttribute("aria-expanded", String(!closed.has(key)));
-      row.append(element("span", { className: "twisty" }));
-    }
-    const icon = element("span", { className: "icon", textContent: mark });
-    icon.style.color = `var(--t${color})`;
-    row.append(icon, element("span", { className: "name", textContent: symbol.name }));
-    row.addEventListener("click", (event) => {
-      if (region && (!event.isTrusted || event.target.closest(".twisty"))) {
-        if (closed.has(key)) {
-          closed.delete(key);
-        } else {
-          closed.add(key);
-        }
-        drawOutline(state.outline.session);
-        document.querySelector(`#outline [data-key="${CSS.escape(key)}"]`)?.focus();
-        return;
-      }
-      if (state.outline.pinned) {
-        state.hooks.openAt(state.outline.pinned.path, shown.base + symbol.line, 0);
-      } else {
-        state.hooks.goTo(symbol.line);
-      }
-    });
-    return row;
-  });
-  body.replaceChildren(...state.outline.rows);
+  state.outline.shownIn = shown;
+  state.outline.rows = new Map();
+  state.outline.lit = -1;
+  if (!state.outline.above) {
+    state.outline.above = element("div", { className: "outline-space" });
+    state.outline.below = element("div", { className: "outline-space" });
+    body.addEventListener("scroll", () => placeOutline(), { passive: true });
+  }
+  body.replaceChildren(state.outline.above, state.outline.below);
   lightOutline(state.hooks.cursorLine?.() ?? 0);
+  placeOutline();
+}
+
+// The row of the symbol at `index` of those the Outline shows, made the first time it is asked for.
+function outlineRow(index) {
+  const made = state.outline.rows.get(index);
+  if (made) {
+    return made;
+  }
+  const symbol = state.outline.symbols[index];
+  const shown = state.outline.shownIn;
+  const closed = state.outline.closed;
+  const [mark, color] = KIND_MARKS[symbol.kind] ?? ["▪", 7];
+  const key = `${symbol.line}:${symbol.name}`;
+  const region = symbol.kind === "region";
+  const row = element("button", { className: region ? "sym dir sym-region" : "sym", type: "button", title: `${symbol.name}, line ${shown.base + symbol.line + 1}` });
+  row.dataset.key = key;
+  row.dataset.index = String(index);
+  row.dataset.depth = String(symbol.depth);
+  row.append(...guides(symbol.depth));
+  if (region) {
+    row.setAttribute("aria-expanded", String(!closed.has(key)));
+    row.append(element("span", { className: "twisty" }));
+  }
+  const icon = element("span", { className: "icon", textContent: mark });
+  icon.style.color = `var(--t${color})`;
+  row.append(icon, element("span", { className: "name", textContent: symbol.name }));
+  if (index === state.outline.lit) {
+    row.setAttribute("aria-current", "true");
+  }
+  row.addEventListener("click", (event) => {
+    if (region && (!event.isTrusted || event.target.closest(".twisty"))) {
+      if (closed.has(key)) {
+        closed.delete(key);
+      } else {
+        closed.add(key);
+      }
+      drawOutline(state.outline.session);
+      document.querySelector(`#outline [data-key="${CSS.escape(key)}"]`)?.focus();
+      return;
+    }
+    if (state.outline.pinned) {
+      state.hooks.openAt(state.outline.pinned.path, shown.base + symbol.line, 0);
+    } else {
+      state.hooks.goTo(symbol.line);
+    }
+  });
+  state.outline.rows.set(index, row);
+  return row;
+}
+
+// Puts in the Outline the rows in sight and the margin round them, and takes out the rest.
+function placeOutline() {
+  const body = document.getElementById("outline");
+  const { above, below, symbols } = state.outline;
+  if (!above || !body.contains(above)) {
+    return;
+  }
+  const count = symbols.length;
+  const top = Math.floor(body.scrollTop / OUTLINE_ROW);
+  const first = Math.max(0, top - OUTLINE_MARGIN);
+  const last = Math.min(count, top + Math.ceil(body.clientHeight / OUTLINE_ROW) + OUTLINE_MARGIN);
+  for (const row of [...body.children]) {
+    const index = row.dataset.index === undefined ? -1 : Number(row.dataset.index);
+    if (index >= 0 && (index < first || index >= last)) {
+      row.remove();
+    }
+  }
+  let at = above.nextSibling;
+  for (let index = first; index < last; index += 1) {
+    const row = outlineRow(index);
+    if (row === at) {
+      at = at.nextSibling;
+    } else {
+      body.insertBefore(row, at);
+    }
+  }
+  above.style.height = `${first * OUTLINE_ROW}px`;
+  below.style.height = `${(count - last) * OUTLINE_ROW}px`;
 }
 
 // Pins the Outline to the file `path` shows, or, given none, unpins it to follow the file shown.
@@ -308,20 +488,38 @@ function outlineItems() {
 }
 
 // Marks the symbol the cursor's line falls in: the last one that starts at or above it, where the
-// Outline shows the file the cursor is in.
+// Outline shows the file the cursor is in, the Outline scrolled to it where it is out of sight.
 export function lightOutline(line) {
+  const was = state.outline.rows.get(state.outline.lit);
+  was?.removeAttribute("aria-current");
+  state.outline.lit = -1;
   if (state.outline.pinned && state.outline.pinned.path !== state.hooks.activePath?.()) {
-    state.outline.rows.forEach((row) => row.removeAttribute("aria-current"));
     return;
   }
-  let lit = -1;
-  state.outline.symbols.forEach((symbol, index) => {
-    if (symbol.line <= line) {
-      lit = index;
+  const symbols = state.outline.symbols;
+  let low = 0;
+  let high = symbols.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (symbols[middle].line <= line) {
+      low = middle + 1;
+    } else {
+      high = middle;
     }
-  });
-  state.outline.rows.forEach((row, index) => (index === lit ? row.setAttribute("aria-current", "true") : row.removeAttribute("aria-current")));
-  state.outline.rows[lit]?.scrollIntoView({ block: "nearest" });
+  }
+  const lit = low - 1;
+  state.outline.lit = lit;
+  if (lit < 0) {
+    return;
+  }
+  state.outline.rows.get(lit)?.setAttribute("aria-current", "true");
+  const body = document.getElementById("outline");
+  if (lit * OUTLINE_ROW < body.scrollTop) {
+    body.scrollTop = lit * OUTLINE_ROW;
+  } else if ((lit + 1) * OUTLINE_ROW > body.scrollTop + body.clientHeight && body.clientHeight) {
+    body.scrollTop = (lit + 1) * OUTLINE_ROW - body.clientHeight;
+  }
+  placeOutline();
 }
 
 // Timeline: the commits that touched the open file, the newest first, each with its date. A commit's
@@ -604,10 +802,11 @@ function problemRows({ path, items }) {
 }
 
 // Git: the branch the tree is on, and every branch's commits as a graph, the newest first, each with
-// the branches and tags at it, its subject, its author and its date. A press on a commit opens the
-// files it changed under it, and a press on one of those sets the file as the commit left it beside
-// the file as the commit before it did. The field over the graph searches the whole history, by
-// subject, author, id or branch, and shows what it finds without the graph. Where the tree holds more
+// the branches and tags at it, its subject and its date, and its author where Git, Authors is on. A
+// press on a commit opens the files it changed under it, and a press on one of those sets the file as
+// the commit left it beside the file as the commit before it did. The field over the graph searches
+// the whole history, by subject, id or branch, and by author where authors show, and shows what it
+// finds without the graph. Where the tree holds more
 // than one repository, a choice over the field says whose commits the graph shows, the repository
 // open's until another is chosen.
 
@@ -645,8 +844,10 @@ function commitRow(commit) {
       return `<span class="git-ref${head || ref === "HEAD" ? " git-head" : ""}${name.startsWith("tag: ") ? " git-tag" : ""}">${escapeHtml(name.replace(/^tag: /, ""))}</span>`;
     })
     .join("");
-  const title = `${commit.id.slice(0, 8)}  ${commit.author}  ${day(commit.when)} ${time(commit.when)}${commit.refs.length ? `\n${commit.refs.join(", ")}` : ""}\n${commit.subject}`;
-  return `<button class="commit git-commit" type="button" data-key="${commit.id}" data-depth="0" aria-expanded="${open}" title="${escapeHtml(title)}">${lanesOf(commit)}${refs}<span class="name">${escapeHtml(commit.subject)}</span><span class="git-author">${escapeHtml(commit.author)}</span><span class="where">${day(commit.when)}</span></button>`;
+  const authors = authorsShown();
+  const title = `${commit.id.slice(0, 8)}  ${authors ? `${commit.author}  ` : ""}${day(commit.when)} ${time(commit.when)}${commit.refs.length ? `\n${commit.refs.join(", ")}` : ""}\n${commit.subject}`;
+  const author = authors ? `<span class="git-author">${escapeHtml(commit.author)}</span>` : "";
+  return `<button class="commit git-commit" type="button" data-key="${commit.id}" data-depth="0" aria-expanded="${open}" title="${escapeHtml(title)}">${lanesOf(commit)}${refs}<span class="name">${escapeHtml(commit.subject)}</span>${author}<span class="where">${day(commit.when)}</span></button>`;
 }
 
 // The rows of the files a commit changed, under its row.
@@ -728,12 +929,13 @@ export async function drawGit(branch) {
   const repo = gitRepo();
   drawRepoChoice(repo);
   const label = (state.hooks?.repos() ?? []).find((one) => one.path === repo)?.branch ?? branch;
-  const commits = await invoke("git_graph", { query: query || null, repo }).catch(() => []);
-  if (query !== state.git.query || repo !== gitRepo()) {
+  const authors = authorsShown();
+  const commits = await invoke("git_graph", { query: query || null, repo, authors }).catch(() => []);
+  if (query !== state.git.query || repo !== gitRepo() || authors !== authorsShown()) {
     return;
   }
   // A graph that is drawn as it stands is left as it is, the focus and the scroll with it.
-  const drawn = `${repo}\n${label}\n${query}\n${commits.map((one) => `${one.id}${one.refs.join()}`).join()}`;
+  const drawn = `${repo}\n${label}\n${query}\n${authors}\n${commits.map((one) => `${one.id}${one.refs.join()}`).join()}`;
   if (drawn === state.git.drawn && body.childElementCount) {
     return;
   }
@@ -833,6 +1035,10 @@ export function guides(depth) {
 
 export function startExplorer(hooks) {
   state.hooks = hooks;
+  onAuthors(() => {
+    state.git.drawn = "";
+    drawGit(state.git.branch);
+  });
   let kept = {};
   try {
     kept = JSON.parse(localStorage.getItem(KEPT) ?? "{}") ?? {};

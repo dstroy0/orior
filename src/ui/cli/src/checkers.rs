@@ -70,8 +70,12 @@ fn program_of(checker: &Checker) -> Result<PathBuf, String> {
         .ok_or_else(|| format!("{} is not found: File, Toolchains opens its install page or takes its folder", checker.name))
 }
 
-/// Runs a checker with `args` from `cwd`, `input` on its input where given, and gives what it wrote.
+/// Runs a checker with `args` from `cwd`, the tree's folder, `input` on its input where given, and
+/// gives what it wrote. A checker runs no tree whose own code is held back (trust.rs).
 fn run(checker: &Checker, args: &[String], cwd: &Path, input: Option<&str>) -> Result<String, String> {
+    if crate::trust::held_back(cwd) {
+        return Err(format!("{} does not run in a tree whose own code is held back", checker.name));
+    }
     let program = program_of(checker)?;
     let mut command = Command::new(&program);
     command.args(args).current_dir(cwd).env("PATH", toolchains::run_path()).stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -292,10 +296,11 @@ mod tests {
 
     #[test]
     fn findings_written_a_line_each_read_as_flake8_mypy_and_pylint_write_them() {
-        let root = Path::new("D:/tree");
-        let out = "a.py:3:5: E501 line too long (90 > 79 characters)\nD:\\tree\\b.py:7:1: error: Incompatible return value type  [return-value]\nb.py:8:2: note: See the docs\nc.py:1: [C0114(missing-module-docstring), ] Missing module docstring\nnot a finding\n";
+        // A path a checker writes whole is the system's own: a drive's on Windows, from / elsewhere.
+        let (root, whole) = if cfg!(windows) { (Path::new("D:/tree"), "D:\\tree\\b.py") } else { (Path::new("/tree"), "/tree/b.py") };
+        let out = format!("a.py:3:5: E501 line too long (90 > 79 characters)\n{whole}:7:1: error: Incompatible return value type  [return-value]\nb.py:8:2: note: See the docs\nc.py:1: [C0114(missing-module-docstring), ] Missing module docstring\nnot a finding\n");
         assert_eq!(
-            said(&read_as("lines", out, root, None)),
+            said(&read_as("lines", &out, root, None)),
             vec![
                 "a.py 2:4 s2 E501 line too long (90 > 79 characters)",
                 "b.py 6:0 s1 return-value Incompatible return value type",

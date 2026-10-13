@@ -4,7 +4,8 @@
 //! What the window keeps between runs, as files in orior's own folder, laid out as the README's
 //! "orior's own folder" says:
 //!
-//! - `settings.json`, the reader's settings, those SETTINGS names, each under its key;
+//! - `settings.json`, the reader's settings, those SETTINGS names, each under its key, and the keys
+//!   of a settings file's own that settings.rs reads, which the page is not given;
 //! - `themes/`, each theme of the reader's in a file of its own, named for the theme, the themes
 //!   read back in the order of their files' names;
 //! - `state.json`, what the window keeps of itself: its panes, its sessions, the files opened last,
@@ -24,7 +25,7 @@ use serde_json::{Map, Value};
 
 /// The settings among the window's entries: a key named here, or one starting with a name here that
 /// ends in `.`.
-const SETTINGS: [&str; 40] = [
+const SETTINGS: [&str; 46] = [
     "scheme",
     "zoom",
     "opacity.",
@@ -42,6 +43,8 @@ const SETTINGS: [&str; 40] = [
     "patterns.",
     "search.sets",
     "plugins.off",
+    "plugins.allowed",
+    "plugins.catalog",
     "macros",
     "vim",
     "margin",
@@ -51,6 +54,7 @@ const SETTINGS: [&str; 40] = [
     "diff-space",
     "diff-structure",
     "memory-budget",
+    "cores-kept",
     "smooth-scroll",
     "flick-scroll",
     "type-hints",
@@ -65,6 +69,9 @@ const SETTINGS: [&str; 40] = [
     "tests.parallel",
     "titlebar",
     "signing.",
+    "keys",
+    "network",
+    "language",
 ];
 
 /// The entry that holds every theme of the reader's, and the start of each change not saved.
@@ -94,6 +101,12 @@ fn place_of(key: &str) -> Place {
     }
 }
 
+/// Whether the entry `key`, without `orior.`, is a setting or the list of themes, those a taking of
+/// another machine's settings changes.
+pub fn is_carried(key: &str) -> bool {
+    matches!(place_of(key), Place::Settings | Place::Themes)
+}
+
 /// An entry's text as it is written: its JSON where it is JSON other than a string that writes back
 /// the same, else the text itself.
 fn written(text: &str) -> Value {
@@ -104,15 +117,16 @@ fn written(text: &str) -> Value {
 }
 
 /// An entry as the page keeps it, from what was written.
-fn read_back(value: &Value) -> String {
+pub fn read_back(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
         other => serde_json::to_string(other).unwrap_or_default(),
     }
 }
 
+/// The object a file holds, read as JSON with comments and trailing commas, or none.
 fn read_map(path: &Path) -> Map<String, Value> {
-    fs::read_to_string(path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default()
+    fs::read_to_string(path).ok().and_then(|text| serde_json::from_str(&crate::devcontainer::plain_json(&text)).ok()).unwrap_or_default()
 }
 
 /// Writes beside the file and moves it over, which leaves the file whole where the write fails.
@@ -158,7 +172,7 @@ pub fn read(folder: &Path) -> Option<BTreeMap<String, String>> {
     }
     let mut entries = BTreeMap::new();
     for file in ["settings.json", "state.json"] {
-        for (key, value) in read_map(&folder.join(file)) {
+        for (key, value) in read_map(&folder.join(file)).into_iter().filter(|(key, _)| file != "settings.json" || !crate::settings::is_file_key(key)) {
             entries.insert(key, read_back(&value));
         }
     }

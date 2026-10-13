@@ -47,8 +47,10 @@ use crate::toolchains;
 /// starts with, the languages it serves, the protocol's name for each extension's language, the
 /// line that installs it where the toolchain can be present without it, and the name of the file
 /// that marks a project, each of which in the tree the server is given as one of its linked
-/// projects where it does not look below the top folder for them itself; and, for a server that
-/// checks its projects as a whole and not a file at a time, the notification that has it check them.
+/// projects where it does not look below the top folder for them itself; for a server that checks its
+/// projects as a whole and not a file at a time, the notification that has it check them; and the
+/// options it starts with in a tree whose own code is held back (trust.rs), which keep it from
+/// running that code.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ServerSpec {
     pub program: String,
@@ -62,6 +64,8 @@ pub struct ServerSpec {
     pub projects: Option<String>,
     #[serde(default)]
     pub checks: Option<String>,
+    #[serde(default)]
+    pub held: Option<Value>,
 }
 
 /// Folders a search for projects does not go into: what a build writes, and what git keeps.
@@ -259,6 +263,10 @@ const CHECKERS: usize = 6;
 const CHECK_PATIENCE: Duration = Duration::from_secs(30);
 const CHECK_QUIET: Duration = Duration::from_millis(250);
 
+/// How often a server that ends is started again: at most RESTARTS times in any RESTARTS_WITHIN.
+const RESTARTS: usize = 3;
+const RESTARTS_WITHIN: Duration = Duration::from_secs(60);
+
 /// The most text a file the inspections read may hold; a larger one, which the editor reads a window
 /// at a time, is left out of their index.
 const INSPECT_MOST: u64 = 2 << 20;
@@ -342,6 +350,8 @@ pub struct Servers {
     root: Mutex<Option<PathBuf>>,
     running: Mutex<HashMap<String, Arc<Server>>>,
     failed: Mutex<HashMap<String, String>>,
+    /// The times each server, by its toolchain's id, has ended and been started again.
+    restarts: Mutex<HashMap<String, crate::container::Restarts>>,
     published: Arc<Published>,
     checks: Arc<Checks>,
     /// The inspections' index of the tree, the tree it was read from, and where their findings go.
@@ -709,8 +719,27 @@ impl Servers {
                 *kept = Some(root.to_path_buf());
             }
         }
-        if let Some(server) = self.running.lock().map_err(|_| "held".to_string())?.get(&tool.id) {
-            return Ok(Some((server.clone(), spec)));
+        // A server that has ended is started again and given back the files it held, unless it has
+        // ended RESTARTS times of late; then it is left stopped, and why is said.
+        let mut reopen = Vec::new();
+        {
+            let mut running = self.running.lock().map_err(|_| "held".to_string())?;
+            if let Some(server) = running.get(&tool.id) {
+                if server.alive() {
+                    return Ok(Some((server.clone(), spec)));
+                }
+                if let Some(ended) = running.remove(&tool.id) {
+                    let mut restarts = self.restarts.lock().map_err(|_| "held".to_string())?;
+                    let again = restarts.entry(tool.id.clone()).or_insert_with(|| crate::container::Restarts::new(RESTARTS, RESTARTS_WITHIN)).died(std::time::Instant::now());
+                    if !again {
+                        let why = ended.complaint();
+                        let said = format!("{} ended {} times within {} s and is left stopped{}", spec.program, RESTARTS + 1, RESTARTS_WITHIN.as_secs(), if why.is_empty() { String::new() } else { format!(": {why}") });
+                        self.failed.lock().map_err(|_| "held".to_string())?.insert(tool.id.clone(), said.clone());
+                        return Err(said);
+                    }
+                    reopen = ended.held();
+                }
+            }
         }
         if let Some(said) = self.failed.lock().map_err(|_| "held".to_string())?.get(&tool.id) {
             return Err(said.clone());
@@ -722,7 +751,15 @@ impl Servers {
                 let emit = emit.clone();
                 let published = self.published.clone();
                 let checks = self.checks.clone();
-                let options = spec.projects.as_deref().map_or(Value::Null, |name| json!({"linkedProjects": projects_in(root, name)}));
+                let mut options = spec.projects.as_deref().map_or(Value::Null, |name| json!({"linkedProjects": projects_in(root, name)}));
+                if let (Some(Value::Object(held)), true) = (&spec.held, crate::trust::held_back(root)) {
+                    if !options.is_object() {
+                        options = json!({});
+                    }
+                    if let Value::Object(given) = &mut options {
+                        given.extend(held.clone());
+                    }
+                }
                 Server::start(&program, &spec.args, root, options, toolchains::run_path(), Box::new(move |method, params| heard(method, params, &emit, &published, &checks))).map_err(|said| match &spec.setup {
                     Some(setup) => format!("{} did not start ({said}): {setup} installs it", spec.program),
                     None => format!("{} did not start: {said}", spec.program),
@@ -733,6 +770,9 @@ impl Servers {
         match started {
             Ok(server) => {
                 let server = Arc::new(server);
+                for (path, text) in reopen {
+                    let _ = server.open(&path, &Self::id_of(&spec, &path, language), &text);
+                }
                 self.running.lock().map_err(|_| "held".to_string())?.insert(tool.id.clone(), server.clone());
                 Ok(Some((server, spec)))
             }
@@ -1192,6 +1232,9 @@ impl Servers {
         if let Ok(mut failed) = self.failed.lock() {
             failed.clear();
         }
+        if let Ok(mut restarts) = self.restarts.lock() {
+            restarts.clear();
+        }
         self.running.lock().map(|mut all| all.drain().map(|(_, server)| server).collect()).unwrap_or_default()
     }
 
@@ -1625,6 +1668,7 @@ impl Servers {
         let mut by_language: HashMap<String, Option<(String, Arc<Server>, ServerSpec)>> = HashMap::new();
         let mut waiting = Vec::new();
         let mut whole = HashSet::new();
+        let held = crate::trust::held_back(root);
         for file in files {
             let Some(language) = language_of(&languages, file) else {
                 continue;
@@ -1638,6 +1682,8 @@ impl Servers {
             };
             let path = root.join(file);
             match &spec.checks {
+                // A check of the projects as a whole builds them, and runs the tree's own code.
+                Some(_) if held => {}
                 Some(method) => {
                     if whole.insert(tool) {
                         let _ = server.notify(method, json!({"textDocument": null}));

@@ -10,8 +10,6 @@
 
 import { invoke, listen } from "./bridge.js";
 
-const CHANGE_REST = 300;
-
 let tabsOf = () => [];
 let painted = () => {};
 
@@ -271,7 +269,7 @@ export async function serve(tab) {
 export function serveAgain() {
   for (const tab of tabsOf()) {
     if (tab.served !== undefined || tab.inspected) {
-      window.clearTimeout(tab.telling);
+      stopTelling(tab);
       Object.assign(tab, { served: undefined, inspected: false, untold: false, toldDoc: undefined });
       serve(tab);
     }
@@ -316,21 +314,42 @@ export function wrap(tab) {
     },
     async complete(doc, p) {
       await flush(tab);
-      const items = await invoke("lsp_complete", at(p)).catch(() => []);
-      return items.length ? items : (own.complete?.(doc, p) ?? []);
+      return invoke("lsp_complete", at(p)).catch(() => []);
+    },
+    completeNow(doc, p) {
+      return own.complete?.(doc, p) ?? [];
     },
   });
 }
 
-// Tells the server of a change to a served tab, or the inspections of one to an inspected tab, once
-// typing has rested.
+// Tells the server of a change to a served tab, or the inspections of one to an inspected tab, as
+// soon as the frame that draws it has been drawn, with no wait of the window's own: the letter shows
+// first, and the server's marks follow as soon as it has them. Keys typed while a change is on its
+// way are told together once it has been taken.
 export function changed(tab) {
   if (!tab?.served && !tab?.inspected) {
     return;
   }
-  window.clearTimeout(tab.telling);
   tab.untold = true;
-  tab.telling = window.setTimeout(() => flush(tab), CHANGE_REST);
+  if (tab.telling) {
+    return;
+  }
+  const telling = (tab.telling = {});
+  requestAnimationFrame(() =>
+    setTimeout(() => {
+      if (tab.telling === telling) {
+        tab.telling = null;
+        flush(tab);
+      }
+    }, 0),
+  );
+}
+
+// Lets go of a change waiting to be told, as the tab stops being served.
+export function stopTelling(tab) {
+  if (tab) {
+    tab.telling = null;
+  }
 }
 
 // Tells the server of a change to a served tab now, where one is waiting for typing to rest, so
@@ -343,17 +362,20 @@ export function changed(tab) {
 // A parse or hints asked before the change was told were read from the text before it: once it is
 // told, they are asked for again.
 export async function flush(tab) {
-  window.clearTimeout(tab?.telling);
+  stopTelling(tab);
   const s = tab?.session;
   if (!(tab?.served || tab?.inspected) || !s) {
     return;
   }
+  // The change on its way is taken before the next is told, for the server to hear them in order.
+  await tab.sending;
   const behind = tab.toldDoc === undefined ? tab.untold : tab.toldDoc !== s.doc.id;
   tab.untold = false;
   if (behind) {
     tab.toldDoc = s.doc.id;
     tab.told = (tab.told ?? 0) + 1;
-    await invoke("lsp_change", { path: tab.file, text: s.doc.text() }).catch(() => {});
+    tab.sending = invoke("lsp_change", { path: tab.file, text: s.doc.text() }).catch(() => {});
+    await tab.sending;
     if (s.highlight.parse) {
       s.highlight.parse.stale = true;
     }
@@ -362,6 +384,8 @@ export async function flush(tab) {
     }
     s.view?.schedule();
   }
+  // A change another flush has on its way is taken before what is asked next.
+  await tab.sending;
 }
 
 export function stopServing(tab) {
@@ -369,7 +393,7 @@ export function stopServing(tab) {
     tab.served = false;
     tab.inspected = false;
     tab.untold = false;
-    window.clearTimeout(tab.telling);
+    stopTelling(tab);
     invoke("lsp_close", { path: tab.file }).catch(() => {});
   }
 }

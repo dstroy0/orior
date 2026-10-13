@@ -1,0 +1,2 @@
+# Every text file ends its lines with LF, in the repository and in every checkout, on every system.
+* text=auto eol=lf

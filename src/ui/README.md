@@ -44,12 +44,27 @@ cargo run --manifest-path src/ui/test/Cargo.toml -- [--only TEXT] [--monitor N]
 ```
 
 The harness starts the servers the tests reach, each a Docker container of its own on this
-machine's loopback: PostgreSQL, MySQL, MariaDB, and CUPS with three printers. Without Docker the
-tests that reach them do not run, and the report names them. It runs each crate's tests, then the
-window's, in orior built for the run with a home and a tree of its own: a run leaves the
-reader's orior as it was. The window goes on the highest numbered monitor that is not the main one,
-or the one `--monitor` or `ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while
-any test fails or any source file has no test, and its report is in `build/ui_test/runs/<time>/report.md` at the top of the tree.
+machine's loopback: PostgreSQL, MySQL, MariaDB, CUPS with three printers, and an ssh server for
+tunnels. Without Docker the tests that reach them do not run, and the report names them. It runs
+each crate's tests, then the command line's crate's tests again in Debian, Ubuntu, Fedora, Alpine
+and Arch Linux and in Debian on aarch64, each a Docker image of `test/systems/`; `--no-systems`
+leaves those out. A Mac's system and Windows on Arm run only on machines of their own, and the
+crate is built for each of them in their place. Then it runs the window's tests, in orior built for
+the run with a home and a tree of its own: a run leaves the reader's orior as it was. The window
+goes on the highest numbered monitor that is not the main one, or the one `--monitor` or
+`ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while any test fails or any
+source file has no test, and its report is in `build/ui_test/runs/<time>/report.md` at the top of
+the tree.
+
+On Windows the window is driven through its debugging port. On Linux its web view is WebKitGTK,
+and the window is driven through WebKitWebDriver: every press, key, drag and wheel goes as
+WebDriver's actions. `--docker` runs the window's tests in the harness's own Docker image, from
+`test/docker/`, on any machine Docker runs on. The tree is brought into a volume of the
+container's own, the window is built there and drawn on a display in memory, and the report comes
+back to `test/runs/`. Every item of every menu and every option of Preferences is pressed there as
+a person presses it. While a run goes, a browser on this machine shows its window at
+`http://localhost:6080/vnc.html`, to be watched and not driven. `.github/workflows/ui.yml` runs the same on each pull request that changes the
+app, beside CodeQL and SonarQube Cloud.
 
 ## Running it
 
@@ -69,7 +84,7 @@ cd src/ui/src-tauri
 cargo tauri build
 ```
 
-They land under `build/cargo/release/bundle/` at the top of the tree, for the platform the build runs on. Each
+They land under `src-tauri/target/release/bundle/`, for the platform the build runs on. Each
 published release carries them for Windows, macOS and Linux, built by `.github/workflows/app.yml`.
 Without a clone, `cargo install --git https://github.com/dstroy0/orior orior-ui --locked` builds and
 installs the program `orior`. A plain cargo build puts the page inside the program, as the installers
@@ -88,10 +103,11 @@ for a run.
 | macOS | the Xcode command line tools |
 | Linux | `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2`, by their names in the distribution |
 
-On Windows the window starts with `--disable-direct-composition`, set in `tauri.conf.json`. With
-direct composition on, a window whose page moves holds to 60 frames a second whatever the display's
-rate, and stalls for up to half a second every few seconds. The first three features that line
-turns off are the ones the window turns off when it is given no line of its own.
+On Windows the window keeps direct composition, which draws the page on the GPU: a fast scroll
+through a long file holds the display's own rate, 142 frames a second on a display of 144. Without
+it the page is drawn by the processor, about 15 ms a frame for a window of 2560 by 1440, and the
+same scroll holds 48. The features `tauri.conf.json` turns off are the ones the window turns off
+when it is given no line of its own.
 
 The app works on the tree it is started in, or the one `ORIOR_ROOT` names. `ORIOR_BASH` and
 `ORIOR_PYTHON` name the bash and the Python the jobs run with, where the ones on the path are not the
@@ -107,6 +123,7 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 | the settings Preferences and the menus set, the macros kept, and whether errors file on their own | `settings.json` |
 | each theme of the reader's | `themes/`, a file each, named for the theme |
 | the reader's plugins | `plugins/`, a folder each |
+| each plugin's own settings | `plugin_settings/`, a file each, named for the plugin |
 | the stylesheet laid over the window's own | `user.css` |
 | the toolchains the reader added | `user_toolchains.json` |
 | the panes, each tree's tabs and the files opened last, the places left in them, bookmarks, breakpoints, watches and the values each job last ran with | `state.json` |
@@ -114,10 +131,88 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 | each file's Local History | `history/` |
 | the repositories File, Open, Repository clones | `repositories/` |
 | the hashes of the files each deployment last sent to each place | `deployed/`, a file each |
+| each taking of another machine's settings, the files it wrote over as they were | `carried/`, a folder each |
+| each address orior has reached off this machine, when and what for, the last thousand | `network.jsonl` |
+| the reader's language files, which give the window's texts in another language | `languages/`, `<tag>.json` each |
 
 `settings.json` and `state.json` hold each entry under its own key, as JSON. orior reads the folder
 as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
 default.
+
+A tree's own settings are in `.orior/settings.json` at its top folder, and stand over the reader's
+as the tree opens and each time the file changes; Preferences, Settings in force, shows each setting
+a file sets, its value, and the file it comes from. A settings file, the tree's or `settings.json`,
+is JSON with comments and trailing commas, and has keys of its own beside its settings: `takes`, the
+path of another settings file, from the file's folder, whose settings it changes; `windows`, `linux`
+and `macos`, the settings for that system alone; `machine`, in `settings.json`, the settings for
+this machine alone; and `[kind]`, as `[markdown]`, the theme of each
+scheme, `theme.dark` and `theme.light`, the editor shows that language's files in. Text in a value
+names another setting's value as `${setting:name}`, a variable of the system's environment as
+`${env:NAME}`, and the home folder, the tree's folder and the system as `${home}`, `${tree}` and
+`${system}`. A tree's file does not set `signing.`, `environment.`, `checkers` or `titlebar`, which
+run programs or name the reader's own.
+
+```json
+{
+  "takes": "../shared/settings.json",
+  "whitespace": "true",
+  "windows": { "zoom": 1.25 },
+  "[markdown]": { "theme.dark": "Light" },
+  "fonts": { "--code": "${env:CODE_FONT}" }
+}
+```
+
+A theme's file in `themes/` holds its name, the scheme it is drawn over, and its colors, among them
+one for any kind of token a grammar names, as `--t-string-escape`; and, where it has them, `image`,
+a picture laid behind the editor as a data address with the share of it that shows, and `icons`,
+each a pattern of files' names, the mark the explorer shows for them and its color. Preferences,
+Colors, marks each color whose contrast with the color under it is under 4.5:1.
+
+```json
+{
+  "name": "Night",
+  "base": "dark",
+  "colors": { "--t-string-escape": "#ffb86c" },
+  "image": { "src": "data:image/png;base64,…", "opacity": 0.15 },
+  "icons": [{ "pattern": "*.test.js", "mark": "T", "color": "--t2" }]
+}
+```
+
+Preferences, Settings on Every Machine, sends `settings.json`, the themes, the plugins with each
+one's own settings, `menus.json` and `user.css` to a file or to a folder of the reader's, a
+repository's commits made and pushed, and takes them in from one on another machine. What a taking
+would change shows first, a file at a time and `settings.json` a setting at a time, and nothing is
+written until the reader takes what is chosen; each taking is kept in `carried/` and undone from
+the list there. `machine`, `signing.`, `environment.`, `memory-budget`, `cores-kept` and
+`carry.place` stay on the machine that set them.
+
+orior reaches an address off this machine only for what the reader asked of it: a request sent, a
+database connected, a debug adapter joined, a command run over ssh, a repository cloned, pulled or
+pushed, and an error report the reader let file on its own; it sends nothing about the reader. Help,
+Off the Network, kept as `network`, holds it off the network entirely, each reach refused with what
+it was for, and a tree's settings file does not set it. Help, Network… lists each address reached,
+when and what for.
+
+The window shows in the reader's language where a language file gives it: `languages/<tag>.json`,
+each of the window's English texts with the reader's for it, as `{ "File": "…" }`, the tag the
+setting `language` names, chosen in Preferences, or the system's. A text the file does not give
+stays in English, and the editor's text, the terminal's and the files' names are never changed. In
+the editor, a line where Hebrew, Arabic or another script that runs right to left meets text that
+runs left to right is drawn in the order it is read, the arrows move by that order, and a press or a
+selection lands where the page draws each character; the word keys count a letter's marks as part of
+its word.
+
+File, Plugins reads a catalog of plugins others publish, at an address the reader names on the web or
+on this machine, and installs a plugin the search finds from its package, a JSON file of its files by
+name, where its hash and its version are those the catalog gives. A script plugin's plugin.json
+says what it reads and writes, as patterns of the tree's files, and the hosts it reaches; it runs
+only once the reader lets it, Install letting it as the catalog showed, and each call is held to
+what it asked for. A plugin is updated only by Update, and an update that asks for more waits for
+Let It Run.
+
+```json
+{ "orior": "plugin catalog", "plugins": [{ "id": "word-count", "name": "Word Count", "version": "1.2.0", "about": "Counts a file's words.", "package": "word-count-1.2.0.json", "sha256": "…", "reads": ["**/*.md"], "writes": [], "reaches": [] }] }
+```
 
 A tree names its deployments in `deploy.json` at its top folder, each a job of Build: its name,
 the folder whose files go, the patterns of the files that stay, the places, and how many releases
@@ -138,6 +233,22 @@ certificate's thumbprint in the reader's store or the path of a `.pfx` file, its
 `ORIOR_SIGN_PASSWORD` and from no file; `signing.timestamp`, the address of a timestamp server;
 `signing.macos`, the identity `codesign` signs with; and `signing.notarize`, the keychain profile
 `notarytool` sends the program with.
+
+## Packages for Linux
+
+`packaging/linux/` builds orior as a Flatpak and as a snap. The Flatpak's manifest,
+`com.dstroy0.orior.yml`, builds the window and the command line offline against GNOME's runtime,
+the crates listed in `cargo-sources.json`, which `python -I packaging/linux/cargo_sources.py` writes
+again from the two Cargo.locks after a crate changes. `sh packaging/linux/check_flatpak.sh`, run
+from this folder, checks the manifest, the desktop file, the metadata and the crates' list in a
+container of 172 MB, and fetches no runtime: Flathub builds the Flatpak from the manifest. The snap's
+`snapcraft.yaml` builds them on core24 with classic confinement.
+
+Inside the Flatpak's sandbox none of the machine's compilers, SDKs and tools are there: orior gives
+each program on the machine's PATH a stand-in that runs it on the machine through `flatpak-spawn
+--host`, in the folder it was started in, and puts their folder first on its PATH as it starts:
+the tree's jobs and tools, the language servers, git and the terminal's shell run on the machine
+itself. A variable a run sets reaches the machine's program where `ORIOR_HOST_ENV` names it.
 
 ## The command line
 

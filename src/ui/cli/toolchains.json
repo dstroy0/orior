@@ -158,7 +158,7 @@
       "programs": ["cargo", "rustc", "rustfmt"],
       "runs": {"rust": "{rustc} {file} -o {out} && {out}"},
       "builds": {"rust": ["{rustc}", "-g", "-C", "opt-level=0", "{path}", "-o", "{out}"]},
-      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml", "checks": "rust-analyzer/runFlycheck"},
+      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml", "checks": "rust-analyzer/runFlycheck", "held": {"cargo": {"buildScripts": {"enable": false}}, "procMacro": {"enable": false}, "checkOnSave": false}},
       "version": ["--version"],
       "formats": ["rust"],
       "format": {"program": "rustfmt", "args": ["--edition", "{edition}"]},
@@ -308,6 +308,16 @@
       "version": ["-v"],
       "install": {"windows": "https://miktex.org/download", "any": "https://tug.org/texlive/"},
       "places": {"windows": ["%LOCALAPPDATA%\\Programs\\MiKTeX\\miktex\\bin\\x64", "%ProgramFiles%\\MiKTeX\\miktex\\bin\\x64", "C:\\texlive\\20*\\bin\\windows", "C:\\texlive\\20*\\bin\\win64"], "macos": ["/Library/TeX/texbin"], "linux": ["/usr/local/texlive/20*/bin/x86_64-linux", "/usr/bin"]}
+    },
+    {
+      "id": "poppler",
+      "name": "Poppler",
+      "group": "Languages",
+      "for": "pdftocairo, which draws a LaTeX file's pages in the live preview; MiKTeX comes with it",
+      "programs": ["pdftocairo"],
+      "version": ["-v"],
+      "install": {"windows": "https://miktex.org/download", "macos": "https://formulae.brew.sh/formula/poppler", "linux": "https://poppler.freedesktop.org/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\MiKTeX\\miktex\\bin\\x64", "%ProgramFiles%\\MiKTeX\\miktex\\bin\\x64"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"], "linux": ["/usr/bin"]}
     },
     {
       "id": "ngspice",

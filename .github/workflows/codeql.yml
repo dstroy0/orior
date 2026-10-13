@@ -1,0 +1,53 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#
+# CodeQL over the app in src/ui: its JavaScript, its Rust and these workflows, with the queries of
+# security and of quality, on each push to main and each pull request that changes the app, and once
+# a week for queries added since. What it finds shows under the repository's Security, Code scanning.
+#
+# The repository's default setup of code scanning stays off, since it and this file cannot both run.
+
+name: codeql
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/ui/**"
+      - ".github/codeql/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "src/ui/**"
+      - ".github/codeql/**"
+      - ".github/workflows/**"
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, rust, actions]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Each language is read from its sources as they stand, with no build.
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config-file: ./.github/codeql/ui.yml
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}

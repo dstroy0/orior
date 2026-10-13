@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=orior
+Comment=One window for the engine
+Exec=orior %F
+Icon=com.dstroy0.orior
+Terminal=false
+Categories=Development;IDE;
+StartupWMClass=orior

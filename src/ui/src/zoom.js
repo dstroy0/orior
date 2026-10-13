@@ -36,6 +36,12 @@ export function zoomBy(by) {
   setZoom(STEPS[Math.max(0, Math.min(STEPS.length - 1, at + by))]);
 }
 
+// Shows the zoom in force without keeping it, as a settings file changes it.
+export function showZoom() {
+  invoke("zoom_set", { factor: zoom() }).catch(() => {});
+  drawZoom(zoom());
+}
+
 export function keepZoom() {
   const node = document.getElementById("status-zoom");
   node.title = "Reset Zoom";

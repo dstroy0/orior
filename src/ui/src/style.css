@@ -479,6 +479,70 @@ select {
   --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
+/* The panes, the tabs, the editor, the panels and the sheets are glass over the lattice as well: each
+   lays the colors it paints its ground in, the theme's, as thick as its own opacity in Preferences
+   sets it. Text drawn in a ground's color takes the theme's, whole. */
+:root {
+  --pane-opacity: 100%;
+  --tab-opacity: 100%;
+  --editor-opacity: 100%;
+  --panel-opacity: 100%;
+  --sheet-opacity: 100%;
+  --theme-bg: var(--bg);
+  --theme-surface: var(--surface);
+  --theme-well: var(--well);
+  --theme-deep: var(--deep);
+  --theme-ed-bg: var(--ed-bg);
+  --theme-ed-widget: var(--ed-widget);
+}
+
+.side,
+.defs-side {
+  --part-opacity: var(--pane-opacity);
+}
+
+.tabs {
+  --part-opacity: var(--tab-opacity);
+}
+
+.editor,
+.md-preview,
+.binary,
+.notebook {
+  --part-opacity: var(--editor-opacity);
+}
+
+.term,
+.debug,
+.profile,
+.plugin-panels {
+  --part-opacity: var(--panel-opacity);
+}
+
+.sheet {
+  --part-opacity: var(--sheet-opacity);
+}
+
+.side,
+.defs-side,
+.tabs,
+.editor,
+.md-preview,
+.binary,
+.notebook,
+.term,
+.debug,
+.profile,
+.plugin-panels,
+.sheet {
+  --bg: color-mix(in srgb, var(--theme-bg) var(--part-opacity), transparent);
+  --surface: color-mix(in srgb, var(--theme-surface) var(--part-opacity), transparent);
+  --well: color-mix(in srgb, var(--theme-well) var(--part-opacity), transparent);
+  --deep: color-mix(in srgb, var(--theme-deep) var(--part-opacity), transparent);
+  --ed-bg: color-mix(in srgb, var(--theme-ed-bg) var(--part-opacity), transparent);
+  --ed-widget: color-mix(in srgb, var(--theme-ed-widget) var(--part-opacity), transparent);
+}
+
 .bar,
 .strip,
 .statusbar {
@@ -698,8 +762,10 @@ body[data-strip-edge] .strip-edge {
   outline-offset: 0;
 }
 
-/* A dot over an icon whose window has something to read: errors in Problems, unread notifications. */
+/* A dot over an icon whose window has something to read: errors in Problems, a live run in Runs, unread
+   notifications. */
 .strip-button.marked::after,
+.strip-button.live::after,
 .bar-tool.unread::after {
   content: "";
   position: absolute;
@@ -1046,6 +1112,49 @@ body[data-strip-edge] .strip-edge {
   display: none;
 }
 
+/* The notice and the press beside it that puts its kind away for good: one item of the bar, the
+   press quiet until the pointer is on it. */
+.status-said-box {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.status-said-away {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.status-said-away:hover,
+.status-said-away:focus-visible {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.status-said-away[hidden] {
+  display: none;
+}
+
+.status-focus {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--signal);
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-focus[hidden] {
+  display: none;
+}
+
 .status-memory {
   font-variant-numeric: tabular-nums;
   cursor: pointer;
@@ -1053,6 +1162,34 @@ body[data-strip-edge] .strip-edge {
 
 .status-memory[hidden] {
   display: none;
+}
+
+/* What the window waits on past a second, and past ten its Stop; and while any press's answer is
+   late past a tenth of a second, the pointer says the window is at work. */
+.status-wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-wait[hidden] {
+  display: none;
+}
+
+.status-wait-stop {
+  padding: 0 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+:root.waiting,
+:root.waiting * {
+  cursor: progress !important;
 }
 
 /* What holds the most memory, beside the total, quieter than it; and the reading over its budget. */
@@ -1146,6 +1283,29 @@ body[data-view="run"] .statusbar .ed-status {
 
 .pulse:empty {
   display: none;
+}
+
+.pulse-read {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* A bar of progress: a track, and the share done drawn across it from the left. */
+.progress {
+  display: inline-block;
+  width: 4rem;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.progress-done {
+  display: block;
+  height: 100%;
+  background: currentColor;
+  transform-origin: left center;
 }
 
 .pulse button {
@@ -2550,6 +2710,584 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   min-height: 0;
 }
 
+/* The preview: beside the text, the editor giving it the right half, or alone over the editor's
+   whole place. Markdown reads in it as GitHub draws Markdown, in the theme's colors. */
+#mode-edit .desk[data-preview="beside"] > .editor {
+  margin-right: 50%;
+}
+
+#mode-edit .desk[data-preview="alone"] > .editor {
+  visibility: hidden;
+}
+
+.md-preview {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 50%;
+  overflow: auto;
+  padding: 16px 28px 40px;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  font: 15px/1.6 var(--head);
+  overflow-wrap: break-word;
+}
+
+/* Help, What's New: the preview's type in a sheet of its own size, the sheet's place and frame. */
+.md-preview.sheet-changes {
+  position: static;
+  width: min(42rem, 80vw);
+  max-height: 70vh;
+  border-left: 0;
+  padding: 0 0.4rem 0.4rem;
+}
+
+.md-preview[hidden] {
+  display: none;
+}
+
+.desk[data-preview="alone"] > .md-preview {
+  width: 100%;
+  border-left: 0;
+  padding-inline: max(28px, calc((100% - 880px) / 2));
+}
+
+.md-preview > :first-child {
+  margin-top: 0;
+}
+
+.md-preview :is(h1, h2, h3, h4, h5, h6) {
+  margin: 24px 0 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.md-preview :is(h1, h2) {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--line);
+}
+
+.md-preview h1 {
+  font-size: 2em;
+}
+
+.md-preview h2 {
+  font-size: 1.5em;
+}
+
+.md-preview h3 {
+  font-size: 1.25em;
+}
+
+.md-preview :is(p, ul, ol, blockquote, table, pre, .math, .mermaid, .markdown-alert, details) {
+  margin: 0 0 16px;
+}
+
+.md-preview :is(ul, ol) {
+  padding-left: 2em;
+}
+
+.md-preview li.task {
+  list-style: none;
+}
+
+.md-preview li.task > input {
+  margin: 0 0.3em 0.2em -1.5em;
+  vertical-align: middle;
+}
+
+.md-preview code {
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  background: var(--well);
+  font: 85% var(--code);
+}
+
+.md-preview pre {
+  padding: 16px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--well);
+  font: 85%/1.45 var(--code);
+}
+
+.md-preview pre code {
+  padding: 0;
+  background: none;
+  font-size: 100%;
+}
+
+.md-preview blockquote {
+  padding: 0 1em;
+  border-left: 0.25em solid var(--line);
+  color: var(--fg-2);
+}
+
+.md-preview table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.md-preview :is(th, td) {
+  padding: 6px 13px;
+  border: 1px solid var(--line);
+}
+
+.md-preview tr:nth-child(2n) {
+  background: var(--well);
+}
+
+.md-preview img {
+  max-width: 100%;
+}
+
+.md-preview hr {
+  height: 0.25em;
+  margin: 24px 0;
+  border: 0;
+  background: var(--line);
+}
+
+.md-preview .math {
+  overflow-x: auto;
+}
+
+.md-preview math {
+  font-size: 1.1em;
+}
+
+/* An alert, its kind's color down its edge and on its title, as GitHub colors each kind. */
+.md-preview .markdown-alert {
+  padding: 0.5rem 1rem;
+  border-left: 0.25em solid var(--alert);
+}
+
+.markdown-alert-title {
+  margin: 0 0 4px;
+  color: var(--alert);
+  font-weight: 600;
+}
+
+.markdown-alert-note {
+  --alert: #4493f8;
+}
+
+.markdown-alert-tip {
+  --alert: #3fb950;
+}
+
+.markdown-alert-important {
+  --alert: #ab7df8;
+}
+
+.markdown-alert-warning {
+  --alert: #d29922;
+}
+
+.markdown-alert-caution {
+  --alert: #f85149;
+}
+
+.md-preview .footnotes {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--fg-2);
+  font-size: 12px;
+}
+
+.md-preview .footnote-ref {
+  font-size: 0.75em;
+}
+
+/* Mermaid's diagrams, on the light card and in the colors GitHub draws them in. */
+.md-preview .mermaid {
+  overflow-x: auto;
+  text-align: center;
+}
+
+.mermaid-diagram {
+  padding: 8px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.mm-node {
+  fill: #ececff;
+  stroke: #9370db;
+  stroke-width: 1px;
+}
+
+.mm-node-line {
+  stroke: #9370db;
+}
+
+.mm-text {
+  fill: #333;
+  font: 14px system-ui, sans-serif;
+}
+
+.mm-text.strong {
+  font-weight: 600;
+}
+
+.mm-edge {
+  fill: none;
+  stroke: #333;
+  stroke-width: 1.5px;
+}
+
+.mm-edge.dotted {
+  stroke-dasharray: 3 3;
+}
+
+.mm-edge.thick {
+  stroke-width: 3.5px;
+}
+
+.mm-head {
+  fill: #333;
+}
+
+.mm-label {
+  fill: #e8e8e8;
+}
+
+.mm-note {
+  fill: #fff5ad;
+  stroke: #aaaa33;
+}
+
+.mm-lifeline {
+  stroke: #999;
+  stroke-dasharray: 2 2;
+}
+
+.mm-frame {
+  fill: none;
+  stroke: #666;
+}
+
+.mm-frame-tab {
+  fill: #f0f0f0;
+  stroke: #666;
+}
+
+.mm-slice {
+  stroke: #333;
+  stroke-width: 0.5px;
+}
+
+.mm-solid {
+  fill: #333;
+}
+
+.mm-hollow {
+  fill: #fff;
+  stroke: #333;
+}
+
+.mm-text.small {
+  font-size: 11px;
+}
+
+.mm-text.on-task {
+  fill: #fff;
+}
+
+.mm-section {
+  fill: #f6f6fb;
+}
+
+.mm-task {
+  fill: #8a90dd;
+  stroke: #534fbc;
+}
+
+.mm-task.done {
+  fill: #d3d3d3;
+  stroke: #808080;
+}
+
+.mm-task.active {
+  fill: #bfc7ff;
+  stroke: #534fbc;
+}
+
+.mm-task.crit {
+  fill: #ff8888;
+  stroke: #ff0000;
+}
+
+.mm-grid {
+  stroke: #ddd;
+}
+
+.mm-face {
+  stroke: #666;
+}
+
+.mm-lane {
+  stroke-width: 1px;
+  stroke-dasharray: 2 3;
+  opacity: 0.6;
+}
+
+.mm-git {
+  fill: none;
+  stroke-width: 2.5px;
+}
+
+.mm-commit {
+  stroke: #fff;
+  stroke-width: 2px;
+}
+
+.mermaid-said {
+  color: var(--fg-3);
+  font-size: 12px;
+}
+
+/* The place the cursor stands in the text, marked in the preview: a Markdown block, a diagram's
+   nodes, a page's element outlined over its frame, and a LaTeX line's boxes on its pages. */
+.md-preview [data-line].here {
+  outline: 1px solid color-mix(in srgb, var(--signal) 55%, transparent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.mm-node-group.here > :is(rect, circle, ellipse, polygon, path) {
+  stroke: #0f7a53;
+  stroke-width: 2.5px;
+}
+
+/* A page of HTML, CSS or SVG fills the preview in a frame on the white a page is drawn on. */
+.md-preview:is([data-kind="html"], [data-kind="css"], [data-kind="svg"]),
+.desk[data-preview="alone"] > .md-preview:is([data-kind="html"], [data-kind="css"], [data-kind="svg"]) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.preview-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.preview-here {
+  position: absolute;
+  outline: 2px solid var(--signal);
+  outline-offset: 1px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.preview-here[hidden] {
+  display: none;
+}
+
+/* A LaTeX file's pages, white on the deep ground, each as wide as the preview; the errors of a make
+   that failed stand over them as the pages scroll. */
+.md-preview[data-kind="latex"] {
+  padding-top: 16px;
+  background: var(--deep);
+}
+
+.tex-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.tex-page {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.tex-here {
+  fill: rgba(15, 122, 83, 0.16);
+  stroke: #0f7a53;
+  stroke-width: 0.6;
+}
+
+.md-preview .tex-errors {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 0 12px;
+  padding: 6px 8px;
+  list-style: none;
+  border: 1px solid color-mix(in srgb, var(--fail) 50%, transparent);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.tex-error {
+  display: block;
+  width: 100%;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--fail);
+  font: 12px/1.5 var(--code);
+  text-align: left;
+  white-space: pre-wrap;
+  cursor: pointer;
+}
+
+.tex-error:disabled {
+  cursor: default;
+}
+
+.tex-error:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* A file of requests' answers: the environment and Send over them as they scroll, the status in the
+   theme's colors for one that went well, one that moved and one that failed, and the last answers
+   under it. */
+.md-preview[data-kind="requests"] {
+  font-size: 13px;
+}
+
+.md-preview .rq-bar {
+  position: sticky;
+  top: -16px;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.md-preview :is(.rq-bar, .rq-history-bar) :is(button, select) {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--well);
+  color: var(--fg);
+  font: 12px var(--head);
+  cursor: pointer;
+}
+
+.md-preview .rq-send {
+  border-color: color-mix(in srgb, var(--signal) 60%, transparent);
+  color: var(--signal);
+}
+
+.md-preview :is(.rq-bar, .rq-history-bar) button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.md-preview .rq-status {
+  margin: 0 0 4px;
+  font: 13px var(--code);
+}
+
+.md-preview .rq-status.good strong {
+  color: var(--signal);
+}
+
+.md-preview .rq-status.moved strong {
+  color: var(--link);
+}
+
+.md-preview .rq-status.failed,
+.md-preview .rq-status.failed strong {
+  color: var(--fail);
+}
+
+.md-preview .rq-times,
+.md-preview .rq-empty {
+  margin: 0 0 8px;
+  color: var(--fg-3);
+  font-size: 12px;
+}
+
+.md-preview :is(.rq-headers, .rq-sent) {
+  margin: 0 0 8px;
+}
+
+.md-preview .rq-headers th {
+  font-weight: 600;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.md-preview .rq-headers td {
+  word-break: break-all;
+}
+
+.md-preview .rq-body {
+  white-space: pre-wrap;
+}
+
+.md-preview .rq-image {
+  min-width: 32px;
+  image-rendering: pixelated;
+}
+
+.md-preview .rq-history {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.md-preview .rq-history-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--fg-2);
+}
+
+.md-preview .rq-history ol {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.md-preview .rq-history li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.md-preview .rq-past {
+  flex: 1;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--code);
+  text-align: left;
+  white-space: pre;
+  cursor: pointer;
+}
+
+.md-preview .rq-past:hover {
+  background: var(--well);
+}
+
+.md-preview .rq-past.shown {
+  background: color-mix(in srgb, var(--signal) 12%, transparent);
+  color: var(--fg);
+}
+
 /* A folder or file from another place, mounted beside the tree: its row bold, the first a line
    apart from the tree's own. */
 .node.mount {
@@ -2880,6 +3618,18 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   font: var(--code-size) / var(--code-line) var(--code);
   font-variant-ligatures: none;
   overflow: hidden;
+  isolation: isolate;
+}
+
+/* The image a theme lays behind the editor, under its text, at the share the theme sets. */
+.ed::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--ed-image, none) center / cover no-repeat;
+  opacity: var(--ed-image-opacity, 0.15);
+  pointer-events: none;
 }
 
 .ed[data-empty="true"] > * {
@@ -3029,10 +3779,17 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   pointer-events: none;
 }
 
+/* The text and the gutter's numbers each on a layer of its own: a scroll moves them, and the rows
+   drawn out ahead of the view (view.js) are there to move into sight. */
 .ed-layers {
   position: absolute;
   top: 0;
   left: 0;
+  will-change: transform;
+}
+
+.ed-gutter-rows {
+  will-change: transform;
 }
 
 .ed-space {
@@ -3051,11 +3808,28 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   white-space: pre;
 }
 
-.ed-row {
+/* The text's rows flow in blocks, each block placed where its first row stands (layer.js). */
+.ed-block {
   position: absolute;
-  left: 10px;
+  left: 0;
+}
+
+.ed-row {
+  margin-left: 10px;
   height: var(--code-line);
   white-space: pre;
+  contain: style;
+}
+
+/* A row of a wrapped line: the line moved left by the part before the row, and cut at the row's end. */
+.ed-seg {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.ed-seg > span {
+  display: inline-block;
 }
 
 .ed-band > div,
@@ -3082,7 +3856,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   padding: 0 2px;
   border-radius: 2px;
   background: var(--signal);
-  color: var(--bg);
+  color: var(--theme-bg);
   font: 600 12px/18px var(--code);
   pointer-events: none;
 }
@@ -4174,12 +4948,42 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 /* A pane that takes the editor's room: the job list, the explorer, the definitions. Collapsed, its
  * inside slides up and toward the edge it stands at while the pane holds its room at --held, and the
  * room goes back to the editor in one step as the slide ends; shown again, it takes its room in one
- * step and its inside slides in. Only the pane's own area moves while it slides: the window is drawn
- * without direct composition, and a slide that moved the editor too would redraw all of it on each
- * frame. The pointer at that edge of the view brings it back. */
+ * step and its inside slides in. Only the pane's own area moves while it slides: a slide that moved
+ * the editor too would draw all of it again on each frame. The pointer at that edge of the view
+ * brings it back. */
+/* A pane collapsing slides away whole, its ground and its inside together, up and toward the side it
+   collapses to, holding its room until it is gone; one coming back takes its room at once and slides
+   in whole. Its inside stays in place in it as it slides. */
 .collapsible {
   overflow: hidden;
-  transition: border-color 0.22s ease;
+  transition:
+    border-color 0.22s ease,
+    transform 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.collapsible.toward-left.collapsed.sliding,
+.collapsible.toward-left.arriving {
+  transform: translate(-100%, -100%);
+  opacity: 0;
+}
+
+.collapsible.toward-right.collapsed.sliding,
+.collapsible.toward-right.arriving {
+  transform: translate(100%, -100%);
+  opacity: 0;
+}
+
+.collapsible.toward-bottom.collapsed.sliding,
+.collapsible.toward-bottom.arriving {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.collapsible.collapsed.sliding > .side-inner {
+  transform: none;
+  opacity: 1;
+  transition: none;
 }
 
 .side-inner {
@@ -4205,6 +5009,12 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   width: var(--held);
 }
 
+/* A pane slid away is not drawn: what is out of sight is neither laid out nor painted, and its
+   inside keeps what it holds for the slide back. */
+.collapsible.collapsed:not(.sliding) > .side-inner {
+  content-visibility: hidden;
+}
+
 .collapsible.toward-left.collapsed > .side-inner {
   transform: translate(-100%, -100%);
   opacity: 0;
@@ -4224,22 +5034,16 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   height: var(--held);
 }
 
-/* A pane coming back holds its inside where it collapsed to while the editor gives it its room. */
+/* A pane coming back stands where it collapsed to, its inside in place in it, while the editor gives
+   it its room. */
+.collapsible.arriving,
 .collapsible.arriving > .side-inner {
   transition: none;
-  opacity: 0;
 }
 
-.collapsible.toward-left.arriving > .side-inner {
-  transform: translate(-100%, -100%);
-}
-
-.collapsible.toward-right.arriving > .side-inner {
-  transform: translate(100%, -100%);
-}
-
-.collapsible.toward-bottom.arriving > .side-inner {
-  transform: translateY(100%);
+.collapsible.arriving > .side-inner {
+  transform: none;
+  opacity: 1;
 }
 
 .collapsible.toward-bottom.collapsed > .side-inner {
@@ -4417,6 +5221,29 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   max-height: calc(22px * 8 + 0.3rem);
 }
 
+/* A row out of sight is neither laid out nor painted, and keeps the height it had, 22 pixels until it
+   is first drawn; a row the scroll heads into is drawn ahead of it, as sight.js marks it. */
+.node,
+.open-row,
+.sym,
+.commit,
+.item,
+.search-hit,
+.problem {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 22px;
+}
+
+.node.ahead,
+.open-row.ahead,
+.sym.ahead,
+.commit.ahead,
+.item.ahead,
+.search-hit.ahead,
+.problem.ahead {
+  content-visibility: visible;
+}
+
 /* A row of a pane: the tree's, Open Editors', Outline's and Timeline's alike. */
 .node,
 .open-row,
@@ -4466,6 +5293,13 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   color: var(--fg);
 }
 
+/* The folder files held over the window from outside it would be copied into. */
+.node.drop-into {
+  outline: 1px solid var(--signal);
+  outline-offset: -1px;
+  background: var(--line);
+}
+
 .node.known .name {
   color: var(--link);
 }
@@ -4495,12 +5329,12 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 /* A file's icon: its type's mark, or a page. Its capitals stand 98% as tall as the capitals of the name beside it:
    the size is taken off the row's cap height, and the code font is set so its own capitals are that tall. Where
-   cap is unknown the mark is 98% of the row's 13px. Its box is one character of its own font, and a space stands
-   between it and the name. */
+   cap is unknown the mark is 98% of the row's 13px. Its box is two characters of its own font, as wide as the
+   widest mark, each mark centered in it, and a character's width stands between it and the name. */
 .icon {
   flex: none;
-  width: 1ch;
-  margin-right: 0.3em;
+  width: 2ch;
+  margin-right: 0.5rem;
   font: 700 12.75px/1 var(--code);
   font-size: 0.98cap;
   font-size-adjust: cap-height 1;
@@ -4508,14 +5342,16 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   letter-spacing: -0.04em;
 }
 
-.icon.page::before {
-  content: "";
-  display: inline-block;
-  box-sizing: border-box;
-  width: 0.8cap;
-  height: 1cap;
-  border: 1px solid var(--fg-3);
-  border-radius: 1px;
+/* A folder's icon, the folder's shape in its box, as tall as a mark's capitals and a little more. */
+.icon.folder {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--t4);
+}
+
+.icon.folder .glyph {
+  width: 14px;
+  height: 14px;
 }
 
 /* What git says of a row: the name and its letter in the state's color. */
@@ -5007,6 +5843,182 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   padding: 0 0.7rem 0.5rem;
   font: 12px/1.45 var(--code);
   white-space: pre-wrap;
+}
+
+/* The keys over a button while Ctrl or Alt is held alone: the button's keys on a chip centered on it,
+   in the editor's text color on its ground, over everything else and taking no press. */
+.key-hint {
+  position: fixed;
+  z-index: 10000;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--theme-bg);
+  font: 600 11px var(--code);
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* The Comms window, laid out as the Containers window: each part and each channel a row, a part's
+   dot lit where none of what it said was refused, and a channel's last messages at the right. */
+.comms-part {
+  cursor: default;
+}
+
+/* The Database window, laid out as the Containers window: the schema at the left, a level opened at a
+   time, and at the right the head of what ran, the rows a statement gave in a grid that holds only
+   the rows in view, each 22px high and set at its place in the spacer, and what the server said. */
+.database .profile-bar select {
+  max-width: 22rem;
+}
+
+.db-node {
+  display: grid;
+  grid-template-columns: 0.9rem minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  padding: 0.12rem 0.7rem 0.12rem 0.3rem;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 12.5px var(--head);
+  text-align: left;
+  cursor: pointer;
+}
+
+.db-node:hover,
+.db-node:focus-visible {
+  outline: none;
+  background: var(--line);
+}
+
+.db-node .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-node .detail {
+  padding-left: 0.6rem;
+  color: var(--fg-3);
+  font-size: 11.5px;
+}
+
+.db-twisty {
+  color: var(--fg-3);
+}
+
+.db-side {
+  overflow: hidden;
+}
+
+.db-grid-head {
+  flex: none;
+  display: grid;
+  overflow: hidden;
+  padding: 0 0.7rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-2);
+  font: 600 12px/22px var(--code);
+}
+
+.db-grid {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+}
+
+.db-spacer {
+  width: 1px;
+}
+
+.db-rows {
+  position: absolute;
+  inset: 0 auto auto 0;
+  min-width: 100%;
+}
+
+.db-row {
+  position: absolute;
+  left: 0;
+  display: grid;
+  height: 22px;
+  padding: 0 0.7rem;
+  font: 12px/22px var(--code);
+  white-space: nowrap;
+}
+
+.db-grid-head > span,
+.db-row > span {
+  overflow: hidden;
+  padding-right: 1ch;
+  text-overflow: ellipsis;
+}
+
+.db-grid-head > .num,
+.db-row > .num {
+  text-align: right;
+}
+
+.db-row > .null,
+.db-wait {
+  color: var(--fg-3);
+  font-style: italic;
+}
+
+.db-messages {
+  flex: none;
+  max-height: 40%;
+  overflow: auto;
+  padding: 0 0.7rem;
+}
+
+.database-failure {
+  margin: 0.4rem 0;
+  color: var(--ed-error);
+  font: 12px/1.45 var(--code);
+  white-space: pre-wrap;
+}
+
+.database-notice {
+  margin: 0.3rem 0;
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.database-statement {
+  max-height: 12rem;
+  overflow: auto;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  font: 12px/1.45 var(--code);
+  white-space: pre-wrap;
+}
+
+/* The status bar's connection of the file shown, marked while a transaction is open on it. */
+.status-database {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-database:hover {
+  color: var(--bar-bright);
+}
+
+.status-database[data-transaction="open"],
+.status-database[data-transaction="failed"] {
+  color: var(--fuse-fire, var(--signal));
+}
+
+.status-database[hidden] {
+  display: none;
 }
 
 /* The Debug window: a bar of steps and what the program is doing, then Frames, Variables with the
@@ -5635,7 +6647,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .t-b13 { background: var(--t13); }
 .t-b14 { background: var(--t14); }
 .t-b15 { background: var(--t15); }
-.t-f-default-bg { color: var(--well); }
+.t-f-default-bg { color: var(--theme-well); }
 .t-b-default-fg { background: var(--fg); }
 .t-bold { font-weight: 600; }
 .t-dim { opacity: 0.6; }
@@ -5653,16 +6665,17 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 .term-view.term-focused .t-cursor {
   background: var(--signal);
-  color: var(--well);
+  color: var(--theme-well);
   outline: 0;
 }
 
 /* A popup menu: a panel lifted over the page, its keys set to the right in the code face. It stands
    absolute and not fixed: the page never scrolls and the two place it alike, and the web view draws
-   none of the editor's text under a fixed menu that crosses it. */
+   none of the editor's text under a fixed menu that crosses it. It stands above every panel that
+   stays open, as the slow plugin's finder and a question of rights, and below a key's hint. */
 .menu {
   position: absolute;
-  z-index: 50;
+  z-index: 65;
   min-width: 13rem;
   padding: 0.3rem;
   display: flex;
@@ -5788,6 +6801,26 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   display: grid;
   gap: 0.25rem;
   color: var(--fg-2);
+}
+
+/* A part's opacity: the slider, and its share beside it. */
+.prefs-opacity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.prefs-opacity-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--signal);
+}
+
+.prefs-opacity-said {
+  flex: none;
+  width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .report-field {
@@ -6847,11 +7880,12 @@ textarea.report-field {
   max-height: none;
 }
 
+/* Preferences: its sections one under another, the sheet scrolling past those out of sight, and the
+   palette's colors scrolling in a part of their own. */
 .sheet-prefs {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
-  height: 100%;
   font: 13px var(--head);
 }
 
@@ -6932,8 +7966,6 @@ textarea.report-field {
 .prefs-palette {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .prefs-palette .filter {
@@ -6941,8 +7973,7 @@ textarea.report-field {
 }
 
 .prefs-colors {
-  flex: 1 1 auto;
-  min-height: 0;
+  max-height: 26rem;
   overflow-y: auto;
   padding-right: 0.3rem;
 }
@@ -6969,6 +8000,78 @@ textarea.report-field {
 
 .prefs-color.changed {
   box-shadow: inset 2px 0 0 var(--signal);
+}
+
+/* A color whose contrast with the color under it is too low for text: the ratio and the color under
+   it beside its value, and the colors so marked listed over the palette. */
+.prefs-contrast {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  margin-top: -0.15rem;
+  color: var(--fail);
+  font: 11.5px var(--code);
+}
+
+.prefs-contrast:empty {
+  display: none;
+}
+
+.prefs-contrasts {
+  margin: 0 0 0.4rem;
+  color: var(--fail);
+  font: 12px var(--head);
+}
+
+/* The theme's image behind the editor, a small picture of it beside its controls, and the theme's
+   icons of files, each a row of its mark, its pattern, its mark's letters, its color and its cross. */
+.prefs-image {
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+.prefs-image-label {
+  color: var(--fg-2);
+}
+
+.prefs-image-thumb {
+  width: 3.2rem;
+  height: 1.8rem;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * 0.6);
+  background: center / cover no-repeat;
+}
+
+.prefs-line .prefs-image-share {
+  flex: 0 0 6rem;
+}
+
+.prefs-icons {
+  margin-top: 0.6rem;
+}
+
+.prefs-icons h4 {
+  margin: 0 0 0.2rem;
+  font: 600 12px var(--head);
+  color: var(--fg-2);
+}
+
+.prefs-icons-said {
+  margin: 0 0 0.4rem;
+  color: var(--fg-3);
+  font: 12px var(--head);
+}
+
+.prefs-icon-row {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 2fr) 4rem minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+
+.prefs-icon-shown {
+  text-align: center;
+  font: 600 12px var(--code);
 }
 
 .prefs-color code {
@@ -7159,6 +8262,836 @@ textarea.report-field {
   background: color-mix(in srgb, var(--ed-added) 14%, transparent);
 }
 
+/* A peek of code: its places in a list beside the lines of the one shown, in an editor of its own
+   with no map, the line down its left the theme's signal where a change's peek has the change's. */
+.code-peek {
+  height: 18rem;
+  max-height: none;
+  border-left-color: var(--signal);
+}
+
+.code-peek-where {
+  margin-right: 0.5rem;
+  color: var(--fg-3);
+  font: 12px var(--code);
+}
+
+.code-peek-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.code-peek-list {
+  flex: 0 0 34%;
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow: auto;
+  border-right: 1px solid var(--ed-widget-line);
+  list-style: none;
+}
+
+.code-peek-place {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.15rem 0.6rem;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 12px var(--head);
+  text-align: left;
+  cursor: pointer;
+}
+
+.code-peek-place:hover {
+  background: var(--line);
+}
+
+.code-peek-place[aria-selected="true"] {
+  background: color-mix(in srgb, var(--signal) 14%, transparent);
+}
+
+.code-peek-file {
+  font-weight: 600;
+}
+
+.code-peek-text {
+  overflow: hidden;
+  color: var(--fg-2);
+  font: 11.5px var(--code);
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.code-peek-editor {
+  flex: 1;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) 0;
+}
+
+.code-peek-editor .ed-mini {
+  display: none;
+}
+
+/* The card of what a file is for, beside its row in the explorer. */
+.file-card {
+  position: fixed;
+  z-index: 40;
+  max-width: 26rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--ed-widget);
+  box-shadow: 0 10px 26px var(--lifted);
+  color: var(--fg);
+  font: 12.5px/1.45 var(--head);
+}
+
+.file-card p {
+  margin: 0 0 0.35rem;
+}
+
+.file-card-path {
+  color: var(--fg-3);
+  font: 11.5px var(--code);
+}
+
+.file-card-said.none,
+.file-card-wait {
+  color: var(--fg-3);
+}
+
+.file-card-head {
+  color: var(--fg-2);
+}
+
+.file-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.file-card-user {
+  padding: 0.05rem 0.3rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--link);
+  font: 12px var(--code);
+  text-align: left;
+  cursor: pointer;
+}
+
+.file-card-user:hover {
+  background: var(--line);
+}
+
+/* Gathered Lines: a task's pieces side by side over the editor, as many across as there is room
+   for, each its file's lines in an editor of its own under the place it comes from. */
+.gather {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.gather:focus {
+  outline: none;
+}
+
+.gather-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 34px;
+  padding: 0 0.4rem 0 0.8rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  font: 12.5px var(--head);
+}
+
+.gather-bar :is(select, input, button) {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--well);
+  color: var(--fg);
+  font: 12px var(--head);
+}
+
+.gather-count {
+  flex: 1;
+  color: var(--fg-3);
+}
+
+.gather-pieces {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 32rem), 1fr));
+  align-content: start;
+  gap: 12px;
+  padding: 12px;
+  overflow: auto;
+}
+
+.gather-piece {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--ed-bg);
+  overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 18rem;
+}
+
+.gather-piece header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.6rem;
+  border-bottom: 1px solid var(--ed-widget-line);
+  background: var(--ed-widget);
+}
+
+.gather-go {
+  flex: 1;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: 12px var(--code);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.gather-piece .gather-button {
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.gather-editor {
+  grid-template-columns: auto minmax(0, 1fr) 0;
+}
+
+.gather-editor .ed-mini {
+  display: none;
+}
+
+.gather-empty,
+.gather-gone {
+  color: var(--fg-3);
+  font: 13px var(--head);
+}
+
+/* A change by its declarations, over the editor: each group of pieces that call one another in a
+   row, each piece its lines with those taken out and those put in marked in the theme's colors. */
+.cv {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.cv:focus {
+  outline: none;
+}
+
+.cv-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 34px;
+  padding: 0 0.4rem 0 0.8rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  font: 12.5px var(--head);
+}
+
+.cv-title {
+  color: var(--fg);
+}
+
+.cv-count {
+  flex: 1;
+  color: var(--fg-3);
+}
+
+.cv-button {
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.cv-body {
+  flex: 1;
+  padding: 12px;
+  overflow: auto;
+}
+
+.cv-group {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+}
+
+.cv-piece {
+  flex: 0 0 min(38rem, 90%);
+  min-width: 0;
+  border: 1px solid var(--ed-widget-line);
+  border-left: 3px solid var(--ed-changed);
+  border-radius: var(--radius);
+  background: var(--ed-bg);
+}
+
+.cv-piece.added {
+  border-left-color: var(--ed-added);
+}
+
+.cv-piece.removed {
+  border-left-color: var(--ed-removed);
+}
+
+.cv-piece.moved {
+  border-left-color: var(--link);
+}
+
+.cv-piece header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--ed-widget-line);
+  background: var(--ed-widget);
+  font: 12px var(--head);
+}
+
+.cv-name,
+.cv-call {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: 600 12.5px var(--code);
+  cursor: pointer;
+}
+
+.cv-call {
+  font-weight: 400;
+}
+
+.cv-kind,
+.cv-path,
+.cv-calls {
+  color: var(--fg-3);
+}
+
+.cv-how {
+  color: var(--fg-2);
+}
+
+.cv-calls {
+  margin: 0;
+  padding: 0.2rem 0.6rem;
+  font: 12px var(--head);
+}
+
+.cv-lines {
+  margin: 0;
+  padding: 0.3rem 0;
+  max-height: 24rem;
+  overflow: auto;
+  font: var(--code-size) / var(--code-line) var(--code);
+}
+
+.cv-line {
+  padding: 0 0.6rem;
+  white-space: pre;
+}
+
+.cv-line.out {
+  background: color-mix(in srgb, var(--ed-removed) 16%, transparent);
+}
+
+.cv-line.in {
+  background: color-mix(in srgb, var(--ed-added) 14%, transparent);
+}
+
+.cv-empty,
+.cv-other {
+  color: var(--fg-3);
+  font: 13px var(--head);
+}
+
+/* The prints a change added, in the Commit window over its message. */
+.commit-prints {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--fail) 40%, transparent);
+  border-radius: 6px;
+}
+
+.commit-prints-head {
+  margin: 0 0 2px;
+  color: var(--fail);
+  font: 12px var(--head);
+}
+
+.commit-print {
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--code);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: pre;
+  cursor: pointer;
+}
+
+.commit-print:hover {
+  color: var(--fg);
+}
+
+.commit-prints .commit-button {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+/* What plugins draw: a mark in the gutter and its word after the line's end in the color of its
+   kind, an overlay of text under a line, panels of their own down the window's right side, a badge
+   on the top bar and a label on a tab. */
+.ed-plugin {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: var(--link);
+  vertical-align: middle;
+}
+
+.ed-plugin.warn {
+  background: var(--hover);
+}
+
+.ed-plugin.error {
+  background: var(--fail);
+}
+
+.ed-plugin.note {
+  background: var(--fg-3);
+}
+
+.ed-plugin-text {
+  position: absolute;
+  overflow: hidden;
+  max-width: 40rem;
+  color: var(--link);
+  font-style: italic;
+  white-space: pre;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.ed-plugin-text.warn {
+  color: var(--hover);
+}
+
+.ed-plugin-text.error {
+  color: var(--fail);
+}
+
+.ed-plugin-text.note {
+  color: var(--fg-3);
+}
+
+.plugin-overlay {
+  position: absolute;
+  z-index: 5;
+  max-width: 36rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--ed-widget-line);
+  border-left: 3px solid var(--link);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--ed-widget);
+  box-shadow: 0 6px 18px var(--lifted);
+  color: var(--fg);
+  font: 12.5px var(--head);
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+
+.plugin-panels {
+  position: fixed;
+  top: 64px;
+  right: 12px;
+  bottom: 40px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(26rem, 40vw);
+  pointer-events: none;
+}
+
+.plugin-panels[hidden] {
+  display: none;
+}
+
+.plugin-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 8rem;
+  max-height: 50%;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 10px 26px var(--lifted);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.plugin-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.4rem 0.25rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.plugin-panel-close {
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.plugin-panel-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.plugin-badge {
+  margin: 0 0.5rem;
+  padding: 1px 8px;
+  border: 1px solid color-mix(in srgb, var(--signal) 50%, transparent);
+  border-radius: 10px;
+  color: var(--signal);
+  font: 11.5px var(--head);
+}
+
+.plugin-badge[hidden] {
+  display: none;
+}
+
+.tab .tab-label {
+  margin-left: 0.35rem;
+  color: var(--fg-3);
+  font-size: 11px;
+}
+
+.status-plugin {
+  color: var(--fail);
+}
+
+.status-plugin[hidden] {
+  display: none;
+}
+
+/* The tree's own code held back until the reader trusts it, in the bar's signal. */
+.status-trust {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--bar-signal);
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-trust:hover {
+  color: var(--bar-bright);
+}
+
+.status-trust[hidden] {
+  display: none;
+}
+
+.status-plugin-stop {
+  margin-left: 0.4rem;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--well);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Find the Slow Plugin and Write with Rights: a question at the top of the window that waits for a
+   press and takes no keys until it gets one. */
+:is(.slow-finder, .rights-ask) {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  z-index: 60;
+  width: min(34rem, 90vw);
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 12px 30px var(--lifted);
+  color: var(--fg);
+  font: 13px var(--head);
+  transform: translateX(-50%);
+}
+
+:is(.slow-finder, .rights-ask)[hidden] {
+  display: none;
+}
+
+.slow-finder-said,
+.rights-said {
+  margin: 0 0 0.6rem;
+}
+
+.slow-finder-buttons,
+.rights-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.slow-finder-button,
+.rights-button {
+  padding: 3px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--well);
+  color: var(--fg);
+  font: 12.5px var(--head);
+  cursor: pointer;
+}
+
+/* Preferences, Settings on Every Machine: the file or folder and its buttons on one line, what a
+   taking would change a file at a time with settings.json a setting at a time, and the takings kept,
+   each with its Undo. */
+.carry-line .carry-place {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.carry-line .prefs-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.carry-about,
+.carry-heading {
+  margin: 0 0 0.4rem;
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.carry-difference {
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.carry-file,
+.carry-setting {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.carry-setting {
+  padding-left: 1.4rem;
+  font: 12px var(--code);
+}
+
+.carry-how,
+.carry-arrow {
+  color: var(--fg-3);
+}
+
+.carry-here,
+.carry-there {
+  overflow: hidden;
+  max-width: 14rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carry-takings h4 {
+  margin: 0.5rem 0 0.2rem;
+  font: 600 12px var(--head);
+  color: var(--fg-2);
+}
+
+.carry-taking {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.15rem 0;
+}
+
+/* Preferences, Settings in force: each setting a row of its key, its value and the file it comes
+   from, the files it stands over after it, and what the files could not say under them. */
+.prefs-force-files {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.prefs-force-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(4rem, 1fr) minmax(0, 1.6fr);
+  max-height: 16rem;
+  overflow: hidden auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.prefs-force-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  gap: 0.8rem;
+  align-items: baseline;
+  padding: 0.25rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  font: 12.5px var(--head);
+}
+
+.prefs-force-row:last-child {
+  border-bottom: 0;
+}
+
+.prefs-force-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prefs-force-from {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.prefs-file-far {
+  color: var(--fg-2);
+}
+
+.prefs-force-under,
+.prefs-force-none {
+  color: var(--fg-3);
+}
+
+.prefs-file {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--link);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.prefs-force-problems {
+  margin: 0.3rem 0;
+  padding-left: 1.2rem;
+  color: var(--fail);
+  font: 12px var(--head);
+}
+
+/* Preferences, Keys: each command a row of its label, its keys, Set and Reset, the keys more than one
+   command holds listed over them. */
+.prefs-key-rows {
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.prefs-key-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  font: 12.5px var(--head);
+}
+
+.prefs-key-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prefs-key-keys {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.prefs-key {
+  display: inline-flex;
+  align-items: center;
+}
+
+.prefs-key-off {
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.prefs-keys-filter {
+  width: 100%;
+  margin: 0.4rem 0;
+}
+
+.prefs-shared {
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.prefs-shared ul {
+  margin: 0.2rem 0 0.4rem;
+  padding-left: 1.2rem;
+}
+
+/* A tab opened from a peek is a preview until it is edited or pressed twice: its name in italics. */
+.tab.preview {
+  font-style: italic;
+}
+
 .prefs-font[type="number"] {
   max-width: 6rem;
 }
@@ -7189,8 +9122,51 @@ textarea.report-field {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  height: 100%;
   font: 13px var(--head);
+}
+
+.sheet-plugins h3 {
+  margin: 0.4rem 0 0;
+  font: 600 13px var(--head);
+  color: var(--signal);
+}
+
+/* The catalog's address and its button on one line, and the plugins it lists under them, each with
+   what it asks for; a plugin that waits for the reader's leave says so under its row. */
+.plugins-catalog-line .plugins-catalog-address {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.plugins-catalog-line .prefs-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.plugins-catalog {
+  max-height: 16rem;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+}
+
+.plugin-asks,
+.plugin-about {
+  color: var(--fg-2);
+  font-size: 12px;
+}
+
+.plugin-about,
+.plugin-waits {
+  grid-column: 2 / -1;
+  margin: 0;
+}
+
+.plugin-waits {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  color: var(--fail);
+  font-size: 12px;
 }
 
 .sheet-plugins h2,
@@ -7208,8 +9184,7 @@ textarea.report-field {
 }
 
 .plugins-list {
-  flex: 1 1 auto;
-  min-height: 0;
+  max-height: 22rem;
   overflow-y: auto;
   border-top: 1px solid var(--line);
 }
@@ -7537,6 +9512,197 @@ textarea.report-field {
   .plugin-row {
     grid-template-columns: auto 1fr auto;
   }
+}
+
+/* Runs: each folder of runs, its runs newest first, a live one said in signal and one that has
+   panicked in the error's color; an open run's panics, its conferences, the overseer's ruling in
+   signal, and its latest blobs; the folder's lessons under its runs. */
+#runs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.runs-empty {
+  margin: 0.5rem 0.75rem;
+  color: var(--fg-3);
+  font: 12px var(--head);
+}
+
+.runs-folder-head {
+  padding: 0.25rem 0.75rem;
+  color: var(--fg-3);
+  font: 11px var(--code);
+  overflow-wrap: anywhere;
+}
+
+.runs-run {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.2rem 0.75rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--code);
+  text-align: left;
+  cursor: pointer;
+}
+
+.runs-run:hover,
+.runs-run[aria-expanded="true"] {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.runs-run-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runs-live {
+  flex: none;
+  color: var(--signal);
+  font: 11px var(--head);
+}
+
+.runs-run.panicked .runs-live {
+  color: var(--ed-error);
+}
+
+.runs-size,
+.runs-seq {
+  flex: none;
+  color: var(--fg-3);
+  font: 11px var(--code);
+}
+
+.runs-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem 0.5rem 1.5rem;
+}
+
+.runs-panic,
+.runs-conference {
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--fg-3);
+}
+
+.runs-panic {
+  border-left-color: var(--ed-error);
+}
+
+.runs-panic .runs-seq {
+  color: var(--ed-error);
+}
+
+.runs-panic-text {
+  margin: 0.15rem 0 0;
+  color: var(--fg);
+  font: 12px var(--code);
+  white-space: pre-wrap;
+}
+
+.runs-question {
+  margin-bottom: 0.15rem;
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.runs-account {
+  display: flex;
+  gap: 0.5rem;
+  font: 12px var(--code);
+}
+
+.runs-who {
+  flex: none;
+  color: var(--fg-2);
+}
+
+.runs-said {
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.runs-ruling .runs-who,
+.runs-ruling .runs-said {
+  color: var(--signal);
+}
+
+.runs-count {
+  margin: 0;
+  color: var(--fg-3);
+  font: 11px var(--head);
+}
+
+.runs-said-error {
+  margin: 0;
+  color: var(--ed-error);
+  font: 12px var(--head);
+}
+
+.runs-blobs {
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.runs-blob {
+  display: flex;
+  gap: 0.5rem;
+  color: var(--fg-2);
+  font: 11px var(--code);
+}
+
+.runs-blob .runs-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runs-blob.panic {
+  color: var(--ed-error);
+}
+
+.runs-blob.critical {
+  color: var(--fg);
+}
+
+.runs-lessons {
+  padding: 0.25rem 0.75rem 0 1.5rem;
+}
+
+.runs-lessons-head {
+  color: var(--fg-3);
+  font: 11px var(--head);
+}
+
+.runs-lesson {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.5rem;
+  font: 12px var(--code);
+}
+
+.runs-cause {
+  color: var(--fg);
+}
+
+.runs-carrier {
+  color: var(--fg-3);
+}
+
+.runs-stand-in {
+  color: var(--fg-2);
 }
 
 /* While the window's frame is held, every animation of the page holds and no transition runs. */

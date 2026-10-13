@@ -237,7 +237,7 @@ fn arguments(step: &Step, values: &HashMap<String, Vec<String>>) -> Result<Vec<S
                     out.push(value);
                 }
             }
-            Arg::Set(..) | Arg::Unpath(_) | Arg::Only(..) | Arg::Given(_) | Arg::SetFrom(..) | Arg::EnvBut(..) | Arg::Cross(_) | Arg::SourceDate | Arg::Folder(_) => {}
+            Arg::Set(..) | Arg::SetWhen(..) | Arg::Unpath(_) | Arg::Only(..) | Arg::Given(_) | Arg::SetFrom(..) | Arg::EnvBut(..) | Arg::Cross(_) | Arg::SourceDate | Arg::Folder(_) => {}
         }
     }
     Ok(out)
@@ -292,6 +292,12 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
             if let Some(value) = values.get(key).and_then(|v| v.first()).filter(|v| !v.is_empty()) {
                 cmd.env(variable, value);
                 set.push(format!("{variable}={value}"));
+            }
+        }
+        if let Arg::SetWhen(param, given, key, value) = arg {
+            if values.get(param).and_then(|v| v.first()) == Some(given) {
+                cmd.env(key, value);
+                set.push(format!("{key}={value}"));
             }
         }
         if let Arg::EnvBut(key, but) = arg {
@@ -657,6 +663,21 @@ mod settings {
         let envs: Vec<(&OsStr, Option<&OsStr>)> = cmd.get_envs().collect();
         assert_eq!(envs, vec![(OsStr::new("KLQ_SEED"), Some(OsStr::new("2")))]);
         assert_eq!(shown, "KLQ_SEED=2 bash run.sh pair");
+    }
+
+    #[test]
+    fn a_variable_set_when_a_param_holds_a_value_is_set_then_alone() {
+        if super::bash().is_err() {
+            return;
+        }
+        let step = Step { program: Program::Bash("build.sh".into()), args: vec![Arg::SetWhen("trace".into(), "verbose".into(), "SHELLOPTS".into(), "xtrace".into())] };
+        let given = |trace: &str| -> HashMap<String, Vec<String>> { [("trace".to_string(), vec![trace.to_string()])].into_iter().collect() };
+        let (cmd, shown) = super::command(std::path::Path::new("."), &step, &given("verbose")).unwrap();
+        assert_eq!(cmd.get_envs().collect::<Vec<_>>(), vec![(OsStr::new("SHELLOPTS"), Some(OsStr::new("xtrace")))]);
+        assert_eq!(shown, "SHELLOPTS=xtrace bash build.sh");
+        let (cmd, shown) = super::command(std::path::Path::new("."), &step, &given("quiet")).unwrap();
+        assert_eq!(cmd.get_envs().count(), 0);
+        assert_eq!(shown, "bash build.sh");
     }
 }
 

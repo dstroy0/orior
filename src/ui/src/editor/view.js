@@ -10,23 +10,37 @@
 // input method opens its window.
 
 import { cmp, endOf, isWordChar, least, mapThrough, most, pos, same, wordAt, wordBefore } from "./document.js";
-import { hiddenSpans, indentOf, joinSpans, openersOf, Rows } from "./folding.js";
+import { Rows, hiddenSpans, indentOf, joinSpans, openersOf, wrapBreaks } from "./folding.js";
 import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
 import { Minimap } from "./minimap.js";
+import { letterOf } from "../keys.js";
 import { selectionPath } from "./shape.js";
 import { Vim } from "./vim.js";
-import { Hover, Suggest } from "./widgets.js";
-import { pressed, status, write } from "../status.js";
+import { Hover, LIST_KEYS, Suggest } from "./widgets.js";
+import { calm, nextSlice, pressed, status, write } from "../status.js";
+import { enter, leave } from "../trace.js";
 import { icon } from "../icons.js";
+import { authorsShown } from "../authors.js";
 
 const PAD = 10;
 // How wide the gutter's strip for breakpoints is, in pixels.
 const BREAK_STRIP = 16;
-// How wide Line History's column is, in characters.
+// How wide Line History's column is, in characters: a date and an author's name where authors show,
+// and a date alone where they do not.
 const HISTORY_CHARS = 22;
+const DATE_CHARS = 11;
+const historyChars = () => (authorsShown() ? HISTORY_CHARS : DATE_CHARS);
 // The height of a row, read from the code's line height each time the editor measures.
 let LINE = 20;
+
+// How many rows of padding a paged file's window has above it and below it at most: the scrolling
+// space stays within what the page lays out, and the window moves as the view nears its edge.
+const PAGED_PAD = 250000;
+
+// The fewest columns a wrapped row holds, and the most lines' breaks kept.
+const WRAP_LEAST = 20;
+const WRAPS_KEPT = 200000;
 
 // How round a selection's corners are, in pixels.
 const SELECTION_ROUND = 4;
@@ -37,23 +51,61 @@ const SELECTION_ROUND = 4;
 // over what it was and not on it.
 const ORIGIN_ROWS = 512;
 
+// The letters of the scripts that run right to left: Hebrew, Arabic, Syriac, Thaana, N'Ko and the
+// rest of the right-to-left blocks, and their presentation forms. A line that holds one is placed as
+// the page draws it, each character where it stands, and every other line by its columns.
+const RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF\u{10800}-\u{10FFF}\u{1E800}-\u{1EFFF}]/u;
+
+// Whether each character of `text` is drawn running right to left: a letter of such a script is, a
+// letter of any other script and a digit are not, and a character of neither, as a space or a mark of
+// punctuation, runs as the letters on both sides of it do where they agree, and left to right where
+// they do not.
+export function runsRightToLeft(text) {
+  const strong = [...text].flatMap((char) => {
+    const kind = RTL.test(char) ? "R" : /[\p{L}\p{N}]/u.test(char) ? "L" : null;
+    return char.length === 2 ? [kind, kind] : [kind];
+  });
+  const out = new Array(strong.length).fill(false);
+  let before = null;
+  for (let at = 0; at < strong.length; at += 1) {
+    if (strong[at]) {
+      out[at] = strong[at] === "R";
+      before = strong[at];
+      continue;
+    }
+    let after = null;
+    for (let next = at + 1; next < strong.length && !after; next += 1) {
+      after = strong[next];
+    }
+    out[at] = before === "R" && after === "R";
+  }
+  return out;
+}
+
 // Column Selection Mode's key: while it is on, a drag chooses a column, as Shift and Alt do.
 const COLUMN_KEY = "orior.column";
 
 // Sticky scroll: the most lines it holds along the top.
 const STICKY_MOST = 5;
 
-// Smooth scrolling: a wheel's step and a page key glide over GLIDE milliseconds, easing out. Flick
-// scrolling: a touchpad's movement runs on once the fingers lift, where no event has come for
-// FLICK_REST and the system gives no run of its own, from no slower than FLICK_LEAST pixels a
-// millisecond, slowing by a factor of e every FLICK_SLOWS until under FLICK_STOP. Each is a setting,
-// on where none is kept.
-const GLIDE = 130;
+// Smooth scrolling: a wheel's step and a page key glide to where they head on a critically damped
+// spring of rate GLIDE_RATE a second, which covers all but a twentieth of its way in about 190 ms. A
+// step during a glide moves where it heads and the glide keeps its speed: under a steady wheel each
+// frame moves the text an even step, and no frame stands still. The spring moves in pieces of at most GLIDE_PIECE ms, each
+// frame by the time since the one before. Flick scrolling: a touchpad's movement runs on once the
+// fingers lift, where no event has come for FLICK_REST and the system gives no run of its own, from
+// no slower than FLICK_LEAST pixels a millisecond, slowing by a factor of e every FLICK_SLOWS until
+// under FLICK_STOP. Each is a setting, on where none is kept.
+const GLIDE_RATE = 25;
+const GLIDE_PIECE = 4;
 const FLICK_REST = 50;
 const FLICK_LEAST = 0.3;
 const FLICK_SLOWS = 325;
 const FLICK_STOP = 0.02;
 const SMOOTH_KEY = "orior.smooth-scroll";
+// Smooth scrolling is on unless the reader turned it off, or turned on the system's reduced motion
+// and never turned it on here.
+export const smoothScrolling = () => (localStorage.getItem(SMOOTH_KEY) ?? String(!matchMedia("(prefers-reduced-motion: reduce)").matches)) !== "false";
 
 // The kept settings of the reader's formatting: the continuation indent of each place a bracket
 // stands, in columns; whether an operator's sign goes to the next line where a line breaks after it
@@ -74,6 +126,7 @@ const OPERATOR_END = /^(.*?[\w$)\]}"'`])\s*(\*\*|\/\/|==|!=|<=|>=|&&|\|\||\?\?|\
 const HINT_KEYS = { type: "orior.type-hints", parameter: "orior.parameter-hints" };
 const FLICK_KEY = "orior.flick-scroll";
 const STICKY_KEY = "orior.sticky";
+const WRAP_KEY = "orior.word-wrap";
 
 // Bracket pairs colored by depth: the setting's key, the most lines a text has for its brackets to be
 // colored, the most lines read in one frame to learn a line's depth, and the tokens whose brackets
@@ -83,6 +136,19 @@ const BRACKETS_LINES = 200000;
 const BRACKETS_READ = 20000;
 const UNBRACKETED = /\bt-(?:comment|string|regexp)/;
 const SHOWN = 10000;
+// A row is drawn as far as the view reaches across, to the end of the step it reaches into, so that
+// a scroll across draws the rows again only as it passes into the next: a line of tens of thousands
+// of characters lays out what can be seen, and not the rest. The step is in characters.
+const REACH_STEP = 128;
+// The rows a view draws are those in sight first, then out from them a slice of DRAW_SLICE rows at a
+// time, as a large file is read, to DRAWN_MOST rows at the most.
+const DRAW_SLICE = 32;
+const DRAWN_MOST = 1200;
+const sessionIds = new WeakMap();
+let sessionsSeen = 0;
+
+// The most rows whose markup is kept; past it the kept rows are let go and made again as they show.
+const ROWS_KEPT = 5000;
 
 // A line of closing brackets alone, with the commas, semicolons and spaces that may follow them.
 const CLOSER = /^\s*[\])}]+[\])};,\s]*$/;
@@ -99,14 +165,18 @@ const COMMENT_LINES = 200000;
 // A row's text, escaped, with a mark laid over each space and each tab, neither moving a letter.
 const marked = (html) => html.replace(/ /g, '<span class="ed-sp"> </span>').replace(/\t/g, '<span class="ed-tab">\t</span>');
 const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
-// The scroll speeds, in pixels a millisecond, past which a frame drops more of its work, how long
-// a scroll rests before it counts as stopped, and how many screens ahead the idle coloring reaches.
-const DROPS = [0.8, 2.5, 7];
+// How long a scroll rests before it counts as stopped, and how many screens ahead the idle coloring
+// reaches.
 const REST = 140;
 const AHEAD = 3;
-// The milliseconds a frame may spend drawing. A frame over it drops a level whatever the speed, and
-// the level comes back a step at a time only after frames run well inside it.
-const BUDGET = 8;
+// How many rows ahead of the view the idle coloring reaches, for a view `shown` rows high: AHEAD
+// screens, or as far as `speed`, in pixels a millisecond, carries the view over two screens' coloring
+// of `screenMs` each, where that is farther.
+// The height of a row, in pixels, as the editor's zoom sets it.
+export const lineHeight = () => LINE;
+
+export const coloringReach =(shown, speed, screenMs) => Math.max(shown * AHEAD, Math.ceil((speed / LINE) * screenMs * 2));
+
 // How long input rests before the work it held runs.
 const INPUT_REST = 300;
 
@@ -161,8 +231,7 @@ function keyName(event) {
   const code = event.code ?? "";
   let key = CODES[code];
   if (!key) {
-    const letter = code.match(/^Key([A-Z])$/) ?? code.match(/^Digit(\d)$/);
-    key = letter ? letter[1] : event.key;
+    key = letterOf(event) ?? event.key;
   }
   parts.push(key);
   return parts.join("+");
@@ -194,13 +263,15 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, onChangeMark, onHistory, onGroup, onShown, spansOf, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onEdit, pasteAs, onChangeMark, onHistory, onGroup, onShown, spansOf, statusHost = null } = {}) {
     this.host = host;
     this.onGroup = onGroup ?? (() => {});
     this.onChangeMark = onChangeMark ?? (() => {});
     this.onHistory = onHistory ?? (() => {});
     this.onCursor = onCursor ?? (() => {});
     this.onChange = onChange ?? (() => {});
+    this.onEdit = onEdit ?? (() => {});
+    this.pasteAs = pasteAs ?? (() => null);
     this.onShown = onShown ?? (() => {});
     this.spansOf = spansOf ?? (async () => []);
     host.classList.add("ed");
@@ -244,7 +315,7 @@ export class Editor {
     this.originRow = 0;
     this.pad = 0;
     this.below = 0;
-    this.textLayer = new Layer(this.text);
+    this.textLayer = new Layer(this.text, { flow: true });
     this.underLayer = new Layer(this.under);
     this.gutterLayer = new Layer(this.gutterRows);
     this.overHtml = "";
@@ -255,25 +326,7 @@ export class Editor {
     this.status.dataset.item = "editor";
     this.sticky = div("ed-sticky");
     this.sticky.hidden = true;
-    this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
-    this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
-    this.marksOn = localStorage.getItem(MARKS_KEY) === "true";
-    this.commentsHidden = localStorage.getItem(COMMENTS_KEY) === "true";
-    this.pastEnds = localStorage.getItem(PAST_KEY) === "true";
-    if (this.commentsHidden) {
-      host.dataset.comments = "hidden";
-    }
-    this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
-    this.smoothOn = localStorage.getItem(SMOOTH_KEY) !== "false";
-    this.hintKinds = { type: localStorage.getItem(HINT_KEYS.type) !== "false", parameter: localStorage.getItem(HINT_KEYS.parameter) !== "false" };
-    try {
-      this.continuation = JSON.parse(localStorage.getItem(CONTINUATION_KEY) ?? "{}") ?? {};
-    } catch {
-      this.continuation = {};
-    }
-    this.operatorNext = localStorage.getItem(OPERATOR_KEY) === "true";
-    this.docMargin = Number(localStorage.getItem(DOC_MARGIN_KEY)) || null;
-    this.flickOn = localStorage.getItem(FLICK_KEY) !== "false";
+    this.readSettings();
     // The glide under way, { from, to, at }, in the scrolling space's own units, and the run-on.
     this.glide = null;
     this.flick = null;
@@ -453,13 +506,72 @@ export class Editor {
 
   rows() {
     const s = this.s;
-    const key = `${s.doc.id}:${s.foldings}:${s.doc.count}:${this.commentsHidden}`;
+    const columns = this.wrapOn ? this.wrapColumns() : 0;
+    const key = `${s.doc.id}:${s.foldings}:${s.doc.count}:${this.commentsHidden}:${columns}`;
     if (key !== this.rowsKey) {
       const folds = s.folded.size ? this.foldSpans() : [];
-      this.rowsCache = new Rows(s.doc.count, this.commentsHidden ? joinSpans(folds, this.commentSpans()) : folds);
+      this.rowsCache = new Rows(s.doc.count, this.commentsHidden ? joinSpans(folds, this.commentSpans()) : folds, columns ? (line) => this.breaksOf(line, columns) : null);
       this.rowsKey = key;
     }
     return this.rowsCache;
+  }
+
+  // Word wrap: each line longer than the view is wide is shown as rows, each ending after the last
+  // space that fits in it. The columns a row holds: as many as stand between the gutter and the
+  // view's right edge, less two, and never fewer than WRAP_LEAST.
+  wrapColumns() {
+    return Math.max(WRAP_LEAST, Math.floor((this.viewSize().width - PAD) / this.cw) - 2);
+  }
+
+  // The cols a line's rows after its first start at, kept by the line's text while the columns and the
+  // tab's width stay as they are.
+  breaksOf(line, columns) {
+    const size = this.s.indent.size;
+    if (this.wraps?.columns !== columns || this.wraps.size !== size || this.wraps.held.size > WRAPS_KEPT) {
+      this.wraps = { columns, size, held: new Map() };
+    }
+    const text = this.s.doc.line(line);
+    if (text.length <= columns && !text.includes("\t")) {
+      return null;
+    }
+    let breaks = this.wraps.held.get(text);
+    if (breaks === undefined) {
+      breaks = wrapBreaks(text, columns, size);
+      this.wraps.held.set(text, breaks);
+    }
+    return breaks;
+  }
+
+  // Turns word wrap on or off, and keeps the choice.
+  setWrap(on) {
+    this.wrapOn = on;
+    localStorage.setItem(WRAP_KEY, String(on));
+    this.rowsKey = "";
+    for (const layer of [this.textLayer, this.underLayer, this.gutterLayer]) {
+      layer.clear();
+    }
+    if (this.s) {
+      this.size();
+      this.reveal();
+    }
+    this.schedule();
+  }
+
+  // The markup of one row: its line's, and where the line is wrapped, the part of it the row holds,
+  // the line's markup moved left by the cols before the row and cut at the row's end.
+  rowCell(row) {
+    const rows = this.rows();
+    const line = rows.lineOf(row);
+    const html = this.rowHtml(line);
+    const start = rows.startOf(row);
+    const end = rows.endOf(row);
+    if (start === 0 && end < 0) {
+      return html;
+    }
+    const text = this.doc.line(line);
+    const shift = this.vcolOf(text, start, line) * this.cw;
+    const width = end < 0 ? null : this.vcolOf(text, end, line) * this.cw - shift;
+    return `<span class="ed-seg"${width === null ? "" : ` style="width:${width}px"`}><span style="margin-left:${-shift}px">${html}</span></span>`;
   }
 
   // The runs of lines that hold a comment alone, by the language's own marks: a line that
@@ -565,11 +677,73 @@ export class Editor {
       this.underLayer.shift(added);
       this.gutterLayer.shift(added);
     }
+    this.keepLine();
     if (this.find.shown) {
       window.clearTimeout(this.findWait);
       this.findWait = window.setTimeout(() => this.find.refresh(), 400);
     }
     this.schedule();
+  }
+
+  // Lines of a paged file's window let go above it or below it: the rows on screen keep their
+  // places, as when lines are read in.
+  shrunk(session, count, above) {
+    if (session !== this.s) {
+      return;
+    }
+    this.rowsKey = "";
+    this.size();
+    if (above) {
+      this.originRow -= count;
+      this.textLayer.shift(-count);
+      this.underLayer.shift(-count);
+      this.gutterLayer.shift(-count);
+    }
+    this.keepLine();
+    this.schedule();
+  }
+
+  // A paged file's window put elsewhere in the file: the view shows it afresh.
+  replaced(session) {
+    if (session !== this.s) {
+      return;
+    }
+    this.heldLine = undefined;
+    for (const layer of [this.textLayer, this.underLayer, this.gutterLayer]) {
+      layer.clear();
+    }
+    this.widestCache = this.widthOf(session.doc.lines);
+    this.s = null;
+    session.view = null;
+    this.show(session);
+  }
+
+  // Reads the line of the file at the top of the view, before a paged file's window moves under it.
+  holdLine(session) {
+    if (session === this.s && session.window?.paged) {
+      this.heldLine = session.base + this.scrollY() / LINE;
+    }
+  }
+
+  // Puts the line `holdLine` read back at the top of the view once the window has moved, a glide
+  // under way carried with it, and the scroll that does it not counted as speed.
+  keepLine() {
+    if (this.heldLine === undefined || !this.s) {
+      return;
+    }
+    const line = this.heldLine;
+    this.heldLine = undefined;
+    this.size();
+    const want = this.pad + (line - this.s.base) * LINE;
+    const by = want - this.scroller.scrollTop;
+    if (by) {
+      this.scroller.scrollTop = want;
+      this.placedTop = this.scroller.scrollTop;
+      if (this.glide) {
+        this.glide.to += by;
+        this.glide.at += by;
+      }
+    }
   }
 
   // Sizes the scrolling space to every row and the widest line.
@@ -579,7 +753,10 @@ export class Editor {
     // the window and below it, counted as the file opened, stand as padding. A line read in takes
     // its place from the padding, and the scroll and the scrollbar stay where they are.
     const s = this.s;
-    if (s?.window) {
+    if (s?.window?.paged) {
+      this.pad = Math.min(s.base, PAGED_PAD) * LINE;
+      this.below = Math.min(s.window.after, PAGED_PAD) * LINE;
+    } else if (s?.window) {
       this.pad = s.base * LINE;
       this.below = Math.max(0, this.linesInFile() - s.base - s.doc.count) * LINE;
     } else {
@@ -588,7 +765,7 @@ export class Editor {
     }
     const view = this.viewSize();
     this.spaceHeight = this.pad + rows.size * LINE + LINE + this.below;
-    this.spaceWidth = Math.max(view.width, PAD + (this.widest() + 4) * this.cw);
+    this.spaceWidth = this.wrapOn ? view.width : Math.max(view.width, PAD + (this.widest() + 4) * this.cw);
     this.space.style.height = `${this.spaceHeight}px`;
     this.space.style.width = `${this.spaceWidth}px`;
     this.sheet.style.width = `${view.width}px`;
@@ -679,7 +856,103 @@ export class Editor {
   }
 
   xOf(p) {
+    if (this.wrapOn) {
+      const rows = this.rows();
+      const row = rows.rowAt(p.line, p.col);
+      const start = rows.startOf(row);
+      if (start > 0 || rows.endOf(row) >= 0) {
+        const text = this.doc.line(p.line);
+        return PAD + (this.vcolOf(text, p.col, p.line) - this.vcolOf(text, start, p.line)) * this.cw;
+      }
+    }
+    if (RTL.test(this.doc.line(p.line))) {
+      const x = this.measuredX(p.line, p.col);
+      if (x !== null) {
+        return x;
+      }
+    }
     return PAD + this.vcolOf(this.doc.line(p.line), p.col, p.line) * this.cw;
+  }
+
+  // The node the line `line` is drawn in, where its row is on screen.
+  rowNode(line) {
+    return this.textLayer.held.get(this.rows().rowOf(line))?.node ?? null;
+  }
+
+  // The text node, and the place in it, that holds the col `col` of the line drawn in `node`, the
+  // hints' and a fold's marks left out.
+  textAt(node, col) {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, { acceptNode: (text) => (text.parentElement?.closest(".ed-hint, .ed-folded") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+    let left = col;
+    for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+      if (left < text.length) {
+        return { text, offset: left };
+      }
+      left -= text.length;
+    }
+    return null;
+  }
+
+  // The box the page draws the character at `col` of the line drawn in `node` in, or null.
+  charBox(node, col) {
+    const at = this.textAt(node, col);
+    if (!at) {
+      return null;
+    }
+    const range = document.createRange();
+    range.setStart(at.text, at.offset);
+    range.setEnd(at.text, at.offset + 1);
+    const box = range.getBoundingClientRect();
+    return box.width || box.height ? box : null;
+  }
+
+  // Where the caret before col `col` of the line `line` stands as the page draws the line, in the
+  // space's own pixels: at the edge of the character at `col` that comes first in the order it is
+  // read, its right edge where it runs right to left, and past the last character at the line's end.
+  // Null where the line is not drawn.
+  measuredX(line, col) {
+    const node = this.rowNode(line);
+    const text = this.doc.line(line);
+    if (!node || !text.length) {
+      return null;
+    }
+    const at = Math.min(col, text.length);
+    const char = at < text.length ? at : at - 1;
+    const box = this.charBox(node, char);
+    if (!box) {
+      return null;
+    }
+    const right = runsRightToLeft(text)[char];
+    const edge = at < text.length ? (right ? box.right : box.left) : right ? box.left : box.right;
+    return edge - this.space.getBoundingClientRect().left;
+  }
+
+  // The col a press at the page's `x` lands on in the line `line` as the page draws it: before the
+  // character nearest it where the press is on that character's first half in the order it is read,
+  // and after it where on its second. Null where the line is not drawn.
+  measuredCol(line, x) {
+    const node = this.rowNode(line);
+    const text = this.doc.line(line);
+    if (!node) {
+      return null;
+    }
+    const right = runsRightToLeft(text);
+    let best = null;
+    for (let at = 0; at < Math.min(text.length, SHOWN); at += 1) {
+      const box = this.charBox(node, at);
+      if (!box) {
+        continue;
+      }
+      const off = x < box.left ? box.left - x : x > box.right ? x - box.right : 0;
+      if (!best || off < best.off) {
+        best = { at, box, off };
+      }
+    }
+    if (!best) {
+      return null;
+    }
+    const middle = (best.box.left + best.box.right) / 2;
+    return right[best.at] === x > middle ? best.at : best.at + 1;
   }
 
   // The place under a pointer.
@@ -695,7 +968,77 @@ export class Editor {
       return pos(last, this.doc.line(last).length);
     }
     const line = rows.lineOf(row);
+    const start = rows.startOf(row);
+    const end = rows.endOf(row);
+    if (start > 0 || end >= 0) {
+      // A row of a wrapped line: the col under the pointer within the part of the line it holds.
+      const text = this.doc.line(line);
+      const col = this.colAtV(text, (event.clientX - rect.left - PAD) / this.cw + this.vcolOf(text, start, line), true, line);
+      return pos(line, Math.max(start, end >= 0 ? Math.min(col, end - 1) : col));
+    }
+    if (RTL.test(this.doc.line(line))) {
+      const col = this.measuredCol(line, event.clientX);
+      if (col !== null) {
+        return pos(line, col);
+      }
+    }
     return pos(line, this.colAtV(this.doc.line(line), (event.clientX - rect.left - PAD) / this.cw, true, line));
+  }
+
+  // The editor's settings as the page's storage gives them, read as the editor is made and again as
+  // the settings in force change.
+  readSettings() {
+    this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
+    this.wrapOn = localStorage.getItem(WRAP_KEY) === "true";
+    this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
+    this.marksOn = localStorage.getItem(MARKS_KEY) === "true";
+    this.commentsHidden = localStorage.getItem(COMMENTS_KEY) === "true";
+    this.pastEnds = localStorage.getItem(PAST_KEY) === "true";
+    if (this.commentsHidden) {
+      this.host.dataset.comments = "hidden";
+    } else {
+      delete this.host.dataset.comments;
+    }
+    this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
+    this.smoothOn = smoothScrolling();
+    this.hintKinds = { type: localStorage.getItem(HINT_KEYS.type) !== "false", parameter: localStorage.getItem(HINT_KEYS.parameter) !== "false" };
+    try {
+      this.continuation = JSON.parse(localStorage.getItem(CONTINUATION_KEY) ?? "{}") ?? {};
+    } catch {
+      this.continuation = {};
+    }
+    this.operatorNext = localStorage.getItem(OPERATOR_KEY) === "true";
+    this.docMargin = Number(localStorage.getItem(DOC_MARGIN_KEY)) || null;
+    this.flickOn = localStorage.getItem(FLICK_KEY) !== "false";
+  }
+
+  // Reads the settings again, as the files in force changed them, and draws with them.
+  takeSettings() {
+    this.readSettings();
+    this.textLayer.clear();
+    if (this.s) {
+      this.size();
+    }
+    this.schedule();
+  }
+
+  // The colors the session shown is drawn in where its kind of file has a theme of its own, as
+  // `themeOf` gives them, set on the editor in place of those set before; the window's where it has
+  // none.
+  drawTheme() {
+    const colors = this.themeOf?.(this.s) ?? null;
+    if (!colors && !this.themed?.length) {
+      return;
+    }
+    for (const name of this.themed ?? []) {
+      this.host.style.removeProperty(name);
+    }
+    this.themed = Object.keys(colors ?? {});
+    for (const [name, value] of Object.entries(colors ?? {})) {
+      this.host.style.setProperty(name, value);
+    }
+    this.host.toggleAttribute("data-themed", Boolean(colors));
+    this.refreshColors();
   }
 
   // Showing a session.
@@ -721,6 +1064,7 @@ export class Editor {
       this.scroller.scrollLeft = session.left;
       this.find.refresh();
     }
+    this.drawTheme();
     this.paint();
     this.onCursor();
   }
@@ -848,7 +1192,7 @@ export class Editor {
       }
     }
     this.size();
-    const y = this.rows().rowOf(head.line) * LINE;
+    const y = this.rows().rowAt(head.line, head.col) * LINE;
     const top = this.headingY();
     const height = this.scroller.clientHeight;
     if (center && (y < top || y + LINE > top + height)) {
@@ -916,8 +1260,11 @@ export class Editor {
     );
   }
 
+  // Each change to the text is told to onEdit as soon as the event that made it is done, after a key
+  // has drawn it, and to onChange once the keys rest.
   edited() {
     const s = this.s;
+    queueMicrotask(() => this.onEdit(s));
     this.later("find", () => this.find.refresh());
     this.later("change", () => this.onChange(s));
   }
@@ -996,9 +1343,9 @@ export class Editor {
       return { from, to, text };
     }, one && !/\s/.test(text) ? "type" : "space");
     if (lang.complete && one && isWordChar(text)) {
-      this.suggest.update(true);
-    } else if (this.suggest.open) {
-      this.suggest.update(false);
+      this.suggest.later(true);
+    } else if (this.suggest.open || this.suggest.pending) {
+      this.suggest.later(false);
     }
   }
 
@@ -1107,8 +1454,8 @@ export class Editor {
       const step = p.col >= 2 && /[\uDC00-\uDFFF]/.test(prev) ? 2 : 1;
       return { from: pos(p.line, p.col - step), to: p, text: "" };
     }, "delete");
-    if (this.suggest.open) {
-      this.suggest.update(false);
+    if (this.suggest.open || this.suggest.pending) {
+      this.suggest.later(false);
     }
   }
 
@@ -1346,7 +1693,7 @@ export class Editor {
       return pos(p.line, p.col + (/[\uD800-\uDBFF]/.test(text[p.col]) ? 2 : 1));
     }
     const rows = this.rows();
-    const row = rows.rowOf(p.line);
+    const row = rows.lastRowOf(p.line);
     return row + 1 >= rows.size ? p : pos(rows.lineOf(row + 1), 0);
   }
 
@@ -1383,9 +1730,12 @@ export class Editor {
   }
 
   vertical(sel, rowsBy) {
-    const goal = sel.goal ?? this.vcol(sel.head);
     const rows = this.rows();
-    const row = rows.rowOf(sel.head.line) + rowsBy;
+    const here = rows.rowAt(sel.head.line, sel.head.col);
+    // Where lines wrap, the goal is the column within the row, and a move goes a row at a time.
+    const shift = this.vcolOf(this.doc.line(sel.head.line), rows.startOf(here));
+    const goal = sel.goal ?? this.vcol(sel.head) - shift;
+    const row = here + rowsBy;
     if (row < 0) {
       return { p: pos(rows.lineOf(0), 0), goal };
     }
@@ -1394,7 +1744,11 @@ export class Editor {
       return { p: pos(last, this.doc.line(last).length), goal };
     }
     const line = rows.lineOf(row);
-    return { p: pos(line, this.colAtV(this.doc.line(line), goal)), goal };
+    const text = this.doc.line(line);
+    const start = rows.startOf(row);
+    const end = rows.endOf(row);
+    const col = this.colAtV(text, this.vcolOf(text, start) + goal);
+    return { p: pos(line, Math.max(start, end >= 0 ? Math.min(col, end - 1) : col)), goal };
   }
 
   // Moves every selection's head; with `extend` the anchors stay.
@@ -1644,7 +1998,19 @@ export class Editor {
 
   // The bracket at or before the primary cursor and the one it pairs with, outside strings and
   // comments, or null.
+  // The bracket pair at the cursor, read once for each state of the text and place of the cursor: a
+  // scroll asks for it every frame, and its answer stays until either moves.
   bracketPair() {
+    const s = this.s;
+    const head = this.primary().head;
+    const key = [s.doc.id, s.doc.count, s.base, head.line, head.col].join("|");
+    if (this.pairKept?.session !== s || this.pairKept.key !== key) {
+      this.pairKept = { session: s, key, pair: this.bracketPairNow() };
+    }
+    return this.pairKept.pair;
+  }
+
+  bracketPairNow() {
     const s = this.s;
     const head = this.primary().head;
     const pairs = { "(": ")", "[": "]", "{": "}" };
@@ -1957,12 +2323,19 @@ export class Editor {
     return text;
   }
 
+  // A paste puts the text on the clipboard, or the text pasteAs gives for it, at once or when its
+  // promise keeps it.
   paste(event) {
     event.preventDefault();
     const text = event.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
     if (text) {
       this.note({ paste: text });
-      this.pasteText(text);
+      const given = this.pasteAs(this.s, text);
+      if (typeof given?.then === "function") {
+        given.then((made) => this.pasteText(made ?? text), () => this.pasteText(text));
+      } else {
+        this.pasteText(given ?? text);
+      }
     }
   }
 
@@ -2103,10 +2476,16 @@ export class Editor {
   }
 
   // Binds keys written as a menu lists them, such as "Shift+Alt+F" or "Ctrl+K Ctrl+I", each to its
-  // `run`. A key the editor already binds keeps its own.
+  // `run`, in place of those the menus bound before. A key the editor already binds keeps its own.
   addKeys(list) {
-    for (const { keys, run } of list) {
-      this.keys[keysName(keys)] ??= run;
+    this.keys = this.keyMap();
+    this.first = {};
+    for (const { keys, run, first } of list) {
+      if (first) {
+        this.first[keysName(keys)] = run;
+      } else {
+        this.keys[keysName(keys)] ??= run;
+      }
     }
   }
 
@@ -2130,11 +2509,22 @@ export class Editor {
     }
     this.hover.hide();
     const name = keyName(event);
+    if (LIST_KEYS.has(name)) {
+      this.suggest.flush();
+    }
     if (this.suggest.open && this.suggest.key(name)) {
       event.preventDefault();
       return;
     }
     const full = this.chord ? `${this.chord} ${name}` : name;
+    // A key offered first to a command takes it where the command takes it, as Run Statement takes
+    // Ctrl+Enter in an SQL file, and leaves it to the editor's own use where the command declines.
+    if (this.first[full]?.() === true) {
+      event.preventDefault();
+      this.chord = null;
+      this.note({ key: full });
+      return;
+    }
     // A key the reader bound is told which editor it was pressed in.
     const own = this.bound[full];
     const found = own ? () => own(this) : this.keys[full];
@@ -2484,11 +2874,22 @@ export class Editor {
       return;
     }
     const { clientX, clientY } = event;
+    // What the pointer rests on stays while the pointer is on its name, a step off it, or on its way
+    // to it, and no other name is asked about; once the pointer has left all of them, it goes a moment
+    // after, or what the pointer rests on next takes its place.
+    if (this.hover.keeps(clientX, clientY)) {
+      this.hover.stay();
+      return;
+    }
+    if (this.hover.shown) {
+      this.hover.hideSoon();
+    }
     this.hoverWait = window.setTimeout(() => this.hoverAt(clientX, clientY), 380);
   }
 
   // A language's hover may answer at once or later, as a language server does; an answer that
-  // comes after the pointer has gone elsewhere is dropped.
+  // comes after the pointer has gone elsewhere is dropped. Where nothing is there, what is shown goes
+  // as the pointer's leaving it asked.
   async hoverAt(clientX, clientY) {
     if (!this.s?.language?.hover && !this.s?.diagnostics?.length && !this.valueAt) {
       return;
@@ -2500,7 +2901,6 @@ export class Editor {
     const x = clientX - rect.left;
     const text = this.doc.line(p.line);
     if (x > PAD + this.vcolOf(text, text.length, p.line) * this.cw + this.cw || x < PAD) {
-      this.hover.hide();
       return;
     }
     const said = this.diagnosticsAt(p);
@@ -2512,7 +2912,6 @@ export class Editor {
     }
     const parts = [...(value ? [value.node] : []), ...said, ...(found?.parts ?? [])];
     if (!parts.length) {
-      this.hover.hide();
       return;
     }
     let from = value?.from ?? found?.from ?? p;
@@ -2548,6 +2947,7 @@ export class Editor {
   bind() {
     this.keys = this.keyMap();
     this.bound = {};
+    this.first = {};
     this.vim = null;
     this.recording = null;
     const input = this.input;
@@ -2614,17 +3014,10 @@ export class Editor {
 
   // Drawing.
   //
-  // Each frame does only the work its rows need, and the faster the view moves the more it
-  // drops. `level` runs from 0, everything, to 3:
-  //
-  //   1  the guides, the marks on the word under the cursor and the bracket pair wait
-  //   2  rows take only the colors already worked out, and the fold marks and find matches wait
-  //   3  rows are plain, and the minimap draws its lines in one color
-  //
-  // As the speed falls the level falls with it, and once the view rests a frame draws everything
-  // and the lines ahead of where it was heading are colored a slice at a time. Over the speed sits
-  // a throttle: a frame that runs past BUDGET raises `strain`, and the level is whichever of the two
-  // is higher. A slow frame costs detail and never smoothness.
+  // Each frame draws every row on screen in its one form whatever the speed: its colors, its
+  // brackets, guides and marks, and its gutter, the same at speed as at rest, so that a scroll
+  // animates the whole way and no row is drawn again as the view slows. Once the view rests, the
+  // lines ahead of where it was heading are colored a slice at a time while the page is idle.
 
   // A wheel over the text or the gutter. A wheel's step glides where smooth scrolling is on; a
   // touchpad's movement, in pixels and not in steps, follows the fingers and is tracked for the
@@ -2649,27 +3042,50 @@ export class Editor {
     }
   }
 
-  // Glides the scrolling space to `to`, from where it stands, a later glide taking up from there.
+  // Glides the scrolling space to `to`: from where it stands, or where a glide under way heads
+  // there instead, keeping its speed.
   glideTo(to) {
     const most = this.scroller.scrollHeight - this.scroller.clientHeight;
-    const first = !this.glide;
-    this.glide = { from: this.scroller.scrollTop, to: Math.max(0, Math.min(most, to)), at: performance.now() };
-    if (first) {
-      const step = (now) => {
-        const glide = this.glide;
-        if (!glide) {
-          return;
-        }
-        const part = Math.max(0, Math.min(1, (now - glide.at) / GLIDE));
-        this.scroller.scrollTop = glide.from + (glide.to - glide.from) * (1 - (1 - part) ** 3);
-        if (part < 1) {
-          requestAnimationFrame(step);
-        } else {
-          this.glide = null;
-        }
-      };
-      requestAnimationFrame(step);
+    const target = Math.max(0, Math.min(most, to));
+    if (this.glide) {
+      this.glide.to = target;
+      return;
     }
+    const glide = { to: target, at: this.scroller.scrollTop, speed: 0, last: null };
+    this.glide = glide;
+    // Each glide moves the space by its own frames alone, and stops once another takes its place.
+    const step = (now) => {
+      if (this.glide !== glide) {
+        return;
+      }
+      const call = enter("glide");
+      try {
+        this.glided(glide, now, step);
+      } finally {
+        leave(call);
+      }
+    };
+    requestAnimationFrame(step);
+  }
+
+  // One frame of a glide: the spring moved on by the time since the frame before, and the space
+  // scrolled to where it stands, the glide ended once it stands at its end.
+  glided(glide, now, step) {
+    let left = glide.last === null ? GLIDE_PIECE * 2 : Math.min(64, now - glide.last);
+    glide.last = now;
+    while (left > 0) {
+      const piece = Math.min(GLIDE_PIECE, left) / 1000;
+      left -= piece * 1000;
+      glide.speed += (GLIDE_RATE * GLIDE_RATE * (glide.to - glide.at) - 2 * GLIDE_RATE * glide.speed) * piece;
+      glide.at += glide.speed * piece;
+    }
+    if (Math.abs(glide.to - glide.at) < 0.5 && Math.abs(glide.speed) < 20) {
+      this.scroller.scrollTop = glide.to;
+      this.glide = null;
+      return;
+    }
+    this.scroller.scrollTop = glide.at;
+    requestAnimationFrame(step);
   }
 
   // The touchpad's speed, the latest movement weighed most, and the run-on once it rests.
@@ -2705,6 +3121,11 @@ export class Editor {
     };
     this.flick = step;
     requestAnimationFrame(step);
+  }
+
+  // Whether lines wrap.
+  wrapped() {
+    return this.wrapOn;
   }
 
   setSmooth(on) {
@@ -2746,10 +3167,11 @@ export class Editor {
     // Where the view stands, read before anything changes the page.
     const top = this.scroller.scrollTop;
     const left = this.scroller.scrollLeft;
+    this.scrolledNow = { top, left };
     this.hover.hide();
     const now = performance.now();
     if (top === this.placedTop) {
-      // The view's own jump: however far it went, nothing moved fast, and the level stands.
+      // The view's own jump: however far it went, nothing moved fast.
       this.placedTop = null;
       this.lastTop = top;
       this.lastScroll = now;
@@ -2763,58 +3185,29 @@ export class Editor {
     const spent = Math.max(1, now - (this.lastScroll ?? now - 16));
     this.lastTop = top;
     this.lastScroll = now;
-    // Smoothed: one long jump between two events does not throw the level up and back.
+    // Smoothed: one long jump between two events does not throw the speed up and back.
     const speed = 0.6 * status.scroll.speed + 0.4 * (Math.abs(moved) / spent);
-    const level = Math.max(status.frame.strain, DROPS.filter((drop) => speed > drop).length);
-    write("scroll", { speed, level, heading: moved ? Math.sign(moved) : status.scroll.heading });
+    // The speed the view had as it came to rest, which the idle coloring reaches ahead by.
+    this.lastSpeed = speed;
+    write("scroll", { speed, heading: moved ? Math.sign(moved) : status.scroll.heading });
     // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late.
     this.follow(top, left);
     this.rest();
     this.schedule();
   }
 
-  // Once the view has rested REST, the speed and the strain fall to nothing and a frame draws
-  // everything. A strain no frame comes after to ease it would otherwise hold background work back
-  // for good. The frame drawn at rest does not wait for another rest, however long it takes.
+  // Once the view has rested REST, its speed falls to nothing, the work held back while it moved
+  // goes on, and the lines ahead of where it was heading are colored while the page is idle.
   rest() {
     window.clearTimeout(this.restWait);
     this.restWait = window.setTimeout(() => {
-      write("scroll", { speed: 0, level: 0 });
-      write("frame", { strain: 0 });
-      this.resting = true;
-      try {
-        this.paint();
-      } finally {
-        this.resting = false;
-      }
+      write("scroll", { speed: 0 });
       this.warm();
     }, REST);
   }
 
-  // The throttle: how long the last frame took moves the strain up at once or down a step.
-  strained(spent) {
-    let strain = status.frame.strain;
-    if (spent > BUDGET) {
-      strain = Math.min(DROPS.length, strain + 1);
-      this.easy = 0;
-    } else if (spent < BUDGET / 3 && strain > 0) {
-      this.easy = (this.easy ?? 0) + 1;
-      if (this.easy >= 6) {
-        strain -= 1;
-        this.easy = 0;
-      }
-    }
-    write("frame", { spent, strain });
-    if (strain > 0 && !this.resting) {
-      this.rest();
-    }
-    if (status.scroll.speed) {
-      write("scroll", { level: Math.max(strain, DROPS.filter((drop) => status.scroll.speed > drop).length) });
-    }
-  }
-
-  // Colors the lines ahead of the view in the way it was heading, while the page is idle.
-  // Scrolling on finds them done.
+  // Colors the lines ahead of the view in the way it was heading, while the page is idle, as far as
+  // coloringReach says for the speed the view had as it came to rest. Scrolling on finds them done.
   warm() {
     const s = this.s;
     if (!s?.highlight.grammar) {
@@ -2826,15 +3219,24 @@ export class Editor {
     const heading = status.scroll.heading;
     const from = heading > 0 ? first + shown : Math.max(0, first - 1);
     let row = from;
-    const end = heading > 0 ? Math.min(rows.size, from + shown * AHEAD) : Math.max(0, from - shown * AHEAD);
+    const reach = coloringReach(shown, this.lastSpeed ?? 0, this.screenColorMs ?? 0);
+    const end = heading > 0 ? Math.min(rows.size, from + reach) : Math.max(0, from - reach);
     const idle = (run) => (window.requestIdleCallback ? window.requestIdleCallback(run) : window.setTimeout(() => run({ timeRemaining: () => 8 }), 16));
     const slice = (deadline) => {
       if (this.s !== s || pressed()) {
         return;
       }
+      const began = performance.now();
+      const was = row;
       while (deadline.timeRemaining() > 2 && (heading > 0 ? row < end : row >= end)) {
         s.highlight.runsOf(rows.lineOf(row));
         row += heading;
+      }
+      // How long a screen of lines takes to color, kept smoothed over the slices.
+      const colored = Math.abs(row - was);
+      if (colored > 0) {
+        const screen = ((performance.now() - began) / colored) * shown;
+        this.screenColorMs = this.screenColorMs === undefined ? screen : 0.7 * this.screenColorMs + 0.3 * screen;
       }
       write("colors", { ahead: Math.abs(row - from) });
       if (heading > 0 ? row < end : row >= end) {
@@ -2842,6 +3244,64 @@ export class Editor {
       }
     };
     idle(slice);
+  }
+
+  // What the rows drawn were drawn in: the session and the origin. Drawn in any other, a row out of
+  // sight is let go.
+  drawnFor() {
+    return `${this.sessionId(this.s)}|${this.originRow}`;
+  }
+
+  // A number for each session the view has shown, kept with the session.
+  sessionId(s) {
+    if (!s) {
+      return 0;
+    }
+    if (!sessionIds.has(s)) {
+      sessionsSeen += 1;
+      sessionIds.set(s, sessionsSeen);
+    }
+    return sessionIds.get(s);
+  }
+
+  // Draws the rows out from those drawn, a slice at a time, the way nextSlice says, in each idle
+  // moment the view is not pressed in, as a large file is read: a scroll finds the rows it comes to
+  // drawn. It stops at DRAWN_MOST rows, at the ends of the text, and where what the rows are drawn
+  // from changes, the next frame drawing what is in sight and starting it again.
+  async drawOutward() {
+    if (this.drawing) {
+      return;
+    }
+    this.drawing = true;
+    try {
+      let below = true;
+      for (;;) {
+        await calm();
+        const drawn = this.drawn;
+        if (!this.s || !drawn || drawn.for !== this.drawnFor() || !this.host.isConnected) {
+          return;
+        }
+        const rows = this.rows();
+        const canAbove = drawn.from > 0;
+        const canBelow = drawn.to < rows.size - 1;
+        if ((!canAbove && !canBelow) || drawn.to - drawn.from + 1 >= DRAWN_MOST) {
+          return;
+        }
+        const goBelow = nextSlice({ canAbove, canBelow, moving: status.scroll.speed > 0, heading: status.scroll.heading, below }) === "below";
+        below = !below;
+        const from = goBelow ? drawn.to + 1 : Math.max(0, drawn.from - DRAW_SLICE);
+        const to = goBelow ? Math.min(rows.size - 1, drawn.to + DRAW_SLICE) : drawn.from - 1;
+        const parts = new Map();
+        for (let row = from; row <= to; row += 1) {
+          parts.set(row, ["ed-row", this.rowCell(row)]);
+        }
+        this.textLayer.extend(parts, (row) => this.yOf(row));
+        drawn.from = Math.min(drawn.from, from);
+        drawn.to = Math.max(drawn.to, to);
+      }
+    } finally {
+      this.drawing = false;
+    }
   }
 
   schedule() {
@@ -2859,7 +3319,7 @@ export class Editor {
   // column beyond it, where the setting lets cursors past line ends or the selection is a column
   // selection's.
   pastEnd(sel) {
-    if ((!this.pastEnds && !sel.column) || !empty(sel) || sel.goal === null || sel.goal === undefined) {
+    if ((!this.pastEnds && !sel.column) || this.wrapOn || !empty(sel) || sel.goal === null || sel.goal === undefined) {
       return 0;
     }
     if (sel.head.col !== this.doc.line(sel.head.line).length) {
@@ -2909,6 +3369,10 @@ export class Editor {
       this.host.dataset.comments = "hidden";
     } else {
       delete this.host.dataset.comments;
+    }
+    // A view with no file open has no rows to count again: the setting holds for the file it opens.
+    if (!this.s) {
+      return;
     }
     this.textLayer.clear();
     this.size();
@@ -2961,6 +3425,16 @@ export class Editor {
     return s.depths[line];
   }
 
+  // How many characters across a row is drawn to: as far as the view reaches, to the end of the step
+  // of REACH_STEP it reaches into.
+  reach() {
+    if (this.wrapOn) {
+      return Infinity;
+    }
+    const seen = Math.ceil(((this.leftNow ?? this.scroller.scrollLeft) + this.viewSize().width) / this.cw);
+    return (Math.floor(seen / REACH_STEP) + 2) * REACH_STEP;
+  }
+
   rowHtml(line) {
     const s = this.s;
     // A text shown in the colors its codes set draws each line as they made it.
@@ -2968,10 +3442,21 @@ export class Editor {
       return (s.colored[line] ?? "") + (s.folded.has(line) && s.endOf(line) >= 0 ? `<span class="ed-folded" data-fold="${line}">⋯</span>` : "");
     }
     const text = s.doc.line(line);
-    const level = status.scroll.level;
-    const runs = level >= 3 ? [[0, ""]] : level === 2 ? s.highlight.cached(line) ?? [[0, ""]] : s.highlight.runsOf(line);
-    const shown = Math.min(text.length, SHOWN);
-    let depth = this.bracketsOn && level < 2 && s.doc.count <= BRACKETS_LINES && s.language ? this.depthAt(line) : null;
+    const runs = s.highlight.runsShown(line);
+    const shown = Math.min(text.length, SHOWN, this.reach());
+    let depth = this.bracketsOn && s.doc.count <= BRACKETS_LINES && s.language ? this.depthAt(line) : null;
+    // A row's markup is kept while its text, its colors, its depth, its hints and its marks are the
+    // ones it was made from, so that a scroll makes only the rows that come into view. A folded row
+    // reads the line its fold closes at, and is made each time.
+    const folded = s.folded.has(line);
+    const made = [text, runs, depth, s.hints?.byLine.get(line) ?? null, this.marksOn, line + 1 < s.doc.count, this.hintKinds.parameter, this.hintKinds.type, shown];
+    if (this.rowsKept?.session !== s || this.rowsKept.rows.size > ROWS_KEPT) {
+      this.rowsKept = { session: s, rows: new Map() };
+    }
+    const kept = folded ? null : this.rowsKept.rows.get(line);
+    if (kept && kept.made.every((part, at) => part === made[at])) {
+      return kept.html;
+    }
     const escaped = this.marksOn ? (part) => marked(escapeHtml(part)) : escapeHtml;
     // The hints drawn before each col, each before the text from its col on.
     const hints = this.hintsOn(line);
@@ -3037,6 +3522,9 @@ export class Editor {
         html += escapeHtml(s.doc.line(closed).trim());
       }
     }
+    if (!folded) {
+      this.rowsKept.rows.set(line, { made, html });
+    }
     return html;
   }
 
@@ -3071,9 +3559,9 @@ export class Editor {
     }
   }
 
-  // Line History's mark for a line: the date and author of the commit that last changed it, on the
-  // first line of each run of lines that commit left, and the commit's id and subject under the
-  // pointer. A line no commit holds has none.
+  // Line History's mark for a line: the date of the commit that last changed it, and its author
+  // where Git, Authors is on, on the first line of each run of lines that commit left, and the
+  // commit's id and subject under the pointer. A line no commit holds has none.
   historyMark(line) {
     const history = this.s.history;
     const at = history.lines[line] ?? -1;
@@ -3084,9 +3572,10 @@ export class Editor {
     const first = line === 0 || history.lines[line - 1] !== at;
     const date = new Date(commit.when * 1000);
     const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    const title = escapeHtml(`${commit.id.slice(0, 8)}  ${commit.author}  ${day}\n${commit.subject}`);
-    const width = Math.round(HISTORY_CHARS * this.cw);
-    return `<span class="ed-history${first ? " first" : ""}" data-history="${line}" style="left:${BREAK_STRIP}px;width:${width}px" title="${title}">${first ? `${day} ${escapeHtml(commit.author)}` : ""}</span>`;
+    const authors = authorsShown();
+    const title = escapeHtml(`${commit.id.slice(0, 8)}  ${authors ? `${commit.author}  ` : ""}${day}\n${commit.subject}`);
+    const width = Math.round(historyChars() * this.cw);
+    return `<span class="ed-history${first ? " first" : ""}" data-history="${line}" style="left:${BREAK_STRIP}px;width:${width}px" title="${title}">${first ? `${day}${authors ? ` ${escapeHtml(commit.author)}` : ""}` : ""}</span>`;
   }
 
   // Sets the commit that last changed each of a session's lines, or takes them away.
@@ -3106,6 +3595,9 @@ export class Editor {
     }
     if (!s.window) {
       return s.base + s.doc.count;
+    }
+    if (s.window.paged) {
+      return s.base + s.doc.count + s.window.after;
     }
     return Math.max(s.window.lines ?? 0, s.base + s.doc.count);
   }
@@ -3127,6 +3619,34 @@ export class Editor {
     return this.box(name, x, this.yOf(row), width);
   }
 
+  // The marks behind the text for a span of a line, from col to col, each [row, markup] on every row
+  // of the line it reaches: one where the line is not wrapped. None where the line is folded away.
+  spans(name, line, from, to, past = false) {
+    const rows = this.rows();
+    const first = rows.rowOf(line);
+    if (rows.lineOf(first) !== line) {
+      return [];
+    }
+    const text = this.doc.line(line);
+    const out = [];
+    for (let row = first; row < rows.size && rows.lineOf(row) === line; row += 1) {
+      const start = rows.startOf(row);
+      const end = rows.endOf(row);
+      const stop = end < 0 ? Infinity : end;
+      const point = from === to && rows.rowAt(line, from) === row;
+      if (!point && (from >= stop || to <= start)) {
+        continue;
+      }
+      const a = Math.max(from, start);
+      const b = Math.min(to, stop);
+      const shift = this.vcolOf(text, start, line);
+      const x = PAD + (this.vcolOf(text, a, line) - shift) * this.cw;
+      const width = (this.vcolOf(text, b, line) - this.vcolOf(text, a, line)) * this.cw + (past && end < 0 ? this.cw * 0.6 : 0);
+      out.push([row, this.box(name, x, this.yOf(row), width)]);
+    }
+    return out;
+  }
+
   guides(line) {
     const doc = this.doc;
     const size = this.s.indent.size;
@@ -3145,7 +3665,17 @@ export class Editor {
     return Math.floor(width / size);
   }
 
+  // A frame drawn, it and each of its stages traced where the window is joined to a run.
   paint() {
+    const call = enter("paint");
+    try {
+      this.painted();
+    } finally {
+      leave(call);
+    }
+  }
+
+  painted() {
     const began = performance.now();
     if (this.pending) {
       cancelAnimationFrame(this.pending);
@@ -3167,15 +3697,19 @@ export class Editor {
     const doc = s.doc;
     const rows = this.rows();
     const cw = this.cw;
-    const level = status.scroll.level;
     const base = s.base;
     const total = this.linesInFile();
     // The gutter holds, left to right, the strip a breakpoint is set in, Line History's column where
     // it shows, the line numbers, and the fold arrows and change marks.
     // Where the view stands, read before this frame changes the page.
-    const scrolledTop = this.scroller.scrollTop;
-    const scrolledLeft = this.scroller.scrollLeft;
-    const historyWidth = s.history ? Math.round(HISTORY_CHARS * cw) + 8 : 0;
+    // Where the view stands, as this frame's scroll event read it, or read now where none came: a read
+    // after the page has changed lays it out again before the frame does.
+    const known = this.scrolledNow;
+    this.scrolledNow = null;
+    const scrolledTop = known ? known.top : this.scroller.scrollTop;
+    const scrolledLeft = known ? known.left : this.scroller.scrollLeft;
+    this.leftNow = scrolledLeft;
+    const historyWidth = s.history ? Math.round(historyChars() * cw) + 8 : 0;
     const gutterWidth = Math.round(String(total).length * cw + 36 + BREAK_STRIP) + historyWidth;
     if (gutterWidth !== this.gutterWidth) {
       this.gutterWidth = gutterWidth;
@@ -3190,7 +3724,9 @@ export class Editor {
     const first = Math.max(0, Math.floor(top / LINE) - (status.scroll.heading < 0 ? lead : 2));
     const last = Math.min(rows.size - 1, Math.ceil((top + height) / LINE) + (status.scroll.heading > 0 ? lead : 2));
     if (rows.size) {
+      const shownCall = enter("shown");
       this.onShown(s, rows.lineOf(first), rows.lineOf(last));
+      leave(shownCall);
     }
     // The origin moves only once the rows drawn have left the two spans of ORIGIN_ROWS below it. A
     // new origin moves every row, and the layers that place a row once as they make it start over.
@@ -3213,21 +3749,34 @@ export class Editor {
     const tests = this.testsOf?.(s) ?? null;
     const covered = this.coverageOf?.(s) ?? null;
     const paused = this.pausedOf?.(s) ?? null;
+    // The marks plugins lay, each line's from every plugin.
+    const plugged = this.pluginMarksOf?.(s) ?? null;
 
     const text = new Map();
     const under = new Map();
     const over = [];
     const gutter = new Map();
     const band = (row, html) => under.set(row, (under.get(row) ?? "") + html);
+    // A span's marks behind the text on each row it reaches on screen.
+    const bandSpan = (name, line, from, to, past = false) => {
+      for (const [row, html] of this.spans(name, line, from, to, past)) {
+        if (row >= first && row <= last) {
+          band(row, html);
+        }
+      }
+    };
+    // The row on screen that shows a place, or -1.
+    const visibleAt = (p) => {
+      const row = rows.rowAt(p.line, p.col);
+      return row >= first && row <= last && rows.lineOf(row) === p.line ? row : -1;
+    };
     const visible = (line) => {
       const row = rows.rowOf(line);
       return row >= first && row <= last && rows.lineOf(row) === line ? row : -1;
     };
 
     let occurrence = null;
-    if (level >= 1) {
-      occurrence = null;
-    } else if (empty(primary)) {
+    if (empty(primary)) {
       occurrence = wordAt(doc, primary.head)?.text ?? null;
     } else if (startOf(primary).line === endOfSel(primary).line) {
       const picked = doc.slice(startOf(primary), endOfSel(primary));
@@ -3236,19 +3785,25 @@ export class Editor {
     if (occurrence && occurrence.length > 120) {
       occurrence = null;
     }
-    const matches = this.find.shown && level <= 1 ? this.find.between(rows.lineOf(first), rows.lineOf(last)) : [];
+    const matches = this.find.shown ? this.find.between(rows.lineOf(first), rows.lineOf(last)) : [];
     const current = this.find.shown ? this.find.current() : null;
 
+    const rowsCall = enter("rows");
     for (let row = first; row <= last; row += 1) {
       const line = rows.lineOf(row);
-      text.set(row, ["ed-row", this.rowHtml(line)]);
+      text.set(row, ["ed-row", this.rowCell(row)]);
       if (caretLines.has(line)) {
         band(row, this.box("ed-current", 0, this.yOf(row), spaceWidth));
       }
       if (paused === base + line) {
         band(row, this.box("ed-paused", 0, this.yOf(row), spaceWidth));
       }
-      const levels = level >= 1 ? 0 : this.guides(line);
+      // A wrapped line's rows after its first carry no number and no guides; its marks are drawn once.
+      if (rows.startOf(row) > 0) {
+        gutter.set(row, ["ed-num", ""]);
+        continue;
+      }
+      const levels = this.guides(line);
       for (let step = 0; step < levels; step += 1) {
         band(row, this.box("ed-guide", PAD + step * s.indent.size * cw, this.yOf(row), 1));
       }
@@ -3256,12 +3811,12 @@ export class Editor {
         const lineText = doc.line(line);
         for (let at = lineText.indexOf(occurrence); at >= 0; at = lineText.indexOf(occurrence, at + 1)) {
           if (!isWordChar(lineText[at - 1]) && !isWordChar(lineText[at + occurrence.length])) {
-            band(row, this.span("ed-same", line, row, at, at + occurrence.length));
+            bandSpan("ed-same", line, at, at + occurrence.length);
           }
         }
       }
       const number = `<span class="ed-num-text">${base + line + 1}</span>`;
-      const foldable = s.folded.has(line) || (level <= 1 && s.opens(line));
+      const foldable = s.folded.has(line) || s.opens(line);
       const folded = foldable && s.folded.has(line);
       const mark = foldable ? `<span class="ed-fold${folded ? " shut" : ""}" data-fold="${line}">${folded ? "▸" : "▾"}</span>` : "";
       const stop = breaks?.get(base + line);
@@ -3272,26 +3827,27 @@ export class Editor {
       const test = tests?.get(base + line);
       const testMark = test === undefined ? "" : `<span class="ed-test ${test}" data-test="${base + line}" title="Run or debug the test">▶</span>`;
       const cover = covered?.ran.has(base + line) ? '<span class="ed-cover ran"></span>' : covered?.missed.has(base + line) ? '<span class="ed-cover missed"></span>' : "";
-      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + number + mark + cover + this.changeMark(line)]);
+      const laid = plugged?.get(base + line);
+      const plugMark = laid ? `<span class="ed-plugin ${laid[0].kind}" title="${escapeHtml(laid.map((one) => one.title + (one.text ? `: ${one.text}` : "")).join("\n"))}"></span>` : "";
+      if (laid?.some((one) => one.text)) {
+        over.push(`<div class="ed-plugin-text ${laid[0].kind}" style="left:${this.xOf({ line, col: doc.line(line).length }) + 2 * this.cw}px;top:${this.yOf(rows.lastRowOf(line))}px;height:${LINE}px">${escapeHtml(laid.map((one) => one.text).filter(Boolean).join("  "))}</div>`);
+      }
+      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + plugMark + number + mark + cover + this.changeMark(line)]);
     }
+    leave(rowsCall);
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {
-        const row = visible(line);
-        if (row < 0) {
-          continue;
-        }
         const from = line === match.from.line ? match.from.col : 0;
         const to = line === match.to.line ? match.to.col : doc.line(line).length;
         const on = current && same(current.from, match.from);
-        band(row, this.span(on ? "ed-match on" : "ed-match", line, row, from, to, line !== match.to.line));
+        bandSpan(on ? "ed-match on" : "ed-match", line, from, to, line !== match.to.line);
       }
     }
     // A language server's diagnostics, each underlined in the color of its severity: 1 an error, 2 a
     // warning, 3 a note and 4 a hint. One that spans nothing marks the character it stands at.
     for (const diag of s.diagnostics ?? []) {
       for (let line = diag.from.line - s.base; line <= diag.to.line - s.base; line += 1) {
-        const row = line >= 0 && line < doc.count ? visible(line) : -1;
-        if (row < 0) {
+        if (line < 0 || line >= doc.count || visible(line) < 0) {
           continue;
         }
         const from = line === diag.from.line - s.base ? diag.from.col : 0;
@@ -3299,20 +3855,36 @@ export class Editor {
         if (to <= from) {
           to = from + 1;
         }
-        band(row, this.span(`ed-diag s${Math.min(4, Math.max(1, diag.severity))}`, line, row, from, to));
+        bandSpan(`ed-diag s${Math.min(4, Math.max(1, diag.severity))}`, line, from, to);
       }
     }
     if (s.snippet) {
       for (const stop of s.snippet.stops) {
-        const row = visible(stop.from.line);
-        if (row >= 0 && stop.from.line === stop.to.line) {
-          band(row, this.span("ed-stop", stop.from.line, row, stop.from.col, stop.to.col, same(stop.from, stop.to)));
+        if (stop.from.line === stop.to.line) {
+          bandSpan("ed-stop", stop.from.line, stop.from.col, stop.to.col, same(stop.from, stop.to));
         }
       }
     }
+    const rowTop = (row) => this.yOf(row);
+    const textCall = enter("text");
+    // The rows drawn: those in sight, and those drawn out from them since in the session and from the
+    // origin they were drawn in, at most DRAWN_MOST of them, as many past the view on either side as
+    // there are room for, and none past the text's end. A row drawn before an edit or a scroll across
+    // is drawn again from the text as it stands as it comes into sight.
+    const drawnFor = this.drawnFor();
+    const was = this.drawn?.for === drawnFor && this.drawn.from <= last + 1 && this.drawn.to >= first - 1 ? this.drawn : null;
+    const half = Math.floor((DRAWN_MOST - (last - first + 1)) / 2);
+    this.drawn = { for: drawnFor, from: Math.max(Math.min(first, was?.from ?? first), first - half), to: Math.min(Math.max(last, was?.to ?? last), last + half, rows.size - 1) };
+    const drawn = this.drawn;
+    this.textLayer.draw(text, rowTop, (row) => row >= drawn.from && row <= drawn.to);
+    leave(textCall);
+    this.drawOutward();
     // Each selection covers its characters on each row it reaches, and a line's end inside it as
-    // one blank character, the rows' spans drawn as one shape.
+    // one blank character, the rows' spans drawn as one shape; on a line that holds text running
+    // right to left, each run of its characters as the page draws them is a shape of its own.
     const shapes = [];
+    // Read only for a line that runs right to left: a read here lays out the rows just written.
+    let spaceLeft = null;
     for (const sel of sels) {
       if (empty(sel)) {
         continue;
@@ -3320,15 +3892,50 @@ export class Editor {
       const start = startOf(sel);
       const end = endOfSel(sel);
       const spans = [];
-      for (let row = Math.max(first, rows.rowOf(start.line)); row <= Math.min(last, rows.rowOf(end.line)); row += 1) {
+      for (let row = Math.max(first, rows.rowOf(start.line)); row <= Math.min(last, rows.rowAt(end.line, end.col)); row += 1) {
         const line = rows.lineOf(row);
         if (line < start.line || line > end.line) {
           continue;
         }
         const text = doc.line(line);
-        const from = line === start.line ? start.col : 0;
+        const segStart = rows.startOf(row);
+        const segEnd = rows.endOf(row);
+        const lineFrom = line === start.line ? start.col : 0;
+        const lineTo = line === end.line ? end.col : text.length;
+        if (segStart > 0 || segEnd >= 0) {
+          // A row of a wrapped line: the part of the selection the row holds.
+          const from = Math.max(lineFrom, segStart);
+          const to = segEnd < 0 ? lineTo : Math.min(lineTo, segEnd);
+          if (to < from || (segEnd >= 0 && from >= segEnd)) {
+            continue;
+          }
+          const shift = this.vcolOf(text, segStart, line);
+          const ends = line < end.line && segEnd < 0;
+          spans.push([row - this.originRow, PAD + (this.vcolOf(text, from, line) - shift) * cw, PAD + (this.vcolOf(text, to, line) - shift) * cw + (ends ? cw : 0)]);
+          continue;
+        }
+        const from = lineFrom;
         const ends = line < end.line;
-        const to = line === end.line ? end.col : text.length;
+        const to = lineTo;
+        const node = to > from && RTL.test(text) ? this.rowNode(line) : null;
+        const head = node ? this.textAt(node, from) : null;
+        const past = node ? (this.textAt(node, to) ?? this.textAt(node, to - 1)) : null;
+        if (head && past) {
+          spaceLeft ??= this.space.getBoundingClientRect().left;
+          const range = document.createRange();
+          range.setStart(head.text, head.offset);
+          range.setEnd(past.text, to < text.length ? past.offset : past.offset + 1);
+          for (const box of range.getClientRects()) {
+            if (box.width > 0) {
+              shapes.push(selectionPath([[row - this.originRow, box.left - spaceLeft, box.right - spaceLeft]], LINE, SELECTION_ROUND));
+            }
+          }
+          if (ends) {
+            const x = this.xOf(pos(line, text.length));
+            shapes.push(selectionPath([[row - this.originRow, x, x + cw]], LINE, SELECTION_ROUND));
+          }
+          continue;
+        }
         spans.push([row - this.originRow, PAD + this.vcolOf(text, from, line) * cw, PAD + this.vcolOf(text, to, line) * cw + (ends ? cw : 0)]);
       }
       shapes.push(selectionPath(spans, LINE, SELECTION_ROUND));
@@ -3339,48 +3946,57 @@ export class Editor {
       this.pickedHtml = picked;
     }
     for (const sel of sels) {
-      const row = visible(sel.head.line);
+      const row = visibleAt(sel.head);
       if (row >= 0) {
         const block = this.vim?.block();
         over.push(this.box(sel === primary ? "ed-caret main" : "ed-caret", this.xOf(sel.head) + this.pastEnd(sel) * this.cw - (block ? 0 : 1), this.yOf(row), block ? this.cw : 2));
       }
     }
-    const pair = level === 0 ? this.bracketPair() : null;
+    const pairCall = enter("pair");
+    const pair = this.bracketPair();
+    leave(pairCall);
     if (pair) {
       for (const at of pair) {
-        const row = visible(at.line);
-        if (row >= 0) {
-          over.push(this.span("ed-pair", at.line, row, at.col, at.col + 1));
+        for (const [row, html] of this.spans("ed-pair", at.line, at.col, at.col + 1)) {
+          if (row >= first && row <= last) {
+            over.push(html);
+          }
         }
       }
     }
 
-    const rowTop = (row) => this.yOf(row);
-    this.textLayer.draw(text, rowTop);
+    const layersCall = enter("layers");
     this.underLayer.draw(new Map([...under].map(([row, html]) => [row, ["ed-band", html]])));
     this.gutterLayer.draw(gutter, rowTop);
+    leave(layersCall);
     const marks = over.join("");
     if (this.overHtml !== marks) {
       this.over.innerHTML = marks;
       this.overHtml = marks;
     }
     this.follow(scrolledTop, scrolledLeft);
-    const headRow = rows.rowOf(primary.head.line);
+    const headRow = rows.rowAt(primary.head.line, primary.head.col);
     this.input.style.left = `${this.xOf(primary.head)}px`;
     this.input.style.top = `${this.yOf(headRow)}px`;
     // Off the rows on screen: the map and the status line wait while input is active, except that a
     // map whose text has scrolled draws in the same frame as the text, its slider never behind it.
-    const scrolled = this.mapTop !== this.scroller.scrollTop;
+    const scrolled = this.mapTop !== scrolledTop;
     if (!status.input.active || scrolled) {
-      this.minimap.paint(level, scrolledTop);
-      this.mapTop = this.scroller.scrollTop;
+      const mapCall = enter("minimap");
+      this.minimap.paint(scrolledTop);
+      leave(mapCall);
+      this.mapTop = scrolledTop;
     }
     if (!status.input.active) {
+      const statusCall = enter("status");
       this.drawStatus();
+      leave(statusCall);
     }
+    const stickyCall = enter("sticky");
     this.drawSticky(rows, top, scrolledLeft);
+    leave(stickyCall);
     this.suggest.place();
-    this.strained(performance.now() - began);
+    write("frame", { spent: performance.now() - began });
   }
 
   // Moves the cursor to the next of the language server's diagnostics after it, or the one before
@@ -3412,7 +4028,7 @@ export class Editor {
       const chars = spans.reduce((sum, sel) => sum + (startOf(sel).line === endOfSel(sel).line ? endOfSel(sel).col - startOf(sel).col : 0), 0);
       picked = lines ? `${lines + spans.length} lines selected` : `${chars} selected`;
     }
-    const read = s.window ? `${Math.floor((100 * (s.window.end - s.window.start)) / Math.max(1, s.window.size))}% read` : "";
+    const read = s.window && !s.window.paged ? `${Math.floor((100 * (s.window.end - s.window.start)) / Math.max(1, s.window.size))}% read` : "";
     const errors = (s.diagnostics ?? []).filter((diag) => diag.severity === 1).length;
     const warnings = (s.diagnostics ?? []).filter((diag) => diag.severity === 2).length;
     const mode = this.vim?.label() ?? "";
@@ -3486,7 +4102,7 @@ export class Editor {
   // the text changes, and never from the whole text, which a file of any size keeps cheap.
   drawSticky(rows, top, left = this.scroller.scrollLeft) {
     const s = this.s;
-    if (!this.stickyOn || status.scroll.level >= 2) {
+    if (!this.stickyOn) {
       this.sticky.hidden = true;
       this.stickyKey = "";
       return;
@@ -3497,7 +4113,9 @@ export class Editor {
     // The held lines cover rows of their own, and they hold the regions of the row under them.
     for (let pass = 0; pass < 3 && this.stickyHeldFor !== heldFor; pass += 1) {
       const line = rows.lineOf(Math.min(rows.size - 1, firstRow + held.length));
+      const openersCall = enter("openers");
       const next = openersOf(s.doc, line, s.indent.size, STICKY_MOST);
+      leave(openersCall);
       if (next.join() === held.join()) {
         break;
       }
@@ -3519,12 +4137,14 @@ export class Editor {
       return;
     }
     this.sticky.style.width = `${gutter + this.viewSize().width}px`;
+    const heldCall = enter("held");
     this.sticky.innerHTML = held
       .map(
         (line) =>
           `<div class="ed-sticky-row" data-line="${line}" style="height:${LINE}px"><span class="ed-sticky-num" style="width:${gutter}px">${s.base + line + 1}</span><span class="ed-sticky-text"><span style="display:inline-block;padding-left:${PAD}px;transform:translateX(${-left}px)">${this.rowHtml(line)}</span></span></div>`
       )
       .join("");
+    leave(heldCall);
   }
 
   // Colors the minimap reads from the stylesheet, read again once the scheme changes.
@@ -3536,7 +4156,7 @@ export class Editor {
   // The rectangle, in the page, of a place's row.
   rectOf(p) {
     const rect = this.space.getBoundingClientRect();
-    const row = this.rows().rowOf(p.line);
+    const row = this.rows().rowAt(p.line, p.col);
     const top = rect.top + this.pad;
     return { left: rect.left + this.xOf(p), top: top + row * LINE, bottom: top + (row + 1) * LINE };
   }

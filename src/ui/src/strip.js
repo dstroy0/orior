@@ -9,7 +9,8 @@
 // Explorer, the edit view with its files; Structure, the open file's outline; Commit, the files that
 // differ from the last commit; and more, a menu of the explorer's other panes. At its foot: Run, the
 // run view and its jobs; Debug and Terminal, the panels under the views; Problems, the open files'
-// diagnostics, its icon marked while there are errors; and Git, the branch's commits. The icon of
+// diagnostics, its icon marked while there are errors; Git, the branch's commits; and Runs, the tree's
+// query runs, its icon marked while one is live and in the error's color once one has panicked. The icon of
 // each window that shows is drawn in signal on a square of it. Under the top icons, a line apart, the
 // menus of jobs commands.json puts on the strip, Protocol, Ingest, Render, Sim, Pipeline and Stage,
 // each an icon whose press opens its menu beside it, and each there only where the tree has its jobs.
@@ -29,7 +30,7 @@ import { paneNodeShown, togglePane, togglePaneNode } from "./sides.js";
 import { clearNotices, noticesSaid, noticesSeen, noticesUnseen, onNotice, say } from "./statusbar.js";
 import { onView, shownView, showView } from "./views.js";
 
-const state = { hooks: null, buttons: new Map(), popover: null, errors: 0 };
+const state = { hooks: null, buttons: new Map(), popover: null, errors: 0, runs: { live: 0, panicked: 0 } };
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -64,9 +65,12 @@ const STRIP = {
     ["terminal", "terminal", "Terminal", "Ctrl+`", () => state.hooks.run("terminal-view"), () => !document.getElementById("term").hidden],
     ["profile", "profile", "Profile", "", () => state.hooks.run("profile-view"), () => !document.getElementById("profile").hidden],
     ["containers", "containers", "Containers", "", () => state.hooks.run("containers-view"), () => !document.getElementById("containers").hidden],
+    ["database", "database", "Database", "", () => state.hooks.run("database-view"), () => !document.getElementById("database").hidden],
+    ["comms", "comms", "Comms", "", () => state.hooks.run("comms-view"), () => !document.getElementById("comms").hidden],
     ["problems", "problems", "Problems", "", () => openGroup("problems"), () => explorerShown("problems")],
     ["tests", "tests", "Tests", "", () => openGroup("tests"), () => explorerShown("tests")],
     ["git", "git", "Git", "", () => openGroup("git"), () => explorerShown("git")],
+    ["runs", "runs", "Runs", "", () => openGroup("runs"), () => explorerShown("runs")],
   ],
 };
 
@@ -122,6 +126,13 @@ export function refreshStrip() {
     if (name === "problems") {
       button.classList.toggle("marked", state.errors > 0);
       button.title = state.errors ? `Problems: ${state.errors} error${state.errors === 1 ? "" : "s"}` : "Problems";
+    }
+    // Runs: marked in the error's color while a live run has panicked, and in signal while one is live.
+    if (name === "runs") {
+      const { live, panicked } = state.runs;
+      button.classList.toggle("marked", panicked > 0);
+      button.classList.toggle("live", live > 0 && !panicked);
+      button.title = live ? `Runs: ${live} live${panicked ? `, ${panicked} panicked` : ""}` : "Runs";
     }
   }
   const definitions = document.getElementById("tool-definitions");
@@ -416,9 +427,13 @@ export function startStrip(hooks) {
     state.errors = event.detail.errors;
     refreshStrip();
   });
+  window.addEventListener("runs-changed", (event) => {
+    state.runs = event.detail;
+    refreshStrip();
+  });
   // The panes and panels show and collapse from many places; the strip follows what they do.
   const watched = new MutationObserver(() => refreshStrip());
-  for (const id of ["explorer", "job-side", "debug", "term", "defs-side", "profile", "containers"]) {
+  for (const id of ["explorer", "job-side", "debug", "term", "defs-side", "profile", "containers", "database", "comms"]) {
     watched.observe(document.getElementById(id), { attributes: true, attributeFilter: ["hidden", "class"] });
   }
   refreshStrip();
