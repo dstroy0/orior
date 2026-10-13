@@ -9,7 +9,9 @@ import { ANSWER, LONG, progressOf, tick, watch, watches, WORKING } from "../../s
 const { test, assert, ui } = window.__harness;
 
 const node = () => document.getElementById("status-wait");
-const waiting = () => document.documentElement.classList.contains("waiting");
+// The element under the pointer that shows the window at work, where one does.
+const marked = () => [...document.querySelectorAll("[style]")].find((one) => one.style.getPropertyValue("cursor") === "progress") ?? null;
+const waiting = () => marked() !== null;
 
 // A call that never answers until it is let go, and how its wait was stopped.
 function hanging() {
@@ -33,6 +35,8 @@ test("past a tenth of a second the pointer says the window is at work, and past 
   try {
     tick(now);
     assert.equal(waiting(), true, "the pointer shows work");
+    assert.equal(getComputedStyle(marked()).cursor, "progress", "on the element under the pointer");
+    assert.equal(document.querySelectorAll("[style*='progress']").length, 1, "and on that element alone, not every element of the page");
     assert.equal(node().hidden, true, "the bar says nothing yet");
     tick(now + WORKING);
     assert.equal(node().hidden, false);
@@ -64,6 +68,8 @@ test("past ten seconds the bar offers Stop, which stops the wait", async () => {
     tick();
     const stop = node().querySelector("button");
     assert.ok(stop, "Stop is offered");
+    tick(performance.now() + 1000);
+    assert.equal(node().querySelector("button"), stop, "the same Stop as the words are drawn again");
     assert.match(node().textContent, /Waiting on tree search: 1\d s/);
     await ui.click(stop);
     assert.equal(call.stopped(), "stopped waiting");

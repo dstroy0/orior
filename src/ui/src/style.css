@@ -1200,11 +1200,6 @@ body[data-strip-edge] .strip-edge {
   cursor: pointer;
 }
 
-:root.waiting,
-:root.waiting * {
-  cursor: progress !important;
-}
-
 /* What holds the most memory, beside the total, quieter than it; and the reading over its budget. */
 .status-memory-most {
   margin-left: 0.4rem;
@@ -3310,6 +3305,28 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .node.mount-first {
   margin-top: 4px;
   border-top: 1px solid var(--line);
+}
+
+/* A list of which only the rows in sight and ahead are on the page, as rowlist.js draws it: each row
+   stands at its own place over the room every row would take, the first mount's gap counted in its
+   place. */
+.row-list {
+  position: relative;
+}
+
+.row-list > .row-list-size {
+  width: 1px;
+}
+
+.row-list > .node {
+  position: absolute;
+  left: 0;
+  content-visibility: visible;
+  contain: strict;
+}
+
+.row-list > .node.mount-first {
+  margin-top: 0;
 }
 
 /* Tabs down the side: the first side's tabs in a column beside its editor, the marked files first
