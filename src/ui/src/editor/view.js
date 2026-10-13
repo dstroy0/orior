@@ -10,7 +10,7 @@
 // input method opens its window.
 
 import { cmp, endOf, isWordChar, least, mapThrough, most, pos, same, wordAt, wordBefore } from "./document.js";
-import { hiddenSpans, indentOf, joinSpans, openersOf, Rows } from "./folding.js";
+import { Rows, hiddenSpans, indentOf, joinSpans, openersOf, wrapBreaks } from "./folding.js";
 import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
 import { Minimap } from "./minimap.js";
@@ -37,6 +37,10 @@ let LINE = 20;
 // How many rows of padding a paged file's window has above it and below it at most: the scrolling
 // space stays within what the page lays out, and the window moves as the view nears its edge.
 const PAGED_PAD = 250000;
+
+// The fewest columns a wrapped row holds, and the most lines' breaks kept.
+const WRAP_LEAST = 20;
+const WRAPS_KEPT = 200000;
 
 // How round a selection's corners are, in pixels.
 const SELECTION_ROUND = 4;
@@ -122,6 +126,7 @@ const OPERATOR_END = /^(.*?[\w$)\]}"'`])\s*(\*\*|\/\/|==|!=|<=|>=|&&|\|\||\?\?|\
 const HINT_KEYS = { type: "orior.type-hints", parameter: "orior.parameter-hints" };
 const FLICK_KEY = "orior.flick-scroll";
 const STICKY_KEY = "orior.sticky";
+const WRAP_KEY = "orior.word-wrap";
 
 // Bracket pairs colored by depth: the setting's key, the most lines a text has for its brackets to be
 // colored, the most lines read in one frame to learn a line's depth, and the tokens whose brackets
@@ -501,13 +506,72 @@ export class Editor {
 
   rows() {
     const s = this.s;
-    const key = `${s.doc.id}:${s.foldings}:${s.doc.count}:${this.commentsHidden}`;
+    const columns = this.wrapOn ? this.wrapColumns() : 0;
+    const key = `${s.doc.id}:${s.foldings}:${s.doc.count}:${this.commentsHidden}:${columns}`;
     if (key !== this.rowsKey) {
       const folds = s.folded.size ? this.foldSpans() : [];
-      this.rowsCache = new Rows(s.doc.count, this.commentsHidden ? joinSpans(folds, this.commentSpans()) : folds);
+      this.rowsCache = new Rows(s.doc.count, this.commentsHidden ? joinSpans(folds, this.commentSpans()) : folds, columns ? (line) => this.breaksOf(line, columns) : null);
       this.rowsKey = key;
     }
     return this.rowsCache;
+  }
+
+  // Word wrap: each line longer than the view is wide is shown as rows, each ending after the last
+  // space that fits in it. The columns a row holds: as many as stand between the gutter and the
+  // view's right edge, less two, and never fewer than WRAP_LEAST.
+  wrapColumns() {
+    return Math.max(WRAP_LEAST, Math.floor((this.viewSize().width - PAD) / this.cw) - 2);
+  }
+
+  // The cols a line's rows after its first start at, kept by the line's text while the columns and the
+  // tab's width stay as they are.
+  breaksOf(line, columns) {
+    const size = this.s.indent.size;
+    if (this.wraps?.columns !== columns || this.wraps.size !== size || this.wraps.held.size > WRAPS_KEPT) {
+      this.wraps = { columns, size, held: new Map() };
+    }
+    const text = this.s.doc.line(line);
+    if (text.length <= columns && !text.includes("\t")) {
+      return null;
+    }
+    let breaks = this.wraps.held.get(text);
+    if (breaks === undefined) {
+      breaks = wrapBreaks(text, columns, size);
+      this.wraps.held.set(text, breaks);
+    }
+    return breaks;
+  }
+
+  // Turns word wrap on or off, and keeps the choice.
+  setWrap(on) {
+    this.wrapOn = on;
+    localStorage.setItem(WRAP_KEY, String(on));
+    this.rowsKey = "";
+    for (const layer of [this.textLayer, this.underLayer, this.gutterLayer]) {
+      layer.clear();
+    }
+    if (this.s) {
+      this.size();
+      this.reveal();
+    }
+    this.schedule();
+  }
+
+  // The markup of one row: its line's, and where the line is wrapped, the part of it the row holds,
+  // the line's markup moved left by the cols before the row and cut at the row's end.
+  rowCell(row) {
+    const rows = this.rows();
+    const line = rows.lineOf(row);
+    const html = this.rowHtml(line);
+    const start = rows.startOf(row);
+    const end = rows.endOf(row);
+    if (start === 0 && end < 0) {
+      return html;
+    }
+    const text = this.doc.line(line);
+    const shift = this.vcolOf(text, start, line) * this.cw;
+    const width = end < 0 ? null : this.vcolOf(text, end, line) * this.cw - shift;
+    return `<span class="ed-seg"${width === null ? "" : ` style="width:${width}px"`}><span style="margin-left:${-shift}px">${html}</span></span>`;
   }
 
   // The runs of lines that hold a comment alone, by the language's own marks: a line that
@@ -701,7 +765,7 @@ export class Editor {
     }
     const view = this.viewSize();
     this.spaceHeight = this.pad + rows.size * LINE + LINE + this.below;
-    this.spaceWidth = Math.max(view.width, PAD + (this.widest() + 4) * this.cw);
+    this.spaceWidth = this.wrapOn ? view.width : Math.max(view.width, PAD + (this.widest() + 4) * this.cw);
     this.space.style.height = `${this.spaceHeight}px`;
     this.space.style.width = `${this.spaceWidth}px`;
     this.sheet.style.width = `${view.width}px`;
@@ -792,6 +856,15 @@ export class Editor {
   }
 
   xOf(p) {
+    if (this.wrapOn) {
+      const rows = this.rows();
+      const row = rows.rowAt(p.line, p.col);
+      const start = rows.startOf(row);
+      if (start > 0 || rows.endOf(row) >= 0) {
+        const text = this.doc.line(p.line);
+        return PAD + (this.vcolOf(text, p.col, p.line) - this.vcolOf(text, start, p.line)) * this.cw;
+      }
+    }
     if (RTL.test(this.doc.line(p.line))) {
       const x = this.measuredX(p.line, p.col);
       if (x !== null) {
@@ -895,6 +968,14 @@ export class Editor {
       return pos(last, this.doc.line(last).length);
     }
     const line = rows.lineOf(row);
+    const start = rows.startOf(row);
+    const end = rows.endOf(row);
+    if (start > 0 || end >= 0) {
+      // A row of a wrapped line: the col under the pointer within the part of the line it holds.
+      const text = this.doc.line(line);
+      const col = this.colAtV(text, (event.clientX - rect.left - PAD) / this.cw + this.vcolOf(text, start, line), true, line);
+      return pos(line, Math.max(start, end >= 0 ? Math.min(col, end - 1) : col));
+    }
     if (RTL.test(this.doc.line(line))) {
       const col = this.measuredCol(line, event.clientX);
       if (col !== null) {
@@ -908,6 +989,7 @@ export class Editor {
   // the settings in force change.
   readSettings() {
     this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
+    this.wrapOn = localStorage.getItem(WRAP_KEY) === "true";
     this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
     this.marksOn = localStorage.getItem(MARKS_KEY) === "true";
     this.commentsHidden = localStorage.getItem(COMMENTS_KEY) === "true";
@@ -1110,7 +1192,7 @@ export class Editor {
       }
     }
     this.size();
-    const y = this.rows().rowOf(head.line) * LINE;
+    const y = this.rows().rowAt(head.line, head.col) * LINE;
     const top = this.headingY();
     const height = this.scroller.clientHeight;
     if (center && (y < top || y + LINE > top + height)) {
@@ -1611,7 +1693,7 @@ export class Editor {
       return pos(p.line, p.col + (/[\uD800-\uDBFF]/.test(text[p.col]) ? 2 : 1));
     }
     const rows = this.rows();
-    const row = rows.rowOf(p.line);
+    const row = rows.lastRowOf(p.line);
     return row + 1 >= rows.size ? p : pos(rows.lineOf(row + 1), 0);
   }
 
@@ -1648,9 +1730,12 @@ export class Editor {
   }
 
   vertical(sel, rowsBy) {
-    const goal = sel.goal ?? this.vcol(sel.head);
     const rows = this.rows();
-    const row = rows.rowOf(sel.head.line) + rowsBy;
+    const here = rows.rowAt(sel.head.line, sel.head.col);
+    // Where lines wrap, the goal is the column within the row, and a move goes a row at a time.
+    const shift = this.vcolOf(this.doc.line(sel.head.line), rows.startOf(here));
+    const goal = sel.goal ?? this.vcol(sel.head) - shift;
+    const row = here + rowsBy;
     if (row < 0) {
       return { p: pos(rows.lineOf(0), 0), goal };
     }
@@ -1659,7 +1744,11 @@ export class Editor {
       return { p: pos(last, this.doc.line(last).length), goal };
     }
     const line = rows.lineOf(row);
-    return { p: pos(line, this.colAtV(this.doc.line(line), goal)), goal };
+    const text = this.doc.line(line);
+    const start = rows.startOf(row);
+    const end = rows.endOf(row);
+    const col = this.colAtV(text, this.vcolOf(text, start) + goal);
+    return { p: pos(line, Math.max(start, end >= 0 ? Math.min(col, end - 1) : col)), goal };
   }
 
   // Moves every selection's head; with `extend` the anchors stay.
@@ -3034,6 +3123,11 @@ export class Editor {
     requestAnimationFrame(step);
   }
 
+  // Whether lines wrap.
+  wrapped() {
+    return this.wrapOn;
+  }
+
   setSmooth(on) {
     this.smoothOn = on;
     localStorage.setItem(SMOOTH_KEY, String(on));
@@ -3199,7 +3293,7 @@ export class Editor {
         const to = goBelow ? Math.min(rows.size - 1, drawn.to + DRAW_SLICE) : drawn.from - 1;
         const parts = new Map();
         for (let row = from; row <= to; row += 1) {
-          parts.set(row, ["ed-row", this.rowHtml(rows.lineOf(row))]);
+          parts.set(row, ["ed-row", this.rowCell(row)]);
         }
         this.textLayer.extend(parts, (row) => this.yOf(row));
         drawn.from = Math.min(drawn.from, from);
@@ -3225,7 +3319,7 @@ export class Editor {
   // column beyond it, where the setting lets cursors past line ends or the selection is a column
   // selection's.
   pastEnd(sel) {
-    if ((!this.pastEnds && !sel.column) || !empty(sel) || sel.goal === null || sel.goal === undefined) {
+    if ((!this.pastEnds && !sel.column) || this.wrapOn || !empty(sel) || sel.goal === null || sel.goal === undefined) {
       return 0;
     }
     if (sel.head.col !== this.doc.line(sel.head.line).length) {
@@ -3334,6 +3428,9 @@ export class Editor {
   // How many characters across a row is drawn to: as far as the view reaches, to the end of the step
   // of REACH_STEP it reaches into.
   reach() {
+    if (this.wrapOn) {
+      return Infinity;
+    }
     const seen = Math.ceil(((this.leftNow ?? this.scroller.scrollLeft) + this.viewSize().width) / this.cw);
     return (Math.floor(seen / REACH_STEP) + 2) * REACH_STEP;
   }
@@ -3522,6 +3619,34 @@ export class Editor {
     return this.box(name, x, this.yOf(row), width);
   }
 
+  // The marks behind the text for a span of a line, from col to col, each [row, markup] on every row
+  // of the line it reaches: one where the line is not wrapped. None where the line is folded away.
+  spans(name, line, from, to, past = false) {
+    const rows = this.rows();
+    const first = rows.rowOf(line);
+    if (rows.lineOf(first) !== line) {
+      return [];
+    }
+    const text = this.doc.line(line);
+    const out = [];
+    for (let row = first; row < rows.size && rows.lineOf(row) === line; row += 1) {
+      const start = rows.startOf(row);
+      const end = rows.endOf(row);
+      const stop = end < 0 ? Infinity : end;
+      const point = from === to && rows.rowAt(line, from) === row;
+      if (!point && (from >= stop || to <= start)) {
+        continue;
+      }
+      const a = Math.max(from, start);
+      const b = Math.min(to, stop);
+      const shift = this.vcolOf(text, start, line);
+      const x = PAD + (this.vcolOf(text, a, line) - shift) * this.cw;
+      const width = (this.vcolOf(text, b, line) - this.vcolOf(text, a, line)) * this.cw + (past && end < 0 ? this.cw * 0.6 : 0);
+      out.push([row, this.box(name, x, this.yOf(row), width)]);
+    }
+    return out;
+  }
+
   guides(line) {
     const doc = this.doc;
     const size = this.s.indent.size;
@@ -3632,6 +3757,19 @@ export class Editor {
     const over = [];
     const gutter = new Map();
     const band = (row, html) => under.set(row, (under.get(row) ?? "") + html);
+    // A span's marks behind the text on each row it reaches on screen.
+    const bandSpan = (name, line, from, to, past = false) => {
+      for (const [row, html] of this.spans(name, line, from, to, past)) {
+        if (row >= first && row <= last) {
+          band(row, html);
+        }
+      }
+    };
+    // The row on screen that shows a place, or -1.
+    const visibleAt = (p) => {
+      const row = rows.rowAt(p.line, p.col);
+      return row >= first && row <= last && rows.lineOf(row) === p.line ? row : -1;
+    };
     const visible = (line) => {
       const row = rows.rowOf(line);
       return row >= first && row <= last && rows.lineOf(row) === line ? row : -1;
@@ -3653,12 +3791,17 @@ export class Editor {
     const rowsCall = enter("rows");
     for (let row = first; row <= last; row += 1) {
       const line = rows.lineOf(row);
-      text.set(row, ["ed-row", this.rowHtml(line)]);
+      text.set(row, ["ed-row", this.rowCell(row)]);
       if (caretLines.has(line)) {
         band(row, this.box("ed-current", 0, this.yOf(row), spaceWidth));
       }
       if (paused === base + line) {
         band(row, this.box("ed-paused", 0, this.yOf(row), spaceWidth));
+      }
+      // A wrapped line's rows after its first carry no number and no guides; its marks are drawn once.
+      if (rows.startOf(row) > 0) {
+        gutter.set(row, ["ed-num", ""]);
+        continue;
       }
       const levels = this.guides(line);
       for (let step = 0; step < levels; step += 1) {
@@ -3668,7 +3811,7 @@ export class Editor {
         const lineText = doc.line(line);
         for (let at = lineText.indexOf(occurrence); at >= 0; at = lineText.indexOf(occurrence, at + 1)) {
           if (!isWordChar(lineText[at - 1]) && !isWordChar(lineText[at + occurrence.length])) {
-            band(row, this.span("ed-same", line, row, at, at + occurrence.length));
+            bandSpan("ed-same", line, at, at + occurrence.length);
           }
         }
       }
@@ -3687,29 +3830,24 @@ export class Editor {
       const laid = plugged?.get(base + line);
       const plugMark = laid ? `<span class="ed-plugin ${laid[0].kind}" title="${escapeHtml(laid.map((one) => one.title + (one.text ? `: ${one.text}` : "")).join("\n"))}"></span>` : "";
       if (laid?.some((one) => one.text)) {
-        over.push(`<div class="ed-plugin-text ${laid[0].kind}" style="left:${this.xOf({ line, col: doc.line(line).length }) + 2 * this.cw}px;top:${this.yOf(row)}px;height:${LINE}px">${escapeHtml(laid.map((one) => one.text).filter(Boolean).join("  "))}</div>`);
+        over.push(`<div class="ed-plugin-text ${laid[0].kind}" style="left:${this.xOf({ line, col: doc.line(line).length }) + 2 * this.cw}px;top:${this.yOf(rows.lastRowOf(line))}px;height:${LINE}px">${escapeHtml(laid.map((one) => one.text).filter(Boolean).join("  "))}</div>`);
       }
       gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + plugMark + number + mark + cover + this.changeMark(line)]);
     }
     leave(rowsCall);
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {
-        const row = visible(line);
-        if (row < 0) {
-          continue;
-        }
         const from = line === match.from.line ? match.from.col : 0;
         const to = line === match.to.line ? match.to.col : doc.line(line).length;
         const on = current && same(current.from, match.from);
-        band(row, this.span(on ? "ed-match on" : "ed-match", line, row, from, to, line !== match.to.line));
+        bandSpan(on ? "ed-match on" : "ed-match", line, from, to, line !== match.to.line);
       }
     }
     // A language server's diagnostics, each underlined in the color of its severity: 1 an error, 2 a
     // warning, 3 a note and 4 a hint. One that spans nothing marks the character it stands at.
     for (const diag of s.diagnostics ?? []) {
       for (let line = diag.from.line - s.base; line <= diag.to.line - s.base; line += 1) {
-        const row = line >= 0 && line < doc.count ? visible(line) : -1;
-        if (row < 0) {
+        if (line < 0 || line >= doc.count || visible(line) < 0) {
           continue;
         }
         const from = line === diag.from.line - s.base ? diag.from.col : 0;
@@ -3717,14 +3855,13 @@ export class Editor {
         if (to <= from) {
           to = from + 1;
         }
-        band(row, this.span(`ed-diag s${Math.min(4, Math.max(1, diag.severity))}`, line, row, from, to));
+        bandSpan(`ed-diag s${Math.min(4, Math.max(1, diag.severity))}`, line, from, to);
       }
     }
     if (s.snippet) {
       for (const stop of s.snippet.stops) {
-        const row = visible(stop.from.line);
-        if (row >= 0 && stop.from.line === stop.to.line) {
-          band(row, this.span("ed-stop", stop.from.line, row, stop.from.col, stop.to.col, same(stop.from, stop.to)));
+        if (stop.from.line === stop.to.line) {
+          bandSpan("ed-stop", stop.from.line, stop.from.col, stop.to.col, same(stop.from, stop.to));
         }
       }
     }
@@ -3755,15 +3892,31 @@ export class Editor {
       const start = startOf(sel);
       const end = endOfSel(sel);
       const spans = [];
-      for (let row = Math.max(first, rows.rowOf(start.line)); row <= Math.min(last, rows.rowOf(end.line)); row += 1) {
+      for (let row = Math.max(first, rows.rowOf(start.line)); row <= Math.min(last, rows.rowAt(end.line, end.col)); row += 1) {
         const line = rows.lineOf(row);
         if (line < start.line || line > end.line) {
           continue;
         }
         const text = doc.line(line);
-        const from = line === start.line ? start.col : 0;
+        const segStart = rows.startOf(row);
+        const segEnd = rows.endOf(row);
+        const lineFrom = line === start.line ? start.col : 0;
+        const lineTo = line === end.line ? end.col : text.length;
+        if (segStart > 0 || segEnd >= 0) {
+          // A row of a wrapped line: the part of the selection the row holds.
+          const from = Math.max(lineFrom, segStart);
+          const to = segEnd < 0 ? lineTo : Math.min(lineTo, segEnd);
+          if (to < from || (segEnd >= 0 && from >= segEnd)) {
+            continue;
+          }
+          const shift = this.vcolOf(text, segStart, line);
+          const ends = line < end.line && segEnd < 0;
+          spans.push([row - this.originRow, PAD + (this.vcolOf(text, from, line) - shift) * cw, PAD + (this.vcolOf(text, to, line) - shift) * cw + (ends ? cw : 0)]);
+          continue;
+        }
+        const from = lineFrom;
         const ends = line < end.line;
-        const to = line === end.line ? end.col : text.length;
+        const to = lineTo;
         const node = to > from && RTL.test(text) ? this.rowNode(line) : null;
         const head = node ? this.textAt(node, from) : null;
         const past = node ? (this.textAt(node, to) ?? this.textAt(node, to - 1)) : null;
@@ -3793,7 +3946,7 @@ export class Editor {
       this.pickedHtml = picked;
     }
     for (const sel of sels) {
-      const row = visible(sel.head.line);
+      const row = visibleAt(sel.head);
       if (row >= 0) {
         const block = this.vim?.block();
         over.push(this.box(sel === primary ? "ed-caret main" : "ed-caret", this.xOf(sel.head) + this.pastEnd(sel) * this.cw - (block ? 0 : 1), this.yOf(row), block ? this.cw : 2));
@@ -3804,9 +3957,10 @@ export class Editor {
     leave(pairCall);
     if (pair) {
       for (const at of pair) {
-        const row = visible(at.line);
-        if (row >= 0) {
-          over.push(this.span("ed-pair", at.line, row, at.col, at.col + 1));
+        for (const [row, html] of this.spans("ed-pair", at.line, at.col, at.col + 1)) {
+          if (row >= first && row <= last) {
+            over.push(html);
+          }
         }
       }
     }
@@ -3821,7 +3975,7 @@ export class Editor {
       this.overHtml = marks;
     }
     this.follow(scrolledTop, scrolledLeft);
-    const headRow = rows.rowOf(primary.head.line);
+    const headRow = rows.rowAt(primary.head.line, primary.head.col);
     this.input.style.left = `${this.xOf(primary.head)}px`;
     this.input.style.top = `${this.yOf(headRow)}px`;
     // Off the rows on screen: the map and the status line wait while input is active, except that a
@@ -4002,7 +4156,7 @@ export class Editor {
   // The rectangle, in the page, of a place's row.
   rectOf(p) {
     const rect = this.space.getBoundingClientRect();
-    const row = this.rows().rowOf(p.line);
+    const row = this.rows().rowAt(p.line, p.col);
     const top = rect.top + this.pad;
     return { left: rect.left + this.xOf(p), top: top + row * LINE, bottom: top + (row + 1) * LINE };
   }

@@ -3853,6 +3853,8 @@ export function editing() {
     hints: (kind) => Boolean(state.editor?.hintKinds[kind]),
     setHints: (kind, on) => [state.editor, state.split?.editor].forEach((one) => one?.setHints(kind, on)),
     smoothScroll: () => Boolean(state.editor?.smoothOn),
+    wordWrap: () => Boolean(state.editor?.wrapOn),
+    setWordWrap: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setWrap(on)),
     setSmoothScroll: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setSmooth(on)),
     flickScroll: () => Boolean(state.editor?.flickOn),
     setFlickScroll: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setFlick(on)),

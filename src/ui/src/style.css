@@ -3821,6 +3821,17 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   contain: style;
 }
 
+/* A row of a wrapped line: the line moved left by the part before the row, and cut at the row's end. */
+.ed-seg {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.ed-seg > span {
+  display: inline-block;
+}
+
 .ed-band > div,
 .ed-over > div {
   position: absolute;

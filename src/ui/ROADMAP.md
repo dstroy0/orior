@@ -4,15 +4,13 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Responsiveness
 
-1. **A trackpad held as smooth as a wheel.** Fingers held on a trackpad move the text at the display's own rate, wrapped or not.
-   - Scrolling with fingers held drops the editor to about one frame a second, worse with word wrap ([vscode #192027][37]).
-2. **Go to File as the reader means it.** An exact name stands above every looser match and above history, and fuzzy matching can be turned off.
+1. **Go to File as the reader means it.** An exact name stands above every looser match and above history, and fuzzy matching can be turned off.
    - An exact name ranks below a looser match, letters matched in the middle of words add noise, and people ask to turn fuzzy matching off ([vscode #164352][38], [#99171][39], [#27317][40], [#8673][41]).
-3. **Saved means saved, however one gets back.** A tab back at its saved text by an input method's character or Vim's undo shows no change.
+2. **Saved means saved, however one gets back.** A tab back at its saved text by an input method's character or Vim's undo shows no change.
    - A file stays marked after undoing to its saved text, after an input method's character typed and taken back, and after Vim's undo ([vscode #206720][42], [VSCodeVim][43]).
-4. **No window's changes lost.** Every window's changes not saved are kept as they are made, whichever window closes first.
+3. **No window's changes lost.** Every window's changes not saved are kept as they are made, whichever window closes first.
    - Changes not saved are lost when a window other than the last is closed ([kitemetric][44]).
-5. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
+4. **A key in the next frame, whatever is open beside it.** A preview, a Vim mode or a slow laptop does not delay the letter typed.
    - A preview beside the editor delays each letter, the two sharing a process, and a Vim mode adds a tenth of a second to every key ([typst-preview #245][45], [VSCodeVim #2021][46]). orior draws previews and plugins off the editor's thread, and its Vim keys are its own.
    - The editor is slow to type, scroll and find on a low-powered laptop with extensions off ([Lightrun][47]). orior is measured on the Raspberry Pi as well as here.
    - Completion and analysis can come late or get in the way of editing. Typing and the caret's moves answer at once whether analysis has finished or not, and the test of it types and moves through a file while analysis is still running.

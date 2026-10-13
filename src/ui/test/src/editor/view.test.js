@@ -250,6 +250,108 @@ test("under a steady wheel every frame moves the text an even step", async () =>
   assert.ok(spread < 0.3, `the steps spread by ${spread.toFixed(2)} of their middle, ${middle} px`);
 });
 
+// Fingers held on a trackpad: small steps in pixels, one each frame or so, which the view follows
+// as they come. The frames drawn at the display's own rate, and the text moved as far as the steps.
+async function trackpadOver(view, ms) {
+  const box = view.scroller.getBoundingClientRect();
+  const at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  const counting = framesOver(ms);
+  const before = view.scrollY();
+  const until = performance.now() + ms;
+  let sent = 0;
+  while (performance.now() < until) {
+    await ui.wheel(at, 7);
+    sent += 7;
+    await new Promise((done) => setTimeout(done, 6));
+  }
+  const times = await counting;
+  const gaps = times.slice(1).map((time, index) => time - times[index]);
+  return { rate: gaps.length / ((times.at(-1) - times[0]) / 1000), longest: Math.max(...gaps), moved: view.scrollY() - before, sent };
+}
+
+test("fingers held on a trackpad move the text at the display's own rate", async () => {
+  await openFile("rate.py");
+  await ui.waitFor(() => editing().active === "rate.py" && editing().editor?.s, 5000);
+  const view = editing().editor;
+  view.goTo(0, 0);
+  const rest = await framesOver(1000);
+  const display = (rest.length - 1) / ((rest.at(-1) - rest[0]) / 1000);
+  const held = await trackpadOver(view, 3000);
+  assert.ok(held.moved >= held.sent * 0.9, `the text moved ${held.moved} px of the ${held.sent} the fingers sent`);
+  assert.ok(held.rate >= display * 0.8, `${held.rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
+  assert.ok(held.longest < 100, `the longest wait between two frames, ${held.longest.toFixed(1)} ms`);
+});
+
+// A file of long lines of words, for word wrap.
+async function wrappedFile(name, count) {
+  const words = "wrap the long line of words at the view's edge and go on below it";
+  const lines = Array.from({ length: count }, (_, line) => `${line}: ${Array.from({ length: 6 }, () => words).join(" ")}`);
+  await invoke("file_write", { path: name, text: `${lines.join("\n")}\n` });
+  showView("edit");
+  await openFile(name);
+  await ui.waitFor(() => editing().active === name && editing().editor?.s, 5000);
+  return editing().editor;
+}
+
+test("word wrap shows a long line as rows that end after a space, each moved through and pressed on as a row", async () => {
+  const view = await wrappedFile("wrapped.txt", 40);
+  const kept = view.wrapped();
+  try {
+    view.setWrap(true);
+    // The view's width settles a frame later, its scrollbar across gone.
+    await new Promise((rest) => requestAnimationFrame(() => requestAnimationFrame(rest)));
+    const rows = view.rows();
+    const columns = view.wrapColumns();
+    const text = view.doc.line(0);
+    assert.ok(rows.size > 40, `the lines take ${rows.size} rows`);
+    assert.equal(rows.lineOf(rows.rowOf(1) - 1), 0, "the first line's rows come before the second's");
+    const second = rows.rowOf(0) + 1;
+    const start = rows.startOf(second);
+    assert.ok(start > 0 && start <= columns && text[start - 1] === " ", `the first row ends after a space, at ${start} of ${columns} columns`);
+    // The caret on the second row stands at the left, a row down.
+    view.goTo(0, start + 2);
+    await new Promise((rest) => requestAnimationFrame(() => requestAnimationFrame(rest)));
+    const at = view.rectOf({ line: 0, col: start + 2 });
+    const first = view.rectOf({ line: 0, col: 2 });
+    assert.equal(Math.round(at.left), Math.round(first.left), "a col two into the row stands where col two of the line does");
+    assert.equal(Math.round(at.top - first.top), view.lineHeight, "a row down");
+    // Down goes to the next row of the same line, Up back.
+    view.goTo(0, 2);
+    await ui.key("Down");
+    assert.deepEqual(view.head(), { line: 0, col: start + 2 }, "Down goes a row");
+    await ui.key("Up");
+    assert.deepEqual(view.head(), { line: 0, col: 2 }, "Up comes back");
+    // A press on the second row lands in it.
+    await ui.click({ x: at.left + 0.5, y: (at.top + at.bottom) / 2 });
+    assert.deepEqual(view.head(), { line: 0, col: start + 2 }, "a press on the row");
+    // Only the first row of a line has its number.
+    await new Promise((rest) => requestAnimationFrame(() => requestAnimationFrame(rest)));
+    const numbers = [...view.host.querySelectorAll(".ed-num-text")].map((node) => node.textContent);
+    assert.equal(numbers.filter((number) => number === "1").length, 1, "line 1's number once");
+    view.setWrap(false);
+    assert.equal(view.rows().size, view.doc.count, "unwrapped, a row a line");
+  } finally {
+    view.setWrap(kept);
+  }
+});
+
+test("fingers held on a trackpad move wrapped text at the display's own rate", async () => {
+  const view = await wrappedFile("wrapped_long.txt", 20000);
+  const kept = view.wrapped();
+  try {
+    view.setWrap(true);
+    view.goTo(0, 0);
+    const rest = await framesOver(1000);
+    const display = (rest.length - 1) / ((rest.at(-1) - rest[0]) / 1000);
+    const held = await trackpadOver(view, 3000);
+    assert.ok(held.moved >= held.sent * 0.9, `the text moved ${held.moved} px of the ${held.sent} the fingers sent`);
+    assert.ok(held.rate >= display * 0.8, `${held.rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
+    assert.ok(held.longest < 100, `the longest wait between two frames, ${held.longest.toFixed(1)} ms`);
+  } finally {
+    view.setWrap(kept);
+  }
+});
+
 // Whether the listener the test gives onEdit is listening: it stays given for the page's life.
 let hearing = null;
 onEdit((s) => hearing?.(s));
