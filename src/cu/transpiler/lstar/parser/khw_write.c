@@ -122,8 +122,10 @@ static const char *s_path;
 static const char *s_part;
 static const char *s_layout;
 static const char *s_mnemonics;
-// the instruction word's layout, the fields the part's .ksc is given (sass_nvidia.tsv)
+// the instruction word's layout, the fields the part's .ksc is given (sass_nvidia.tsv), and the .ksc beside the
+// machine file, where the part's answers to the walks are kept
 static const char *s_fields;
+static char s_ksc_path[1024];
 static const char *s_machine_writer;
 
 // one question, how many the run has put, and the launches the question is timed over, 0 where it is untimed
@@ -842,6 +844,140 @@ static int khw_form_asked(unsigned long long low, unsigned long long high)
     return 1;
 }
 
+// the bits a register's number takes, from the last register the part answers a question's code can name, kept in
+// the .ksc at `ksc` by the register walk as `run answers <last> register last` (klq_identity): the bits of that
+// number; 0 where the part has not answered it
+static unsigned int khw_register_bits(const char *ksc)
+{
+    static KscFile s_file;
+    static KscRow s_row;
+    unsigned int bits = 0u;
+    ksc_read(&s_file, ksc);
+    for (unsigned int line = 0u; line < s_file.lines; line += 1u)
+    {
+        if (ksc_row_read(s_file.line[line], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
+            (strncmp(s_row.question, "register last", 13u) == 0))
+        {
+            for (bits = 0u; (bits < 64u) && ((s_row.value >> bits) != 0ull); bits += 1u)
+            {
+            }
+        }
+    }
+    ksc_free(&s_file);
+    return bits;
+}
+
+// Every seed of the run's blob `name` asked its relation from the top in the slot, each a line `<low> <high>` in hex
+// as a vendor's reader of a listing writes it (sass_listing_seeds): one that answers a ladder relation enters the
+// working set as a discovered form, its fields left for the turns and register passes once a cross has read them, and
+// one that answers none, or is a form the part has answered for already, is passed over. A seed is put with the
+// slot's own registers: a listing's instruction names the compiler's registers, and the slot's case words lie in the
+// kernel's. The words the kernel's own classified form holds at its register fields are written into the seed at the
+// same fields, and the part says whether the relation holds there. The seeds are the question Q17 names and the part
+// answers; no byte of the listing enters a form. Each goes through the airlock as any question: the cross reads it,
+// and the gate holds its key unknown until a conference admits it (overseer.h). The count that entered
+static unsigned int khw_seeds_asked(const char *name)
+{
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_latest(qry_run(), name, &bytes, &size, NULL))
+    {
+        printf("  khw_write: the run holds no seeds %s\n", name);
+        return 0u;
+    }
+    // the kernel's own form, the slot's encoding as classified, else the first classified form with operand runs
+    const unsigned long long slot_low = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 0u);
+    const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
+    // the register fields of the instruction word's layout: every field as wide as the last register the part
+    // answers the code can name, the walk's answer in the .ksc (`register last`); none where the part has not answered
+    // it, and the kernel's operand runs stand in, which the turns found over two registers and reach only the bits
+    // that told them apart
+    static ContainerLayout s_layout;
+    const unsigned int register_bits = khw_register_bits(s_ksc_path);
+    const int fields_read = (register_bits != 0u) && container_layout_read(&s_layout, s_fields);
+    const KhwAnswered *kernel = NULL;
+    for (unsigned int at = 0u; at < s_names; at += 1u)
+    {
+        const KhwAnswered *const held = &s_named[at];
+        if ((held->phase != KHW_PHASE_CLASSIFIED) || (held->runs == 0u))
+        {
+            continue;
+        }
+        if ((kernel == NULL) || ((held->low == slot_low) && (held->high == slot_high)))
+        {
+            kernel = held;
+        }
+    }
+    if (kernel == NULL)
+    {
+        printf("  khw_write: no classified form holds the slot's registers, and no seed is asked\n");
+        return 0u;
+    }
+    char line[256];
+    unsigned long long next = 0ull;
+    unsigned int entered = 0u;
+    unsigned int asked = 0u;
+    while ((s_names < KHW_FORMS) && khw_line_read(bytes, size, &next, line, sizeof(line)))
+    {
+        unsigned long long low = 0ull;
+        unsigned long long high = 0ull;
+        if (sscanf(line, "%llx %llx", &low, &high) != 2)
+        {
+            continue;
+        }
+        for (unsigned int at = 0u; fields_read && (at < s_layout.rows); at += 1u)
+        {
+            const LayoutRow *const row = &s_layout.row[at];
+            if ((row->kind != (unsigned int)LAYOUT_FIELD) || (row->width != register_bits))
+            {
+                continue;
+            }
+            // a field's first bit is below 128 and its width at most that: both fit an unsigned int
+            const unsigned int first = (unsigned int)row->offset;
+            const unsigned int last = first + row->width - 1u;
+            // a register field is one an operand run of the kernel's form lies within: a field as wide as a register
+            // that holds no operand of it keeps the seed's own bits
+            int operand = 0;
+            for (unsigned int run = 0u; run < kernel->runs; run += 1u)
+            {
+                operand = operand || ((kernel->place[run] != KHW_PLACE_NONE) && (kernel->first[run] >= first) &&
+                                      (kernel->last[run] <= last));
+            }
+            if (operand)
+            {
+                khw_run_write(&low, &high, first, last, khw_run_read(slot_low, slot_high, first, last));
+            }
+        }
+        for (unsigned int run = 0u; !fields_read && (run < kernel->runs); run += 1u)
+        {
+            if (kernel->place[run] != KHW_PLACE_NONE)
+            {
+                khw_run_write(&low, &high, kernel->first[run], kernel->last[run],
+                              khw_run_read(kernel->low, kernel->high, kernel->first[run], kernel->last[run]));
+            }
+        }
+        if (khw_named_already(low, high))
+        {
+            continue;
+        }
+        asked += 1u;
+        KhwAnswered held;
+        memset(&held, 0, sizeof(held));
+        if (!khw_relation_asked(low, high, &held))
+        {
+            continue;
+        }
+        held.phase = KHW_PHASE_DISCOVERED;
+        s_named[s_names] = held;
+        s_names += 1u;
+        entered += 1u;
+        printf("    seed ladder.%-8s %016llx %016llx  discovered, its turns held for a cross-check\n",
+               s_anchor_text[held.anchor], low, high);
+    }
+    printf("  seeds: %u asked their relation, %u answered one and entered the working set\n", asked, entered);
+    return entered;
+}
+
 // Every form the part answered for widened: each bit outside its operands' runs, its key and the scheduler's word
 // turned, and the turned encoding asked its relation from the top. An operand's run is one with a place in the
 // relation's tuple; a run that carries no word of the tuple is no operand of the relation, and its bits are turned as
@@ -1375,6 +1511,10 @@ int main(int count, char **word)
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
     const char *forms = NULL;
+    // [--seeds <name>] with --discover: the blob of the run holding encodings to ask their relation of, a line
+    // `<low> <high>` in hex each, as a vendor's reader of a listing writes them (sass_listing_seeds): the question Q17
+    // names and the part answers, each a discovered form where it answers a ladder relation and passed over where not
+    const char *seeds = NULL;
     int discover = 0;
     int turns = 0;
     int registers = 0;
@@ -1389,6 +1529,11 @@ int main(int count, char **word)
         else if ((strcmp(word[at], "--forms") == 0) && ((at + 1) < split))
         {
             forms = word[at + 1];
+            at += 1;
+        }
+        else if ((strcmp(word[at], "--seeds") == 0) && ((at + 1) < split))
+        {
+            seeds = word[at + 1];
             at += 1;
         }
         else if (strcmp(word[at], "--discover") == 0)
@@ -1442,6 +1587,7 @@ int main(int count, char **word)
     char reach[1024];
     snprintf(reach, sizeof(reach), "%.*s.ksc", (int)stem, s_path);
     // the part's operand fields into the .ksc the walks read them from
+    snprintf(s_ksc_path, sizeof(s_ksc_path), "%s", reach);
     khw_fields_written(reach);
     if (!run_channel_registers_past(reach))
     {
@@ -1516,6 +1662,10 @@ int main(int count, char **word)
                 }
                 printf("  the slot: place %u of %u, at 0x%x; the kernel's form seeded, its turns await a cross-check\n",
                        s_slot, s_kernel_places, s_slot * KHW_INSTRUCTION);
+            }
+            if (seeds != NULL)
+            {
+                seeded += khw_seeds_asked(seeds);
             }
             const unsigned int found = khw_widened(0u, 1);
             run_channel_close();

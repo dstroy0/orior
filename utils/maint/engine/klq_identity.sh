@@ -126,8 +126,9 @@ carrier_built() {
     # has not read; where KLQ_DRY is set it stops before the driver, the part taken out, and launches nothing
     local stop=()
     [ -n "${KLQ_DRY:-}" ] && stop=(--dry --full)
-    CARRY=("$CARRIER" --held held.txt ${stop[@]+"${stop[@]}"} "$COHERENCE/$PART.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
-        --pop "$CARRIER" --dry --full "$COHERENCE/$PART.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
+    CARRY=("$CARRIER" --held held.txt --lessons overseer.txt ${stop[@]+"${stop[@]}"} "$COHERENCE/$PART.khw"
+        "$LAYOUTS/nvidia/elf64_nvidia.tsv"
+        --pop "$CARRIER" --dry --full --lessons overseer.txt "$COHERENCE/$PART.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
         --cross "$CROSS" "$NVDISASM" "$PART_READ" airlock.md held.txt)
 }
 

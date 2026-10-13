@@ -180,7 +180,8 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
             {
                 return CUBIN_SAFE_STALL;
             }
-            if (!cubin_key_straight(machine, low))
+            // an encoding a conference admitted is put past the key alone, exactly as the lesson gives it
+            if (!cubin_key_straight(machine, low) && !cubin_safe_admitted(low, high))
             {
                 return CUBIN_SAFE_KEY;
             }
@@ -443,6 +444,81 @@ int cubin_safe_verdict_holds(unsigned long long low, unsigned long long high)
     for (unsigned int at = 0u; at < s_held_count; at += 1u)
     {
         if ((s_held_low[at] == low) && (s_held_high[at] == kept))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the encodings a conference admitted past rule 3, the lessons of the cause admitted the carrier loads (cubin_run
+// --lessons): each its low word and the bits kept of its high word, as the held list keeps them, and as many as the
+// lessons name
+static unsigned long long *s_admitted_low = NULL;
+static unsigned long long *s_admitted_high = NULL;
+static unsigned int s_admitted_count = 0u;
+static unsigned int s_admitted_room = 0u;
+
+static void cubin_safe_admitted_clear(void)
+{
+    free(s_admitted_low);
+    free(s_admitted_high);
+    s_admitted_low = NULL;
+    s_admitted_high = NULL;
+    s_admitted_count = 0u;
+    s_admitted_room = 0u;
+}
+
+int cubin_safe_admitted_read(const char *bytes, unsigned long long size)
+{
+    cubin_safe_admitted_clear();
+    char line[CUBIN_SAFE_HELD_LINE];
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        // the next line, as much of it as a held line holds
+        const char *const line_end = (const char *)memchr(bytes + at, '\n', (size_t)(size - at));
+        const size_t length = (line_end != NULL) ? (size_t)(line_end - (bytes + at)) : (size_t)(size - at);
+        const size_t kept = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
+        memcpy(line, bytes + at, kept);
+        line[kept] = '\0';
+        at += (unsigned long long)length + 1ull;
+        unsigned long long low = 0ull;
+        unsigned long long high = 0ull;
+        if (sscanf(line, "lesson admitted * %llx %llx", &low, &high) != 2)
+        {
+            continue;
+        }
+        if (s_admitted_count == s_admitted_room)
+        {
+            const unsigned int room = (s_admitted_room != 0u) ? (s_admitted_room * 2u) : CUBIN_SAFE_HELD_FIRST;
+            unsigned long long *const low_room =
+                (unsigned long long *)realloc(s_admitted_low, (size_t)room * sizeof(*s_admitted_low));
+            unsigned long long *const high_room =
+                (unsigned long long *)realloc(s_admitted_high, (size_t)room * sizeof(*s_admitted_high));
+            s_admitted_low = (low_room != NULL) ? low_room : s_admitted_low;
+            s_admitted_high = (high_room != NULL) ? high_room : s_admitted_high;
+            // a list that did not fit admits nothing: rule 3 holds every unknown key as before
+            if ((low_room == NULL) || (high_room == NULL))
+            {
+                cubin_safe_admitted_clear();
+                return 0;
+            }
+            s_admitted_room = room;
+        }
+        s_admitted_low[s_admitted_count] = low;
+        s_admitted_high[s_admitted_count] = high & CUBIN_SAFE_SCHED_KEPT_HIGH;
+        s_admitted_count += 1u;
+    }
+    return 1;
+}
+
+int cubin_safe_admitted(unsigned long long low, unsigned long long high)
+{
+    const unsigned long long kept = high & CUBIN_SAFE_SCHED_KEPT_HIGH;
+    for (unsigned int at = 0u; at < s_admitted_count; at += 1u)
+    {
+        if ((s_admitted_low[at] == low) && (s_admitted_high[at] == kept))
         {
             return 1;
         }

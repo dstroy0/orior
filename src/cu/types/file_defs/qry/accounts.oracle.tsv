@@ -10,4 +10,5 @@ cause	overseer	address	0x2	address	-	an address the code reached
 cause	overseer	register	0x3	register	-	a register past what the kernel holds
 cause	overseer	time	0x4	time	-	a launch that did not return
 cause	overseer	exception	0x5	exception	-	an exception that names none of the others and agrees with each
+cause	overseer	admitted	0x6	admitted	-	no crash: the cause of a lesson that admits a slot encoding past the gate's rule 3, taught where a conference the gate called for an unknown operation key ruled admitted (overseer_admission)
 any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (QryWho, qry_buffer.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, accounts, and its key the blob's sequence in the run

@@ -7,8 +7,8 @@
 // An ask is held by its identity, seven numbers: the hash of its code, the registers, threads, blocks and launches it
 // is put with, its count of cases and the hash of its cases. What came back is one of five codes, KQR_ANSWERS with the
 // word of every case, and the others with the refusal, the one text an ask keeps. An ask that timed out is asked again
-// until an answer resolves it, and the answer takes its place. A timed ask is put every time and kept as a sample of
-// its own.
+// until an answer resolves it, and the answer takes its place; so does an ask the gate censored, where the gate admits
+// it later, since the part never saw it. A timed ask is put every time and kept as a sample of its own.
 //
 // Every record the file held stands as it held it, a pair after every other record. What a run adds comes after the
 // records it held and before the pairs, each run of them after a who record, the who of the code that put them
@@ -181,7 +181,8 @@ extern "C"
     int kqr_find(const KqrRecord *record, const KqrIdentity *identity, KqrAsk *held);
 
     // `ask` kept by `who` after every record before the pairs, where the record holds no ask of its identity, the
-    // marks pending written before it; and in place of the one it holds where that one timed out
+    // marks pending written before it; and in place of the one it holds where that one timed out or was censored,
+    // the part never having seen it
     void kqr_keep_by(KqrRecord *record, const KqrAsk *ask, QryWho who);
 
     // `sample` kept by `who` after every record before the pairs, the marks pending written before it

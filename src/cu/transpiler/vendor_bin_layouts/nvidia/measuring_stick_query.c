@@ -11,7 +11,7 @@
 // writes memory through registers the question set no address in, faults it with an illegal address. Nothing here runs
 // on the part.
 //
-//     measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds>]
+//     measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds> [<read>]]
 //
 // Every name but the disassembler's is a blob of the run's buffer, the .qry QRY names (qry_buffer.h): the list, a line
 // a question, `<code> <registers> <cases> <answers> <slot> [<launches>]` (run_channel.h), each question's code, and the
@@ -1103,8 +1103,8 @@ static void msq_frame_free(MsqFrame *read)
     memset(read, 0, sizeof(*read));
 }
 
-// what the cross holds, kept as it goes: the held list, the report, the lines it says of each hold, and the holds the
-// teacher reads
+// what the cross holds, kept as it goes: the held list, the report, the lines it says of each hold, the holds the
+// teacher reads, and the slots it read clear, a line `<stem> <operation>` each, for a conference the gate may call
 typedef struct
 {
     unsigned char *held;
@@ -1119,6 +1119,9 @@ typedef struct
     unsigned char *listed;
     size_t listed_size;
     size_t listed_room;
+    unsigned char *read;
+    size_t read_size;
+    size_t read_room;
 } MsqHolds;
 
 // the count of registers that clears a hold of a register past the count, `reached` the highest register it reaches:
@@ -1181,9 +1184,10 @@ static void msq_extension_put(const char *name, const char *extension, char *put
 
 int main(int count, char **words)
 {
-    if ((count != 6) && (count != 7))
+    if ((count < 6) || (count > 8))
     {
-        fprintf(stderr, "measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds>]\n");
+        fprintf(stderr, "measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds> "
+                        "[<read>]]\n");
         return 2;
     }
     const char *const list_name = words[1];
@@ -1191,7 +1195,8 @@ int main(int count, char **words)
     s_architecture = words[3];
     const char *const report_name = words[4];
     const char *const held_name = words[5];
-    const char *const holds_name = (count == 7) ? words[6] : NULL;
+    const char *const holds_name = (count >= 7) ? words[6] : NULL;
+    const char *const read_name = (count == 8) ? words[7] : NULL;
     s_run = qry_run();
     if (s_run == NULL)
     {
@@ -1477,6 +1482,15 @@ int main(int count, char **words)
             snprintf(why, sizeof(why),
                      "the vendor reads a memory access at the slot, through registers the question sets no address in");
         }
+        if ((why[0] == '\0') && (kind == MSQ_READ))
+        {
+            // the slot read clear: a legal instruction that is no control transfer, names no register past the count,
+            // overwrites no register the code addresses memory through and reaches no memory; said to the teacher,
+            // whose conference admits it where the gate holds its key unknown (overseer.h)
+            char clear[320];
+            const int length = snprintf(clear, sizeof(clear), "%s %s\n", question->stem, reading->operation);
+            msq_added(&kept.read, &kept.read_size, &kept.read_room, clear, (size_t)length);
+        }
         if (why[0] == '\0')
         {
             continue;
@@ -1509,6 +1523,11 @@ int main(int count, char **words)
     if (holds_name != NULL)
     {
         qry_hand(s_run, holds_name, kept.listed, kept.listed_size, QRY_ORDINARY);
+    }
+    // the slots read clear, handed even where there are none, so that the teacher knows the round was read
+    if (read_name != NULL)
+    {
+        qry_hand(s_run, read_name, kept.read, kept.read_size, QRY_ORDINARY);
     }
     printf("  questions read: %zu in %llu readings; the vendor holds %zu off the part\n", question_count,
            readings_count, holds);

@@ -35,7 +35,8 @@ static OverseerLesson s_lessons[OVERSEER_LESSONS_MOST];
 static unsigned int s_lesson_count;
 
 // each cause by the word an account reads it with, in the order of OverseerCause
-static const char *const s_cause_words[] = {"none", "instruction", "address", "register", "time", "exception"};
+static const char *const s_cause_words[] = {"none", "instruction", "address", "register",
+                                            "time", "exception",   "admitted"};
 
 // one expert's reading of the cause
 typedef struct
@@ -44,7 +45,7 @@ typedef struct
     unsigned int cause;
 } OverseerVote;
 
-// what a conference's accounts say, read clause by clause
+// what a conference's accounts say, read clause by clause; `admits` and `holds` the votes of an admission conference
 typedef struct
 {
     char experts[OVERSEER_EXPERTS_MOST][OVERSEER_EXPERT_LONGEST];
@@ -59,6 +60,8 @@ typedef struct
     char learning[OVERSEER_CLAUSE_LONGEST];
     char counterexample[OVERSEER_CLAUSE_LONGEST];
     unsigned int accounts;
+    unsigned int admits;
+    unsigned int holds;
 } OverseerHeard;
 
 static OverseerHeard s_heard;
@@ -158,9 +161,19 @@ static void overseer_expert_named(OverseerHeard *heard, const char *expert)
     }
 }
 
-// one clause `clause` of `expert`'s account read into `heard`
+// one clause `clause` of `expert`'s account read into `heard`; a vote of an admission conference is one word
 static void overseer_clause_read(OverseerHeard *heard, const char *expert, const char *clause)
 {
+    if (strcmp(clause, "admit") == 0)
+    {
+        heard->admits += 1u;
+        return;
+    }
+    if (strcmp(clause, "hold") == 0)
+    {
+        heard->holds += 1u;
+        return;
+    }
     const char *const space = strchr(clause, ' ');
     if (space == NULL)
     {
@@ -466,6 +479,90 @@ int overseer_convened(QryBuffer *run, const char *identity, int other_way_put, O
     return 1;
 }
 
+int overseer_admission(QryBuffer *run, const char *identity, const char *encoding, OverseerRuling *ruling)
+{
+    memset(ruling, 0, sizeof(*ruling));
+    memset(&s_heard, 0, sizeof(s_heard));
+    OverseerHeard *const heard = &s_heard;
+    char name[OVERSEER_NAME_LONGEST];
+    overseer_conference_named(identity, name);
+    unsigned char *conference = NULL;
+    unsigned long long conference_size = 0ull;
+    if ((run == NULL) || !qry_joined(run, name, &conference, &conference_size) || (conference_size == 0ull))
+    {
+        free(conference);
+        return 0;
+    }
+    const unsigned long long question = qry_row_text(run, identity, strlen(identity));
+    overseer_accounts_read(heard, conference, conference_size, NULL, 0ull, run, question);
+    free(conference);
+    ruling->accounts = heard->accounts;
+    if (heard->accounts == 0u)
+    {
+        return 0;
+    }
+    // admitted by consensus the other way round: one party at least admits and none holds
+    const int admitted = (heard->admits != 0u) && (heard->holds == 0u);
+    ruling->agreed = admitted;
+    ruling->cause = admitted ? (unsigned int)OVERSEER_CAUSE_ADMITTED : (unsigned int)OVERSEER_CAUSE_NONE;
+    ruling->side = (unsigned int)OVERSEER_SIDE_UNKNOWN;
+    ruling->guidance = admitted ? (unsigned int)OVERSEER_PUT : (unsigned int)OVERSEER_HANDS_OFF;
+    char count[160];
+    snprintf(count, sizeof(count), "%u accounts heard, %u admit, %u hold, from", heard->accounts, heard->admits,
+             heard->holds);
+    overseer_said(ruling, "%s", count);
+    for (unsigned int at = 0u; at < heard->expert_count; at += 1u)
+    {
+        overseer_said(ruling, (at == 0u) ? " %s" : ", %s", heard->experts[at]);
+    }
+    if (admitted)
+    {
+        // the lesson, as narrow as the conference: the slot's encoding, at every carrier
+        ruling->taught = overseer_lesson_kept((unsigned int)OVERSEER_CAUSE_ADMITTED, "*", encoding);
+        if (ruling->taught)
+        {
+            const unsigned long long lesson[4] = {question, (unsigned int)OVERSEER_CAUSE_ADMITTED,
+                                                  qry_row_text(run, "*", 1u),
+                                                  qry_row_text(run, encoding, strlen(encoding))};
+            qry_row_handed(run, OVERSEER_LESSONS_TABLE, lesson, 4u);
+            overseer_lessons_handed(run);
+        }
+        overseer_said(ruling, "; admitted: the slot encoding %s put past the gate's key rule at every carrier",
+                      encoding);
+    }
+    else
+    {
+        overseer_said(ruling, "%s",
+                      (heard->admits == 0u) ? "; hands off: no party admits it" : "; hands off: a party holds it");
+    }
+    overseer_account(run, identity, "overseer", ruling->said);
+    const unsigned long long ruled[8] = {question,
+                                         ruling->agreed ? 1ull : 0ull,
+                                         ruling->cause,
+                                         ruling->side,
+                                         ruling->guidance,
+                                         ruling->accounts,
+                                         ruling->taught ? 1ull : 0ull,
+                                         qry_row_text(run, ruling->said, strlen(ruling->said))};
+    qry_row_handed(run, OVERSEER_CONFERENCES_TABLE, ruled, 8u);
+    return admitted;
+}
+
+int overseer_admits(unsigned long long low, unsigned long long high)
+{
+    char encoding[48];
+    snprintf(encoding, sizeof(encoding), "%016llx %016llx", low, high);
+    for (unsigned int at = 0u; at < s_lesson_count; at += 1u)
+    {
+        if ((s_lessons[at].cause == (unsigned int)OVERSEER_CAUSE_ADMITTED) &&
+            (strcmp(s_lessons[at].standing, encoding) == 0))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int overseer_holds(const char *standing, const char *carrier, char *why, size_t room)
 {
     char joined[OVERSEER_STANDING_LONGEST];
@@ -473,6 +570,10 @@ int overseer_holds(const char *standing, const char *carrier, char *why, size_t 
     for (unsigned int at = 0u; at < s_lesson_count; at += 1u)
     {
         const OverseerLesson *const lesson = &s_lessons[at];
+        if (lesson->cause == (unsigned int)OVERSEER_CAUSE_ADMITTED)
+        {
+            continue;
+        }
         if ((strcmp(lesson->standing, joined) == 0) &&
             ((strcmp(lesson->carrier, "*") == 0) || (strcmp(lesson->carrier, carrier) == 0)))
         {

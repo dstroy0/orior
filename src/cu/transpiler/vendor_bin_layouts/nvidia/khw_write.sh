@@ -67,7 +67,7 @@ cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvid
 
 BINARY="$OUT/khw_write"
 cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" \
-    "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/query/answer_read.c" \
+    "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/overseer/overseer.c" "$PROTOCOL/query/answer_read.c" \
     "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" "$LAYOUTS/container_layout.c" \
     "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
     { echo "  build failed: khw_write did not compile"; exit 1; }

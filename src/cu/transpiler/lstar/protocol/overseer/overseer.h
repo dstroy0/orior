@@ -51,6 +51,19 @@
 // conference it holds and every lesson it teaches is a row of the run's tables of accounts, conferences and lessons
 // (accounts.oracle.tsv, conferences.oracle.tsv, lessons.oracle.tsv, qry_buffer.h), each naming its conference by the
 // number of the question's identity in the table of texts. The overseer is called from one thread at a time.
+//
+// A second kind of conference is called by a hold and not a crash: the gate holds a question whose operation key no
+// form of the machine file and no instruction of the kernel's own holds (cubin_safe.h, rule 3), which is gray and not
+// a refusal, and the parties with a reading of the question hand it under the conference's name as above, each ending
+// in a vote: `admit` where its reading admits the question to the part, `hold` where it keeps it off, and `gray` where
+// it reads neither. The cross votes on its reading of the slot, admit where the vendor's disassembler reads a legal
+// instruction that is no control transfer, wait or memory access and names no register past the count; the gate says
+// what it held and why, gray; the record says what it holds of the identity, admit where nothing or a hold of this
+// kind, hold where a refusal. The ruling is by consensus the other way: admitted where one party at least admits and
+// none holds (overseer_admission). An admission is a lesson of its own cause, as narrow as the conference, the
+// question's slot encoding at every carrier (`lesson admitted * <low> <high>`): the gate puts an encoding a lesson
+// admits past rule 3 (cubin_run --lessons), and an ask the gate held under the rule is asked again, since the part
+// never saw it.
 
 #include "../../../../types/file_defs/qry/qry_buffer.h"
 
@@ -61,7 +74,8 @@ extern "C"
 {
 #endif
 
-// the blob the lessons are kept in, a lesson a line: `lesson <cause> <carrier or *> <the stand-in as written>`
+// the blob the lessons are kept in, a lesson a line: `lesson <cause> <carrier or *> <the stand-in as written>`, and
+// for an admission `lesson admitted * <low> <high>`, the slot encoding's two words in hex
 #define OVERSEER_LESSONS "overseer.txt"
 
 // the longest conference name, an account, the overseer's ruling, and a stand-in as written
@@ -70,7 +84,7 @@ extern "C"
 #define OVERSEER_RULING_LONGEST 2048u
 #define OVERSEER_STANDING_LONGEST 512u
 
-    // what the experts agree the crash was
+    // what the experts agree the crash was; and admitted, no crash, the cause of a lesson that admits an encoding
     typedef enum
     {
         OVERSEER_CAUSE_NONE,
@@ -78,7 +92,8 @@ extern "C"
         OVERSEER_CAUSE_ADDRESS,
         OVERSEER_CAUSE_REGISTER,
         OVERSEER_CAUSE_TIME,
-        OVERSEER_CAUSE_EXCEPTION
+        OVERSEER_CAUSE_EXCEPTION,
+        OVERSEER_CAUSE_ADMITTED
     } OverseerCause;
 
     // which side of the statement brought it on
@@ -99,7 +114,9 @@ extern "C"
         // the pair the other way round
         OVERSEER_OTHER_WAY,
         // the relation waits for a later pass
-        OVERSEER_WAITS
+        OVERSEER_WAITS,
+        // the question put, its encoding admitted past the gate's rule 3
+        OVERSEER_PUT
     } OverseerGuidance;
 
     // the conference's ruling
@@ -130,8 +147,19 @@ extern "C"
     // was heard, 0 where none was
     int overseer_convened(QryBuffer *run, const char *identity, int other_way_put, OverseerRuling *ruling);
 
+    // The conference of the question `identity` the gate held for an unknown operation key, held: every account
+    // handed to it read and its vote counted, and the ruling into `ruling`, handed to the conference as the overseer's
+    // account: admitted, guidance OVERSEER_PUT, where one party at least admits and none holds, and a lesson of the
+    // cause admitted taught for `encoding`, the slot's two words in hex `<low> <high>`, at every carrier; hands off
+    // otherwise. 1 where it was admitted, 0 where it was not or no account was heard
+    int overseer_admission(QryBuffer *run, const char *identity, const char *encoding, OverseerRuling *ruling);
+
+    // 1 where a lesson admits the slot encoding `low` and `high` past the gate's rule 3, by its two words as a lesson
+    // of the cause admitted writes them; 0 where none does
+    int overseer_admits(unsigned long long low, unsigned long long high);
+
     // 1 where a lesson holds the stand-in `standing`, as written, off the part at the carrier `carrier`, with the
-    // lesson's cause into `why`, which holds `room`; 0 where none does
+    // lesson's cause into `why`, which holds `room`; 0 where none does. A lesson of the cause admitted holds nothing
     int overseer_holds(const char *standing, const char *carrier, char *why, size_t room);
 
     // the lessons a run carried in, the latest blob OVERSEER_LESSONS of `run`, read: their count

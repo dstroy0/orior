@@ -9,6 +9,7 @@
 #include "../../../../types/file_defs/ksc/ksc.h"
 #include "../../../../types/file_defs/qry/qry_buffer.h"
 #include "../../interface/interface.h"
+#include "../overseer/overseer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,6 +34,17 @@
 #define RUN_AIRLOCK_LIST "airlock.txt"
 #define RUN_AIRLOCK_ANSWERS "airlock_"
 #define RUN_AIRLOCK_HOLDS "airlock_holds.txt"
+// the slots the cross read clear, a line `<stem> <operation>` each, for the conferences the gate calls
+#define RUN_AIRLOCK_READ "airlock_read.txt"
+// the gate's hold under rule 3 of the airlock, an operation key unknown, as the carrier answers it: `skipped` and
+// the rule's number (cubin_safe.h, CUBIN_SAFE_KEY)
+#define RUN_GATE_KEY_RULE "skipped 5 "
+
+// 1 where `refused` is the gate's hold for an unknown operation key
+static int run_channel_key_held(const char *refused)
+{
+    return strncmp(refused, RUN_GATE_KEY_RULE, sizeof(RUN_GATE_KEY_RULE) - 1u) == 0;
+}
 
 typedef struct
 {
@@ -423,7 +435,10 @@ static int run_channel_recorded(RunQuestion *asked)
         return 0;
     }
     run_channel_identity(asked, &identity);
-    if (!kqr_find(&s_record, &identity, &s_held) || (s_held.answer == KQR_TIMED_OUT))
+    // an ask the gate held for an unknown key is open as a timed-out one is: the part never saw it, and a conference
+    // may admit it
+    if (!kqr_find(&s_record, &identity, &s_held) || (s_held.answer == KQR_TIMED_OUT) ||
+        ((s_held.answer == KQR_CENSORED) && run_channel_key_held(s_held.refusal)))
     {
         return 0;
     }
@@ -642,7 +657,7 @@ static int run_channel_airlock_passed(unsigned int questions)
     const unsigned long long limit = s_channel.limit_microseconds * ((questions != 0u) ? questions : 1u);
     char list_option[] = "--list";
     char list_name[] = RUN_AIRLOCK_LIST;
-    char *command[RUN_CARRIER_WORDS + 3u];
+    char *command[RUN_CARRIER_WORDS + 4u];
     unsigned int words = 0u;
     for (; words < s_channel.pop_words; words += 1u)
     {
@@ -655,8 +670,10 @@ static int run_channel_airlock_passed(unsigned int questions)
     {
         return 0;
     }
-    // the cross's words, the list after its first and the holds it hands the teacher after its last
+    // the cross's words, the list after its first, and after its last the holds it hands the teacher and the slots it
+    // read clear
     char holds_name[] = RUN_AIRLOCK_HOLDS;
+    char read_name[] = RUN_AIRLOCK_READ;
     command[0] = s_channel.cross[0];
     command[1] = list_name;
     for (words = 1u; words < s_channel.cross_words; words += 1u)
@@ -664,7 +681,8 @@ static int run_channel_airlock_passed(unsigned int questions)
         command[words + 1u] = s_channel.cross[words];
     }
     command[words + 1u] = holds_name;
-    command[words + 2u] = NULL;
+    command[words + 2u] = read_name;
+    command[words + 3u] = NULL;
     const long long crossed = run_channel_airlock_ran(command, limit, "airlock_cross.txt");
     if ((crossed != 0ll) && (crossed != 1ll))
     {
@@ -855,6 +873,133 @@ static unsigned int run_channel_raised(RunQuestion *const *asked, unsigned int f
     return raised;
 }
 
+// The conferences the gate calls for the round the airlock last read: each question of `asked` from `first` to
+// `count` whose answer the pop gave is a hold under the key rule (RUN_GATE_KEY_RULE), read against the slots the cross
+// read clear (RUN_AIRLOCK_READ) by its answers' stem. Where the cross read its slot clear, the accounts are handed,
+// the cross's, the gate's and the record's, and the conference held (overseer_admission): a question admitted has its
+// slot encoding a lesson the carrier loads (--lessons), and is put as the round is carried; every other stays held.
+// Each is traced. The count admitted
+static unsigned int run_channel_admitted(RunQuestion *const *asked, unsigned int first, unsigned int count, int alone)
+{
+    const unsigned char *read = NULL;
+    unsigned long long size = 0ull;
+    unsigned long long sequence = 0ull;
+    if (!qry_latest(s_channel.buffer, RUN_AIRLOCK_READ, &read, &size, &sequence) ||
+        (sequence <= s_channel.airlock_began))
+    {
+        return 0u;
+    }
+    unsigned int admitted = 0u;
+    for (unsigned int at = first; at < count; at += 1u)
+    {
+        char code_name[RUN_NAME_LONGEST];
+        char cases_name[RUN_NAME_LONGEST];
+        char answers_name[RUN_NAME_LONGEST];
+        char stem[RUN_NAME_LONGEST + sizeof(RUN_AIRLOCK_ANSWERS)];
+        char popped[RUN_NAME_LONGEST + sizeof(RUN_AIRLOCK_ANSWERS)];
+        run_channel_named(at, alone, code_name, cases_name, answers_name);
+        snprintf(stem, sizeof(stem), "%s%.*s", RUN_AIRLOCK_ANSWERS, (int)strcspn(answers_name, "."), answers_name);
+        snprintf(popped, sizeof(popped), "%s%s", RUN_AIRLOCK_ANSWERS, answers_name);
+        // the pop's answer, the gate's verdict with the part taken out: its first line
+        const unsigned char *answer = NULL;
+        unsigned long long answer_size = 0ull;
+        unsigned long long answer_sequence = 0ull;
+        if (!qry_latest(s_channel.buffer, popped, &answer, &answer_size, &answer_sequence) ||
+            (answer_sequence <= s_channel.airlock_began))
+        {
+            continue;
+        }
+        char verdict[160];
+        snprintf(verdict, sizeof(verdict), "%.*s", (int)((answer_size < 159ull) ? answer_size : 159ull),
+                 (const char *)answer);
+        verdict[strcspn(verdict, "\r\n")] = '\0';
+        if (!run_channel_key_held(verdict))
+        {
+            continue;
+        }
+        // the cross's reading of its slot, the line of the read list that leads with its stem
+        char operation[64] = "";
+        const size_t stem_length = strlen(stem);
+        for (unsigned long long walk = 0ull; (operation[0] == '\0') && (walk < size);)
+        {
+            const char *const line = (const char *)(read + walk);
+            const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
+            const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
+            walk += (unsigned long long)length + 1ull;
+            if ((length > stem_length) && (memcmp(line, stem, stem_length) == 0) && (line[stem_length] == ' '))
+            {
+                snprintf(operation, sizeof(operation), "%.*s", (int)(length - stem_length - 1u),
+                         line + stem_length + 1u);
+            }
+        }
+        if (operation[0] == '\0')
+        {
+            run_channel_check_traced(asked[at],
+                                     "kept held: the gate holds its key unknown, and the cross did not read its slot clear");
+            continue;
+        }
+        if ((asked[at]->slot == RUN_SLOT_NONE) ||
+            ((((unsigned long long)asked[at]->slot * 16ull) + 16ull) > asked[at]->code_size))
+        {
+            run_channel_check_traced(asked[at], "kept held: the gate holds its key unknown, and it holds no slot to admit");
+            continue;
+        }
+        unsigned long long low = 0ull;
+        unsigned long long high = 0ull;
+        memcpy(&low, asked[at]->code + ((size_t)asked[at]->slot * 16u), 8u);
+        memcpy(&high, asked[at]->code + ((size_t)asked[at]->slot * 16u) + 8u, 8u);
+        char encoding[48];
+        snprintf(encoding, sizeof(encoding), "%016llx %016llx", low, high);
+        KqrIdentity numbered;
+        char identity[96];
+        run_channel_identity(asked[at], &numbered);
+        kqr_identity_text(&numbered, identity, sizeof(identity));
+        // the accounts: the cross's reading, the gate's hold, and what the record holds of the identity
+        char account[512];
+        snprintf(account, sizeof(account),
+                 "reads %s at the slot, a legal instruction, no control transfer, wait, memory access or register "
+                 "past the count; admit",
+                 operation);
+        overseer_account(s_channel.buffer, identity, "cross", account);
+        snprintf(account, sizeof(account), "holds it, %s; gray", verdict);
+        overseer_account(s_channel.buffer, identity, "gate", account);
+        static KqrAsk s_recorded;
+        if (!s_record.open || !kqr_find(&s_record, &numbered, &s_recorded))
+        {
+            snprintf(account, sizeof(account), "holds no answer of it; admit");
+        }
+        else if ((s_recorded.answer == KQR_CENSORED) && run_channel_key_held(s_recorded.refusal))
+        {
+            snprintf(account, sizeof(account),
+                     "holds it censored under the gate's key rule, the part never saw it; admit");
+        }
+        else if (s_recorded.answer == KQR_ANSWERS)
+        {
+            snprintf(account, sizeof(account), "holds the part's answer to it; hold");
+        }
+        else
+        {
+            snprintf(account, sizeof(account), "holds it %s: %s; hold", kqr_answer_name(s_recorded.answer),
+                     s_recorded.refusal);
+        }
+        overseer_account(s_channel.buffer, identity, "record", account);
+        OverseerRuling ruling;
+        char said[RUN_LINE_LONGEST + 640u];
+        if (overseer_admission(s_channel.buffer, identity, encoding, &ruling))
+        {
+            admitted += 1u;
+            snprintf(said, sizeof(said), "admitted by its conference: %s", ruling.said);
+        }
+        else
+        {
+            snprintf(said, sizeof(said), "kept held: %s",
+                     (ruling.accounts != 0u) ? ruling.said : "no account of it was heard");
+        }
+        run_channel_check_traced(asked[at], said);
+    }
+    return admitted;
+}
+
 // The round on the channel's list, the questions of `asked` from `first` to `count`, checked before the part and fixed
 // where a count of registers fixes it: through the airlock, then each question its cross holds only for registers past
 // the count its kernel allots given the count that clears it, the round listed again and read again, until no
@@ -869,6 +1014,12 @@ static int run_channel_checked(RunQuestion *const *asked, unsigned int first, un
         if (!run_channel_airlocked(count - first, refused, room))
         {
             return 0;
+        }
+        // the conferences the gate calls, each question it holds for an unknown key the cross read clear admitted
+        // or kept held, before the round's registers are raised
+        if (s_channel.pop_words != 0u)
+        {
+            run_channel_admitted(asked, first, count, alone);
         }
         if ((s_channel.pop_words == 0u) || (run_channel_raised(asked, first, count, alone) == 0u))
         {

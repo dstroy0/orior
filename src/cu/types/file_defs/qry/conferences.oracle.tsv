@@ -15,4 +15,5 @@ guidance	overseer	hands_off	0x0	hands_off	-	no consensus: the learner goes on as
 guidance	overseer	another_link	0x1	another_link	-	the stand-in at its next link
 guidance	overseer	other_way	0x2	other_way	-	the pair the other way round
 guidance	overseer	waits	0x3	waits	-	the relation waits for a later pass
+guidance	overseer	put	0x4	put	-	the question put: its slot encoding admitted past the gate's rule 3 by a lesson of the cause admitted
 any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (QryWho, qry_buffer.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, conferences, and its key the blob's sequence in the run

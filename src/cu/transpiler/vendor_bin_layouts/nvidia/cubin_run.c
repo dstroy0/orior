@@ -1501,6 +1501,28 @@ int main(int count, char **words)
             count -= 2;
             continue;
         }
+        // --lessons <file> takes the lessons a conference taught, the blob of them in the run: every encoding a
+        // lesson admits is put past rule 3 (cubin_safe_admitted_read). A run that holds no such blob admits none
+        if (strcmp(words[1], "--lessons") == 0)
+        {
+            const unsigned char *lessons = NULL;
+            unsigned long long lessons_size = 0ull;
+            if (count < 3)
+            {
+                fprintf(stderr, "--lessons names no file\n");
+                return 2;
+            }
+            if (qry_latest(s_run, words[2], &lessons, &lessons_size, NULL) &&
+                !cubin_safe_admitted_read((const char *)lessons, lessons_size))
+            {
+                fprintf(stderr, "the lessons %s did not read\n", words[2]);
+                return 2;
+            }
+            words[2] = words[0];
+            words += 2;
+            count -= 2;
+            continue;
+        }
         if (strcmp(words[1], "--full") == 0)
         {
             s_facets = CUBIN_FACET_QUERY | CUBIN_FACET_GATE | CUBIN_FACET_VENDOR;

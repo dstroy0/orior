@@ -750,12 +750,13 @@ void kqr_keep_by(KqrRecord *record, const KqrAsk *ask, QryWho who)
         return;
     }
     unsigned int at = record->slot[slot] - 1u;
-    if (!kqr_ask_of(record, &record->file.record[at], &s_held) || (s_held.answer != KQR_TIMED_OUT))
+    if (!kqr_ask_of(record, &record->file.record[at], &s_held) ||
+        ((s_held.answer != KQR_TIMED_OUT) && (s_held.answer != KQR_CENSORED)))
     {
         return;
     }
-    // the answer that resolves it takes its place, after a who record of `who` and before the who in force there
-    // again, where that one is another's
+    // the answer that resolves it, or the part's own word where the gate had held it, takes its place, after a who
+    // record of `who` and before the who in force there again, where that one is another's
     QryWho there;
     const int there_held = krep_who_at(&record->file, at, &there);
     if (!there_held || !krep_who_same(there, who))

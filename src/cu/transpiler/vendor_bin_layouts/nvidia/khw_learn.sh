@@ -12,6 +12,7 @@
 # traced back to the check that put its question.
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh discover [<base.cu>]
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh seed <listing.sass>
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh turns [<base.cu>]
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh registers [<base.cu>]
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh cross [<base.cu>]
@@ -26,7 +27,10 @@
 # the vendor's compiler once as the pass starts, its listing the run's blob base_nvcc.sass.
 #
 # `discover` seeds the kernel's own form into the working set the first time, and after that widens the forms the part
-# has classified a round, keeping what it finds unasked. `turns` asks the turns of the forms a discover left and finds
+# has classified a round, keeping what it finds unasked. `seed` is a discover pass with the working set seeded as well
+# from a listing of the vendor's compiler, one instruction of each operation key (sass_listing_seeds), each asked its
+# relation in the slot through the airlock: the gate holds a key it does not know, and the conference the hold calls
+# admits the encoding where the cross read it clear (overseer.h), the lessons carried from run to run in overseer.txt. `turns` asks the turns of the forms a discover left and finds
 # the runs their operands might sit in. `registers` sets those runs to the two registers to sort the operands from the
 # modifiers and lays out what the part has answered for. Run discover, turns, registers, round on round until a discover
 # seeds and widens nothing. `cross` alone reads the latest listed questions again for inspection, those a dry run of
@@ -72,7 +76,7 @@ build_all()
         { echo "  no nvdisasm beside nvcc: the airlock has no reader, and nothing goes to the part"; exit 2; }
     BINARY="$OUT/khw_write"
     cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" \
-        "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/query/answer_read.c" \
+        "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/overseer/overseer.c" "$PROTOCOL/query/answer_read.c" \
         "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" "$LAYOUTS/container_layout.c" \
         "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
         { echo "  build failed: khw_write did not compile"; exit 1; }
@@ -99,28 +103,38 @@ base_compiled()
     rm -f "$cubin"
 }
 
-# the carrier's words for a live pass: held.txt always, which the carrier will not reach the part without, and the
-# airlock every round passes before the part, the pop and the cross over the round's list
+# the carrier's words for a live pass: held.txt always, which the carrier will not reach the part without, the lessons
+# the conferences taught, whose admissions the gate puts past its key rule, and the airlock every round passes before
+# the part, the pop and the cross over the round's list
 carrier_words()
 {
-    CARRY=("$CARRIER" --held held.txt "$MACHINE" "$LAYOUT"
-        --pop "$CARRIER" --dry --full "$MACHINE" "$LAYOUT"
+    CARRY=("$CARRIER" --held held.txt --lessons overseer.txt "$MACHINE" "$LAYOUT"
+        --pop "$CARRIER" --dry --full --lessons overseer.txt "$MACHINE" "$LAYOUT"
         --cross "$CROSS" "$NVDISASM" SM86 airlock.md held.txt)
 }
 
-# a part pass `$1`, one live run, every round of it checked before the part. The run holds what it ran against: the
-# forms the run before it left, carried in (the files beside the machine file where no run holds them), and every file
-# it reads as it read it, and those it changes as it left them; and what khw_write prints, its blob khw_write.console
-# (qry_writer tee). The pass exits as khw_write did
+# a part pass `$1`, with the words after it khw_write's, one live run, every round of it checked before the part. The
+# run holds what it ran against: the forms the run before it left and the lessons its conferences taught, carried in
+# (the files beside the machine file where no run holds them), and every file it reads as it read it, and those it
+# changes as it left them; where a listing is to seed the working set, its seeds the run's blob seeds.txt; and what
+# khw_write prints, its blob khw_write.console (qry_writer tee). The pass exits as khw_write did
 pass()
 {
+    local step="$1"
+    shift
     build_all
     run_started "$RUNS"
-    run_carried "$RUNS" "$WORK/forms_work.txt" "$WORK/forms.txt" faulted.txt
+    run_carried "$RUNS" "$WORK/forms_work.txt" "$WORK/forms.txt" faulted.txt overseer.txt
     run_read "$MACHINE" "${MACHINE%.khw}.ksc" "${MACHINE%.khw}.kqr" "$LAYOUT" "$MNEMONICS" "$FIELDS" ${BASE:+"$BASE"}
+    if [ -n "${SEED_LISTING:-}" ]; then
+        SEEDS="$OUT/sass_listing_seeds"
+        cc -std=c11 -O2 -Wall -Wextra -o "$SEEDS" "$LAYOUTS/nvidia/sass_listing_seeds.c" ||
+            { echo "  build failed: sass_listing_seeds did not compile"; exit 1; }
+        "$SEEDS" "$SEED_LISTING" | "$QRY_WRITER" hand seeds.txt || { echo "  the seeds were not handed"; exit 1; }
+    fi
     base_compiled
     carrier_words
-    "$BINARY" sm_86 "$MACHINE" "$LAYOUT" "$MNEMONICS" "$FIELDS" "$WRITER" "--$1" -- "${CARRY[@]}" 2>&1 |
+    "$BINARY" sm_86 "$MACHINE" "$LAYOUT" "$MNEMONICS" "$FIELDS" "$WRITER" "--$step" "$@" -- "${CARRY[@]}" 2>&1 |
         "$QRY_WRITER" tee khw_write
     return "${PIPESTATUS[0]}"
 }
@@ -128,6 +142,13 @@ pass()
 case "$STEP" in
     discover | turns | registers)
         pass "$STEP"
+        ;;
+    seed)
+        # a discover pass seeded from the listing given, the vendor's reader run beside this script
+        [ -n "$BASE" ] && [ -f "$BASE" ] || { echo "  khw_learn.sh seed <listing.sass>"; exit 2; }
+        SEED_LISTING="$BASE"
+        BASE=""
+        pass discover --seeds seeds.txt
         ;;
     cross)
         # a run of the cross's own, the latest listed questions carried into it (measuring_stick_query.sh)

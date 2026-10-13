@@ -76,7 +76,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/survivors_check" "$TOP/utils/test/src/cu/
     "$TOP/src/cu/transpiler/lstar/protocol/gate/survivors.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/scheduler_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/scheduler_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/order/scheduler.c" "$TOP/src/cu/transpiler/lstar/protocol/teacher/run_channel.c" \
-    "$TOP/src/cu/transpiler/lstar/interface/interface.c" \
+    "$TOP/src/cu/transpiler/lstar/protocol/overseer/overseer.c" "$TOP/src/cu/transpiler/lstar/interface/interface.c" \
     "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/overseer_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/overseer/overseer.c" "$TOP/src/cu/transpiler/lstar/protocol/teacher/run_channel.c" \
