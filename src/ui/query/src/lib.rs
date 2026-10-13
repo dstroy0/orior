@@ -8,6 +8,7 @@
 //! it needs comes by role through `programs::Programs`, which the command line implements over its
 //! toolchains.
 
+pub mod leaves;
 pub mod programs;
 pub mod run;
 pub mod tools;

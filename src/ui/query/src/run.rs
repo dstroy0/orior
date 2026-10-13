@@ -10,6 +10,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Child;
 
+use crate::leaves::{self, Asker, Leave};
 use crate::programs::Programs;
 use crate::tools;
 use crate::writer::{Priority, Writer};
@@ -226,14 +227,16 @@ impl Run {
         all
     }
 
-    /// The end: every left file handed, the writer stopped where this run started it, and only the
-    /// newest runs of the folder kept. A joined run leaves its writer to the run that started it.
-    pub fn ended(mut self, sink: &mut dyn FnMut(&str)) -> Result<(), String> {
+    /// The end: every left file handed, the leaves shown and asked as `leave` says, the writer
+    /// stopped where this run started it, and only the newest runs of the folder kept. A joined run
+    /// leaves its writer to the run that started it.
+    pub fn ended(mut self, leave: Leave, asker: &mut dyn Asker, sink: &mut dyn FnMut(&str)) -> Result<(), String> {
         for path in std::mem::take(&mut self.left) {
             if let Err(said) = self.writer.left(&path) {
                 sink(&format!("  {said}"));
             }
         }
+        leaves::settled(&self, leave, asker, sink)?;
         self.stopped()
     }
 
@@ -331,7 +334,7 @@ mod runs {
         {
             let run = Run::started(&root, &folder, &OnPath).unwrap();
             run.writer().hand("forms.txt", b"from the run before\n", Priority::Ordinary).unwrap();
-            run.ended(&mut |_| {}).unwrap();
+            run.ended(Leave::All, &mut crate::leaves::Terminal, &mut |_| {}).unwrap();
         }
         std::fs::write(base.join("faulted.txt"), b"from the disk\n").unwrap();
         let run = Run::started(&root, &folder, &OnPath).unwrap();
@@ -340,7 +343,7 @@ mod runs {
         assert_eq!(run.writer().latest("forms.txt").unwrap(), b"from the run before\n");
         assert_eq!(run.writer().latest("faulted.txt").unwrap(), b"from the disk\n");
         assert!(run.writer().latest("nowhere.txt").is_none());
-        run.ended(&mut |_| {}).unwrap();
+        run.ended(Leave::All, &mut crate::leaves::Terminal, &mut |_| {}).unwrap();
         let _ = std::fs::remove_dir_all(&base);
     }
 
@@ -361,7 +364,7 @@ mod runs {
         assert_eq!(run.leaves(), [file.clone()]);
         run.left(&[file.clone(), base.join("left.txt")]);
         assert_eq!(run.leaves(), [file.clone(), base.join("left.txt")]);
-        run.ended(&mut |_| {}).unwrap();
+        run.ended(Leave::All, &mut crate::leaves::Terminal, &mut |_| {}).unwrap();
         let _ = std::fs::remove_dir_all(&base);
     }
 }
