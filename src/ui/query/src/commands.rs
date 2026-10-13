@@ -261,10 +261,8 @@ pub fn run(root: &Path, programs: &dyn Programs, words: &[String], sink: &mut dy
         "query" => crate::write::query(&mut context, rest),
         "pairs" => crate::pairs::run(&mut context, rest),
         "stick" => crate::stick::run(&mut context, rest),
-        "kept" | "sweep" => {
-            let _ = (&mut context, rest);
-            Err(format!("{first} is not yet run from the crate"))
-        }
+        "kept" => crate::kept::run(&mut context, rest),
+        "sweep" => crate::kept::sweep(&mut context, rest),
         _ => Err(usage()),
     }
 }
