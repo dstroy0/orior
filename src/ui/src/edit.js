@@ -2930,6 +2930,12 @@ export async function startEdit(defs) {
     return along(held, () => invoke("document_find", { key: held.key, sought, most })).catch(() => null);
   });
   onOverBudget(holdMemory);
+  // The changes not saved are kept at once as the window closes, is hidden or loses the keys, and not
+  // only a moment after typing rests: no window's changes are lost, whichever closes first.
+  window.addEventListener("pagehide", keepBackups);
+  window.addEventListener("beforeunload", keepBackups);
+  window.addEventListener("blur", keepBackups);
+  document.addEventListener("visibilitychange", () => document.hidden && keepBackups());
   await loadPlugins();
   state.known = registerLanguages(defs);
   // A plugin read again, turned on or turned off colors every open file anew.

@@ -58,6 +58,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 
 25. **Saved means saved, however one gets back.** A tab is marked changed while its text differs from what was saved, its lines held against the saved lines, and not by the history it took to get there: a key taken back, an input method's character composed and taken back, and Vim's undo each leave the tab back at its saved text unmarked, and a composition left with nothing writes nothing.
 
+26. **No window's changes lost.** Every window keeps its changes not saved a moment after typing rests, and at once as it closes, is hidden or loses the keys, whichever window closes first. A file opened again in any window comes back with its changes, the tab marked changed, and a tab back at its saved text keeps nothing.
+
 ## The backend
 
 1. **One container, every process under it.** orior's window and its command line each put themselves at the head of a container as they start, and every process either starts, the language servers, kernels, debuggers, shells, database links and runs, and every process those start, stands under it. On Windows the container is a job object, which lists its processes and ends every one of them with orior however orior ends; on Linux and macOS the container reads its descendants from the system's list and ends them as it ends. What orior opens for the reader to keep, a page in the browser, a folder in the file manager or another window of orior's, starts outside it and stays.

@@ -4,7 +4,7 @@
 // The editor's tabs and files: a zip in the tree opened as a folder, its files read, changed and saved
 // back into it, and a large text held on the Rust side, its changes following it there and its
 // gutter's marks worked out there, the tabs opened again as the tree starts, and a tab back at its
-// saved text, however it got back, marked saved.
+// saved text, however it got back, marked saved; and the changes not saved kept as a window closes.
 
 import { invoke } from "../../src/bridge.js";
 import { chooseNames, editing, openFile, restoreSession, setVimKeys, vimKeys } from "../../src/edit.js";
@@ -170,4 +170,21 @@ test("a tab back at its saved text shows no change, by a key taken back, an inpu
   } finally {
     setVimKeys(vim);
   }
+});
+
+test("the changes not saved are kept at once as the window closes, and let go once the text is back as saved", async () => {
+  await invoke("file_write", { path: "closing.txt", text: "kept as typed\n" });
+  showView("edit");
+  await openFile("closing.txt");
+  await ui.waitFor(() => editing().active === "closing.txt" && editing().editor?.s, 5000);
+  const view = editing().editor;
+  const backup = () => Object.keys(localStorage).filter((key) => key.startsWith("orior.backup.") && key.endsWith("\nclosing.txt")).map((key) => localStorage.getItem(key))[0] ?? null;
+  view.goTo(0, 0);
+  view.focus();
+  await ui.type("Q");
+  window.dispatchEvent(new Event("pagehide"));
+  assert.equal(backup(), "Qkept as typed\n", "kept the moment the window closes, not a moment after typing rests");
+  await ui.key("Backspace");
+  window.dispatchEvent(new Event("pagehide"));
+  assert.equal(backup(), null, "back as saved, nothing kept");
 });
