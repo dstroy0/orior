@@ -5,6 +5,7 @@
 // they speak on, a terminal joining as a part while its shell runs, and a run that orior starts in
 // that terminal told to the window on a channel of its own.
 
+import { invoke } from "../../src/bridge.js";
 import { commsShown } from "../../src/comms.js";
 import { runCommand } from "../../src/menubar.js";
 import { killTerminal, newTerminal, runInTerminal, toggleTerminal } from "../../src/terminal.js";
@@ -47,7 +48,11 @@ test("orior's server and the window are parts of orior's own, each with the chan
 
 test("what the server tells the window goes over channels the window counts, each one's last messages shown when pressed", async () => {
   await openWindow();
-  await ui.waitFor(() => commsShown().channels.some((one) => /window/.test(one.detail)), 10000);
+  // A file written outside the editor: the tree's watch tells the window of it.
+  await invoke("file_write", { path: "comms_told.txt", text: String(Date.now()) });
+  await ui.waitFor(() => commsShown().channels.some((one) => /window/.test(one.detail)), 10000, "a channel the window hears").catch((error) => {
+    throw new Error(error.message + "; the channels: " + JSON.stringify(commsShown().channels));
+  });
   const channel = commsShown().channels.find((one) => /window/.test(one.detail));
   assert.ok(/\d+ messages?/.test(channel.status), channel.status);
   await ui.click(`.comms-channel[data-key="${channel.name}"]`);

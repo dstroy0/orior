@@ -20,7 +20,7 @@
 // either side. Past a number of titles set by the window's width, and past what fits, the titles go
 // into the last, a menu of menus.
 
-import { invoke, pick } from "./bridge.js";
+import { invoke, listen, pick } from "./bridge.js";
 import { motionReduced, setReduceMotion } from "./motion.js";
 import { showClone } from "./clone.js";
 import { showCreate, showInit, showProject } from "./create.js";
@@ -1643,6 +1643,33 @@ export async function runLaunch() {
   if (launch?.command) {
     runCommand(launch.command, launch.args);
   }
+}
+
+// How long a command line waits on a command still running, one that asks the reader or works on,
+// before it is answered that the command began.
+const ANSWER_BY = 2000;
+
+// Runs each command a command line says to this window, as reach.rs sends it, as its menu runs it,
+// and answers whether it ran and what it said: a command that gives text gives it to the command line.
+export async function hearCommandLine() {
+  const heard = new Set();
+  await listen("command", async ({ payload }) => {
+    if (!payload?.id || heard.has(payload.id)) {
+      return;
+    }
+    heard.add(payload.id);
+    const answer = (done, said = "") => invoke("command_answer", { id: payload.id, done, said }).catch(() => {});
+    if (!hasCommand(payload.command)) {
+      answer(false, `the window has no command ${payload.command}`);
+      return;
+    }
+    try {
+      const ran = await Promise.race([Promise.resolve(runCommand(payload.command, payload.args ?? [])), new Promise((done) => setTimeout(done, ANSWER_BY))]);
+      answer(true, typeof ran === "string" ? ran : "");
+    } catch (error) {
+      answer(false, String(error?.message ?? error));
+    }
+  });
 }
 
 // Starts the menu bar and every key its commands are bound to. `commands` is the reading of the

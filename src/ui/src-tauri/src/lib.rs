@@ -1190,6 +1190,7 @@ fn open(launch: Launch) {
             // The door of the comms layer is open from the start, for every process the container
             // starts to join.
             let _ = server.open_door();
+            let _ = server.open_to_command_line();
             server.watch();
             if let Some(address) = remote {
                 let handle = app.handle().clone();
@@ -1314,6 +1315,7 @@ fn open(launch: Launch) {
         .run(|handle, event| {
             // A language server orior started ends with it: on Windows a child outlives its parent.
             if let tauri::RunEvent::Exit = event {
+                orior_cli::reach::forget();
                 handle.state::<App>().server.stop_all();
                 if let Some(link) = handle.state::<App>().link.get() {
                     link.end();

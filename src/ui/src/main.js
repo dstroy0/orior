@@ -11,7 +11,7 @@ import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar, stripMenus } from "./menubar.js";
+import { drawMenubar, hearCommandLine, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar, stripMenus } from "./menubar.js";
 import { forgetRuns } from "./runs.js";
 import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
@@ -298,6 +298,7 @@ async function start() {
   settlePanes();
   onView(settlePanes);
   await runLaunch();
+  await hearCommandLine();
   // The window is whole: the test harness and the walker wait for this before they press anything.
   document.documentElement.dataset.started = "";
 }

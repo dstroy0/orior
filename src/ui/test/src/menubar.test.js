@@ -7,6 +7,9 @@
 import { allCommands, firstKeys, runCommand } from "../../src/menubar.js";
 import { invoke } from "../../src/bridge.js";
 import { closeMenu } from "../../src/menu.js";
+import { editing, openFile } from "../../src/edit.js";
+import { killTerminal, newTerminal, runInTerminal, toggleTerminal } from "../../src/terminal.js";
+import { showView } from "../../src/views.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -234,3 +237,25 @@ test(
   },
   { timeout: 1_800_000 },
 );
+
+test("a command given at a command line on the tree runs in this window, as its menu runs it", async () => {
+  const kept = localStorage.getItem("orior.word-wrap");
+  showView("edit");
+  await openFile("hello.py");
+  editing().setWordWrap(false);
+  newTerminal();
+  const screen = () => document.getElementById("term-views").textContent;
+  try {
+    runInTerminal("orior view word-wrap on");
+    await ui.waitFor(() => editing().wordWrap(), 30000, "the window to wrap its words").catch((error) => {
+      throw new Error(`${error.message}; the terminal shows: ${screen().trim().slice(-600)}`);
+    });
+    runInTerminal("orior view word-wrap off");
+    await ui.waitFor(() => !editing().wordWrap(), 30000, "the window to stop wrapping");
+    assert.ok(document.querySelectorAll("#tabs .tab").length > 0, "the same window, its tabs still open");
+  } finally {
+    killTerminal();
+    toggleTerminal(false);
+    editing().setWordWrap(kept === "true");
+  }
+}, { timeout: 90000 });

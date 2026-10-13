@@ -67,6 +67,7 @@ pub mod profile;
 pub mod purpose;
 pub mod qry;
 pub mod raised;
+pub mod reach;
 pub mod python_paths;
 pub mod recording;
 pub mod report;

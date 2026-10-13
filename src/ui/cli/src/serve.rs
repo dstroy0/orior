@@ -48,6 +48,10 @@ pub struct Server {
     /// at for a process of the container's.
     comms: Arc<crate::comms::Comms>,
     door: OnceLock<String>,
+    /// The server's own key, which speaks on every channel.
+    speaker: OnceLock<crate::comms::Key>,
+    /// The held key a command line joins the door with, once the window is open to it.
+    command_line: OnceLock<crate::comms::Key>,
 }
 
 /// A call's arguments, each found by its own name or by the page's, as the page writes names of more
@@ -339,9 +343,31 @@ impl Server {
             return;
         }
         let comms = self.comms.clone();
+        let _ = self.speaker.set(server.clone());
         let _ = self.emit.set(Arc::new(move |event, body| {
             let _ = comms.say(&server, event, body);
         }));
+    }
+
+    /// Opens the window to a command line run on its tree, as reach.rs says: a held key that speaks on
+    /// `command`, which the page hears, and listens on `answer/*`, kept in orior's home with the door
+    /// and the tree.
+    pub fn open_to_command_line(&self) -> Result<(), String> {
+        let address = self.open_door()?;
+        let key = match self.command_line.get() {
+            Some(key) => key.clone(),
+            None => {
+                let key = self.comms.register_held("command line", &["answer/*"], &["command"])?;
+                self.command_line.get_or_init(|| key).clone()
+            }
+        };
+        crate::reach::keep(self.root_now().as_deref(), &address, &key)
+    }
+
+    /// Says the page's answer to the command of `id` to the command line that asked it.
+    fn command_answer(&self, id: &str, done: bool, said: &str) -> Result<(), String> {
+        let speaker = self.speaker.get().ok_or("the server speaks on no channel yet")?;
+        self.comms.say(speaker, &format!("answer/{id}"), json!({"done": done, "said": said})).map(|_| ())
     }
 
     /// The comms layer every part of the container speaks through.
@@ -506,6 +532,9 @@ impl Server {
             self.symbols.forget();
             self.watch();
             files::warm(&path);
+            if self.command_line.get().is_some() {
+                let _ = self.open_to_command_line();
+            }
         }
         Ok(path.to_string_lossy().into_owned())
     }
@@ -745,6 +774,7 @@ impl Server {
         match name {
             "root_get" => give(self.root_now().map(|p| p.to_string_lossy().into_owned())),
             "root_set" => self.root_set(a.get("path")?).and_then(give),
+            "command_answer" => self.command_answer(&a.get::<String>("id")?, a.get("done")?, &a.get::<String>("said").unwrap_or_default()).and_then(give),
             "catalog_read" => give(catalog::read(&self.root()?).into_iter().map(|job| Listed { steps: job.steps.len(), job }).collect::<Vec<_>>()),
             "definitions_read" => give(defs::read(&self.root()?)),
             "job_start" => match &self.keeping {

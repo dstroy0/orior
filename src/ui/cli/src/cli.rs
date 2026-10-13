@@ -1313,6 +1313,31 @@ pub fn run(given: Vec<String>) -> Outcome {
                 }
             };
         }
+        // A window open on the tree runs the command itself, as reach.rs says; with none, a window
+        // opens to run it.
+        let found = match named {
+            Some(dir) => tree(Some(dir)).ok(),
+            None => root::find(),
+        };
+        if !command.is_empty() {
+            match crate::reach::ask(found.as_deref(), &menu, &command, &args) {
+                Some(Ok(answer)) => {
+                    if !answer.said.is_empty() {
+                        if answer.done {
+                            out(&answer.said);
+                        } else {
+                            err(&answer.said);
+                        }
+                    }
+                    return Outcome::Exit(if answer.done { 0 } else { WRONG });
+                }
+                Some(Err(said)) => {
+                    err(&said);
+                    return Outcome::Exit(WRONG);
+                }
+                None => {}
+            }
+        }
         match named.map(|dir| tree(Some(dir))).transpose() {
             Ok(root) => Outcome::Window(Launch { root, remote: None, menu, command, args }),
             Err(said) => {
