@@ -729,6 +729,15 @@ impl Servers {
         let mut reopen = Vec::new();
         {
             let mut running = self.running.lock().map_err(|_| "held".to_string())?;
+            // clangd running when the build's database changed is started again on it, given back
+            // the files it held.
+            let reread = spec.program == "clangd" && running.get(&tool.id).is_some_and(|server| server.alive()) && crate::compile_db::refresh(root).changed;
+            if reread {
+                if let Some(old) = running.remove(&tool.id) {
+                    reopen = old.held();
+                    std::thread::spawn(move || old.stop());
+                }
+            }
             if let Some(server) = running.get(&tool.id) {
                 if server.alive() {
                     return Ok(Some((server.clone(), spec)));
@@ -766,7 +775,27 @@ impl Servers {
                         given.extend(added.clone());
                     }
                 }
-                Server::start(&program, &spec.args, root, options, toolchains::run_path(), Box::new(move |method, params| heard(method, params, &emit, &published, &checks))).map_err(|said| match &spec.setup {
+                // clangd reads the build's own database and asks the build's own compilers; where
+                // one is cl, it runs in Visual Studio's environment, as cl does (compile_db.rs).
+                let mut args = spec.args.clone();
+                let mut env = vec![(std::ffi::OsString::from("PATH"), toolchains::run_path())];
+                if spec.program == "clangd" {
+                    let database = crate::compile_db::refresh(root).database;
+                    args.extend(database.words());
+                    if let Some(vs) = database.msvc.then(crate::compile_db::vs_environment).flatten() {
+                        for (key, value) in vs {
+                            if key.eq_ignore_ascii_case("PATH") {
+                                let mut path = std::ffi::OsString::from(value);
+                                path.push(if cfg!(windows) { ";" } else { ":" });
+                                path.push(toolchains::run_path());
+                                env[0].1 = path;
+                            } else {
+                                env.push((key.into(), value.into()));
+                            }
+                        }
+                    }
+                }
+                Server::start_in(&program, &args, root, options, &env, Box::new(move |method, params| heard(method, params, &emit, &published, &checks))).map_err(|said| match &spec.setup {
                     Some(setup) => format!("{} did not start ({said}): {setup} installs it", spec.program),
                     None => format!("{} did not start: {said}", spec.program),
                 })
@@ -2241,6 +2270,39 @@ mod tests {
             std::thread::sleep(Duration::from_millis(100));
         }
         ready()
+    }
+
+    #[test]
+    #[ignore = "configures with CMake and starts clangd where they are installed"]
+    fn clangd_reads_the_build_s_own_compiler_includes_and_defines_from_a_cmake_build_orior_configured() {
+        let dir = std::env::temp_dir().join(format!("orior-one-compiler-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::create_dir_all(dir.join("include")).unwrap();
+        std::fs::write(dir.join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.16)\nproject(probe C)\nadd_executable(probe src/main.c)\ntarget_include_directories(probe PRIVATE include)\ntarget_compile_definitions(probe PRIVATE NEEDED=1)\n").unwrap();
+        std::fs::write(dir.join("include").join("thing.h"), "static int thing(void) { return NEEDED; }\n").unwrap();
+        let text = "#include <string.h>\n#include \"thing.h\"\n#ifndef NEEDED\n#error NEEDED is set by the build\n#endif\nint main(void) { return (int)strlen(\"x\") - thing(); }\n";
+        let file = dir.join("src").join("main.c");
+        std::fs::write(&file, text).unwrap();
+        // As orior's CMake job configures it: its file API asked, into build/cmake/Debug.
+        let build = dir.join("build").join("cmake").join("Debug");
+        let query = build.join(".cmake").join("api").join("v1").join("query");
+        std::fs::create_dir_all(&query).unwrap();
+        for kind in ["codemodel-v2", "toolchains-v1"] {
+            std::fs::write(query.join(kind), "").unwrap();
+        }
+        let configured = std::process::Command::new("cmake").arg("-S").arg(&dir).arg("-B").arg(&build).arg("-DCMAKE_BUILD_TYPE=Debug").output().unwrap();
+        assert!(configured.status.success(), "{}", String::from_utf8_lossy(&configured.stderr));
+        let (emit, found, _) = heard_by_name();
+        let servers = Servers::default();
+        let opened = servers.open(&dir, &file, "c", text, &emit);
+        assert!(opened.clone().unwrap_or_else(|said| panic!("{said}")), "{opened:?}");
+        assert!(until(60, || found.lock().unwrap().contains_key("main.c")), "clangd said nothing of main.c");
+        // A first word can come before the database is read; the last word stands.
+        std::thread::sleep(Duration::from_secs(3));
+        assert_eq!(found.lock().unwrap().get("main.c").copied(), Some(0), "no error: the include folder, the define and the compiler's own headers are the build's");
+        servers.stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -21,6 +21,7 @@ pub mod catalog;
 pub mod checkers;
 pub mod cli;
 pub mod commands;
+pub mod compile_db;
 pub mod comms;
 pub mod container;
 pub mod containers;
