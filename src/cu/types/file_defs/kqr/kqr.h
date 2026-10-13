@@ -185,6 +185,9 @@ extern "C"
     // cycle the record holds, and a seed's and a round's their number in decimal
     void kqr_mark(KqrRecord *record, unsigned int code, const char *value);
 
+    // 1 with the ask `at` of the record's asks, in the order they were kept, in `held`; 0 past the last
+    int kqr_ask_read(const KqrRecord *record, unsigned int at, KqrAsk *held);
+
     // 1 with the sample `at` of the record's samples, in the order they were kept, in `held`; 0 past the last
     int kqr_sample_read(const KqrRecord *record, unsigned int at, KqrSample *held);
 

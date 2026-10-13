@@ -3093,7 +3093,7 @@ static int identity_stall(const char *engine, const char *answers, const char *k
         }
     }
     // the load's address written last by the other words that write a pair, every stall of the last link, in the round
-    const Ruleset *const sass = code_generator("sass.krs").ruleset_open(1);
+    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
     static SassMachine s_machine;
     const int writable = (sass != NULL) && (sass_machine_read(&s_machine, machine_path) != 0);
     const auto none_named = [](const std::string &) { return std::string(); };
@@ -4838,7 +4838,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                          const char *machine_path, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    const Ruleset *const sass = code_generator("sass.krs").ruleset_open(1);
+    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
     static SassMachine s_machine;
     if ((sass == NULL) || (sass_machine_read(&s_machine, machine_path) == 0))
     {
@@ -6379,7 +6379,7 @@ static int identity_cost(const char *engine, const char *answers, const char *ks
                          const char *kdm, const char *machine_path, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    const Ruleset *const sass = code_generator("sass.krs").ruleset_open(1);
+    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
     static SassMachine s_machine;
     if ((sass == NULL) || (sass_machine_read(&s_machine, machine_path) == 0))
     {

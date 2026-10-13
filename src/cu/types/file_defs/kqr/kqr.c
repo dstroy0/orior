@@ -793,6 +793,25 @@ void kqr_mark(KqrRecord *record, unsigned int code, const char *value)
     record->pendings += 1u;
 }
 
+int kqr_ask_read(const KqrRecord *record, unsigned int at, KqrAsk *held)
+{
+    unsigned int seen = 0u;
+    for (unsigned int place = 0u; record->open && (place < record->first_pair); place += 1u)
+    {
+        const KrepRecord *const ask = &record->file.record[place];
+        if (ask->code != KQR_ASK_RECORD)
+        {
+            continue;
+        }
+        if (seen == at)
+        {
+            return kqr_ask_of(record, ask, held);
+        }
+        seen += 1u;
+    }
+    return 0;
+}
+
 int kqr_sample_read(const KqrRecord *record, unsigned int at, KqrSample *held)
 {
     return (at < record->samples) && kqr_sample_of(record, &record->file.record[record->sample[at]], held);

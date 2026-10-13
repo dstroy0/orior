@@ -559,7 +559,9 @@ int main(int count, char **word)
     qry_text_printed(&head, "krs 1\nruleset %s\n", language);
     // What turns the language's text into a program the part loads, and where the text's opening lines come from
     // (krs.oracle.tsv): for sass the container writer, which lays the text into the container the system accepted
-    // (cubin_write.c), and the container's own kernel, whose opening the text takes as it stands
+    // (cubin_write.c), and the container's own kernel, whose opening the text takes as it stands. Both are hand values
+    // standing where the query protocol table asks the part (Open 6.3): a container the vendor's writer makes, loaded
+    // and returned from, and the least opening a kernel runs with
     if (strcmp(language, "sass") == 0)
     {
         qry_text_printed(&head, "toolchain cubin_write\nheader container\n");
@@ -580,9 +582,13 @@ int main(int count, char **word)
         qry_text_printed(&head, "bank predicate = P{n}\n");
         qry_text_printed(&head, "bank member = R{n}\n");
         qry_text_printed(&head, "bank immediate = {n}\n");
-        // the registers every lane holds throughout, the ones the code generator names (cu.krs gives the same
+        // The registers every lane holds throughout, the ones the code generator names (cu.krs gives the same
         // fourteen): zero the part's RZ, and the rest the lowest general registers in cu.krs's order. Every bank
-        // writes R{n} from 0, and nothing here keeps a bank's numbers off the fixed registers' or another bank's
+        // writes R{n} from 0, and nothing here keeps a bank's numbers off the fixed registers' or another bank's.
+        // Every number here is a hand value standing where the query protocol table asks the part (Open 6.1, 6.2):
+        // each bank's place the cheapest the part answers holds it, zero the register that reads 0 whatever is
+        // written to it, the lane's number read through a special register against the host, and each of the
+        // launch's values in the least register a chain holds it through
         qry_text_printed(&head, "fixed zero = RZ\n");
         qry_text_printed(&head, "fixed lane_number = R0\n");
         qry_text_printed(&head, "fixed record = R1\n");

@@ -266,9 +266,8 @@ CODEGEN_CORE int ruleset_core_fixed_folded(RulesetCoreRead *read)
 
 // the file read into the read against its schema, as ruleset_read reads it past opening the file: its first line is
 // krs 1, every entry holds, and every bank, fixed register and form the code generator names is given with the
-// ruleset's name, toolchain and header, else the read ends with why. Read open (read->open), a form not given is left
-// ungiven and the read holds: a ruleset the part has not yet answered for whole, read as far as it goes. A line that
-// begins with # is a comment, and a blank line is nothing
+// ruleset's name, toolchain and header, else the read ends with why. A line that begins with # is a comment, and a
+// blank line is nothing
 CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
 {
     const RulesetCoreSchema *const schema = &read->schema;
@@ -368,7 +367,7 @@ CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
             return;
         }
     }
-    for (unsigned int named = 0u; (named < schema->form_count) && (read->open == 0u); named += 1u)
+    for (unsigned int named = 0u; named < schema->form_count; named += 1u)
     {
         if (read->form_given[named] == 0u)
         {
