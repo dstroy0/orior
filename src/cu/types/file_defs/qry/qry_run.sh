@@ -4,11 +4,11 @@
 # left each one it changed, so that one .qry says what one iteration saw and did.
 #
 # As a run the script started ends, only the newest QRY_KEPT runs of its folder are kept, 64 where it is not set.
-# While the host is idle, qry_kept.sh keeps every other run of a folder still a .qry, and no writer's, as the engine's
+# While the host is idle, `orior protocol kept` keeps every other run of a folder still a .qry, and no writer's, as the engine's
 # crystal (qry_crystal.c), the folder query<n>-<datetime> beside where its .qry stood, and the .qry let go once the
 # crystal held byte for byte; the newest run stays a .qry for the next to read. A run kept as a crystal is read back
 # out of it where a run before it is read and no .qry holds what is sought. Nothing a script starts by waits on the
-# engine: only qry_kept.sh builds the crystal's program.
+# engine: only `orior protocol kept` builds the crystal's program.
 #
 #     source src/cu/types/file_defs/qry/qry_run.sh
 #     qry_writer_built <folder>    the writer built into <folder> where its sources are newer, QRY_WRITER its path, and

@@ -159,7 +159,7 @@ fn as_words(words: &[String]) -> Vec<&str> {
     words.iter().map(String::as_str).collect()
 }
 
-/// The gate's verdicts counted off the dry record, as `khw_write.sh dry` prints them.
+/// The gate's verdicts counted off the dry record, a line a verdict.
 fn verdicts_said(context: &mut Context, run: &Run) {
     let dry = run.writer().read("dry.txt").unwrap_or_default();
     let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
@@ -285,7 +285,7 @@ mod passes {
     use super::*;
 
     #[test]
-    fn the_files_are_handed_with_forward_slashes_as_the_scripts_hand_them() {
+    fn the_files_are_handed_with_forward_slashes() {
         let files = Files::of(Path::new("D:\\top\\tree"), "sm_86");
         let costs = text(&files.costs);
         assert!(!costs.contains('\\'), "{costs}");
@@ -294,7 +294,7 @@ mod passes {
     }
 
     #[test]
-    fn the_carrier_s_words_are_the_script_s() {
+    fn the_carrier_s_words() {
         let words = carrier_words(Path::new("C"), Path::new("X"), Path::new("N"), Path::new("M"), Path::new("L"), true);
         assert_eq!(words, ["C", "--held", "held.txt", "--lessons", "overseer.txt", "M", "L", "--pop", "C", "--dry", "--full", "--lessons", "overseer.txt", "M", "L", "--cross", "X", "N", "SM86", "airlock.md", "held.txt"]);
         let plain = carrier_words(Path::new("C"), Path::new("X"), Path::new("N"), Path::new("M"), Path::new("L"), false);

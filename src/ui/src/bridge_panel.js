@@ -190,7 +190,7 @@ export function drawBridge(key, openAt, choose) {
   const writer = element("button", { type: "button", className: "secondary bridge-write", textContent: "Write Lstar.klq" });
   writer.addEventListener("click", () => {
     writer.disabled = true;
-    startJob("protocol/utils/maint/engine/klq_write.sh", {}).catch((error) => {
+    startJob("protocol/write", { writer: "bridge" }).catch((error) => {
       writer.disabled = false;
       writer.title = String(error);
     });

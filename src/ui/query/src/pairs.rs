@@ -160,7 +160,7 @@ fn host_answered(context: &mut Context, run: &Run, out: &Path) -> Result<(), Str
 }
 
 /// Every mode: the stick's listing and the part's files held to, the environment set, and the
-/// mode run as its script ran it.
+/// mode run.
 fn run_mode(context: &mut Context, mode: &Mode) -> Result<i32, String> {
     let stick = context.at(STICK);
     if !stick.join("measuring_stick_nvcc.sass").is_file() {
@@ -338,10 +338,10 @@ mod modes {
     }
 
     #[test]
-    fn the_modes_and_their_targets_are_the_script_s() {
+    fn the_modes_and_their_targets() {
         let root = Path::new("T");
         let table = root.join(TABLE);
-        // forward-slashed throughout, as the scripts hand them
+        // forward-slashed throughout
         assert_eq!(targets(root, "queue", "sm_86", &[]), [text(&root.join(STICK).join("measuring_stick.tsv"))]);
         assert_eq!(targets(root, "pair", "sm_86", &[]), [text(&table.join("Lstar.klq")), text(&table.join("sm_86.khw"))]);
         assert_eq!(targets(root, "stall", "sm_86", &[]), [text(&table.join("sm_86.khw"))]);

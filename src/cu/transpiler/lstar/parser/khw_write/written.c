@@ -375,7 +375,7 @@ static void khw_enumerate_runs(const KhwAnswered *held, const unsigned int word[
 }
 
 // The slot's questions emitted off the part for the vendor's disassembler to read back: each known form's fields and
-// register-runs, none carried, a dry run handing them to the run's buffer (measuring_stick_query.sh). Where `forms`
+// register-runs, none carried, a dry run handing them to the run's buffer (`orior protocol cross`). Where `forms`
 // names a blob of the run's buffer holding forms a prior run learned, every form it holds is read and each one's bits
 // turned one at a time (its fields and, with them, every bit a widening would turn) and its runs set to the two
 // registers; where it names none, the kernel's own slot form alone, its bits turned. The slot and the forms are the

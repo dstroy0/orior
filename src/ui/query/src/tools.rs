@@ -528,8 +528,8 @@ mod building {
 
     #[test]
     fn paths_given_to_the_compilers_are_forward_slashed() {
-        // a source's path becomes its __FILE__, which the readers walk `..` through: the scripts gave
-        // forward slashes, and so does every word a compiler is given
+        // a source's path becomes its __FILE__, which the readers walk `..` through: every word a
+        // compiler is given has forward slashes
         let root = root();
         let source = root.join("src").join("cu").join("types").join("file_defs").join("ktext.c");
         assert!(!text(&source).contains('\\'), "{}", text(&source));

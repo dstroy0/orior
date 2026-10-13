@@ -4,7 +4,7 @@
 // the guard cut and NOP left out, each as many times as it is written. Every operation nvcc writes that no form of
 // sass.krs writes is where sass.krs falls short, and the record counts the kernels each is in.
 //
-// Given the run of measuring_stick_engine.sh, each kernel it writes through cu.krs and sass.krs is held against nvcc's:
+// Given the run of `orior protocol stick engine`, each kernel it writes through cu.krs and sass.krs is held against nvcc's:
 // the operations nvdisasm reads back from the kernel's encodings, against the operations of nvcc's listing. A kernel is
 // at parity where the two are the same multiset. The read back is checked against the kernel's own text, instruction by
 // instruction: the assembler and the disassembler agree on every operation the comparison counts.
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
     const size_t prefix = sizeof(s_prefix) - 1u;
     QryText record = {NULL, 0ull, 0ull, 0};
     qry_text_printed(&record, "# The measuring stick: nvcc's listing, the answer key\n\n");
-    qry_text_printed(&record, "Written by `measuring_stick.sh` whole on every run. Each kernel of the measuring stick "
+    qry_text_printed(&record, "Written by `orior protocol stick` whole on every run. Each kernel of the measuring stick "
                               "(measuring_stick.py), every function of the CUDA language in a kernel of its own, is "
                               "compiled by nvcc for sm_86 and read here. What the engine builds for each function is "
                               "held against it, a kernel at parity where the engine's code uses the same operations as "

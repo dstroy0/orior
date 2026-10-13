@@ -442,7 +442,7 @@ mod keeping {
     }
 
     #[test]
-    fn the_writers_account_is_summed_as_the_script_sums_it() {
+    fn the_writers_account_is_summed() {
         let line = "9 blobs handed, 0 dumped, 1234567 bytes in 3 writes, the slowest 1.500 ms for 100 bytes, 2.250 ms writing in all; 0 panics, the slowest 0.000 ms from its hand to the disk";
         let read = account_read(line).unwrap();
         assert_eq!(read.bytes, 1234567);
@@ -458,7 +458,7 @@ mod keeping {
     }
 
     #[test]
-    fn the_part_s_allowed_use_is_read_as_the_script_reads_it() {
+    fn the_part_s_allowed_use_is_read() {
         assert_eq!(used_most(None), 10);
         assert_eq!(used_most(Some("25")), 25);
         // a negative bound, which every reading is past, holds the part used whatever it reads
@@ -507,7 +507,7 @@ mod keeping {
     }
 
     #[test]
-    fn the_part_held_used_is_said_on_a_line_of_its_own_as_the_script_says_it() {
+    fn the_part_held_used_is_said_on_a_line_of_its_own() {
         let said = crystals_refused(&Err("the part is used 3 percent".into()), None);
         assert_eq!(said, ["  no run is kept as its crystal this time:", "  the part is used 3 percent"]);
         let unbuilt = crystals_refused(&Ok(()), None);
