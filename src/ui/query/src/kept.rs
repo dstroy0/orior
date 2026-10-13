@@ -214,6 +214,12 @@ pub fn kept_folder(root: &Path, programs: &dyn Programs, folder: &Path, crystal:
     sink(&format!("  {shown}: {} of {before} runs kept", run::each(folder).len()));
 }
 
+/// The part's allowed use in percent, as `QRY_PART_USED` gives it, 10 where it is not set or is no
+/// number; a negative bound holds the part used whatever it reads.
+pub fn used_most(given: Option<&str>) -> i64 {
+    given.and_then(|v| v.trim().parse().ok()).unwrap_or(10)
+}
+
 /// Whether the part is free: no process of the tree on it, and its use at most `QRY_PART_USED`
 /// percent, 10 where it is not set, over five readings a second apart. Why not, where it is not.
 pub fn part_free(context: &Context) -> Result<(), String> {
@@ -223,10 +229,10 @@ pub fn part_free(context: &Context) -> Result<(), String> {
     if String::from_utf8_lossy(&apps.stdout).lines().any(|line| line.to_ascii_lowercase().contains(&top)) {
         return Err("a process of the tree is on the part".into());
     }
-    let most: u64 = std::env::var("QRY_PART_USED").ok().and_then(|v| v.parse().ok()).unwrap_or(10);
+    let most = used_most(std::env::var("QRY_PART_USED").ok().as_deref());
     for reading in 0..5 {
         let used = std::process::Command::new(&smi).args(["--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"]).output().map_err(|e| e.to_string())?;
-        let percent: u64 = String::from_utf8_lossy(&used.stdout).lines().next().and_then(|l| l.trim().parse().ok()).ok_or("the part's use was not read")?;
+        let percent: i64 = String::from_utf8_lossy(&used.stdout).lines().next().and_then(|l| l.trim().parse().ok()).ok_or("the part's use was not read")?;
         if percent > most {
             return Err(format!("the part is used {percent} percent"));
         }
@@ -433,6 +439,15 @@ mod keeping {
         assert!(account_read("nothing here").is_none());
         let still = account_read("1 blobs handed, 0 dumped, 10 bytes in 1 writes, the slowest 0.100 ms for 10 bytes, 0.000 ms writing in all; 0 panics, the slowest 0.000 ms from its hand to the disk").unwrap();
         assert_eq!(still.rate(), 0.0, "no time writing is no rate");
+    }
+
+    #[test]
+    fn the_part_s_allowed_use_is_read_as_the_script_reads_it() {
+        assert_eq!(used_most(None), 10);
+        assert_eq!(used_most(Some("25")), 25);
+        // a negative bound, which every reading is past, holds the part used whatever it reads
+        assert_eq!(used_most(Some("-1")), -1);
+        assert_eq!(used_most(Some("many")), 10);
     }
 
     #[test]
