@@ -1338,6 +1338,26 @@ pub fn run(given: Vec<String>) -> Outcome {
                 None => {}
             }
         }
+        // With no window open on the tree, a command the terminal can do runs here, as at_terminal.rs
+        // says; the others open a window.
+        if crate::at_terminal::runs(&command) {
+            let Some(root) = found.clone().or_else(|| std::env::current_dir().ok()) else {
+                err("orior finds no folder to run in");
+                return Outcome::Exit(WRONG);
+            };
+            return match crate::at_terminal::run(&root, &command, &args) {
+                Ok(said) => {
+                    if !said.is_empty() {
+                        out(&said);
+                    }
+                    Outcome::Exit(0)
+                }
+                Err(said) => {
+                    err(&said);
+                    Outcome::Exit(WRONG)
+                }
+            };
+        }
         match named.map(|dir| tree(Some(dir))).transpose() {
             Ok(root) => Outcome::Window(Launch { root, remote: None, menu, command, args }),
             Err(said) => {
