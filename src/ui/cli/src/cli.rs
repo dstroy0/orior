@@ -1365,6 +1365,9 @@ pub fn run(given: Vec<String>) -> Outcome {
             }
         };
         crate::serve::serve(root, std::io::stdin().lock(), std::io::stdout());
+        // The window's link is gone: every run, shell and server still in the container ends with
+        // it, on the machine the window reached as on the window's own.
+        crate::container::end_all();
         return Outcome::Exit(0);
     }
     // write-raised copies a file orior staged over the file the reader gave the rights to write, as

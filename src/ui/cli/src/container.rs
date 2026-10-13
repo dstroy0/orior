@@ -412,6 +412,36 @@ mod tests {
         }
     }
 
+    /// The test's own program, run again as `orior serve` at the head of a container: it starts a
+    /// waiting program inside, serves until its input ends, at once, and says the program's id.
+    #[test]
+    fn orior_serve_ends_what_it_started_as_its_input_ends() {
+        if std::env::var_os("ORIOR_SERVE_HEAD").is_some() {
+            assert!(hold(), "the container holds");
+            let inside = waiting_program().spawn().unwrap();
+            std::thread::sleep(Duration::from_millis(300));
+            let _ = crate::cli::run(vec!["serve".to_string()]);
+            println!("ids {}", inside.id());
+            std::mem::forget(inside);
+            return;
+        }
+        let me = std::env::current_exe().unwrap();
+        let out = std::process::Command::new(me)
+            .args(["--exact", "container::tests::orior_serve_ends_what_it_started_as_its_input_ends", "--nocapture", "--test-threads", "1"])
+            .env("ORIOR_SERVE_HEAD", "1")
+            .stdin(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .output()
+            .unwrap();
+        let said = String::from_utf8_lossy(&out.stdout).to_string();
+        let id: u32 = said.split("ids ").nth(1).and_then(|rest| rest.split_whitespace().next()).and_then(|id| id.parse().ok()).unwrap_or_else(|| panic!("the head failed: {said}"));
+        let until = Instant::now() + Duration::from_secs(5);
+        while alive(id) && Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        assert!(!alive(id), "what serve started ended as its input did");
+    }
+
     /// The test's own program, run again as the head of a container: it starts a waiting program
     /// inside and one outside, says their ids, and ends without ending either.
     #[test]

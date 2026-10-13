@@ -11,9 +11,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## The backend
 
-1. **No process left behind.** Every server, analyzer and run orior starts ends when orior does, here and on a machine it reached.
-   - Language servers and analyzers keep running after the editor closes and pile up over days, and a remote session closed leaves its server running ([SonarLint][48], [Julia][49], [Pawsey][50]).
-2. **Large files over a link without stalls.** A large file on another machine costs nothing until opened, and a large copy runs behind with its progress shown.
+1. **Large files over a link without stalls.** A large file on another machine costs nothing until opened, and a large copy runs behind with its progress shown.
    - A file of 300 MB on a remote machine makes the connection unusably slow even unopened, and large uploads send people to other tools ([Cursor forum][51], [Thunder Compute][52]).
 
 ## Perception
