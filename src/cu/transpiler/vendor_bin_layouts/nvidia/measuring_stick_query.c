@@ -179,9 +179,16 @@ int main(int count, char **words)
     memset(&work, 0, sizeof(work));
     work.words = &slot_words;
     work.readings = readings;
-    work.chunks = (slot_words.count + MSQ_CHUNK - 1u) / MSQ_CHUNK;
-    atomic_store(&work.next, 0u);
+    // as many chunks as threads where the encodings allow, each at most MSQ_CHUNK: a chunk is read once and once more
+    // for each slot the vendor calls illegal in it, and the chunks read at once divide that among the threads
     const unsigned int processors = msq_processors() * 2u;
+    work.chunks = (slot_words.count + MSQ_CHUNK - 1u) / MSQ_CHUNK;
+    if ((work.chunks < processors) && (slot_words.count >= processors))
+    {
+        work.chunks = processors;
+    }
+    work.chunk_size = (work.chunks != 0u) ? ((slot_words.count + work.chunks - 1u) / work.chunks) : MSQ_CHUNK;
+    atomic_store(&work.next, 0u);
     const unsigned int threads =
         (work.chunks == 0u) ? 0u : ((work.chunks < processors) ? (unsigned int)work.chunks : processors);
     pthread_t *const started = (pthread_t *)calloc((size_t)threads + 1u, sizeof(pthread_t));
@@ -211,29 +218,67 @@ int main(int count, char **words)
     MsqRegisters *const addressed = (MsqRegisters *)calloc(tails.count + 1u, sizeof(MsqRegisters));
     int whole = (reader.output != NULL) && (whole_frames != NULL) && (piece_frames != NULL) && (addressed != NULL) &&
                 !atomic_load(&work.failed);
-    // every frame read whole: a question with no slot by its whole code, a slotted one by the code before its slot, a
-    // NOP and the code past it, the code past a slot being the same in every question of one kernel
+    // every frame read whole, the frames read by threads at once: a question with no slot by its whole code, a slotted
+    // one by the code before its slot, a NOP and the code past it, the code past a slot being the same in every
+    // question of one kernel
+    MsqFrames frames;
+    memset(&frames, 0, sizeof(frames));
+    frames.count = whole_codes.count + pieces.count;
+    MsqBytes *const framed = (MsqBytes *)calloc(frames.count + 1u, sizeof(MsqBytes));
+    MsqFrame *const frame_read = (MsqFrame *)calloc(frames.count + 1u, sizeof(MsqFrame));
+    unsigned char **const piece_bytes = (unsigned char **)calloc(pieces.count + 1u, sizeof(unsigned char *));
+    whole = whole && (framed != NULL) && (frame_read != NULL) && (piece_bytes != NULL);
     for (size_t code = 0u; whole && (code < whole_codes.count); code += 1u)
     {
-        whole = msq_frame_read(&reader, &whole_codes.items[code], &whole_frames[code]);
+        framed[code] = whole_codes.items[code];
     }
-    unsigned char *joined = NULL;
-    size_t joined_size = 0u;
-    size_t joined_room = 0u;
     for (size_t piece = 0u; whole && (piece < pieces.count); piece += 1u)
     {
         const MsqQuestion *const first = &questions[piece_of[piece]];
         const MsqBytes *const prefix = &prefixes.items[first->prefix_index];
         const MsqBytes *const tail = &tails.items[first->tail_index];
-        joined_size = 0u;
+        size_t joined_size = 0u;
+        size_t joined_room = 0u;
         // a code is at most a container's, which a size_t counts
-        whole = msq_added(&joined, &joined_size, &joined_room, prefix->bytes, (size_t)prefix->size) &&
-                msq_added(&joined, &joined_size, &joined_room, s_nop, sizeof(s_nop)) &&
-                msq_added(&joined, &joined_size, &joined_room, tail->bytes, (size_t)tail->size);
-        const MsqBytes frame = {joined, (unsigned long long)joined_size};
-        whole = whole && msq_frame_read(&reader, &frame, &piece_frames[piece]);
+        whole = msq_added(&piece_bytes[piece], &joined_size, &joined_room, prefix->bytes, (size_t)prefix->size) &&
+                msq_added(&piece_bytes[piece], &joined_size, &joined_room, s_nop, sizeof(s_nop)) &&
+                msq_added(&piece_bytes[piece], &joined_size, &joined_room, tail->bytes, (size_t)tail->size);
+        framed[whole_codes.count + piece].bytes = piece_bytes[piece];
+        framed[whole_codes.count + piece].size = (unsigned long long)joined_size;
     }
-    free(joined);
+    frames.frames = framed;
+    frames.read = frame_read;
+    atomic_store(&frames.readers, atomic_load(&work.readers));
+    const unsigned int frame_threads = (frames.count < processors) ? (unsigned int)frames.count : processors;
+    pthread_t *const frame_started = (pthread_t *)calloc((size_t)frame_threads + 1u, sizeof(pthread_t));
+    unsigned int frame_readers = 0u;
+    for (unsigned int thread = 0u; whole && (frame_started != NULL) && (thread < frame_threads); thread += 1u)
+    {
+        if (pthread_create(&frame_started[thread], NULL, msq_frames_worker, &frames) != 0)
+        {
+            atomic_store(&frames.failed, 1);
+            break;
+        }
+        frame_readers += 1u;
+    }
+    for (unsigned int thread = 0u; thread < frame_readers; thread += 1u)
+    {
+        pthread_join(frame_started[thread], NULL);
+    }
+    free(frame_started);
+    whole = whole && !atomic_load(&frames.failed);
+    for (size_t code = 0u; code < whole_codes.count; code += 1u)
+    {
+        whole_frames[code] = frame_read[code];
+    }
+    for (size_t piece = 0u; piece < pieces.count; piece += 1u)
+    {
+        piece_frames[piece] = frame_read[whole_codes.count + piece];
+        free(piece_bytes[piece]);
+    }
+    free(piece_bytes);
+    free(framed);
+    free(frame_read);
     // the registers the code past each slot reads an address from: every distinct code past a slot read together, as
     // one raw run, the kernel's own code being the same in every question but the slot
     whole = whole && msq_tails_read(&reader, &tails, addressed);

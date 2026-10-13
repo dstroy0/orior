@@ -80,9 +80,41 @@ void *msq_chunks_worker(void *argument)
         // the chunk's index names its blobs
         reader.ident = (unsigned int)chunk;
         reader.calls = 0ull;
-        const size_t first = chunk * MSQ_CHUNK;
-        const size_t count = ((first + MSQ_CHUNK) <= work->words->count) ? MSQ_CHUNK : (work->words->count - first);
+        const size_t first = chunk * work->chunk_size;
+        const size_t count = ((first + work->chunk_size) <= work->words->count) ? work->chunk_size
+                                                                                 : (work->words->count - first);
         msq_chunk_read(&reader, work->words, first, count, work->readings, &work->failed);
+        atomic_fetch_add(&work->calls, reader.calls);
+    }
+    free(reader.output);
+    free(reader.raw);
+    return NULL;
+}
+
+// a reader thread's work over the frames: frames taken one after another until none is left, each read whole under
+// the thread's own ident and stream, both past every chunk reader's
+void *msq_frames_worker(void *argument)
+{
+    MsqFrames *const work = (MsqFrames *)argument;
+    MsqReader reader;
+    memset(&reader, 0, sizeof(reader));
+    reader.output_room = 8ull << 20u;
+    reader.output = (char *)malloc((size_t)reader.output_room);
+    if (reader.output == NULL)
+    {
+        atomic_store(&work->failed, 1);
+        return NULL;
+    }
+    reader.stream = atomic_fetch_add(&work->readers, 1u) + 1u;
+    reader.ident = 0xfffffffeu - reader.stream;
+    for (size_t frame = atomic_fetch_add(&work->next, 1u); frame < work->count;
+         frame = atomic_fetch_add(&work->next, 1u))
+    {
+        reader.calls = 0ull;
+        if (!msq_frame_read(&reader, &work->frames[frame], &work->read[frame]))
+        {
+            atomic_store(&work->failed, 1);
+        }
         atomic_fetch_add(&work->calls, reader.calls);
     }
     free(reader.output);

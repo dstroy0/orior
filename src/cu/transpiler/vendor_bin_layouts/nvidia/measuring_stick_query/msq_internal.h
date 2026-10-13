@@ -136,12 +136,14 @@ typedef struct
     size_t slot_count;
 } MsqDistinct;
 
-// the readings of the distinct slot encodings, read in chunks by threads at once, and what the threads count
+// the readings of the distinct slot encodings, read in chunks by threads at once, and what the threads count: the
+// chunks are as many as the threads where the encodings allow, each at most MSQ_CHUNK, so that every thread reads
 typedef struct
 {
     const MsqDistinct *words;
     MsqReading *readings;
     size_t chunks;
+    size_t chunk_size;
     _Atomic size_t next;
     _Atomic unsigned int readers;
     _Atomic unsigned long long calls;
@@ -158,6 +160,19 @@ typedef struct
     MsqListing listing;
     int readable;
 } MsqFrame;
+
+// the frames read by threads at once, each thread a reader of its own: the frames, each one's reading, and what the
+// threads count
+typedef struct
+{
+    const MsqBytes *frames;
+    MsqFrame *read;
+    size_t count;
+    _Atomic size_t next;
+    _Atomic unsigned int readers;
+    _Atomic unsigned long long calls;
+    _Atomic int failed;
+} MsqFrames;
 
 // what the cross holds, kept as it goes: the held list, the report, the lines it says of each hold, the holds the
 // teacher reads, and the slots it read clear, a line `<stem> <operation>` each, for a conference the gate may call
@@ -203,6 +218,7 @@ size_t msq_distinct_index(MsqDistinct *set, const MsqBytes *item);
 void msq_distinct_free(MsqDistinct *set);
 void msq_readings_each(MsqReader *reader, const MsqDistinct *words, size_t first, size_t count, const unsigned char *illegal, MsqReading *readings, _Atomic int *failed);
 void *msq_chunks_worker(void *argument);
+void *msq_frames_worker(void *argument);
 unsigned int msq_processors(void);
 int msq_tails_read(MsqReader *reader, const MsqDistinct *tails, MsqRegisters *addressed);
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read);
