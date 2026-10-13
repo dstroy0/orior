@@ -182,8 +182,16 @@ fn tests_in(file: &str, text: &str, rules: &Rules) -> Vec<Test> {
     found
 }
 
-/// The Python tests of the tree at `root`, file by file in the order of their paths.
+/// The tests of the tree at `root`: its Python tests, file by file in the order of their paths, then
+/// its Rust tests, as cargo_tests.rs finds them.
 pub fn found(root: &Path) -> Vec<Test> {
+    let mut found = python_found(root);
+    found.extend(crate::cargo_tests::tests(root));
+    found
+}
+
+/// The Python tests of the tree at `root`, file by file in the order of their paths.
+fn python_found(root: &Path) -> Vec<Test> {
     let rules = rules_of(root);
     let mut files: Vec<String> = crate::files::all(root)
         .into_iter()

@@ -86,7 +86,8 @@ pub type Breakpoints = HashMap<String, Vec<Breakpoint>>;
 pub enum Start {
     /// The file at `path` of the tree, in `language`, built where its language is built.
     File { path: String, language: String },
-    /// One Python test, named as pytest names it, run by pytest.
+    /// One test: a Python test, named as pytest names it, run by pytest, or a Rust test, named as
+    /// cargo_tests.rs names it, its program built as cargo test builds it and run for that test alone.
     Test { id: String },
     /// The process numbered `pid`, its program in `language`; `parent` is the session that started
     /// it, where this one debugs the same process's native code.
@@ -545,6 +546,7 @@ impl Debugger {
         };
         let language = match start {
             Start::File { language, .. } | Start::Process { language, .. } => language.clone(),
+            Start::Test { id } if crate::cargo_tests::is_rust(id) => "rust".to_string(),
             Start::Test { .. } | Start::Address { .. } | Start::Record { .. } => "python".to_string(),
             Start::Child { .. } => parent_language.clone().unwrap_or_else(|| "python".to_string()),
         };
@@ -565,6 +567,14 @@ impl Debugger {
                     ("root", root.display().to_string()),
                 ];
                 ("launch", filled(&spec.launch, &names), path.clone(), None)
+            }
+            Start::Test { id } if crate::cargo_tests::is_rust(id) => {
+                let (program, full, folder) = crate::cargo_tests::binary(root, id)?;
+                let names = [("program", program.display().to_string()), ("path", String::new()), ("root", folder.display().to_string())];
+                let mut launch = filled(&spec.launch, &names);
+                launch["args"] = json!([full, "--exact", "--nocapture", "--test-threads=1"]);
+                launch["cwd"] = json!(folder.display().to_string());
+                ("launch", launch, id.clone(), None)
             }
             Start::Test { id } => {
                 let names = [("program", String::new()), ("path", String::new()), ("root", root.display().to_string())];

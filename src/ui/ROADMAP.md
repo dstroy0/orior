@@ -211,11 +211,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - CMake's generated files call back into cmake, there is no help with outside dependencies, and a release changes behavior ([annoying build systems][260], [cmake-developers][261], [curl][262]). orior names the CMake version a tree needs.
 6. **Python held in little memory.** Code help for a large package stays under a set memory, typing in a long file does not pin a core, and definitions answer at once.
    - The server passes 2 GB and must be restarted, a file over 1,000 lines pins a core, and a definition takes 60 s ([Genesys][263], [vscode-python #25357][264], [NVIDIA][265], [Cursor forum][266]).
-7. **Rust without the wait.** The editor and Cargo share one build, and check and build share their work.
-   - The IDE and Cargo block each other, check and build do not share a cache, and the server's speed and memory limit work ([Rust survey 2025][267], [The New Stack][268], [users.rust-lang.org][269]).
-8. **Compiler errors cut to the line that matters.** A long error is folded to its cause, with the rest a press away.
+7. **Compiler errors cut to the line that matters.** A long error is folded to its cause, with the rest a press away.
    - Compiler errors confuse, and a template error is eighty lines to search; readers take a message that says how to mend it ([NSF study][270], [gcc-help][271], [D #7768][272], [GameDev.net][273]).
-9. **JavaScript with nothing to choose first.** A JavaScript tree runs and is checked with what orior has, and the choices of build tools wait until wanted.
+8. **JavaScript with nothing to choose first.** A JavaScript tree runs and is checked with what orior has, and the choices of build tools wait until wanted.
    - Build tools, boilerplate and linters must be chosen before any code, the wiring is hard to follow, and dependencies explode ([JavaScript fatigue][274], [Tools for Radicals][275], [r/programming][276], [Vivian Voss][277]).
 
 ## Explorer and files

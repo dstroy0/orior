@@ -48,9 +48,9 @@ use crate::toolchains;
 /// line that installs it where the toolchain can be present without it, and the name of the file
 /// that marks a project, each of which in the tree the server is given as one of its linked
 /// projects where it does not look below the top folder for them itself; for a server that checks its
-/// projects as a whole and not a file at a time, the notification that has it check them; and the
+/// projects as a whole and not a file at a time, the notification that has it check them; the
 /// options it starts with in a tree whose own code is held back (trust.rs), which keep it from
-/// running that code.
+/// running that code; and those it starts with in a tree whose code runs.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ServerSpec {
     pub program: String,
@@ -66,6 +66,8 @@ pub struct ServerSpec {
     pub checks: Option<String>,
     #[serde(default)]
     pub held: Option<Value>,
+    #[serde(default)]
+    pub trusted: Option<Value>,
 }
 
 /// Folders a search for projects does not go into: what a build writes, and what git keeps.
@@ -755,12 +757,13 @@ impl Servers {
                 let published = self.published.clone();
                 let checks = self.checks.clone();
                 let mut options = spec.projects.as_deref().map_or(Value::Null, |name| json!({"linkedProjects": projects_in(root, name)}));
-                if let (Some(Value::Object(held)), true) = (&spec.held, crate::trust::held_back(root)) {
+                let added = if crate::trust::held_back(root) { &spec.held } else { &spec.trusted };
+                if let Some(Value::Object(added)) = added {
                     if !options.is_object() {
                         options = json!({});
                     }
                     if let Value::Object(given) = &mut options {
-                        given.extend(held.clone());
+                        given.extend(added.clone());
                     }
                 }
                 Server::start(&program, &spec.args, root, options, toolchains::run_path(), Box::new(move |method, params| heard(method, params, &emit, &published, &checks))).map_err(|said| match &spec.setup {
@@ -2314,6 +2317,41 @@ mod tests {
         });
         assert!(checked, "{:?}", found.lock().unwrap());
         servers.stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[ignore = "starts rust-analyzer where it is installed"]
+    fn rust_analyzer_s_check_builds_every_target_so_the_build_and_the_tests_after_it_find_their_work_done() {
+        let dir = std::env::temp_dir().join(format!("orior-check-builds-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let krate = dir.join("tool");
+        std::fs::create_dir_all(krate.join("src")).unwrap();
+        std::fs::create_dir_all(krate.join("tests")).unwrap();
+        std::fs::write(krate.join("Cargo.toml"), "[package]\nname = \"tool\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[workspace]\n").unwrap();
+        std::fs::write(krate.join("src").join("main.rs"), "fn main() {\n    println!(\"built\");\n}\n").unwrap();
+        std::fs::write(krate.join("tests").join("whole.rs"), "#[test]\nfn runs() {}\n").unwrap();
+        let (emit, _, _) = heard_by_name();
+        let servers = Servers::default();
+        servers.check_tree(&dir, vec!["tool/src/main.rs".into()], &emit);
+        let debug = krate.join("target").join("debug");
+        let built = |name: &str| std::fs::read_dir(debug.join("deps")).into_iter().flatten().flatten().any(|entry| entry.file_name().to_string_lossy().starts_with(name) && entry.path().extension().is_none_or(|ext| ext == "exe"));
+        let program = debug.join(if cfg!(windows) { "tool.exe" } else { "tool" });
+        let done = until(240, || {
+            if program.is_file() && built("whole-") {
+                return true;
+            }
+            if let Some(server) = servers.running.lock().unwrap().get("rust") {
+                let _ = server.notify("rust-analyzer/runFlycheck", json!({"textDocument": null}));
+            }
+            std::thread::sleep(Duration::from_secs(2));
+            false
+        });
+        servers.stop_all();
+        assert!(done, "the program and the test's program built by the check");
+        let after = std::process::Command::new("cargo").args(["test", "--no-run", "--manifest-path"]).arg(krate.join("Cargo.toml")).output().unwrap();
+        let said = String::from_utf8_lossy(&after.stderr);
+        assert!(!said.contains("Compiling"), "the tests' build found its work done: {said}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

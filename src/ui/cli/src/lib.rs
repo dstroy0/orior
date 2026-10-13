@@ -13,6 +13,7 @@
 pub mod binary;
 pub mod bridge;
 pub mod builds;
+pub mod cargo_tests;
 pub mod archive;
 pub mod at_terminal;
 pub mod carry;

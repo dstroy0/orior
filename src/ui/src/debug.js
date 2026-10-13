@@ -569,7 +569,8 @@ export async function restartDebug() {
 // Debugs the Python test `id`, named as pytest names it, run by pytest under the debugger with the
 // breakpoints set.
 export async function debugTest(id) {
-  state.last = { start: { kind: "test", id, language: "python" }, name: id };
+  const language = /\.rs(::|$)/.test(id) ? "rust" : "python";
+  state.last = { start: { kind: "test", id, language }, name: id };
   await begin(state.last.start, id);
 }
 
