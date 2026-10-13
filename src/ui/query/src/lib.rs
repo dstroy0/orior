@@ -10,6 +10,7 @@
 
 pub mod programs;
 pub mod tools;
+pub mod writer;
 
 /// The top of the tree this crate stands in, for the tests: three folders up from the crate.
 #[cfg(test)]
