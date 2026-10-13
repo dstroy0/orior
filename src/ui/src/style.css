@@ -60,6 +60,60 @@
   --defs: 23rem;
 }
 
+/* Colors no scheme sets apart, each a lever a theme, Preferences or the reader's stylesheet sets:
+   the ground of a page shown as its own author drew it, the bar's highlight, the close button's ink
+   under the pointer, the profile's ink on its bars, and Mermaid's diagrams as GitHub draws them,
+   their slices, scores and lanes among them. */
+:root {
+  --paper: #ffffff;
+  --paper-shadow: rgba(0, 0, 0, 0.35);
+  --paper-here: #0f7a53;
+  --bar-highlight: rgba(255, 255, 255, 0.08);
+  --close-hover-ink: #ffffff;
+  --profile-ink-dark: #131331;
+  --profile-ink-light: #f4f4fb;
+  --mm-ground: #ffffff;
+  --mm-node: #ececff;
+  --mm-node-line: #9370db;
+  --mm-ink: #333333;
+  --mm-label: #e8e8e8;
+  --mm-note: #fff5ad;
+  --mm-note-line: #aaaa33;
+  --mm-lifeline: #999999;
+  --mm-frame: #666666;
+  --mm-frame-tab: #f0f0f0;
+  --mm-section: #f6f6fb;
+  --mm-task: #8a90dd;
+  --mm-task-line: #534fbc;
+  --mm-task-done: #d3d3d3;
+  --mm-task-done-line: #808080;
+  --mm-task-active: #bfc7ff;
+  --mm-task-crit: #ff8888;
+  --mm-task-crit-line: #ff0000;
+  --mm-grid: #dddddd;
+  --mm-on-task: #ffffff;
+  --mm-here: #0f7a53;
+  --mm-slice-1: #ECECFF;
+  --mm-slice-2: #ffffde;
+  --mm-slice-3: #d4f1d4;
+  --mm-slice-4: #ffd8b1;
+  --mm-slice-5: #d0e3ff;
+  --mm-slice-6: #f9d0e0;
+  --mm-slice-7: #e1d5f5;
+  --mm-slice-8: #fff0b3;
+  --mm-score-1: #f85149;
+  --mm-score-2: #f0883e;
+  --mm-score-3: #d29922;
+  --mm-score-4: #7ee787;
+  --mm-score-5: #3fb950;
+  --mm-lane-1: #0969da;
+  --mm-lane-2: #bf3989;
+  --mm-lane-3: #1a7f37;
+  --mm-lane-4: #9a6700;
+  --mm-lane-5: #8250df;
+  --mm-lane-6: #cf222e;
+}
+
 [data-scheme="dark"] {
   --on-signal: #131331;
   --bg: #131331;
@@ -574,7 +628,7 @@ select {
 
 /* The glass's top edge catches the light. */
 .bar {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 var(--bar-highlight);
 }
 
 /* The strip's line, between the curves. */
@@ -899,7 +953,7 @@ body[data-strip-edge] .strip-edge {
 }
 
 .window-button.window-close:hover {
-  color: #ffffff;
+  color: var(--close-hover-ink);
 }
 
 .window-button.window-close:hover::before {
@@ -2920,21 +2974,21 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .mermaid-diagram {
   padding: 8px;
   border-radius: 6px;
-  background: #fff;
+  background: var(--mm-ground);
 }
 
 .mm-node {
-  fill: #ececff;
-  stroke: #9370db;
+  fill: var(--mm-node);
+  stroke: var(--mm-node-line);
   stroke-width: 1px;
 }
 
 .mm-node-line {
-  stroke: #9370db;
+  stroke: var(--mm-node-line);
 }
 
 .mm-text {
-  fill: #333;
+  fill: var(--mm-ink);
   font: 14px system-ui, sans-serif;
 }
 
@@ -2944,7 +2998,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 .mm-edge {
   fill: none;
-  stroke: #333;
+  stroke: var(--mm-ink);
   stroke-width: 1.5px;
 }
 
@@ -2957,45 +3011,45 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 .mm-head {
-  fill: #333;
+  fill: var(--mm-ink);
 }
 
 .mm-label {
-  fill: #e8e8e8;
+  fill: var(--mm-label);
 }
 
 .mm-note {
-  fill: #fff5ad;
-  stroke: #aaaa33;
+  fill: var(--mm-note);
+  stroke: var(--mm-note-line);
 }
 
 .mm-lifeline {
-  stroke: #999;
+  stroke: var(--mm-lifeline);
   stroke-dasharray: 2 2;
 }
 
 .mm-frame {
   fill: none;
-  stroke: #666;
+  stroke: var(--mm-frame);
 }
 
 .mm-frame-tab {
-  fill: #f0f0f0;
-  stroke: #666;
+  fill: var(--mm-frame-tab);
+  stroke: var(--mm-frame);
 }
 
 .mm-slice {
-  stroke: #333;
+  stroke: var(--mm-ink);
   stroke-width: 0.5px;
 }
 
 .mm-solid {
-  fill: #333;
+  fill: var(--mm-ink);
 }
 
 .mm-hollow {
-  fill: #fff;
-  stroke: #333;
+  fill: var(--mm-ground);
+  stroke: var(--mm-ink);
 }
 
 .mm-text.small {
@@ -3003,39 +3057,39 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 .mm-text.on-task {
-  fill: #fff;
+  fill: var(--mm-on-task);
 }
 
 .mm-section {
-  fill: #f6f6fb;
+  fill: var(--mm-section);
 }
 
 .mm-task {
-  fill: #8a90dd;
-  stroke: #534fbc;
+  fill: var(--mm-task);
+  stroke: var(--mm-task-line);
 }
 
 .mm-task.done {
-  fill: #d3d3d3;
-  stroke: #808080;
+  fill: var(--mm-task-done);
+  stroke: var(--mm-task-done-line);
 }
 
 .mm-task.active {
-  fill: #bfc7ff;
-  stroke: #534fbc;
+  fill: var(--mm-task-active);
+  stroke: var(--mm-task-line);
 }
 
 .mm-task.crit {
-  fill: #ff8888;
-  stroke: #ff0000;
+  fill: var(--mm-task-crit);
+  stroke: var(--mm-task-crit-line);
 }
 
 .mm-grid {
-  stroke: #ddd;
+  stroke: var(--mm-grid);
 }
 
 .mm-face {
-  stroke: #666;
+  stroke: var(--mm-frame);
 }
 
 .mm-lane {
@@ -3050,7 +3104,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 .mm-commit {
-  stroke: #fff;
+  stroke: var(--mm-ground);
   stroke-width: 2px;
 }
 
@@ -3068,7 +3122,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 .mm-node-group.here > :is(rect, circle, ellipse, polygon, path) {
-  stroke: #0f7a53;
+  stroke: var(--mm-here);
   stroke-width: 2.5px;
 }
 
@@ -3084,7 +3138,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   width: 100%;
   height: 100%;
   border: 0;
-  background: #fff;
+  background: var(--paper);
 }
 
 .preview-here {
@@ -3118,13 +3172,13 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   width: 100%;
   height: auto;
   margin: 0 auto 16px;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  background: var(--paper);
+  box-shadow: 0 1px 4px var(--paper-shadow);
 }
 
 .tex-here {
-  fill: rgba(15, 122, 83, 0.16);
-  stroke: #0f7a53;
+  fill: color-mix(in srgb, var(--paper-here) 16%, transparent);
+  stroke: var(--paper-here);
   stroke-width: 0.6;
 }
 
@@ -4869,7 +4923,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 .nb-image {
   max-width: 100%;
-  background: #fff;
+  background: var(--paper);
 }
 
 .nb-html {
@@ -6391,7 +6445,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   right: 2px;
   top: 4px;
   height: 2px;
-  background: var(--ed-bg, #131331);
+  background: var(--ed-bg);
 }
 
 .ed-break.log {
@@ -6982,7 +7036,7 @@ textarea.report-field {
   width: 12.5rem;
   aspect-ratio: 210 / 297;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--paper);
   border-radius: 2px;
   box-shadow: 0 0 0 1px var(--line), 0 8px 22px var(--ed-suggest-shadow);
 }
@@ -8824,7 +8878,7 @@ textarea.report-field {
   flex: 1;
   width: 100%;
   border: 0;
-  background: #fff;
+  background: var(--paper);
 }
 
 .plugin-badge {

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Themes that reach further: a color for every kind of token a grammar names, an image behind the
-// editor, file icons matched to names by patterns, and Preferences marking each color whose contrast
-// with the color under it is too low.
+// editor, file icons matched to names by patterns, Preferences marking each color whose contrast
+// with the color under it is too low, and every color the window draws set by a variable of the theme.
 
 import { invoke } from "../../src/bridge.js";
+import { gitGraphSvg, journeySvg, pieSvg } from "../../src/mermaid.js";
 import { editing, openFile } from "../../src/edit.js";
 import { tokenKinds } from "../../src/editor/tokens.js";
 import { iconOf } from "../../src/explorer.js";
@@ -139,4 +140,52 @@ test("Preferences marks each color whose contrast with the color under it is too
   await ui.waitFor(() => !row().classList.contains("low"), 2000);
   document.querySelector("dialog.sheet")?.close();
   leave("Faint for Themes");
+});
+
+test("every color the stylesheet draws is a variable of the theme a reader can set", () => {
+  // A color written as itself: a hex color, rgb() or hsl(), or a named color.
+  const named = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?)\(|\b(?:white|black|red|green|blue|gray|grey|silver|yellow|orange|purple)\b/i;
+  // A mask draws no color, only how much shows; black or white mixed into a variable shades it.
+  const shading = /,\s*(?:black|white)(?:\s+\d+%)?\s*\)/gi;
+  const written = [];
+  const walk = (rules) => {
+    for (const rule of rules) {
+      if (rule.style) {
+        for (const declaration of rule.style.cssText.split(/;\s*(?=-?[a-z-]+\s*:)/i)) {
+          const [name, ...rest] = declaration.split(":");
+          const value = rest.join(":").replace(shading, ")");
+          if (!name.trim().startsWith("--") && !/^\s*-?(?:webkit-)?mask/.test(name) && named.test(value)) {
+            written.push(`${rule.selectorText ?? rule.keyText}: ${declaration.trim()}`);
+          }
+        }
+      }
+      if (rule.cssRules) {
+        walk(rule.cssRules);
+      }
+    }
+  };
+  const sheet = [...document.styleSheets].find((one) => one.href?.endsWith("/style.css"));
+  assert.ok(sheet, "the window's stylesheet");
+  walk(sheet.cssRules);
+  assert.deepEqual(written, [], "each color drawn through a variable");
+});
+
+test("Mermaid's slices, scores and lanes are drawn in the colors their variables are set to", async () => {
+  const drawn = [pieSvg('pie\n "One" : 1\n "Two" : 1'), journeySvg("journey\n section Day\n Wake: 3: Me"), gitGraphSvg("gitGraph\n commit\n branch side\n commit")].join("");
+  assert.ok(!/(?:fill|stroke)="#/.test(drawn), "no color written into a diagram");
+  const holder = document.body.appendChild(Object.assign(document.createElement("div"), { innerHTML: drawn }));
+  const root = document.documentElement.style;
+  try {
+    root.setProperty("--mm-slice-1", "#123456");
+    root.setProperty("--mm-score-3", "#234567");
+    root.setProperty("--mm-lane-1", "#345678");
+    assert.equal(getComputedStyle(holder.querySelector(".mm-slice")).fill, "rgb(18, 52, 86)");
+    assert.equal(getComputedStyle(holder.querySelector(".mm-face")).fill, "rgb(35, 69, 103)");
+    assert.equal(getComputedStyle(holder.querySelector(".mm-lane")).stroke, "rgb(52, 86, 120)");
+  } finally {
+    holder.remove();
+    for (const name of ["--mm-slice-1", "--mm-score-3", "--mm-lane-1"]) {
+      root.removeProperty(name);
+    }
+  }
 });

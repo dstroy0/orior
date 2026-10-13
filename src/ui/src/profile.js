@@ -79,7 +79,8 @@ function colorOf(node) {
   }
   const base = rgbOf(names[hash % names.length]);
   const rgb = mixed(base, rgbOf("--surface"), 0.62 + ((hash >> 8) % 30) / 100);
-  return { fill: `rgb(${rgb.join(",")})`, ink: rgb[0] * 0.3 + rgb[1] * 0.59 + rgb[2] * 0.11 > 140 ? "#131331" : "#f4f4fb" };
+  const ink = rgb[0] * 0.3 + rgb[1] * 0.59 + rgb[2] * 0.11 > 140 ? "--profile-ink-dark" : "--profile-ink-light";
+  return { fill: `rgb(${rgb.join(",")})`, ink: getComputedStyle(document.documentElement).getPropertyValue(ink).trim() };
 }
 
 // How much a bar took, as the view counts it.
