@@ -1190,7 +1190,8 @@ body[data-strip-edge] .strip-edge {
   display: none;
 }
 
-.status-wait-stop {
+.status-wait-stop,
+.pulse-stop {
   padding: 0 0.45rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);

@@ -8,7 +8,7 @@
 
 import { invoke, onCalls } from "../../src/bridge.js";
 import { editing, openFile, treeRowShown } from "../../src/edit.js";
-import { iconOf, showGroup, showPane } from "../../src/explorer.js";
+import { drawProblems, iconOf, showGroup, showPane } from "../../src/explorer.js";
 import { togglePane } from "../../src/sides.js";
 import { showView } from "../../src/views.js";
 
@@ -137,6 +137,25 @@ test("each file's mark in the tree has its ink centered on the middle of its nam
     })
     .filter((one) => Math.abs(one.by) > 0.75);
   assert.deepEqual(off, [], "each mark's ink centered on its name's capitals");
+});
+
+test("the tree's check says in Problems how far it has gone, and Stop lets the files waiting go", async () => {
+  const calls = window.__harness.calls;
+  calls.answer("problems_check_stop", () => null);
+  showView("edit");
+  togglePane(true, { take: false, pin: true });
+  showGroup("problems");
+  try {
+    drawProblems([], { done: 25, total: 100 });
+    const line = await ui.waitFor(() => document.querySelector("#problems .problems-checking"), 2000, "the check's line");
+    assert.match(line.textContent, /^Checking the tree: 25 of 100 files\. Stop$/);
+    await ui.click(line.querySelector(".pulse-stop"));
+    assert.ok(calls.made.some((one) => one.name === "problems_check_stop"), "Stop ends the check");
+    drawProblems([], { done: 100, total: 100 });
+    assert.equal(document.querySelector("#problems .problems-checking"), null, "and the line goes once it is done");
+  } finally {
+    showGroup("explorer");
+  }
 });
 
 // The frames drawn over `ms`, each the time it began.

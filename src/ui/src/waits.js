@@ -3,20 +3,19 @@
 
 // The three limits of a response. A call the reader's press or key makes, within ACTED of it, is
 // watched until it answers. Past ANSWER the pointer shows the window at work; past WORKING the status
-// bar says what the window waits on and for how long; past LONG it says how far along the work is
-// where the work tells, and offers Stop, which stops the work where the call has a stop of its own,
-// and the wait always.
+// bar says what the window waits on and for how long, how far along the work is and the time it has
+// left where the work tells, and offers Stop, which stops the work where the call has a stop of its
+// own, and the wait always.
 //
 // Within a tenth of a second a person feels they act on the thing itself; within a second their
 // thought goes on unbroken; past ten seconds they turn to something else.
 
 import { invoke, listen, onCalls } from "./bridge.js";
-import { progressBar } from "./progress.js";
+import { progressBar, timeLeft } from "./progress.js";
 
 const ACTED = 300;
 export const ANSWER = 100;
 export const WORKING = 1000;
-export const LONG = 10000;
 
 // The calls whose work has a stop of its own, each stopped as its arguments say.
 const STOPS = {
@@ -33,13 +32,17 @@ export const UNWAITED = new Set(["latex_make"]);
 // Whether the call `command`, made now, is watched: one a press or a key made, and not one of those.
 export const watches = (command, now = performance.now()) => now - state.acted <= ACTED && !UNWAITED.has(command);
 
-const state = { acted: -Infinity, waits: new Set(), progress: new Map(), timer: 0, node: null, under: null, marked: null, showing: false };
+const state = { acted: -Infinity, waits: new Set(), progress: new Map(), timer: 0, node: null, under: null, at: null, marked: null, showing: false };
 
 // The pointer shows the window at work on the element under it alone, the one whose pointer shows,
 // that element's own cursor put back as the pointer leaves it or the wait ends. A mark on the page's
 // root over every element would have the page work out every element's style again each time a wait
 // starts and ends.
 function markUnder() {
+  // An element drawn again since the pointer came onto it is found again where the pointer stands.
+  if (state.showing && state.under && !state.under.isConnected && state.at) {
+    state.under = document.elementFromPoint(state.at.x, state.at.y);
+  }
   const target = state.showing ? state.under : null;
   if (state.marked?.element === target) {
     return;
@@ -90,7 +93,8 @@ const seconds = (ms) => `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)} s`;
 export function told(wait, age) {
   const progress = state.progress.get(wait.command);
   const along = progress ? `${progress.done}${progress.of ? ` of ${progress.of}` : ""} ${progress.unit ?? "done"}, ` : "";
-  return `Waiting on ${wait.command.replace(/_/g, " ")}: ${along}${seconds(age)}`;
+  const left = progress?.of ? timeLeft(age, progress.done / progress.of) : null;
+  return `Waiting on ${wait.command.replace(/_/g, " ")}: ${along}${seconds(age)}${left ? `, ${left}` : ""}`;
 }
 
 // Draws the waits as they stand at `now`, and sets the next time to look again.
@@ -115,14 +119,12 @@ export function tick(now = performance.now()) {
       }
       // One Stop for each wait, kept as the words beside it are drawn again each second: a press
       // begun on it ends on it.
-      if (age >= LONG) {
-        if (!oldest.stopper) {
-          const wait = oldest;
-          wait.stopper = Object.assign(document.createElement("button"), { type: "button", className: "status-wait-stop", textContent: "Stop" });
-          wait.stopper.addEventListener("click", () => stopWait(wait));
-        }
-        parts.push(oldest.stopper);
+      if (!oldest.stopper) {
+        const wait = oldest;
+        wait.stopper = Object.assign(document.createElement("button"), { type: "button", className: "status-wait-stop", textContent: "Stop" });
+        wait.stopper.addEventListener("click", () => stopWait(wait));
       }
+      parts.push(oldest.stopper);
       node.replaceChildren(...parts);
     }
   }
@@ -134,14 +136,19 @@ export function tick(now = performance.now()) {
 
 export function startWaits() {
   state.node = document.getElementById("status-wait");
-  document.addEventListener(
-    "pointerover",
-    (event) => {
-      state.under = event.target;
-      markUnder();
-    },
-    { capture: true, passive: true },
-  );
+  // Where the pointer stands, from each pointer event: its coming onto an element, its moving and its
+  // press.
+  for (const kind of ["pointerover", "pointermove", "pointerdown"]) {
+    document.addEventListener(
+      kind,
+      (event) => {
+        state.under = event.target;
+        state.at = { x: event.clientX, y: event.clientY };
+        markUnder();
+      },
+      { capture: true, passive: true },
+    );
+  }
   for (const kind of ["pointerdown", "keydown"]) {
     document.addEventListener(kind, () => (state.acted = performance.now()), true);
   }
@@ -152,3 +159,4 @@ export function startWaits() {
   });
   listen("call-progress", ({ payload }) => progressOf(payload.call, payload));
 }
+

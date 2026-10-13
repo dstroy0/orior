@@ -15,6 +15,16 @@ const STEADY = 250;
 // The share a bar draws for `share` done, from 0 to 1.
 export const drawnShare = (share) => Math.min(1, Math.max(0, share)) ** SPEEDS_UP;
 
+// The time a piece of work has left, as its pace so far gives it, `ms` gone for `share` done: none
+// before a second has gone or anything is done, a pace read from less saying little.
+export function timeLeft(ms, share) {
+  if (ms < 1000 || !(share > 0) || share >= 1) {
+    return null;
+  }
+  const left = (ms * (1 - share)) / share / 1000;
+  return left < 60 ? `about ${Math.max(1, Math.round(left))} s left` : `about ${Math.round(left / 60)} min left`;
+}
+
 // A bar, empty, with `set(share)` to move it toward a share done.
 export function progressBar() {
   const done = Object.assign(document.createElement("span"), { className: "progress-done" });

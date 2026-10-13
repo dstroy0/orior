@@ -837,7 +837,16 @@ impl Server {
                 self.symbols.refresh(&root, move || files::all(&listed));
                 give(())
             }
-            "tree_unread" => give(serde_json::json!({ "files": files::unread(&self.root()?), "symbols": self.symbols.unread() })),
+            "tree_unread" => {
+                let (done, of) = self.symbols.progress().unwrap_or((0, 0));
+                give(serde_json::json!({ "files": files::unread(&self.root()?), "symbols": self.symbols.unread(), "done": done, "of": of }))
+            }
+            // The reading of the tree's symbols ended where it stands, Go to Symbol answering from
+            // what it read.
+            "tree_read_stop" => {
+                self.symbols.stop();
+                give(())
+            }
             "symbols_find" => {
                 let root = self.root()?;
                 let listed = root.clone();
@@ -990,6 +999,10 @@ impl Server {
             "lsp_open" => {
                 let root = self.root()?;
                 self.servers.open(&root, &root::full(&root, &path()?), &a.get::<String>("language")?, &a.get::<String>("text")?, &self.emitter(root.clone())).and_then(give)
+            }
+            "problems_check_stop" => {
+                self.servers.stop_check();
+                give(())
             }
             "problems_check" => {
                 let root = self.root()?;

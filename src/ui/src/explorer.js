@@ -26,6 +26,7 @@ import { structureOf } from "./outline.js";
 import { themeIcon } from "./themes.js";
 import { say } from "./statusbar.js";
 import { icon } from "./icons.js";
+import { timeLeft } from "./progress.js";
 
 const KEPT = "orior.panes";
 
@@ -814,7 +815,14 @@ export function drawProblems(files, checking) {
   }
   const rows = [];
   if (checking && checking.done < checking.total) {
-    rows.push(element("p", { className: "pane-empty problems-checking", textContent: `Checking the tree: ${checking.done} of ${checking.total} files.` }));
+    state.checkBegan ??= performance.now();
+    const left = timeLeft(performance.now() - state.checkBegan, checking.done / Math.max(1, checking.total));
+    // Stop lets the files waiting go; files that change after are checked as they change.
+    const stop = element("button", { type: "button", className: "pulse-stop", textContent: "Stop" });
+    stop.addEventListener("click", () => invoke("problems_check_stop").catch(() => {}));
+    rows.push(element("p", { className: "pane-empty problems-checking" }, `Checking the tree: ${checking.done} of ${checking.total} files${left ? `, ${left}` : ""}. `, stop));
+  } else {
+    state.checkBegan = null;
   }
   for (const file of files) {
     if (!file.items.length) {

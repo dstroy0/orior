@@ -4,7 +4,7 @@
 // The three limits of a response: a press's call late past a tenth of a second, a second and ten.
 
 import { invoke } from "../../src/bridge.js";
-import { ANSWER, LONG, progressOf, tick, watch, watches, WORKING } from "../../src/waits.js";
+import { ANSWER, progressOf, tick, watch, watches, WORKING } from "../../src/waits.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -28,7 +28,7 @@ test("a press's call answered at once shows nothing", async () => {
   assert.equal(node().hidden, true);
 });
 
-test("past a tenth of a second the pointer says the window is at work, and past a second the bar says what it waits on", async () => {
+test("past a tenth of a second the pointer says the window is at work, and past a second the bar says what it waits on and offers Stop", async () => {
   const call = hanging();
   const now = performance.now();
   watch("tree_search", { query: "x" }, call.promise, call.stop, now - ANSWER - 10);
@@ -40,20 +40,20 @@ test("past a tenth of a second the pointer says the window is at work, and past 
     assert.equal(node().hidden, true, "the bar says nothing yet");
     tick(now + WORKING);
     assert.equal(node().hidden, false);
-    assert.match(node().textContent, /^Waiting on tree search: 1\.\d s$/);
-    assert.equal(node().querySelector("button"), null, "no Stop before ten seconds");
+    assert.match(node().textContent, /^Waiting on tree search: 1\.\d sStop$/);
+    assert.ok(node().querySelector("button.status-wait-stop"), "Stop offered as the wait is told");
   } finally {
     call.answer();
   }
   await ui.waitFor(() => !waiting() && node().hidden, 1000);
 });
 
-test("a wait whose work tells its whole shows how far along it is, in words and a bar", async () => {
+test("a wait whose work tells its whole shows how far along it is and the time it has left, in words and a bar", async () => {
   const call = hanging();
-  watch("db_export", { name: "x" }, call.promise, call.stop, performance.now() - LONG - 500);
+  watch("db_export", { name: "x" }, call.promise, call.stop, performance.now() - 10500);
   try {
     progressOf("db_export", { done: 300, of: 1200, unit: "rows written" });
-    assert.match(node().textContent, /Waiting on db export: 300 of 1200 rows written, 1\d s/);
+    assert.match(node().textContent, /Waiting on db export: 300 of 1200 rows written, 1\d s, about 3\d s left/);
     assert.equal(node().querySelector(".progress").getAttribute("aria-valuenow"), "25");
   } finally {
     call.answer();
@@ -61,9 +61,9 @@ test("a wait whose work tells its whole shows how far along it is, in words and 
   await ui.waitFor(() => node().hidden, 1000);
 });
 
-test("past ten seconds the bar offers Stop, which stops the wait", async () => {
+test("the bar's Stop stops the wait, one button as the words beside it are drawn again", async () => {
   const call = hanging();
-  watch("tree_search", { query: "x" }, call.promise, call.stop, performance.now() - LONG - 500);
+  watch("tree_search", { query: "x" }, call.promise, call.stop, performance.now() - 10500);
   try {
     tick();
     const stop = node().querySelector("button");

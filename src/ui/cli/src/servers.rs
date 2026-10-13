@@ -1334,6 +1334,22 @@ impl Servers {
         self.check_files(root, &files, emit)
     }
 
+    /// Stops the tree's check where it stands: the files waiting are let go and Problems is told the
+    /// check is done. The check stays on for the files that change after, each checked as it changes.
+    pub fn stop_check(&self) {
+        let told = {
+            let Ok(mut queue) = self.checks.queue.lock() else {
+                return;
+            };
+            queue.waiting.clear();
+            queue.total = queue.done;
+            queue.emit.clone().map(|emit| (emit, queue.done))
+        };
+        if let Some((emit, done)) = told {
+            emit(Told::Checking { done, total: done });
+        }
+    }
+
     /// Checks again the files of a batch of changes made on the disk, and the files whose includes or
     /// imports name one of them, where the tree's check is on; a file gone loses its diagnostics.
     pub fn changed(&self, root: &Path, files: &[String]) {
@@ -2007,6 +2023,36 @@ fn names(path: &Path, stems: &[String]) -> bool {
             })
     };
     text.lines().map(str::trim_start).any(|line| ["#include", "import ", "from ", "use ", "mod "].iter().any(|start| line.starts_with(start)) && stems.iter().any(|stem| word(line, stem)))
+}
+
+#[cfg(test)]
+mod stopping_the_check {
+    use super::*;
+
+    #[test]
+    fn a_check_stopped_lets_its_files_waiting_go_and_says_it_is_done() {
+        let servers = Servers::default();
+        let told: Arc<Mutex<Vec<(usize, usize)>>> = Arc::default();
+        let heard = told.clone();
+        let emit: Emit = Arc::new(move |one| {
+            if let Told::Checking { done, total } = one {
+                heard.lock().unwrap().push((done, total));
+            }
+        });
+        {
+            let mut queue = servers.checks.queue.lock().unwrap();
+            queue.on = true;
+            queue.emit = Some(emit);
+            queue.done = 3;
+            queue.total = 10;
+        }
+        servers.stop_check();
+        let queue = servers.checks.queue.lock().unwrap();
+        assert!(queue.waiting.is_empty());
+        assert_eq!((queue.done, queue.total), (3, 3));
+        assert!(queue.on, "files that change after are still checked");
+        assert_eq!(*told.lock().unwrap(), vec![(3, 3)], "Problems is told the check is done");
+    }
 }
 
 #[cfg(test)]
