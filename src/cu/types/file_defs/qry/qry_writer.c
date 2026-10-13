@@ -43,6 +43,18 @@
 // where it was not, 2 where the words are none of the above
 #include "writer/qry_writer_internal.h"
 
+// `room` bytes of the standard input into `piece`, as many as one read gives: the count, 0 at the input's end, and
+// less than 0 where it could not be read
+static long qry_writer_piece_read(unsigned char *piece, size_t room)
+{
+#if defined(_WIN32)
+    // a piece's room fits the count a read takes
+    return (long)_read(0, piece, (unsigned int)room);
+#else
+    return (long)read(0, piece, room);
+#endif
+}
+
 int main(int count, char **words)
 {
     if (count < 2)
@@ -261,13 +273,19 @@ int main(int count, char **words)
         static unsigned char s_piece[65536];
         int whole = 1;
         size_t got = 0u;
-        while ((got = fread(s_piece, 1u, sizeof(s_piece), stdin)) != 0u)
+        // one read at a time, as much as the input gives: a line printed reaches the output and the run at once, not
+        // once a block of the piece's size has gathered
+        long read_now = 0L;
+        while ((read_now = qry_writer_piece_read(s_piece, sizeof(s_piece))) > 0L)
         {
+            // a read's count is positive here
+            got = (size_t)read_now;
             whole &= (fwrite(s_piece, 1u, got, stdout) == got);
             fflush(stdout);
             whole &=
                 (buffer == NULL) || (qry_hand(buffer, name, s_piece, (unsigned long long)got, QRY_ORDINARY) != 0ull);
         }
+        whole &= (read_now == 0L);
         qry_close(buffer);
         return whole ? 0 : 1;
     }

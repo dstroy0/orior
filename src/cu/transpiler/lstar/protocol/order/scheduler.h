@@ -14,7 +14,7 @@
 #include "../teacher/run_channel.h"
 
 // the most questions one round carries to a process
-#define SCHEDULER_ROUND_MOST 256u
+#define SCHEDULER_ROUND_MOST 1024u
 
 // The `count` questions of `question`, each settling `settles` entries, carried as one round: the most settling first,
 // stable where two settle as many, SCHEDULER_ROUND_MOST to a process. Each question's outcome and answers its own. The

@@ -154,6 +154,11 @@ unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
 // the channel closed, R written back where it was opened, and what it held given back
 void run_channel_close(void);
 
+// the nanoseconds the airlock, its pop and its cross within it, and the carrier have taken since the channel opened,
+// each into its own
+void run_channel_clocks(unsigned long long *airlock, unsigned long long *pop, unsigned long long *cross,
+                        unsigned long long *carried);
+
 // what the channel is carried by, for a run to say where its words came from
 const char *run_channel_carrier(void);
 

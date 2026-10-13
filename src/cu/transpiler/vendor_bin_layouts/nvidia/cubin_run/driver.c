@@ -30,10 +30,12 @@ typedef struct
 // driver, the provider nvlddmkm, writes to the System log, read through the system's event log reader, reached by name
 // and by its own entry points as the driver is. The driver writes each Xid there whether its management layer
 // is reached: the event's ID its Xid, and its text what the part did, as `Graphics SM Warp Exception on (GPC 1, TPC 0,
-// SM 0): Out Of Range Register`
+// SM 0): Out Of Range Register`. The log is subscribed to once as the carrier opens, and each launch pulls off the
+// subscription what the driver wrote since: a pull with nothing written costs nothing, where a query of the log would
+// cost most of a launch's time
 typedef struct
 {
-    void *(WINAPI *query)(void *, const wchar_t *, const wchar_t *, unsigned long);
+    void *(WINAPI *subscribe)(void *, void *, const wchar_t *, const wchar_t *, void *, void *, void *, unsigned long);
     int(WINAPI *next)(void *, unsigned long, void **, unsigned long, unsigned long, unsigned long *);
     int(WINAPI *render)(void *, void *, unsigned long, unsigned long, void *, unsigned long *, unsigned long *);
     int(WINAPI *close)(void *);
@@ -92,9 +94,9 @@ int s_telemetry_ready = 0;
 static CubinRunEvents s_events;
 int s_events_ready = 0;
 
-// the record of the newest driver error read so far, and how long a launch the driver answered with an error waits
-// for the driver to write it: only an error past that record counts against the launch to come
-static unsigned long long s_events_seen = 0ull;
+// the subscription to the driver's errors, pulled a launch at a time: only an error written past the last pull counts
+// against the launch to come
+static void *s_events_subscription = NULL;
 
 unsigned long long s_xid_data[CUBIN_RUN_XID_KEPT];
 char s_xid_text[CUBIN_RUN_XID_KEPT][CUBIN_RUN_XID_TEXT];
@@ -151,56 +153,33 @@ static void cubin_run_event_text(const char *xml, char *text, size_t room)
     snprintf(text, room, "%.*s", (end != NULL) ? (int)(end - datum - 6) : 0, (datum != NULL) ? datum + 6 : "");
 }
 
-// The driver's errors in the System log past the record `after`, read in the order written, each kept against the
-// launch where `keep` (cubin_run_xid_kept), the newest only where `newest`: the record of the newest read, `after`
-// where none is past it
-static unsigned long long cubin_run_events_read(unsigned long long after, int keep, int newest)
+// The driver's errors written since the last pull, read off the subscription in the order written, each kept against
+// the launch where `keep` (cubin_run_xid_kept): the count read
+static unsigned int cubin_run_events_read(int keep)
 {
-    char query[192];
-    wchar_t wide[192];
-    snprintf(query, sizeof(query),
-             "*[System[Provider[@Name='nvlddmkm'] and (Level=1 or Level=2) and (EventRecordID>%llu)]]", after);
-    if (MultiByteToWideChar(CP_UTF8, 0u, query, -1, wide, (int)(sizeof(wide) / sizeof(wide[0]))) <= 0)
-    {
-        return after;
-    }
-    void *const results = s_events.query(NULL, L"System", wide,
-                                         CUBIN_RUN_EVENTS_PATH |
-                                             (newest ? CUBIN_RUN_EVENTS_NEWEST : CUBIN_RUN_EVENTS_FORWARD));
-    if (results == NULL)
-    {
-        return after;
-    }
     static char s_xml[32768];
     char text[CUBIN_RUN_XID_TEXT];
     void *event[16];
     unsigned long returned = 0ul;
-    int more = 1;
-    while (more && s_events.next(results, newest ? 1ul : 16ul, event, CUBIN_RUN_EVENTS_ENDLESS, 0ul, &returned) &&
-           (returned != 0ul))
+    unsigned int read = 0u;
+    while (s_events.next(s_events_subscription, 16ul, event, 0ul, 0ul, &returned) && (returned != 0ul))
     {
         for (unsigned long at = 0ul; at < returned; at += 1ul)
         {
-            if (cubin_run_event_xml(event[at], s_xml, sizeof(s_xml)))
+            if (keep && cubin_run_event_xml(event[at], s_xml, sizeof(s_xml)))
             {
-                const unsigned long long record = cubin_run_event_number(s_xml, "<EventRecordID");
-                after = (record > after) ? record : after;
-                if (keep)
-                {
-                    cubin_run_event_text(s_xml, text, sizeof(text));
-                    cubin_run_xid_kept(cubin_run_event_number(s_xml, "<EventID"), text);
-                }
+                cubin_run_event_text(s_xml, text, sizeof(text));
+                cubin_run_xid_kept(cubin_run_event_number(s_xml, "<EventID"), text);
             }
             s_events.close(event[at]);
+            read += 1u;
         }
-        more = !newest;
     }
-    s_events.close(results);
-    return after;
+    return read;
 }
 
-// the system's log of the driver's errors opened, and the newest already written taken as read: 1 where it is ready
-// to read, 0 where its reader or an entry point of it is not there, or the system keeps no such log
+// the system's log of the driver's errors subscribed to, the errors written from now on: 1 where it is ready to pull,
+// 0 where its reader or an entry point of it is not there, or the system keeps no such log
 static int cubin_run_events_open(void)
 {
 #if defined(_WIN32)
@@ -209,15 +188,29 @@ static int cubin_run_events_open(void)
     {
         return 0;
     }
-    *(void **)&s_events.query = cubin_run_entry(library, "EvtQuery");
+    *(void **)&s_events.subscribe = cubin_run_entry(library, "EvtSubscribe");
     *(void **)&s_events.next = cubin_run_entry(library, "EvtNext");
     *(void **)&s_events.render = cubin_run_entry(library, "EvtRender");
     *(void **)&s_events.close = cubin_run_entry(library, "EvtClose");
-    if ((s_events.query == NULL) || (s_events.next == NULL) || (s_events.render == NULL) || (s_events.close == NULL))
+    if ((s_events.subscribe == NULL) || (s_events.next == NULL) || (s_events.render == NULL) ||
+        (s_events.close == NULL))
     {
         return 0;
     }
-    s_events_seen = cubin_run_events_read(0ull, 0, 1);
+    // the subscription pulled, never waited on: the signal the reader sets as an error is written is only what a pull
+    // without a callback requires
+    void *const signal = CreateEventW(NULL, FALSE, FALSE, NULL);
+    if (signal == NULL)
+    {
+        return 0;
+    }
+    s_events_subscription =
+        s_events.subscribe(NULL, signal, L"System", L"*[System[Provider[@Name='nvlddmkm'] and (Level=1 or Level=2)]]",
+                           NULL, NULL, NULL, CUBIN_RUN_EVENTS_FUTURE);
+    if (s_events_subscription == NULL)
+    {
+        return 0;
+    }
     s_events_ready = 1;
     return 1;
 #else
@@ -292,7 +285,7 @@ void cubin_run_telemetry_drain(void)
 #if defined(_WIN32)
     if (s_events_ready)
     {
-        s_events_seen = cubin_run_events_read(s_events_seen, 0, 0);
+        cubin_run_events_read(0);
     }
 #endif
 }
@@ -321,7 +314,7 @@ int cubin_run_telemetry_faulted(CubinRunStatus status)
     const unsigned int stamped = s_xid_count;
     for (unsigned int waited = 0u; s_events_ready; waited += 25u)
     {
-        s_events_seen = cubin_run_events_read(s_events_seen, 1, 0);
+        cubin_run_events_read(1);
         if ((s_xid_count != stamped) || (status == 0) || (waited >= CUBIN_RUN_EVENTS_WAIT_MILLISECONDS))
         {
             break;

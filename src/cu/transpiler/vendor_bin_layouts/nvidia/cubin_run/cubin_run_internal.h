@@ -143,15 +143,8 @@ typedef struct
 
 #if defined(_WIN32)
 
-// a query of a channel by its path, read in the order written or newest first, a wait on the reader with no end, and
-// an event rendered as its XML
-#define CUBIN_RUN_EVENTS_PATH 0x1ul
-
-#define CUBIN_RUN_EVENTS_FORWARD 0x100ul
-
-#define CUBIN_RUN_EVENTS_NEWEST 0x200ul
-
-#define CUBIN_RUN_EVENTS_ENDLESS 0xfffffffful
+// a subscription to the events a channel is written from now on, and an event rendered as its XML
+#define CUBIN_RUN_EVENTS_FUTURE 1ul
 
 #define CUBIN_RUN_EVENTS_XML 1ul
 

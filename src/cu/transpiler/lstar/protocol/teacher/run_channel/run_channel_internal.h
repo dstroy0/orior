@@ -63,6 +63,12 @@ typedef struct
     int held_given;
     // the sequence of the list the airlock last read: what its cross hands comes after it
     unsigned long long airlock_began;
+    // the nanoseconds the airlock, its pop and its cross within it, and the carrier have taken since the channel
+    // opened (run_channel_clocks)
+    unsigned long long airlock_nanoseconds;
+    unsigned long long pop_nanoseconds;
+    unsigned long long cross_nanoseconds;
+    unsigned long long carried_nanoseconds;
     unsigned long long limit_microseconds;
     int open;
     // 1 where the carrier's only word is `dry`, and the count of questions written so far
@@ -121,5 +127,7 @@ void run_channel_output_handed(const InterfaceAnswer *answer);
 void run_channel_traced(RunQuestion *const *asked, unsigned int count, const char *how);
 int run_channel_carried(RunQuestion *asked);
 unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int count);
+// the host's clock in nanoseconds, read only against itself
+unsigned long long run_channel_now(void);
 
 #endif

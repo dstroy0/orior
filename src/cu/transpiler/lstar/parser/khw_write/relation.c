@@ -208,13 +208,13 @@ static int khw_turning_case(unsigned int anchor, int swapped, unsigned int *word
     return 0;
 }
 
-// The first round of `held`'s fields put: each bit from KHW_TURN_FIRST to KHW_TURN_LAST turned one at a time over
-// `word`, each a question of the slot, and the round carried. What came back is left in s_pool, a question a turned
-// bit in its order. The code a turned bit holds is the form's with that one bit over, and no answer is needed to put
-// it: a dry run hands every one of them to the run's buffer, where the vendor's own disassembler reads them back
-void khw_turns_asked(const KhwAnswered *held, const unsigned int word[1][2])
+// The turns of `held`: each bit from KHW_TURN_FIRST to KHW_TURN_LAST turned one at a time over `word`, each a
+// question of the slot, pooled into the round being written. The code a turned bit holds is the form's with that one
+// bit over, and no answer is needed to put it: the carrier, with every one of them, waits on the vendor's reader
+// before the part sees them. The pooled question of the first turn is at `at` in s_pool, and the rest follow it in
+// their order
+static void khw_turns_pooled(const KhwAnswered *held, const unsigned int word[1][2])
 {
-    s_pooled = 0u;
     for (unsigned int bit = KHW_TURN_FIRST; bit <= KHW_TURN_LAST; bit += 1u)
     {
         unsigned long long low = held->low;
@@ -222,37 +222,20 @@ void khw_turns_asked(const KhwAnswered *held, const unsigned int word[1][2])
         khw_run_write(&low, &high, bit, bit, khw_run_read(low, high, bit, bit) ^ 1ull);
         khw_pooled(s_slot, low, high, word, 1u);
     }
-    khw_round_carried();
 }
 
-// The turns of `held`, the first field-finding pass: each bit from 12 to 104 turned one at a time over one case, the
-// adjacent bits whose turning changes the answer gathered into the runs the operands might sit in, none yet asked
-// whether it carries a register. The case is put first alone, then every turned bit, which waits on that answer and
-// on no other, as one round. 1 where the part answered the case and the turns were asked, the runs then the candidates
-// a register pass reads and the phase turned; 0 where the part did not, the form left where it was
-int khw_fields_turns(KhwAnswered *held)
+// The turns of `held` read off the round carried, its turns at `at` in s_pool and after: a bit whose turning changed
+// the answer `base` gathered into the runs the operands might sit in, none yet asked whether it carries a register.
+// The runs are the candidates a register pass reads, and the phase turned
+static void khw_turns_read(KhwAnswered *held, unsigned int at, unsigned long long base)
 {
-    unsigned int word[1][2];
-    unsigned int expected = 0u;
-    unsigned long long answered[1];
-    held->runs = 0u;
-    if (!khw_turning_case(held->anchor, held->swapped, word[0], &expected))
-    {
-        return 0;
-    }
-    khw_code_put(s_code, s_slot, held->low, held->high);
-    if (!khw_asked(word, 1u, s_slot, answered) || (answered[0] != (unsigned long long)expected))
-    {
-        return 0;
-    }
-    const unsigned long long base = answered[0];
     int turned[KHW_TURN_LAST + 1u];
-    khw_turns_asked(held, word);
     for (unsigned int bit = KHW_TURN_FIRST; bit <= KHW_TURN_LAST; bit += 1u)
     {
-        const RunQuestion *const question = &s_pool[bit - KHW_TURN_FIRST];
+        const RunQuestion *const question = &s_pool[at + (bit - KHW_TURN_FIRST)];
         turned[bit] = ((question->outcome == RUN_ANSWERED) && (question->answered[0] != base)) ? 1 : 0;
     }
+    held->runs = 0u;
     // the adjacent bits that changed the answer, the candidate runs a register pass reads
     for (unsigned int bit = KHW_TURN_FIRST; (bit <= KHW_TURN_LAST) && (held->runs < KHW_RUNS); bit += 1u)
     {
@@ -272,60 +255,152 @@ int khw_fields_turns(KhwAnswered *held)
         bit = end;
     }
     held->phase = KHW_PHASE_TURNED;
-    return 1;
 }
 
-// The register-runs of `held`, the second field-finding pass: each candidate run its turns found set to the number of
-// each of the two registers the kernel left a case word in, over the same case. A run that answers two different words
-// there carries a register and is an operand's, kept; a run that answers one is a modifier, left out. The run whose
-// setting leaves the answer at the register the kernel stores is where the form writes its result, and another run
-// reads the word its two answers name. The runs held after are the operands', each with its place in the relation's
-// tuple, and the phase is classified. 1 where the case was there to ask over, 0 where it was not
-int khw_fields_registers(KhwAnswered *held)
+// The turns of `held` over `word` put and carried as a round of their own, what came back left in s_pool, a question
+// a turned bit in its order
+void khw_turns_asked(const KhwAnswered *held, const unsigned int word[1][2])
 {
-    unsigned int word[1][2];
-    unsigned int expected = 0u;
-    if (!khw_turning_case(held->anchor, held->swapped, word[0], &expected))
-    {
-        return 0;
-    }
-    unsigned int first[KHW_RUNS];
-    unsigned int last[KHW_RUNS];
-    const unsigned int runs = held->runs;
-    for (unsigned int run = 0u; run < runs; run += 1u)
-    {
-        first[run] = held->first[run];
-        last[run] = held->last[run];
-    }
     s_pooled = 0u;
-    for (unsigned int run = 0u; run < runs; run += 1u)
+    khw_turns_pooled(held, word);
+    khw_round_carried();
+}
+
+// the forms of the working set in `phase`, into `forms`, which holds KHW_FORMS: their count
+unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms)
+{
+    unsigned int count = 0u;
+    for (unsigned int at = 0u; at < s_names; at += 1u)
     {
-        unsigned long long low = held->low;
-        unsigned long long high = held->high;
-        khw_run_write(&low, &high, first[run], last[run], KHW_FIRST_REGISTER);
-        khw_pooled(s_slot, low, high, word, 1u);
-        low = held->low;
-        high = held->high;
-        khw_run_write(&low, &high, first[run], last[run], KHW_SECOND_REGISTER);
-        khw_pooled(s_slot, low, high, word, 1u);
+        if (s_named[at].phase == phase)
+        {
+            forms[count] = &s_named[at];
+            count += 1u;
+        }
     }
-    if (runs != 0u)
+    return count;
+}
+
+// What one form holds through a stage of a pass: the form, its turning case `word` and the answer `expected` of it,
+// where its questions begin in the round being written, and the answer the part gave its turning case
+typedef struct
+{
+    KhwAnswered *held;
+    unsigned int word[1][2];
+    unsigned int expected;
+    unsigned int at;
+    unsigned long long base;
+} KhwStaged;
+
+// the forms of `staged` from `first` to `count` whose turning cases the round carried answered as the host expected:
+// each keeps the part's answer as its base and goes on, and one the part answered otherwise or not at all is left
+// where it is. The count that go on
+static unsigned int khw_turning_read(KhwStaged *staged, unsigned int first, unsigned int count)
+{
+    unsigned int on = 0u;
+    for (unsigned int at = first; at < count; at += 1u)
+    {
+        const RunQuestion *const question = &s_pool[staged[at].at];
+        const int answered = (question->outcome == RUN_ANSWERED) &&
+                             (question->answered[0] == (unsigned long long)staged[at].expected);
+        staged[at].base = question->answered[0];
+        staged[on] = staged[at];
+        on += answered ? 1u : 0u;
+    }
+    return on;
+}
+
+// The first field-finding pass over every discovered form of `forms`, `count` of them, in shared rounds, stage by
+// stage. The turning cases first, one question a form, as many forms a round as the pool holds: a form the part
+// answers as the host expects goes on, and one it does not is left where it is. Then the turns: each form's bits from
+// 12 to 104 turned one at a time over its case, as many forms a round as the pool holds, and what came back read
+// into each form's candidate runs. The count of forms turned
+unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
+{
+    static KhwStaged s_staged[KHW_FORMS];
+    unsigned int staged = 0u;
+    unsigned int on = 0u;
+    // the turning cases, a round at a time; a round carried leaves the forms that go on packed at the front
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        unsigned int word[1][2];
+        unsigned int expected = 0u;
+        if (!khw_turning_case(forms[at]->anchor, forms[at]->swapped, word[0], &expected))
+        {
+            continue;
+        }
+        if (s_pooled == SCHEDULER_ROUND_MOST)
+        {
+            khw_round_carried();
+            on = khw_turning_read(s_staged, on, staged);
+            staged = on;
+            s_pooled = 0u;
+        }
+        KhwStaged *const stage = &s_staged[staged];
+        stage->held = forms[at];
+        stage->word[0][0] = word[0][0];
+        stage->word[0][1] = word[0][1];
+        stage->expected = expected;
+        stage->at = khw_pooled(s_slot, forms[at]->low, forms[at]->high, word, 1u);
+        staged += 1u;
+    }
+    if (s_pooled != 0u)
     {
         khw_round_carried();
+        on = khw_turning_read(s_staged, on, staged);
+        s_pooled = 0u;
     }
-    held->runs = 0u;
-    // the host's answers for the form, in its order and its signedness: to the case, and to each of the case's two
-    // words put twice, which a run reading one word answers at the register holding the other
+    // the turns, as many forms a round as the pool holds
+    unsigned int turned = 0u;
+    unsigned int first = 0u;
+    for (unsigned int at = 0u; at < on; at += 1u)
+    {
+        if ((s_pooled + KHW_TURNS) > SCHEDULER_ROUND_MOST)
+        {
+            khw_round_carried();
+            for (unsigned int read = first; read < at; read += 1u)
+            {
+                khw_turns_read(s_staged[read].held, s_staged[read].at, s_staged[read].base);
+            }
+            turned += at - first;
+            first = at;
+            s_pooled = 0u;
+        }
+        s_staged[at].at = s_pooled;
+        khw_turns_pooled(s_staged[at].held, s_staged[at].word);
+    }
+    if (s_pooled != 0u)
+    {
+        khw_round_carried();
+        for (unsigned int read = first; read < on; read += 1u)
+        {
+            khw_turns_read(s_staged[read].held, s_staged[read].at, s_staged[read].base);
+        }
+        turned += on - first;
+        s_pooled = 0u;
+    }
+    return turned;
+}
+
+// The register-runs of `held` read off the round carried, its questions at `at` in s_pool and after, two a run: each
+// run whose two register questions the part answered, in the same case, as two different words with the same answer
+// carries a register and is an operand's; kept. A run that answers one as the form writes its result, and another
+// as the form reads a word, is placed by which. The operand runs kept, each with its place in the relation's tuple,
+// and the phase classified
+static void khw_registers_read(KhwAnswered *held, unsigned int at, const unsigned int word[1][2])
+{
+    const unsigned int runs = held->runs;
     const KhwCandidate form = {held->anchor, held->swapped, held->signed_read};
     const unsigned int first_twice[2] = {word[0][0], word[0][0]};
     const unsigned int second_twice[2] = {word[0][1], word[0][1]};
     const unsigned long long answer = khw_candidate_answer(&form, word[0]);
     const unsigned long long first_twice_answer = khw_candidate_answer(&form, first_twice);
     const unsigned long long second_twice_answer = khw_candidate_answer(&form, second_twice);
+    held->runs = 0u;
     for (unsigned int run = 0u; run < runs; run += 1u)
     {
-        const RunQuestion *const first_question = &s_pool[2u * run];
-        const RunQuestion *const second_question = &s_pool[(2u * run) + 1u];
+        const RunQuestion *const first_question = &s_pool[at + (2u * run)];
+        const RunQuestion *const second_question = &s_pool[at + (2u * run) + 1u];
         const int first_held = (first_question->outcome == RUN_ANSWERED);
         const int second_held = (second_question->outcome == RUN_ANSWERED);
         const unsigned long long first_answer = first_question->answered[0];
@@ -350,23 +425,82 @@ int khw_fields_registers(KhwAnswered *held)
             {
                 place = (held->swapped != 0) ? 0u : 1u;
             }
-            held->first[held->runs] = first[run];
-            held->last[held->runs] = last[run];
+            held->first[held->runs] = held->first[run];
+            held->last[held->runs] = held->last[run];
             held->place[held->runs] = place;
             held->runs += 1u;
         }
     }
-    s_pooled = 0u;
     held->phase = KHW_PHASE_CLASSIFIED;
-    return 1;
 }
 
-// A form's fields asked whole, the turns then the register-runs together, for the learn loop that asks both of a form
-// in one run. The split passes ask them apart, a cross-check reading the register-runs the turns find between
+// The register-runs of every turned form of `forms`, `count` of them, the second field-finding pass, in shared
+// rounds: each form's turns found set to the number of each of the two registers the kernel left a case word in,
+// over the same case, two questions a run, as many forms a round as the pool holds; and what came back read into each
+// form's operand runs, its phase classified. The count of forms classified
+unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count)
+{
+    static KhwStaged s_staged[KHW_FORMS];
+    unsigned int staged = 0u;
+    unsigned int classified = 0u;
+    unsigned int first = 0u;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        KhwStaged *const stage = &s_staged[staged];
+        stage->held = forms[at];
+        if (!khw_turning_case(forms[at]->anchor, forms[at]->swapped, stage->word[0], &stage->expected))
+        {
+            continue;
+        }
+        if ((s_pooled + (2u * forms[at]->runs)) > SCHEDULER_ROUND_MOST)
+        {
+            khw_round_carried();
+            for (unsigned int read = first; read < staged; read += 1u)
+            {
+                khw_registers_read(s_staged[read].held, s_staged[read].at, s_staged[read].word);
+            }
+            classified += staged - first;
+            first = staged;
+            s_pooled = 0u;
+        }
+        stage->at = s_pooled;
+        for (unsigned int run = 0u; run < forms[at]->runs; run += 1u)
+        {
+            unsigned long long low = forms[at]->low;
+            unsigned long long high = forms[at]->high;
+            khw_run_write(&low, &high, forms[at]->first[run], forms[at]->last[run], KHW_FIRST_REGISTER);
+            khw_pooled(s_slot, low, high, stage->word, 1u);
+            low = forms[at]->low;
+            high = forms[at]->high;
+            khw_run_write(&low, &high, forms[at]->first[run], forms[at]->last[run], KHW_SECOND_REGISTER);
+            khw_pooled(s_slot, low, high, stage->word, 1u);
+        }
+        staged += 1u;
+    }
+    if (staged != first)
+    {
+        if (s_pooled != 0u)
+        {
+            khw_round_carried();
+        }
+        for (unsigned int read = first; read < staged; read += 1u)
+        {
+            khw_registers_read(s_staged[read].held, s_staged[read].at, s_staged[read].word);
+        }
+        classified += staged - first;
+        s_pooled = 0u;
+    }
+    return classified;
+}
+
+// A form's fields asked whole, the turns then the register-runs, for the learn loop that asks both of a form in one
+// run. The split passes ask them apart over every form at once, a cross-check reading the register-runs the turns
+// find between
 void khw_fields_asked(KhwAnswered *held)
 {
-    if (khw_fields_turns(held))
+    KhwAnswered *const one[1] = {held};
+    if (khw_fields_turns(one, 1u) != 0u)
     {
-        khw_fields_registers(held);
+        khw_fields_registers(one, 1u);
     }
 }

@@ -19,6 +19,7 @@
 #include <windows.h>
 #else
 #include <time.h>
+#include <unistd.h>
 #endif
 
 

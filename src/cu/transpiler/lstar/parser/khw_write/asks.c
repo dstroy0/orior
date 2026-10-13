@@ -107,6 +107,8 @@ void khw_code_put(unsigned char *code, unsigned int place, unsigned long long lo
 }
 
 // The question in s_code put over `count` cases, each case's two words from `word`, the carrier making the slot at
+static void khw_round_printed(unsigned int count, const unsigned long long before[4]);
+
 // `slot` conservative (RUN_SLOT_NONE where the code holds no slot), and each answer into `answered`. 1 where the part
 // answered every case, 0 where it refused the question, the gate held it off the part or nothing carried it
 int khw_asked(const unsigned int word[][2], unsigned int count, unsigned int slot, unsigned long long *answered)
@@ -124,7 +126,11 @@ int khw_asked(const unsigned int word[][2], unsigned int count, unsigned int slo
         s_question.word[place][1] = word[place][1];
     }
     s_asks += 1ull;
-    if (!run_channel_ask(&s_question))
+    unsigned long long before[4] = {0ull, 0ull, 0ull, 0ull};
+    run_channel_clocks(&before[0], &before[1], &before[2], &before[3]);
+    const int asked = run_channel_ask(&s_question);
+    khw_round_printed(1u, before);
+    if (!asked)
     {
         return 0;
     }
@@ -172,12 +178,28 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
     return at;
 }
 
+// a round's line printed: how many questions it put, and the seconds its airlock and its carrier took, read off the
+// channel's clocks against the readings `airlock_before` and `carried_before` taken before it
+static void khw_round_printed(unsigned int count, const unsigned long long before[4])
+{
+    unsigned long long now[4] = {0ull, 0ull, 0ull, 0ull};
+    run_channel_clocks(&now[0], &now[1], &now[2], &now[3]);
+    printf("  round: %u question(s), airlock %.2f s (pop %.2f s, cross %.2f s), carrier %.2f s\n", count,
+           (double)(now[0] - before[0]) / 1e9, (double)(now[1] - before[1]) / 1e9, (double)(now[2] - before[2]) / 1e9,
+           (double)(now[3] - before[3]) / 1e9);
+    // the line reaches the console as the round ends, not when a pipe's block fills
+    fflush(stdout);
+}
+
 // The round written carried as one (scheduler.h), its questions read after from s_pool, and the next round written
 // in its place once they are
 void khw_round_carried(void)
 {
+    unsigned long long before[4] = {0ull, 0ull, 0ull, 0ull};
+    run_channel_clocks(&before[0], &before[1], &before[2], &before[3]);
     scheduler_round(s_pool_question, s_pool_settles, s_pooled);
     s_asks += s_pooled;
+    khw_round_printed(s_pooled, before);
 }
 
 // the cases of `anchor` the host computes both readings of, their words into `word` in the order `swapped` says, and

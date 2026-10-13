@@ -88,7 +88,10 @@ static int run_channel_airlock_passed(unsigned int questions)
     command[words] = list_option;
     command[words + 1u] = list_name;
     command[words + 2u] = NULL;
-    if (run_channel_airlock_ran(command, limit, "airlock_pop.txt") != 0ll)
+    const unsigned long long pop_began = run_channel_now();
+    const long long popped = run_channel_airlock_ran(command, limit, "airlock_pop.txt");
+    s_channel.pop_nanoseconds += run_channel_now() - pop_began;
+    if (popped != 0ll)
     {
         return 0;
     }
@@ -105,7 +108,9 @@ static int run_channel_airlock_passed(unsigned int questions)
     command[words + 1u] = holds_name;
     command[words + 2u] = read_name;
     command[words + 3u] = NULL;
+    const unsigned long long cross_began = run_channel_now();
     const long long crossed = run_channel_airlock_ran(command, limit, "airlock_cross.txt");
+    s_channel.cross_nanoseconds += run_channel_now() - cross_began;
     if ((crossed != 0ll) && (crossed != 1ll))
     {
         return 0;

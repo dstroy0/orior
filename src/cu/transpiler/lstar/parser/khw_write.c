@@ -245,16 +245,12 @@ int main(int count, char **word)
         }
         if (turns != 0)
         {
-            // every discovered form turned, its register-runs left for the cross-check after: a discover set its
-            // relation and the order its words read, which the turns need and read back from the working set
-            unsigned int asked = 0u;
-            for (unsigned int at = 0u; at < s_names; at += 1u)
-            {
-                if ((s_named[at].phase == KHW_PHASE_DISCOVERED) && khw_fields_turns(&s_named[at]))
-                {
-                    asked += 1u;
-                }
-            }
+            // every discovered form turned at once, in shared rounds, its register-runs left for the cross-check
+            // after: a discover set its relation and the order its words read, which the turns need and read back
+            // from the working set
+            static KhwAnswered *s_forms[KHW_FORMS];
+            const unsigned int count = khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms);
+            const unsigned int asked = khw_fields_turns(s_forms, count);
             run_channel_close();
             if (!khw_forms_work_written())
             {
@@ -275,16 +271,11 @@ int main(int count, char **word)
                    s_asks, ksc_path);
             return 0;
         }
-        // every turned form's register-runs asked, its operand runs kept and its phase classified; what the part has
-        // answered for whole then laid out by the vendor
-        unsigned int asked = 0u;
-        for (unsigned int at = 0u; at < s_names; at += 1u)
-        {
-            if ((s_named[at].phase == KHW_PHASE_TURNED) && khw_fields_registers(&s_named[at]))
-            {
-                asked += 1u;
-            }
-        }
+        // every turned form's register-runs asked at once, in shared rounds, its operand runs kept and its phase
+        // classified; what the part has answered for whole then laid out by the vendor
+        static KhwAnswered *s_forms[KHW_FORMS];
+        const unsigned int count = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
+        const unsigned int asked = khw_fields_registers(s_forms, count);
         run_channel_close();
         if (!khw_forms_work_written() || !khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
         {

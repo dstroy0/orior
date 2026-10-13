@@ -29,6 +29,7 @@
 #define KHW_TURN_FIRST 12u
 
 #define KHW_TURN_LAST 104u
+#define KHW_TURNS (KHW_TURN_LAST - KHW_TURN_FIRST + 1u)
 
 // the most runs a form's operands sit in, and the most forms the part answers for
 #define KHW_RUNS 32u
@@ -165,8 +166,9 @@ int khw_relation_of(const RunQuestion *question, KhwAnswered *held);
 int khw_relation_asked(unsigned long long low, unsigned long long high, KhwAnswered *held);
 int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long *nanoseconds);
 void khw_turns_asked(const KhwAnswered *held, const unsigned int word[1][2]);
-int khw_fields_turns(KhwAnswered *held);
-int khw_fields_registers(KhwAnswered *held);
+unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms);
+unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
+unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count);
 void khw_fields_asked(KhwAnswered *held);
 int khw_line_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at, char *line, size_t room);
 int khw_kernel_read(void);

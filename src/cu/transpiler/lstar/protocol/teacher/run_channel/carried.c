@@ -2,6 +2,28 @@
 // carried.c: the round carried: one question or many handed critical, carried by the carrier and answered
 #include "run_channel_internal.h"
 
+#include <time.h>
+
+unsigned long long run_channel_now(void)
+{
+    struct timespec now;
+    if (timespec_get(&now, TIME_UTC) != TIME_UTC)
+    {
+        return 0ull;
+    }
+    // a clock's seconds and nanoseconds are not negative
+    return ((unsigned long long)now.tv_sec * 1000000000ull) + (unsigned long long)now.tv_nsec;
+}
+
+void run_channel_clocks(unsigned long long *airlock, unsigned long long *pop, unsigned long long *cross,
+                        unsigned long long *carried)
+{
+    *airlock = s_channel.airlock_nanoseconds;
+    *pop = s_channel.pop_nanoseconds;
+    *cross = s_channel.cross_nanoseconds;
+    *carried = s_channel.carried_nanoseconds;
+}
+
 // `asked` carried as run_channel_ask carries it, R aside
 int run_channel_carried(RunQuestion *asked)
 {
@@ -45,7 +67,10 @@ int run_channel_carried(RunQuestion *asked)
     // line handed critical before the carrier starts
     RunQuestion *const one[1] = {asked};
     const int listed = run_channel_relisted(one, 0u, 1u, 1);
-    if (listed && !run_channel_checked(one, 0u, 1u, 1, asked->refused, sizeof(asked->refused)))
+    const unsigned long long airlock_began = run_channel_now();
+    const int checked = listed ? run_channel_checked(one, 0u, 1u, 1, asked->refused, sizeof(asked->refused)) : 1;
+    s_channel.airlock_nanoseconds += run_channel_now() - airlock_began;
+    if (!checked)
     {
         asked->outcome = RUN_NO_CHANNEL;
         return 0;
@@ -96,7 +121,9 @@ int run_channel_carried(RunQuestion *asked)
     EngineError error = {0};
     // what this process handed moved into the run before the carrier reads it, and what it handed once it ends
     qry_moved(s_channel.buffer);
+    const unsigned long long carrier_began = run_channel_now();
     const long ran = interface_probe_run(&probe, &answer, &error);
+    s_channel.carried_nanoseconds += run_channel_now() - carrier_began;
     qry_settled(s_channel.buffer);
     run_channel_output_handed(&answer);
     // a panic on the line, the carrier's or its ending's: the teacher's account handed
@@ -209,7 +236,10 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
         if (written && !airlocked)
         {
             char refused[sizeof(asked[first]->refused)];
-            if (!run_channel_checked(asked, first, count, 0, refused, sizeof(refused)))
+            const unsigned long long airlock_began = run_channel_now();
+            const int checked = run_channel_checked(asked, first, count, 0, refused, sizeof(refused));
+            s_channel.airlock_nanoseconds += run_channel_now() - airlock_began;
+            if (!checked)
             {
                 for (unsigned int at = first; at < count; at += 1u)
                 {
@@ -251,7 +281,9 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
         EngineError error = {0};
         // what this process handed moved into the run before the carrier reads it, and what it handed once it ends
         qry_moved(s_channel.buffer);
+        const unsigned long long carrier_began = run_channel_now();
         const long ran = interface_probe_run(&probe, &answer, &error);
+        s_channel.carried_nanoseconds += run_channel_now() - carrier_began;
         qry_settled(s_channel.buffer);
         run_channel_output_handed(&answer);
         if ((ran != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
