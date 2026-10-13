@@ -7,7 +7,7 @@
 import { allCommands, firstKeys, hasCommand, isChecked, runCommand } from "../../src/menubar.js";
 import { invoke, listen } from "../../src/bridge.js";
 import { closeMenu } from "../../src/menu.js";
-import { editing, openFile } from "../../src/edit.js";
+import { editing, openFile, saving, vimKeys } from "../../src/edit.js";
 import { killTerminal, newTerminal, runInTerminal, toggleTerminal } from "../../src/terminal.js";
 import { showView } from "../../src/views.js";
 import { paletteOpen } from "../../src/palette.js";
@@ -28,9 +28,18 @@ import { outlinePinned, paneOpen, panesNow, putPanes, showGroup, showPane, shown
 import { addComment, comments } from "../../src/review.js";
 import { togglePane } from "../../src/sides.js";
 import { forgetMacro, keptMacros, lastMacro, recording } from "../../src/macros.js";
-import { breakpointsOf, canStepBack, debugging, isPaused, pausedLineOf, toggleDebugPanel } from "../../src/debug.js";
+import { breakpointsOf, canStepBack, debugging, debugStarting, isPaused, pausedLineOf, toggleDebugPanel } from "../../src/debug.js";
 import { chosenJob, chosenLive, loadRun, showJob } from "../../src/run.js";
 import { testsOf } from "../../src/tests.js";
+import { profileBars, profileZoom } from "../../src/profile.js";
+import { fonts } from "../../src/fonts.js";
+import { coresKept } from "../../src/cores.js";
+import { opacity, OPACITY_SETTINGS } from "../../src/opacity.js";
+import { patternsOf, setsText } from "../../src/patterns.js";
+import { chosen, deleteTheme, themeNamed } from "../../src/themes.js";
+import { keySettings, setKeySettings } from "../../src/keys.js";
+import { noticesAway, putAway } from "../../src/statusbar.js";
+import { carryPlace, setCarryPlace } from "../../src/carry.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -1553,6 +1562,10 @@ test("Run, Attach to Process lists the processes, and Attach to Address debugs t
   }, 30000, "the program at the address debugged");
   await press("stop-debug");
   await ui.waitFor(() => !debugging(), 10000, "the session ended").finally(endSessions);
+  // Each ask of the address is answered, the one that started the session and each after it.
+  await ui.waitFor(() => !debugStarting().length, 60000, "every start answered").catch((error) => {
+    throw new Error(`${error.message}; still starting: ${debugStarting().join(", ")}; the debugger said: ${document.getElementById("debug-said").textContent}; ${document.getElementById("debug-out").textContent.slice(-400)}`);
+  });
 }, { timeout: 90000 });
 
 test("Run, Stepping asks how steps go, and Export and Import Breakpoints write and take in a file of them", async () => {
@@ -1623,7 +1636,7 @@ test("Git, Cherry-Pick applies the commit named, and Resolve Conflicts says wher
 
 // What the tests above made in the tree, each taken out by the last test.
 const MADE = [
-  GIVEN, "peek.c", "served.c", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "history_file.txt", "vars.py", "grouped_*.txt", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore",
+  GIVEN, "peek.c", "served.c", "src/hello*.py", "src/made_cut.txt", "made_cut.txt", "notebook_cells.py", "history_file.txt", "vars.py", "grouped_*.txt", "debugged.py", "looped.py", "listened.py", "mem.*", "profiled.py", "profiled_calls.py", "test_menus.py", "asked.http", "http-client.private.env.json", ".gitignore", ".orior/settings.json",
   "made_by_command.txt", "made_by_command", "made.code-workspace", "marked_*.txt", "src/build_quick.sh", "src/build_slow.sh", "__pycache__", ".pytest_cache", "build",
 ];
 
@@ -2070,7 +2083,7 @@ test("the debugger's menus, from the command line: breakpoints edited, an except
   try {
     await press("debug");
     await ui.waitFor(() => isPaused() && pausedLineOf(VARS) === 2, 30000, "stopped where count is 3").catch((error) => {
-      throw new Error(`${error.message}; the breakpoints ${JSON.stringify([...(breakpointsOf(VARS) ?? [])])}; the debugger said: ${document.getElementById("debug-said").textContent}; ${document.getElementById("debug-out").textContent.slice(-400)}`);
+      throw new Error(`${error.message}; the breakpoints ${JSON.stringify([...(breakpointsOf(VARS) ?? [])])}; the sessions started: ${JSON.stringify(made("debug_start").map((one) => one.args.start))}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesHeld()].slice(-3).map((one) => one.text))}; the debugger said: ${document.getElementById("debug-said").textContent}; ${document.getElementById("debug-out").textContent.slice(-400)}`);
     });
     await press("debug-exception", "uncaught", "off");
     assert.deepEqual(made("debug_exceptions").at(-1)?.args.on, [], "no exception stops it");
@@ -2192,6 +2205,295 @@ test("a kept macro's menu, from the command line: keys given and the macro forgo
     assert.ok(!keptMacros().some((one) => one.name === "keyed macro"), "forgotten");
   } finally {
     forgetMacro("keyed macro");
+  }
+});
+
+["branch-switch", "branch-merge", "branch-rebase", "branch-rename", "branch-delete", "stash-apply", "stash-pop", "stash-drop"].forEach((command) => COVERED.add(command));
+["test-run", "test-cover", "test-debug", "profile-open", "profile-zoom", "profile-zoom-out", "profile-whole", "quick-fix-apply"].forEach((command) => COVERED.add(command));
+
+test("every item of the lists the window's commands show runs a command the command line runs: branches, stashes, commits, environments and docstring forms", async () => {
+  asFound();
+  showView("edit");
+  await openFile("hello.py");
+  calls.answer("git_branches", () => [{ name: "main", current: true, remote: false }, { name: "other", current: false, remote: false }, { name: "origin/other", current: false, remote: true }]);
+  calls.answer("git_stashes", () => [{ name: "stash@{0}", subject: "kept by the test" }]);
+  calls.answer("git_elsewhere", () => [{ id: "abc1234def5678", subject: "made elsewhere" }]);
+  calls.answer("envs_found", () => [{ kind: "venv", place: "", requires: [] }]);
+  const named = new Set(allCommands().map((item) => item.command));
+  const wrong = [];
+  for (const command of ["branches", "stashes", "cherry-pick", "environment", "docstring-form"]) {
+    await runCommand(command);
+    await ui.waitFor(() => document.querySelector("body > .menu"), 5000, `the list ${command} shows`);
+    const items = itemsUnder([...document.querySelectorAll("body > .menu > .menu-item")].map((button) => button.item));
+    closeMenu(false);
+    assert.ok(items.length, `${command} lists something`);
+    for (const item of items) {
+      if (!item.command || !named.has(item.command) || !hasCommand(item.command)) {
+        wrong.push(`${command}: ${item.label} runs ${item.command ?? "no command"}`);
+      }
+    }
+  }
+  assert.deepEqual(wrong, []);
+});
+
+test("a branch's menu, from the command line: switched to, merged, rebased onto, renamed and deleted", async () => {
+  asFound();
+  calls.answer("git_branch", ({ act, name }) => `${act} ${name} by the test`);
+  const asked = () => made("git_branch").map(({ args }) => [args.act, args.name, args.to ?? null]);
+  await press("branch-switch", "other");
+  await press("branch-merge", "other");
+  await press("branch-rebase", "other");
+  await press("branch-rename", "other", "renamed");
+  await press("branch-delete", "other");
+  await ui.waitFor(() => asked().length >= 5, 5000, "each asked of Git");
+  assert.deepEqual(asked(), [["switch", "other", null], ["merge", "other", null], ["rebase", "other", null], ["rename", "other", "renamed"], ["delete", "other", null]]);
+});
+
+test("a stash's menu, from the command line: applied, popped, and dropped once the reader says yes", async () => {
+  asFound();
+  calls.answer("git_stash", ({ act, name }) => `${act} ${name} by the test`);
+  calls.answer("git_stashes", () => [{ name: "stash@{0}", subject: "kept by the test" }]);
+  const asked = () => made("git_stash").map(({ args }) => [args.act, args.name]);
+  await press("stash-apply", "stash@{0}");
+  await press("stash-pop", "stash@{0}");
+  await ui.waitFor(() => asked().length >= 2, 5000, "each asked of Git");
+  await press("stash-drop", "stash@{0}");
+  const yes = await ui.waitFor(() => document.querySelector("dialog[open] .sheet-ask button.primary"), 5000, "the question before the stash is thrown away");
+  assert.equal(yes.textContent, "Drop");
+  yes.click();
+  await ui.waitFor(() => asked().length >= 3, 5000, "the drop asked of Git");
+  assert.deepEqual(asked(), [["apply", "stash@{0}"], ["pop", "stash@{0}"], ["drop", "stash@{0}"]]);
+});
+
+test("a test's menu, from the command line: a test run, run for its coverage, and debugged", async () => {
+  asFound();
+  calls.answer("tests_run", () => null);
+  calls.answer("debug_start", () => {
+    throw new Error("debug_start: answered by the test");
+  });
+  const id = "test_menus.py::test_passes";
+  await press("test-run", id);
+  await ui.waitFor(() => made("tests_run").length, 5000, "the test run");
+  assert.deepEqual(made("tests_run").at(-1).args.given, [id]);
+  assert.equal(made("tests_run").at(-1).args.cover, false);
+  await press("test-cover", "test_menus.py");
+  await ui.waitFor(() => made("tests_run").length > 1, 5000, "the file run for its coverage");
+  assert.deepEqual(made("tests_run").at(-1).args.given, ["test_menus.py"]);
+  assert.equal(made("tests_run").at(-1).args.cover, true);
+  await press("test-debug", id);
+  await ui.waitFor(() => made("debug_start").length, 5000, "the test debugged");
+  assert.equal(made("debug_start").at(-1).args.start.id, id);
+  toggleDebugPanel(false);
+});
+
+test("the profile's menu, from the command line: a function opened, zoomed to, zoomed out of, and the whole run shown", async () => {
+  asFound();
+  const file = "profiled_calls.py";
+  await invoke("file_write", { path: file, text: "import time\n\n\ndef slow():\n    time.sleep(0.02)\n\n\ndef outer():\n    for _ in range(150):\n        slow()\n\n\nouter()\n" });
+  showView("edit");
+  await openFile(file);
+  await press("profile");
+  try {
+    await ui.waitFor(() => profileBars().some((bar) => bar.name === "slow"), 60000, "the profile's bars, slow among them");
+    // The graph's own menu, opened on a bar, runs the same commands.
+    const bar = profileBars().find((one) => one.name === "outer");
+    const canvas = document.querySelector("#profile .profile-graph");
+    const box = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: box.left + bar.x + Math.min(10, bar.w / 2), clientY: box.top + bar.y + 9 }));
+    await ui.waitFor(() => document.querySelector("body > .menu"), 3000, "the graph's menu");
+    const items = [...document.querySelectorAll("body > .menu > .menu-item")].map((button) => button.item);
+    closeMenu(false);
+    assert.deepEqual(items.map((item) => [item.command, item.args.join(" ")]), [["profile-open", "outer"], ["profile-zoom", "outer"], ["profile-zoom-out", ""], ["profile-whole", ""]]);
+    await press("profile-zoom", "outer");
+    const once = profileZoom().length;
+    assert.ok(once > 0, "zoomed to outer");
+    await press("profile-zoom", "slow");
+    assert.ok(profileZoom().length > once, "and on to slow");
+    await press("profile-zoom-out");
+    assert.equal(profileZoom().length, once, "out by one");
+    await press("profile-whole");
+    assert.deepEqual(profileZoom(), [], "the whole run");
+    await openFile("hello.py");
+    await press("profile-open", "slow");
+    await ui.waitFor(() => editing().active === file && editing().editor.primary().head.line === 3, 5000, "slow open where it is written");
+  } finally {
+    await press("stop-profile");
+    runCommand("profile-view");
+  }
+}, { timeout: 120000 });
+
+test("the quick fixes' list, from the command line: the fix of that title applied, here clangd's", async () => {
+  asFound();
+  const text = "int add(int a, int b) { return a + b; }\n";
+  await invoke("file_write", { path: "served.c", text });
+  showView("edit");
+  await openFile("served.c");
+  await ui.waitFor(() => editing().active === "served.c" && editing().editor?.s, 5000, "served.c open");
+  const view = editing().editor;
+  // a + b selected in add: clangd offers to put it in a variable of its own.
+  const title = await ui.waitFor(async () => {
+    view.select([{ anchor: { line: 0, col: 31 }, head: { line: 0, col: 36 }, goal: null }]);
+    await press("quick-fix");
+    const found = [...document.querySelectorAll("body > .menu > .menu-item")].map((button) => button.item).find((item) => /xtract/.test(item?.label ?? ""));
+    closeMenu(false);
+    return found?.command === "quick-fix-apply" ? found.args[0] : null;
+  }, 30000, "clangd's extraction offered");
+  await press("quick-fix-apply", ...title.split(" "));
+  await ui.waitFor(() => editing().editor.doc.text() !== text && /return \w+;/.test(editing().editor.doc.text()), 10000, "a + b put in a variable of its own").catch((error) => {
+    throw new Error(`${error.message}; the text: ${JSON.stringify(editing().editor.doc.text())}`);
+  });
+}, { timeout: 90000 });
+
+["prefs-zoom", "prefs-language", "prefs-cores", "prefs-opacity", "prefs-setting", "prefs-font", "prefs-patterns", "prefs-search-sets"].forEach((command) => COVERED.add(command));
+["theme-choose", "theme-new", "theme-delete", "theme-rename", "theme-export", "theme-import", "theme-color", "theme-image", "theme-image-share", "theme-image-remove", "theme-icon", "theme-icon-remove"].forEach((command) => COVERED.add(command));
+["keys-from", "keys-letter", "key-set", "key-off", "key-reset", "notice-show-again", "settings-own", "settings-tree", "carry-place", "carry-send", "carry-take", "carry-undo"].forEach((command) => COVERED.add(command));
+
+const prefsField = (label) => document.querySelector(`dialog[open] .sheet-prefs [aria-label="${label}"]`);
+
+test("Preferences' settings, from the command line: zoom, language, cores, opacity, the settings no menu lists, fonts and patterns, Preferences open showing each", async () => {
+  asFound();
+  const was = { zoom: Math.round(zoom() * 100), language: localStorage.getItem("orior.language"), cores: coresKept(), search: patternsOf("search"), sets: setsText(), trim: saving("trim"), vim: vimKeys() };
+  const menu = OPACITY_SETTINGS.find((one) => one.key === "orior.opacity.menu");
+  const menuWas = opacity(menu);
+  await press("preferences");
+  await ui.waitFor(() => prefsField("Zoom"), 5000, "Preferences");
+  try {
+    await press("prefs-zoom", "125");
+    assert.equal(zoom(), 1.25);
+    assert.equal(prefsField("Zoom").value, "1.25", "Preferences shows the zoom");
+    await press("prefs-language", "en");
+    assert.equal(localStorage.getItem("orior.language"), "en");
+    await press("prefs-cores", "1");
+    assert.equal(coresKept(), 1);
+    assert.equal(prefsField("Cores kept for you").value, "1");
+    await press("prefs-opacity", "menu", menuWas === 70 ? "80" : "70");
+    assert.equal(opacity(menu), menuWas === 70 ? 80 : 70);
+    assert.equal(document.documentElement.style.getPropertyValue("--menu-opacity"), `${opacity(menu)}%`);
+    await press("prefs-setting", "trim", was.trim ? "off" : "on");
+    assert.equal(saving("trim"), !was.trim);
+    await press("prefs-setting", "vim-keys", was.vim ? "off" : "on");
+    assert.equal(vimKeys(), !was.vim);
+    await press("prefs-font", "code-size", "15");
+    assert.equal(fonts()["--code-size"], "15px");
+    assert.equal(prefsField("Code size").value, "15");
+    await press("prefs-font", "code-size");
+    assert.equal(fonts()["--code-size"], undefined, "the stylesheet's size again");
+    await press("prefs-patterns", "search", "*.made", "made_*");
+    assert.equal(patternsOf("search"), "*.made\nmade_*");
+    await press("prefs-search-sets", "Made:", "src/**");
+    assert.equal(setsText(), "Made:\nsrc/**");
+    assert.equal(prefsField("Sets of files to search").value, "Made:\nsrc/**");
+  } finally {
+    await press("prefs-zoom", String(was.zoom));
+    await press("prefs-language", was.language ?? "system");
+    await press("prefs-cores", String(was.cores));
+    await press("prefs-opacity", "menu", String(menuWas));
+    await press("prefs-setting", "trim", was.trim ? "on" : "off");
+    await press("prefs-setting", "vim-keys", was.vim ? "on" : "off");
+    await press("prefs-patterns", "search", ...(was.search ? was.search.split("\n") : []));
+    await press("prefs-search-sets", ...(was.sets ? was.sets.split("\n") : []));
+    asFound();
+  }
+});
+
+test("Preferences' color theme, from the command line: a theme made, named, colored, given an image and icons, copied out, read in, chosen and deleted", async () => {
+  asFound();
+  const base = scheme();
+  const wasChosen = chosen(base);
+  const clipped = [];
+  calls.answer("clip_write", ({ text }) => clipped.push(text));
+  calls.answer("image_data", () => "data:image/png;base64,iVBORw0KGgo=");
+  try {
+    await press("theme-new");
+    assert.ok(chosen(base), "a theme of the reader's chosen");
+    await press("theme-rename", "Made", "Theme");
+    assert.equal(chosen(base), "Made Theme");
+    await press("theme-color", "--t2", "#123456");
+    assert.equal(themeNamed("Made Theme").colors["--t2"], "#123456");
+    await press("theme-color", "--t2");
+    assert.ok(!("--t2" in themeNamed("Made Theme").colors), "the scheme's own color again");
+    await press("theme-image", "picture.png");
+    assert.equal(themeNamed("Made Theme").image?.src, "data:image/png;base64,iVBORw0KGgo=");
+    await press("theme-image-share", "50");
+    assert.equal(themeNamed("Made Theme").image.opacity, 0.5);
+    await press("theme-image-remove");
+    assert.equal(themeNamed("Made Theme").image, undefined);
+    await press("theme-icon", "*.made", "M", "--t2");
+    assert.deepEqual(themeNamed("Made Theme").icons, [{ pattern: "*.made", mark: "M", color: "--t2" }]);
+    await press("theme-icon", "*.made", "N");
+    assert.equal(themeNamed("Made Theme").icons[0].mark, "N", "the pattern's icon changed");
+    await press("theme-icon-remove", "*.made");
+    assert.deepEqual(themeNamed("Made Theme").icons, []);
+    await press("theme-export");
+    assert.ok(clipped.at(-1)?.includes("Made Theme"), "the theme copied out");
+    calls.answer("clip_read", () => clipped.at(-1).replace("Made Theme", "Read Theme"));
+    await press("theme-import");
+    assert.equal(chosen(base), "Read Theme", "read in and chosen");
+    await press("theme-choose", "Made", "Theme");
+    assert.equal(chosen(base), "Made Theme");
+    await press("theme-delete");
+    assert.equal(themeNamed("Made Theme"), null);
+    await press("theme-choose", base);
+    assert.equal(chosen(base), null, "the scheme's own theme");
+  } finally {
+    for (const name of ["Made Theme", "Read Theme"]) {
+      if (themeNamed(name)) {
+        deleteTheme(name);
+      }
+    }
+    await press("theme-choose", ...(wasChosen ?? base).split(" "));
+  }
+});
+
+test("Preferences' keys, from the command line: the set, a letter's key, and a command's keys set, taken off and reset", async () => {
+  const was = keySettings();
+  try {
+    await press("keys-from", "jetbrains");
+    assert.equal(keySettings().set, "jetbrains");
+    await press("keys-from", "orior");
+    await press("keys-letter", "place");
+    assert.equal(keySettings().by, "place");
+    await press("keys-letter", "character");
+    await press("key-set", "save-all", "Ctrl+Alt+8");
+    assert.equal(keySettings().own["save-all"][0], "Ctrl+Alt+8");
+    await press("key-off", "save-all", "Ctrl+Alt+8");
+    assert.ok(!keySettings().own["save-all"].includes("Ctrl+Alt+8"), "taken off");
+    await press("key-reset", "save-all");
+    assert.equal(keySettings().own["save-all"], undefined, "its own keys again");
+  } finally {
+    setKeySettings(was);
+  }
+});
+
+test("Preferences' notices, settings files and settings on every machine, from the command line", async () => {
+  asFound();
+  putAway("put away by the test");
+  await press("notice-show-again", "put", "away", "by", "the", "test");
+  assert.ok(!noticesAway().includes("put away by the test"), "shown again");
+  await press("settings-own");
+  assert.ok(made("home_reveal").some((one) => one.args.what === "settings"), "your settings.json shown");
+  await press("settings-tree");
+  await ui.waitFor(() => editing().active === ".orior/settings.json", 5000, "the tree's settings open");
+  const wasPlace = carryPlace();
+  const folder = window.__harness.servers.ORIOR_TEST_HOME.replace(/\\/g, "/");
+  calls.answer("carry_send", ({ to }) => `Sent to ${to} by the test.`);
+  calls.answer("carry_read", () => ({ differences: [{ place: "keys.json", how: "changed", settings: [] }, { place: "settings.json", how: "changed", settings: [{ key: "zoom", here: "1", there: "1.25" }] }], there: { "keys.json": "{}" } }));
+  calls.answer("carry_take", ({ from, places }) => ({ id: "taken", from, files: places, at: 0 }));
+  calls.answer("carry_undo", ({ id }) => ({ id, from: folder, files: [], at: 0 }));
+  calls.answer("kept_now", () => ({ set: {}, gone: [] }));
+  try {
+    await press("carry-place", folder);
+    assert.equal(carryPlace(), folder);
+    await press("carry-send");
+    assert.equal(made("carry_send").at(-1).args.to, folder);
+    await press("carry-take", folder, "keys.json");
+    assert.deepEqual([made("carry_take").at(-1).args.places, made("carry_take").at(-1).args.keys], [["keys.json"], []]);
+    await press("carry-take");
+    assert.deepEqual([made("carry_take").at(-1).args.places, made("carry_take").at(-1).args.keys], [["keys.json", "settings.json"], ["zoom"]]);
+    await press("carry-undo", "taken");
+    assert.equal(made("carry_undo").at(-1).args.id, "taken");
+  } finally {
+    setCarryPlace(wasPlace);
   }
 });
 

@@ -45,7 +45,8 @@ const state = {
   // The sessions running, by number: each its info, its stop, its thread.
   sessions: new Map(),
   chosen: null,
-  starting: false,
+  // The names of the sessions starting: a second start of one waits for the first.
+  starting: new Set(),
   // What was last started, for Restart.
   last: null,
   // Breakpoints by tree path: each a Map of file line to { bound, condition, hits, log }.
@@ -354,6 +355,9 @@ function exceptionsMenu(button) {
 // The session.
 
 export const debugging = () => state.sessions.size > 0;
+
+// The names of the sessions still starting.
+export const debugStarting = () => [...state.starting];
 export const isPaused = () => Boolean(pausedOf());
 export const canStepBack = () => Boolean(pausedOf() && chosen()?.info.step_back);
 
@@ -392,19 +396,20 @@ function write(text, kind = "stdout") {
 
 // Starts a session as `start` says, `name` saying what runs.
 async function begin(start, name, { fresh = true, entry = false } = {}) {
-  if (state.starting) {
+  if (state.starting.has(name)) {
+    say(`${name} is still starting.`, { failed: true });
     return null;
   }
-  toggleDebugPanel(true);
-  if (fresh) {
-    parts.out.replaceChildren();
-  }
-  state.starting = true;
-  sayState(`Starting ${name}…`);
-  const stepping = steppingOf();
-  const language = start.language ?? "python";
-  const options = { breakpoints: allBreakpoints(), exceptions: exceptionsOf(language) ?? defaultExceptions(language), stepping: { mine_only: stepping.mine_only, skip: stepping.skip }, entry };
+  state.starting.add(name);
   try {
+    toggleDebugPanel(true);
+    if (fresh) {
+      parts.out.replaceChildren();
+    }
+    sayState(`Starting ${name}…`);
+    const stepping = steppingOf();
+    const language = start.language ?? "python";
+    const options = { breakpoints: allBreakpoints(), exceptions: exceptionsOf(language) ?? defaultExceptions(language), stepping: { mine_only: stepping.mine_only, skip: stepping.skip }, entry };
     const info = await invoke("debug_start", { start, options });
     known(info);
     state.chosen = info.id;
@@ -420,7 +425,7 @@ async function begin(start, name, { fresh = true, entry = false } = {}) {
     write(`${String(error)}\n`, "stderr");
     return null;
   } finally {
-    state.starting = false;
+    state.starting.delete(name);
   }
 }
 

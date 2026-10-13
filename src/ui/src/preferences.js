@@ -14,7 +14,7 @@
 // by patterns of their names. A theme copies out as text and reads back in from the clipboard.
 
 import { FONT_SETTINGS, fontDefault, fonts, setFont } from "./fonts.js";
-import { buttonName, keySettings, pressName, setKeySettings, SETS, sharedKeys, wheelName } from "./keys.js";
+import { buttonName, keysOf, keySettings, pressName, setKeySettings, SETS, sharedKeys, wheelName } from "./keys.js";
 import { clipText, copyText } from "./menu.js";
 import { OPACITY_SETTINGS, opacity, setOpacity, STEPS as OPACITY_STEPS } from "./opacity.js";
 import { PATTERN_PARTS, patternsOf, setPatterns, setSets, setsText } from "./patterns.js";
@@ -26,7 +26,7 @@ import { invoke, pick } from "./bridge.js";
 import { carryInto } from "./carry.js";
 import { coresKept, KEPT_LEAST, machineCores, setCoresKept } from "./cores.js";
 import { chosenLanguage, languages, setLanguage } from "./language.js";
-import { bringBack, noticesAway } from "./statusbar.js";
+import { bringBack, noticesAway, say } from "./statusbar.js";
 
 const BASE_NAMES = { dark: "Dark", light: "Light" };
 
@@ -78,27 +78,238 @@ function groupOf(name) {
   return "--*";
 }
 
+// The theme shown: the scheme's chosen theme of the reader's, or null for the scheme's own.
+function shownTheme() {
+  const name = chosen(scheme());
+  return name ? themeNamed(name) : null;
+}
+
+// A theme of the reader's to change: the one shown, or a new one from the scheme's own colors.
+function ownTheme() {
+  const theme = shownTheme();
+  if (theme) {
+    return theme;
+  }
+  const made = { name: freeName(`${BASE_NAMES[scheme()]} 2`), base: scheme(), colors: {} };
+  saveTheme(made);
+  choose(made.base, made.name);
+  return made;
+}
+
+// A theme of the reader's from the one shown, or from the scheme's own colors, chosen.
+function newTheme() {
+  const from = shownTheme();
+  const made = { name: freeName(`${from?.name ?? BASE_NAMES[scheme()]} 2`), base: scheme(), colors: { ...(from?.colors ?? {}) } };
+  saveTheme(made);
+  choose(made.base, made.name);
+}
+
+// The scheme's own theme, or a theme of the reader's, chosen by its name.
+function chooseTheme(value) {
+  if (BASES.includes(value)) {
+    setScheme(value);
+    choose(value, null);
+    return true;
+  }
+  const picked = themeNamed(value);
+  if (!picked) {
+    return false;
+  }
+  setScheme(picked.base);
+  choose(picked.base, picked.name);
+  return true;
+}
+
+// The theme shown, renamed `wanted` where that is free.
+function renameTheme(wanted) {
+  const was = shownTheme();
+  if (was && wanted && wanted !== was.name) {
+    saveTheme({ ...was, name: freeName(wanted) }, was.name);
+  }
+}
+
+function exportTheme() {
+  copyText(themeText(shownTheme() ?? { name: BASE_NAMES[scheme()], base: scheme(), colors: {} }));
+  return "Copied to the clipboard.";
+}
+
+async function importTheme() {
+  try {
+    const read = readTheme(await clipText());
+    saveTheme(read);
+    setScheme(read.base);
+    choose(read.base, read.name);
+    return { text: `Imported ${read.name}.` };
+  } catch (error) {
+    return { text: error instanceof SyntaxError ? "The clipboard holds no theme." : String(error.message ?? error), failed: true };
+  }
+}
+
+// A color of the palette set in the theme of the reader's, or with `next` null put back to the
+// scheme's own.
+function setColor(name, next) {
+  const base = paletteOf(scheme());
+  const own = ownTheme();
+  const colors = { ...own.colors };
+  if (next === null || next === base.get(name)) {
+    delete colors[name];
+  } else {
+    colors[name] = next;
+  }
+  saveTheme({ ...own, colors });
+  return colors;
+}
+
+// The image behind the editor: read from the file at `path`, its share, and taken off.
+async function chooseImage(path) {
+  const src = await invoke("image_data", { path });
+  const own = ownTheme();
+  saveTheme({ ...own, image: { src, opacity: own.image?.opacity ?? IMAGE_OPACITY } });
+}
+
+function shareImage(share) {
+  const own = ownTheme();
+  saveTheme({ ...own, image: { ...own.image, opacity: share } });
+}
+
+function removeImage() {
+  const own = { ...ownTheme() };
+  delete own.image;
+  saveTheme(own);
+}
+
+const keepIcons = (next) => saveTheme({ ...ownTheme(), icons: next });
+
+// Preferences drawn again where it is open, as a command changes what it shows.
+let drawShown = () => {};
+
+export const drawPreferences = () => drawShown();
+
+const failed = (text) => say(text, { failed: true });
+const shares = (steps, scale) => steps.map((step) => Math.round(step * scale)).join(", ");
+const partOf = (setting) => setting.key.split(".").at(-1);
+
+// The keys of the command `command` in force, two at most.
+async function keysNow(command) {
+  const { allCommands } = await import("./menubar.js");
+  const item = allCommands().find((one) => one.command === command);
+  return item ? keysOf(command, [item.keys, item.also]) : null;
+}
+
+const setOwnKeys = (command, keys) => setKeySettings({ own: { ...keySettings().own, [command]: keys } });
+
+// Each option of Preferences as a command, by the names commands.json gives them, Preferences drawn
+// again where it is open.
+const PREFERENCES = {
+  "prefs-zoom": ([percent]) => {
+    const step = STEPS.find((one) => Math.round(one * 100) === Number(percent));
+    return step ? setZoom(step) : failed(`Zoom is one of ${shares(STEPS, 100)}.`);
+  },
+  "prefs-language": ([tag]) => setLanguage(!tag || tag === "system" ? "" : tag),
+  "prefs-cores": ([kept]) => {
+    const most = Math.max(KEPT_LEAST, machineCores() - 1);
+    const count = Number(kept);
+    return Number.isInteger(count) && count >= KEPT_LEAST && count <= most ? setCoresKept(count) : failed(`Cores kept for you is from ${KEPT_LEAST} to ${most}.`);
+  },
+  "prefs-opacity": ([part, percent]) => {
+    const setting = OPACITY_SETTINGS.find((one) => partOf(one) === part);
+    if (!setting || !OPACITY_STEPS.includes(Number(percent))) {
+      failed(`Opacity is of ${OPACITY_SETTINGS.map(partOf).join(", ")}, at one of ${shares(OPACITY_STEPS, 1)}.`);
+      return;
+    }
+    setOpacity(setting, Number(percent));
+  },
+  "prefs-font": ([name, ...value]) => {
+    const setting = FONT_SETTINGS.find((one) => one.name === `--${name}`);
+    if (!setting) {
+      failed(`A font is one of ${FONT_SETTINGS.map((one) => one.name.slice(2)).join(", ")}.`);
+      return;
+    }
+    const text = value.join(" ").trim();
+    setFont(setting.name, setting.size && text ? `${text}px` : text);
+  },
+  "prefs-patterns": ([part, ...lines]) => (PATTERN_PARTS.some((one) => one.part === part) ? setPatterns(part, lines.join("\n")) : failed(`Patterns are of ${PATTERN_PARTS.map((one) => one.part).join(", ")}.`)),
+  "prefs-search-sets": (lines) => setSets(lines.join("\n")),
+  "theme-choose": (words) => chooseTheme(words.join(" ")) || failed(`No theme is named ${words.join(" ")}.`),
+  "theme-new": () => newTheme(),
+  "theme-delete": () => shownTheme() && deleteTheme(shownTheme().name),
+  "theme-rename": (words) => renameTheme(words.join(" ").trim()),
+  "theme-export": () => say(exportTheme()),
+  "theme-import": async () => {
+    const { text, failed: wrong } = await importTheme();
+    say(text, { failed: Boolean(wrong) });
+  },
+  "theme-color": ([name, ...value]) => {
+    const next = value.join(" ").trim();
+    if (!paletteOf(scheme()).has(name)) {
+      failed(`The palette holds no color ${name}.`);
+    } else if (next && !CSS.supports("color", next)) {
+      failed(`${next} is not a color.`);
+    } else {
+      setColor(name, next || null);
+    }
+  },
+  "theme-image": async (words) => {
+    const path = words.length ? words.join(" ") : await pick("file").catch(() => null);
+    if (typeof path === "string") {
+      await chooseImage(path).catch((error) => failed(String(error)));
+    }
+  },
+  "theme-image-share": ([percent]) => {
+    const share = IMAGE_SHARES.find((one) => Math.round(one * 100) === Number(percent));
+    return share ? shareImage(share) : failed(`The image's share is one of ${shares(IMAGE_SHARES, 100)}.`);
+  },
+  "theme-image-remove": () => removeImage(),
+  // The icon of the pattern given, changed, or added after the others where none has that pattern.
+  "theme-icon": ([pattern, mark = "", color = ""]) => {
+    const icons = shownTheme()?.icons ?? [];
+    const at = icons.findIndex((one) => one.pattern === pattern);
+    keepIcons(at < 0 ? [...icons, { pattern, mark, color }] : icons.map((one, index) => (index === at ? { pattern, mark, color } : one)));
+  },
+  "theme-icon-remove": ([pattern]) => keepIcons((shownTheme()?.icons ?? []).filter((one) => one.pattern !== pattern)),
+  "keys-from": ([set]) => (SETS[set] ? setKeySettings({ set }) : failed(`Keys are from ${Object.keys(SETS).join(", ")}.`)),
+  "keys-letter": ([by]) => (["character", "place"].includes(by) ? setKeySettings({ by }) : failed("A letter's key is by character or by place.")),
+  // A command's keys, the keys given first and the one it held before after them, two at most.
+  "key-set": async ([command, keys]) => {
+    const now = await keysNow(command);
+    return now && keys ? setOwnKeys(command, [keys, ...now.filter((one) => one !== keys)].slice(0, 2)) : failed(`No command ${command} takes keys ${keys ?? ""}.`);
+  },
+  "key-off": async ([command, keys]) => {
+    const now = await keysNow(command);
+    return now ? setOwnKeys(command, now.filter((one) => one !== keys)) : failed(`No command is named ${command}.`);
+  },
+  "key-reset": ([command]) => {
+    const own = { ...keySettings().own };
+    delete own[command];
+    setKeySettings({ own });
+  },
+  "notice-show-again": (words) => bringBack(words.join(" ")),
+  "settings-own": () => invoke("home_reveal", { what: "settings" }).catch((error) => failed(String(error))),
+  "settings-tree": async () => {
+    if (!settingsInForce().files.includes(TREE_FILE)) {
+      await invoke("folder_create", { path: TREE_FILE.split("/")[0] }).catch(() => {});
+      await invoke("file_write", { path: TREE_FILE, text: "{\n}\n" }).catch(() => {});
+    }
+    document.querySelector(".sheet-prefs")?.closest("dialog")?.close();
+    const [{ openFile }, { showView }] = await Promise.all([import("./edit.js"), import("./views.js")]);
+    showView("edit");
+    await openFile(TREE_FILE);
+  },
+};
+
+export const prefsCommands = Object.fromEntries(
+  Object.entries(PREFERENCES).map(([name, run]) => [
+    name,
+    async (args) => {
+      await run(args);
+      drawShown();
+    },
+  ]),
+);
+
 export function showPreferences(sheet, { menus, runCommand, checks, more = [], openFile = null, reloadOwn = null }) {
   const body = element("div", { className: "sheet-prefs" });
   const state = { filter: "" };
-
-  // The theme shown: the scheme's chosen theme of the reader's, or null for the scheme's own.
-  const shownTheme = () => {
-    const name = chosen(scheme());
-    return name ? themeNamed(name) : null;
-  };
-
-  // A theme of the reader's to change: the one shown, or a new one from the scheme's own colors.
-  const ownTheme = () => {
-    const theme = shownTheme();
-    if (theme) {
-      return theme;
-    }
-    const made = { name: freeName(`${BASE_NAMES[scheme()]} 2`), base: scheme(), colors: {} };
-    saveTheme(made);
-    choose(made.base, made.name);
-    return made;
-  };
 
   const said = element("p", { className: "prefs-said", ariaLive: "polite" });
 
@@ -120,10 +331,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
       { className: "report-field prefs-image-share", ariaLabel: "The image's share", disabled: !image },
       ...IMAGE_SHARES.map((step) => element("option", { value: String(step), textContent: `${Math.round(step * 100)}%`, selected: Math.abs(step - (image?.opacity ?? IMAGE_OPACITY)) < 0.001 })),
     );
-    share.addEventListener("change", () => {
-      const own = ownTheme();
-      saveTheme({ ...own, image: { ...own.image, opacity: Number(share.value) } });
-    });
+    share.addEventListener("change", () => shareImage(Number(share.value)));
     const thumb = element("span", { className: "prefs-image-thumb", hidden: !image });
     if (image) {
       thumb.style.backgroundImage = `url("${image.src}")`;
@@ -139,9 +347,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
           return;
         }
         try {
-          const src = await invoke("image_data", { path });
-          const own = ownTheme();
-          saveTheme({ ...own, image: { src, opacity: own.image?.opacity ?? IMAGE_OPACITY } });
+          await chooseImage(path);
           draw();
         } catch (error) {
           said.textContent = String(error);
@@ -151,9 +357,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
       button(
         "Remove",
         () => {
-          const own = { ...ownTheme() };
-          delete own.image;
-          saveTheme(own);
+          removeImage();
           draw();
         },
         !image,
@@ -166,10 +370,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
   // its cross, and one more added by Add.
   function iconsSection() {
     const icons = shownTheme()?.icons ?? [];
-    const keep = (next) => {
-      const own = ownTheme();
-      saveTheme({ ...own, icons: next });
-    };
+    const keep = keepIcons;
     const rows = icons.map((icon, at) => {
       const mark = element("span", { className: "icon prefs-icon-shown", ariaHidden: "true" });
       const drawMark = () => {
@@ -220,15 +421,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     const theme = shownTheme();
     select.value = theme ? `theme:${theme.name}` : `base:${scheme()}`;
     select.addEventListener("change", () => {
-      const [kind, name] = [select.value.slice(0, select.value.indexOf(":")), select.value.slice(select.value.indexOf(":") + 1)];
-      if (kind === "base") {
-        setScheme(name);
-        choose(name, null);
-      } else {
-        const picked = themeNamed(name);
-        setScheme(picked.base);
-        choose(picked.base, picked.name);
-      }
+      chooseTheme(select.value.slice(select.value.indexOf(":") + 1));
       draw();
     });
     const name = element("input", { className: "report-field prefs-name", type: "text", value: theme?.name ?? "", hidden: !theme, ariaLabel: "Name", spellcheck: false });
@@ -239,7 +432,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
         name.value = was?.name ?? "";
         return;
       }
-      saveTheme({ ...was, name: freeName(wanted) }, was.name);
+      renameTheme(wanted);
       draw();
     });
     const button = (text, run, disabled = false) => {
@@ -251,10 +444,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
       "div",
       { className: "prefs-actions" },
       button("New", () => {
-        const from = shownTheme();
-        const made = { name: freeName(`${from?.name ?? BASE_NAMES[scheme()]} 2`), base: scheme(), colors: { ...(from?.colors ?? {}) } };
-        saveTheme(made);
-        choose(made.base, made.name);
+        newTheme();
         draw();
       }),
       button(
@@ -266,20 +456,14 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
         !theme
       ),
       button("Export", () => {
-        copyText(themeText(shownTheme() ?? { name: BASE_NAMES[scheme()], base: scheme(), colors: {} }));
-        said.textContent = "Copied to the clipboard.";
+        said.textContent = exportTheme();
       }),
       button("Import", async () => {
-        try {
-          const read = readTheme(await clipText());
-          saveTheme(read);
-          setScheme(read.base);
-          choose(read.base, read.name);
+        const { text, failed: wrong } = await importTheme();
+        if (!wrong) {
           draw();
-          said.textContent = `Imported ${read.name}.`;
-        } catch (error) {
-          said.textContent = error instanceof SyntaxError ? "The clipboard holds no theme." : String(error.message ?? error);
         }
+        said.textContent = text;
       })
     );
     return element("section", { className: "prefs-theme" }, element("h3", { textContent: "Color Theme" }), element("div", { className: "prefs-line" }, select, name), actions, said, imageRow(), iconsSection());
@@ -295,14 +479,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     row.dataset.name = name;
     const reset = element("button", { type: "button", className: "prefs-reset", textContent: "↺", title: base.get(name), ariaLabel: `${name} ${base.get(name)}`, disabled: !changed });
     const set = (next, redraw) => {
-      const own = ownTheme();
-      const colors = { ...own.colors };
-      if (next === null || next === base.get(name)) {
-        delete colors[name];
-      } else {
-        colors[name] = next;
-      }
-      saveTheme({ ...own, colors });
+      const colors = setColor(name, next);
       if (redraw) {
         draw();
         return;
@@ -705,6 +882,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
 
   draw();
   sheet(body);
+  drawShown = () => body.isConnected && draw();
   // The files are read again as Preferences opens, so that each setting kept since shows with its
   // file; the settings in force are drawn again where the reading changed them.
   const before = JSON.stringify(settingsInForce());

@@ -351,27 +351,45 @@ export async function quickFix() {
   showMenu(
     rect.left,
     rect.bottom + 2,
-    actions.map((action) => ({
-      label: action.title,
-      disabled: Boolean(action.disabled),
-      run: async () => {
-        // A fix that updates a snapshot runs its line in the terminal, in its build's folder.
-        if (action.raw?.orior_run) {
-          terminalAt(action.raw.orior_run.folder);
-          runInTerminal(action.raw.orior_run.line);
-          return;
-        }
-        try {
-          const files = await invoke("lsp_act", { path: tab.file, raw: action.raw });
-          await applyEdits(files);
-        } catch (error) {
-          say(String(error), { failed: true });
-        }
-        editor.focus();
-      },
-    })),
+    actions.map((action) => ({ label: action.title, disabled: Boolean(action.disabled), command: "quick-fix-apply", args: [action.title], run: () => applyAction(found, action) })),
   );
 }
+
+// Applies a quick fix or refactoring: its edits, or, for a fix that updates a snapshot, its line run in
+// the terminal, in its build's folder.
+async function applyAction({ editor, tab }, action) {
+  if (action.raw?.orior_run) {
+    terminalAt(action.raw.orior_run.folder);
+    runInTerminal(action.raw.orior_run.line);
+    return;
+  }
+  try {
+    const files = await invoke("lsp_act", { path: tab.file, raw: action.raw });
+    await applyEdits(files);
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+  editor.focus();
+}
+
+// The quick fixes' list as a command, by the name commands.json gives it: the fix or refactoring of
+// that title at the cursor or the selection, asked of the server again and applied.
+export const intelCommands = {
+  "quick-fix-apply": async (words) => {
+    const title = words.join(" ");
+    const found = here()?.tab.inspected && !here().tab.served ? here() : served();
+    if (!found) {
+      return;
+    }
+    const { s, tab, editor } = found;
+    const sel = editor.primary();
+    const [start, end] = cmp(sel.anchor, sel.head) <= 0 ? [sel.anchor, sel.head] : [sel.head, sel.anchor];
+    await flush(tab);
+    const actions = await invoke("lsp_actions", { path: tab.file, from: { line: s.base + start.line, col: start.col }, to: { line: s.base + end.line, col: end.col } }).catch(() => []);
+    const action = actions.find((one) => one.title === title);
+    return action ? applyAction(found, action) : say(`No quick fix here is titled ${title}.`, { failed: true });
+  },
+};
 
 // Call Hierarchy: the functions that call the one at the cursor, and those it calls, each a tree that
 // opens a level at a time, as the language server answers or, where none answers for calls, as orior's

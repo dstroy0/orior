@@ -72,6 +72,14 @@ export function forgetTests() {
 }
 
 // Runs `given`, tests by their names or files by their paths, recording coverage where `cover`.
+// The tests' menus as commands, by the names commands.json gives them: a test by its name as pytest
+// names it, or a file of tests by its path, run, run for its coverage, or debugged.
+export const testCommands = {
+  "test-run": (given) => runTests(given),
+  "test-cover": (given) => runTests(given, { cover: true }),
+  "test-debug": ([id]) => debugTest(id),
+};
+
 export async function runTests(given, { cover = false } = {}) {
   if (!given.length) {
     say("No test is found to run: Run, Find Tests says what is taken as one.", { failed: true });
@@ -133,9 +141,9 @@ export function testMenu(file, line, x, y) {
   }
   const label = test.class ? `${test.class}.${test.name}` : test.name;
   showMenu(x, y, [
-    { label: `Run ${label}`, run: () => runTests([test.id]) },
-    { label: `Run ${label} with Coverage`, run: () => runTests([test.id], { cover: true }) },
-    { label: `Debug ${label}`, run: () => debugTest(test.id) },
+    { label: `Run ${label}`, command: "test-run", args: [test.id], run: () => runTests([test.id]) },
+    { label: `Run ${label} with Coverage`, command: "test-cover", args: [test.id], run: () => runTests([test.id], { cover: true }) },
+    { label: `Debug ${label}`, command: "test-debug", args: [test.id], run: () => debugTest(test.id) },
   ]);
 }
 
@@ -256,8 +264,8 @@ function draw() {
       event.preventDefault();
       event.stopPropagation();
       showMenu(event.clientX, event.clientY, [
-        { label: `Run ${file.slice(cut + 1)}`, run: () => runTests([file]) },
-        { label: `Run ${file.slice(cut + 1)} with Coverage`, run: () => runTests([file], { cover: true }) },
+        { label: `Run ${file.slice(cut + 1)}`, command: "test-run", args: [file], run: () => runTests([file]) },
+        { label: `Run ${file.slice(cut + 1)} with Coverage`, command: "test-cover", args: [file], run: () => runTests([file], { cover: true }) },
       ]);
     });
     rows.push(row);
@@ -281,9 +289,9 @@ function draw() {
         event.preventDefault();
         event.stopPropagation();
         showMenu(event.clientX, event.clientY, [
-          { label: "Run", run: () => runTests([test.id]) },
-          { label: "Run with Coverage", run: () => runTests([test.id], { cover: true }) },
-          { label: "Debug", run: () => debugTest(test.id) },
+          { label: "Run", command: "test-run", args: [test.id], run: () => runTests([test.id]) },
+          { label: "Run with Coverage", command: "test-cover", args: [test.id], run: () => runTests([test.id], { cover: true }) },
+          { label: "Debug", command: "test-debug", args: [test.id], run: () => debugTest(test.id) },
         ]);
       });
       rows.push(testRow);

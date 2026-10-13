@@ -35,8 +35,9 @@ import { explorerCommands, showPane } from "./explorer.js";
 import { commitCommands } from "./commit.js";
 import { openPalette, startPalette } from "./palette.js";
 import { fuzzy } from "./fuzzy.js";
-import { runAllTests, runFailedTests, setTestsParallel, stopTests, testsParallel } from "./tests.js";
-import { showPreferences } from "./preferences.js";
+import { runAllTests, runFailedTests, setTestsParallel, stopTests, testCommands, testsParallel } from "./tests.js";
+import { drawPreferences, prefsCommands, showPreferences } from "./preferences.js";
+import { carryPlace, carrySend, carryTake, carryUndo, setCarryPlace } from "./carry.js";
 import { offNetwork, setOffNetwork, showNetwork } from "./network.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
@@ -57,7 +58,7 @@ import { setStripEdge, statusCommands, statusItems, stripEdge } from "./statusit
 import { icon } from "./icons.js";
 import { focusFollows, setFocusFollows } from "./focusfollow.js";
 import { setSystemTitleBar, stripCommands, systemTitleBar } from "./strip.js";
-import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
+import { profileCommands, profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
 import { openRemote, remoteCommands } from "./remote.js";
 import { containerCommands, toggleContainers } from "./containers.js";
 import { toggleComms } from "./comms.js";
@@ -71,7 +72,7 @@ import { previewMode, setPreview } from "./preview.js";
 import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
 import { databaseCommands, runSqlFile, runStatement, toggleDatabase } from "./database.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalCommands, terminalSplit, toggleTerminal } from "./terminal.js";
-import { applyEdits } from "./intel.js";
+import { applyEdits, intelCommands } from "./intel.js";
 import { showView } from "./views.js";
 import { askReports, reportForm } from "./reports.js";
 import { wordmark } from "./wordmark.js";
@@ -243,6 +244,21 @@ async function openWorkspace(given) {
 }
 
 // What each command does in the window, given the words the command line passed it, if any.
+// The plugins, the stylesheet and the menus of the reader's own read again, as settings taken in
+// from another machine change them.
+async function reloadOwn() {
+  await loadPlugins();
+  await loadUserCss();
+  await loadReaderMenus();
+}
+
+// The settings no menu lists, which Preferences sets on and off, by the names the command line gives.
+const MORE_SETTINGS = {
+  trim: { label: "Trim Trailing Whitespace", on: () => saving("trim"), set: (on) => setSaving("trim", on) },
+  "final-newline": { label: "Insert Final Newline", on: () => saving("final-newline"), set: (on) => setSaving("final-newline", on) },
+  "vim-keys": { label: "Vim's Keys", on: vimKeys, set: setVimKeys },
+};
+
 const COMMANDS = {
   "create-file": (args) => create(false, args[0]),
   "create-folder": (args) => create(true, args[0]),
@@ -425,18 +441,53 @@ const COMMANDS = {
         showView("edit");
         return openFile(path);
       },
-      reloadOwn: async () => {
-        await loadPlugins();
-        await loadUserCss();
-        await loadReaderMenus();
-      },
+      reloadOwn,
       checks: CHECKS,
-      more: [
-        { label: "Trim Trailing Whitespace", on: () => saving("trim"), set: (on) => setSaving("trim", on) },
-        { label: "Insert Final Newline", on: () => saving("final-newline"), set: (on) => setSaving("final-newline", on) },
-        { label: "Vim's Keys", on: vimKeys, set: setVimKeys },
-      ],
+      more: Object.values(MORE_SETTINGS),
     }),
+  // The settings no menu lists, on and off.
+  "prefs-setting": ([name, word]) => {
+    const setting = MORE_SETTINGS[name];
+    if (!setting) {
+      say(`The settings are ${Object.keys(MORE_SETTINGS).join(", ")}.`, { failed: true });
+      return;
+    }
+    setting.set(onOff([word]) ?? !setting.on());
+    drawPreferences();
+  },
+  "carry-place": async (words) => {
+    const path = words.length ? words.join(" ") : await pick("dir").catch(() => null);
+    if (typeof path === "string") {
+      setCarryPlace(path);
+      drawPreferences();
+    }
+  },
+  "carry-send": async (words) => {
+    const to = words.join(" ") || carryPlace();
+    try {
+      say(to ? await carrySend(to) : "Name a file or a folder first.", { failed: !to });
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
+  },
+  "carry-take": async ([from = carryPlace(), ...chosen]) => {
+    try {
+      const taking = from ? await carryTake(from, chosen, reloadOwn) : null;
+      say(!from ? "Name a file or a folder first." : taking ? `Took ${taking.files.length} file${taking.files.length === 1 ? "" : "s"} from ${from}.` : `${from} holds the settings this machine has.`, { failed: !from });
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
+    drawPreferences();
+  },
+  "carry-undo": async ([id]) => {
+    try {
+      const taking = await carryUndo(id, reloadOwn);
+      say(`The taking from ${taking.from} is undone.`);
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
+    drawPreferences();
+  },
   "user-css": () => openUserCss().catch((error) => say(String(error), { failed: true })),
   plugins: () => showPlugins(sheet),
   "new-plugin": (args) => showGenerator(sheet, args),
@@ -469,6 +520,20 @@ const COMMANDS = {
     }
   },
   "macro-forget": ([name]) => forgetMacro(name),
+  "branch-switch": ([name]) => branchDo("switch", name),
+  "branch-merge": ([name]) => branchDo("merge", name),
+  "branch-rebase": ([name]) => branchDo("rebase", name),
+  "branch-rename": ([name, to]) => renameBranch(name, to),
+  "branch-delete": ([name]) => removeBranch(name),
+  "stash-apply": ([name]) => stashDo("apply", name),
+  "stash-pop": ([name]) => stashDo("pop", name),
+  // A stash thrown away asks first, at the command line as in the menu.
+  "stash-drop": async ([name]) => {
+    const stash = (await invoke("git_stashes", { repo: editing().repo() }).catch(() => [])).find((one) => one.name === name);
+    if (stash && (await askYes(`Throw away ${stash.name}, ${stash.subject}?`, "Drop"))) {
+      await stashDo("drop", name);
+    }
+  },
   "split-right": () => (showView("edit"), editing().split("right")),
   "split-down": () => (showView("edit"), editing().split("down")),
   unsplit: () => editing().unsplit(),
@@ -523,7 +588,7 @@ const COMMANDS = {
       return;
     }
     const forms = { google: "Google", numpy: "NumPy", rest: "reStructuredText", plain: "Summary Line Alone" };
-    showMenu(window.innerWidth / 3, window.innerHeight / 4, Object.entries(forms).map(([form, label]) => ({ label, checked: editing().docstringForm() === form, run: () => editing().setDocstringForm(form) })));
+    showMenu(window.innerWidth / 3, window.innerHeight / 4, Object.entries(forms).map(([form, label]) => ({ label, checked: editing().docstringForm() === form, command: "docstring-form", args: [form], run: () => editing().setDocstringForm(form) })));
   },
   "quick-fix": inEditor(() => editing().quickFix()),
   "parameter-info": inEditor(() => editing().parameterInfo()),
@@ -580,7 +645,7 @@ const COMMANDS = {
 
 // A command of the menus or of the popup menus, which take what each item is over, read as it is run.
 const commandNamed = (command) =>
-  [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands, containerCommands, databaseCommands, remoteCommands, debugCommands, dockCommands, stripCommands].find((table) => Object.hasOwn(table, command))?.[command];
+  [COMMANDS, popupCommands, explorerCommands, commitCommands, runCommands, terminalCommands, statusCommands, containerCommands, databaseCommands, remoteCommands, debugCommands, dockCommands, stripCommands, testCommands, profileCommands, intelCommands, prefsCommands].find((table) => Object.hasOwn(table, command))?.[command];
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {
@@ -787,50 +852,55 @@ async function newBranch(given) {
 
 // Every local branch, then every remote one, the tree's own checked: each to go on to, to merge into
 // the branch open or to rebase it onto, and a local one to rename or delete.
+// A branch switched to, merged in, rebased onto, renamed or deleted, as Git, Branches does it.
+const branchDo = (act, name, to) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_branch", { act, name, to, repo: editing().repo() }));
+
+async function removeBranch(name) {
+  try {
+    say(await invoke("git_branch", { act: "delete", name, repo: editing().repo() }));
+    await editing().treeChanged();
+  } catch (error) {
+    if (/not fully merged/.test(String(error)) && (await askYes(`${name} has commits no other branch holds. Delete it and them?`, "Delete"))) {
+      branchDo("delete-unmerged", name);
+    } else if (!/not fully merged/.test(String(error))) {
+      say(String(error), { failed: true });
+    }
+  }
+}
+
+async function renameBranch(name, given) {
+  const to = given ?? (await askFor(`New name for ${name}`, name));
+  if (to && to !== name) {
+    await branchDo("rename", name, to);
+  }
+}
+
+// An item of a list that runs `command` with `args`, as the command line runs it, and says both.
+const listed = (command, args, item) => ({ ...item, command, args, run: () => runCommand(command, args) });
+
 async function showBranches() {
   const list = await invoke("git_branches", { repo: editing().repo() }).catch(() => []);
   const open = list.find((one) => one.current)?.name ?? "HEAD";
-  const act = (act, name, to) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_branch", { act, name, to, repo: editing().repo() }));
-  const remove = async (name) => {
-    try {
-      say(await invoke("git_branch", { act: "delete", name, repo: editing().repo() }));
-      await editing().treeChanged();
-    } catch (error) {
-      if (/not fully merged/.test(String(error)) && (await askYes(`${name} has commits no other branch holds. Delete it and them?`, "Delete"))) {
-        act("delete-unmerged", name);
-      } else if (!/not fully merged/.test(String(error))) {
-        say(String(error), { failed: true });
-      }
-    }
-  };
   const itemOf = (branch) => {
     const items = [];
     if (!branch.current) {
       items.push(
-        { label: "Switch", run: () => act("switch", branch.name) },
-        { label: `Merge into ${open}`, run: () => act("merge", branch.name) },
-        { label: `Rebase ${open} onto it`, run: () => act("rebase", branch.name) },
+        listed("branch-switch", [branch.name], { label: "Switch" }),
+        listed("branch-merge", [branch.name], { label: `Merge into ${open}` }),
+        listed("branch-rebase", [branch.name], { label: `Rebase ${open} onto it` }),
       );
     }
     if (!branch.remote) {
-      items.push({
-        label: "Rename…",
-        run: async () => {
-          const to = await askFor(`New name for ${branch.name}`, branch.name);
-          if (to && to !== branch.name) {
-            act("rename", branch.name, to);
-          }
-        },
-      });
+      items.push(listed("branch-rename", [branch.name], { label: "Rename…" }));
       if (!branch.current) {
-        items.push({ label: "Delete", run: () => remove(branch.name) });
+        items.push(listed("branch-delete", [branch.name], { label: "Delete" }));
       }
     }
     return { label: branch.name, checked: branch.current, items };
   };
   const local = list.filter((one) => !one.remote).map(itemOf);
   const remote = list.filter((one) => one.remote).map(itemOf);
-  const items = [{ label: "New Branch…", run: () => newBranch("") }, ...(local.length ? ["-", ...local] : []), ...(remote.length ? ["-", ...remote] : [])];
+  const items = [listed("new-branch", [], { label: "New Branch…" }), ...(local.length ? ["-", ...local] : []), ...(remote.length ? ["-", ...remote] : [])];
   const anchor = document.getElementById("status-branch");
   const box = anchor.hidden ? { left: window.innerWidth / 3, top: window.innerHeight / 3 } : anchor.getBoundingClientRect();
   showMenu(box.left, (box.bottom ?? box.top) + 2, items, { anchor: anchor.hidden ? null : anchor });
@@ -1041,9 +1111,9 @@ async function chooseEnvironment(given) {
     return;
   }
   const items = [
-    { label: "The Toolchains' Own Python", checked: !environmentInUse, run: () => useEnvironment(null) },
+    { label: "The Toolchains' Own Python", checked: !environmentInUse, command: "environment", args: ["none"], run: () => useEnvironment(null) },
     ...(found.length ? ["-"] : []),
-    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_KINDS[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: environmentInUse?.kind === env.kind && environmentInUse?.place === env.place, run: () => useEnvironment(env) })),
+    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_KINDS[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: environmentInUse?.kind === env.kind && environmentInUse?.place === env.place, command: "environment", args: [`${env.kind}:${env.place}`], run: () => useEnvironment(env) })),
   ];
   showMenu(window.innerWidth / 3, window.innerHeight / 4, items);
 }
@@ -1120,6 +1190,9 @@ async function stashChanges(given) {
   }
 }
 
+// A stash brought back and kept, brought back and dropped, or thrown away.
+const stashDo = (act, name) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_stash", { act, name, repo: editing().repo() }));
+
 // Git, Stashes: each stash, the newest first, to bring back and keep, bring back and drop, or throw
 // away.
 async function showStashes() {
@@ -1128,16 +1201,11 @@ async function showStashes() {
     say("No changes are put aside.");
     return;
   }
-  const act = (act, stash) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${stash.name}`, () => invoke("git_stash", { act, name: stash.name, repo: editing().repo() }));
   const items = list.map((stash) => ({
     label: `${stash.name}  ${stash.subject}`,
-    items: [
-      { label: "Apply", run: () => act("apply", stash) },
-      { label: "Pop", run: () => act("pop", stash) },
-      { label: "Drop", run: async () => (await askYes(`Throw away ${stash.name}, ${stash.subject}?`, "Drop")) && act("drop", stash) },
-    ],
+    items: [listed("stash-apply", [stash.name], { label: "Apply" }), listed("stash-pop", [stash.name], { label: "Pop" }), listed("stash-drop", [stash.name], { label: "Drop" })],
   }));
-  showMenu(window.innerWidth / 3, window.innerHeight / 4, [{ label: "Stash Changes…", run: () => stashChanges("") }, "-", ...items]);
+  showMenu(window.innerWidth / 3, window.innerHeight / 4, [listed("stash", [], { label: "Stash Changes…" }), "-", ...items]);
 }
 
 // Git, Cherry-Pick: the commit named, or one chosen from the commits of other branches the branch open
@@ -1154,7 +1222,7 @@ export async function cherryPick(given, repo = editing().repo()) {
     say("The branch open holds every commit of the other branches.");
     return;
   }
-  showMenu(window.innerWidth / 3, window.innerHeight / 4, list.map((commit) => ({ label: `${commit.id.slice(0, 7)}  ${commit.subject}`, run: () => pick(commit.id, commit.subject) })));
+  showMenu(window.innerWidth / 3, window.innerHeight / 4, list.map((commit) => ({ label: `${commit.id.slice(0, 7)}  ${commit.subject}`, command: "cherry-pick", args: [commit.id], run: () => pick(commit.id, commit.subject) })));
 }
 
 // Git, Resolve Conflicts: the file named, or a file a merge left in conflict where it is alone in
@@ -1167,7 +1235,7 @@ function resolveConflicts(given) {
   } else if (!files.length) {
     say("No file is in conflict.");
   } else {
-    showMenu(window.innerWidth / 3, window.innerHeight / 4, files.map((path) => ({ label: path, run: () => (showView("edit"), editing().openMerge(path)) })));
+    showMenu(window.innerWidth / 3, window.innerHeight / 4, files.map((path) => ({ label: path, command: "conflicts", args: [path], run: () => (showView("edit"), editing().openMerge(path)) })));
   }
 }
 
