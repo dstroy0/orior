@@ -255,7 +255,9 @@ pub fn run(root: &Path, programs: &dyn Programs, words: &[String], sink: &mut dy
     let mut context = Context { root, programs, sink, leave, asker: &mut terminal, env: Vec::new() };
     let (first, rest) = words.split_first().ok_or_else(usage)?;
     match first.as_str() {
-        "query" | "learn" | "cross" | "write" | "pairs" | "stick" | "kept" | "sweep" => {
+        "learn" => crate::learn::run(&mut context, rest),
+        "cross" => crate::cross::run(&mut context, rest),
+        "query" | "write" | "pairs" | "stick" | "kept" | "sweep" => {
             let _ = (&mut context, rest);
             Err(format!("{first} is not yet run from the crate"))
         }

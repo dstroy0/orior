@@ -9,6 +9,8 @@
 //! toolchains.
 
 pub mod commands;
+pub mod cross;
+pub mod learn;
 pub mod leaves;
 pub mod programs;
 pub mod run;
