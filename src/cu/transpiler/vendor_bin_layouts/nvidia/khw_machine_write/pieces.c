@@ -139,11 +139,12 @@ static const char *khw_piece_named(const char *kind, const char *text)
 }
 
 // The name of a form the part answered `held` of, composed from the pieces of the vendor's table: the kind of value
-// the cases hold, the relation answered, how many sources the fields found, and the qualifier the answers read a word
-// into where a case of the relation reads two ways. Into `written`, which holds `room`
+// the cases hold, the piece whose reads hold the relation, none where no kind row reads it; the relation answered; how
+// many sources the fields found; and the qualifier the answers read a word into where a case of the relation reads
+// two ways. Into `written`, which holds `room`
 static void khw_name_composed(const KhwForm *held, char *written, size_t room)
 {
-    const char *const kind = khw_piece_reading("kind", KHW_READS_WORD);
+    const char *const kind = khw_piece_reading("kind", held->relation);
     const char *const operation = khw_piece_reading("operation", held->relation);
     written[0] = '\0';
     if (operation == NULL)
@@ -176,9 +177,11 @@ static void khw_name_composed(const KhwForm *held, char *written, size_t room)
     (void)at;
 }
 
-// The text of a form the part answered `held` of: its name, then each operand in the order its run's first bit rises,
-// the order they are printed in, each read from the encoding through its own run. A register the part
-// answers nothing at is printed by the name the tree writes it under
+// The text of a form the part answered `held` of: a predicate run as the vendor writes a guard, `@P<n>` before the
+// operation, `@!P<n>` where the bit past the predicate's three is set, and nothing where it is every predicate; its
+// name; then each other run in the order its first bit rises, the order they are printed in, each read from the
+// encoding through its own run by its kind: a register `R<n>`, or the name the tree writes a register the part answers
+// nothing at under; an address `[R<n>.64]`; a number `0x<n>`
 void khw_text_composed(const KhwForm *held, char *written, size_t room)
 {
     char name[KHW_NAME];
@@ -188,18 +191,48 @@ void khw_text_composed(const KhwForm *held, char *written, size_t room)
     {
         return;
     }
-    size_t at = (size_t)snprintf(written, room, "%s", name);
+    size_t at = 0u;
     for (unsigned int run = 0u; (run < held->runs) && (at < room); run += 1u)
     {
-        const unsigned long long number = khw_run_read(held->low, held->high, held->first[run], held->last[run]);
-        if (number == KHW_REGISTER_NONE)
+        if (held->kind[run] != KHW_KIND_PREDICATE)
         {
-            at += (size_t)snprintf(&written[at], room - at, "%s%s", (run == 0u) ? " " : ", ", KHW_REGISTER_NONE_TEXT);
+            continue;
+        }
+        const unsigned long long guard = khw_run_read(held->low, held->high, held->first[run], held->last[run]);
+        const unsigned long long predicate = guard & 7ull;
+        if (predicate != 7ull)
+        {
+            at +=
+                (size_t)snprintf(&written[at], room - at, "@%sP%llu ", ((guard & 8ull) != 0ull) ? "!" : "", predicate);
+        }
+    }
+    at += (size_t)snprintf(&written[at], room - at, "%s", name);
+    unsigned int printed = 0u;
+    for (unsigned int run = 0u; (run < held->runs) && (at < room); run += 1u)
+    {
+        if (held->kind[run] == KHW_KIND_PREDICATE)
+        {
+            continue;
+        }
+        const unsigned long long number = khw_run_read(held->low, held->high, held->first[run], held->last[run]);
+        const char *const between = (printed == 0u) ? " " : ", ";
+        if (held->kind[run] == KHW_KIND_IMMEDIATE)
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%s0x%llx", between, number);
+        }
+        else if (held->kind[run] == KHW_KIND_ADDRESS)
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%s[R%llu.64]", between, number);
+        }
+        else if (number == KHW_REGISTER_NONE)
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%s%s", between, KHW_REGISTER_NONE_TEXT);
         }
         else
         {
-            at += (size_t)snprintf(&written[at], room - at, "%sR%llu", (run == 0u) ? " " : ", ", number);
+            at += (size_t)snprintf(&written[at], room - at, "%sR%llu", between, number);
         }
+        printed += 1u;
     }
 }
 
@@ -216,13 +249,18 @@ int khw_form_kept(SassMachine *machine, const KhwForm *held, const char *text)
     snprintf(kept->relation, sizeof(kept->relation), "%.*s", (int)(sizeof(kept->relation) - 1u), held->relation);
     kept->signed_read = held->signed_read;
     kept->runs = 0u;
+    // each run's operand is its order among the printed ones; a predicate run is the guard, printed before the
+    // operation and no operand, kept under the operand count as its mark
+    unsigned int printed = 0u;
     for (unsigned int run = 0u; (run < held->runs) && (kept->runs < SASS_MACHINE_RUNS); run += 1u)
     {
-        kept->run[kept->runs].operand = run;
+        const int guard = (held->kind[run] == KHW_KIND_PREDICATE);
+        kept->run[kept->runs].operand = guard ? SASS_MACHINE_OPERANDS : printed;
         kept->run[kept->runs].first = held->first[run];
         kept->run[kept->runs].last = held->last[run];
         kept->run[kept->runs].place = held->place[run];
         kept->runs += 1u;
+        printed += guard ? 0u : 1u;
     }
     return 1;
 }

@@ -81,9 +81,9 @@ unsigned int khw_kernel_forms_kept(void)
     return kept;
 }
 
-// the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place,
-// or two, its first bit and its last, where the line holds no place, every run then holding none. 1, or 0 where the
-// words are neither
+// the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place
+// with its kind's letter after it, a register where none; or two, its first bit and its last, where the line holds no
+// place, every run then holding none. 1, or 0 where the words are neither
 static int khw_runs_read(KhwForm *held, const char *text)
 {
     unsigned int words = 0u;
@@ -105,6 +105,7 @@ static int khw_runs_read(KhwForm *held, const char *text)
         int step = 0;
         char place[16];
         held->place[run] = SASS_RUN_NO_PLACE;
+        held->kind[run] = KHW_KIND_REGISTER;
         if (each == 2u)
         {
             if (sscanf(rest, "%u %u %n", &held->first[run], &held->last[run], &step) != 2)
@@ -118,8 +119,12 @@ static int khw_runs_read(KhwForm *held, const char *text)
             {
                 return 0;
             }
+            char *end = NULL;
             held->place[run] = (strcmp(place, SASS_RUN_NO_PLACE_TEXT) == 0) ? SASS_RUN_NO_PLACE
-                                                                             : (unsigned int)strtoul(place, NULL, 10);
+                                                                            : (unsigned int)strtoul(place, &end, 10);
+            const char *const letter = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_LETTERS, *end) : NULL;
+            // the letter's place among the four is its kind
+            held->kind[run] = (letter != NULL) ? (unsigned int)(letter - KHW_KIND_LETTERS) : KHW_KIND_REGISTER;
         }
         rest += step;
     }

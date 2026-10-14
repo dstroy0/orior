@@ -37,18 +37,26 @@
 
 #define KHW_REGISTER_NONE_TEXT "RZ"
 
-// what the vendor's table calls the reads that put a piece in a name: a relation of the ladder, and the word of the
-// high order language for a word read as an unsigned integer, the kind the ladder's cases hold
-#define KHW_READS_WORD "hol.u<n>_t"
-
 // the qualifiers the answers decide between where the two readings of a case differ
 #define KHW_PIECE_UNSIGNED "U32"
 
 #define KHW_PIECE_SIGNED "S32"
 
+// what a run's operand is, as the protocol answered it beside its place: a register, a pair of registers an address
+// is read through, a number, or a predicate; and the letter each is written as after the place in the answers
+#define KHW_KIND_REGISTER 0u
+
+#define KHW_KIND_ADDRESS 1u
+
+#define KHW_KIND_IMMEDIATE 2u
+
+#define KHW_KIND_PREDICATE 3u
+
+#define KHW_KIND_LETTERS "ranp"
+
 // What the protocol answered of one form, read from the answers file: the relation every case of it answered, whether
 // the answers read a word signed and whether a case of the relation let the part answer so, the encoding, and the
-// runs of bits its operands sit in with each run's place in the relation's tuple
+// runs of bits its operands sit in with each run's place in the relation's tuple and what its operand is
 typedef struct
 {
     char relation[KHW_READS];
@@ -60,6 +68,7 @@ typedef struct
     unsigned int first[SASS_MACHINE_RUNS];
     unsigned int last[SASS_MACHINE_RUNS];
     unsigned int place[SASS_MACHINE_RUNS];
+    unsigned int kind[SASS_MACHINE_RUNS];
 } KhwForm;
 
 // What a mode writes for the protocol, gathered in memory before it is given: the bytes, their count and the room

@@ -5,7 +5,8 @@
 # A form is named by what the part answered of it, never by a listing: the kind of value its cases hold, the relation
 # it answers, how many sources its fields hold, then each qualifier the part's answers read it into, each after a
 # dot, in the order the rows of each kind stand below. IADD3 is an integer add of three sources; IADD3.X takes the
-# carry an earlier one left; ISETP.GE.U32.AND compares as unsigned words and joins its flag to another.
+# carry an earlier one left; ISETP.GE.U32.AND compares as unsigned words and joins its flag to another. The kind is
+# the row whose reads hold the relation, and a relation no kind row reads takes none: S2R, not IS2R.
 #
 # kind	<piece>	<reads>	<gloss>           the kind of value the form's cases hold
 # operation	<piece>	<reads>	<gloss>      the relation it answers, a ladder relation or a word of the high order language
@@ -16,7 +17,7 @@
 # <set> (the coherence sets of the query protocol table, P13)
 
 # the kind of value
-kind	I	hol.i<n>_t hol.u<n>_t	an integer
+kind	I	ladder.same ladder.add ladder.take ladder.up ladder.down ladder.product hol.i<n>_t hol.u<n>_t	an integer
 kind	F	hol.efloat<n>	a float of 32 bits
 kind	D	hol.edouble<n>	a float of 64 bits
 kind	H	hol.efloat<n>	a float of 16 bits
@@ -33,12 +34,12 @@ operation	SETP	comparison_coherence	a comparison, its answer a predicate
 operation	LOP	hol.bitand hol.bitor hol.bitxor hol.not	a table over bits
 operation	SHF	ladder.up ladder.down hol.shl hol.shr	a shift of the pair (high, low)
 operation	SEL	comparison_coherence	one of two values, chosen by a predicate
-operation	MOV	verb_coherence	a copy
+operation	MOV	verb_coherence frame.number	a copy
 operation	PRMT	range_coherence	bytes of two words put in a new order
-operation	LD	verb_coherence	a load
-operation	ST	verb_coherence	a store
-operation	S2R	verb_coherence	a special register read into a register
-operation	EXIT	control_coherence	the thread's end
+operation	LD	verb_coherence frame.load	a load
+operation	ST	verb_coherence frame.store	a store
+operation	S2R	verb_coherence frame.lane frame.block	a special register read into a register
+operation	EXIT	control_coherence frame.exit	the thread's end
 operation	BRA	control_coherence	a branch
 
 # the count of sources
