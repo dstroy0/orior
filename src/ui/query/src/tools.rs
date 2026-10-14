@@ -384,6 +384,34 @@ fn every_source(root: &Path, tool: &Tool) -> (Vec<PathBuf>, Vec<PathBuf>, Vec<Pa
     (c, cxx, tools)
 }
 
+/// The folders whose `.h` files a tool's sources read: those the sources stand in, those the tool
+/// names, the file definitions' where it links them, and its includes.
+fn header_folders(root: &Path, tool: &Tool, sources: &[&PathBuf]) -> Vec<PathBuf> {
+    let mut folders: Vec<PathBuf> = sources.iter().filter_map(|source| source.parent().map(Path::to_path_buf)).collect();
+    folders.extend(tool.headers.iter().map(|folder| root.join(folder)));
+    if tool.file_defs {
+        folders.extend(FILE_DEFS_HEADERS.iter().map(|folder| root.join(folder)));
+    }
+    folders.extend(tool.includes.iter().map(|folder| root.join(folder)));
+    folders.sort();
+    folders.dedup();
+    folders
+}
+
+/// The newest `.h` across `folders`.
+fn newest_header_of(folders: &[PathBuf]) -> Option<SystemTime> {
+    folders.iter().filter_map(|folder| newest_header(folder)).max()
+}
+
+/// 1 where an object stands: it is there, and neither its source nor the newest header its tool
+/// reads is newer than it.
+fn fresh(source: Option<SystemTime>, object: Option<SystemTime>, newest_header: Option<SystemTime>) -> bool {
+    match object {
+        None => false,
+        Some(object) => source.is_some_and(|s| s <= object) && newest_header.is_none_or(|h| h <= object),
+    }
+}
+
 /// 1 where `binary` is missing or older than a source of the tool, or a header of a folder its
 /// sources stand in or of one it names.
 pub fn stale(root: &Path, tool: &Tool, binary: &Path) -> bool {
@@ -393,15 +421,7 @@ pub fn stale(root: &Path, tool: &Tool, binary: &Path) -> bool {
     if all.iter().any(|source| modified(source).is_some_and(|m| m > built)) {
         return true;
     }
-    let mut folders: Vec<PathBuf> = all.iter().filter_map(|source| source.parent().map(Path::to_path_buf)).collect();
-    folders.extend(tool.headers.iter().map(|folder| root.join(folder)));
-    if tool.file_defs {
-        folders.extend(FILE_DEFS_HEADERS.iter().map(|folder| root.join(folder)));
-    }
-    folders.extend(tool.includes.iter().map(|folder| root.join(folder)));
-    folders.sort();
-    folders.dedup();
-    folders.iter().any(|folder| newest_header(folder).is_some_and(|m| m > built))
+    newest_header_of(&header_folders(root, tool, &all)).is_some_and(|m| m > built)
 }
 
 /// The tool `name` built into `build/engine` where stale, its path either way.
@@ -452,8 +472,9 @@ fn object_of(root: &Path, objects: &Path, source: &Path) -> PathBuf {
 }
 
 /// The tool `name` built into `out` where stale: every source an object under `out/objects/<name>`,
-/// compiled where it is missing or older than its source, then every object linked. The compilers
-/// are asked for before anything is compiled, so a missing one is said and nothing is half built.
+/// compiled where it is missing or older than its source or than the newest header the tool reads,
+/// then every object linked. The compilers are asked for before anything is compiled, so a missing
+/// one is said and nothing is half built.
 pub fn built_into(root: &Path, programs: &dyn Programs, name: &str, out: &Path) -> Result<PathBuf, String> {
     let tool = tool_named(name).ok_or_else(|| format!("no tool {name}"))?;
     let binary = out.join(binary_name(name));
@@ -466,12 +487,14 @@ pub fn built_into(root: &Path, programs: &dyn Programs, name: &str, out: &Path) 
     let objects_dir = out.join("objects").join(name);
     std::fs::create_dir_all(&objects_dir).map_err(|e| format!("{}: {e}", objects_dir.display()))?;
     let includes: Vec<String> = tool.includes.iter().flat_map(|folder| ["-I".to_string(), text(&root.join(folder))]).collect();
-    let fresh = |source: &Path, object: &Path| modified(object).is_some_and(|o| modified(source).is_some_and(|s| s <= o));
+    let all: Vec<&PathBuf> = c_sources.iter().chain(cxx_sources.iter()).chain(tool_sources.iter()).collect();
+    let newest = newest_header_of(&header_folders(root, tool, &all));
+    let standing = |source: &Path, object: &Path| fresh(modified(source), modified(object), newest);
     let mut compiles = Vec::new();
     let mut objects = Vec::new();
     for source in &c_sources {
         let object = object_of(root, &objects_dir, source);
-        if !fresh(source, &object) {
+        if !standing(source, &object) {
             let mut words: Vec<String> = tool.c_flags.iter().map(|w| w.to_string()).collect();
             words.extend(includes.iter().cloned());
             words.extend(["-c".into(), text(source), "-o".into(), text(&object)]);
@@ -482,7 +505,7 @@ pub fn built_into(root: &Path, programs: &dyn Programs, name: &str, out: &Path) 
     for (as_cxx, group) in [(true, &cxx_sources), (false, &tool_sources)] {
         for source in group {
             let object = object_of(root, &objects_dir, source);
-            if !fresh(source, &object) {
+            if !standing(source, &object) {
                 let mut words: Vec<String> = tool.cxx_flags.iter().map(|w| w.to_string()).collect();
                 words.extend(includes.iter().cloned());
                 if as_cxx {
@@ -573,6 +596,17 @@ mod building {
         std::fs::File::options().write(true).open(&binary).unwrap().set_modified(old).unwrap();
         assert!(stale(&root, tool, &binary), "a binary older than its sources is stale");
         let _ = std::fs::remove_dir_all(&out);
+    }
+
+    #[test]
+    fn an_object_older_than_a_header_its_source_reads_is_compiled_again() {
+        let epoch = std::time::UNIX_EPOCH;
+        let at = |seconds: u64| epoch + std::time::Duration::from_secs(seconds);
+        assert!(fresh(Some(at(10)), Some(at(20)), Some(at(5))), "an object newer than its source and every header stands");
+        assert!(!fresh(Some(at(10)), Some(at(20)), Some(at(30))), "a header newer than the object compiles it again");
+        assert!(!fresh(Some(at(30)), Some(at(20)), None), "a source newer than the object compiles it again");
+        assert!(!fresh(Some(at(10)), None, None), "no object is compiled");
+        assert!(fresh(Some(at(10)), Some(at(20)), None), "no header newer stands");
     }
 
     #[test]
