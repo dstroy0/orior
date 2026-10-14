@@ -48,6 +48,11 @@
 
 #define KHW_PHASE_CLASSIFIED 2u
 
+// a frame form whose register-runs hold no run at a place of its relation's tuple answered no relation it holds a
+// field of: void, which no pass asks again and the vendor lays out nowhere, kept in the working set so that it is
+// not put again
+#define KHW_PHASE_VOID 3u
+
 // the two registers the kernel leaves a case's words in, found by asking: a run set to one of these numbers reads that
 // register, and the two words differ: an operand field answers two different words, a modifier one
 #define KHW_FIRST_REGISTER 0u
@@ -210,6 +215,7 @@ unsigned int khw_forms_read(const char *name);
 void khw_enumerate(unsigned int slot, const char *forms);
 const char *khw_relation_named(const KhwAnswered *held, int with_reading, char *written, size_t room);
 unsigned int khw_fixed_register(const char *name);
+int khw_named_already(unsigned long long low, unsigned long long high);
 int khw_field_read(const char *name, unsigned int *first, unsigned int *bits);
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2], unsigned int count);
 const unsigned int (*khw_frame_cases(unsigned int *count))[2];

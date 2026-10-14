@@ -97,7 +97,7 @@ KhwAnswered s_named[KHW_FORMS];
 unsigned int s_names;
 
 // 1 where `low` and `high` is already one of the forms the part has answered for
-static int khw_named_already(unsigned long long low, unsigned long long high)
+int khw_named_already(unsigned long long low, unsigned long long high)
 {
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {

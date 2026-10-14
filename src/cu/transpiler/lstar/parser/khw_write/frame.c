@@ -50,6 +50,58 @@ int khw_field_read(const char *name, unsigned int *first, unsigned int *bits)
     return found;
 }
 
+// the narrowest field of the instruction word, as the part's .ksc gives them, that holds the bits `first` to `last`:
+// 1 with its first bit and its width, 0 where the .ksc gives none that does
+static int khw_field_holding(unsigned int first, unsigned int last, unsigned int *field_first, unsigned int *field_bits)
+{
+    static KscFile s_file;
+    int found = 0;
+    unsigned int narrowest = 0u;
+    ksc_read(&s_file, s_ksc_path);
+    for (unsigned int at = 0u; at < s_file.lines; at += 1u)
+    {
+        char read[64];
+        unsigned int from = 0u;
+        unsigned int width = 0u;
+        if ((sscanf(s_file.line[at], "field %63s %u %u", read, &from, &width) == 3) && (width != 0u) &&
+            (from <= first) && (last < (from + width)) && (!found || (width < narrowest)))
+        {
+            *field_first = from;
+            *field_bits = width;
+            narrowest = width;
+            found = 1;
+        }
+    }
+    ksc_free(&s_file);
+    return found;
+}
+
+// 1 where the instruction `low` and `high` holds `value` in some run of its bits, `value` not 0: a number a form
+// writes stands in the instruction, and a constant it computes does not
+static int khw_encoding_holds(unsigned long long low, unsigned long long high, unsigned long long value)
+{
+    if ((value == 0ull) || (value > 0xffffffffull))
+    {
+        return 0;
+    }
+    unsigned int bits = 0u;
+    for (unsigned long long rest = value; rest != 0ull; rest >>= 1u)
+    {
+        bits += 1u;
+    }
+    for (unsigned int width = bits; width <= 32u; width += 1u)
+    {
+        for (unsigned int first = 0u; (first + width) <= 128u; first += 1u)
+        {
+            if (khw_run_read(low, high, first, first + width - 1u) == value)
+            {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 // the frame's cases: the union's cases taken round over FRAME_CASES threads, written once
 static unsigned int s_frame_word[FRAME_CASES][2];
 
@@ -126,11 +178,32 @@ static unsigned int khw_frame_thread(unsigned int read)
     return (read < half) ? read : (RUN_THREADS_A_BLOCK + (read - half));
 }
 
+// nothing's answer: what the record shows with the unreached encoding at the slot, over the frame's cases, each of
+// the gate's cases read at its thread, known once the frame round carried that question. A candidate alike with it
+// on every case is not read: a place that leaves the stored register alone answers as it does
+static unsigned long long s_nothing[GATE_CASES];
+
+static int s_nothing_answered[GATE_CASES];
+
+static int s_nothing_known;
+
+static void khw_frame_nothing_read(const RunQuestion *question)
+{
+    for (unsigned int read = 0u; read < GATE_CASES; read += 1u)
+    {
+        const unsigned int thread = khw_frame_thread(read);
+        s_nothing_answered[read] = (question->outcome == RUN_ANSWERED);
+        s_nothing[read] = question->answered[thread];
+    }
+    s_nothing_known = 1;
+}
+
 // The frame relation `question` answered, read by the gate as the ladder's is (khw_relation_of): each candidate's
-// answer to each case the host's (frame_answer), a candidate failing a case it does not read alike, and the first
-// survivor kept in `held` with its reading and the count of survivors. The candidates in their order: lane, block,
-// the load of the first word and of the second, the store of the second, exit, and number where every case answers
-// one constant, the first case's. 1 where one survived
+// answer to each case the host's (frame_answer), a candidate failing a case it does not read alike, a candidate whose
+// answers are nothing's on every case failing every one, and the first survivor kept in `held` with its reading and
+// the count of survivors. The candidates in their order: lane, block, the load of the first word and of the second,
+// the store of the second, exit, and number where every case answers one constant, the first case's, and the
+// instruction `held` holds that constant in its bits. 1 where one survived
 int khw_frame_of(const RunQuestion *question, KhwAnswered *held)
 {
     static unsigned char s_fails[GATE_CANDIDATES][GATE_CASES];
@@ -140,6 +213,10 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *held)
     khw_frame_cases_written();
     for (unsigned int candidate = 0u; candidate < 7u; candidate += 1u)
     {
+        int as_nothing = s_nothing_known;
+        // a number the instruction does not hold is a constant computed, and names no relation
+        const int unheld =
+            (s_relation[candidate] == FRAME_NUMBER) && !khw_encoding_holds(held->low, held->high, reading[candidate]);
         for (unsigned int read = 0u; read < GATE_CASES; read += 1u)
         {
             const unsigned int thread = khw_frame_thread(read);
@@ -148,6 +225,11 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *held)
             const AnswerBracket bracket = {1, host, host};
             s_fails[candidate][read] =
                 (answer_read(&bracket, question->outcome, question->answered[thread]) != ANSWER_ALIKE) ? 1u : 0u;
+            as_nothing = as_nothing && s_nothing_answered[read] && (s_nothing[read] == host);
+        }
+        for (unsigned int read = 0u; (as_nothing || unheld) && (read < GATE_CASES); read += 1u)
+        {
+            s_fails[candidate][read] = 1u;
         }
     }
     unsigned char survives[GATE_CANDIDATES];
@@ -180,13 +262,14 @@ typedef struct
 // the most variants a place is put in: as it stands, each operand run of the slot's form, and the guard
 #define KHW_VARIANTS_A_PLACE (KHW_RUNS + 2u)
 
-// `low` and `high` from `place` added to `variants`, `*count` of them, where no variant holds it already
+// `low` and `high` from `place` added to `variants`, `*count` of them, where no variant of that place holds it
+// already; two places that stand alike each keep their own, so that each place's first variant is its own as it stands
 static void khw_variant_added(KhwVariant *variants, unsigned int *count, unsigned long long low,
                               unsigned long long high, unsigned int place)
 {
     for (unsigned int at = 0u; at < *count; at += 1u)
     {
-        if ((variants[at].low == low) && (variants[at].high == high))
+        if ((variants[at].place == place) && (variants[at].low == low) && (variants[at].high == high))
         {
             return;
         }
@@ -198,11 +281,15 @@ static void khw_variant_added(KhwVariant *variants, unsigned int *count, unsigne
 }
 
 // The frame round: each place of the kernel from the opening on, the slot and the unreached ones apart, put at the slot
-// over the frame's cases in its variants, every one pooled and carried as one round: as it stands; with each operand
-// run of the slot's own classified form `slot_form` set to the register the kernel stores, KHW_SECOND_REGISTER; and
-// with its guard at PT where the guard field, as the part's .ksc gives it, holds another predicate. The first variant
-// of a place to answer a frame relation is kept as a form of the working set, discovered where `discover` is not 0 and
-// its fields asked where it is. The count kept
+// over the frame's cases in its variants, every one pooled and carried as one round with nothing, the unreached
+// encoding at the slot, which the candidates are read against: as it stands; with the field of the instruction word
+// that holds each operand run of the slot's own classified form `slot_form`, as the part's .ksc gives the fields, set
+// to the register the kernel stores, KHW_SECOND_REGISTER, the field of the relation's first word to the record's
+// register instead, since a load or a store reads that field as an address and the record's register holds one, and
+// not put where the part's .ksc names none; and with its guard at PT where the guard field, as the part's .ksc gives
+// it, holds another predicate. A variant the working set holds already is the place's answer as it stands. The first
+// variant of a place to answer a frame relation is kept as a form of the working set, discovered where `discover` is
+// not 0 and its fields asked where it is. The count kept
 unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover)
 {
     static KhwVariant s_variants[KHW_PLACES * KHW_VARIANTS_A_PLACE];
@@ -212,6 +299,7 @@ unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover)
     unsigned int guard_bits = 0u;
     const int guarded = khw_field_read("guard", &guard_first, &guard_bits);
     const unsigned long long every_predicate = guarded ? ((1ull << guard_bits) - 1ull) : 0ull;
+    const unsigned int record = khw_fixed_register("record");
     khw_frame_cases_written();
     for (unsigned int place = 0u; place < s_kernel_places; place += 1u)
     {
@@ -224,13 +312,18 @@ unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover)
         khw_variant_added(s_variants, &variants, low, high, place);
         for (unsigned int run = 0u; run < slot_form->runs; run += 1u)
         {
-            if (slot_form->place[run] == KHW_PLACE_NONE)
+            const int first_word = (slot_form->place[run] == 0u);
+            unsigned int field_first = 0u;
+            unsigned int field_bits = 0u;
+            if ((slot_form->place[run] == KHW_PLACE_NONE) || (first_word && (record == KHW_FIXED_NONE)) ||
+                !khw_field_holding(slot_form->first[run], slot_form->last[run], &field_first, &field_bits))
             {
                 continue;
             }
             unsigned long long set_low = low;
             unsigned long long set_high = high;
-            khw_run_write(&set_low, &set_high, slot_form->first[run], slot_form->last[run], KHW_SECOND_REGISTER);
+            khw_run_write(&set_low, &set_high, field_first, field_first + field_bits - 1u,
+                          first_word ? record : KHW_SECOND_REGISTER);
             khw_variant_added(s_variants, &variants, set_low, set_high, place);
         }
         if (guarded && (khw_run_read(low, high, guard_first, guard_first + guard_bits - 1u) != every_predicate))
@@ -242,17 +335,27 @@ unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover)
         }
     }
     s_pooled = 0u;
+    const unsigned int nothing_at = khw_frame_pooled(s_unreached_low, s_unreached_high, s_frame_word, FRAME_CASES);
     for (unsigned int at = 0u; at < variants; at += 1u)
     {
         s_pooled_at[at] = khw_frame_pooled(s_variants[at].low, s_variants[at].high, s_frame_word, FRAME_CASES);
     }
     khw_round_carried();
+    if (nothing_at < SCHEDULER_ROUND_MOST)
+    {
+        khw_frame_nothing_read(&s_pool[nothing_at]);
+    }
     unsigned int kept = 0u;
     unsigned int kept_place = s_kernel_places;
     for (unsigned int at = 0u; (at < variants) && (s_names < KHW_FORMS); at += 1u)
     {
         if ((s_variants[at].place == kept_place) || (s_pooled_at[at] >= SCHEDULER_ROUND_MOST))
         {
+            continue;
+        }
+        if (khw_named_already(s_variants[at].low, s_variants[at].high))
+        {
+            kept_place = s_variants[at].place;
             continue;
         }
         KhwAnswered held;
