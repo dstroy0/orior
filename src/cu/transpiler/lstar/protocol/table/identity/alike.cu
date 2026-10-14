@@ -140,6 +140,37 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
     return 1;
 }
 
+// `code` put to the part as `question` says, to read what it answers, not to hold it to the host. R holds a verdict
+// alone and cannot answer a reading: the record is neither read nor written. 1 where the part answers it, each case's
+// value in `question->answered`, 0 where it refuses it or the gate holds it, each counted in `asks`
+int question_read(const std::vector<unsigned char> &code, RunQuestion *question, unsigned long long *asks)
+{
+    ask_files_opened();
+    question->code = code.data();
+    question->code_size = code.size();
+    *asks += 1ull;
+    if (s_ask_trace != NULL)
+    {
+        ask_written(s_ask_trace,
+                    "ask %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases, read: ", *asks,
+                    question->code_size, question->registers, question->threads, question->blocks, question->launches,
+                    question->cases);
+    }
+    RunQuestion *const asked[1] = {question};
+    asks_carried(asked, &t_dangerous, 1u);
+    const int answered = question->outcome == RUN_ANSWERED;
+    if (s_ask_trace != NULL)
+    {
+        ask_written(s_ask_trace, "%s\n", answered ? "answered" : question->refused);
+        ask_flushed(s_ask_trace);
+    }
+    if (s_ask_log != NULL)
+    {
+        ask_written(s_ask_log, "ask %llu %s\n", *asks, answered ? "read" : "refused");
+    }
+    return answered;
+}
+
 // 1 where the part answers `code` alike with the host on every case it computes, in a container declaring every
 // register its file holds (sm_86.kdm), 0 where it answers apart, refuses it or the gate holds it, each counted in
 // `asks`

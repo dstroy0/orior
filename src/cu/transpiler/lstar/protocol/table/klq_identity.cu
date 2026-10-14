@@ -8,6 +8,7 @@
 //   klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...
 //   klq_identity stall <ours folder> <host answers> <ksc> <folder> <machine> -- <carrier>...
 //   klq_identity frame <ours folder> <host answers> <ksc> <folder> -- <carrier>...
+//   klq_identity fixed <ours folder> <host answers> <ksc> <folder> -- <carrier>...
 //   klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...
 //   klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...
 //   klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...
@@ -53,11 +54,14 @@ int main(int count, char **words)
     {
         std::vector<const char *> carrier(words + 9, words + count);
         carrier.push_back(NULL);
-        // the frame asked and the banks walked first in the same run: the container returned and the least opening,
-        // then the last register and the last predicate, each answer written to the .ksc and its record closed before
-        // the pairs open theirs; an ask the record holds is not put again. The part's fields the walks read are in
-        // the .ksc already, written by khw_write when the part was learned
+        // the frame asked, the fixed registers asked and the banks walked first in the same run: the container
+        // returned and the least opening, then the slot, zero and what each register holds at it, then the last
+        // register and the last predicate, each answer written to the .ksc and its record closed before the pairs open
+        // theirs; an ask the record holds is not put again. The part's fields the walks read are in the .ksc already,
+        // written by khw_write when the part was learned
         identity_frame(words[2], words[3], words[4], words[5], carrier.data());
+        record_close();
+        identity_fixed(words[2], words[3], words[4], words[5], carrier.data());
         record_close();
         identity_register(words[2], words[3], words[4], words[5], carrier.data());
         record_close();
@@ -97,6 +101,12 @@ int main(int count, char **words)
         std::vector<const char *> carrier(words + 7, words + count);
         carrier.push_back(NULL);
         return identity_frame(words[2], words[3], words[4], words[5], carrier.data());
+    }
+    if ((count >= 8) && (std::string(words[1]) == "fixed") && (std::string(words[6]) == "--"))
+    {
+        std::vector<const char *> carrier(words + 7, words + count);
+        carrier.push_back(NULL);
+        return identity_fixed(words[2], words[3], words[4], words[5], carrier.data());
     }
     if ((count >= 8) && (std::string(words[1]) == "register") && (std::string(words[6]) == "--"))
     {

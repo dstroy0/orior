@@ -6,14 +6,15 @@
 
 // the kernel the system accepted, as the vendor's writer hands it to the run in its kernel mode: `kernel <places>
 // <registers> <from>` then one line a place, low word then high. Every place is read, whatever place the writer
-// names: the frame's asks start from the whole kernel. 1, or 0 with the reason printed
-static int frame_kernel_read(std::vector<unsigned char> *code, unsigned int *registers)
+// names: the frame's asks and the fixed registers' start from the whole kernel. 1, or 0 with the reason printed under
+// the mode's name `mode`
+int frame_kernel_read(const char *mode, std::vector<unsigned char> *code, unsigned int *registers)
 {
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     if ((qry_run() == NULL) || !qry_latest(qry_run(), "kernel.txt", &bytes, &size, NULL))
     {
-        printf("klq_identity frame: the run holds no kernel.txt; the vendor's writer hands it in its kernel mode\n");
+        printf("klq_identity %s: the run holds no kernel.txt; the vendor's writer hands it in its kernel mode\n", mode);
         return 0;
     }
     std::istringstream lines(std::string((const char *)bytes, (size_t)size));
@@ -23,7 +24,7 @@ static int frame_kernel_read(std::vector<unsigned char> *code, unsigned int *reg
     if (!std::getline(lines, line) || (sscanf(line.c_str(), "kernel %u %u %u", &places, registers, &from) < 2) ||
         (places == 0u))
     {
-        printf("klq_identity frame: kernel.txt holds no kernel this reads\n");
+        printf("klq_identity %s: kernel.txt holds no kernel this reads\n", mode);
         return 0;
     }
     code->clear();
@@ -33,7 +34,7 @@ static int frame_kernel_read(std::vector<unsigned char> *code, unsigned int *reg
         unsigned long long high = 0ull;
         if (!std::getline(lines, line) || (sscanf(line.c_str(), "%llx %llx", &low, &high) != 2))
         {
-            printf("klq_identity frame: kernel.txt holds %u places, fewer than its head says\n", place);
+            printf("klq_identity %s: kernel.txt holds %u places, fewer than its head says\n", mode, place);
             return 0;
         }
         for (unsigned int byte = 0u; byte < 8u; byte += 1u)
@@ -87,7 +88,7 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     (void)answers;
     std::vector<unsigned char> kernel;
     unsigned int registers = 0u;
-    if (!frame_kernel_read(&kernel, &registers))
+    if (!frame_kernel_read("frame", &kernel, &registers))
     {
         return 1;
     }
