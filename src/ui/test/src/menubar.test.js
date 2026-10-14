@@ -1283,7 +1283,7 @@ test("Edit, Rename, Quick Fix, Parameter Info and Quick Documentation ask the la
 }, { timeout: 90000 });
 
 ["start", "stop", "list", "show", "run-file", "validate", "update-snapshots", "run-statement", "run-sql-file", "send-request", "copy-as-curl", "private-environment"].forEach((command) => COVERED.add(command));
-["tests", "run-tests", "run-failed-tests", "cover-tests", "stop-tests", "profile", "profile-remote", "stop-profile", "print-here", "breakpoint"].forEach((command) => COVERED.add(command));
+["tests", "run-tests", "run-failed-tests", "run-touched-tests", "cover-tests", "stop-tests", "profile", "profile-remote", "stop-profile", "print-here", "breakpoint"].forEach((command) => COVERED.add(command));
 ["debug", "continue", "step-over", "step-into", "step-out", "stop-debug", "pause", "restart-debug", "record", "step-back", "reverse-continue", "debug-mixed"].forEach((command) => COVERED.add(command));
 ["attach-process", "attach-address", "stepping", "export-breakpoints", "import-breakpoints", "show-memory", "watch-memory", "machine-code"].forEach((command) => COVERED.add(command));
 ["commit-view", "review-structure", "push", "pull", "branches", "new-branch", "stash", "stashes", "cherry-pick", "conflicts"].forEach((command) => COVERED.add(command));
@@ -2269,6 +2269,20 @@ test("a stash's menu, from the command line: applied, popped, and dropped once t
   yes.click();
   await ui.waitFor(() => asked().length >= 3, 5000, "the drop asked of Git");
   assert.deepEqual(asked(), [["apply", "stash@{0}"], ["pop", "stash@{0}"], ["drop", "stash@{0}"]]);
+});
+
+test("Run, Run Tests the Change Reaches runs the tests the change reaches, and says where none does", async () => {
+  asFound();
+  calls.answer("tests_run", () => null);
+  calls.answer("tests_touched", () => ["test_menus.py::test_passes", "src/lib.rs::tests::one"]);
+  const asked = made("tests_run").length;
+  await press("run-touched-tests");
+  await ui.waitFor(() => made("tests_run").length > asked, 5000, "the tests the change reaches run");
+  assert.deepEqual(made("tests_run").at(-1).args.given, ["test_menus.py::test_passes", "src/lib.rs::tests::one"]);
+  calls.answer("tests_touched", () => []);
+  await press("run-touched-tests");
+  await ui.waitFor(() => [...noticesSaid(), ...noticesHeld()].some((one) => /No test reaches a line changed since the last commit/.test(one.text)), 5000, "the word that none does");
+  assert.equal(made("tests_run").length, asked + 1, "no run where no test reaches the change");
 });
 
 test("a test's menu, from the command line: a test run, run for its coverage, and debugged", async () => {

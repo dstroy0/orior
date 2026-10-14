@@ -1058,6 +1058,7 @@ impl Server {
                 crate::builds::snapshots_line(&root, a.get::<Option<String>>("path")?.map(|path| root::full(&root, &path)).as_deref()).and_then(give)
             }
             "tests_found" => give(crate::testing::found(&self.root()?)),
+            "tests_touched" => give(crate::touched::tests(&self.root()?)),
             "tests_run" => {
                 let emit = self.emitting();
                 let tell: crate::test_runs::Tell = Arc::new(move |heard| emit("tests-run", serde_json::to_value(heard).unwrap_or(Value::Null)));

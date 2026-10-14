@@ -290,9 +290,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Comments are marked missed and blank lines covered, coverage shows only in the tree, marks do not stand out, and every line comes gray ([IntelliJ][360], [IntelliJ][361], [IntelliJ][362], [Cursor forum][363]).
 4. **Each test's output its own.** Tests run at once each keep their output apart, and the reader marks tests that must run alone.
    - Output of tests run at once is mixed, logs interleave, and some tests must stay in a row ([openstack-dev][364], [Gradle forum][365], [IntelliJ][366], [MATLAB][367]).
-5. **The tests a change touches.** orior finds the tests an edit reaches and runs them on one key, their results beside the edit.
-   - Readers want the IDE to name the tests a change affects.
-
 ## Debugging
 
 1. **Conditions tested in the program.** A condition or a hit count is tested where the program runs, holds every time, and takes effect as it is set.

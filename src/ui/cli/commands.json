@@ -279,6 +279,7 @@
         { "label": "Find Tests…", "command": "tests", "args": "[--json]", "console": true },
         { "label": "Run All Tests", "command": "run-tests" },
         { "label": "Run Failed Tests", "command": "run-failed-tests" },
+        { "label": "Run Tests the Change Reaches", "command": "run-touched-tests", "keys": "Ctrl+Shift+F6" },
         { "label": "Run All Tests with Coverage", "command": "cover-tests" },
         { "label": "Stop Tests", "command": "stop-tests" },
         { "label": "Run Tests in Parallel", "command": "parallel-tests", "args": "[on|off]", "checks": "parallel-tests" },

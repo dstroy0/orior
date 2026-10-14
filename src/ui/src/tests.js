@@ -118,6 +118,26 @@ export async function runFailedTests() {
   await runTests(failed);
 }
 
+// Run, Run Tests the Change Reaches: the tests that reach a line changed since the last commit, a
+// Python test through any calls of a changed function, a Rust test by its target's modules. Every
+// tab is saved first, as the change stands.
+export async function runTouchedTests() {
+  await state.hooks?.saveAll();
+  const ids = await invoke("tests_touched").catch((error) => {
+    say(String(error), { failed: true });
+    return null;
+  });
+  if (!ids) {
+    return;
+  }
+  if (!ids.length) {
+    say("No test reaches a line changed since the last commit.");
+    return;
+  }
+  say(`${ids.length} test${ids.length === 1 ? " reaches" : "s reach"} the change.`);
+  await runTests(ids);
+}
+
 export async function stopTests() {
   await invoke("tests_stop").catch(() => {});
 }

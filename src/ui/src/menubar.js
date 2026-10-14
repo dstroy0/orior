@@ -34,7 +34,7 @@ import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, rec
 import { explorerCommands, showPane } from "./explorer.js";
 import { commitCommands } from "./commit.js";
 import { openPalette, startPalette } from "./palette.js";
-import { runAllTests, runFailedTests, setTestsParallel, stopTests, testCommands, testsParallel } from "./tests.js";
+import { runAllTests, runFailedTests, runTouchedTests, setTestsParallel, stopTests, testCommands, testsParallel } from "./tests.js";
 import { drawPreferences, prefsCommands, showPreferences } from "./preferences.js";
 import { carryPlace, carrySend, carryTake, carryUndo, setCarryPlace } from "./carry.js";
 import { offNetwork, setOffNetwork, showNetwork } from "./network.js";
@@ -425,6 +425,7 @@ const COMMANDS = {
   tests: () => showTests(),
   "run-tests": () => runAllTests(),
   "run-failed-tests": () => runFailedTests(),
+  "run-touched-tests": () => runTouchedTests(),
   "cover-tests": () => runAllTests({ cover: true }),
   "stop-tests": () => stopTests(),
   "parallel-tests": (args) => setTestsParallel(args[0] ? args[0] === "on" : !testsParallel()),

@@ -116,6 +116,32 @@ pub fn run_target_of(root: &Path, file: &str) -> Option<(String, Option<String>)
     None
 }
 
+/// The Rust tests a change to `changed`, files of the tree at `root`, reaches: every test of each
+/// target whose modules reach one of them, and of every target of a package whose library's do, each
+/// using the library.
+pub fn touched(root: &Path, changed: &HashSet<String>) -> Vec<String> {
+    let mut reaching: HashSet<(String, Target)> = HashSet::new();
+    for manifest in manifests(root) {
+        let Ok(text) = std::fs::read_to_string(root.join(&manifest)) else { continue };
+        let folder = manifest.strip_suffix("Cargo.toml").unwrap_or_default().trim_end_matches('/').to_string();
+        let all = targets(&root.join(&folder), &text);
+        for (target, first) in &all {
+            let first = if folder.is_empty() { first.clone() } else { format!("{folder}/{first}") };
+            let mut seen = HashSet::new();
+            walk(root, &first, &[], true, &mut seen, &mut |_, _, _, _, _| {});
+            if !seen.iter().any(|file| changed.contains(file)) {
+                continue;
+            }
+            if *target == Target::Lib {
+                reaching.extend(all.iter().map(|(every, _)| (manifest.clone(), every.clone())));
+            } else {
+                reaching.insert((manifest.clone(), target.clone()));
+            }
+        }
+    }
+    found(root).into_iter().filter(|one| reaching.contains(&(one.manifest.clone(), one.target.clone()))).map(|one| one.test.id).collect()
+}
+
 /// The Rust tests of the tree at `root`, package by package in the order of their manifests' paths.
 pub fn found(root: &Path) -> Vec<Found> {
     let mut all = Vec::new();
@@ -887,6 +913,33 @@ fn five() {}
         assert_eq!(run_target_of(&dir, "tool/src/bin/extra.rs"), Some((manifest.clone(), Some("extra".into()))));
         assert_eq!(run_target_of(&dir, "tool/src/shared.rs"), Some((manifest, None)), "the library's alone: the package's own binary runs");
         assert_eq!(run_target_of(&dir, "tool/notes.rs"), None, "a file no target reaches runs alone");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_change_reaches_its_target_s_tests_and_through_the_library_every_target_s() {
+        let dir = std::env::temp_dir().join(format!("orior_cargo_touched_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        for (name, text) in [
+            ("Cargo.toml", "[package]\nname = \"tool\"\nedition = \"2021\"\n"),
+            ("src/lib.rs", "mod inner;\n#[test]\nfn in_lib() {}\n"),
+            ("src/inner.rs", "pub fn one() {}\n"),
+            ("src/main.rs", "mod front;\n#[test]\nfn in_main() {}\n"),
+            ("src/front.rs", "pub fn show() {}\n"),
+            ("tests/whole.rs", "#[test]\nfn integration() {}\n"),
+        ] {
+            let path = dir.join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        }
+        let of = |files: &[&str]| {
+            let mut found = touched(&dir, &files.iter().map(|one| one.to_string()).collect());
+            found.sort();
+            found
+        };
+        assert_eq!(of(&["src/front.rs"]), vec!["src/main.rs::in_main".to_string()], "the binary's own module: its tests alone");
+        assert_eq!(of(&["src/inner.rs"]), vec!["src/lib.rs::in_lib".to_string(), "src/main.rs::in_main".to_string(), "tests/whole.rs::integration".to_string()], "the library's: every target's");
+        assert!(of(&["notes.rs"]).is_empty());
         let _ = std::fs::remove_dir_all(dir);
     }
 

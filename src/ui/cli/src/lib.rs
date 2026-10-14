@@ -93,6 +93,7 @@ pub mod templates;
 pub mod test_runs;
 pub mod testing;
 pub mod tls;
+pub mod touched;
 pub mod toolchains;
 pub mod transfer;
 pub mod trust;
