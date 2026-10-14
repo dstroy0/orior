@@ -359,9 +359,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Upload on save misses files edited on the host, the default server breaks after a restart, sign-in fails three saves in four, an upload hangs and keeps the IDE open, and uploads stall ([IntelliJ][452], [IntelliJ][453], [IntelliJ][454], [IntelliJ][455], [IntelliJ][456]).
 5. **A build window that shows the error first.** The build's errors and warnings stand apart from its trace, each filtered by a press, long lines with plain bounds, and the whole log kept when the build ends.
    - Errors are buried with no filter, long lines wrap with no bounds in one color, the default hides the command, the log is replaced by a summary, and only there-were-errors is said ([KDevelop][457], [GNOME Builder #1044][458], [Qt][459], [Rider][460], [U++][461]).
-6. **A quick edit, build and run.** A change runs again with one key, building only what it touched.
-   - IDEs lack a quick edit-compile-run loop ([SD Times][236]).
-
 ## Notebooks
 
 1. **A notebook that shows the state it runs on.** Cells run out of order are marked, the state shows beside them, notebooks scroll and draw outputs at the display's rate, compare cell by cell, and are never called changed by a clone.

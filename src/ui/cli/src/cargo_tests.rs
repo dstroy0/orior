@@ -77,16 +77,49 @@ pub struct Found {
     pub full: String,
 }
 
-/// The Rust tests of the tree at `root`, package by package in the order of their manifests' paths.
-pub fn found(root: &Path) -> Vec<Found> {
+/// The Cargo.toml files of the tree at `root`, in the order of their paths.
+fn manifests(root: &Path) -> Vec<String> {
     let mut manifests: Vec<String> = crate::files::all(root)
         .into_iter()
         .filter(|file| file == "Cargo.toml" || file.ends_with("/Cargo.toml"))
         .filter(|file| !file.split('/').any(|part| NOT_SEARCHED.contains(&part)))
         .collect();
     manifests.sort();
+    manifests
+}
+
+/// The package the file `file`, a path in the tree at `root`, is part of, by its manifest, and the
+/// binary it is part of: a binary whose modules reach it, or None where only the library's do, for
+/// Cargo to run the package's own binary. None where no package's targets reach the file.
+pub fn run_target_of(root: &Path, file: &str) -> Option<(String, Option<String>)> {
+    for manifest in manifests(root) {
+        let Ok(text) = std::fs::read_to_string(root.join(&manifest)) else { continue };
+        let folder = manifest.strip_suffix("Cargo.toml").unwrap_or_default().trim_end_matches('/').to_string();
+        let mut in_library = false;
+        for (target, first) in targets(&root.join(&folder), &text) {
+            let first = if folder.is_empty() { first } else { format!("{folder}/{first}") };
+            let mut seen = HashSet::new();
+            walk(root, &first, &[], true, &mut seen, &mut |_, _, _, _, _| {});
+            if !seen.contains(file) {
+                continue;
+            }
+            match target {
+                Target::Bin(name) => return Some((manifest, Some(name))),
+                Target::Lib => in_library = true,
+                Target::Test(_) => {}
+            }
+        }
+        if in_library {
+            return Some((manifest, None));
+        }
+    }
+    None
+}
+
+/// The Rust tests of the tree at `root`, package by package in the order of their manifests' paths.
+pub fn found(root: &Path) -> Vec<Found> {
     let mut all = Vec::new();
-    for manifest in manifests {
+    for manifest in manifests(root) {
         let Ok(text) = std::fs::read_to_string(root.join(&manifest)) else { continue };
         let folder = manifest.strip_suffix("Cargo.toml").unwrap_or_default().trim_end_matches('/').to_string();
         let Some(package) = package_name(&text) else { continue };
@@ -829,6 +862,31 @@ fn five() {}
         );
         assert_eq!(all[1].test.line, 3);
         assert!(is_rust("crate/src/lib.rs::at_top") && is_rust("crate/src/lib.rs") && !is_rust("tests/test_a.py::test_one"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_file_runs_as_the_binary_its_package_makes_of_it() {
+        let dir = std::env::temp_dir().join(format!("orior_cargo_run_target_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        for (name, text) in [
+            ("tool/Cargo.toml", "[package]\nname = \"tool\"\nedition = \"2021\"\n"),
+            ("tool/src/lib.rs", "pub mod shared;\n"),
+            ("tool/src/shared.rs", "pub fn one() -> i32 { 1 }\n"),
+            ("tool/src/main.rs", "mod front;\nfn main() {}\n"),
+            ("tool/src/front.rs", "pub fn show() {}\n"),
+            ("tool/src/bin/extra.rs", "fn main() {}\n"),
+            ("tool/notes.rs", "fn not_reached() {}\n"),
+        ] {
+            let path = dir.join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        }
+        let manifest = "tool/Cargo.toml".to_string();
+        assert_eq!(run_target_of(&dir, "tool/src/front.rs"), Some((manifest.clone(), Some("tool".into()))), "a module of the package's own binary");
+        assert_eq!(run_target_of(&dir, "tool/src/bin/extra.rs"), Some((manifest.clone(), Some("extra".into()))));
+        assert_eq!(run_target_of(&dir, "tool/src/shared.rs"), Some((manifest, None)), "the library's alone: the package's own binary runs");
+        assert_eq!(run_target_of(&dir, "tool/notes.rs"), None, "a file no target reaches runs alone");
         let _ = std::fs::remove_dir_all(dir);
     }
 
