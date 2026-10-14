@@ -17,7 +17,9 @@
 // form. A word more than one form writes is ranked by P6 off each form's cost, its least launch m and its spread s as
 // the part's .ksc beside the machine file keeps them (`run answers <m> cost <low> <high> <s>`): the least form is the
 // word's where the next least is past it by more than the greatest spread, and otherwise the part's ruleset keeps the
-// form it gave the word before this run (Step 11), as it does where a form writing it has no cost read yet.
+// form it gave the word before this run (Step 11), as it does where a form writing it has no cost read yet. A word no
+// form of the run writes keeps the form the ruleset gave it before as well: a form is let go only where the part
+// refuses it, and a run that hands none for a word says nothing of the kind.
 //
 // Two files are written beside the machine file: <language>.krs, which opens a ruleset of the language and names the
 // part, and <part>.krs, which the reader reads after it (ruleset_flat.cu) and which holds the forms. A bank, a fixed
@@ -93,6 +95,17 @@ int main(int count, char **word)
         }
         if (writers == 0u)
         {
+            // no form the part answered for in this run writes the word: the ruleset keeps the form it gave the word
+            // before. A form is let go only where the part refuses it, and a run that hands none for a word says
+            // nothing of the kind; dropping it would lose what was learned, to be learned again
+            const char *const kept = krs_given_of(each->name);
+            if (kept != NULL)
+            {
+                qry_text_printed(&forms, "%s\n", kept);
+                given += 1u;
+                printf("  krs_write: no form answered for in this run writes %s; the ruleset keeps its form\n",
+                       each->name);
+            }
             continue;
         }
         // one form writes the word, or P6 separates the least of several; otherwise the survivors are one cost and the
