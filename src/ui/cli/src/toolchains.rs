@@ -899,6 +899,37 @@ mod shell_files_read {
         assert!(after.iter().any(|(file, written)| file.ends_with(".profile") && written.is_some()));
         let _ = std::fs::remove_dir_all(&home);
     }
+
+    #[test]
+    #[cfg(unix)]
+    #[ignore = "sets this process's HOME and SHELL, and reads bash's login PATH: run alone"]
+    fn a_folder_a_profile_puts_on_the_path_is_seen_without_a_restart() {
+        let home = std::env::temp_dir().join(format!("orior_shell_path_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(home.join("first")).unwrap();
+        std::fs::create_dir_all(home.join("second")).unwrap();
+        std::fs::write(home.join(".profile"), "PATH=\"$HOME/first:$PATH\"\nexport PATH\n").unwrap();
+        // SAFETY: the test runs alone, and nothing else of the process reads HOME or SHELL meanwhile.
+        unsafe {
+            std::env::set_var("HOME", &home);
+            std::env::set_var("SHELL", "/bin/bash");
+        }
+        let seen = |folder: &str| {
+            let wanted = home.join(folder);
+            (0..100).any(|_| {
+                if super::path_folders().contains(&wanted) {
+                    return true;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                false
+            })
+        };
+        assert!(seen("first"), "the profile's folder, read from the login shell");
+        assert!(!super::path_folders().contains(&home.join("second")));
+        std::fs::write(home.join(".profile"), "PATH=\"$HOME/first:$HOME/second:$PATH\"\nexport PATH\n").unwrap();
+        assert!(seen("second"), "a folder the profile puts on the PATH while orior runs, seen with no restart");
+        let _ = std::fs::remove_dir_all(&home);
+    }
 }
 
 #[cfg(windows)]
