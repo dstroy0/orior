@@ -250,6 +250,6 @@ mod reading {
         let klq = bridge.klq.expect("Lstar.klq");
         assert!(klq.keys.contains_key("lane_open"));
         assert!(bridge.maps.iter().any(|m| m.language == "cu" && m.names.contains_key("lane_open")));
-        assert!(bridge.rulesets.iter().any(|r| r.path.ends_with("sass.krs") && r.entries.contains_key("lane_open")));
+        assert!(bridge.rulesets.iter().any(|r| r.path.ends_with("/cu.krs") && r.entries.contains_key("lane_open")));
     }
 }
