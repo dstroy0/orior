@@ -191,15 +191,16 @@ int main(int count, char **word)
         qry_text_printed(&head, "bank immediate = {n}\n");
         // The fixed registers the kernel the system accepted leaves at its slot, each the part's answer in its .ksc
         // (The fixed registers asked, Open 6.2): zero, the register that reads 0 whatever is written to it, and the
-        // lane's number, the record and the index where a register holds each at the slot. A line the part has not
-        // answered for is left out, and the reader refuses the ruleset without it. The ten other fixed registers are
-        // the banks' asks to place (Open 6.1), and no line of them is written here
+        // lane's number, the record and the index where a register holds each at the slot. A fixed register no row
+        // names keeps the line the ruleset gave it before this run, a hand line among them, since a line is let go
+        // only where a row replaces it; the ten the banks' asks place (Open 6.1) stand so until then. A register with
+        // neither is left out, and the reader refuses the ruleset without it
         char unanswered[128];
-        krs_fixed_written(&head, ksc, unanswered, sizeof(unanswered));
+        krs_fixed_written(&head, ksc, path, unanswered, sizeof(unanswered));
         if (unanswered[0] != '\0')
         {
-            printf("  krs_write: the part has not answered for its fixed %s; each line is left out, and the reader "
-                   "refuses %s.krs without it\n",
+            printf("  krs_write: the part has not answered for its fixed %s, and the ruleset gave no line; each is "
+                   "left out, and the reader refuses %s.krs without it\n",
                    unanswered, language);
         }
     }

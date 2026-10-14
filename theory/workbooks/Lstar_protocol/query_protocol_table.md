@@ -901,9 +901,9 @@ It is built in this order, each step held by the checks that hold the run now (`
 
 **What reads the rows.**
 
-- `krs_write` writes each fixed line from its row, `fixed <name> = R<n>`, and `RZ` for the register that reads 0, the vendor's name for the field's top. A fixed register with no row is left out and named, as the head's two lines are.
+- `krs_write` writes each fixed line from its row, `fixed <name> = R<n>`, and `RZ` for the register that reads 0, the vendor's name for the field's top. A fixed register with no row keeps the line the ruleset gave it before the run, a hand line among them, since a line is let go only where a row replaces it; the ten the banks' asks place stand so until then, and a user may edit them. A register with neither is left out and named, as the head's two lines are.
 - The `case word` rows are the banks' asks' to read.
 
 **The checks.** `frame_check` grows a `fixed` part: a register's reading classified from a counted sequence of values, each kind once (`fixed_read.h`, shared with the mode); the rows written and read back as `krs_write` reads them; `krs_write`'s fixed lines from a `.ksc` with four rows, with one and with none, `RZ` for the top. Dry: `orior protocol pairs fixed --dry` exits 0 with its dry record. Live on sm_86: the slot, zero, record, index and case word rows in `sm_86.ksc`, `sass.krs`'s fixed lines written from them, both committed.
 
-- **Built.** `frame_check`, 38 checks, under `chain_check.sh`; the fixed mode after the frame in the pair run and as `orior protocol pairs fixed`. **Measured** on sm_86 over 27 asks: the slot at place 16 of 32, zero RZ, the record in R4, the index in R2, the case's words in R0 and R7, and no register holding the lane's number at the slot; `sass.krs`'s fixed lines are written from the rows, `lane_number` left out and named.
+- **Built.** `frame_check`, 43 checks, under `chain_check.sh`; the fixed mode after the frame in the pair run and as `orior protocol pairs fixed`. **Measured** on sm_86 over 27 asks: the slot at place 16 of 32, zero RZ, the record in R4, the index in R2, the case's words in R0 and R7, and no register holding the lane's number at the slot; `sass.krs`'s zero, record and index lines are written from the rows, and the eleven others keep their hand lines until rows replace them.

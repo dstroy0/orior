@@ -6,7 +6,8 @@
 //   head       krs_write's two head lines come from the .ksc's rows, each left out where its row is missing and named
 //   opening    the kernel mode's place comes from the .ksc's row, 0 where none stands
 //   fixed      a register's reading at the slot is classified from its values over the cases, each kind once, and
-//              krs_write's fixed lines come from the .ksc's rows, each left out where its row is missing and named
+//              krs_write's fixed lines come from the .ksc's rows, the ruleset's own line kept where no row stands,
+//              each left out where it has neither and named
 //
 //     frame_check <folder>
 //
@@ -164,7 +165,7 @@ int main(int count, char **words)
                              "lane_number\nrun answers 00000004 fixed record\nrun answers 00000002 fixed index\n";
     check_that(qry_filed(qry_run(), path, four, strlen(four)) != 0ull, "a .ksc with the four fixed rows is written");
     QryText fixed_head = {NULL, 0ull, 0ull, 0};
-    check_that(krs_fixed_written(&fixed_head, path, missing, sizeof(missing)) == 4u,
+    check_that(krs_fixed_written(&fixed_head, path, NULL, missing, sizeof(missing)) == 4u,
                "four fixed lines come from four rows");
     check_that((fixed_head.bytes != NULL) &&
                    (strcmp(fixed_head.bytes,
@@ -177,7 +178,7 @@ int main(int count, char **words)
     check_that(qry_filed(qry_run(), path, one_fixed, strlen(one_fixed)) != 0ull,
                "a .ksc with the zero row alone and no field row is written");
     QryText one_fixed_head = {NULL, 0ull, 0ull, 0};
-    check_that(krs_fixed_written(&one_fixed_head, path, missing, sizeof(missing)) == 1u,
+    check_that(krs_fixed_written(&one_fixed_head, path, NULL, missing, sizeof(missing)) == 1u,
                "one fixed line comes from one row");
     check_that((one_fixed_head.bytes != NULL) && (strcmp(one_fixed_head.bytes, "fixed zero = R9\n") == 0),
                "as R9 where no field row says the top");
@@ -185,10 +186,33 @@ int main(int count, char **words)
     free(one_fixed_head.bytes);
     snprintf(path, sizeof(path), "%s/frame_check_none.ksc", words[1]);
     QryText none_fixed_head = {NULL, 0ull, 0ull, 0};
-    check_that(krs_fixed_written(&none_fixed_head, path, missing, sizeof(missing)) == 0u,
+    check_that(krs_fixed_written(&none_fixed_head, path, NULL, missing, sizeof(missing)) == 0u,
                "no fixed line comes from no row");
     check_that(strcmp(missing, "zero, lane_number, record, index") == 0, "and all four are named missing");
     free(none_fixed_head.bytes);
+
+    // the lines the ruleset gave before are kept where no row replaces them, the asked four in their order and the
+    // rest as given
+    char ruleset_path[1024];
+    snprintf(ruleset_path, sizeof(ruleset_path), "%s/frame_check_fixed.krs", words[1]);
+    const char *const given =
+        "krs 1\nruleset sass\nfixed zero = RZ\nfixed lane_number = R0\nfixed body = R3\nfixed carry = R12\n";
+    check_that(qry_filed(qry_run(), ruleset_path, given, strlen(given)) != 0ull,
+               "a ruleset with four fixed lines given before is written");
+    snprintf(path, sizeof(path), "%s/frame_check_fixed_record.ksc", words[1]);
+    const char *const record_row = "ksc part\nfield rd 16 8\nrun answers 00000004 fixed record\n";
+    check_that(qry_filed(qry_run(), path, record_row, strlen(record_row)) != 0ull,
+               "and a .ksc with the record's row alone");
+    QryText kept_head = {NULL, 0ull, 0ull, 0};
+    check_that(krs_fixed_written(&kept_head, path, ruleset_path, missing, sizeof(missing)) == 5u,
+               "five fixed lines come from one row and four given lines");
+    check_that((kept_head.bytes != NULL) &&
+                   (strcmp(kept_head.bytes, "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed body = "
+                                            "R3\nfixed carry = R12\n") == 0),
+               "the asked four in their order, the row's line where a row stands and the given where none, then the "
+               "rest as given");
+    check_that(strcmp(missing, "index") == 0, "and the one with neither is named missing");
+    free(kept_head.bytes);
     printf("frame_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }
