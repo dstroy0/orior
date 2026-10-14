@@ -909,7 +909,7 @@ mod shell_files_read {
         std::fs::create_dir_all(home.join("first")).unwrap();
         std::fs::create_dir_all(home.join("second")).unwrap();
         std::fs::write(home.join(".profile"), "PATH=\"$HOME/first:$PATH\"\nexport PATH\n").unwrap();
-        // SAFETY: the test runs alone, and nothing else of the process reads HOME or SHELL meanwhile.
+        // SAFETY: the test runs alone; no other thread of the process reads HOME or SHELL meanwhile.
         unsafe {
             std::env::set_var("HOME", &home);
             std::env::set_var("SHELL", "/bin/bash");
