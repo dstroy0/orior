@@ -886,3 +886,24 @@ It is built in this order, each step held by the checks that hold the run now (`
 **The checks.** `frame_check` beside the protocol's checks, built and run by `chain_check.sh`: the walk over a counted `holds`; the two rows written and read back as `krs_write` reads them; `krs_write`'s head from a `.ksc` with both rows, with one and with none; the kernel handed from k. Dry: `orior protocol pairs frame --dry` through the airlock exits 0 with its dry record, and `pairs pair --dry` still exits 0 with frame in its opening. Live on sm_86: the two rows in `sm_86.ksc`, `sass.krs` written from them by `orior protocol write krs`, both committed.
 
 - **Built.** `frame_check`, 18 checks, under `chain_check.sh`; the frame mode first in the pair run and as `orior protocol pairs frame`. **Measured** on sm_86: the container returned over 648 cases, and the least opening begins at place 1 of the kernel's 32, the place before it a load the kernel never reads, over 6 asks.
+
+## The fixed registers asked (Open 6.2)
+
+**Four of the fourteen fixed registers are what the kernel the system accepted leaves at its slot, and each is the part's answer.** `zero`, the register that reads 0 whatever is written to it; `lane_number`, the lane's number; `record`, the address the lane's answer is stored at; and `index`, the address its case's words are read from. The ten others, `carry`, `body`, `bodies`, `tables`, `threads`, `sign_base`, `indexed`, `one`, `ok` and `launch`, the frame never sets and no row names; each is placed by the banks' asks.
+
+**The slot.** Each place after the opening's beginning is put with the encoding the kernel's unreached places hold; the place whose kernel then answers the case's second word on every case is the slot, nothing having written the register the kernel stores. `run answers <s> slot place`.
+
+**Zero.** The slot's own instruction is put writing register n, and the closing's store reading n, for n the top of the register field and each register the kernel holds. The one that answers 0 on every case whatever was written reads 0: `run answers <n> fixed zero`.
+
+**What each register holds at the slot.** For each register n the kernel holds, the slot's instruction is put with n as its first source and zero as its second, and the stored answer is n's value, over the 648 cases, case t on thread t. The readings are held against the host's thread number: equal to t on every case, the lane's number; stepping 16 a thread, the record's low word, and the register pair it begins the record; stepping 32, the index; equal to the case's first or second word, where the words are left; 0 or one constant on every case, nothing fixed. Rows `run answers <n> fixed lane_number`, `fixed record`, `fixed index`, `case word 0` and `case word 1`. A fixed register no register holds at the slot gets no row. Each register's reading is a line of the run's blob `fixed.txt`. The register field's bounds come from the `.ksc`'s field rows, `rd`, `ra` and `rb`, as the register walk takes them.
+
+**Where.** One mode of `klq_identity`, `fixed` (`identity/fixed.cu`), after `frame` in the pair run's opening and on its own as `orior protocol pairs fixed`. It reads the kernel whole from the run's `kernel.txt` as `frame` does, and every ask goes through the airlock and into R. Dry, it says so, writes nothing and exits 0.
+
+**What reads the rows.**
+
+- `krs_write` writes each fixed line from its row, `fixed <name> = R<n>`, and `RZ` for the register that reads 0, the vendor's name for the field's top. A fixed register with no row is left out and named, as the head's two lines are.
+- The `case word` rows are the banks' asks' to read.
+
+**The checks.** `frame_check` grows a `fixed` part: a register's reading classified from a counted sequence of values, each kind once (`fixed_read.h`, shared with the mode); the rows written and read back as `krs_write` reads them; `krs_write`'s fixed lines from a `.ksc` with four rows, with one and with none, `RZ` for the top. Dry: `orior protocol pairs fixed --dry` exits 0 with its dry record. Live on sm_86: the slot, zero, record and index rows in `sm_86.ksc`, `sass.krs`'s fixed lines written from them, both committed.
+
+- **Theory.** Nothing of it is built.
