@@ -4,12 +4,14 @@
 //   walk       the halving walk reads the greatest number a counted relation holds at, asking fewer times than the
 //              span, and 0 where nothing past 0 holds
 //   head       krs_write's two head lines come from the .ksc's rows, each left out where its row is missing and named
+//   opening    the kernel mode's place comes from the .ksc's row, 0 where none stands
 //
 //     frame_check <folder>
 //
 // It runs in a query run (qry_run.sh), under the top of the tree QRY_TOP names, the folder within it.
 #include "../../../../../../../src/cu/transpiler/lstar/parser/krs_write/head.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/frame_walk.h"
+#include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/opening.h"
 #include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
 
 #include <stdio.h>
@@ -88,6 +90,14 @@ int main(int count, char **words)
     check_that(krs_head_written(&none_head, path, missing, sizeof(missing)) == 0u, "no line comes from no row");
     check_that(strcmp(missing, "toolchain, header") == 0, "and both are named missing");
     free(none_head.bytes);
+
+    // the place the least opening begins at, read from the same three files
+    snprintf(path, sizeof(path), "%s/frame_check_both.ksc", words[1]);
+    check_that(khw_opening_read(path) == 1u, "the place the least opening begins at is the row's word");
+    snprintf(path, sizeof(path), "%s/frame_check_one.ksc", words[1]);
+    check_that(khw_opening_read(path) == 0u, "and 0 where the .ksc holds no such row");
+    snprintf(path, sizeof(path), "%s/frame_check_absent.ksc", words[1]);
+    check_that(khw_opening_read(path) == 0u, "and 0 where there is no .ksc");
     printf("frame_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }
