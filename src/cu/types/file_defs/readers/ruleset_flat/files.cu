@@ -65,7 +65,7 @@ static std::string ruleset_part_folder(void)
     const std::string file = __FILE__;
     const size_t slash = file.find_last_of("/\\");
     const std::string here = (slash == std::string::npos) ? std::string() : file.substr(0u, slash + 1u);
-    return here + "../../../transpiler/lstar/protocol/table";
+    return here + "../../../../transpiler/lstar/protocol/table";
 }
 
 int ruleset_bytes_read(const std::string &path, std::string *text)
