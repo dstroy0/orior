@@ -299,8 +299,12 @@ fn run(step: &Value) -> Result<(), String> {
     use std::io::Write as _;
     let program = step["program"].as_str().ok_or("the step names no program")?;
     let words: Vec<&str> = step["args"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
+    // A program waited for is heard, and one that fails says its last lines in the step's error; one
+    // left running is not heard.
+    let wait = step["wait"].as_bool() != Some(false);
+    let heard = || if wait { std::process::Stdio::piped() } else { std::process::Stdio::null() };
     let mut command = std::process::Command::new(program);
-    command.args(&words).stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    command.args(&words).stdin(std::process::Stdio::piped()).stdout(heard()).stderr(heard());
     for (key, value) in step["env"].as_object().into_iter().flatten() {
         command.env(key, value.as_str().unwrap_or(""));
     }
@@ -308,12 +312,17 @@ fn run(step: &Value) -> Result<(), String> {
     if let Some(mut input) = child.stdin.take() {
         input.write_all(step["input"].as_str().unwrap_or("").as_bytes()).map_err(|error| format!("{program}: {error}"))?;
     }
-    if step["wait"].as_bool() == Some(false) {
+    if !wait {
         STARTED.lock().map_err(|error| error.to_string())?.push(child);
         return Ok(());
     }
-    let ended = child.wait().map_err(|error| format!("{program}: {error}"))?;
-    if ended.success() { Ok(()) } else { Err(format!("{program} {} ended {ended}", words.join(" "))) }
+    let ended = child.wait_with_output().map_err(|error| format!("{program}: {error}"))?;
+    if ended.status.success() {
+        return Ok(());
+    }
+    let said = format!("{}{}", String::from_utf8_lossy(&ended.stdout), String::from_utf8_lossy(&ended.stderr));
+    let lines: Vec<&str> = said.lines().map(str::trim).filter(|line| !line.is_empty()).collect();
+    Err(format!("{program} {} ended {}: {}", words.join(" "), ended.status, lines[lines.len().saturating_sub(3)..].join(" / ")))
 }
 
 /// Stops each program a step left running.

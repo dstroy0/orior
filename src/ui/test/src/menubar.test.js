@@ -2271,6 +2271,29 @@ test("a stash's menu, from the command line: applied, popped, and dropped once t
   assert.deepEqual(asked(), [["apply", "stash@{0}"], ["pop", "stash@{0}"], ["drop", "stash@{0}"]]);
 });
 
+// Each Protocol command and the start of what it says to words it does not take. A run of the
+// protocol asks for the tree's src/cu and, past a dry run, the part; this window's tree has neither.
+const PROTOCOL_TAKES = {
+  query: "query takes --<from> --<to>",
+  learn: "learn takes discover|turns|registers",
+  cross: "cross takes [--base <cu>]",
+  write: "write takes bridge",
+  pairs: "pairs takes pair|cost|stall",
+  stick: "stick takes nothing, vendor, engine",
+  kept: "kept takes no words",
+  sweep: "sweep takes no words",
+};
+
+test("each Protocol command says what it takes where it is given words it does not, and Query opens its job", async () => {
+  for (const [command, takes] of Object.entries(PROTOCOL_TAKES)) {
+    const said = await ran(command, "nothing-such");
+    assert.ok(said.includes(takes), `${command}: ${said}`);
+  }
+  await runCommand("query");
+  assert.equal(document.body.dataset.view, "run");
+}, { timeout: 60000 });
+Object.keys(PROTOCOL_TAKES).forEach((command) => COVERED.add(command));
+
 test("Run, Run Tests the Change Reaches runs the tests the change reaches, and says where none does", async () => {
   asFound();
   calls.answer("tests_run", () => null);
