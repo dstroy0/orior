@@ -142,11 +142,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Tool versions differ between machines, and a new hire spends a day getting the right Python, Ruby or Go ([moon][173], [Thoughtworks][174]). orior reads the versions a tree pins and warns where the machine's differ.
    - In C and C++ the build system and the toolchain are not tied together ([CMake Discourse][175]). orior shows which compiler each build uses, beside the build.
    - On Windows Python is left off PATH, and a package install fills the screen with compiler errors ([Medium][176]). orior finds each installed Python wherever it is, and says what a failed install lacks.
-2. **PATH read again without a restart.** A tool put on PATH is seen at once by orior, its terminals and its runs.
-   - A tool put on PATH is not seen until the IDE restarts, at times only after a reboot, and a tool must be named by its exact file name ([IntelliJ][186], [IntelliJ][187], [IntelliJ][188]).
-3. **Language support with no wait.** The languages orior knows are with it before a file opens, and the few plugins it needs do not slow it.
+2. **Language support with no wait.** The languages orior knows are with it before a file opens, and the few plugins it needs do not slow it.
    - Language support is downloaded only once a file opens, and a good setup needs many plugins that slow it ([G2][189], [G2][190]).
-4. **The setting that caused a failure, named.** Where a build or a run fails on a setting, orior names the setting, the file that set it and what else sets it: an SDK, a variable of the environment, a compiler's version or a plugin.
+3. **The setting that caused a failure, named.** Where a build or a run fails on a setting, orior names the setting, the file that set it and what else sets it: an SDK, a variable of the environment, a compiler's version or a plugin.
    - Trees work on one machine and not another, with SDKs, variables of the environment and compiler versions at odds and settings spread across many files, and no word of which setting caused the failure.
 
 ## Code intelligence

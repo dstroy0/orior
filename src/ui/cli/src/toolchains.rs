@@ -463,28 +463,59 @@ pub fn tree_tools() -> Vec<PathBuf> {
 /// How long the login shell is given to say its PATH.
 const SHELL_PATIENCE: Duration = Duration::from_secs(10);
 
-/// The PATH the reader's login shell sets, read once on a thread of its own the first time the PATH's
-/// folders are asked for, and none until it is read: a program opened from the desktop starts with
-/// less of a PATH than a terminal gives, and a slow shell profile holds up nothing.
-static SHELL_PATH: std::sync::OnceLock<std::sync::Mutex<Option<OsString>>> = std::sync::OnceLock::new();
+/// The PATH the reader's login shell sets, read on a thread of its own the first time the PATH's
+/// folders are asked for and again whenever one of the files a shell starts from changes, and none
+/// until it is read: a program opened from the desktop starts with less of a PATH than a terminal
+/// gives, a folder put on the PATH in a profile is seen without a restart, and a slow shell profile
+/// holds up nothing. The files are looked at at most every SHELL_LOOKED.
+#[derive(Default)]
+struct ShellPath {
+    path: Option<OsString>,
+    read_for: Option<Vec<(PathBuf, Option<std::time::SystemTime>)>>,
+    looked: Option<Instant>,
+}
+
+static SHELL_PATH: std::sync::Mutex<Option<ShellPath>> = std::sync::Mutex::new(None);
+
+/// How long one look at the files a shell starts from stands.
+const SHELL_LOOKED: Duration = Duration::from_secs(2);
+
+/// The files a login shell starts from, bash's, zsh's and fish's, under `home` and the system's, each
+/// with the time it was last written, or none where it is not there.
+fn shell_files(home: Option<&Path>) -> Vec<(PathBuf, Option<std::time::SystemTime>)> {
+    let mut files: Vec<PathBuf> = ["/etc/profile", "/etc/environment", "/etc/paths", "/etc/paths.d", "/etc/zprofile", "/etc/zshenv"].iter().map(PathBuf::from).collect();
+    if let Some(home) = home {
+        files.extend([".profile", ".bash_profile", ".bash_login", ".bashrc", ".zprofile", ".zshrc", ".zshenv", ".config/fish/config.fish"].iter().map(|name| home.join(name)));
+    }
+    files.into_iter().map(|file| {
+        let written = std::fs::metadata(&file).and_then(|meta| meta.modified()).ok();
+        (file, written)
+    }).collect()
+}
 
 fn shell_path() -> Option<OsString> {
-    let held = SHELL_PATH.get_or_init(|| {
-        if cfg!(unix) {
-            if let Some(shell) = std::env::var_os("SHELL") {
-                std::thread::spawn(move || {
-                    let read = path_of_shell(Path::new(&shell));
-                    if let Some(held) = SHELL_PATH.get() {
-                        if let Ok(mut held) = held.lock() {
-                            *held = read;
-                        }
+    if !cfg!(unix) {
+        return None;
+    }
+    let shell = std::env::var_os("SHELL")?;
+    let mut held = SHELL_PATH.lock().ok()?;
+    let kept = held.get_or_insert_with(ShellPath::default);
+    if kept.looked.is_none_or(|looked| looked.elapsed() >= SHELL_LOOKED) {
+        kept.looked = Some(Instant::now());
+        let files = shell_files(std::env::var_os("HOME").as_deref().map(Path::new));
+        if kept.read_for.as_ref() != Some(&files) {
+            kept.read_for = Some(files);
+            std::thread::spawn(move || {
+                let read = path_of_shell(Path::new(&shell));
+                if let Ok(mut held) = SHELL_PATH.lock() {
+                    if let Some(kept) = held.as_mut() {
+                        kept.path = read;
                     }
-                });
-            }
+                }
+            });
         }
-        std::sync::Mutex::new(None)
-    });
-    held.lock().ok().and_then(|held| held.clone())
+    }
+    kept.path.clone()
 }
 
 /// The PATH `shell` sets as a login shell, or none where it says none within SHELL_PATIENCE.
@@ -849,6 +880,25 @@ pub fn run_path() -> OsString {
     let mut seen = HashSet::new();
     let dirs: Vec<PathBuf> = dirs.into_iter().filter(|dir| seen.insert(key_of(dir))).collect();
     std::env::join_paths(dirs).unwrap_or_else(|_| std::env::var_os("PATH").unwrap_or_default())
+}
+
+#[cfg(test)]
+mod shell_files_read {
+    use super::shell_files;
+
+    #[test]
+    fn a_profile_written_is_a_change_of_the_files_a_shell_starts_from() {
+        let home = std::env::temp_dir().join(format!("orior_shell_files_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).unwrap();
+        let before = shell_files(Some(&home));
+        assert_eq!(before, shell_files(Some(&home)), "the same files, the same look");
+        std::fs::write(home.join(".profile"), "export PATH=\"$HOME/tools:$PATH\"\n").unwrap();
+        let after = shell_files(Some(&home));
+        assert_ne!(before, after, "a profile made");
+        assert!(after.iter().any(|(file, written)| file.ends_with(".profile") && written.is_some()));
+        let _ = std::fs::remove_dir_all(&home);
+    }
 }
 
 #[cfg(windows)]
