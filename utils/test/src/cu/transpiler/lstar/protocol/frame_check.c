@@ -5,11 +5,14 @@
 //              span, and 0 where nothing past 0 holds
 //   head       krs_write's two head lines come from the .ksc's rows, each left out where its row is missing and named
 //   opening    the kernel mode's place comes from the .ksc's row, 0 where none stands
+//   fixed      a register's reading at the slot is classified from its values over the cases, each kind once, and
+//              krs_write's fixed lines come from the .ksc's rows, each left out where its row is missing and named
 //
 //     frame_check <folder>
 //
 // It runs in a query run (qry_run.sh), under the top of the tree QRY_TOP names, the folder within it.
 #include "../../../../../../../src/cu/transpiler/lstar/parser/krs_write/head.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/fixed_read.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/frame_walk.h"
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/opening.h"
 #include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
@@ -98,6 +101,60 @@ int main(int count, char **words)
     check_that(khw_opening_read(path) == 0u, "and 0 where the .ksc holds no such row");
     snprintf(path, sizeof(path), "%s/frame_check_absent.ksc", words[1]);
     check_that(khw_opening_read(path) == 0u, "and 0 where there is no .ksc");
+
+    // a register's reading at the slot, classified from its values over eight cases with the case's words made up
+    unsigned long long held[8];
+    unsigned int first[8];
+    unsigned int second[8];
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        first[at] = 0x100u + (at * 3u);
+        second[at] = 0x200u + (at * 5u);
+        held[at] = at;
+    }
+    check_that(fixed_kind(held, first, second, 8u) == FIXED_LANE_NUMBER,
+               "values that are their case's number are the lane's number");
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        held[at] = 0x7ffff000ull + (16ull * at);
+    }
+    check_that(fixed_kind(held, first, second, 8u) == FIXED_RECORD, "values stepping 16 a case are the record");
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        held[at] = 0xfffffff0ull + (16ull * at);
+    }
+    check_that(fixed_kind(held, first, second, 8u) == FIXED_RECORD,
+               "and still the record where the low word wraps past the 32-bit end");
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        held[at] = 0x7ffff000ull + (32ull * at);
+    }
+    check_that(fixed_kind(held, first, second, 8u) == FIXED_INDEX, "values stepping 32 a case are the index");
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        held[at] = first[at];
+    }
+    check_that(fixed_kind(held, first, second, 8u) == FIXED_CASE_WORD_0, "values that are the case's first word");
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        held[at] = second[at];
+    }
+    check_that(fixed_kind(held, first, second, 8u) == FIXED_CASE_WORD_1, "and its second");
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        held[at] = 7ull;
+    }
+    check_that(fixed_kind(held, first, second, 8u) == FIXED_NOTHING, "one constant is nothing fixed");
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        held[at] = 0ull;
+    }
+    check_that(fixed_kind(held, first, second, 8u) == FIXED_NOTHING, "and so is 0");
+    check_that(fixed_kind(held, first, second, 1u) == FIXED_NOTHING, "and so is one case alone");
+    check_that((strcmp(fixed_kind_question(FIXED_RECORD), "fixed record") == 0) &&
+                   (strcmp(fixed_kind_question(FIXED_CASE_WORD_1), "case word 1") == 0) &&
+                   (fixed_kind_question(FIXED_NOTHING)[0] == '\0'),
+               "a kind's row question names it, and nothing's is empty");
     printf("frame_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

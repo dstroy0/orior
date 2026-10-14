@@ -17,7 +17,8 @@
 #   kdecode_check    holds kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
 #                    a who line, and the part's cost rows put again as it was
-#   frame_check      holds the frame's walk, krs_write's head and the kernel mode's place to the .ksc's rows
+#   frame_check      holds the frame's walk, krs_write's head and fixed lines, the kernel mode's place and a
+#                    register's reading at the slot to the .ksc's rows
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
 #                    section and the pipes written again under who lines, and the part's section written again as it was
 #   survivors_check  holds the gate to P2 on the ladder's own relations
