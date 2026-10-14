@@ -64,8 +64,9 @@ int main(int count, char **words)
     krf_path_beside("sm_86", beside, sizeof(beside));
     check_that(strcmp(beside, "sm_86.krf") == 0, "and added where the path has none");
 
+    // a file of this run's own, named by the run, fresh where the folder holds the files of earlier runs
     char path[1024];
-    snprintf(path, sizeof(path), "%s/krf_check.krf", words[1]);
+    snprintf(path, sizeof(path), "%s/krf_check_%s.krf", words[1], query);
     const char *const first[1] = {"run answers 00000010 slot place"};
     const QryWho put = QRY_WHO_HERE;
     check_that(krf_removed_by(path, "ksc", "replaced", first, 1u, put), "a removal is kept in a .krf of the part");
@@ -74,10 +75,10 @@ int main(int count, char **words)
     qry_who_code(put, code, sizeof(code));
     char expected[2048];
     snprintf(expected, sizeof(expected),
-             "krf krf_check\n"
+             "krf krf_check_%s\n"
              "who %s\n"
              "removed ksc %s replaced run answers 00000010 slot place\n",
-             code, query);
+             query, code, query);
     char *text = joined(&s_file);
     check_that((text != NULL) && (strcmp(text, expected) == 0),
                "the head names the part from the path, and the row its type, the run, the reason and the text");
@@ -98,13 +99,13 @@ int main(int count, char **words)
     char later_code[QRY_WHO_CODE_LETTERS + 1u];
     qry_who_code(later, later_code, sizeof(later_code));
     snprintf(expected, sizeof(expected),
-             "krf krf_check\n"
+             "krf krf_check_%s\n"
              "who %s\n"
              "removed ksc %s replaced run answers 00000010 slot place\n"
              "who %s\n"
              "removed krs %s refused fixed record = R1\n"
              "removed krs %s refused form word_add to left right = IADD {to}, {left}, {right}\\n\n",
-             code, query, later_code, query, query);
+             query, code, query, later_code, query, query);
     text = joined(&s_file);
     check_that((text != NULL) && (strcmp(text, expected) == 0), "the earlier rows standing as they were");
     free(text);
