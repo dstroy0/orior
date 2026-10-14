@@ -25,6 +25,7 @@
 //
 // It runs in a query run, the .qry QRY names (qry_buffer.h): the forms the vendor's writer hands back are the blob
 // KRS_FORMS_NAME of the run's buffer, and what it prints is handed to the run's buffer as KRS_MACHINE_NAME.
+#include "krs_write/fixed.h"
 #include "krs_write/head.h"
 #include "krs_write/krs_write_internal.h"
 
@@ -140,6 +141,8 @@ int main(int count, char **word)
         return 1;
     }
     snprintf(path, sizeof(path), "%s/%s.krs", rulesets, language);
+    char ksc[1200];
+    snprintf(ksc, sizeof(ksc), "%s/%s.ksc", rulesets, part);
     QryText head = {0};
     qry_text_printed(&head, "krs 1\nruleset %s\n", language);
     // What turns the language's text into a program the part loads, and where the text's opening lines come from
@@ -148,8 +151,6 @@ int main(int count, char **word)
     // answered for is left out, and the reader refuses the ruleset without it
     if (strcmp(language, "sass") == 0)
     {
-        char ksc[1200];
-        snprintf(ksc, sizeof(ksc), "%s/%s.ksc", rulesets, part);
         char missing[128];
         krs_head_written(&head, ksc, missing, sizeof(missing));
         if (missing[0] != '\0')
@@ -175,27 +176,19 @@ int main(int count, char **word)
         qry_text_printed(&head, "bank predicate = P{n}\n");
         qry_text_printed(&head, "bank member = R{n}\n");
         qry_text_printed(&head, "bank immediate = {n}\n");
-        // The registers every lane holds throughout, the ones the code generator names (cu.krs gives the same
-        // fourteen): zero the part's RZ, and the rest the lowest general registers in cu.krs's order. Every bank
-        // writes R{n} from 0, and nothing here keeps a bank's numbers off the fixed registers' or another bank's.
-        // Every number here is a hand value standing where the query protocol table asks the part (Open 6.1, 6.2):
-        // each bank's place the cheapest the part answers holds it, zero the register that reads 0 whatever is
-        // written to it, the lane's number read through a special register against the host, and each of the
-        // launch's values in the least register a chain holds it through
-        qry_text_printed(&head, "fixed zero = RZ\n");
-        qry_text_printed(&head, "fixed lane_number = R0\n");
-        qry_text_printed(&head, "fixed record = R1\n");
-        qry_text_printed(&head, "fixed index = R2\n");
-        qry_text_printed(&head, "fixed body = R3\n");
-        qry_text_printed(&head, "fixed bodies = R4\n");
-        qry_text_printed(&head, "fixed tables = R5\n");
-        qry_text_printed(&head, "fixed threads = R6\n");
-        qry_text_printed(&head, "fixed sign_base = R7\n");
-        qry_text_printed(&head, "fixed indexed = R8\n");
-        qry_text_printed(&head, "fixed one = R9\n");
-        qry_text_printed(&head, "fixed ok = R10\n");
-        qry_text_printed(&head, "fixed launch = R11\n");
-        qry_text_printed(&head, "fixed carry = R12\n");
+        // The fixed registers the kernel the system accepted leaves at its slot, each the part's answer in its .ksc
+        // (The fixed registers asked, Open 6.2): zero, the register that reads 0 whatever is written to it, and the
+        // lane's number, the record and the index where a register holds each at the slot. A line the part has not
+        // answered for is left out, and the reader refuses the ruleset without it. The ten other fixed registers are
+        // the banks' asks to place (Open 6.1), and no line of them is written here
+        char unanswered[128];
+        krs_fixed_written(&head, ksc, unanswered, sizeof(unanswered));
+        if (unanswered[0] != '\0')
+        {
+            printf("  krs_write: the part has not answered for its fixed %s; each line is left out, and the reader "
+                   "refuses %s.krs without it\n",
+                   unanswered, language);
+        }
     }
     if (qry_text_filed(qry_run(), path, &head) == 0ull)
     {

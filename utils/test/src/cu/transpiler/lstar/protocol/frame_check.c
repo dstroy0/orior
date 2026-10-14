@@ -11,6 +11,7 @@
 //     frame_check <folder>
 //
 // It runs in a query run (qry_run.sh), under the top of the tree QRY_TOP names, the folder within it.
+#include "../../../../../../../src/cu/transpiler/lstar/parser/krs_write/fixed.h"
 #include "../../../../../../../src/cu/transpiler/lstar/parser/krs_write/head.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/fixed_read.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/frame_walk.h"
@@ -155,6 +156,39 @@ int main(int count, char **words)
                    (strcmp(fixed_kind_question(FIXED_CASE_WORD_1), "case word 1") == 0) &&
                    (fixed_kind_question(FIXED_NOTHING)[0] == '\0'),
                "a kind's row question names it, and nothing's is empty");
+
+    // krs_write's fixed lines from a .ksc with the four rows and the field, with the zero row alone and no field, and
+    // with none
+    snprintf(path, sizeof(path), "%s/frame_check_fixed.ksc", words[1]);
+    const char *const four = "ksc part\nfield rd 16 8\nrun answers 000000ff fixed zero\nrun answers 00000000 fixed "
+                             "lane_number\nrun answers 00000004 fixed record\nrun answers 00000002 fixed index\n";
+    check_that(qry_filed(qry_run(), path, four, strlen(four)) != 0ull, "a .ksc with the four fixed rows is written");
+    QryText fixed_head = {NULL, 0ull, 0ull, 0};
+    check_that(krs_fixed_written(&fixed_head, path, missing, sizeof(missing)) == 4u,
+               "four fixed lines come from four rows");
+    check_that((fixed_head.bytes != NULL) &&
+                   (strcmp(fixed_head.bytes,
+                           "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed index = R2\n") == 0),
+               "zero as RZ, the field's top, then lane_number, record and index as R<n>");
+    check_that(missing[0] == '\0', "and nothing is missing");
+    free(fixed_head.bytes);
+    snprintf(path, sizeof(path), "%s/frame_check_fixed_one.ksc", words[1]);
+    const char *const one_fixed = "ksc part\nrun answers 00000009 fixed zero\n";
+    check_that(qry_filed(qry_run(), path, one_fixed, strlen(one_fixed)) != 0ull,
+               "a .ksc with the zero row alone and no field row is written");
+    QryText one_fixed_head = {NULL, 0ull, 0ull, 0};
+    check_that(krs_fixed_written(&one_fixed_head, path, missing, sizeof(missing)) == 1u,
+               "one fixed line comes from one row");
+    check_that((one_fixed_head.bytes != NULL) && (strcmp(one_fixed_head.bytes, "fixed zero = R9\n") == 0),
+               "as R9 where no field row says the top");
+    check_that(strcmp(missing, "lane_number, record, index") == 0, "and the other three are named missing");
+    free(one_fixed_head.bytes);
+    snprintf(path, sizeof(path), "%s/frame_check_none.ksc", words[1]);
+    QryText none_fixed_head = {NULL, 0ull, 0ull, 0};
+    check_that(krs_fixed_written(&none_fixed_head, path, missing, sizeof(missing)) == 0u,
+               "no fixed line comes from no row");
+    check_that(strcmp(missing, "zero, lane_number, record, index") == 0, "and all four are named missing");
+    free(none_fixed_head.bytes);
     printf("frame_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }
