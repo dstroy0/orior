@@ -12,6 +12,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::commands::{Context, TABLE};
+use crate::learn::Files;
 use crate::programs::Role;
 use crate::run::Run;
 use crate::tools::text;
@@ -27,7 +28,7 @@ const WORK: &str = "build/engine/identity";
 /// The run folder where no trace folder is named.
 const FOLDER: &str = "build/engine/qry";
 
-const MODES: &[&str] = &["pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"];
+const MODES: &[&str] = &["frame", "pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"];
 
 /// What a pairs' words ask for: the mode, its own words, the part and the language, dry or not,
 /// the seed the links' order is drawn from, and the folder the run goes in.
@@ -44,7 +45,7 @@ pub struct Mode {
 
 impl Mode {
     pub fn read(words: &[String]) -> Result<Mode, String> {
-        let usage = "pairs takes pair|cost|stall|register|past|queue|curve|text_identity|stick [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>]";
+        let usage = "pairs takes frame|pair|cost|stall|register|past|queue|curve|text_identity|stick [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>]";
         let (mode, rest) = words.split_first().ok_or(usage)?;
         if !MODES.contains(&mode.as_str()) {
             return Err(usage.into());
@@ -94,6 +95,18 @@ pub fn targets(root: &Path, mode: &str, part: &str, words: &[String]) -> Vec<Str
         "cost" => vec![text(&table.join(format!("{part}.kdm"))), text(&table.join(format!("{part}.khw")))],
         _ => words.to_vec(),
     }
+}
+
+/// The vendor writer's words that hand the kernel the system accepted to the run as `kernel.txt`: the
+/// part, its machine file, the container's layout, the vendor's table, the blob's name and the mode.
+pub fn kernel_words(part: &str, files: &Files) -> Vec<String> {
+    vec![part.to_string(), text(&files.machine), text(&files.layout), text(&files.mnemonics), "kernel.txt".into(), "kernel".into()]
+}
+
+/// Whether a mode opens with the frame's asks, which read the kernel: `frame` itself and `pair`,
+/// whose opening runs it.
+pub fn kernel_handed(mode: &str) -> bool {
+    matches!(mode, "frame" | "pair")
 }
 
 /// The pairs of the bridge put to `part` in the language `to`, dry where `dry`.
@@ -256,10 +269,19 @@ fn judged(context: &mut Context, mode: &Mode, identity: &Path, folder: &str) -> 
     let out = work.join(&mode.mode);
     std::fs::create_dir_all(&out).map_err(|e| format!("{}: {e}", out.display()))?;
     let mut run = context.started(folder)?;
+    if kernel_handed(&mode.mode) {
+        // the kernel the system accepted, handed to the run by the vendor's writer for the frame's asks
+        let writer = context.tool("khw_machine_write")?;
+        let files = Files::of(context.root, &mode.part);
+        let words = kernel_words(&mode.part, &files);
+        if context.said(&run, &writer, &words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+            return Err("the vendor's writer handed the run no kernel".into());
+        }
+    }
     let host_answers = text(&work.join("host_answers.txt"));
     let overseer = text(&work.join("overseer.txt"));
     run.carried(&context.at(folder), &[host_answers.as_str(), overseer.as_str(), "faulted.txt"], crate::run::crystal(context.root).as_deref())?;
-    if run.writer().latest("host_answers.txt").is_none() {
+    if mode.mode != "frame" && run.writer().latest("host_answers.txt").is_none() {
         return Err("no host answers: run orior protocol pairs stick first".into());
     }
     configs(context, &mut run, &mode.part)?;
@@ -349,6 +371,19 @@ mod modes {
         assert!(targets(root, "pair", "sm_86", &[]).iter().all(|t| !t.contains('\\')));
         assert_eq!(targets(root, "curve", "sm_86", &said(&["1006", "1007"])), ["1006", "1007"]);
         assert_eq!(targets(root, "register", "sm_86", &[]), Vec::<String>::new());
+        assert_eq!(targets(root, "frame", "sm_86", &[]), Vec::<String>::new());
+    }
+
+    #[test]
+    fn the_kernel_is_handed_before_the_frame_and_the_pairs() {
+        let files = crate::learn::Files::of(Path::new("T"), "sm_86");
+        let words = kernel_words("sm_86", &files);
+        assert_eq!(words[0], "sm_86");
+        assert!(words[1].ends_with("/table/sm_86.khw"), "{}", words[1]);
+        assert!(words[2].ends_with("/nvidia/elf64_nvidia.tsv"), "{}", words[2]);
+        assert!(words[3].ends_with("/nvidia/mnemonic_nvidia.tsv"), "{}", words[3]);
+        assert_eq!(&words[4..], ["kernel.txt", "kernel"]);
+        assert!(kernel_handed("frame") && kernel_handed("pair") && !kernel_handed("register"));
     }
 
     #[test]
@@ -365,6 +400,9 @@ mod modes {
         assert_eq!(curve.trace.as_deref(), Some(Path::new("build/x")));
         let stick = Mode::read(&said(&["stick", "sass.krs", "c.krs"])).unwrap();
         assert_eq!(stick.words, ["sass.krs", "c.krs"]);
+        let frame = Mode::read(&said(&["frame", "--part", "sm_86"])).unwrap();
+        assert_eq!(frame.mode, "frame");
+        assert!(frame.words.is_empty());
         assert!(Mode::read(&said(&["pair", "--to", "ptx"])).is_err(), "klq_identity writes forms in sass alone");
         assert!(Mode::read(&said(&["fly"])).is_err());
         assert!(Mode::read(&said(&["pair", "--seed"])).is_err());
