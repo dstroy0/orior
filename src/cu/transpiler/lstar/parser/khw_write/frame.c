@@ -70,10 +70,18 @@ static void khw_frame_cases_written(void)
     s_frame_cases = FRAME_CASES;
 }
 
+// the frame's cases, written where they are not yet, and their count through `count`
+const unsigned int (*khw_frame_cases(unsigned int *count))[2]
+{
+    khw_frame_cases_written();
+    *count = s_frame_cases;
+    return s_frame_word;
+}
+
 // `low` and `high` stalled the longest with the yield bit after the stall clear, the one scheduling the gate lets an
 // instruction no form holds through and the vendor's reader takes; the stall field as the part's .ksc gives it, read
 // once
-static void khw_frame_stalled(unsigned long long *low, unsigned long long *high)
+void khw_frame_stalled(unsigned long long *low, unsigned long long *high)
 {
     static int s_read = 0;
     static int s_given = 0;

@@ -205,10 +205,32 @@ unsigned int khw_costs_asked(const char *path)
         {
             continue;
         }
-        khw_code_put(s_code, s_slot, held->low, held->high);
-        const unsigned int count = khw_anchor_cases(held->anchor, held->swapped, s_word, s_plain, s_signed);
+        // a ladder form at the slot over its relation's cases; a frame form whole, stalled the longest, over the
+        // frame's cases
+        const int framed = (held->frame != (unsigned int)FRAME_RELATION_COUNT);
+        unsigned long long low = held->low;
+        unsigned long long high = held->high;
+        if (framed)
+        {
+            khw_frame_stalled(&low, &high);
+        }
+        khw_code_put(s_code, s_slot, low, high);
+        unsigned int count = 0u;
+        const unsigned int(*frame_word)[2] = framed ? khw_frame_cases(&count) : NULL;
+        if (framed)
+        {
+            for (unsigned int each = 0u; each < count; each += 1u)
+            {
+                s_word[each][0] = frame_word[each][0];
+                s_word[each][1] = frame_word[each][1];
+            }
+        }
+        else
+        {
+            count = khw_anchor_cases(held->anchor, held->swapped, s_word, s_plain, s_signed);
+        }
         s_launches = KHW_LAUNCHES;
-        const int answered = khw_asked(s_word, count, s_slot, s_answered);
+        const int answered = khw_asked(s_word, count, framed ? RUN_SLOT_NONE : s_slot, s_answered);
         s_launches = 0u;
         if (!answered || (s_question.most == 0ull))
         {

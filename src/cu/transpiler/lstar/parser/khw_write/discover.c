@@ -272,13 +272,16 @@ unsigned int khw_widened(unsigned int from, int discover)
 {
     const unsigned int until = s_names;
     unsigned int found = 0u;
-    // every turned encoding not yet answered for, each once
+    // every turned encoding not yet answered for, each once, and whether it was turned off a frame form, whose
+    // encodings are put whole over the frame's cases and read against the frame's relations
     static unsigned long long s_turned_low[KHW_FORMS];
     static unsigned long long s_turned_high[KHW_FORMS];
+    static int s_turned_frame[KHW_FORMS];
     unsigned int turned = 0u;
     for (unsigned int at = from; at < until; at += 1u)
     {
         const KhwAnswered held = s_named[at];
+        const int framed = (held.frame != (unsigned int)FRAME_RELATION_COUNT);
         if ((discover != 0) && (held.phase != KHW_PHASE_CLASSIFIED))
         {
             continue;
@@ -303,11 +306,14 @@ unsigned int khw_widened(unsigned int from, int discover)
             {
                 s_turned_low[turned] = low;
                 s_turned_high[turned] = high;
+                s_turned_frame[turned] = framed;
                 turned += 1u;
             }
         }
     }
     khw_union_written();
+    unsigned int frame_cases = 0u;
+    const unsigned int(*const frame_word)[2] = khw_frame_cases(&frame_cases);
     static KhwAnswered s_related[SCHEDULER_ROUND_MOST];
     for (unsigned int first = 0u; first < turned; first += SCHEDULER_ROUND_MOST)
     {
@@ -315,7 +321,14 @@ unsigned int khw_widened(unsigned int from, int discover)
         s_pooled = 0u;
         for (unsigned int at = first; at < last; at += 1u)
         {
-            khw_pooled(s_slot, s_turned_low[at], s_turned_high[at], s_union_word, s_union_cases);
+            if (s_turned_frame[at] != 0)
+            {
+                khw_frame_pooled(s_turned_low[at], s_turned_high[at], frame_word, frame_cases);
+            }
+            else
+            {
+                khw_pooled(s_slot, s_turned_low[at], s_turned_high[at], s_union_word, s_union_cases);
+            }
         }
         khw_round_carried();
         unsigned int related = 0u;
@@ -325,7 +338,9 @@ unsigned int khw_widened(unsigned int from, int discover)
             memset(&held, 0, sizeof(held));
             held.low = s_turned_low[at];
             held.high = s_turned_high[at];
-            if (khw_relation_of(&s_pool[at - first], &held))
+            const int answered = (s_turned_frame[at] != 0) ? khw_frame_of(&s_pool[at - first], &held)
+                                                           : khw_relation_of(&s_pool[at - first], &held);
+            if (answered)
             {
                 s_related[related] = held;
                 related += 1u;

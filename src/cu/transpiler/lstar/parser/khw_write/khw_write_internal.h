@@ -188,7 +188,7 @@ void khw_union_written(void);
 int khw_relation_of(const RunQuestion *question, KhwAnswered *held);
 int khw_relation_asked(unsigned long long low, unsigned long long high, KhwAnswered *held);
 int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long *nanoseconds);
-void khw_turns_asked(const KhwAnswered *held, const unsigned int word[1][2]);
+void khw_turns_asked(KhwAnswered *held, const unsigned int word[1][2]);
 unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
 unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count);
@@ -209,6 +209,8 @@ const char *khw_relation_named(const KhwAnswered *held, int with_reading, char *
 unsigned int khw_fixed_register(const char *name);
 int khw_field_read(const char *name, unsigned int *first, unsigned int *bits);
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2], unsigned int count);
+const unsigned int (*khw_frame_cases(unsigned int *count))[2];
+void khw_frame_stalled(unsigned long long *low, unsigned long long *high);
 int khw_frame_of(const RunQuestion *question, KhwAnswered *held);
 unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover);
 
