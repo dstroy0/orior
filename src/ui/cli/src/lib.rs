@@ -84,6 +84,7 @@ pub mod run_file;
 pub mod runner;
 pub mod servers;
 pub mod settings;
+pub mod shell_init;
 pub mod shape;
 pub mod sift;
 pub mod sql;

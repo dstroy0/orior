@@ -49,20 +49,36 @@ struct Exit {
 }
 
 /// The shell a terminal runs, at `root`: ORIOR_SHELL where it is set; on Windows Git's bash, the one
-/// the jobs run in, as a login shell; elsewhere the reader's own SHELL, else bash. Git's bash is told
-/// to stay in the folder it starts in, which a login shell otherwise leaves for the home folder.
+/// the jobs run in; elsewhere the reader's own SHELL, else bash. A bash starts as a login shell reads
+/// its files and then puts the tree's environment first (shell_init.rs); another shell starts as a
+/// login shell. Git's bash is told to stay in the folder it starts in, which its /etc/profile
+/// otherwise leaves for the home folder.
 pub fn shell(root: &Path) -> Result<CommandBuilder, String> {
+    let start = |program: PathBuf| -> Result<CommandBuilder, String> {
+        let folder = orior_cli::home::folder().ok_or("orior has no folder of its own to start bash from")?.join("shell");
+        let (words, env) = orior_cli::shell_init::bash_start(&orior_cli::shell_init::bash_file(&folder)?, true);
+        let mut bash = CommandBuilder::new(program);
+        bash.args(words);
+        for (key, value) in env {
+            bash.env(key, value);
+        }
+        Ok(bash)
+    };
     let mut command = if let Ok(named) = std::env::var("ORIOR_SHELL") {
         CommandBuilder::new(named)
     } else if cfg!(windows) {
-        let mut bash = CommandBuilder::new(orior_cli::runner::bash()?);
-        bash.args(["--login", "-i"]);
+        let mut bash = start(orior_cli::runner::bash()?)?;
         bash.env("CHERE_INVOKING", "1");
         bash
     } else {
-        let mut own = CommandBuilder::new(std::env::var("SHELL").unwrap_or_else(|_| "bash".into()));
-        own.arg("-l");
-        own
+        let own = std::env::var("SHELL").unwrap_or_else(|_| "bash".into());
+        if own.ends_with("bash") {
+            start(PathBuf::from(own))?
+        } else {
+            let mut other = CommandBuilder::new(own);
+            other.arg("-l");
+            other
+        }
     };
     command.cwd(root);
     // orior's own folder comes last: `orior` runs in the terminal where no other is installed, and
@@ -72,12 +88,8 @@ pub fn shell(root: &Path) -> Result<CommandBuilder, String> {
     command.env("PATH", std::env::join_paths(path).unwrap_or_else(|_| orior_cli::toolchains::run_path()));
     command.env("TERM", "xterm-256color");
     command.env("COLORTERM", "truecolor");
-    // Bash says the folder it stands in before each prompt, as OSC 7, where nothing of the reader's
-    // already sets what it does before a prompt: the window keeps the folder to open in again.
-    let bash = std::env::var("ORIOR_SHELL").is_err() && (cfg!(windows) || std::env::var("SHELL").map_or(true, |shell| shell.ends_with("bash")));
-    if bash && std::env::var_os("PROMPT_COMMAND").is_none() {
-        command.env("PROMPT_COMMAND", r#"printf '\033]7;file://%s%s\007' "${HOSTNAME:-}" "$PWD""#);
-    }
+    // A bash says the folder it stands in before each prompt, as OSC 7, where nothing of the reader's
+    // sets what it does before a prompt (shell_init.rs): the window keeps the folder to open in again.
     Ok(command)
 }
 

@@ -898,8 +898,8 @@ test("Go, Toggle Bookmark sets and takes off a bookmark on the cursor's line, an
   assert.ok(bookmarksOf(GIVEN)?.has(1), "the second line bookmarked");
   await press("bookmarks");
   try {
-    await ui.waitFor(() => paletteOpen(), 3000, "the bookmarks");
-    assert.match(document.querySelector(".quick-input").placeholder, /^Bookmarks/);
+    // The list the quick open holds may be another until the bookmarks take its place.
+    await ui.waitFor(() => paletteOpen() && /^Bookmarks/.test(document.querySelector(".quick-input").placeholder), 3000, "the bookmarks");
   } finally {
     await ui.key("Escape");
   }
