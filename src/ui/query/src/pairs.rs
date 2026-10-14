@@ -123,21 +123,29 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     run_mode(context, &mode)
 }
 
-/// The carrier's words for every mode that puts questions: the airlock every round passes before
-/// the part, the pop and the cross, and the carrier stopped before the driver where `dry`.
+/// The carrier's words for every mode that puts questions: the carrier, its dry flags first where
+/// `dry` as it reads them, then its held list and its lessons, the machine file and the layout; the
+/// pop, dry and full; and the cross with the vendor's reader.
+pub fn carry_words(carrier: &Path, cross: &Path, nvdisasm: &Path, machine: &Path, layout: &Path, part: &str, dry: bool) -> Vec<String> {
+    let mut words = vec![text(carrier)];
+    if dry {
+        words.extend(["--dry".into(), "--full".into()]);
+    }
+    words.extend(["--held".into(), "held.txt".into(), "--lessons".into(), "overseer.txt".into(), text(machine), text(layout)]);
+    words.extend(["--pop".into(), text(carrier), "--dry".into(), "--full".into(), "--lessons".into(), "overseer.txt".into(), text(machine), text(layout)]);
+    words.extend(["--cross".into(), text(cross), text(nvdisasm), part_read(part), "airlock.md".into(), "held.txt".into()]);
+    words
+}
+
+/// The carrier's words with the tools built and the vendor's reader found: the airlock every round
+/// passes before the part, the pop and the cross, and the carrier stopped before the driver where `dry`.
 fn carry(context: &Context, part: &str, dry: bool) -> Result<Vec<String>, String> {
     let carrier = context.tool("cubin_run")?;
     let cross = context.tool("measuring_stick_query")?;
     let nvdisasm = context.program(Role::Nvdisasm).map_err(|_| "no nvdisasm beside nvcc: the airlock has no reader".to_string())?;
-    let machine = text(&context.at(TABLE).join(format!("{part}.khw")));
-    let layout = text(&context.at(NVIDIA).join("elf64_nvidia.tsv"));
-    let mut words = vec![text(&carrier), "--held".into(), "held.txt".into(), "--lessons".into(), "overseer.txt".into()];
-    if dry {
-        words.extend(["--dry".into(), "--full".into()]);
-    }
-    words.extend([machine.clone(), layout.clone(), "--pop".into(), text(&carrier), "--dry".into(), "--full".into(), "--lessons".into(), "overseer.txt".into(), machine, layout]);
-    words.extend(["--cross".into(), text(&cross), text(&nvdisasm), part_read(part), "airlock.md".into(), "held.txt".into()]);
-    Ok(words)
+    let machine = context.at(TABLE).join(format!("{part}.khw"));
+    let layout = context.at(NVIDIA).join("elf64_nvidia.tsv");
+    Ok(carry_words(&carrier, &cross, &nvdisasm, &machine, &layout, part, dry))
 }
 
 /// The part's files, the bridge, the rulesets and the stick's manifest read into the run.
@@ -372,6 +380,17 @@ mod modes {
         assert_eq!(targets(root, "curve", "sm_86", &said(&["1006", "1007"])), ["1006", "1007"]);
         assert_eq!(targets(root, "register", "sm_86", &[]), Vec::<String>::new());
         assert_eq!(targets(root, "frame", "sm_86", &[]), Vec::<String>::new());
+    }
+
+    #[test]
+    fn the_dry_carrier_s_flags_come_first_as_the_carrier_reads_them() {
+        let (carrier, cross, nvdisasm, machine, layout) = (Path::new("C"), Path::new("X"), Path::new("N"), Path::new("M"), Path::new("L"));
+        let dry = carry_words(carrier, cross, nvdisasm, machine, layout, "sm_86", true);
+        assert_eq!(&dry[..9], ["C", "--dry", "--full", "--held", "held.txt", "--lessons", "overseer.txt", "M", "L"]);
+        assert_eq!(&dry[9..], ["--pop", "C", "--dry", "--full", "--lessons", "overseer.txt", "M", "L", "--cross", "X", "N", "SM86", "airlock.md", "held.txt"]);
+        let live = carry_words(carrier, cross, nvdisasm, machine, layout, "sm_86", false);
+        assert_eq!(&live[..7], ["C", "--held", "held.txt", "--lessons", "overseer.txt", "M", "L"]);
+        assert_eq!(&live[7..], &dry[9..]);
     }
 
     #[test]
