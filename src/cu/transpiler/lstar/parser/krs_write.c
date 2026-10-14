@@ -25,6 +25,7 @@
 //
 // It runs in a query run, the .qry QRY names (qry_buffer.h): the forms the vendor's writer hands back are the blob
 // KRS_FORMS_NAME of the run's buffer, and what it prints is handed to the run's buffer as KRS_MACHINE_NAME.
+#include "krs_write/head.h"
 #include "krs_write/krs_write_internal.h"
 
 int main(int count, char **word)
@@ -142,13 +143,21 @@ int main(int count, char **word)
     QryText head = {0};
     qry_text_printed(&head, "krs 1\nruleset %s\n", language);
     // What turns the language's text into a program the part loads, and where the text's opening lines come from
-    // (krs.oracle.tsv): for sass the container writer, which lays the text into the container the system accepted
-    // (cubin_write.c), and the container's own kernel, whose opening the text takes as it stands. Both are hand values
-    // standing where the query protocol table asks the part (Open 6.3): a container the vendor's writer makes, loaded
-    // and returned from, and the least opening a kernel runs with
+    // (krs.oracle.tsv): each the part's answer in its .ksc (The frame asked, Open 6.3), the container the vendor's
+    // writer makes loaded and returned from, and the least opening a kernel runs with. A line the part has not
+    // answered for is left out, and the reader refuses the ruleset without it
     if (strcmp(language, "sass") == 0)
     {
-        qry_text_printed(&head, "toolchain cubin_write\nheader container\n");
+        char ksc[1200];
+        snprintf(ksc, sizeof(ksc), "%s/%s.ksc", rulesets, part);
+        char missing[128];
+        krs_head_written(&head, ksc, missing, sizeof(missing));
+        if (missing[0] != '\0')
+        {
+            printf("  krs_write: the part has not answered for its %s; the line is left out, and the reader refuses "
+                   "%s.krs without it\n",
+                   missing, language);
+        }
     }
     qry_text_printed(&head, "part %s\n", part);
     // the part's register banks, each a naming template the code generator fills with the register's number: a general
