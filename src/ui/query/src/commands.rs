@@ -122,7 +122,7 @@ pub fn list(root: &Path) -> Vec<Command> {
             title: "pairs",
             about: "the bridge's pairs put to the part, and the other modes of klq_identity",
             params: vec![
-                choice("mode", &["frame", "pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"], true),
+                choice("mode", &["frame", "fixed", "pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"], true),
                 words("words"),
                 choice_of("part", parts, false),
                 choice_of("to", languages, false),

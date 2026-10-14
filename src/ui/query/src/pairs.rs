@@ -28,7 +28,7 @@ const WORK: &str = "build/engine/identity";
 /// The run folder where no trace folder is named.
 const FOLDER: &str = "build/engine/qry";
 
-const MODES: &[&str] = &["frame", "pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"];
+const MODES: &[&str] = &["frame", "fixed", "pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"];
 
 /// What a pairs' words ask for: the mode, its own words, the part and the language, dry or not,
 /// the seed the links' order is drawn from, and the folder the run goes in.
@@ -45,7 +45,7 @@ pub struct Mode {
 
 impl Mode {
     pub fn read(words: &[String]) -> Result<Mode, String> {
-        let usage = "pairs takes frame|pair|cost|stall|register|past|queue|curve|text_identity|stick [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>]";
+        let usage = "pairs takes frame|fixed|pair|cost|stall|register|past|queue|curve|text_identity|stick [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>]";
         let (mode, rest) = words.split_first().ok_or(usage)?;
         if !MODES.contains(&mode.as_str()) {
             return Err(usage.into());
@@ -103,10 +103,10 @@ pub fn kernel_words(part: &str, files: &Files) -> Vec<String> {
     vec![part.to_string(), text(&files.machine), text(&files.layout), text(&files.mnemonics), "kernel.txt".into(), "kernel".into()]
 }
 
-/// Whether a mode opens with the frame's asks, which read the kernel: `frame` itself and `pair`,
-/// whose opening runs it.
+/// Whether a mode opens with the kernel the system accepted: `frame` and `fixed`, which read it, and
+/// `pair`, whose opening runs both.
 pub fn kernel_handed(mode: &str) -> bool {
-    matches!(mode, "frame" | "pair")
+    matches!(mode, "frame" | "fixed" | "pair")
 }
 
 /// The pairs of the bridge put to `part` in the language `to`, dry where `dry`.
@@ -289,7 +289,7 @@ fn judged(context: &mut Context, mode: &Mode, identity: &Path, folder: &str) -> 
     let host_answers = text(&work.join("host_answers.txt"));
     let overseer = text(&work.join("overseer.txt"));
     run.carried(&context.at(folder), &[host_answers.as_str(), overseer.as_str(), "faulted.txt"], crate::run::crystal(context.root).as_deref())?;
-    if mode.mode != "frame" && run.writer().latest("host_answers.txt").is_none() {
+    if !matches!(mode.mode.as_str(), "frame" | "fixed") && run.writer().latest("host_answers.txt").is_none() {
         return Err("no host answers: run orior protocol pairs stick first".into());
     }
     configs(context, &mut run, &mode.part)?;
@@ -380,6 +380,7 @@ mod modes {
         assert_eq!(targets(root, "curve", "sm_86", &said(&["1006", "1007"])), ["1006", "1007"]);
         assert_eq!(targets(root, "register", "sm_86", &[]), Vec::<String>::new());
         assert_eq!(targets(root, "frame", "sm_86", &[]), Vec::<String>::new());
+        assert_eq!(targets(root, "fixed", "sm_86", &[]), Vec::<String>::new());
     }
 
     #[test]
@@ -402,7 +403,7 @@ mod modes {
         assert!(words[2].ends_with("/nvidia/elf64_nvidia.tsv"), "{}", words[2]);
         assert!(words[3].ends_with("/nvidia/mnemonic_nvidia.tsv"), "{}", words[3]);
         assert_eq!(&words[4..], ["kernel.txt", "kernel"]);
-        assert!(kernel_handed("frame") && kernel_handed("pair") && !kernel_handed("register"));
+        assert!(kernel_handed("frame") && kernel_handed("fixed") && kernel_handed("pair") && !kernel_handed("register"));
     }
 
     #[test]
@@ -422,6 +423,9 @@ mod modes {
         let frame = Mode::read(&said(&["frame", "--part", "sm_86"])).unwrap();
         assert_eq!(frame.mode, "frame");
         assert!(frame.words.is_empty());
+        let fixed = Mode::read(&said(&["fixed", "--dry"])).unwrap();
+        assert_eq!(fixed.mode, "fixed");
+        assert!(fixed.dry && fixed.words.is_empty());
         assert!(Mode::read(&said(&["pair", "--to", "ptx"])).is_err(), "klq_identity writes forms in sass alone");
         assert!(Mode::read(&said(&["fly"])).is_err());
         assert!(Mode::read(&said(&["pair", "--seed"])).is_err());
