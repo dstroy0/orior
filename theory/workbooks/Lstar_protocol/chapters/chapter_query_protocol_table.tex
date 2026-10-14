@@ -1282,3 +1282,28 @@ command & builds & run in & carries, reads, leaves & runs \\
 \begin{itemize}
 \item \textbf{Built.} \texttt{frame\_\allowbreak{}check}, 18 checks, under \texttt{chain\_\allowbreak{}check.\allowbreak{}sh}; the frame mode first in the pair run and as \texttt{orior protocol pairs frame}. \textbf{Measured} on sm\_\allowbreak{}86: the container returned over 648 cases, and the least opening begins at place 1 of the kernel's 32, the place before it a load the kernel never reads, over 6 asks.
 \end{itemize}
+
+\section{\texorpdfstring{The fixed registers asked (Open 6.2)}{The fixed registers asked (Open 6.2)}}
+
+\textbf{Four of the fourteen fixed registers are what the kernel the system accepted leaves at its slot, and each is the part's answer.} \texttt{zero}, the register that reads 0 whatever is written to it; \texttt{lane\_\allowbreak{}number}, the lane's number; \texttt{record}, the address the lane's answer is stored at; and \texttt{index}, the address its case's words are read from. The ten others, \texttt{carry}, \texttt{body}, \texttt{bodies}, \texttt{tables}, \texttt{threads}, \texttt{sign\_\allowbreak{}base}, \texttt{indexed}, \texttt{one}, \texttt{ok} and \texttt{launch}, the frame never sets and no row names; each is placed by the banks' asks.
+
+\textbf{The slot.} Each place after the opening's beginning is put with the encoding the kernel's unreached places hold; the place whose kernel then answers the case's second word on every case is the slot, nothing having written the register the kernel stores. \texttt{run answers <s> slot place}.
+
+\textbf{Zero.} The slot's own instruction is put writing register n, and the closing's store reading n, for n the top of the register field and each register the kernel holds. The one that answers 0 on every case whatever was written reads 0: \texttt{run answers <n> fixed zero}.
+
+\textbf{What each register holds at the slot.} For each register n the kernel holds, the slot's instruction is put with n as its first source and zero as its second, and the stored answer is n's value, over the 648 cases, case t on thread t. The readings are held against the host's thread number: equal to t on every case, the lane's number; stepping 16 a thread, the record's low word, and the register pair it begins the record; stepping 32, the index; equal to the case's first or second word, where the words are left; 0 or one constant on every case, nothing fixed. Rows \texttt{run answers <n> fixed lane\_\allowbreak{}number}, \texttt{fixed record}, \texttt{fixed index}, \texttt{case word 0} and \texttt{case word 1}. A fixed register no register holds at the slot gets no row. Each register's reading is a line of the run's blob \texttt{fixed.\allowbreak{}txt}. The register field's bounds come from the \texttt{.\allowbreak{}ksc}'s field rows, \texttt{rd}, \texttt{ra} and \texttt{rb}, as the register walk takes them.
+
+\textbf{Where.} One mode of \texttt{klq\_\allowbreak{}identity}, \texttt{fixed} (\texttt{identity/\allowbreak{}fixed.\allowbreak{}cu}), after \texttt{frame} in the pair run's opening and on its own as \texttt{orior protocol pairs fixed}. It reads the kernel whole from the run's \texttt{kernel.\allowbreak{}txt} as \texttt{frame} does, and every ask goes through the airlock and into R. Dry, it says so, writes nothing and exits 0.
+
+\textbf{What reads the rows.}
+
+\begin{itemize}
+\item \texttt{krs\_\allowbreak{}write} writes each fixed line from its row, \texttt{fixed <name> = R<n>}, and \texttt{RZ} for the register that reads 0, the vendor's name for the field's top. A fixed register with no row is left out and named, as the head's two lines are.
+\item The \texttt{case word} rows are the banks' asks' to read.
+\end{itemize}
+
+\textbf{The checks.} \texttt{frame\_\allowbreak{}check} grows a \texttt{fixed} part: a register's reading classified from a counted sequence of values, each kind once (\texttt{fixed\_\allowbreak{}read.\allowbreak{}h}, shared with the mode); the rows written and read back as \texttt{krs\_\allowbreak{}write} reads them; \texttt{krs\_\allowbreak{}write}'s fixed lines from a \texttt{.\allowbreak{}ksc} with four rows, with one and with none, \texttt{RZ} for the top. Dry: \texttt{orior protocol pairs fixed -\allowbreak{}-\allowbreak{}dry} exits 0 with its dry record. Live on sm\_\allowbreak{}86: the slot, zero, record and index rows in \texttt{sm\_\allowbreak{}86.\allowbreak{}ksc}, \texttt{sass.\allowbreak{}krs}'s fixed lines written from them, both committed.
+
+\begin{itemize}
+\item \textbf{Theory.} Nothing of it is built.
+\end{itemize}
