@@ -52,6 +52,8 @@ static int khw_text_handed(KhwText *text, const char *name)
     return handed;
 }
 
+// run `run` of `held` written to `text` as its first bit, its last and its place with its kind's letter after it,
+// KHW_PLACE_NONE_TEXT where it has none
 static void khw_run_printed(KhwText *text, const KhwAnswered *held, unsigned int run)
 {
     if (held->place[run] == KHW_PLACE_NONE)
@@ -59,12 +61,13 @@ static void khw_run_printed(KhwText *text, const KhwAnswered *held, unsigned int
         khw_text_added(text, " %u %u %s", held->first[run], held->last[run], KHW_PLACE_NONE_TEXT);
         return;
     }
-    khw_text_added(text, " %u %u %u", held->first[run], held->last[run], held->place[run]);
+    khw_text_added(text, " %u %u %u%c", held->first[run], held->last[run], held->place[run],
+                   KHW_KIND_LETTERS[(held->kind[run] < 4u) ? held->kind[run] : KHW_KIND_REGISTER]);
 }
 
-// the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place,
-// or two, its first bit and its last, where the line holds no place, every run then holding none. 1, or 0 where the
-// words are neither
+// the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place
+// with its kind's letter after it, a register where none; or two, its first bit and its last, where the line holds no
+// place, every run then holding none. 1, or 0 where the words are neither
 static int khw_runs_read(KhwAnswered *held, const char *text)
 {
     unsigned int words = 0u;
@@ -99,12 +102,35 @@ static int khw_runs_read(KhwAnswered *held, const char *text)
             {
                 return 0;
             }
+            char *end = NULL;
             held->place[run] =
-                (strcmp(place, KHW_PLACE_NONE_TEXT) == 0) ? KHW_PLACE_NONE : (unsigned int)strtoul(place, NULL, 10);
+                (strcmp(place, KHW_PLACE_NONE_TEXT) == 0) ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
+            const char *const letter = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_LETTERS, *end) : NULL;
+            // the letter's place among the four is its kind, and a place with no letter is a register's
+            held->kind[run] = (letter != NULL) ? (unsigned int)(letter - KHW_KIND_LETTERS) : KHW_KIND_REGISTER;
         }
         rest += step;
     }
     return 1;
+}
+
+// the relation `held` answered as the answers and the working set write it, `ladder.<anchor>` or `frame.<relation>`,
+// the frame's with its reading after a dot where `with_reading` is not 0, into `written` of `room` bytes. The text
+const char *khw_relation_named(const KhwAnswered *held, int with_reading, char *written, size_t room)
+{
+    if (held->frame == (unsigned int)FRAME_RELATION_COUNT)
+    {
+        snprintf(written, room, "%s%s", KHW_READS_LADDER, s_anchor_text[held->anchor]);
+    }
+    else if (with_reading != 0)
+    {
+        snprintf(written, room, "%s%s.%llx", FRAME_READS, s_frame_text[held->frame], held->reading);
+    }
+    else
+    {
+        snprintf(written, room, "%s%s", FRAME_READS, s_frame_text[held->frame]);
+    }
+    return written;
 }
 
 // the forms the part answered for handed to the run's buffer as KHW_FORMS_NAME, one a line, for the vendor's writer to
@@ -121,7 +147,8 @@ int khw_answers_written(void)
         {
             continue;
         }
-        khw_text_added(&text, "%s%s %d %d %016llx %016llx %u", KHW_READS_LADDER, s_anchor_text[held->anchor],
+        char relation[64];
+        khw_text_added(&text, "%s %d %d %016llx %016llx %u", khw_relation_named(held, 0, relation, sizeof(relation)),
                        held->signed_read, held->signedness_asked, held->low, held->high, held->runs);
         for (unsigned int run = 0u; run < held->runs; run += 1u)
         {
@@ -143,9 +170,10 @@ int khw_forms_work_written(void)
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
         const KhwAnswered *const held = &s_named[at];
-        khw_text_added(&text, "%u %d %s%s %d %d %016llx %016llx %u", held->phase, held->swapped, KHW_READS_LADDER,
-                       s_anchor_text[held->anchor], held->signed_read, held->signedness_asked, held->low, held->high,
-                       held->runs);
+        char relation[64];
+        khw_text_added(&text, "%u %d %s %d %d %016llx %016llx %u", held->phase, held->swapped,
+                       khw_relation_named(held, 1, relation, sizeof(relation)), held->signed_read,
+                       held->signedness_asked, held->low, held->high, held->runs);
         for (unsigned int run = 0u; run < held->runs; run += 1u)
         {
             khw_run_printed(&text, held, run);
@@ -340,16 +368,36 @@ unsigned int khw_forms_read(const char *name)
                 continue;
             }
         }
-        // the relation named back to its anchor, for a form read in to write the same relation out
+        // the relation named back to its anchor or its frame relation, for a form read in to write the same relation
+        // out: a frame's with its reading after a dot
         held.anchor = (unsigned int)LADDER_ANCHOR_COUNT;
-        const size_t prefix = strlen(KHW_READS_LADDER);
-        const char *const name = (strncmp(relation, KHW_READS_LADDER, prefix) == 0) ? (relation + prefix) : relation;
-        for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
+        held.frame = (unsigned int)FRAME_RELATION_COUNT;
+        const size_t ladder_prefix = strlen(KHW_READS_LADDER);
+        const size_t frame_prefix = strlen(FRAME_READS);
+        if (strncmp(relation, FRAME_READS, frame_prefix) == 0)
         {
-            if (strcmp(s_anchor_text[anchor], name) == 0)
+            char *const dot = strchr(relation + frame_prefix, '.');
+            held.reading = (dot != NULL) ? strtoull(dot + 1, NULL, 16) : 0ull;
+            if (dot != NULL)
             {
-                held.anchor = anchor;
-                break;
+                *dot = '\0';
+            }
+            for (unsigned int each = 0u; each < (unsigned int)FRAME_RELATION_COUNT; each += 1u)
+            {
+                held.frame = (strcmp(s_frame_text[each], relation + frame_prefix) == 0) ? each : held.frame;
+            }
+        }
+        else
+        {
+            const char *const name =
+                (strncmp(relation, KHW_READS_LADDER, ladder_prefix) == 0) ? (relation + ladder_prefix) : relation;
+            for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
+            {
+                if (strcmp(s_anchor_text[anchor], name) == 0)
+                {
+                    held.anchor = anchor;
+                    break;
+                }
             }
         }
         if ((held.runs > KHW_RUNS) || !khw_runs_read(&held, line + at))

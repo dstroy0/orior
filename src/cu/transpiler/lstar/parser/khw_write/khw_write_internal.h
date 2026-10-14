@@ -8,6 +8,7 @@
 #include "../../protocol/order/scheduler.h"
 #include "../../protocol/query/answer_read.h"
 #include "../../protocol/teacher/run_channel.h"
+#include "frame_relation.h"
 
 #include "../../../../types/file_defs/krf/krf.h"
 #include "../../../../types/file_defs/ksc/ksc.h"
@@ -58,6 +59,21 @@
 
 #define KHW_PLACE_NONE_TEXT "-"
 
+// what a run's operand is, kept beside its place: a register, a pair of registers an address is read through, a
+// number, or a predicate; and the letter each is written as after the place in the answers and the working set
+#define KHW_KIND_REGISTER 0u
+
+#define KHW_KIND_ADDRESS 1u
+
+#define KHW_KIND_IMMEDIATE 2u
+
+#define KHW_KIND_PREDICATE 3u
+
+#define KHW_KIND_LETTERS "ranp"
+
+// a fixed register the part's .ksc does not name
+#define KHW_FIXED_NONE 0xffffffffu
+
 // the name a form's relation is written under in the answers file, for the vendor's writer to name it from
 #define KHW_READS_LADDER "ladder."
 
@@ -97,6 +113,12 @@ typedef struct
     // each run's place in the relation's tuple, the words in their order and then the answer, KHW_PLACE_NONE where
     // the part answered it none
     unsigned int place[KHW_RUNS];
+    // what each run's operand is, one of KHW_KIND_*
+    unsigned int kind[KHW_RUNS];
+    // the frame relation the form answered, FRAME_RELATION_COUNT where it answered the ladder's `anchor`, and the
+    // relation's reading: the word a load reads, the register's word a store keeps, a number's constant
+    unsigned int frame;
+    unsigned long long reading;
     // the count of the relation read's candidates that survived the gate, its reading (Q11)
     unsigned int survivors;
     // how far the form has been asked, one of KHW_PHASE_*
@@ -183,5 +205,11 @@ void khw_fields_written(const char *path);
 int khw_vendor_run(const char *mode, const char *answers);
 unsigned int khw_forms_read(const char *name);
 void khw_enumerate(unsigned int slot, const char *forms);
+const char *khw_relation_named(const KhwAnswered *held, int with_reading, char *written, size_t room);
+unsigned int khw_fixed_register(const char *name);
+int khw_field_read(const char *name, unsigned int *first, unsigned int *bits);
+unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2], unsigned int count);
+int khw_frame_of(const RunQuestion *question, KhwAnswered *held);
+unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover);
 
 #endif

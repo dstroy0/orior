@@ -71,6 +71,7 @@ int khw_relation_of(const RunQuestion *question, KhwAnswered *held)
 {
     static unsigned char s_fails[GATE_CANDIDATES][GATE_CASES];
     held->anchor = (unsigned int)LADDER_ANCHOR_COUNT;
+    held->frame = (unsigned int)FRAME_RELATION_COUNT;
     held->swapped = 0;
     held->signed_read = 0;
     held->signedness_asked = 0;

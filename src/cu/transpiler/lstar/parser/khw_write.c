@@ -209,13 +209,13 @@ int main(int count, char **word)
         if (discover != 0)
         {
             unsigned int seeded = 0u;
+            const unsigned long long slot_low = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 0u);
+            const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
             if (s_names == 0u)
             {
                 // the working set empty: the kernel's own slot form seeded as a discovered form, its relation asked but
                 // its fields left for the turns and register passes to ask once a cross has read them, as of any form.
                 // The relation is the real instruction the part already ran, safe to ask without a cross
-                const unsigned long long slot_low = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 0u);
-                const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
                 KhwAnswered held;
                 memset(&held, 0, sizeof(held));
                 if (khw_relation_asked(slot_low, slot_high, &held))
@@ -232,6 +232,21 @@ int main(int count, char **word)
             {
                 seeded += khw_seeds_asked(seeds);
             }
+            // the frame round, where a classified form holds the slot's registers: the slot's own form, classified by
+            // a register pass before this discover
+            const KhwAnswered *slot_form = NULL;
+            for (unsigned int at = 0u; at < s_names; at += 1u)
+            {
+                const KhwAnswered *const held = &s_named[at];
+                if ((held->phase == KHW_PHASE_CLASSIFIED) && (held->runs != 0u) && (held->low == slot_low) &&
+                    (held->high == slot_high))
+                {
+                    slot_form = held;
+                }
+            }
+            const unsigned int framed = (slot_form != NULL) ? khw_frame_round(slot_form, 1) : 0u;
+            printf("  the frame round: %s%u place(s) answered a frame relation\n",
+                   (slot_form == NULL) ? "the slot's form is not yet classified, " : "", framed);
             const unsigned int found = khw_widened(0u, 1);
             run_channel_close();
             if (!khw_forms_work_written())
@@ -315,6 +330,9 @@ int main(int count, char **word)
     const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
     printf("  the forms the part answers for:\n");
     khw_form_asked(slot_low, slot_high);
+    // the frame round on the slot's own classified form, each place of the kernel asked what it answers at the slot
+    const unsigned int framed = (s_names != 0u) ? khw_frame_round(&s_named[0], 0) : 0u;
+    printf("  the frame round: %u place(s) answered a frame relation, %llu asks\n", framed, s_asks);
     unsigned int from = 0u;
     for (unsigned int round = 0u; round < rounds; round += 1u)
     {

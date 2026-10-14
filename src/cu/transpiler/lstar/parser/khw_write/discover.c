@@ -118,8 +118,9 @@ int khw_form_asked(unsigned long long low, unsigned long long high)
     khw_fields_asked(&held);
     s_named[s_names] = held;
     s_names += 1u;
-    printf("    ladder.%-8s %016llx %016llx  %u runs, %u surviving\n", s_anchor_text[held.anchor], low, high,
-           held.runs, held.survivors);
+    char relation[64];
+    printf("    %-14s %016llx %016llx  %u runs, %u surviving\n", khw_relation_named(&held, 1, relation, sizeof(relation)),
+           low, high, held.runs, held.survivors);
     return 1;
 }
 
@@ -250,8 +251,9 @@ unsigned int khw_seeds_asked(const char *name)
         s_named[s_names] = held;
         s_names += 1u;
         entered += 1u;
-        printf("    seed ladder.%-8s %016llx %016llx  discovered, its turns held for a cross-check\n",
-               s_anchor_text[held.anchor], low, high);
+        char relation[64];
+        printf("    seed %-14s %016llx %016llx  discovered, its turns held for a cross-check\n",
+               khw_relation_named(&held, 1, relation, sizeof(relation)), low, high);
     }
     printf("  seeds: %u asked their relation, %u answered one and entered the working set\n", asked, entered);
     return entered;
@@ -340,15 +342,17 @@ unsigned int khw_widened(unsigned int from, int discover)
             s_named[s_names] = held;
             s_names += 1u;
             found += 1u;
+            char relation[64];
+            khw_relation_named(&held, 1, relation, sizeof(relation));
             if (discover != 0)
             {
-                printf("    ladder.%-8s %016llx %016llx  discovered, its turns held for a cross-check\n",
-                       s_anchor_text[held.anchor], held.low, held.high);
+                printf("    %-14s %016llx %016llx  discovered, its turns held for a cross-check\n", relation, held.low,
+                       held.high);
             }
             else
             {
-                printf("    ladder.%-8s %016llx %016llx  %u runs, %u surviving\n", s_anchor_text[held.anchor],
-                       held.low, held.high, held.runs, held.survivors);
+                printf("    %-14s %016llx %016llx  %u runs, %u surviving\n", relation, held.low, held.high, held.runs,
+                       held.survivors);
             }
         }
     }
