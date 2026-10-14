@@ -864,3 +864,25 @@ It is built in this order, each step held by the checks that hold the run now (`
 **The checks.** Unit tests in the crate against trees under `build/`: a run's naming and numbering and what `kept` removes; the tools table, every source glob of every row reaching at least one file of the tree, and the staleness rule; the words of each command; the leaves, a diff shown and a refused file handed back. One test builds the real writer and starts, hands, reads and stops a run. The command line's catalog test takes the `protocol` group from the crate, and the harness runs the crate's tests with the others. No shell script drives a loop: every place in a source's comment and in this table that names a loop names its command. `build_stamp.sh` stays with the engine's build and the examples that source it, `file_defs.sh` and `qry_run.sh` with the scaffolding and the checks.
 
 - **Built.** `cd src/ui/query && cargo test`, 51 tests, and the catalog test of `orior-cli`, the harness running both. **Measured**, `learn turns` on sm_86: a round of 8184 questions, airlock 6.0 s (pop 1.0 s, cross 4.6 s), carrier 2.2 s; the carrier 7342 questions in 115 readings, 5424 distinct slot encodings.
+
+## The frame asked (Open 6.3)
+
+**The two lines of a SASS ruleset's head are the part's answers.** `toolchain cubin_write` says what turns the text into a program the part loads, and `header container` where the text's opening lines come from. Each is asked of the part on the run channel through the airlock and kept in the part's `.ksc` as a row, and `krs_write` writes the line only where the row stands.
+
+**The kernel asked.** Both asks put the kernel the system accepted, `interface_ask`, the one every question is laid into (`elf64_nvidia.tsv`, the container rows). Its body is empty: it loads the case's eight words, zeroes its answer words, stores them and exits: its answer on every case is 0, and alike on every case means the part loaded the container, ran the kernel and returned. The kernel's places come from the vendor's writer in its `kernel` mode (`khw_machine_write`), which reads them out of the container and hands them to the run as `kernel.txt`, a head of the places and the registers a thread holds and one line a place; the frame asks read that blob as the teacher does.
+
+**The container.** The kernel's own code, laid into the container by the vendor's writer and put over the 648 cases. Alike on every case writes `run answers 00000001 container returned`. Refused, apart or held writes nothing, and the toolchain stays unanswered.
+
+**The least opening.** The kernel's places before its closing are its opening. A variant drops the kernel's first k places and puts what is left; dropping fewer always holds, holds(k) ⇒ holds(j) for every j < k, and the walk reads the greatest k that still answers 0 on every case, by Step 9's halving between 0 and the kernel's count of places, a variant refused, apart or held by the gate being falsy. The answer is `run answers <k> opening least`: the place the least opening begins at, 0 where every place is needed. Each variant and its verdict is a line of the run's blob `frame.txt`.
+
+**Where.** One mode of `klq_identity`, `frame` (`identity/frame.cu`), first in the pair run's opening before the register walk, each row written and its record closed before the next, and on its own as `orior protocol pairs frame`. The query crate's pairs loop runs the vendor writer's `kernel` mode into the run before `klq_identity`. Every ask goes into R as every mode's does.
+
+**What reads the rows.**
+
+- `krs_write` writes `toolchain cubin_write` where `container returned` stands and `header container` where `opening least` stands, leaves a line out where its row is missing, and says which fact the part has not answered. The reader refuses a ruleset without the two: `sass.krs` is written from a live run's rows and committed with them.
+- The vendor writer's `kernel` mode hands the kernel from the place `opening least` names where the part's `.ksc` beside the machine file holds the row, and whole where it does not: every question the teacher puts after is as lean as the part allows, and the gate reads the places it hands. The frame asks themselves start from the whole kernel.
+- The engine's SASS writing takes the opening a listing carries, the one the vendor writer hands.
+
+**The checks.** `frame_check` beside the protocol's checks, built and run by `chain_check.sh`: the walk over a counted `holds`; the two rows written and read back as `krs_write` reads them; `krs_write`'s head from a `.ksc` with both rows, with one and with none; the kernel handed from k. Dry: `orior protocol pairs frame --dry` through the airlock exits 0 with its dry record, and `pairs pair --dry` still exits 0 with frame in its opening. Live on sm_86: the two rows in `sm_86.ksc`, `sass.krs` written from them by `orior protocol write krs`, both committed.
+
+- **Theory.** Nothing of it is built.
