@@ -16,7 +16,9 @@
 #                    of texts to its number, handed once
 #   kdecode_check    holds kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
-#                    a who line, and the part's cost rows put again as it was
+#                    a who line, the rows let go handed back, and the part's cost rows put again as it was
+#   krf_check        holds the .krf's reader and writer to what its users read of it: a row a k-file let go kept with
+#                    its type, the run's name, the reason and its text, under a who line
 #   frame_check      holds the frame's walk, krs_write's head and fixed lines, the kernel mode's place and a
 #                    register's reading at the slot to the .ksc's rows
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
@@ -71,6 +73,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_rows_check" "$TOP/utils/test/src/cu/types/file_defs/qry/qry_rows_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/file_defs/ksc/ksc_check.c" \
+    "${FILE_DEFS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/krf_check" "$TOP/utils/test/src/cu/types/file_defs/krf/krf_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/frame_check.c" \
     "$TOP/src/cu/transpiler/lstar/parser/krs_write/head.c" \
@@ -147,6 +151,7 @@ fi
         "$OUT/who_check" "$OUT" &&
         "$OUT/qry_rows_check" &&
         "$OUT/frame_check" "$OUT" &&
+        "$OUT/krf_check" "$OUT" &&
         "$OUT/ksc_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.ksc" &&
         "$OUT/kdm_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kdm"
 ) || exit 1

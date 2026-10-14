@@ -61,10 +61,18 @@ extern "C"
     int ksc_rows_replaced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
                              unsigned int count, QryWho who);
 
+    // As ksc_rows_replaced_by, and every row let go that no row put gives again kept in `removed`, a file of the
+    // caller's (ktext_free), each as the file held it and in its order, for the part's .krf to keep (krf.h); NULL keeps
+    // none. 1, or 0 where there was no memory for the rows, the file as it was
+    int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
+                                    unsigned int count, QryWho who, KtextFile *removed);
+
 // each, the who the code that calls it
 #define ksc_write(file_, path_) ksc_write_by((file_), (path_), QRY_WHO_HERE)
 #define ksc_rows_replaced(file_, channel_, asked_, rows_, count_)                                                      \
     ksc_rows_replaced_by((file_), (channel_), (asked_), (rows_), (count_), QRY_WHO_HERE)
+#define ksc_rows_replaced_traced(file_, channel_, asked_, rows_, count_, removed_)                                     \
+    ksc_rows_replaced_traced_by((file_), (channel_), (asked_), (rows_), (count_), QRY_WHO_HERE, (removed_))
 
 #ifdef __cplusplus
 }

@@ -17,6 +17,7 @@
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/fixed_read.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/frame_walk.h"
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/opening.h"
+#include "../../../../../../../src/cu/types/file_defs/krf/krf.h"
 #include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
 
 #include <stdio.h>
@@ -195,14 +196,18 @@ int main(int count, char **words)
     // rest as given
     char ruleset_path[1024];
     snprintf(ruleset_path, sizeof(ruleset_path), "%s/frame_check_fixed.krs", words[1]);
-    const char *const given =
-        "krs 1\nruleset sass\nfixed zero = RZ\nfixed lane_number = R0\nfixed body = R3\nfixed carry = R12\n";
+    const char *const given = "krs 1\nruleset sass\nfixed zero = RZ\nfixed lane_number = R0\nfixed record = R1\nfixed "
+                              "body = R3\nfixed carry = R12\n";
     check_that(qry_filed(qry_run(), ruleset_path, given, strlen(given)) != 0ull,
-               "a ruleset with four fixed lines given before is written");
+               "a ruleset with five fixed lines given before is written");
     snprintf(path, sizeof(path), "%s/frame_check_fixed_record.ksc", words[1]);
     const char *const record_row = "ksc part\nfield rd 16 8\nrun answers 00000004 fixed record\n";
     check_that(qry_filed(qry_run(), path, record_row, strlen(record_row)) != 0ull,
                "and a .ksc with the record's row alone");
+    char removals[1024];
+    snprintf(removals, sizeof(removals), "%s/frame_check_fixed_record.krf", words[1]);
+    const char *const fresh = "krf frame_check_fixed_record\n";
+    check_that(qry_filed(qry_run(), removals, fresh, strlen(fresh)) != 0ull, "and the .krf beside it, its head alone");
     QryText kept_head = {NULL, 0ull, 0ull, 0};
     check_that(krs_fixed_written(&kept_head, path, ruleset_path, missing, sizeof(missing)) == 5u,
                "five fixed lines come from one row and four given lines");
@@ -213,6 +218,13 @@ int main(int count, char **words)
                "rest as given");
     check_that(strcmp(missing, "index") == 0, "and the one with neither is named missing");
     free(kept_head.bytes);
+    static KrfFile s_removed;
+    static KrfRow s_removal;
+    check_that(krf_read(&s_removed, removals) && (s_removed.lines == 3u) && krf_row_read(s_removed.line[2], &s_removal) &&
+                   (strcmp(s_removal.type, "krs") == 0) && (strcmp(s_removal.reason, "replaced") == 0) &&
+                   (strcmp(s_removal.row, "fixed record = R1") == 0),
+               "the given line the row replaced is kept in the .krf beside the .ksc, under a who line");
+    krf_free(&s_removed);
     printf("frame_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

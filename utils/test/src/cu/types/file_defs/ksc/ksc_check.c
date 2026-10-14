@@ -4,7 +4,8 @@
 //
 //   rows       a row of a channel is read with its answer, its word as a number and its question; a who line is no row
 //   replaced   the rows of a question are let go, the rows put go after the channel's last row, and the channel's
-//              counts are taken again over the rows it then holds
+//              counts are taken again over the rows it then holds; traced, the rows let go that no row put gives
+//              again are handed back
 //   who        what is put goes after a who line of the code that put it, the who before it written again after it
 //              where lines follow, and a who line left over no line is let go
 //   a part's   every cost row of the part's .ksc named on the command line put again in its place, in the order the
@@ -127,6 +128,24 @@ int main(int count, char **words)
     check_that(ksc_write(&s_file, path) == 1, "the .ksc is written through the run's writer");
     check_that(ksc_read(&s_file, path) && (s_file.lines == 8u), "and read back, line for line");
     ksc_free(&s_file);
+
+    // the rows let go that no row put gives again, handed back for a .krf to keep
+    static KscFile s_traced;
+    ksc_line_add(&s_traced, "ksc part");
+    ksc_line_add(&s_traced, "run answers 00000005 stall IADD3 IMAD");
+    ksc_line_add(&s_traced, "run answers 00000007 stall LDG STG");
+    const char *const traced_rows[2] = {"run answers 00000005 stall IADD3 IMAD", "run answers 00000009 stall FFMA"};
+    KtextFile removed = {0};
+    check_that(ksc_rows_replaced_traced_by(&s_traced, "run", "stall", traced_rows, 2u, QRY_WHO_HERE, &removed),
+               "a question's rows are replaced with the rows let go traced");
+    check_that((removed.lines == 1u) && (strcmp(removed.line[0], "run answers 00000007 stall LDG STG") == 0),
+               "the row let go that no row put gives again is handed back, as the file held it");
+    ktext_free(&removed);
+    check_that(ksc_rows_replaced_traced_by(&s_traced, "run", "stall", traced_rows, 2u, QRY_WHO_HERE, &removed) &&
+                   (removed.lines == 0u),
+               "and none where every row let go is put again");
+    ktext_free(&removed);
+    ksc_free(&s_traced);
 
     if (count >= 3)
     {

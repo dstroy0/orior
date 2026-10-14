@@ -84,7 +84,30 @@ static int ksc_count_read(const char *line, const char *channel, char *answer)
 int ksc_rows_replaced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
                          unsigned int count, QryWho who)
 {
+    return ksc_rows_replaced_traced_by(file, channel, asked, rows, count, who, NULL);
+}
+
+int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
+                                unsigned int count, QryWho who, KtextFile *removed)
+{
     static KscRow s_row;
+    // the rows let go that no row put gives again, in the order the file holds them, before any line moves
+    for (unsigned int at = 0u; (removed != NULL) && (at < file->lines); at += 1u)
+    {
+        if (!ksc_row_asked(file->line[at], channel, asked))
+        {
+            continue;
+        }
+        unsigned int same = 0u;
+        while ((same < count) && (strcmp(rows[same], file->line[at]) != 0))
+        {
+            same += 1u;
+        }
+        if ((same == count) && !ktext_line_add(removed, file->line[at]))
+        {
+            return 0;
+        }
+    }
     // the rows go after the last row of the channel the file keeps, or after its last line where it keeps none
     unsigned int place = file->lines;
     for (unsigned int at = 0u; at < file->lines; at += 1u)

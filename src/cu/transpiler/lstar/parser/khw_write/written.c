@@ -193,8 +193,10 @@ unsigned int khw_costs_asked(const char *path)
         timed += 1u;
     }
     // the .ksc as the run holds it, the row of each form timed now in place of the one before, after the run channel's
-    // last row, and handed to the run's writer whole (ksc.h)
+    // last row, and handed to the run's writer whole (ksc.h); each row before that the row now does not give again is
+    // kept in the part's .krf beside it (krf.h)
     static KscFile s_file;
+    static KtextFile s_removed;
     const QryWho who = QRY_WHO_HERE;
     int written = ksc_read(&s_file, path);
     for (unsigned int at = 0u; written && (at < timed); at += 1u)
@@ -204,12 +206,22 @@ unsigned int khw_costs_asked(const char *path)
         snprintf(row, sizeof(row), KHW_COST_ROW, s_least[at], s_low[at], s_high[at], s_spread[at]);
         snprintf(asked, sizeof(asked), KHW_COST_ASKED, s_low[at], s_high[at]);
         const char *const rows[1] = {row};
-        written = ksc_rows_replaced_by(&s_file, "run", asked, rows, 1u, who);
+        written = ksc_rows_replaced_traced_by(&s_file, "run", asked, rows, 1u, who, &s_removed);
     }
     if (!written || !ksc_write_by(&s_file, path, who))
     {
         printf("  khw_write: %s could not be written through the run's writer\n", path);
     }
+    else if (s_removed.lines != 0u)
+    {
+        char krf[1200];
+        krf_path_beside(path, krf, sizeof(krf));
+        if (!krf_removed_by(krf, "ksc", "replaced", (const char *const *)s_removed.line, s_removed.lines, who))
+        {
+            printf("  khw_write: %u cost rows let go from %s could not be kept in %s\n", s_removed.lines, path, krf);
+        }
+    }
+    ktext_free(&s_removed);
     ksc_free(&s_file);
     return timed;
 }

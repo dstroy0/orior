@@ -24,6 +24,7 @@ pub const FILE_DEFS: &[Pattern] = &[
     "src/cu/types/file_defs/kqr/record/*.c",
     "src/cu/types/file_defs/ksc/ksc.c",
     "src/cu/types/file_defs/kdm/kdm.c",
+    "src/cu/types/file_defs/krf/krf.c",
 ];
 
 /// The folders the file definitions' headers stand in beyond their sources' own.

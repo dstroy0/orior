@@ -250,21 +250,33 @@ unsigned int chain_registers(const char *engine, const std::string &number)
 
 // The .ksc rewritten by `who` with `rows` in place of every row of the run channel it held to a question beginning
 // with the words `asked`, whatever came back, the rows put after its last row of the run channel and its counts of the
-// run channel taken again (ksc_rows_replaced_by). 1, or 0 where the .ksc could not be written
+// run channel taken again (ksc_rows_replaced_traced_by); every row let go that no row put gives again is kept in the
+// part's .krf beside it (krf.h). 1, or 0 where the .ksc could not be written
 int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows,
                                QryWho who)
 {
     KscFile file = {};
+    KtextFile removed = {};
     std::vector<const char *> texts;
     for (const std::string &row : rows)
     {
         texts.push_back(row.c_str());
     }
-    const int written =
-        ksc_read(&file, ksc) &&
-        ksc_rows_replaced_by(&file, "run", asked.c_str(), texts.data(), (unsigned int)texts.size(), who) &&
-        ksc_write_by(&file, ksc, who);
+    const int written = ksc_read(&file, ksc) &&
+                        ksc_rows_replaced_traced_by(&file, "run", asked.c_str(), texts.data(),
+                                                    (unsigned int)texts.size(), who, &removed) &&
+                        ksc_write_by(&file, ksc, who);
     ksc_free(&file);
+    if (written && (removed.lines != 0u))
+    {
+        char krf[1200];
+        krf_path_beside(ksc, krf, sizeof(krf));
+        if (!krf_removed_by(krf, "ksc", "replaced", removed.line, removed.lines, who))
+        {
+            printf("  %u rows let go from %s could not be kept in %s\n", removed.lines, ksc, krf);
+        }
+    }
+    ktext_free(&removed);
     return written;
 }
 

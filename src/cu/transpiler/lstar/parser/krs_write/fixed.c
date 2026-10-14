@@ -3,6 +3,7 @@
 // before, or left out
 #include "fixed.h"
 
+#include "../../../../types/file_defs/krf/krf.h"
 #include "../../../../types/file_defs/ksc/ksc.h"
 
 #include <stdio.h>
@@ -119,19 +120,30 @@ unsigned int krs_fixed_written(QryText *head, const char *ksc_path, const char *
     unsigned int written = 0u;
     size_t used = 0u;
     missing[0] = '\0';
+    // the given lines a row replaces with another text, kept in the .krf beside the .ksc
+    const char *removed[KRS_FIXED_NAMES];
+    unsigned int removals = 0u;
     for (unsigned int name = 0u; name < KRS_FIXED_NAMES; name += 1u)
     {
         if (answered[name] != 0)
         {
+            char line[KRS_FIXED_LINE];
             if ((top != 0ull) && (number[name] == top))
             {
-                qry_text_printed(head, "fixed %s = RZ\n", s_fixed_names[name]);
+                snprintf(line, sizeof(line), "fixed %s = RZ", s_fixed_names[name]);
             }
             else
             {
-                qry_text_printed(head, "fixed %s = R%llu\n", s_fixed_names[name], number[name]);
+                snprintf(line, sizeof(line), "fixed %s = R%llu", s_fixed_names[name], number[name]);
             }
+            qry_text_printed(head, "%s\n", line);
             written += 1u;
+            const char *const before = fixed_given_of(s_given, givens, s_fixed_names[name]);
+            if ((before != NULL) && (strcmp(before, line) != 0))
+            {
+                removed[removals] = before;
+                removals += 1u;
+            }
             continue;
         }
         const char *const kept = fixed_given_of(s_given, givens, s_fixed_names[name]);
@@ -154,6 +166,15 @@ unsigned int krs_fixed_written(QryText *head, const char *ksc_path, const char *
         }
         qry_text_printed(head, "%s\n", s_given[at].line);
         written += 1u;
+    }
+    if (removals != 0u)
+    {
+        char krf[1200];
+        krf_path_beside(ksc_path, krf, sizeof(krf));
+        if (!krf_removed(krf, "krs", "replaced", removed, removals))
+        {
+            printf("  krs_write: %u fixed lines a row replaced could not be kept in %s\n", removals, krf);
+        }
     }
     return written;
 }

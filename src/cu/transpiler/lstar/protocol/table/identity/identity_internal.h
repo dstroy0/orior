@@ -5,6 +5,7 @@
 
 #include "../../../../../types/file_defs/kdm/kdm.h"
 #include "../../../../../types/file_defs/kqr/kqr.h"
+#include "../../../../../types/file_defs/krf/krf.h"
 #include "../../../../../types/file_defs/ksc/ksc.h"
 #include "../../../interface/interface.h"
 #include "../../overseer/overseer.h"

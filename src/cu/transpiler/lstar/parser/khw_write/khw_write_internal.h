@@ -9,6 +9,7 @@
 #include "../../protocol/query/answer_read.h"
 #include "../../protocol/teacher/run_channel.h"
 
+#include "../../../../types/file_defs/krf/krf.h"
 #include "../../../../types/file_defs/ksc/ksc.h"
 #include "../../../../types/file_defs/qry/qry_buffer.h"
 #include "../../../vendor_bin_layouts/container_layout.h"
