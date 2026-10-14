@@ -39,6 +39,12 @@ extern "C"
 // a question's slot where its code holds none: the carrier makes no place conservative past the wait on all six
 #define RUN_SLOT_NONE 0xffffffffu
 
+// what the carrier leaves in a record no lane wrote, and the threads a block it launches where a question fixes no
+// shape, each the carrier's own number (cubin_run_internal.h): the frame's asks read a lane that wrote nothing and
+// compute each thread's lane and block from them
+#define RUN_UNWRITTEN_WORD 0xffffffffu
+#define RUN_THREADS_A_BLOCK 256u
+
 // the gate's hold under rule 3 of the airlock, an operation key unknown, as the carrier answers it: `skipped` and the
 // rule's number (cubin_safe.h, CUBIN_SAFE_KEY). An ask held so is open in R, as a timed-out one is: the part never saw
 // it, and a conference may admit it (overseer.h)

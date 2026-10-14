@@ -21,6 +21,8 @@
 #                    its type, the run's name, the reason and its text, under a who line
 #   frame_check      holds the frame's walk, krs_write's head and fixed lines, the kernel mode's place and a
 #                    register's reading at the slot to the .ksc's rows
+#   frame_relation_check  holds the frame relations' host answers, their tuple places and the thread their fields are
+#                    read at, and the channel's fill word and block to the carrier's own
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
 #                    section and the pipes written again under who lines, and the part's section written again as it was
 #   survivors_check  holds the gate to P2 on the ladder's own relations
@@ -66,6 +68,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_ask_check" "$TOP/utils/test/src/cu/
     "$TOP/src/cu/transpiler/lstar/protocol/query/query_ask.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/answer_read_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/answer_read_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/query/answer_read.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kqr_check" "$TOP/utils/test/src/cu/types/file_defs/kqr/kqr_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/file_defs/who/who_check.c" \
@@ -140,6 +143,7 @@ fi
 "$OUT/ask_order_check" || exit 1
 "$OUT/query_ask_check" || exit 1
 "$OUT/answer_read_check" || exit 1
+"$OUT/frame_relation_check" || exit 1
 # R's check, the who's and the rows' in a run of their own, whose writer writes the records and the file they are held
 # to, ended with the subshell
 (
