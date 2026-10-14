@@ -130,12 +130,13 @@ int khw_relation_asked(unsigned long long low, unsigned long long high, KhwAnswe
 
 // The first round: the kernel's own relation and the slot, put together, since neither waits on the other's answer.
 // The kernel's question is the kernel the system accepted, every instruction of it waiting on all six barriers and
-// otherwise unchanged, over the cases khw_union_written writes, its relation read by the gate. The slot's are
-// the kernel with each place but the unreached in turn holding the encoding its unreached places hold, over one case,
-// and the slot is the first place whose answer comes back as the case's second word, because nothing then wrote the
-// register the kernel stores. The relation that answered is then put once more over its own cases, its launches timed
-// into `nanoseconds`, 0 where the part gave no time. 1 where the kernel answered a relation, its slot through `slot`,
-// past every place where none answered so
+// otherwise unchanged, over the cases khw_union_written writes, its relation read by the gate. The slot is the kernel
+// listing's where it names one, the part's answer in its .ksc, and nothing is put for it; otherwise the slot's
+// questions are the kernel with each place but the unreached in turn holding the encoding its unreached places hold,
+// over one case, and the slot is the first place whose answer comes back as the case's second word, because nothing
+// then wrote the register the kernel stores. The relation that answered is then put once more over its own cases, its
+// launches timed into `nanoseconds`, 0 where the part gave no time. 1 where the kernel answered a relation, its slot
+// through `slot`, past every place where none answered so
 int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long *nanoseconds)
 {
     static unsigned int s_word[RUN_CASES_MOST][2];
@@ -151,7 +152,9 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long 
     khw_union_written();
     s_pooled = 0u;
     const unsigned int kernel_at = khw_pooled(s_kernel_places, 0ull, 0ull, s_union_word, s_union_cases);
-    for (unsigned int place = 0u; place < s_kernel_places; place += 1u)
+    // the places are put only where the kernel listing names no slot: a place put with the unreached encoding runs
+    // the kernel without that place, and a place the addresses depend on faults the part
+    for (unsigned int place = 0u; (s_kernel_slot >= s_kernel_places) && (place < s_kernel_places); place += 1u)
     {
         const unsigned long long low = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 0u);
         const unsigned long long high = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 8u);
@@ -167,6 +170,7 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long 
     }
     khw_round_carried();
     const int related = khw_relation_of(&s_pool[kernel_at], kernel);
+    *slot = (s_kernel_slot < s_kernel_places) ? s_kernel_slot : *slot;
     for (unsigned int at = kernel_at + 1u; (at < s_pooled) && (*slot == s_kernel_places); at += 1u)
     {
         *slot = ((s_pool[at].outcome == RUN_ANSWERED) && (s_pool[at].answered[0] == (unsigned long long)slot_case[0][1]))

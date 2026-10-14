@@ -305,8 +305,18 @@ int main(int count, char **word)
     unsigned long long nanoseconds = 0ull;
     unsigned int slot = 0u;
     const int related = khw_first_round(&kernel, &slot, &nanoseconds);
-    printf("  the first round: the kernel's relation and %llu places asked for the slot, %llu asks\n", s_asks - 1ull,
-           s_asks);
+    if (s_kernel_slot < s_kernel_places)
+    {
+        printf(
+            "  the first round: the kernel's relation asked, the slot the part's answer in its .ksc, place %u of the "
+            "kept places, %llu asks\n",
+            slot, s_asks);
+    }
+    else
+    {
+        printf("  the first round: the kernel's relation and %llu places asked for the slot, %llu asks\n",
+               s_asks - 1ull, s_asks);
+    }
     if (!related)
     {
         printf("  khw_write: the kernel the system accepted answered no relation of the ladder (%s), and "

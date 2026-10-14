@@ -4,7 +4,8 @@
 //   walk       the halving walk reads the greatest number a counted relation holds at, asking fewer times than the
 //              span, and 0 where nothing past 0 holds
 //   head       krs_write's two head lines come from the .ksc's rows, each left out where its row is missing and named
-//   opening    the kernel mode's place comes from the .ksc's row, 0 where none stands
+//   opening    the kernel mode's place comes from the .ksc's row, 0 where none stands, and its slot from the slot's
+//              row, none where none stands
 //   fixed      a register's reading at the slot is classified from its values over the cases, each kind once, and
 //              krs_write's fixed lines come from the .ksc's rows, the ruleset's own line kept where no row stands,
 //              each left out where it has neither and named
@@ -108,6 +109,16 @@ int main(int count, char **words)
     check_that(khw_opening_read(path) == 0u, "and 0 where the .ksc holds no such row");
     snprintf(path, sizeof(path), "%s/frame_check_absent.ksc", words[1]);
     check_that(khw_opening_read(path) == 0u, "and 0 where there is no .ksc");
+
+    // the slot's place, read from the .ksc's row where one stands
+    snprintf(path, sizeof(path), "%s/frame_check_slot.ksc", words[1]);
+    const char *const slot_row = "ksc part\nrun answers 00000001 opening least\nrun answers 00000010 slot place\n";
+    check_that(qry_filed(qry_run(), path, slot_row, strlen(slot_row)) != 0ull, "a .ksc with the slot's row is written");
+    check_that(khw_slot_read(path) == 16u, "the slot's place is the row's word");
+    snprintf(path, sizeof(path), "%s/frame_check_both.ksc", words[1]);
+    check_that(khw_slot_read(path) == KHW_SLOT_NONE, "and none where the .ksc holds no such row");
+    snprintf(path, sizeof(path), "%s/frame_check_absent.ksc", words[1]);
+    check_that(khw_slot_read(path) == KHW_SLOT_NONE, "and none where there is no .ksc");
 
     // a register's reading at the slot, classified from its values over eight cases with the case's words made up
     unsigned long long held[8];

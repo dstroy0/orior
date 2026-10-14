@@ -12,8 +12,9 @@
 // signed and 0 where not, the encoding the form was first seen with, low word first, and the form's text with each
 // operand that stands in the relation's tuple written as its place, {<place>}, for the protocol to name; nothing else
 // is read. In `kernel` the container the layout holds is read and the kernel the system accepted is given: a header of
-// its places, the registers a thread holds and the place the least opening begins at, as the part's .ksc beside the
-// machine file answers it (The frame asked, Open 6.3), then one line a place with the place's encoding. In `gate` the file
+// its places, the registers a thread holds, the place the least opening begins at and the slot's place, each of the
+// two as the part's .ksc beside the machine file answers it (The frame asked, Open 6.3), the slot `-` where it has not
+// answered, then one line a place with the place's encoding. In `gate` the file
 // holds those same places, one form a place, so that the gate reads every question of a round against what the part has
 // already run (cubin_safe.h). In `final` the file holds the forms the part answered for, read from `answers` as the
 // protocol gave them, each named from the vendor's table (mnemonic_nvidia.tsv) and laid out as the instruction its runs
@@ -64,8 +65,20 @@ int main(int count, char **word)
                    from, s_kernel_places);
             from = 0u;
         }
+        // the slot's place, the part's answer in the same .ksc, - where it has not answered or names a place past
+        // the kernel
+        unsigned int slot = khw_slot_read(ksc);
+        if ((slot != KHW_SLOT_NONE) && (slot >= s_kernel_places))
+        {
+            printf("  khw_machine_write: the slot's place %u is past the kernel's %u places, and none is named\n", slot,
+                   s_kernel_places);
+            slot = KHW_SLOT_NONE;
+        }
+        char slot_text[16];
+        (slot == KHW_SLOT_NONE) ? snprintf(slot_text, sizeof(slot_text), "-")
+                                : snprintf(slot_text, sizeof(slot_text), "%u", slot);
         KhwListing listing = {NULL, 0u, 0u, 1};
-        khw_listed(&listing, "kernel %u %u %u\n", s_kernel_places, s_registers, from);
+        khw_listed(&listing, "kernel %u %u %u %s\n", s_kernel_places, s_registers, from, slot_text);
         for (unsigned int place = 0u; place < s_kernel_places; place += 1u)
         {
             const unsigned long long low = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 0u);
@@ -76,8 +89,9 @@ int main(int count, char **word)
         {
             return 1;
         }
-        printf("  the kernel %s: %u places, %u registers a thread, the least opening from place %u\n", s_kernel,
-               s_kernel_places, s_registers, from);
+        printf("  the kernel %s: %u places, %u registers a thread, the least opening from place %u, the slot %s%s\n",
+               s_kernel, s_kernel_places, s_registers, from, (slot == KHW_SLOT_NONE) ? "not answered" : "at place ",
+               (slot == KHW_SLOT_NONE) ? "" : slot_text);
         return 0;
     }
     if (strcmp(mode, "krs") == 0)

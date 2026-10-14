@@ -151,6 +151,9 @@ extern unsigned int s_registers;
 extern unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned char s_code[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned int s_kernel_places;
+// the slot's place among the kept places where the kernel listing names it, the part's answer in its .ksc, and
+// s_kernel_places where it names none
+extern unsigned int s_kernel_slot;
 extern unsigned int s_slot;
 extern unsigned long long s_unreached_low;
 extern unsigned long long s_unreached_high;

@@ -18,11 +18,14 @@ int khw_line_read(const unsigned char *bytes, unsigned long long size, unsigned 
     return 1;
 }
 
+unsigned int s_kernel_slot;
+
 // the kernel the vendor's writer reads out of the container, got through the interface and read back from the blob
 // it hands the run's buffer (khw_machine_write, kernel mode), the one handed after any before it of the name: the
 // places it holds from the one the least opening begins at into s_kernel_places, the part's answer the writer names
-// after the places and the registers (The frame asked, Open 6.3), the registers a thread holds into s_registers, and
-// each kept place's encoding into s_kernel_text. 1, or 0 with the reason printed
+// after the places and the registers (The frame asked, Open 6.3), the registers a thread holds into s_registers, each
+// kept place's encoding into s_kernel_text, and the slot's place among the kept ones into s_kernel_slot where the
+// writer names it after the opening's, s_kernel_places where it names none. 1, or 0 with the reason printed
 int khw_kernel_read(void)
 {
     QryBuffer *const run = qry_run();
@@ -52,13 +55,19 @@ int khw_kernel_read(void)
     unsigned long long at = 0ull;
     unsigned int places = 0u;
     unsigned int from = 0u;
+    char slot_text[16] = "-";
     if (!khw_line_read(bytes, size, &at, line, sizeof(line)) ||
-        (sscanf(line, "kernel %u %u %u", &places, &s_registers, &from) < 2) || (places == 0u) ||
+        (sscanf(line, "kernel %u %u %u %15s", &places, &s_registers, &from, slot_text) < 2) || (places == 0u) ||
         (places > KHW_PLACES) || (s_registers == 0u) || (from >= places))
     {
         printf("  khw_write: %s holds no kernel this reads\n", KHW_KERNEL_NAME);
         return 0;
     }
+    // the slot's place where the listing names one from the opening on, counted among the kept places; none otherwise
+    char *end = NULL;
+    const unsigned long long slot = strtoull(slot_text, &end, 10);
+    const int named = (end != NULL) && (end != slot_text) && (*end == '\0') && (slot >= from) && (slot < places);
+    s_kernel_slot = named ? (unsigned int)(slot - from) : (places - from);
     // every place is read, and those from the one the least opening begins at are kept
     unsigned int kept = 0u;
     for (unsigned int place = 0u; place < places; place += 1u)
