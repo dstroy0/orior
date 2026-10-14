@@ -1298,12 +1298,12 @@ command & builds & run in & carries, reads, leaves & runs \\
 \textbf{What reads the rows.}
 
 \begin{itemize}
-\item \texttt{krs\_\allowbreak{}write} writes each fixed line from its row, \texttt{fixed <name> = R<n>}, and \texttt{RZ} for the register that reads 0, the vendor's name for the field's top. A fixed register with no row is left out and named, as the head's two lines are.
+\item \texttt{krs\_\allowbreak{}write} writes each fixed line from its row, \texttt{fixed <name> = R<n>}, and \texttt{RZ} for the register that reads 0, the vendor's name for the field's top. A fixed register with no row keeps the line the ruleset gave it before the run, a hand line among them, since a line is let go only where a row replaces it; the ten the banks' asks place stand so until then, and a user may edit them. A register with neither is left out and named, as the head's two lines are.
 \item The \texttt{case word} rows are the banks' asks' to read.
 \end{itemize}
 
 \textbf{The checks.} \texttt{frame\_\allowbreak{}check} grows a \texttt{fixed} part: a register's reading classified from a counted sequence of values, each kind once (\texttt{fixed\_\allowbreak{}read.\allowbreak{}h}, shared with the mode); the rows written and read back as \texttt{krs\_\allowbreak{}write} reads them; \texttt{krs\_\allowbreak{}write}'s fixed lines from a \texttt{.\allowbreak{}ksc} with four rows, with one and with none, \texttt{RZ} for the top. Dry: \texttt{orior protocol pairs fixed -\allowbreak{}-\allowbreak{}dry} exits 0 with its dry record. Live on sm\_\allowbreak{}86: the slot, zero, record, index and case word rows in \texttt{sm\_\allowbreak{}86.\allowbreak{}ksc}, \texttt{sass.\allowbreak{}krs}'s fixed lines written from them, both committed.
 
 \begin{itemize}
-\item \textbf{Built.} \texttt{frame\_\allowbreak{}check}, 38 checks, under \texttt{chain\_\allowbreak{}check.\allowbreak{}sh}; the fixed mode after the frame in the pair run and as \texttt{orior protocol pairs fixed}. \textbf{Measured} on sm\_\allowbreak{}86 over 27 asks: the slot at place 16 of 32, zero RZ, the record in R4, the index in R2, the case's words in R0 and R7, and no register holding the lane's number at the slot; \texttt{sass.\allowbreak{}krs}'s fixed lines are written from the rows, \texttt{lane\_\allowbreak{}number} left out and named.
+\item \textbf{Built.} \texttt{frame\_\allowbreak{}check}, 43 checks, under \texttt{chain\_\allowbreak{}check.\allowbreak{}sh}; the fixed mode after the frame in the pair run and as \texttt{orior protocol pairs fixed}. \textbf{Measured} on sm\_\allowbreak{}86 over 27 asks: the slot at place 16 of 32, zero RZ, the record in R4, the index in R2, the case's words in R0 and R7, and no register holding the lane's number at the slot; \texttt{sass.\allowbreak{}krs}'s zero, record and index lines are written from the rows, and the eleven others keep their hand lines until rows replace them.
 \end{itemize}
