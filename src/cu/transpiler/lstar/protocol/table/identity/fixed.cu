@@ -50,6 +50,17 @@ static std::vector<unsigned char> place_put(const std::vector<unsigned char> &ke
     return variant;
 }
 
+// place `place` of `variant` put to stall the longest with its yield bit clear: the gate lets an instruction no form
+// holds through with the longest stall alone, and the vendor's reader takes the longest stall with the yield bit
+// clear alone, the two bits together an encoding it calls illegal
+static void place_stalled_longest(std::vector<unsigned char> *variant, unsigned int place, const StallField &stall,
+                                  unsigned long long longest)
+{
+    stall_bits_write(variant, place, stall, longest);
+    const StallField yield_bit = {SASS_YIELD_FIRST, 1u};
+    stall_bits_write(variant, place, yield_bit, 0ull);
+}
+
 // what the mode holds while it asks: the cases' host places, the question, the asks counted, the blob fixed.txt, and
 // whether the run is dry
 struct FixedAsk
@@ -88,14 +99,17 @@ static void fixed_closed(FixedAsk *ask)
 // the frame reads it. The slot: each place from the opening's beginning is put holding the encoding the unreached
 // places hold, the last place's, and the first whose kernel answers the case's second word on every case is the slot,
 // nothing then writing the register the kernel stores: `run answers <s> slot place`. Zero: the slot's own instruction
-// is put writing register n and the closing's store, the first place after the slot reading the register the slot
-// writes, reading n, for n the top of the register field then each register the kernel holds; the first that answers
-// 0 on every case whatever was written reads 0: `run answers <n> fixed zero`. What each register holds: for each
-// register n the kernel holds, the slot's instruction is put with n as its first source and zero as its second, and the
-// stored answer is n's value, read against the thread's number and the case's words (fixed_read.h): `run answers <n>
-// fixed lane_number`, `fixed record`, `fixed index`, `case word 0` and `case word 1`, each kind the lowest register
-// holding it. Each ask and each reading is a line of the run's blob fixed.txt. 0 where the rows are written or the
-// run is dry, 1 otherwise with the reason printed
+// is put writing the top of the register field, and the kernel's own closing stores, which read that register, read it
+// back in the record's second word; the top reads 0 where that word is 0 on every case whatever the slot wrote:
+// `run answers <n> fixed zero`. No other register is asked for it: a question changes one place no form of the
+// machine holds, the gate's bound, and the kernel's store is held by no form once changed. What each register holds:
+// for each register n the kernel holds, the slot's instruction is put with n as its first source and zero as its
+// second, and the stored answer is n's value, read against the thread's number and the case's words (fixed_read.h):
+// `run answers <n> fixed lane_number`, `fixed record`, `fixed index`, `case word 0` and `case word 1`, each kind the
+// lowest register holding it. The place a variant changes is put with its stall the longest and its yield bit clear,
+// the one way the gate lets an instruction no form holds through and the vendor's reader takes it, as the walks'
+// chains are put. Each ask and each reading is a line of the run's blob fixed.txt. 0 where the rows are written or
+// the run is dry, 1 otherwise with the reason printed
 int identity_fixed(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                    const char *const *carrier)
 {
@@ -109,14 +123,17 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     }
     const unsigned int places = (unsigned int)(kernel.size() / 16u);
     std::map<std::string, StallField> fields = stall_fields(ksc);
-    if ((fields.count("rd") == 0u) || (fields.count("ra") == 0u) || (fields.count("rb") == 0u))
+    if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
+        (fields.count("rb") == 0u))
     {
-        printf("klq_identity fixed: %s gives not every register field\n", ksc);
+        printf("klq_identity fixed: %s gives no stall field or not every register field\n", ksc);
         return 1;
     }
+    const StallField stall = fields["stall"];
     const StallField rd = fields["rd"];
     const StallField ra = fields["ra"];
     const StallField rb = fields["rb"];
+    const unsigned long long longest = (1ull << stall.bits) - 1ull;
     const unsigned long long top = (1ull << rd.bits) - 1ull;
     const unsigned int from = fixed_opening_read(ksc);
     if (!run_channel_open(carrier, 60000000ull))
@@ -178,60 +195,24 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
         return 1;
     }
     printf("  the slot is place %u of %u\n", slot, places);
-    // the closing's store: the first place after the slot reading the register the slot writes, through ra or rb
-    const unsigned long long written = stall_bits(kernel, slot, rd);
-    unsigned int store = places;
-    StallField read = ra;
-    for (unsigned int place = slot + 1u; (place < places) && (store == places); place += 1u)
-    {
-        if (stall_bits(kernel, place, ra) == written)
-        {
-            store = place;
-            read = ra;
-        }
-        else if (stall_bits(kernel, place, rb) == written)
-        {
-            store = place;
-            read = rb;
-        }
-    }
-    if (store == places)
+    // zero: the slot's own instruction put writing the top of the register field, the one change, and the kernel's
+    // own closing stores, reading that register, read it back in the record's second word. The register the kernel
+    // stores is then left as the slot found it, the case's second word, and the top reads 0 where the record is that
+    // word alone on every case, whatever the slot wrote
+    std::vector<unsigned char> zero_variant(kernel);
+    stall_bits_write(&zero_variant, slot, rd, top);
+    place_stalled_longest(&zero_variant, slot, stall, longest);
+    char what[32];
+    snprintf(what, sizeof(what), "zero %llu", top);
+    if (!fixed_alike(&ask, zero_variant, second, what))
     {
         fixed_closed(&ask);
-        printf("klq_identity fixed: no place after the slot reads the register it writes, and nothing more is "
-               "written\n");
+        printf("klq_identity fixed: register %llu, the field's top, does not read 0 whatever is written to it, and "
+               "nothing more is written\n",
+               top);
         return 1;
     }
-    // zero
-    const std::vector<std::string> zeros(IDENTITY_CASES, "0");
-    std::vector<unsigned long long> candidates = {top};
-    for (unsigned int number = 0u; number < registers; number += 1u)
-    {
-        candidates.push_back(number);
-    }
-    unsigned long long zero = top + 1ull;
-    for (const unsigned long long candidate : candidates)
-    {
-        if (zero != (top + 1ull))
-        {
-            break;
-        }
-        std::vector<unsigned char> variant(kernel);
-        stall_bits_write(&variant, slot, rd, candidate);
-        stall_bits_write(&variant, store, read, candidate);
-        char what[32];
-        snprintf(what, sizeof(what), "zero %llu", candidate);
-        if (fixed_alike(&ask, variant, zeros, what))
-        {
-            zero = candidate;
-        }
-    }
-    if (zero == (top + 1ull))
-    {
-        fixed_closed(&ask);
-        printf("klq_identity fixed: no register reads 0 whatever is written to it, and nothing more is written\n");
-        return 1;
-    }
+    const unsigned long long zero = top;
     snprintf(row, sizeof(row), "run answers %08llx fixed zero", zero);
     std::vector<std::string> fixed_rows = {row};
     std::vector<std::string> case_rows;
@@ -250,6 +231,7 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
         std::vector<unsigned char> variant(kernel);
         stall_bits_write(&variant, slot, ra, number);
         stall_bits_write(&variant, slot, rb, zero);
+        place_stalled_longest(&variant, slot, stall, longest);
         if (!question_read(variant, &s_question, &ask.asks))
         {
             run_print(&ask.table, "register %u refused: %s\n", number, s_question.refused);
