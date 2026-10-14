@@ -21,6 +21,11 @@
 // form of the run writes keeps the form the ruleset gave it before as well: no form is dropped here, a form the part
 // refuses is moved where it belongs, and a run that hands none for a word says nothing of the kind.
 //
+// A form answering a frame relation (frame_relation.h) writes no word of the web: it is written as the schema's form
+// the table beside this writer, krs_write/frame_forms.tsv, maps its relation to, with that form's parameters as the
+// ruleset at `named ruleset` names them, one line a row of the table, the writers of one placed text being one. A row
+// the run hands no form for keeps the line the ruleset gave its form before, as a word does.
+//
 // Two files are written beside the machine file: <language>.krs, which opens a ruleset of the language and names the
 // part, and <part>.krs, which the reader reads after it (ruleset_flat.cu) and which holds the forms. A bank, a fixed
 // register, the toolchain and the header are answered by no form, and neither file gives one.
@@ -70,10 +75,11 @@ int main(int count, char **word)
     char rulesets[1024];
     krs_folder_of(machine, rulesets, sizeof(rulesets));
     char path[1200];
+    char ksc[1200];
     // the costs the part's .ksc keeps, and the lines its ruleset gave before this run, read before the ruleset is
     // written again
-    snprintf(path, sizeof(path), "%s/%s.ksc", rulesets, part);
-    krs_costs_read(path);
+    snprintf(ksc, sizeof(ksc), "%s/%s.ksc", rulesets, part);
+    krs_costs_read(ksc);
     snprintf(path, sizeof(path), "%s/%s.krs", rulesets, part);
     krs_given_read(path);
     QryText forms = {0};
@@ -148,14 +154,19 @@ int main(int count, char **word)
         qry_text_printed(&forms, " = %s\\n\n", text);
         given += 1u;
     }
+    // the frame forms, each as the schema's form the table maps its relation to, one line a row of the table; a row
+    // the run hands no form for keeps the line the ruleset gave its form before
+    if (krs_frame_read(NULL) == 0u)
+    {
+        printf("  krs_write: the table of frame forms could not be read, and no frame form is written\n");
+    }
+    given += krs_frame_written(&forms, s_frame_form, s_frame_forms, named_ruleset, path, ksc);
     if (qry_text_filed(qry_run(), path, &forms) == 0ull)
     {
         printf("  krs_write: %s could not be written\n", path);
         return 1;
     }
     snprintf(path, sizeof(path), "%s/%s.krs", rulesets, language);
-    char ksc[1200];
-    snprintf(ksc, sizeof(ksc), "%s/%s.ksc", rulesets, part);
     QryText head = {0};
     qry_text_printed(&head, "krs 1\nruleset %s\n", language);
     // What turns the language's text into a program the part loads, and where the text's opening lines come from
@@ -209,8 +220,8 @@ int main(int count, char **word)
         printf("  krs_write: %s could not be written\n", path);
         return 1;
     }
-    printf("  krs_write: %u of the %u words of the web written from the %u forms the part answered for, in %s/%s.krs "
-           "beside %s.krs\n",
-           given, KRS_WORDS, s_forms, rulesets, part, language);
+    printf("  krs_write: %u form lines, the web's %u words' and the frame's, written from the %u forms and %u frame "
+           "forms the part answered for, in %s/%s.krs beside %s.krs\n",
+           given, KRS_WORDS, s_forms, s_frame_forms, rulesets, part, language);
     return 0;
 }

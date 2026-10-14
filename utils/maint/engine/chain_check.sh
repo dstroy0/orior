@@ -20,7 +20,8 @@
 #   krf_check        holds the .krf's reader and writer to what its users read of it: a row a k-file let go kept with
 #                    its type, the run's name, the reason and its text, under a who line
 #   frame_check      holds the frame's walk, krs_write's head and fixed lines, the kernel mode's place and a
-#                    register's reading at the slot to the .ksc's rows
+#                    register's reading at the slot to the .ksc's rows, and krs_write's frame lines to the table of
+#                    frame forms and the named ruleset
 #   frame_relation_check  holds the frame relations' host answers, their tuple places and the thread their fields are
 #                    read at, and the channel's fill word and block to the carrier's own
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
@@ -82,6 +83,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/krf_check" "$TOP/utils/test/src/cu/types/
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/frame_check.c" \
     "$TOP/src/cu/transpiler/lstar/parser/krs_write/head.c" \
     "$TOP/src/cu/transpiler/lstar/parser/krs_write/fixed.c" \
+    "$TOP/src/cu/transpiler/lstar/parser/krs_write/frame.c" \
+    "$TOP/src/cu/transpiler/lstar/parser/krs_write/words.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/opening.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kdm_check" "$TOP/utils/test/src/cu/types/file_defs/kdm/kdm_check.c" \

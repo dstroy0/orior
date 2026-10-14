@@ -1,0 +1,13 @@
+# The frame forms, each the schema's form a frame relation's form is written as (The frame forms asked, Open 6.4):
+# the relation as the vendor's writer hands it back, the form of the schema's ruleset it is written as, and the place
+# of the relation's tuple each of that form's parameters takes, in the parameters' order. A relation two rows map,
+# exit, is written as the row whose places are as many as the form's text holds: return where the text holds no
+# guard, exit_if where it does.
+relation	form	places
+frame.lane	thread_idx_x	0
+frame.block	block_idx_x	0
+frame.number	word_set	1 0
+frame.load	global_load_constant_word	2 0 1
+frame.store	record_store_word	0 1
+frame.exit	return
+frame.exit	exit_if	0
