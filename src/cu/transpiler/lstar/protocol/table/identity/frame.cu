@@ -48,36 +48,38 @@ static int frame_kernel_read(std::vector<unsigned char> *code, unsigned int *reg
     return 1;
 }
 
-// what one variant of the kernel is put as and what came of it, for the walk's `holds`
+// what one variant of the kernel is put as and what came of it, for the walk's `holds`: the whole kernel's own
+// answers are the reference every variant is held to
 struct FrameAsk
 {
     const std::vector<unsigned char> *kernel;
-    const std::vector<std::string> *zeros;
+    const std::vector<std::string> *reference;
     const std::vector<unsigned int> *places;
     RunQuestion *question;
     unsigned long long *asks;
     RunWritten *table;
 };
 
-// 1 where the kernel with its first `dropped` places let go answers 0 on every case
+// 1 where the kernel with its first `dropped` places let go answers every case as the whole kernel does
 static int frame_holds(unsigned long long dropped, void *context)
 {
     FrameAsk *const ask = (FrameAsk *)context;
     const std::vector<unsigned char> variant(ask->kernel->begin() + (std::ptrdiff_t)(dropped * 16ull),
                                              ask->kernel->end());
-    const int alike = question_alike(variant, *ask->zeros, *ask->places, ask->question, ask->asks);
+    const int alike = question_alike(variant, *ask->reference, *ask->places, ask->question, ask->asks);
     run_print(ask->table, "opening %llu %s%s%s\n", dropped, alike ? "truthy" : "falsy", alike ? "" : ": ",
               alike ? "" : ask->question->refused);
     printf("  opening from %llu: %s\n", dropped, alike ? "truthy" : "falsy");
     return alike;
 }
 
-// The frame asked (Open 6.3): the kernel the system accepted, whose body is empty and whose answer words are zeroed, is
-// put whole over every case, and alike on every one means the container the vendor's writer makes is loaded and
-// returned from: `run answers 00000001 container returned`. Then the kernel with its first k places dropped is put, k
-// walked by halving to the greatest that still answers 0 on every case, the least opening a kernel runs with:
-// `run answers <k> opening least`. Each variant and its verdict is a line of the run's blob frame.txt. 0 where both
-// rows are written or the run is dry, 1 otherwise with the reason printed
+// The frame asked (Open 6.3): the kernel the system accepted, its body the ladder's relation at its slot, is put whole
+// over every case with no host value to hold it to, and an answer on every case means the container the vendor's
+// writer makes is loaded and returned from: `run answers 00000001 container returned`. Its answers are then the
+// reference: the kernel with its first k places dropped is put, k walked by halving to the greatest that still answers
+// every case as the whole kernel does, the least opening a kernel runs with: `run answers <k> opening least`. Each
+// variant and its verdict is a line of the run's blob frame.txt. 0 where both rows are written or the run is dry, 1
+// otherwise with the reason printed
 int identity_frame(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                    const char *const *carrier)
 {
@@ -100,11 +102,11 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     s_question.registers = registers;
     std::vector<unsigned int> case_places;
     stall_cases(&s_question, &case_places);
-    // the kernel's body is empty and its answer words are zeroed: 0 is the host's answer on every case
-    const std::vector<std::string> zeros(IDENTITY_CASES, "0");
+    // no host value holds the whole kernel: the ask is whether the part answers it at all
+    const std::vector<std::string> nothing(IDENTITY_CASES, "-");
     unsigned long long asks = 0ull;
     RunWritten table = {(folder + "/frame.txt"), 0, std::string()};
-    const int returned = question_alike(kernel, zeros, case_places, &s_question, &asks);
+    const int returned = question_alike(kernel, nothing, case_places, &s_question, &asks);
     run_print(&table, "container %s%s%s\n", returned ? "returned" : "not returned", returned ? "" : ": ",
               returned ? "" : s_question.refused);
     const int dry = strncmp(s_question.refused, "skipped dry", 11u) == 0;
@@ -123,7 +125,15 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
         return 1;
     }
     printf("  the container returned, over %u cases\n", s_question.cases);
-    FrameAsk ask = {&kernel, &zeros, &case_places, &s_question, &asks, &table};
+    // the whole kernel's own answers, case by case, are what every variant is held to
+    std::vector<std::string> reference(IDENTITY_CASES, "-");
+    for (unsigned int place = 0u; place < s_question.cases; place += 1u)
+    {
+        char answered[24];
+        snprintf(answered, sizeof(answered), "%llx", s_question.answered[place]);
+        reference[case_places[place]] = answered;
+    }
+    FrameAsk ask = {&kernel, &reference, &case_places, &s_question, &asks, &table};
     const unsigned long long from = frame_greatest(frame_holds, &ask, 0ull, (unsigned long long)places);
     if (!run_closed(&table))
     {
