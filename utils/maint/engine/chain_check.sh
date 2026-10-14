@@ -17,6 +17,7 @@
 #   kdecode_check    holds kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
 #                    a who line, and the part's cost rows put again as it was
+#   frame_check      holds the frame's walk, krs_write's head and the kernel mode's place to the .ksc's rows
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
 #                    section and the pipes written again under who lines, and the part's section written again as it was
 #   survivors_check  holds the gate to P2 on the ladder's own relations
@@ -69,6 +70,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_rows_check" "$TOP/utils/test/src/cu/types/file_defs/qry/qry_rows_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/file_defs/ksc/ksc_check.c" \
+    "${FILE_DEFS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/frame_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kdm_check" "$TOP/utils/test/src/cu/types/file_defs/kdm/kdm_check.c" \
     "${FILE_DEFS[@]}" || exit 1
@@ -139,6 +142,7 @@ fi
     "$OUT/kqr_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kqr" &&
         "$OUT/who_check" "$OUT" &&
         "$OUT/qry_rows_check" &&
+        "$OUT/frame_check" "$OUT" &&
         "$OUT/ksc_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.ksc" &&
         "$OUT/kdm_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kdm"
 ) || exit 1
