@@ -12,7 +12,8 @@
 // signed and 0 where not, the encoding the form was first seen with, low word first, and the form's text with each
 // operand that stands in the relation's tuple written as its place, {<place>}, for the protocol to name; nothing else
 // is read. In `kernel` the container the layout holds is read and the kernel the system accepted is given: a header of
-// its places and the registers a thread holds, then one line a place with the place's encoding. In `gate` the file
+// its places, the registers a thread holds and the place the least opening begins at, as the part's .ksc beside the
+// machine file answers it (The frame asked, Open 6.3), then one line a place with the place's encoding. In `gate` the file
 // holds those same places, one form a place, so that the gate reads every question of a round against what the part has
 // already run (cubin_safe.h). In `final` the file holds the forms the part answered for, read from `answers` as the
 // protocol gave them, each named from the vendor's table (mnemonic_nvidia.tsv) and laid out as the instruction its runs
@@ -21,6 +22,7 @@
 // and each run's first and last bit and its place in the relation's tuple, - where it has none. Each form is written
 // with its relation, its signedness and its runs' places as the protocol read them.
 #include "khw_machine_write/khw_machine_write_internal.h"
+#include "khw_machine_write/opening.h"
 
 int main(int count, char **word)
 {
@@ -37,15 +39,33 @@ int main(int count, char **word)
     const char *const mode = word[6];
     if (strcmp(mode, "kernel") == 0)
     {
-        // the kernel read out of the container and written for the protocol: its places and the registers a thread
-        // holds, then one line a place with the place's encoding. It is the blob `answers` of the run's buffer where a
-        // run's writer runs (qry_buffer.h), and the file `answers` where none does
+        // the kernel read out of the container and written for the protocol: its places, the registers a thread
+        // holds and the place the least opening begins at, then one line a place with the place's encoding. It is the
+        // blob `answers` of the run's buffer where a run's writer runs (qry_buffer.h), and the file `answers` where
+        // none does
         if (!khw_kernel_read(layout))
         {
             return 1;
         }
+        // the place the least opening begins at, the part's answer in its .ksc beside the machine file; 0 where it
+        // has not answered, and 0 said where it names a place past the kernel
+        char ksc[1024];
+        snprintf(ksc, sizeof(ksc), "%s", path);
+        char *const extension = strrchr(ksc, '.');
+        if (extension != NULL)
+        {
+            snprintf(extension, sizeof(ksc) - (size_t)(extension - ksc), ".ksc");
+        }
+        unsigned int from = khw_opening_read(ksc);
+        if (from >= s_kernel_places)
+        {
+            printf("  khw_machine_write: the place %u the least opening begins at is past the kernel's %u places, and "
+                   "every place is handed\n",
+                   from, s_kernel_places);
+            from = 0u;
+        }
         KhwListing listing = {NULL, 0u, 0u, 1};
-        khw_listed(&listing, "kernel %u %u\n", s_kernel_places, s_registers);
+        khw_listed(&listing, "kernel %u %u %u\n", s_kernel_places, s_registers, from);
         for (unsigned int place = 0u; place < s_kernel_places; place += 1u)
         {
             const unsigned long long low = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 0u);
@@ -56,7 +76,8 @@ int main(int count, char **word)
         {
             return 1;
         }
-        printf("  the kernel %s: %u places, %u registers a thread\n", s_kernel, s_kernel_places, s_registers);
+        printf("  the kernel %s: %u places, %u registers a thread, the least opening from place %u\n", s_kernel,
+               s_kernel_places, s_registers, from);
         return 0;
     }
     if (strcmp(mode, "krs") == 0)

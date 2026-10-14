@@ -387,6 +387,7 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
 int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *machine_path, const char *const *carrier);
 long long walk_step(const std::function<int(long long)> &holds, long long from, long long step, long long end);
 long long walk_halved(const std::function<int(long long)> &holds, long long truthy, long long falsy);
+int identity_frame(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
 int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
 int identity_predicate(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
 int identity_past(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);

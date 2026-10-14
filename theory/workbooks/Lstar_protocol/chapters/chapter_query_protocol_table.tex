@@ -1140,7 +1140,7 @@ The monolith (\texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}v
 \begin{enumerate}
 \item The banks, by P11's Step 1 and Step 9: the width; the last register, R252, walked already; the predicates walked the same way; a wide value read back from an even pair of registers; a store and a load through the lane's address read back; and the widest number a form's number field holds. Each bank takes the cheapest place the part answers holds it (P6).
 \item The fixed registers: the register that reads 0 whatever is written to it, the lane's number read through a special register against the host, and each of the launch's values read back where the part puts it, each in the least register the part answers holds it through a chain.
-\item The toolchain and the header: a container the vendor's writer makes, loaded and returned from, and the least opening a kernel runs with.
+\item The toolchain and the header: a container the vendor's writer makes, loaded and returned from, and the least opening a kernel runs with. \textbf{Measured} on sm\_\allowbreak{}86 (\texttt{orior protocol pairs frame}, kept in \texttt{sm\_\allowbreak{}86.\allowbreak{}ksc} as \texttt{run answers 00000001 container returned} and \texttt{run answers 00000001 opening least}): the container returned over 648 cases, and the least opening begins at place 1 of the kernel's 32.
 \item Every form the schema names: by P11's Steps 2 to 7 where the ladder holds its relation, and by a walk of its own where it holds none, as P7 asks \texttt{loop\_\allowbreak{}back\_\allowbreak{}if}.
 \item \texttt{krs\_\allowbreak{}write} writing every answer, the code generator reading the part's ruleset whole, and the bridge's pairs put: dry, crossed against the vendor's disassembler, then on the part.
 \end{enumerate}
@@ -1255,4 +1255,30 @@ command & builds & run in & carries, reads, leaves & runs \\
 
 \begin{itemize}
 \item \textbf{Built.} \texttt{cd src/\allowbreak{}ui/\allowbreak{}query \&\& cargo test}, 51 tests, and the catalog test of \texttt{orior-\allowbreak{}cli}, the harness running both. \textbf{Measured}, \texttt{learn turns} on sm\_\allowbreak{}86: a round of 8184 questions, airlock 6.0 s (pop 1.0 s, cross 4.6 s), carrier 2.2 s; the carrier 7342 questions in 115 readings, 5424 distinct slot encodings.
+\end{itemize}
+
+\section{\texorpdfstring{The frame asked (Open 6.3)}{The frame asked (Open 6.3)}}
+
+\textbf{The two lines of a SASS ruleset's head are the part's answers.} \texttt{toolchain cubin\_\allowbreak{}write} says what turns the text into a program the part loads, and \texttt{header container} where the text's opening lines come from. Each is asked of the part on the run channel through the airlock and kept in the part's \texttt{.\allowbreak{}ksc} as a row, and \texttt{krs\_\allowbreak{}write} writes the line only where the row stands.
+
+\textbf{The kernel asked.} Both asks put the kernel the system accepted, \texttt{interface\_\allowbreak{}ask}, the one every question is laid into (\texttt{elf64\_\allowbreak{}nvidia.\allowbreak{}tsv}, the container rows). It loads the case's eight words, holds the ladder's relation at its slot, stores its two answer words and exits. The kernel's places come from the vendor's writer in its \texttt{kernel} mode (\texttt{khw\_\allowbreak{}machine\_\allowbreak{}write}), which reads them out of the container and hands them to the run as \texttt{kernel.\allowbreak{}txt}, a head of the places, the registers a thread holds and the place the least opening begins at, then one line a place; the frame asks read that blob as the teacher does and start from the whole kernel.
+
+\textbf{The container.} The kernel's own code, laid into the container by the vendor's writer and put over the 648 cases with no host value held against it. An answer on every case means the part loaded the container, ran the kernel and returned, and writes \texttt{run answers 00000001 container returned}; the answers are kept as the kernel's own. Refused, nothing or held writes nothing, and the toolchain stays unanswered.
+
+\textbf{The least opening.} The kernel's places before its closing are its opening. A variant drops the kernel's first k places and puts what is left, held to the whole kernel's own answers case by case; dropping fewer always holds, holds(k) ⇒ holds(j) for every j < k, and the walk reads the greatest k that still answers every case as the whole kernel does, by Step 9's halving between 0 and the kernel's count of places, a variant refused, apart or held by the gate being falsy. The answer is \texttt{run answers <k> opening least}: the place the least opening begins at, 0 where every place is needed. Each variant and its verdict is a line of the run's blob \texttt{frame.\allowbreak{}txt}.
+
+\textbf{Where.} One mode of \texttt{klq\_\allowbreak{}identity}, \texttt{frame} (\texttt{identity/\allowbreak{}frame.\allowbreak{}cu}), first in the pair run's opening before the register walk, each row written and its record closed before the next, and on its own as \texttt{orior protocol pairs frame}. The query crate's pairs loop runs the vendor writer's \texttt{kernel} mode into the run before \texttt{klq\_\allowbreak{}identity}. Every ask goes into R as every mode's does.
+
+\textbf{What reads the rows.}
+
+\begin{itemize}
+\item \texttt{krs\_\allowbreak{}write} writes \texttt{toolchain cubin\_\allowbreak{}write} where \texttt{container returned} stands and \texttt{header container} where \texttt{opening least} stands, leaves a line out where its row is missing, and says which fact the part has not answered. The reader refuses a ruleset without the two: \texttt{sass.\allowbreak{}krs} is written from a live run's rows and committed with them.
+\item The vendor writer's \texttt{kernel} mode hands every place and names the place \texttt{opening least} gives where the part's \texttt{.\allowbreak{}ksc} beside the machine file holds the row, 0 where it does not, and the teacher keeps the places from there: every question it puts after is as lean as the part allows, and the gate reads the places it hands. The frame asks themselves start from the whole kernel.
+\item The engine's SASS writing takes the opening a listing carries, the one the vendor writer hands.
+\end{itemize}
+
+\textbf{The checks.} \texttt{frame\_\allowbreak{}check} beside the protocol's checks, built and run by \texttt{chain\_\allowbreak{}check.\allowbreak{}sh}: the walk over a counted \texttt{holds}; the two rows written and read back as \texttt{krs\_\allowbreak{}write} reads them; \texttt{krs\_\allowbreak{}write}'s head from a \texttt{.\allowbreak{}ksc} with both rows, with one and with none; the kernel handed from k. Dry: \texttt{orior protocol pairs frame -\allowbreak{}-\allowbreak{}dry} through the airlock exits 0 with its dry record, and \texttt{pairs pair -\allowbreak{}-\allowbreak{}dry} still exits 0 with frame in its opening. Live on sm\_\allowbreak{}86: the two rows in \texttt{sm\_\allowbreak{}86.\allowbreak{}ksc}, \texttt{sass.\allowbreak{}krs} written from them by \texttt{orior protocol write krs}, both committed.
+
+\begin{itemize}
+\item \textbf{Built.} \texttt{frame\_\allowbreak{}check}, 18 checks, under \texttt{chain\_\allowbreak{}check.\allowbreak{}sh}; the frame mode first in the pair run and as \texttt{orior protocol pairs frame}. \textbf{Measured} on sm\_\allowbreak{}86: the container returned over 648 cases, and the least opening begins at place 1 of the kernel's 32, the place before it a load the kernel never reads, over 6 asks.
 \end{itemize}

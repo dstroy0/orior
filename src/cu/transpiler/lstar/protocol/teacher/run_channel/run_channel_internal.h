@@ -15,8 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most words that start a carrier, and the longest of them
-#define RUN_CARRIER_WORDS 8u
+// the most words that start a carrier, its pop or its cross, room for the carrier's own, its held list, its lessons,
+// its dry flags, the machine file and the layout; and the longest of them
+#define RUN_CARRIER_WORDS 12u
 
 #define RUN_PATH_LONGEST 1024u
 
