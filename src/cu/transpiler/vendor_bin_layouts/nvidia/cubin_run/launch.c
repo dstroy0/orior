@@ -163,7 +163,7 @@ static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *functi
     for (unsigned int launch = 0u; (status == 0) && (launch < launches); launch += 1u)
     {
         unsigned long long latency = 0ull;
-        // the clock the part named read before and after the launch where one is open: the launch's cost is its
+        // the timer register read before and after the launch where one is open: the launch's cost is its
         // advance, in the clock's own count; otherwise the driver's event time
         unsigned int before = 0u;
         unsigned int after = 0u;

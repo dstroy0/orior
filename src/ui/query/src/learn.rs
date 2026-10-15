@@ -65,7 +65,7 @@ pub enum Step {
     Dry(u32),
     /// One slot's questions emitted for the cross to read.
     Enumerate(String),
-    /// The clock asked of the bus: the ADVANCES qualifier at each word of a span of the register aperture, the
+    /// The clock asked of the bus: the ADVANCES qualifier at each word of a span of the BAR0 registers, the
     /// span's first byte offset and its count of words, in hex.
     Clock(String, String),
 }
@@ -178,16 +178,16 @@ fn verdicts_said(context: &mut Context, run: &Run) {
     }
 }
 
-/// The span of the register aperture the clock is asked in where none is given: the first byte offset and the
+/// The span of the BAR0 registers the clock is asked in where none is given: the first byte offset and the
 /// count of words, in hex. The part's answer is which word of it advances; the span is only where the asking starts.
 pub const CLOCK_FROM: &str = "9000";
 pub const CLOCK_WORDS: &str = "400";
 
-/// The listener's service, which maps the part's register aperture read-only (the scaffolding's README).
+/// The BAR0 driver's service, which maps the part's BAR0 registers read-only (the scaffolding's README).
 const LISTENER: &str = "GpuBar0";
 
-/// 1 where the listener's service runs, read from the service controller.
-fn listener_runs() -> bool {
+/// 1 where the BAR0 driver's service runs, read from the service controller.
+fn bar0_driver_runs() -> bool {
     std::process::Command::new("sc.exe").args(["query", LISTENER]).output().map(|out| String::from_utf8_lossy(&out.stdout).contains("RUNNING")).unwrap_or(false)
 }
 
@@ -201,12 +201,12 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     match step {
         Step::Clock(from, count) => {
-            // the clock asked of the bus through the listener, the first word of the span that advances kept in
-            // the part's .ksc; where the listener's service is not started the install is said, elevated, and
+            // the timer register, found by asking through the BAR0 driver, the first register of the span that advances kept in
+            // the part's .ksc; where the BAR0 driver's service is not started the install is said, elevated, and
             // nothing is asked
-            if !listener_runs() {
+            if !bar0_driver_runs() {
                 let script = context.root.join("src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/install_bar0.ps1");
-                return Err(format!("the listener's service {LISTENER} is not running: in an elevated shell, pwsh -File {} -Sign (the machine in test-signing mode)", text(&script)));
+                return Err(format!("the BAR0 driver's service {LISTENER} is not running: in an elevated shell, pwsh -File {} -Sign (the machine in test-signing mode)", text(&script)));
             }
             let clock = context.tool("bus_clock")?;
             let mut run = context.started(FOLDER)?;
@@ -214,12 +214,6 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             let code = context.teed(&run, "bus_clock", &clock, &[&text(&files.costs), &from, &count, "10"])?;
             context.ended(run)?;
             Ok(code)
-        }
-        Step::Pass(ref name, _) if name == "costs" => {
-            // the costs pass is the identity's cost instrument over the machine file's forms (pairs cost): each form
-            // put at a link of a chain of ours and the part's clock read around it, in the part's clock count and no
-            // launch's time
-            crate::pairs::run(context, &["cost".to_string(), "--part".to_string(), "sm_86".to_string(), "--to".to_string(), "sass".to_string()])
         }
         Step::Pass(..) | Step::Seed(..) => {
             let cross = context.tool("measuring_stick_query")?;

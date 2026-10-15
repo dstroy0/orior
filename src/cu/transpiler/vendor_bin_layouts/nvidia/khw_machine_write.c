@@ -5,9 +5,9 @@
 //
 //     khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
 //
-// Four modes. What `krs` and `kernel` write for the protocol is given as `answers`, and what `final` reads from the
-// protocol is read from it: the blob of that name in the run's buffer where a run's writer runs (qry_buffer.h), and the
-// file where none does. In `krs` the file at `path.khw` is
+// Five modes. What `krs` and `kernel` write for the protocol is given as `answers`, and what `final` and `costs` read
+// from the protocol is read from it: the blob of that name in the run's buffer where a run's writer runs
+// (qry_buffer.h), and the file where none does. In `krs` the file at `path.khw` is
 // read and each form that answered a relation is given one a line: the relation, 1 where the answers read a word
 // signed and 0 where not, the encoding the form was first seen with, low word first, and the form's text with each
 // operand that stands in the relation's tuple written as its place, {<place>}, for the protocol to name; nothing else
@@ -21,7 +21,9 @@
 // make; a form the table names none of is no form of the file. The answers are one form a line: the relation the
 // protocol read, whether it read a word signed and whether it asked, the encoding, how many runs its operands sit in,
 // and each run's first and last bit and its place in the relation's tuple, - where it has none. Each form is written
-// with its relation, its signedness and its runs' places as the protocol read them.
+// with its relation, its signedness and its runs' places as the protocol read them. In `costs` the file holds both:
+// the kernel's places as `gate` lays them out, then the forms the part answered for as `final` does, so that the gate
+// reads a costs question, a form written many times over from the slot inside the kernel's places, as held whole.
 #include "khw_machine_write/khw_machine_write_internal.h"
 #include "khw_machine_write/opening.h"
 
@@ -128,48 +130,62 @@ int main(int count, char **word)
     }
     memset(&s_machine, 0, sizeof(s_machine));
     snprintf(s_machine.part, sizeof(s_machine.part), "%s", part);
-    if (strcmp(mode, "gate") == 0)
+    const int gate = strcmp(mode, "gate") == 0;
+    const int costs = strcmp(mode, "costs") == 0;
+    if (!gate && !costs && (strcmp(mode, "final") != 0))
+    {
+        printf("  khw_machine_write: %s is no mode this writes\n", mode);
+        return 2;
+    }
+    // the kernel's places, one form a place, where the gate reads questions against them
+    unsigned int kept = 0u;
+    if (gate || costs)
     {
         if (!khw_kernel_read(layout))
         {
             return 1;
         }
-        const unsigned int kept = khw_kernel_forms_kept();
-        if (!sass_machine_write(&s_machine, path))
-        {
-            printf("  khw_machine_write: %s could not be written\n", path);
-            return 1;
-        }
-        printf("  the kernel's places: %u forms the gate reads a question against\n", kept);
-        return 0;
+        kept = khw_kernel_forms_kept();
     }
-    if (strcmp(mode, "final") != 0)
-    {
-        printf("  khw_machine_write: %s is no mode this writes\n", mode);
-        return 2;
-    }
+    // the forms the part answered for, each named from the vendor's table, after the kernel's places where those are held
     static KhwForm s_form[SASS_MACHINE_FORMS];
-    const unsigned int forms = khw_answers_read(answers, s_form, SASS_MACHINE_FORMS);
+    unsigned int forms = 0u;
     unsigned int named = 0u;
-    for (unsigned int at = 0u; at < forms; at += 1u)
+    if (!gate)
     {
-        char text[SASS_MACHINE_TEXT];
-        khw_text_composed(&s_form[at], text, sizeof(text));
-        if (text[0] == '\0')
+        forms = khw_answers_read(answers, s_form, SASS_MACHINE_FORMS);
+        for (unsigned int at = 0u; at < forms; at += 1u)
         {
-            continue;
+            char text[SASS_MACHINE_TEXT];
+            khw_text_composed(&s_form[at], text, sizeof(text));
+            if (text[0] == '\0')
+            {
+                continue;
+            }
+            if (!khw_form_kept(&s_machine, &s_form[at], text))
+            {
+                printf("  khw_machine_write: %s holds no more forms\n", path);
+                return 1;
+            }
+            named += 1u;
         }
-        if (!khw_form_kept(&s_machine, &s_form[at], text))
-        {
-            printf("  khw_machine_write: %s holds no more forms\n", path);
-            return 1;
-        }
-        named += 1u;
     }
     if (!sass_machine_write(&s_machine, path))
     {
         printf("  khw_machine_write: %s could not be written\n", path);
         return 1;
+    }
+    if (gate)
+    {
+        printf("  the kernel's places: %u forms the gate reads a question against\n", kept);
+        return 0;
+    }
+    if (costs)
+    {
+        printf("  the kernel's places, %u forms, and %u of the %u forms the part answered for named by the vendor's "
+               "table: what the gate reads a costs question against, written to %s\n",
+               kept, named, forms, path);
+        return 0;
     }
     printf("  khw_machine_write: %u of the %u forms the part answered for named by the vendor's table and written to "
            "%s\n",

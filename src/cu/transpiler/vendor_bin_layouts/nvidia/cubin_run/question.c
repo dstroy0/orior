@@ -134,7 +134,7 @@ static const char *cubin_run_cause_heard(void)
 }
 
 // The slot instruction `low` `high` of a launch that faulted the part added to the run's CUBIN_RUN_FAULTS with the
-// cause the listener heard, handed critical so that it is on disk before the carrier goes on, and held off the part in
+// cause the BAR0 driver heard, handed critical so that it is on disk before the carrier goes on, and held off the part in
 // this process at once
 static void cubin_run_faulted_kept(unsigned long long low, unsigned long long high, const char *cause)
 {
@@ -170,9 +170,9 @@ static void cubin_run_account_given(CubinRunSaying *answers, CubinRunSaying *cal
 }
 
 // A launch the part refused, its accounts said in its answer `answers` after the refusal, where the conference the
-// refusal calls reads them (overseer.h): the proctor's, the carrier's own, of the launch it carried; the listener's,
+// refusal calls reads them (overseer.h): the proctor's, the carrier's own, of the launch it carried; the BAR0 driver's,
 // the part's fault telemetry's, of the Xid critical errors the part stamped against it; and the gate's, of the code it
-// passed, its verdict, the held list and the slot instruction against it. The proctor and the listener each end in the
+// passed, its verdict, the held list and the slot instruction against it. The proctor and the BAR0 driver each end in the
 // cause it reads, where it reads one. Where the carrier lost its mind, a launch that faulted the part or hung past its
 // bound, each account is also handed as a panic of the call (QRY_PANIC_CALL) to the run's buffer, opening the line
 // every party of the run sees. Nothing waits on the disk: the carrier goes straight on off the part
@@ -383,7 +383,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         cubin_run_say(answers, "timed %u %llu %llu %llu\n", launches, nanoseconds, s_timed_least, s_timed_most);
         if (cubin_run_clock_offset() != 0u)
         {
-            cubin_run_say(answers, "clock bus %x\n", cubin_run_clock_offset());
+            cubin_run_say(answers, "clock address %x\n", cubin_run_clock_offset());
         }
     }
     const unsigned long long handed_began = cubin_run_host_now();

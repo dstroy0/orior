@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// clock.c: the clock the part named, read off the bus around a launch. The part's .ksc beside the machine file keeps
-// the word of its register aperture that advances, `run answers <offset> clock bus` (bus_clock.c), and the carrier
-// reads that word through the listener (scaffolding/mmio_read.h) before and after each launch it times: the cost of
+// clock.c: the timer register, read through the BAR0 driver around a launch. The part's .ksc beside the machine file keeps
+// the word of its BAR0 registers that advances, `run answers <offset> clock address` (bus_clock.c), and the carrier
+// reads that word through the BAR0 driver (scaffolding/mmio_read.h) before and after each launch it times: the cost of
 // the launch is the word's advance, in the clock's own count (query_ask.h, Q1). Where the .ksc names no clock or
-// the listener is not reached, the launches are timed on the driver's event clock as before, and the answer says
+// the BAR0 driver is not reached, the launches are timed on the driver's event timer as before, and the answer says
 // which clock timed them
 #include "cubin_run_internal.h"
 #include "../../../../types/file_defs/ksc/ksc.h"
@@ -30,9 +30,9 @@ int cubin_run_clock_open(const char *machine_path)
         for (unsigned int at = 0u; !named && (at < file.lines); at += 1u)
         {
             if (ksc_row_read(file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-                (strcmp(s_row.question, "clock bus") == 0))
+                (strcmp(s_row.question, "clock address") == 0))
             {
-                // an offset into the aperture is far below what an unsigned int holds
+                // an offset into BAR0 is far below what an unsigned int holds
                 s_clock_offset = (unsigned int)s_row.value;
                 named = 1;
             }
@@ -47,7 +47,7 @@ int cubin_run_clock_open(const char *machine_path)
     s_clock_read = (s_bus != INVALID_HANDLE_VALUE);
     if (!s_clock_read)
     {
-        printf("  clock: the part names the word at 0x%x and the listener is not reached; the driver's clock times "
+        printf("  clock: the part names the timer register at 0x%x and the BAR0 driver is not reached; the driver's clock times "
                "the launches\n",
                s_clock_offset);
     }

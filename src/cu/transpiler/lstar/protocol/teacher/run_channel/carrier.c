@@ -124,7 +124,7 @@ void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned lon
     asked->nanoseconds = 0ull;
     asked->least = 0ull;
     asked->most = 0ull;
-    asked->clock_bus = 0u;
+    asked->clock_address = 0u;
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     unsigned long long sequence = 0ull;
@@ -156,9 +156,10 @@ void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned lon
         {
             snprintf(timed_line, sizeof(timed_line), "%s", line);
         }
-        if (strncmp(line, "clock bus ", 10u) == 0)
+        if (strncmp(line, "clock address ", 14u) == 0)
         {
-            asked->clock_bus = 1u;
+            // the timer register's address, in hex as the carrier writes it
+            asked->clock_address = (unsigned int)strtoul(line + 14, NULL, 16);
         }
     }
     unsigned int launches = 0u;

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bus_clock.c: the clock asked of the bus. The ADVANCES qualifier put at each word of a span of the part's register
-// aperture, read through the listener (scaffolding/mmio_read.h, the BAR0 driver), and the first word that advances
+// bus_clock.c: the timer register, found by asking. The ADVANCES qualifier put at each word of a span of the part's register
+// aperture, read through the BAR0 driver (scaffolding/mmio_read.h, the BAR0 driver), and the first register that advances
 // kept in the part's .ksc as the clock the ask's cost is read off (query_ask.h, Q1).
 //
 //     bus_clock <ksc> <from> <words> <turns>
 //
-// Every number is read as hexadecimal. `from` is a byte offset into the aperture, `words` how many 32-bit words from
+// Every number is read as hexadecimal. `from` is a byte offset into BAR0, `words` how many 32-bit words from
 // it are asked, four bytes apart, and `turns` how many reads ADVANCES puts at a word after its first before the word
-// reads as not advancing. Nothing is written to the part: the listener reads alone. Each word asked is a line of the
+// reads as not advancing. Nothing is written to the part: the BAR0 driver reads alone. Each register asked is a line of the
 // run's blob clock.txt, `<offset> <bit> <step>`, the step the word moved by between the reads that differed; the plan
-// handed first, `clock <words>`. The first word that advances is written to the .ksc as `run answers <offset> clock
+// handed first, `clock <words>`. The first register that advances is written to the .ksc as `run answers <offset> clock
 // bus`, in place of the row before it, and the row let go kept in the .krf beside it. Exit 0 where a clock was
-// found, 1 where none was in the span, 2 where the listener was not reached or the words are not these.
+// found, 1 where none was in the span, 2 where the BAR0 driver was not reached or the words are not these.
 #include "../../../types/file_defs/krf/krf.h"
 #include "../../../types/file_defs/ksc/ksc.h"
 #include "../../../types/file_defs/qry/qry_buffer.h"
@@ -32,7 +32,7 @@ static char s_lines[BUS_CLOCK_WORDS_MOST * 32u];
 static int bus_clock_kept(const char *ksc, unsigned int offset)
 {
     char row[96];
-    snprintf(row, sizeof(row), "run answers %08x clock bus", offset);
+    snprintf(row, sizeof(row), "run answers %08x clock address", offset);
     KscFile file = {0};
     KtextFile removed = {0};
     const char *const rows[1] = {row};
@@ -73,14 +73,14 @@ int main(int count, char **words)
     HANDLE device = mmio_open();
     if (device == INVALID_HANDLE_VALUE)
     {
-        printf("  bus_clock: the listener is not reached: its service GpuBar0 is not started (install_bar0.ps1)\n");
+        printf("  bus_clock: the BAR0 driver is not reached: its service GpuBar0 is not started (install_bar0.ps1)\n");
         return 2;
     }
     unsigned long long base = 0ull;
     unsigned long long size = 0ull;
     if (!mmio_extent(device, &base, &size) || ((from + (asked * 4ull)) > size))
     {
-        printf("  bus_clock: the span 0x%llx to 0x%llx is not inside the aperture of %llu bytes\n", from,
+        printf("  bus_clock: the span 0x%llx to 0x%llx is not inside BAR0 of %llu bytes\n", from,
                from + (asked * 4ull), size);
         mmio_close(device);
         return 2;
@@ -133,7 +133,7 @@ int main(int count, char **words)
     }
     if (!found)
     {
-        printf("  bus_clock: no word of the %llu from 0x%llx advances over %llu reads; the part names no clock there\n",
+        printf("  bus_clock: no register of the %llu from 0x%llx advances over %llu reads; the part names no clock there\n",
                asked, from, turns);
         return 1;
     }
@@ -142,7 +142,7 @@ int main(int count, char **words)
         printf("  bus_clock: the clock could not be written to %s\n", ksc);
         return 2;
     }
-    printf("  clock: the word at 0x%x advances, by %u between two reads; kept in %s as the clock the ask reads\n",
+    printf("  clock: the timer register at 0x%x advances, by %u between two reads; kept in %s as the clock the ask reads\n",
            clock, step, ksc);
     return 0;
 }
@@ -153,7 +153,7 @@ int main(int count, char **words)
 {
     (void)count;
     (void)words;
-    printf("  bus_clock: the listener is a Windows kernel service, and this host has none\n");
+    printf("  bus_clock: the BAR0 driver is a Windows kernel service, and this host has none\n");
     return 2;
 }
 

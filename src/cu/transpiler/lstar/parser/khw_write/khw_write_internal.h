@@ -101,6 +101,15 @@
 // the launches the kernel's own question is timed over, as a task's cost is read (P11, Step 10)
 #define KHW_LAUNCHES 100u
 
+// how many times over a form is written in a costs question, one copy a place after the slot: the many links of one
+// ask, which raise a form's cost above a launch's own (P6, Q5)
+#define KHW_COST_COPIES 2048u
+
+// the row a form's cost is kept under in the part's .ksc: its word the least launch's advance of the clock the part
+// named over the copies, less the kernel's alone, and its question the form and the spread of the launches,
+// `run answers <least> cost <low> <high> <spread>`, in hex as every run row writes them
+#define KHW_COST_ROW "run answers %016llx cost %016llx %016llx %016llx"
+
 // the most words after `--` the channel is opened on and their end: a carrier, the airlock's pop and its cross, each of
 // up to eight words, and the `--pop` and `--cross` between them (run_channel.h)
 #define KHW_CARRIER_WORDS 27u
@@ -209,6 +218,9 @@ unsigned int khw_seeds_asked(const char *name);
 unsigned int khw_widened(unsigned int from, int discover);
 int khw_answers_written(void);
 int khw_forms_work_written(void);
+unsigned int khw_costs_asked(const char *path);
+// the round's line on the console: its count of questions and the clocks the channel spent on it since `before`
+void khw_round_printed(unsigned int count, const unsigned long long before[4]);
 void khw_fields_written(const char *path);
 int khw_vendor_run(const char *mode, const char *answers);
 unsigned int khw_forms_read(const char *name);

@@ -88,16 +88,16 @@ typedef struct
     unsigned int blocks;
     // each case's answer, its two words as one value
     unsigned long long answered[RUN_CASES_MOST];
-    // the time the launches took together, in nanoseconds off the driver's event clock, which ticks about every half
+    // the time the launches took together, in nanoseconds off the driver's event timer, which ticks about every half
     // microsecond; 0 where it is untimed
     unsigned long long nanoseconds;
     // the least and the most one launch of them took, a launch whole and not the question's own cost: a form costs a
     // few cycles under a launch's overhead, and P6 ranks nothing off these; 0 where it is untimed
     unsigned long long least;
     unsigned long long most;
-    // 1 where the launches were timed on the clock the part named, read off the bus (bus_clock.c); 0 where on the
-    // driver's event clock
-    unsigned int clock_bus;
+    // the address of the timer register the launches were timed on, read through the BAR0 driver (bus_clock.c); 0
+    // where they were timed on the driver's event timer
+    unsigned int clock_address;
     unsigned int outcome;
     // what the carrier said where the outcome is not RUN_ANSWERED
     char refused[128];

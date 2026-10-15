@@ -107,7 +107,6 @@ void khw_code_put(unsigned char *code, unsigned int place, unsigned long long lo
 }
 
 // The question in s_code put over `count` cases, each case's two words from `word`, the carrier making the slot at
-static void khw_round_printed(unsigned int count, const unsigned long long before[4]);
 
 // `slot` conservative (RUN_SLOT_NONE where the code holds no slot), and each answer into `answered`. 1 where the part
 // answered every case, 0 where it refused the question, the gate held it off the part or nothing carried it
@@ -180,7 +179,7 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
 
 // a round's line printed: how many questions it put, and the seconds its airlock and its carrier took, read off the
 // channel's clocks against the readings `airlock_before` and `carried_before` taken before it
-static void khw_round_printed(unsigned int count, const unsigned long long before[4])
+void khw_round_printed(unsigned int count, const unsigned long long before[4])
 {
     unsigned long long now[4] = {0ull, 0ull, 0ull, 0ull};
     run_channel_clocks(&now[0], &now[1], &now[2], &now[3]);

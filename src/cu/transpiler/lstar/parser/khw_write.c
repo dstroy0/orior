@@ -70,8 +70,9 @@ int main(int count, char **word)
     // emitted for the vendor's disassembler, and the blob of the run's buffer holding the forms a prior run learned to
     // seed them from, in place of the learn loop (khw_enumerate). The split's passes over the working set: [--discover]
     // widens it a round and keeps what it finds with its fields unasked; [--turns] asks the turns of what a discover
-    // left; [--registers] asks the register-runs the turns found. A cross-check reads each round's questions before it is
-    // carried
+    // left; [--registers] asks the register-runs the turns found; [--costs] times every form the machine file names on
+    // the timer register (P6) and keeps its cost and spread in the part's .ksc. A cross-check reads each round's
+    // questions before it is carried
     // (run_channel.h), and no form's turns or register-runs reach the part before the vendor has read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
@@ -83,6 +84,7 @@ int main(int count, char **word)
     int discover = 0;
     int turns = 0;
     int registers = 0;
+    int costs = 0;
     for (int at = 7; at < split; at += 1)
     {
         if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
@@ -111,6 +113,10 @@ int main(int count, char **word)
         else if (strcmp(word[at], "--registers") == 0)
         {
             registers = 1;
+        }
+        else if (strcmp(word[at], "--costs") == 0)
+        {
+            costs = 1;
         }
         else
         {
@@ -187,7 +193,7 @@ int main(int count, char **word)
     // round's questions before it is carried, and neither a form's turns nor its register-runs reach the part before
     // the vendor has read them. The working set is the run's blob KHW_WORK_NAME, which the passes hand each other; the
     // slot is found afresh each pass, off the kernel's code
-    if ((discover != 0) || (turns != 0) || (registers != 0))
+    if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
         KhwAnswered kernel;
         memset(&kernel, 0, sizeof(kernel));
@@ -271,6 +277,32 @@ int main(int count, char **word)
             printf("  turns: %u form(s) turned, %llu asks; their register-runs await a cross-check\n", asked, s_asks);
             return 0;
         }
+        if (costs != 0)
+        {
+            // every form the machine file names timed on the timer register, its cost and spread kept in the
+            // part's .ksc beside the machine file. A costs question writes a form many times over from the slot, and
+            // the gate holds a second instruction no form holds: so the gate's file is written again before asking,
+            // the kernel's places and the forms the part answered for together (the vendor's writer, `costs`). After,
+            // the machine file is laid out by the vendor once more from the forms the part answered for, as the
+            // registers pass leaves it
+            char ksc_path[1024];
+            snprintf(ksc_path, sizeof(ksc_path), "%.*s.ksc", (int)stem, s_path);
+            if (!khw_answers_written() || !khw_vendor_run("costs", KHW_FORMS_NAME))
+            {
+                run_channel_close();
+                return 1;
+            }
+            const unsigned int timed = khw_costs_asked(ksc_path);
+            run_channel_close();
+            if (!khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
+            {
+                return 1;
+            }
+            printf("  costs: %u form(s) timed over %u copies and %u launches each on the timer register, %llu "
+                   "asks; kept in %s\n",
+                   timed, KHW_COST_COPIES, KHW_LAUNCHES, s_asks, ksc_path);
+            return 0;
+        }
         // every turned form's register-runs asked at once, in shared rounds, its operand runs kept and its phase
         // classified; what the part has answered for whole then laid out by the vendor
         static KhwAnswered *s_forms[KHW_FORMS];
@@ -336,7 +368,7 @@ int main(int count, char **word)
                "on the %s\n",
                s_anchor_text[kernel.anchor], (kernel.swapped != 0) ? "swapped" : "in order", kernel.survivors,
                nanoseconds / KHW_LAUNCHES, KHW_LAUNCHES,
-               (s_question.clock_bus != 0u) ? "clock the part named, read off the bus" : "driver's event clock");
+               (s_question.clock_address != 0u) ? "timer register, read through the BAR0 driver" : "driver's event timer");
     }
     s_slot = slot;
     if (s_slot == s_kernel_places)
