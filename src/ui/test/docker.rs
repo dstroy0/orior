@@ -69,7 +69,9 @@ pub fn run_words(ui: &Path, passed: &[String], env: &[(String, String)], keys: O
 
 /// Builds the image and runs the window's tests in it, the words `passed` given to the harness
 /// there, and gives its exit.
-pub fn run(here: &Path, ui: &Path, passed: &[String]) -> ExitCode {
+/// Runs the window's tests in the image with the words `passed`, the servers `needed` names started
+/// on this machine for the run and taken away after it.
+pub fn run(here: &Path, ui: &Path, passed: &[String], needed: &[&str]) -> ExitCode {
     let _ = std::fs::create_dir_all(here.join("runs"));
     println!("the window's tests in Docker, image {IMAGE}; the window shows at {WATCH} as they run");
     let built = Command::new("docker").args(["build", "-t", IMAGE]).arg(here.join("docker")).stdin(Stdio::null()).status();
@@ -77,7 +79,7 @@ pub fn run(here: &Path, ui: &Path, passed: &[String]) -> ExitCode {
         eprintln!("the image {IMAGE} did not build");
         return ExitCode::FAILURE;
     }
-    let up = crate::servers::start(here);
+    let up = crate::servers::start(here, needed);
     for said in &up.said {
         println!("  {said}");
     }
@@ -90,7 +92,9 @@ pub fn run(here: &Path, ui: &Path, passed: &[String]) -> ExitCode {
     // The names of the settings handed, by which the harness there reads them.
     let names: Vec<String> = env.iter().map(|(key, _)| key.clone()).collect();
     env.push(("ORIOR_TEST_SERVERS".into(), names.join(",")));
-    match Command::new("docker").args(run_words(ui, passed, &env, ssh.map(|_| here.join("target").join("ssh")).as_deref())).stdin(Stdio::null()).status() {
+    let ran = Command::new("docker").args(run_words(ui, passed, &env, ssh.map(|_| here.join("target").join("ssh")).as_deref())).stdin(Stdio::null()).status();
+    crate::servers::stop(&up.started);
+    match ran {
         Ok(status) if status.success() => ExitCode::SUCCESS,
         Ok(_) => ExitCode::FAILURE,
         Err(error) => {

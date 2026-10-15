@@ -6,32 +6,48 @@
 //! MySQL, MariaDB, the print server servers/cups builds, CUPS with three IPP Everywhere printers, and
 //! the ssh server servers/ssh builds, which a database's tunnel goes through with the harness's own
 //! key and config.
-//! A container is made once and kept running between runs; --stop-servers takes them away. What
+//! A run starts only the servers the tests it runs reach, read from their text, and takes them
+//! away as it ends; --stop-servers takes away every one, as a run stopped short leaves them. What
 //! each server is and where it listens goes to the tests as ORIOR_* variables.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 /// The tests' password for each database server, which answers on the loopback alone.
 pub const PASSWORD: &str = "orior-test";
 
-/// A container: its name, its image, its ports, its settings, and its own arguments.
+/// A container: its name, its image, its ports, its settings, its own arguments, and the text a
+/// test reaches it by: the name of a setting it is told as, or the name the tests' server() takes.
 struct Container {
     name: &'static str,
     image: &'static str,
     ports: &'static [u16],
     env: &'static [(&'static str, &'static str)],
     args: &'static [&'static str],
+    reached: &'static [&'static str],
 }
 
 const CONTAINERS: &[Container] = &[
-    Container { name: "orior-test-postgres", image: "postgres:17-alpine", ports: &[5432], env: &[("POSTGRES_PASSWORD", PASSWORD)], args: &[] },
-    Container { name: "orior-test-mysql", image: "mysql:8.4", ports: &[3306], env: &[("MYSQL_ROOT_PASSWORD", PASSWORD)], args: &["--mysql-native-password=ON"] },
-    Container { name: "orior-test-mariadb", image: "mariadb:11", ports: &[3306], env: &[("MARIADB_ROOT_PASSWORD", PASSWORD)], args: &[] },
-    Container { name: "orior-test-cups", image: "orior-test-cups", ports: &[631, 8631, 8632, 8633], env: &[], args: &[] },
-    Container { name: "orior-test-ssh", image: "orior-test-ssh", ports: &[22], env: &[], args: &[] },
+    Container { name: "orior-test-postgres", image: "postgres:17-alpine", ports: &[5432], env: &[("POSTGRES_PASSWORD", PASSWORD)], args: &[], reached: &["ORIOR_PG_", "\"PG\""] },
+    Container { name: "orior-test-mysql", image: "mysql:8.4", ports: &[3306], env: &[("MYSQL_ROOT_PASSWORD", PASSWORD)], args: &["--mysql-native-password=ON"], reached: &["ORIOR_MYSQL", "\"MYSQL\""] },
+    Container { name: "orior-test-mariadb", image: "mariadb:11", ports: &[3306], env: &[("MARIADB_ROOT_PASSWORD", PASSWORD)], args: &[], reached: &["ORIOR_MARIADB", "\"MARIADB\""] },
+    Container { name: "orior-test-cups", image: "orior-test-cups", ports: &[631, 8631, 8632, 8633], env: &[], args: &[], reached: &["ORIOR_CUPS", "ORIOR_IPP_"] },
+    Container { name: "orior-test-ssh", image: "orior-test-ssh", ports: &[22], env: &[], args: &[], reached: &["ORIOR_TEST_SSH"] },
 ];
+
+/// The servers the files `files` reach, each named where any file's text holds the text it is
+/// reached by: the ones a run of those tests starts, in the order they are made. A file that cannot
+/// be read reaches none.
+pub fn reached_in(files: &[PathBuf]) -> Vec<&'static str> {
+    let texts: Vec<String> = files.iter().filter_map(|file| std::fs::read_to_string(file).ok()).collect();
+    CONTAINERS.iter().filter(|container| texts.iter().any(|text| container.reached.iter().any(|word| text.contains(word)))).map(|container| container.name).collect()
+}
+
+/// Every server's name, for taking all of them away.
+pub fn names() -> Vec<&'static str> {
+    CONTAINERS.iter().map(|container| container.name).collect()
+}
 
 fn docker(args: &[&str]) -> Result<String, String> {
     let done = Command::new("docker").args(args).stdin(Stdio::null()).output().map_err(|error| format!("docker: {error}"))?;
@@ -104,23 +120,30 @@ fn wait_for(limit: Duration, ready: impl Fn() -> bool) -> bool {
 }
 
 /// The servers up, and what the tests are told of them; each server that could not be brought up
-/// is said, and its tests run without it.
+/// is said, and its tests run without it. `started` names the containers the run made, for taking
+/// them away as it ends.
 pub struct Up {
     pub env: Vec<(String, String)>,
     pub said: Vec<String>,
+    pub started: Vec<&'static str>,
 }
 
-pub fn start(here: &Path) -> Up {
-    let mut up = Up { env: Vec::new(), said: Vec::new() };
+/// Starts the servers `names` names, as reached_in gives them, and none where it names none.
+pub fn start(here: &Path, names: &[&str]) -> Up {
+    let mut up = Up { env: Vec::new(), said: Vec::new(), started: Vec::new() };
+    if names.is_empty() {
+        return up;
+    }
     if !docker_runs() {
         up.said.push("Docker does not answer: the database and printing tests run without their servers. Docker is in File, Toolchains.".into());
         return up;
     }
-    for container in CONTAINERS {
+    for container in CONTAINERS.iter().filter(|container| names.contains(&container.name)) {
         if let Err(error) = bring_up(container, here) {
             up.said.push(format!("{} did not come up: {error}", container.name));
             continue;
         }
+        up.started.push(container.name);
         let first = published(container.name, container.ports[0]);
         let Some(port) = first.filter(|port| wait_for(Duration::from_secs(60), || reachable(*port))) else {
             up.said.push(format!("{} does not answer on its port", container.name));
@@ -309,10 +332,10 @@ fn answer_http(socket: std::net::TcpStream, asked: &std::sync::atomic::AtomicUsi
     out.write_all(&content)
 }
 
-/// Takes each test server away.
-pub fn stop() {
-    for container in CONTAINERS {
-        let _ = docker(&["rm", "-f", container.name]);
+/// Takes the test servers `names` names away.
+pub fn stop(names: &[&str]) {
+    for name in names {
+        let _ = docker(&["rm", "-f", name]);
     }
 }
 
@@ -354,7 +377,23 @@ mod tests {
         for container in CONTAINERS {
             assert!(container.name.starts_with("orior-test-"), "{}", container.name);
             assert!(!container.ports.is_empty(), "{}", container.name);
+            assert!(!container.reached.is_empty(), "{}", container.name);
         }
+    }
+
+    #[test]
+    fn a_server_is_started_only_where_a_file_the_run_tests_names_it() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..").join("..").join("build").join("ui_test").join(format!("reached-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("db.rs"), "let (host, port) = test_server(\"MYSQL\", 3306);\n").unwrap();
+        std::fs::write(dir.join("database.test.js"), "const pg = server(\"PG\");\nconst through = servers.ORIOR_TEST_SSH_HOST;\n").unwrap();
+        std::fs::write(dir.join("protocol.test.js"), "const writer = window.__harness.servers.ORIOR_TEST_QRY_WRITER;\n").unwrap();
+        assert_eq!(reached_in(&[dir.join("db.rs")]), vec!["orior-test-mysql"]);
+        assert_eq!(reached_in(&[dir.join("database.test.js")]), vec!["orior-test-postgres", "orior-test-ssh"]);
+        assert_eq!(reached_in(&[dir.join("protocol.test.js")]), Vec::<&str>::new());
+        assert_eq!(reached_in(&[dir.join("db.rs"), dir.join("database.test.js")]), vec!["orior-test-postgres", "orior-test-mysql", "orior-test-ssh"]);
+        assert_eq!(reached_in(&[dir.join("gone.rs")]), Vec::<&str>::new());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

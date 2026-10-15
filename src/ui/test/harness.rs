@@ -3,7 +3,8 @@
 
 //! Runs every test of orior's, and says which part of it has none:
 //!
-//! 1. the servers the tests reach, from servers.rs, each in a container of the harness's own;
+//! 1. the servers the run's tests reach, read from their text, from servers.rs, each in a container
+//!    of the harness's own, started for the run and taken away as it ends;
 //! 2. the Rust tests of the command line, of the app and of the harness, with cargo test, told
 //!    where each server listens; and the command line's on each system of systems.rs, Linux in its
 //!    kinds and on aarch64 in Docker, the Macs and Windows on Arm built for alone;
@@ -627,7 +628,7 @@ fn main() -> ExitCode {
     // the top of the tree's build/, two folders above the app's, where the run and the app built for it go
     let built = ui.parent().and_then(Path::parent).map(|top| top.join("build")).unwrap_or_else(|| here.join("build"));
     if options.stop_servers {
-        servers::stop();
+        servers::stop(&servers::names());
         println!("the test servers are stopped");
         return ExitCode::SUCCESS;
     }
@@ -638,8 +639,21 @@ fn main() -> ExitCode {
         }
         return ExitCode::SUCCESS;
     }
+    // The window's test files the run takes, and the servers its tests reach: those the crates'
+    // sources name where the crates' tests run, and those the window's files taken name.
+    let tests: Vec<String> = files_under(&here.join("src"), ".test.js").into_iter().map(|file| format!("src/{file}")).filter(|file| options.only.is_empty() || options.only.iter().any(|only| file.contains(only.as_str()))).collect();
+    let mut reaching: Vec<PathBuf> = Vec::new();
+    if options.rust {
+        for folder in [ui.join("query").join("src"), ui.join("cli").join("src"), ui.join("src-tauri").join("src")] {
+            reaching.extend(files_under(&folder, ".rs").into_iter().map(|file| folder.join(file)));
+        }
+    }
+    if options.window {
+        reaching.extend(tests.iter().map(|file| here.join(file)));
+    }
+    let needed = servers::reached_in(&reaching);
     if options.docker {
-        return docker::run(&here, &ui, &options.passed);
+        return docker::run(&here, &ui, &options.passed, &needed);
     }
     let run = built.join("ui_test").join("runs").join(stamp());
     if let Err(error) = std::fs::create_dir_all(&run) {
@@ -674,9 +688,11 @@ fn main() -> ExitCode {
             }
         }
     }
+    let mut started: Vec<&str> = Vec::new();
     if options.servers {
         println!("servers");
-        let up = servers::start(&here);
+        let up = servers::start(&here, &needed);
+        started = up.started.clone();
         for (key, value) in &up.env {
             if !key.ends_with("PASSWORD") {
                 println!("  {key}={value}");
@@ -721,7 +737,6 @@ fn main() -> ExitCode {
         }
     }
 
-    let tests: Vec<String> = files_under(&here.join("src"), ".test.js").into_iter().map(|file| format!("src/{file}")).filter(|file| options.only.is_empty() || options.only.iter().any(|only| file.contains(only.as_str()))).collect();
     if options.window && !tests.is_empty() && options.webdriver {
         println!("window, through WebDriver");
         let tree = run.join("tree");
@@ -795,6 +810,9 @@ fn main() -> ExitCode {
             },
         }
     }
+
+    // The servers this run started are no longer used, and go.
+    servers::stop(&started);
 
     // What has no test, and what tests nothing. A run of some files alone says nothing of these.
     if options.only.is_empty() {

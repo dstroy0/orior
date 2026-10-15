@@ -75,9 +75,11 @@ Checks: a C check of the tap, a writer started, blobs handed from two members an
 cargo run --manifest-path src/ui/test/Cargo.toml -- [--only TEXT] [--monitor N]
 ```
 
-The harness starts the servers the tests reach, each a Docker container of its own on this
-machine's loopback: PostgreSQL, MySQL, MariaDB, CUPS with three printers, and an ssh server for
-tunnels. Without Docker the tests that reach them do not run, and the report names them. It runs
+The harness starts the servers the run's tests reach, read from the tests' text, each a Docker
+container of its own on this machine's loopback: PostgreSQL, MySQL, MariaDB, CUPS with three
+printers, and an ssh server for tunnels. A server no test of the run reaches is not started, and
+the ones started are taken away as the run ends. Without Docker the tests that reach them do not
+run, and the report names them. It runs
 each crate's tests, then the command line's crate's tests again in Debian, Ubuntu, Fedora, Alpine
 and Arch Linux and in Debian on aarch64, each a Docker image of `test/systems/`; `--no-systems`
 leaves those out. A Mac's system and Windows on Arm run only on machines of their own, and the
