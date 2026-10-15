@@ -36,7 +36,7 @@ operation	SETP	comparison_coherence	a comparison, its answer a predicate
 operation	LOP	hol.bitand hol.bitor hol.bitxor hol.not	a table over bits
 operation	SHF	ladder.up ladder.down hol.shl hol.shr	a shift of the pair (high, low)
 operation	SEL	comparison_coherence	one of two values, chosen by a predicate
-operation	MOV	verb_coherence frame.number	a copy
+operation	MOV	verb_coherence frame.number frame.dim	a copy
 operation	PRMT	range_coherence	bytes of two words put in a new order
 operation	LD	verb_coherence frame.load	a load
 operation	ST	verb_coherence frame.store	a store

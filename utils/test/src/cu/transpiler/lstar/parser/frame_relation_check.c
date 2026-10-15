@@ -29,13 +29,12 @@ static void check_that(int held, const char *what)
 
 int main(void)
 {
-    check_that((FRAME_RELATION_COUNT == 6u) && (strcmp(s_frame_text[FRAME_LANE], "lane") == 0) &&
-                   (strcmp(s_frame_text[FRAME_BLOCK], "block") == 0) &&
-                   (strcmp(s_frame_text[FRAME_LOAD], "load") == 0) &&
-                   (strcmp(s_frame_text[FRAME_STORE], "store") == 0) &&
-                   (strcmp(s_frame_text[FRAME_EXIT], "exit") == 0) &&
-                   (strcmp(s_frame_text[FRAME_NUMBER], "number") == 0),
-               "the six relations are named in their order");
+    check_that(
+        (FRAME_RELATION_COUNT == 7u) && (strcmp(s_frame_text[FRAME_LANE], "lane") == 0) &&
+            (strcmp(s_frame_text[FRAME_BLOCK], "block") == 0) && (strcmp(s_frame_text[FRAME_LOAD], "load") == 0) &&
+            (strcmp(s_frame_text[FRAME_STORE], "store") == 0) && (strcmp(s_frame_text[FRAME_EXIT], "exit") == 0) &&
+            (strcmp(s_frame_text[FRAME_NUMBER], "number") == 0) && (strcmp(s_frame_text[FRAME_DIM], "dim") == 0),
+        "the seven relations are named in their order");
     const unsigned int word[2] = {3u, 5u};
     unsigned long long answered = 0ull;
     check_that(frame_answer(FRAME_LANE, 258u, word, 0ull, &answered) && (answered == 2ull),
@@ -55,13 +54,17 @@ int main(void)
                "an exit leaves the fill word");
     check_that(frame_answer(FRAME_NUMBER, 7u, word, 0x20ull, &answered) && (answered == 0x20ull),
                "a number is its reading on every case");
+    check_that(frame_answer(FRAME_DIM, 7u, word, 0ull, &answered) && (answered == RUN_THREADS_A_BLOCK) &&
+                   frame_answer(FRAME_DIM, 258u, word, 0ull, &answered) && (answered == RUN_THREADS_A_BLOCK),
+               "the block size is the threads a block on every case");
     check_that(!frame_answer(FRAME_RELATION_COUNT, 7u, word, 0ull, &answered),
-               "and no relation past the six answers");
+               "and no relation past the seven answers");
     check_that(((FRAME_READ_AT % RUN_THREADS_A_BLOCK) != (FRAME_READ_AT / RUN_THREADS_A_BLOCK)) &&
                    ((FRAME_READ_AT % RUN_THREADS_A_BLOCK) != 0u) && ((FRAME_READ_AT / RUN_THREADS_A_BLOCK) != 0u),
                "the thread the fields are read at has a lane and a block that differ, both past 0");
     check_that(FRAME_CASES > FRAME_READ_AT, "and the frame's cases reach it");
     check_that((frame_place_destination(FRAME_LANE) == 0u) && (frame_place_destination(FRAME_BLOCK) == 0u) &&
+                   (frame_place_destination(FRAME_DIM) == 0u) && (frame_place_number(FRAME_DIM) == FRAME_PLACE_NONE) &&
                    (frame_place_destination(FRAME_NUMBER) == 1u) && (frame_place_destination(FRAME_LOAD) == 2u) &&
                    (frame_place_destination(FRAME_STORE) == FRAME_PLACE_NONE) &&
                    (frame_place_destination(FRAME_EXIT) == FRAME_PLACE_NONE),

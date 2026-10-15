@@ -90,6 +90,13 @@ pub fn list(root: &Path) -> Vec<Command> {
     let parts = whole(root, &["khw", "kqr", "ksc"]);
     vec![
         Command {
+            id: "course",
+            title: "protocol",
+            about: "the whole protocol in order: discover, turns, registers, write krs, stick engine, pairs stick, pairs past, costs, write krs",
+            params: vec![choice_of("from", crate::course::names(), false), leave_param()],
+            words: vec![Word::Lit("course"), Word::Flag("--from", "from"), Word::Flag("--leave", "leave")],
+        },
+        Command {
             id: "query",
             title: "query",
             about: "the bridge written over the two languages' rulesets, then its pairs put to the part where one is chosen",
@@ -244,7 +251,7 @@ impl Context<'_> {
 }
 
 fn usage() -> String {
-    "orior protocol takes one of query, learn, cross, write, pairs, stick, kept, sweep".to_string()
+    "orior protocol takes one of course, query, learn, cross, write, pairs, stick, kept, sweep".to_string()
 }
 
 /// The words run: a code to exit with, or why they could not be.
@@ -255,6 +262,7 @@ pub fn run(root: &Path, programs: &dyn Programs, words: &[String], sink: &mut dy
     let mut context = Context { root, programs, sink, leave, asker: &mut terminal, env: Vec::new() };
     let (first, rest) = words.split_first().ok_or_else(usage)?;
     match first.as_str() {
+        "course" => crate::course::run(&mut context, rest),
         "learn" => crate::learn::run(&mut context, rest),
         "cross" => crate::cross::run(&mut context, rest),
         "write" => crate::write::run(&mut context, rest),
@@ -274,7 +282,7 @@ mod dispatch {
     #[test]
     fn the_list_names_every_loop_once() {
         let ids: Vec<&str> = list(Path::new(".")).iter().map(|c| c.id).collect();
-        assert_eq!(ids, ["query", "learn", "cross", "write", "pairs", "stick", "kept", "sweep"]);
+        assert_eq!(ids, ["course", "query", "learn", "cross", "write", "pairs", "stick", "kept", "sweep"]);
     }
 
     #[test]

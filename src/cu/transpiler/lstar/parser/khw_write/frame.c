@@ -202,21 +202,38 @@ static void khw_frame_nothing_read(const RunQuestion *question)
 // answer to each case the host's (frame_answer), a candidate failing a case it does not read alike, a candidate whose
 // answers are nothing's on every case failing every one, and the first survivor kept in `held` with its reading and
 // the count of survivors. The candidates in their order: lane, block, the load of the first word and of the second,
-// the store of the second, exit, and number where every case answers one constant, the first case's, and the
-// instruction `held` holds that constant in its bits. 1 where one survived
+// the store of the second, exit, number where every case answers one constant, the first case's, and the
+// instruction `held` holds that constant in its immediate field, and dim where every case answers the block size
+// and the immediate field does not hold it. 1 where one survived
 int khw_frame_of(const RunQuestion *question, KhwAnswered *held)
 {
     static unsigned char s_fails[GATE_CANDIDATES][GATE_CASES];
-    static const unsigned int s_relation[7] = {FRAME_LANE,  FRAME_BLOCK, FRAME_LOAD,  FRAME_LOAD,
-                                               FRAME_STORE, FRAME_EXIT,  FRAME_NUMBER};
-    const unsigned long long reading[7] = {0ull, 0ull, 0ull, 1ull, 1ull, 0ull, question->answered[0]};
+    static const unsigned int s_relation[8] = {FRAME_LANE,  FRAME_BLOCK, FRAME_LOAD,   FRAME_LOAD,
+                                               FRAME_STORE, FRAME_EXIT,  FRAME_NUMBER, FRAME_DIM};
+    const unsigned long long reading[8] = {0ull, 0ull, 0ull, 1ull, 1ull, 0ull, question->answered[0], 0ull};
     khw_frame_cases_written();
-    for (unsigned int candidate = 0u; candidate < 7u; candidate += 1u)
+    // a number stands in the field the .ksc names `immediate`, where a number operand lies: a place holding its
+    // constant there is a number, and one holding the block size there is a number and names no dim. A bit run
+    // anywhere else reads one set bit over eight clear ones as the block size, which nearly every encoding holds, and
+    // says nothing; where the .ksc names no immediate field, a number is read as any bit run of the instruction. A
+    // constant of 0 is held by nothing: every field of a form the number is not in holds 0, and the zero register is
+    // the part's 0
+    unsigned int immediate_first = 0u;
+    unsigned int immediate_bits = 0u;
+    const int immediate = khw_field_read("immediate", &immediate_first, &immediate_bits);
+    const unsigned long long in_immediate =
+        immediate ? khw_run_read(held->low, held->high, immediate_first, immediate_first + immediate_bits - 1u) : 0ull;
+    const int dim_in_immediate = immediate && (in_immediate == (unsigned long long)RUN_THREADS_A_BLOCK);
+    const int number_held = (question->answered[0] != 0ull) &&
+                            (immediate ? (in_immediate == question->answered[0])
+                                       : khw_encoding_holds(held->low, held->high, question->answered[0]));
+    for (unsigned int candidate = 0u; candidate < 8u; candidate += 1u)
     {
         int as_nothing = s_nothing_known;
-        // a number the instruction does not hold is a constant computed, and names no relation
-        const int unheld =
-            (s_relation[candidate] == FRAME_NUMBER) && !khw_encoding_holds(held->low, held->high, reading[candidate]);
+        // a number the instruction does not hold is a constant computed, and names no relation; the block size held
+        // in the immediate field is a number, and names no dim
+        const int unheld = ((s_relation[candidate] == FRAME_NUMBER) && !number_held) ||
+                           ((s_relation[candidate] == FRAME_DIM) && dim_in_immediate);
         for (unsigned int read = 0u; read < GATE_CASES; read += 1u)
         {
             const unsigned int thread = khw_frame_thread(read);
@@ -238,8 +255,8 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *held)
     held->swapped = 0;
     held->signed_read = 0;
     held->signedness_asked = 0;
-    held->survivors = gate_survivors(s_fails, 7u, GATE_CASES, survives);
-    for (unsigned int candidate = 0u; candidate < 7u; candidate += 1u)
+    held->survivors = gate_survivors(s_fails, 8u, GATE_CASES, survives);
+    for (unsigned int candidate = 0u; candidate < 8u; candidate += 1u)
     {
         if (survives[candidate] != 0u)
         {
@@ -259,8 +276,83 @@ typedef struct
     unsigned int place;
 } KhwVariant;
 
-// the most variants a place is put in: as it stands, each operand run of the slot's form, and the guard
-#define KHW_VARIANTS_A_PLACE (KHW_RUNS + 2u)
+// the most variants a place is put in: as it stands, each operand run of the slot's form and the guard, and each
+// of those with the constant bank's first word
+#define KHW_VARIANTS_A_PLACE (2u * (KHW_RUNS + 2u))
+
+static void khw_variant_added(KhwVariant *variants, unsigned int *count, unsigned long long low,
+                              unsigned long long high, unsigned int place);
+
+// what every variant of a place is set from: the fields the part's .ksc names, the guard and the immediate, which
+// the constant bank's operand lies in, and the record's register
+typedef struct
+{
+    int guarded;
+    unsigned int guard_first;
+    unsigned int guard_bits;
+    unsigned long long every_predicate;
+    int immediate;
+    unsigned int immediate_first;
+    unsigned int immediate_bits;
+    unsigned int record;
+} KhwFrameFields;
+
+// the variants of the place `place` holding `low` and `high` added to `variants`: as it stands; with the field
+// holding each operand run of the slot's own form `slot_form` set to the register the kernel stores, the relation's
+// first word's to the record's register; with its guard at every predicate where it holds another; and, where the
+// place is the opening's, `opening` not 0, each of those again with the field the .ksc names `immediate` set to 0,
+// the constant bank's first word, which the launch's block size stands at, so that a place reading the bank writes
+// it to the register the record reads. The opening's places are the ones that read the launch's bank, and the
+// kernel runs without them; a kept place's immediate set to 0 writes a register a place after the slot reads, a
+// number or an address, and the part faults on the address
+static void khw_place_varied(const KhwAnswered *slot_form, const KhwFrameFields *fields, unsigned long long low,
+                             unsigned long long high, unsigned int place, int opening, KhwVariant *variants,
+                             unsigned int *count)
+{
+    const unsigned int first = *count;
+    khw_variant_added(variants, count, low, high, place);
+    for (unsigned int run = 0u; run < slot_form->runs; run += 1u)
+    {
+        const int first_word = (slot_form->place[run] == 0u);
+        unsigned int field_first = 0u;
+        unsigned int field_bits = 0u;
+        char field[64];
+        if ((slot_form->place[run] == KHW_PLACE_NONE) || (first_word && (fields->record == KHW_FIXED_NONE)) ||
+            !khw_field_holding(slot_form->first[run], slot_form->last[run], field, sizeof(field), &field_first,
+                               &field_bits))
+        {
+            continue;
+        }
+        unsigned long long set_low = low;
+        unsigned long long set_high = high;
+        khw_run_write(&set_low, &set_high, field_first, field_first + field_bits - 1u,
+                      first_word ? fields->record : KHW_SECOND_REGISTER);
+        khw_variant_added(variants, count, set_low, set_high, place);
+    }
+    if (fields->guarded && (khw_run_read(low, high, fields->guard_first,
+                                         fields->guard_first + fields->guard_bits - 1u) != fields->every_predicate))
+    {
+        unsigned long long set_low = low;
+        unsigned long long set_high = high;
+        khw_run_write(&set_low, &set_high, fields->guard_first, fields->guard_first + fields->guard_bits - 1u,
+                      fields->every_predicate);
+        khw_variant_added(variants, count, set_low, set_high, place);
+    }
+    const unsigned int last = *count;
+    for (unsigned int at = first; (opening != 0) && fields->immediate && (at < last); at += 1u)
+    {
+        unsigned long long set_low = variants[at].low;
+        unsigned long long set_high = variants[at].high;
+        if (khw_run_read(set_low, set_high, fields->immediate_first,
+                         fields->immediate_first + fields->immediate_bits - 1u) == 0ull)
+        {
+            continue;
+        }
+        khw_run_write(&set_low, &set_high, fields->immediate_first,
+                      fields->immediate_first + fields->immediate_bits - 1u, 0ull);
+        khw_variant_added(variants, count, set_low, set_high, place);
+    }
+}
 
 // `low` and `high` from `place` added to `variants`, `*count` of them, where no variant of that place holds it
 // already; two places that stand alike each keep their own, so that each place's first variant is its own as it stands
@@ -280,26 +372,30 @@ static void khw_variant_added(KhwVariant *variants, unsigned int *count, unsigne
     *count += 1u;
 }
 
-// The frame round: each place of the kernel from the opening on, the slot and the unreached ones apart, put at the slot
-// over the frame's cases in its variants, every one pooled and carried as one round with nothing, the unreached
-// encoding at the slot, which the candidates are read against: as it stands; with the field of the instruction word
-// that holds each operand run of the slot's own classified form `slot_form`, as the part's .ksc gives the fields, set
-// to the register the kernel stores, KHW_SECOND_REGISTER, the field of the relation's first word to the record's
-// register instead, since a load or a store reads that field as an address and the record's register holds one, and
-// not put where the part's .ksc names none; and with its guard at PT where the guard field, as the part's .ksc gives
-// it, holds another predicate. A variant the working set holds already is the place's answer as it stands. The first
-// variant of a place to answer a frame relation is kept as a form of the working set, discovered where `discover` is
-// not 0 and its fields asked where it is. The count kept
+// The frame round: each place of the kernel, the slot and the unreached ones apart, put at the slot over the frame's
+// cases in its variants, every one pooled and carried as one round with nothing, the unreached encoding at the slot,
+// which the candidates are read against. The places are the kept ones from the opening on and the opening's own
+// before it, which the part ran as well and which every question drops, numbered after the kept ones. The variants
+// (khw_place_varied): as it stands; with the field of the instruction word that holds each operand run of the
+// slot's own classified form `slot_form`, as the part's .ksc gives the fields, set to the register the kernel
+// stores, KHW_SECOND_REGISTER, the field of the relation's first word to the record's register instead, since a load
+// or a store reads that field as an address and the record's register holds one, and not put where the part's .ksc
+// names none; with its guard at PT where the guard field, as the part's .ksc gives it, holds another predicate; and
+// the opening's places alone each of those with the field the .ksc names `immediate` set to 0, where the constant
+// bank's operand lies and its first word is the launch's block size. A variant the working set holds already is read
+// no further, and the place's other variants are. The first variant of a place to answer a frame relation is kept as
+// a form of the working set, discovered where `discover` is not 0 and its fields asked where it is. The count kept
 unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover)
 {
-    static KhwVariant s_variants[KHW_PLACES * KHW_VARIANTS_A_PLACE];
-    static unsigned int s_pooled_at[KHW_PLACES * KHW_VARIANTS_A_PLACE];
+    static KhwVariant s_variants[2u * KHW_PLACES * KHW_VARIANTS_A_PLACE];
+    static unsigned int s_pooled_at[2u * KHW_PLACES * KHW_VARIANTS_A_PLACE];
     unsigned int variants = 0u;
-    unsigned int guard_first = 0u;
-    unsigned int guard_bits = 0u;
-    const int guarded = khw_field_read("guard", &guard_first, &guard_bits);
-    const unsigned long long every_predicate = guarded ? ((1ull << guard_bits) - 1ull) : 0ull;
-    const unsigned int record = khw_fixed_register("record");
+    KhwFrameFields fields;
+    memset(&fields, 0, sizeof(fields));
+    fields.guarded = khw_field_read("guard", &fields.guard_first, &fields.guard_bits);
+    fields.every_predicate = fields.guarded ? ((1ull << fields.guard_bits) - 1ull) : 0ull;
+    fields.immediate = khw_field_read("immediate", &fields.immediate_first, &fields.immediate_bits);
+    fields.record = khw_fixed_register("record");
     khw_frame_cases_written();
     for (unsigned int place = 0u; place < s_kernel_places; place += 1u)
     {
@@ -309,33 +405,16 @@ unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover)
         {
             continue;
         }
-        khw_variant_added(s_variants, &variants, low, high, place);
-        for (unsigned int run = 0u; run < slot_form->runs; run += 1u)
-        {
-            const int first_word = (slot_form->place[run] == 0u);
-            unsigned int field_first = 0u;
-            unsigned int field_bits = 0u;
-            char field[64];
-            if ((slot_form->place[run] == KHW_PLACE_NONE) || (first_word && (record == KHW_FIXED_NONE)) ||
-                !khw_field_holding(slot_form->first[run], slot_form->last[run], field, sizeof(field), &field_first,
-                                   &field_bits))
-            {
-                continue;
-            }
-            unsigned long long set_low = low;
-            unsigned long long set_high = high;
-            khw_run_write(&set_low, &set_high, field_first, field_first + field_bits - 1u,
-                          first_word ? record : KHW_SECOND_REGISTER);
-            khw_variant_added(s_variants, &variants, set_low, set_high, place);
-        }
-        if (guarded && (khw_run_read(low, high, guard_first, guard_first + guard_bits - 1u) != every_predicate))
-        {
-            unsigned long long set_low = low;
-            unsigned long long set_high = high;
-            khw_run_write(&set_low, &set_high, guard_first, guard_first + guard_bits - 1u, every_predicate);
-            khw_variant_added(s_variants, &variants, set_low, set_high, place);
-        }
+        khw_place_varied(slot_form, &fields, low, high, place, 0, s_variants, &variants);
     }
+    for (unsigned int place = 0u; place < s_opening_places; place += 1u)
+    {
+        const unsigned long long low = khw_word_read(&s_opening_text[place * KHW_INSTRUCTION], 0u);
+        const unsigned long long high = khw_word_read(&s_opening_text[place * KHW_INSTRUCTION], 8u);
+        khw_place_varied(slot_form, &fields, low, high, s_kernel_places + place, 1, s_variants, &variants);
+    }
+    printf("  the frame round: %u variants of %u kept places and %u opening ones, the slot at %u\n", variants,
+           s_kernel_places, s_opening_places, s_slot);
     s_pooled = 0u;
     const unsigned int nothing_at = khw_frame_pooled(s_unreached_low, s_unreached_high, s_frame_word, FRAME_CASES);
     for (unsigned int at = 0u; at < variants; at += 1u)
@@ -348,23 +427,25 @@ unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover)
         khw_frame_nothing_read(&s_pool[nothing_at]);
     }
     unsigned int kept = 0u;
-    unsigned int kept_place = s_kernel_places;
+    unsigned int kept_place = s_kernel_places + s_opening_places;
     for (unsigned int at = 0u; (at < variants) && (s_names < KHW_FORMS); at += 1u)
     {
         if ((s_variants[at].place == kept_place) || (s_pooled_at[at] >= SCHEDULER_ROUND_MOST))
         {
             continue;
         }
+        // a variant the working set holds already is read no further; the place's other variants are, each an
+        // encoding of its own, and the first of them to answer a relation is the place's form
         if (khw_named_already(s_variants[at].low, s_variants[at].high))
         {
-            kept_place = s_variants[at].place;
             continue;
         }
         KhwAnswered held;
         memset(&held, 0, sizeof(held));
         held.low = s_variants[at].low;
         held.high = s_variants[at].high;
-        if (!khw_frame_of(&s_pool[s_pooled_at[at]], &held))
+        // a variant the set's form answers for already, a turn of it, is that form, and enters nowhere
+        if (!khw_frame_of(&s_pool[s_pooled_at[at]], &held) || khw_form_stood_for(s_named, s_names, &held))
         {
             continue;
         }

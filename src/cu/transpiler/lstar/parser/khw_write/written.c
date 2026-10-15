@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// written.c: what the pass writes: the run's texts, the runs read, the answers, the working set, the costs and the fields written, the vendor's run, the forms read, and the pass enumerated
+// written.c: what the pass writes: the run's texts, the runs read, the answers, the working set, the costs and the
+// fields written, the vendor's run, the forms read, and the pass enumerated
 #include "khw_write_internal.h"
 
 // run `run` of `held` written to `file` as its first bit, its last and its place, KHW_PLACE_NONE_TEXT where it has none
@@ -59,7 +60,7 @@ static void khw_run_printed(KhwText *text, const KhwAnswered *held, unsigned int
     if (held->place[run] == KHW_PLACE_NONE)
     {
         // a run with no place carries its kind's letter after the none mark where it is not a register's
-        const unsigned int kind = (held->kind[run] < 4u) ? held->kind[run] : KHW_KIND_REGISTER;
+        const unsigned int kind = (held->kind[run] <= KHW_KIND_CONSTANT) ? held->kind[run] : KHW_KIND_REGISTER;
         (kind == KHW_KIND_REGISTER)
             ? khw_text_added(text, " %u %u %s", held->first[run], held->last[run], KHW_PLACE_NONE_TEXT)
             : khw_text_added(text, " %u %u %s%c", held->first[run], held->last[run], KHW_PLACE_NONE_TEXT,
@@ -67,7 +68,7 @@ static void khw_run_printed(KhwText *text, const KhwAnswered *held, unsigned int
         return;
     }
     khw_text_added(text, " %u %u %u%c", held->first[run], held->last[run], held->place[run],
-                   KHW_KIND_LETTERS[(held->kind[run] < 4u) ? held->kind[run] : KHW_KIND_REGISTER]);
+                   KHW_KIND_LETTERS[(held->kind[run] <= KHW_KIND_CONSTANT) ? held->kind[run] : KHW_KIND_REGISTER]);
 }
 
 // the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place
@@ -312,25 +313,27 @@ unsigned int khw_costs_asked(const char *path)
     khw_plan_handed("costs", (unsigned long long)to_time + 1ull);
     // the kernel alone, the reference, over the kernel's own relation's cases
     const unsigned int kernel_count =
-        (s_names != 0u) ? khw_anchor_cases(s_named[s_to_time[0]].anchor, s_named[s_to_time[0]].swapped, s_word,
-                                           s_plain, s_signed)
-                        : 0u;
+        (s_names != 0u)
+            ? khw_anchor_cases(s_named[s_to_time[0]].anchor, s_named[s_to_time[0]].swapped, s_word, s_plain, s_signed)
+            : 0u;
     unsigned long long kernel_least = 0ull;
     unsigned long long kernel_most = 0ull;
     unsigned int clock_address = 0u;
-    if ((to_time == 0u) || !khw_cost_timed(0u, 0ull, 0ull, s_word, kernel_count, &kernel_least, &kernel_most, &clock_address))
+    if ((to_time == 0u) ||
+        !khw_cost_timed(0u, 0ull, 0ull, s_word, kernel_count, &kernel_least, &kernel_most, &clock_address))
     {
         printf("  costs: the kernel alone could not be timed, and no form is\n");
         return 0u;
     }
     if (clock_address == 0u)
     {
-        printf("  costs: the launches were timed on the driver's clock, the part having named none; ask the clock first "
-               "(learn clock), and no cost is kept\n");
+        printf(
+            "  costs: the launches were timed on the driver's clock, the part having named none; ask the clock first "
+            "(learn clock), and no cost is kept\n");
         return 0u;
     }
-    printf("  costs: the kernel alone, the least launch %llu and the most %llu on the timer register\n",
-           kernel_least, kernel_most);
+    printf("  costs: the kernel alone, the least launch %llu and the most %llu on the timer register\n", kernel_least,
+           kernel_most);
     for (unsigned int each = 0u; each < to_time; each += 1u)
     {
         const KhwAnswered *const held = &s_named[s_to_time[each]];

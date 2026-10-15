@@ -28,8 +28,8 @@
 //                  (P9), and the runs of adjacent bits whose turning changes the answer kept. A run set to the number
 //                  of each of the two registers the kernel left a case word in answers two different words where it
 //                  carries a register, and one word where it does not: an operand's run answers two words and a
-//                  modifier's run one. The run whose setting leaves the answer at the case's second word is where the form
-//                  writes its result. A run that answers the relation at one register and the relation over that
+//                  modifier's run one. The run whose setting leaves the answer at the case's second word is where the
+//                  form writes its result. A run that answers the relation at one register and the relation over that
 //                  register's word twice at the other reads that word. Each run keeps its place in the relation's
 //                  tuple, the words in their order and then the answer, as 1,1 -> 2 holds them, and a run neither
 //                  test reads keeps none.
@@ -206,7 +206,15 @@ int main(int count, char **word)
             return 1;
         }
         s_slot = slot;
-        s_names = khw_forms_read(KHW_WORK_NAME);
+        // the working set read holds one form for each answer: a form an older one stands for is let go
+        // (khw_form_stands_for), so that the turns of a form's bits outside its operands do not fill the set
+        const unsigned int read = khw_forms_read(KHW_WORK_NAME);
+        s_names = khw_forms_folded(s_named, read);
+        if (read != s_names)
+        {
+            printf("  the working set: %u forms read, %u let go, each an encoding of a form the set holds\n", read,
+                   read - s_names);
+        }
         if (discover != 0)
         {
             unsigned int seeded = 0u;
@@ -368,7 +376,8 @@ int main(int count, char **word)
                "on the %s\n",
                s_anchor_text[kernel.anchor], (kernel.swapped != 0) ? "swapped" : "in order", kernel.survivors,
                nanoseconds / KHW_LAUNCHES, KHW_LAUNCHES,
-               (s_question.clock_address != 0u) ? "timer register, read through the BAR0 driver" : "driver's event timer");
+               (s_question.clock_address != 0u) ? "timer register, read through the BAR0 driver"
+                                                : "driver's event timer");
     }
     s_slot = slot;
     if (s_slot == s_kernel_places)

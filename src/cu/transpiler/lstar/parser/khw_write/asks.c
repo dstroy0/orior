@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// asks.c: the asks: a question's words and runs read and written, the kernel and the code put, a question asked and pooled, the round carried, the anchor cases and a candidate's answer
+// asks.c: the asks: a question's words and runs read and written, the kernel and the code put, a question asked and
+// pooled, the round carried, the anchor cases and a candidate's answer
 #include "khw_write_internal.h"
 
 // how many registers a thread of the kernel holds, read with the kernel
@@ -11,6 +12,8 @@ unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
 
 unsigned char s_code[KHW_PLACES * KHW_INSTRUCTION];
 unsigned int s_kernel_places;
+unsigned char s_opening_text[KHW_PLACES * KHW_INSTRUCTION];
+unsigned int s_opening_places;
 unsigned int s_slot;
 unsigned long long s_unreached_low;
 unsigned long long s_unreached_high;
@@ -65,8 +68,7 @@ void khw_word_write(unsigned char *instruction, unsigned int byte, unsigned long
 }
 
 // the bits `first` to `last` of the instruction `low` and `high` make, and the pair with that run set to `value`
-unsigned long long khw_run_read(unsigned long long low, unsigned long long high, unsigned int first,
-                                       unsigned int last)
+unsigned long long khw_run_read(unsigned long long low, unsigned long long high, unsigned int first, unsigned int last)
 {
     unsigned long long value = 0ull;
     for (unsigned int bit = first; bit <= last; bit += 1u)
@@ -78,7 +80,7 @@ unsigned long long khw_run_read(unsigned long long low, unsigned long long high,
 }
 
 void khw_run_write(unsigned long long *low, unsigned long long *high, unsigned int first, unsigned int last,
-                          unsigned long long value)
+                   unsigned long long value)
 {
     for (unsigned int bit = first; bit <= last; bit += 1u)
     {
@@ -97,8 +99,8 @@ void khw_kernel_put(unsigned char *code)
 
 // The question's code, into `code`: the kernel with `low` and `high` at `place`. The slot the question names is sent
 // to the carrier, which there makes the slot wait on all six barriers, stall the longest and hold no barrier; a
-// form the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it standing
-// (P9, cubin_safe.h)
+// form the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it
+// standing (P9, cubin_safe.h)
 void khw_code_put(unsigned char *code, unsigned int place, unsigned long long low, unsigned long long high)
 {
     khw_kernel_put(code);
@@ -144,7 +146,7 @@ int khw_asked(const unsigned int word[][2], unsigned int count, unsigned int slo
 // where `place` is past its places, over `count` cases from `word`, settling one entry. Its place in the round, or
 // SCHEDULER_ROUND_MOST where the round is full
 unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned long long high,
-                               const unsigned int word[][2], unsigned int count)
+                        const unsigned int word[][2], unsigned int count)
 {
     if (s_pooled == SCHEDULER_ROUND_MOST)
     {
@@ -227,7 +229,7 @@ void khw_round_carried(void)
 // the cases of `anchor` the host computes both readings of, their words into `word` in the order `swapped` says, and
 // each reading into `plain` and `signed_read`. The count found
 unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int word[][2], unsigned int *plain,
-                                     unsigned int *signed_read)
+                              unsigned int *signed_read)
 {
     unsigned int found = 0u;
     for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)

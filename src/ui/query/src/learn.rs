@@ -261,20 +261,22 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             Ok(code)
         }
         Step::Dry(rounds) => {
-            // the dry machine file and the costs beside it under the working folder, each the tree's copied there so
-            // that the dry pass leaves the tree's as they are: the slot the pass puts its rounds at is the part's
-            // answer kept in the costs, and the vendor's writer reads them beside the machine file. The rounds go
-            // through the airlock as a live pass's do, the cross reading each against the vendor's disassembler
+            // the dry machine file, the costs and the record beside it under the working folder, each the tree's
+            // copied there so that the dry pass leaves the tree's as they are: the slot the pass puts its rounds at is
+            // the part's answer kept in the costs, the vendor's writer reads them beside the machine file, and every
+            // ask is answered from the record, the part taken out. The rounds go through the airlock as a live pass's
+            // do, the cross reading each against the vendor's disassembler
             let machine = work.join("sm_86.khw");
             let costs = work.join("sm_86.ksc");
-            for (from, to) in [(&files.machine, &machine), (&files.costs, &costs)] {
+            let record = work.join("sm_86.kqr");
+            for (from, to) in [(&files.machine, &machine), (&files.costs, &costs), (&files.record, &record)] {
                 std::fs::copy(from, to).map_err(|error| format!("{} could not be copied under {}: {error}", from.display(), work.display()))?;
             }
             let cross = context.tool("measuring_stick_query")?;
             let nvdisasm = nvdisasm(context)?;
             let mut run = context.started(FOLDER)?;
             carried(context, &run, false)?;
-            run.read(&[machine.clone(), costs, work.join("sm_86.kqr"), files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
+            run.read(&[machine.clone(), costs, record, files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
             let mut words = teacher_words(&machine, &files, &writer);
             words.extend([rounds.to_string(), "--".into(), "dry".into()]);
             words.extend(carrier_words(&carrier, &cross, &nvdisasm, &machine, &files.layout, false));

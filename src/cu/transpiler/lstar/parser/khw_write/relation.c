@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// relation.c: the relation: the union of the candidates written, a form's relation found, read and asked, the first round, the turning case, and the turns and the fields asked
+// relation.c: the relation: the union of the candidates written, a form's relation found, read and asked, the first
+// round, the turning case, and the turns and the fields asked
 #include "khw_write_internal.h"
 
 void khw_union_written(void)
@@ -173,9 +174,10 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long 
     *slot = (s_kernel_slot < s_kernel_places) ? s_kernel_slot : *slot;
     for (unsigned int at = kernel_at + 1u; (at < s_pooled) && (*slot == s_kernel_places); at += 1u)
     {
-        *slot = ((s_pool[at].outcome == RUN_ANSWERED) && (s_pool[at].answered[0] == (unsigned long long)slot_case[0][1]))
-                    ? place_of[at]
-                    : *slot;
+        *slot =
+            ((s_pool[at].outcome == RUN_ANSWERED) && (s_pool[at].answered[0] == (unsigned long long)slot_case[0][1]))
+                ? place_of[at]
+                : *slot;
     }
     s_pooled = 0u;
     if (!related)
@@ -717,6 +719,12 @@ static void khw_frame_registers_read(KhwAnswered *held, unsigned int at, const K
             {
                 place = frame_place_number(held->frame);
                 kind = KHW_KIND_IMMEDIATE;
+            }
+            else if (immediate && (held->frame == FRAME_DIM) && both && (answer[0] != answer[1]))
+            {
+                // the constant bank's operand: its offset read from the bank answers the block size at 0 and the
+                // bank's next word past it, a run the form holds and no parameter takes
+                kind = KHW_KIND_CONSTANT;
             }
             else if (!immediate && both && (answer[0] == nothing) && (answer[1] == expected))
             {

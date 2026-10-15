@@ -143,7 +143,7 @@ void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned lon
     const size_t kept = (first_length < (sizeof(s_answer_line) - 1u)) ? first_length : (sizeof(s_answer_line) - 1u);
     memcpy(s_answer_line, bytes, kept);
     s_answer_line[kept] = '\0';
-    char timed_line[64] = "";
+    char timed_line[128] = "";
     unsigned long long line_at = (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ull : size;
     while (line_at < size)
     {

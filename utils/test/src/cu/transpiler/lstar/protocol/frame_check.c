@@ -87,11 +87,11 @@ int main(int count, char **words)
     free(head.bytes);
     snprintf(path, sizeof(path), "%s/frame_check_one.ksc", words[1]);
     const char *const one = "ksc part\nrun answers 00000001 container returned\n";
-    check_that(qry_filed(qry_run(), path, one, strlen(one)) != 0ull, "a .ksc with the container's row alone is written");
+    check_that(qry_filed(qry_run(), path, one, strlen(one)) != 0ull,
+               "a .ksc with the container's row alone is written");
     QryText one_head = {NULL, 0ull, 0ull, 0};
     check_that(krs_head_written(&one_head, path, missing, sizeof(missing)) == 1u, "one line comes from one row");
-    check_that((one_head.bytes != NULL) && (strcmp(one_head.bytes, "toolchain cubin_write\n") == 0),
-               "the toolchain's");
+    check_that((one_head.bytes != NULL) && (strcmp(one_head.bytes, "toolchain cubin_write\n") == 0), "the toolchain's");
     check_that(strcmp(missing, "header") == 0, "and the header is named missing");
     free(one_head.bytes);
     snprintf(path, sizeof(path), "%s/frame_check_none.ksc", words[1]);
@@ -235,14 +235,14 @@ int main(int count, char **words)
     free(kept_head.bytes);
     static KrfFile s_removed;
     static KrfRow s_removal;
-    check_that(krf_read(&s_removed, removals) && (s_removed.lines == 3u) && krf_row_read(s_removed.line[2], &s_removal) &&
-                   (strcmp(s_removal.type, "krs") == 0) && (strcmp(s_removal.reason, "replaced") == 0) &&
-                   (strcmp(s_removal.row, "fixed record = R1") == 0),
+    check_that(krf_read(&s_removed, removals) && (s_removed.lines == 3u) &&
+                   krf_row_read(s_removed.line[2], &s_removal) && (strcmp(s_removal.type, "krs") == 0) &&
+                   (strcmp(s_removal.reason, "replaced") == 0) && (strcmp(s_removal.row, "fixed record = R1") == 0),
                "the given line the row replaced is kept in the .krf beside the .ksc, under a who line");
     krf_free(&s_removed);
 
-    // the frame forms: the table's rows, and a form's line as the schema's form through a ruleset naming the seven
-    check_that(krs_frame_read(NULL) == 7u, "the table of frame forms beside its source holds seven rows");
+    // the frame forms: the table's rows, and a form's line as the schema's form through a ruleset naming the eight
+    check_that(krs_frame_read(NULL) == 8u, "the table of frame forms beside its source holds eight rows");
     char named[1024];
     snprintf(named, sizeof(named), "%s/frame_check_named.krs", words[1]);
     const char *const naming =
@@ -251,9 +251,11 @@ int main(int count, char **words)
         "*)({address} + {offset}ull);\\n\nform record_store_word offset from =     *(unsigned int *)(record_address + "
         "{offset}ull) = {from};\\n\nform thread_idx_x to =     {to} = threadIdx.x;\\n\nform block_idx_x to =     {to} "
         "= "
-        "blockIdx.x;\\n\nform exit_if where =     if ({where})\\n    {\\n        return;\\n    }\\n\n";
+        "blockIdx.x;\\n\nform exit_if where =     if ({where})\\n    {\\n        return;\\n    }\\n\nform block_dim_x "
+        "to =     "
+        "{to} = blockDim.x;\\n\n";
     check_that(qry_filed(qry_run(), named, naming, strlen(naming)) != 0ull,
-               "a ruleset naming the schema's seven forms is written");
+               "a ruleset naming the schema's eight forms is written");
     const KrsFrameForm lane = {"frame.lane", "S2R {0}"};
     char line[1024];
     check_that(krs_frame_named(&lane, named, line, sizeof(line)) &&
@@ -268,6 +270,10 @@ int main(int count, char **words)
     check_that(krs_frame_named(&number, named, line, sizeof(line)) &&
                    (strcmp(line, "form word_set to value = MOV {to}, {value}\\n\n") == 0),
                "a number form is named word_set, its destination as to and its number as value");
+    const KrsFrameForm dim = {"frame.dim", "MOV {0}, c[0x0][0x0]"};
+    check_that(krs_frame_named(&dim, named, line, sizeof(line)) &&
+                   (strcmp(line, "form block_dim_x to = MOV {to}, c[0x0][0x0]\\n\n") == 0),
+               "a dim form is named block_dim_x, its destination as to and the constant bank's operand as it stands");
     const KrsFrameForm guarded = {"frame.exit", "@{0} EXIT"};
     check_that(krs_frame_named(&guarded, named, line, sizeof(line)) &&
                    (strcmp(line, "form exit_if where = @{where} EXIT\\n\n") == 0),

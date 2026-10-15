@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// run_channel_internal.h: what the modules of the run channel share. Each question is handed to the run's buffer as blobs of its .qry (qry_buffer.h) and carried by the carrier in a process of its own, or many in one, and the blob the carrier handed for each is read back as that question's answer; the round a carrier is about to carry is handed critical, on disk before the carrier starts, and a round whose record cannot be put on disk is never carried. Here are its includes, the bounds of a line, a list and an answer, the channel's state, the record, and the functions one module reads from another
+// run_channel_internal.h: what the modules of the run channel share. Each question is handed to the run's buffer as
+// blobs of its .qry (qry_buffer.h) and carried by the carrier in a process of its own, or many in one, and the blob the
+// carrier handed for each is read back as that question's answer; the round a carrier is about to carry is handed
+// critical, on disk before the carrier starts, and a round whose record cannot be put on disk is never carried. Here
+// are its includes, the bounds of a line, a list and an answer, the channel's state, the record, and the functions one
+// module reads from another
 #ifndef RUN_CHANNEL_INTERNAL_H
 #define RUN_CHANNEL_INTERNAL_H
 
@@ -78,6 +83,9 @@ typedef struct
     // 1 where the carrier's own words hold --dry: it stops before the driver, every round through the airlock as a
     // live one, and nothing it answers is kept in R
     int stopped;
+    // 1 where the carrier whose answers are being read ended clean, exited with code 0: a refusal it wrote is the
+    // part's own word, read where a conference rules on it (run_channel_line_ruled)
+    int carrier_clean;
     // the run's buffer every blob of the channel is handed to
     QryBuffer *buffer;
     // the list of a round: the dry run's every question, handed whole once the channel closes, or a carried round's,
@@ -104,11 +112,13 @@ extern KqrRecord s_record;
 extern char s_record_path[1024];
 extern char s_airlock_output[RUN_CARRIER_OUTPUT];
 
-void run_channel_conference_called(const RunQuestion *asked, const char *how, const unsigned char *said, unsigned long long said_size);
+void run_channel_conference_called(const RunQuestion *asked, const char *how, const unsigned char *said,
+                                   unsigned long long said_size);
 unsigned long long run_channel_on_line(void);
 void run_channel_line_ruled(const RunQuestion *asked);
 void run_channel_halted(RunQuestion *const *asked, unsigned int first, unsigned int count);
-void run_channel_teacher_said(unsigned int questions, unsigned long long round, const InterfaceAnswer *answer, unsigned int answered, const char *carrying);
+void run_channel_teacher_said(unsigned int questions, unsigned long long round, const InterfaceAnswer *answer,
+                              unsigned int answered, const char *carrying);
 int run_channel_listed(const char *line, size_t length);
 int run_channel_write(const RunQuestion *asked, const char *code_name, const char *cases_name);
 void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned long long after);
@@ -123,7 +133,8 @@ void run_channel_named(unsigned int at, int alone, char *code_name, char *cases_
 int run_channel_relisted(RunQuestion *const *asked, unsigned int first, unsigned int count, int alone);
 void run_channel_check_traced(const RunQuestion *asked, const char *said);
 unsigned int run_channel_raised(RunQuestion *const *asked, unsigned int first, unsigned int count, int alone);
-int run_channel_checked(RunQuestion *const *asked, unsigned int first, unsigned int count, int alone, char *refused, size_t room);
+int run_channel_checked(RunQuestion *const *asked, unsigned int first, unsigned int count, int alone, char *refused,
+                        size_t room);
 void run_channel_output_handed(const InterfaceAnswer *answer);
 void run_channel_traced(RunQuestion *const *asked, unsigned int count, const char *how);
 int run_channel_carried(RunQuestion *asked);

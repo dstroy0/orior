@@ -46,6 +46,47 @@ static char *joined(const KscFile *file)
     return text.bytes;
 }
 
+// `text` with its who lines left out, the caller's to free
+static char *without_who(const char *text)
+{
+    QryText kept = {0};
+    for (const char *line = text; (line != NULL) && (*line != '\0');)
+    {
+        const char *const end = strchr(line, '\n');
+        const size_t length = (end != NULL) ? (size_t)(end - line) : strlen(line);
+        if (strncmp(line, "who ", 4u) != 0)
+        {
+            qry_text_added(&kept, line, length);
+            qry_text_added(&kept, "\n", 1u);
+        }
+        line = (end != NULL) ? (end + 1) : (line + length);
+    }
+    qry_text_added(&kept, "", 1u);
+    return kept.bytes;
+}
+
+// 1 where every cost row of `file` stands under a who line whose code is `code`
+static int cost_rows_under(const KscFile *file, const char *code)
+{
+    static KscRow s_read;
+    char whose[QRY_WHO_CODE_LETTERS + 8u];
+    whose[0] = '\0';
+    for (unsigned int at = 0u; at < file->lines; at += 1u)
+    {
+        if (strncmp(file->line[at], "who ", 4u) == 0)
+        {
+            snprintf(whose, sizeof(whose), "%s", file->line[at] + 4u);
+            continue;
+        }
+        if (ksc_row_read(file->line[at], "run", &s_read) && (strncmp(s_read.question, "cost ", 5u) == 0) &&
+            (strcmp(whose, code) != 0))
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static const char *const s_written = "ksc part\n"
                                      "count run      answers  3\n"
                                      "count run      nothing  0\n"
@@ -176,14 +217,17 @@ int main(int count, char **words)
         }
         qry_who_code(costs, code, sizeof(code));
         char *const after = joined(&s_file);
-        char head[64];
-        snprintf(head, sizeof(head), "who %s\n", code);
-        const int same = (after != NULL) && (before != NULL) && (strncmp(after, head, strlen(head)) == 0) &&
-                         (strcmp(after + strlen(head), before) == 0);
+        // the rows as they were, the who lines aside, and every cost row under the who that put it again
+        char *const before_rows = without_who(before);
+        char *const after_rows = without_who(after);
+        const int same = (before_rows != NULL) && (after_rows != NULL) && (strcmp(before_rows, after_rows) == 0);
+        const int under = (after != NULL) && cost_rows_under(&s_file, code);
         printf("  %s: %u lines, %u cost rows put again in their places, %s\n", words[2], lines, replaced,
-               same ? "as it was under one who line" : "DIFFERING");
-        check_that((rows != 0u) && (replaced == rows) && same,
+               (same && under) ? "as it was under one who line" : "DIFFERING");
+        check_that((rows != 0u) && (replaced == rows) && same && under,
                    "a part's cost rows put again in the order it holds them leave it as it was under one who line");
+        free(before_rows);
+        free(after_rows);
         free(before);
         free(after);
         ksc_free(&s_file);

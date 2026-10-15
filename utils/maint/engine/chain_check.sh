@@ -26,6 +26,9 @@
 #                    read at, and the channel's fill word and block to the carrier's own
 #   turning_check    holds a ladder form's turning case: the first case of its relation whose three readings in the
 #                    register pass stand apart, the shift up's (3, 4) among them
+#   standing_check   holds one form standing for the encodings that answer as it does: a turn outside its operands
+#                    is its, a bit of an operand, the key or the scheduler's word is another's, and the set folded
+#                    keeps the oldest
 #   naming_check     holds the vendor's writer's texts on forms written by hand: the name by relation, the mark on a
 #                    take form's second word, a flag bit printing nothing, and the guard before the operation
 #   ranges_check     holds the cross's cut of the distinct slot encodings over the host's processors: the ranges tile
@@ -82,6 +85,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/answer_read_check" "$TOP/utils/test/src/c
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/turning_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/turning_check.c" \
     "$TOP/src/cu/transpiler/lstar/parser/khw_write/turning.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/standing_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/standing_check.c" \
+    "$TOP/src/cu/transpiler/lstar/parser/khw_write/standing.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/pieces.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c \
@@ -176,6 +181,7 @@ fi
 "$OUT/answer_read_check" || exit 1
 "$OUT/frame_relation_check" || exit 1
 "$OUT/turning_check" || exit 1
+"$OUT/standing_check" || exit 1
 "$OUT/naming_check" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv" || exit 1
 "$OUT/ranges_check" || exit 1
 mkdir -p "$OUT/tap_check.run"

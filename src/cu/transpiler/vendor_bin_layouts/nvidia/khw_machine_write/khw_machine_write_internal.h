@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// khw_machine_write_internal.h: what the modules of the machine writer share: its includes, the bounds of the pattern, the kernel and the pieces, the pieces, the pattern, the kernel and the machine read, and the functions one module reads from another
+// khw_machine_write_internal.h: what the modules of the machine writer share: its includes, the bounds of the pattern,
+// the kernel and the pieces, the pieces, the pattern, the kernel and the machine read, and the functions one module
+// reads from another
 #ifndef KHW_MACHINE_WRITE_INTERNAL_H
 #define KHW_MACHINE_WRITE_INTERNAL_H
 
@@ -51,8 +53,10 @@
 #define KHW_KIND_IMMEDIATE 2u
 
 #define KHW_KIND_PREDICATE 3u
+// a run of the constant bank's operand: the offset read from the bank, and the bank, where the walks found a run of it
+#define KHW_KIND_CONSTANT 4u
 
-#define KHW_KIND_LETTERS "ranp"
+#define KHW_KIND_LETTERS "ranpc"
 
 // What the protocol answered of one form, read from the answers file: the relation every case of it answered, whether
 // the answers read a word signed and whether a case of the relation let the part answer so, the encoding, and the

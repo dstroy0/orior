@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// khw_write_internal.h: what the modules of khw_write share: its includes, the bounds of a question and a pass, the state of the question, the pool, the forms named and the paths given, and the functions one module reads from another
+// khw_write_internal.h: what the modules of khw_write share: its includes, the bounds of a question and a pass, the
+// state of the question, the pool, the forms named and the paths given, and the functions one module reads from another
 #ifndef KHW_WRITE_INTERNAL_H
 #define KHW_WRITE_INTERNAL_H
 
@@ -77,8 +78,10 @@
 #define KHW_KIND_IMMEDIATE 2u
 
 #define KHW_KIND_PREDICATE 3u
+// a run of the constant bank's operand: the offset read from the bank, and the bank, where the walks found a run of it
+#define KHW_KIND_CONSTANT 4u
 
-#define KHW_KIND_LETTERS "ranp"
+#define KHW_KIND_LETTERS "ranpc"
 
 // a fixed register the part's .ksc does not name
 #define KHW_FIXED_NONE 0xffffffffu
@@ -162,6 +165,10 @@ extern unsigned int s_registers;
 extern unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned char s_code[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned int s_kernel_places;
+// the kernel's places before the one the least opening begins at, dropped from every question's code and put as the
+// frame round's candidates like the kept ones, since the part ran each of them
+extern unsigned char s_opening_text[KHW_PLACES * KHW_INSTRUCTION];
+extern unsigned int s_opening_places;
 // the slot's place among the kept places where the kernel listing names it, the part's answer in its .ksc, and
 // s_kernel_places where it names none
 extern unsigned int s_kernel_slot;
@@ -190,13 +197,16 @@ extern unsigned int s_names;
 unsigned long long khw_word_read(const unsigned char *instruction, unsigned int byte);
 void khw_word_write(unsigned char *instruction, unsigned int byte, unsigned long long value);
 unsigned long long khw_run_read(unsigned long long low, unsigned long long high, unsigned int first, unsigned int last);
-void khw_run_write(unsigned long long *low, unsigned long long *high, unsigned int first, unsigned int last, unsigned long long value);
+void khw_run_write(unsigned long long *low, unsigned long long *high, unsigned int first, unsigned int last,
+                   unsigned long long value);
 void khw_kernel_put(unsigned char *code);
 void khw_code_put(unsigned char *code, unsigned int place, unsigned long long low, unsigned long long high);
 int khw_asked(const unsigned int word[][2], unsigned int count, unsigned int slot, unsigned long long *answered);
-unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned long long high, const unsigned int word[][2], unsigned int count);
+unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned long long high,
+                        const unsigned int word[][2], unsigned int count);
 void khw_round_carried(void);
-unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int word[][2], unsigned int *plain, unsigned int *signed_read);
+unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int word[][2], unsigned int *plain,
+                              unsigned int *signed_read);
 unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned int *word);
 void khw_union_written(void);
 int khw_relation_of(const RunQuestion *question, KhwAnswered *held);
@@ -206,6 +216,10 @@ void khw_turns_asked(KhwAnswered *held, const unsigned int word[1][2]);
 unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms);
 int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], unsigned int *expected);
 int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int words);
+int khw_answers_alike(const KhwAnswered *held, const KhwAnswered *other);
+int khw_form_stands_for(const KhwAnswered *older, const KhwAnswered *newer);
+int khw_form_stood_for(const KhwAnswered *forms, unsigned int count, const KhwAnswered *newer);
+unsigned int khw_forms_folded(KhwAnswered *forms, unsigned int count);
 unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
 void khw_plan_handed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
@@ -233,7 +247,8 @@ int khw_named_already(unsigned long long low, unsigned long long high);
 int khw_field_holding(unsigned int first, unsigned int last, char *name, size_t room, unsigned int *field_first,
                       unsigned int *field_bits);
 int khw_field_read(const char *name, unsigned int *first, unsigned int *bits);
-unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2], unsigned int count);
+unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2],
+                              unsigned int count);
 const unsigned int (*khw_frame_cases(unsigned int *count))[2];
 void khw_frame_stalled(unsigned long long *low, unsigned long long *high);
 int khw_frame_of(const RunQuestion *question, KhwAnswered *held);

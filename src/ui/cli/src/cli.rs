@@ -619,7 +619,7 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "list" => list(&root, first),
         "tests" => tests_list(&root, words),
         "bridge" => bridge(&root, first),
-        "query" | "learn" | "cross" | "write" | "pairs" | "stick" | "kept" | "sweep" => {
+        "course" | "query" | "learn" | "cross" | "write" | "pairs" | "stick" | "kept" | "sweep" => {
             // a window open on the tree runs the protocol command as its job, and shows the run in its protocol
             // panel; with none open it runs here, and so does the job's own command, which carries the window's
             // door in its environment and must not reach the window again

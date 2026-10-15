@@ -13,12 +13,8 @@ extern "C"
 
 // the frame relations and their names, in the order the candidates are read: the first survivor is the form's
 #define FRAME_RELATIONS(relation_)                                                                                     \
-    relation_(LANE, "lane")                                                                                            \
-    relation_(BLOCK, "block")                                                                                          \
-    relation_(LOAD, "load")                                                                                            \
-    relation_(STORE, "store")                                                                                          \
-    relation_(EXIT, "exit")                                                                                            \
-    relation_(NUMBER, "number")
+    relation_(LANE, "lane") relation_(BLOCK, "block") relation_(LOAD, "load") relation_(STORE, "store")                \
+        relation_(EXIT, "exit") relation_(NUMBER, "number") relation_(DIM, "dim")
 
 #define FRAME_NAMED(name_, text_) FRAME_##name_,
 
@@ -51,7 +47,8 @@ extern "C"
     // second; a number's constant. The answer is the record's two words as one value, the first word low: a lane's
     // number, a block's, a word loaded or a number stand in the first with the second 0, as the stores before the
     // slot leave it; a store leaves the case's second word in the first, as the slot found it, and the register's
-    // word in the second; an exit leaves the fill word in the first. 1, or 0 where the relation is none of the six
+    // word in the second; an exit leaves the fill word in the first; the block size, `dim`, is the threads a block
+    // on every case, which the launch alone sets. 1, or 0 where the relation is none of the seven
     static inline int frame_answer(unsigned int relation, unsigned int at, const unsigned int *word,
                                    unsigned long long reading, unsigned long long *answered)
     {
@@ -75,6 +72,9 @@ extern "C"
         case FRAME_NUMBER:
             *answered = reading;
             return 1;
+        case FRAME_DIM:
+            *answered = RUN_THREADS_A_BLOCK;
+            return 1;
         default:
             return 0;
         }
@@ -85,10 +85,10 @@ extern "C"
     // the guard an exit reads. FRAME_PLACE_NONE where the relation holds none
     static inline unsigned int frame_place_destination(unsigned int relation)
     {
-        return ((relation == FRAME_LANE) || (relation == FRAME_BLOCK)) ? 0u
-               : (relation == FRAME_NUMBER)                             ? 1u
-               : (relation == FRAME_LOAD)                               ? 2u
-                                                                        : FRAME_PLACE_NONE;
+        return ((relation == FRAME_LANE) || (relation == FRAME_BLOCK) || (relation == FRAME_DIM)) ? 0u
+               : (relation == FRAME_NUMBER)                                                       ? 1u
+               : (relation == FRAME_LOAD)                                                         ? 2u
+                                                                                                  : FRAME_PLACE_NONE;
     }
 
     static inline unsigned int frame_place_address(unsigned int relation)

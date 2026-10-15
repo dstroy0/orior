@@ -106,6 +106,19 @@ int main(int count, char **words)
     hand_form(&lane, "frame.lane", 0x0000000000077919ull, 0x000e240000002100ull, lane_runs, 2u);
     check_text(&lane, "S2R R7, R33", "a wide run with no place prints as a register");
 
+    // the block size read from the constant bank: the offset run and the bank run, both constant runs with no
+    // place, printed once as the bank's operand by the offset run
+    const HandRun dim_runs[3] = {{16u, 23u, 0u, KHW_KIND_REGISTER},
+                                 {38u, 53u, SASS_RUN_NO_PLACE, KHW_KIND_CONSTANT},
+                                 {54u, 58u, SASS_RUN_NO_PLACE, KHW_KIND_CONSTANT}};
+    KhwForm dim;
+    hand_form(&dim, "frame.dim", 0x0000000000017a02ull, 0x000fe40000000f00ull, dim_runs, 3u);
+    check_text(&dim, "MOV R1, c[0x0][0x0]",
+               "a dim form prints the constant bank's operand from its offset and bank runs");
+    KhwForm banked;
+    hand_form(&banked, "frame.dim", 0x0040000000017a02ull | (0x28ull << 38u), 0x000fe40000000f00ull, dim_runs, 3u);
+    check_text(&banked, "MOV R1, c[0x1][0x28]", "the bank and the offset read from the encoding's bits");
+
     // a guarded exit
     const HandRun exit_runs[1] = {{12u, 15u, 0u, KHW_KIND_PREDICATE}};
     KhwForm guarded;

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// discover.c: the discover: the kernel read line by line, a form asked, the register bits, the seeds asked their relation, and the working set widened
+// discover.c: the discover: the kernel read line by line, a form asked, the register bits, the seeds asked their
+// relation, and the working set widened
 #include "khw_write_internal.h"
 
 // the line at `*at` of the `size` bytes at `bytes` read into `line`, which holds `room`, as much of it as fits, and
 // `*at` moved past it: 1, or 0 where no line is left
-int khw_line_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at, char *line,
-                         size_t room)
+int khw_line_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at, char *line, size_t room)
 {
     if (*at >= size)
     {
@@ -81,6 +81,8 @@ int khw_kernel_read(void)
         }
         if (place < from)
         {
+            khw_word_write(&s_opening_text[place * KHW_INSTRUCTION], 0u, low);
+            khw_word_write(&s_opening_text[place * KHW_INSTRUCTION], 8u, high);
             continue;
         }
         khw_word_write(&s_kernel_text[kept * KHW_INSTRUCTION], 0u, low);
@@ -88,6 +90,7 @@ int khw_kernel_read(void)
         kept += 1u;
     }
     s_kernel_places = kept;
+    s_opening_places = from;
     return 1;
 }
 
@@ -128,8 +131,8 @@ int khw_form_asked(unsigned long long low, unsigned long long high)
     s_named[s_names] = held;
     s_names += 1u;
     char relation[64];
-    printf("    %-14s %016llx %016llx  %u runs, %u surviving\n", khw_relation_named(&held, 1, relation, sizeof(relation)),
-           low, high, held.runs, held.survivors);
+    printf("    %-14s %016llx %016llx  %u runs, %u surviving\n",
+           khw_relation_named(&held, 1, relation, sizeof(relation)), low, high, held.runs, held.survivors);
     return 1;
 }
 
@@ -313,7 +316,8 @@ unsigned int khw_seeds_asked(const char *name)
             memset(&held, 0, sizeof(held));
             held.low = s_seed_low[at];
             held.high = s_seed_high[at];
-            if (!khw_relation_of(&s_pool[at - first], &held))
+            // a seed the set's form answers for already, a turn of it, is that form, and enters nowhere
+            if (!khw_relation_of(&s_pool[at - first], &held) || khw_form_stood_for(s_named, s_names, &held))
             {
                 continue;
             }
@@ -336,7 +340,10 @@ unsigned int khw_seeds_asked(const char *name)
 // relation's tuple; a run that carries no word of the tuple is no operand of the relation, and its bits are turned as
 // any other's. A pass turns at most KHW_FORMS encodings, the newest form's first: a form the set gained last is the
 // frontier of the widening, and an older form's turns, which R answers already, fill what is left of the pass. Every
-// turned encoding's relation waits on no other answer, and they are put SCHEDULER_ROUND_MOST to a round. Where `discover` is 0 each that answered a relation is then asked its
+// turned encoding's relation waits on no other answer, and they are put SCHEDULER_ROUND_MOST to a round. A turned
+// encoding that answers as the form it was turned off does is that form (khw_form_stands_for) and enters the set
+// nowhere: only one answering another relation, the negate bits' take off an add, is a form of its own. Where
+// `discover` is 0 each that answered a relation is then asked its
 // fields; where it is not 0 it is kept with its fields unasked, for a cross-check to read its turns before a later
 // pass asks them off a part that would hang on an encoding the vendor calls illegal. Only a classified form is a
 // source of a widening: a form still short of its operand runs would widen on bits its register-runs have not yet
@@ -364,8 +371,8 @@ unsigned int khw_widened(unsigned int from, int discover)
             int inside = 0;
             for (unsigned int run = 0u; run < held.runs; run += 1u)
             {
-                inside = inside || ((held.place[run] != KHW_PLACE_NONE) && (bit >= held.first[run]) &&
-                                    (bit <= held.last[run]));
+                inside = inside ||
+                         ((held.place[run] != KHW_PLACE_NONE) && (bit >= held.first[run]) && (bit <= held.last[run]));
             }
             unsigned long long low = held.low;
             unsigned long long high = held.high;
@@ -386,7 +393,7 @@ unsigned int khw_widened(unsigned int from, int discover)
     }
     khw_union_written();
     unsigned int frame_cases = 0u;
-    const unsigned int(*const frame_word)[2] = khw_frame_cases(&frame_cases);
+    const unsigned int (*const frame_word)[2] = khw_frame_cases(&frame_cases);
     static KhwAnswered s_related[SCHEDULER_ROUND_MOST];
     for (unsigned int first = 0u; first < turned; first += SCHEDULER_ROUND_MOST)
     {
@@ -423,6 +430,11 @@ unsigned int khw_widened(unsigned int from, int discover)
         for (unsigned int at = 0u; (at < related) && (s_names < KHW_FORMS); at += 1u)
         {
             KhwAnswered held = s_related[at];
+            // a turn the set's form answers for already is that form, and enters nowhere
+            if (khw_form_stood_for(s_named, s_names, &held))
+            {
+                continue;
+            }
             if (discover == 0)
             {
                 khw_fields_asked(&held);

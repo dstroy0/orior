@@ -144,8 +144,8 @@ int run_channel_carried(RunQuestion *asked)
     {
         // a carrier that did not end clean wrote no answer worth reading: its ending is the answer, and where it was
         // ended, or a panic is on the line, it ended carrying this question, which calls a conference
-        asked->outcome = (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL
-                                                                     : (unsigned int)RUN_NOTHING;
+        asked->outcome =
+            (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL : (unsigned int)RUN_NOTHING;
         snprintf(asked->refused, sizeof(asked->refused), "the carrier %s, code %llx",
                  interface_ending_name(answer.ending), answer.code);
         if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ull))
@@ -154,6 +154,7 @@ int run_channel_carried(RunQuestion *asked)
         }
         return 0;
     }
+    s_channel.carrier_clean = 1;
     run_channel_read(asked, answers_name, after);
     return asked->outcome == RUN_ANSWERED;
 }
@@ -327,6 +328,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
             {
                 break;
             }
+            s_channel.carrier_clean = (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull);
             run_channel_read(asked[at], answers_name, after);
             answered += (asked[at]->outcome == RUN_ANSWERED) ? 1u : 0u;
         }

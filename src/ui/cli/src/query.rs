@@ -134,9 +134,16 @@ mod face {
         let mut found = Vec::new();
         jobs(&root, &mut found);
         let ids: Vec<&str> = found.iter().map(|job| job.id.as_str()).collect();
-        assert_eq!(ids, ["protocol/query", "protocol/learn", "protocol/cross", "protocol/write", "protocol/pairs", "protocol/stick", "protocol/kept", "protocol/sweep"]);
+        assert_eq!(ids, ["protocol/course", "protocol/query", "protocol/learn", "protocol/cross", "protocol/write", "protocol/pairs", "protocol/stick", "protocol/kept", "protocol/sweep"]);
         assert!(found.iter().all(|job| job.group == "protocol" && matches!(job.steps[0].program, Program::Orior)));
-        let query = &found[0];
+        let course = &found[0];
+        assert_eq!(course.title, "protocol");
+        assert_eq!(course.params[0].choices[0], "discover");
+        let whole = runner::shown(&root, course, &given(&["leave=all"])).unwrap();
+        assert!(whole[0].ends_with("protocol course --leave all"), "{}", whole[0]);
+        let from = runner::shown(&root, course, &given(&["from=costs", "leave=none"])).unwrap();
+        assert!(from[0].ends_with("protocol course --from costs --leave none"), "{}", from[0]);
+        let query = &found[1];
         assert_eq!(query.params[0].choices, ["cu", "sass"], "c has a ruleset and no map, so it is no language yet");
         assert_eq!(query.params[2].choices, ["sm_86"]);
         assert!(!query.params[2].required);

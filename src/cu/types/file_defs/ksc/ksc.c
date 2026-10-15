@@ -108,14 +108,27 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             return 0;
         }
     }
-    // the rows go after the last row of the channel the file keeps, or after its last line where it keeps none
+    // the rows go where the first row of the question stood, so that a row put again keeps its place; where the file
+    // holds none of the question, after the last row of the channel it keeps, or after its last line where it keeps
+    // none of the channel
     unsigned int place = file->lines;
+    unsigned int first_asked = file->lines;
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
-        place = (ksc_row_read(file->line[at], channel, &s_row) && !ksc_row_asked(file->line[at], channel, asked))
-                    ? (at + 1u)
-                    : place;
+        if (!ksc_row_read(file->line[at], channel, &s_row))
+        {
+            continue;
+        }
+        if (ksc_row_asked(file->line[at], channel, asked))
+        {
+            first_asked = (first_asked == file->lines) ? at : first_asked;
+        }
+        else
+        {
+            place = at + 1u;
+        }
     }
+    place = (first_asked != file->lines) ? first_asked : place;
     const unsigned int put = ktext_lines_put_by(file, place, rows, count, who);
     if ((put == 0u) && (count != 0u))
     {

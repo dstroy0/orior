@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pieces.c: the pieces: a word and a run read, the pieces of the vendor's listing read, what a read holds, a piece's reading and name, a form's name and text composed, and a form kept
+// pieces.c: the pieces: a word and a run read, the pieces of the vendor's listing read, what a read holds, a piece's
+// reading and name, a form's name and text composed, and a form kept
 #include "khw_machine_write_internal.h"
 
 // one piece of a name as the vendor's table gives it
@@ -203,11 +204,44 @@ static int khw_place_printed(const KhwForm *held, unsigned int run)
     return 0;
 }
 
+// 1 where `run` of `held` is a constant run after the form's first: the constant bank's operand is printed once,
+// by the first constant run, the offset, with the bank read from the second where the form holds one
+static int khw_constant_later(const KhwForm *held, unsigned int run)
+{
+    if (held->kind[run] != KHW_KIND_CONSTANT)
+    {
+        return 0;
+    }
+    for (unsigned int before = 0u; before < run; before += 1u)
+    {
+        if (held->kind[before] == KHW_KIND_CONSTANT)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the bank the constant bank's operand of `held` reads, the second constant run's value; 0 where the form holds one
+// constant run alone, the bank its encoding holds
+static unsigned long long khw_constant_bank(const KhwForm *held, unsigned int first_run)
+{
+    for (unsigned int run = first_run + 1u; run < held->runs; run += 1u)
+    {
+        if (held->kind[run] == KHW_KIND_CONSTANT)
+        {
+            return khw_run_read(held->low, held->high, held->first[run], held->last[run]);
+        }
+    }
+    return 0ull;
+}
+
 // The text of a form the part answered `held` of: a predicate run as the vendor writes a guard, `@P<n>` before the
 // operation, `@!P<n>` where the bit past the predicate's three is set, and nothing where it is every predicate; its
 // name; then each other run in the order its first bit rises, the order they are printed in, the runs of one place
 // one operand printed by the first, each read from the encoding through its own run by its kind: a register `R<n>`,
-// or the name the tree writes a register the part answers nothing at under; an address `[R<n>.64]`; a number `0x<n>`
+// or the name the tree writes a register the part answers nothing at under; an address `[R<n>.64]`; a number `0x<n>`;
+// the constant bank's operand `c[0x<bank>][0x<offset>]`, printed once by its offset run
 void khw_text_composed(const KhwForm *held, char *written, size_t room)
 {
     char name[KHW_NAME];
@@ -238,7 +272,7 @@ void khw_text_composed(const KhwForm *held, char *written, size_t room)
     unsigned int printed = 0u;
     for (unsigned int run = 0u; (run < held->runs) && (at < room); run += 1u)
     {
-        if ((held->kind[run] == KHW_KIND_PREDICATE) || khw_place_printed(held, run))
+        if ((held->kind[run] == KHW_KIND_PREDICATE) || khw_place_printed(held, run) || khw_constant_later(held, run))
         {
             continue;
         }
@@ -246,7 +280,12 @@ void khw_text_composed(const KhwForm *held, char *written, size_t room)
         const char *const mark = ((marked != NULL) && (held->place[run] == 1u)) ? marked : "";
         char between[8];
         snprintf(between, sizeof(between), "%s%s", (printed == 0u) ? " " : ", ", mark);
-        if (held->kind[run] == KHW_KIND_IMMEDIATE)
+        if (held->kind[run] == KHW_KIND_CONSTANT)
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%sc[0x%llx][0x%llx]", between,
+                                   khw_constant_bank(held, run), number);
+        }
+        else if (held->kind[run] == KHW_KIND_IMMEDIATE)
         {
             at += (size_t)snprintf(&written[at], room - at, "%s0x%llx", between, number);
         }
