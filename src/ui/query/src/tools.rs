@@ -75,6 +75,23 @@ pub struct Tool {
 
 pub const EVERY: &[Tool] = &[
     Tool {
+        name: "bus_clock",
+        c: &[&[
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/bus_clock.c",
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.c",
+            "src/cu/transpiler/lstar/protocol/query/query_ask.c",
+        ]],
+        cxx: &[],
+        cxx_tool: &[],
+        file_defs: true,
+        skip: &[],
+        includes: &[],
+        c_flags: C11,
+        cxx_flags: &[],
+        link: &[],
+        headers: &["src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding", "src/cu/transpiler/lstar/protocol/query"],
+    },
+    Tool {
         name: "qry_writer",
         c: &[&["src/cu/types/file_defs/qry/qry_writer.c", "src/cu/types/file_defs/qry/writer/*.c", "src/cu/types/file_defs/qry/buffer/*.c"]],
         cxx: &[],

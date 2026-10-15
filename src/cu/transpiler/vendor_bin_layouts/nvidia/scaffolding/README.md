@@ -59,6 +59,11 @@ Give `mmio_read_check` a hex offset and a word count to read any registers: `mmi
 
 To remove the service: `pwsh -File install_bar0.ps1 -Remove`.
 
+The protocol asks the clock through this listener: `orior protocol learn clock [<from> [<words>]]` puts the ADVANCES
+qualifier at each word of a span of the aperture and keeps the first that advances in the part's `.ksc` as
+`run answers <offset> clock bus` (`bus_clock.c`, beside the carrier). Where the service is not running the command says
+the install above and asks nothing.
+
 ## Reading, not probing
 
 With the register state read directly, the register boundary is known from the part's own report, not found by an ask

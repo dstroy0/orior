@@ -31,8 +31,8 @@ The panel keeps the job's option fields at the top as the run started with them.
 
 | node | reached by | the count beneath |
 | --- | --- | --- |
-| Tools | the job's first console line after the tools are built | |
-| Run | the run's `.qry` made and the tap connected | |
+| Tools | the run naming its tap, which the tools are built before; its time is the build's | |
+| Run | the first blob off the tap | |
 | Carried in | `forms_work.txt`, `faulted.txt` and `overseer.txt` placed | the blobs placed before the plan |
 | Plan | the teacher's `plan: <pass> <questions>` line | |
 | Round n | the round's `questions.txt` placed | the blobs placed in the round; under way, answered of asked, each `answers<n>.txt` one answered |

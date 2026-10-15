@@ -65,11 +65,14 @@ pub enum Step {
     Dry(u32),
     /// One slot's questions emitted for the cross to read.
     Enumerate(String),
+    /// The clock asked of the bus: the ADVANCES qualifier at each word of a span of the register aperture, the
+    /// span's first byte offset and its count of words, in hex.
+    Clock(String, String),
 }
 
 impl Step {
     pub fn read(words: &[String]) -> Result<Step, String> {
-        let usage = "learn takes discover|turns|registers|costs [--base <cu>], seed <listing.sass>, rounds [<n>], dry [<n>] or enumerate <slot>";
+        let usage = "learn takes discover|turns|registers|costs [--base <cu>], seed <listing.sass>, rounds [<n>], dry [<n>], enumerate <slot> or clock [<from> [<words>]]";
         let (first, rest) = words.split_first().ok_or(usage)?;
         let base = || -> Result<Option<String>, String> {
             match rest {
@@ -85,6 +88,7 @@ impl Step {
             "rounds" => Ok(Step::Rounds(count()?)),
             "dry" => Ok(Step::Dry(count()?)),
             "enumerate" => rest.first().map(|slot| Step::Enumerate(slot.clone())).ok_or(usage.into()),
+            "clock" => Ok(Step::Clock(rest.first().cloned().unwrap_or_else(|| CLOCK_FROM.into()), rest.get(1).cloned().unwrap_or_else(|| CLOCK_WORDS.into()))),
             _ => Err(usage.into()),
         }
     }
@@ -174,6 +178,19 @@ fn verdicts_said(context: &mut Context, run: &Run) {
     }
 }
 
+/// The span of the register aperture the clock is asked in where none is given: the first byte offset and the
+/// count of words, in hex. The part's answer is which word of it advances; the span is only where the asking starts.
+pub const CLOCK_FROM: &str = "9000";
+pub const CLOCK_WORDS: &str = "400";
+
+/// The listener's service, which maps the part's register aperture read-only (the scaffolding's README).
+const LISTENER: &str = "GpuBar0";
+
+/// 1 where the listener's service runs, read from the service controller.
+fn listener_runs() -> bool {
+    std::process::Command::new("sc.exe").args(["query", LISTENER]).output().map(|out| String::from_utf8_lossy(&out.stdout).contains("RUNNING")).unwrap_or(false)
+}
+
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let step = Step::read(words)?;
     let files = Files::of(context.root, "sm_86");
@@ -183,6 +200,21 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let work = context.at(WORK);
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     match step {
+        Step::Clock(from, count) => {
+            // the clock asked of the bus through the listener, the first word of the span that advances kept in
+            // the part's .ksc; where the listener's service is not started the install is said, elevated, and
+            // nothing is asked
+            if !listener_runs() {
+                let script = context.root.join("src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/install_bar0.ps1");
+                return Err(format!("the listener's service {LISTENER} is not running: in an elevated shell, pwsh -File {} -Sign (the machine in test-signing mode)", text(&script)));
+            }
+            let clock = context.tool("bus_clock")?;
+            let mut run = context.started(FOLDER)?;
+            run.read(&[files.costs.clone()])?;
+            let code = context.teed(&run, "bus_clock", &clock, &[&text(&files.costs), &from, &count, "10"])?;
+            context.ended(run)?;
+            Ok(code)
+        }
         Step::Pass(ref name, _) if name == "costs" => {
             // the costs pass is the identity's cost instrument over the machine file's forms (pairs cost): each form
             // put at a link of a chain of ours and the part's clock read around it, in the part's clock count and no
@@ -328,6 +360,8 @@ mod passes {
         assert_eq!(said(&["rounds", "3"]).unwrap(), Step::Rounds(3));
         assert_eq!(said(&["dry"]).unwrap(), Step::Dry(1));
         assert_eq!(said(&["dry", "2"]).unwrap(), Step::Dry(2));
+        assert_eq!(said(&["clock"]).unwrap(), Step::Clock(CLOCK_FROM.into(), CLOCK_WORDS.into()));
+        assert_eq!(said(&["clock", "0", "4000"]).unwrap(), Step::Clock("0".into(), "4000".into()));
         assert_eq!(said(&["enumerate", "loop_back_if"]).unwrap(), Step::Enumerate("loop_back_if".into()));
         assert!(said(&["enumerate"]).is_err());
         assert!(said(&["seed"]).is_err());

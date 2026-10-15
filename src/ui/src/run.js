@@ -269,7 +269,8 @@ function shownRun() {
 // What the panel is told of a run beyond its blobs: the tools were built once the run's first
 // console line came, the run started once its tap was named, and the run ended.
 function shownOf(run) {
-  return { pass: run.pass, plan: run.plan, tools: run.lines.length > 0, started: run.tapped, ended: run.done };
+  // the tools are built by the time the run names its tap, and the run has started once its first blob comes
+  return { pass: run.pass, plan: run.plan, tools: run.tapped, started: run.telemetry.firstAt !== null, ended: run.done };
 }
 
 // The protocol jobs, whose runs show in the panel.
