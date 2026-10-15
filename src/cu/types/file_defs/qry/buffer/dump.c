@@ -138,12 +138,19 @@ int qry_firsts_written(QryBuffer *buffer, QryFile *file, QryWriterState *state)
                 whole &= qry_file_added(file, buffer->data + s_taken[place].at, s_taken[place].size, 1);
                 whole &= qry_marked_written(buffer, s_taken[place].at);
                 bytes += s_taken[place].size;
+                // the blob read off its frame: its line to the tap, a panic or a critical blob reaching it first, and
+                // a panic's time from its hand to the disk
+                QryBlob blob;
+                const int read = qry_blob_read(buffer->data, *tail_seen, s_taken[place].at, &blob);
+                if (read)
+                {
+                    qry_tapped(buffer, blob.sequence, blob.nanoseconds, priority, QRY_MEMBERS,
+                               (const char *)(buffer->data + blob.name_at), (size_t)blob.name_length, blob.size);
+                }
                 if (priority == QRY_PANIC)
                 {
-                    // a panic's time from its hand to the disk, its hand's time read off its frame
-                    QryBlob blob;
                     const unsigned long long now = qry_nanoseconds();
-                    if (qry_blob_read(buffer->data, *tail_seen, s_taken[place].at, &blob) && (now > blob.nanoseconds))
+                    if (read && (now > blob.nanoseconds))
                     {
                         const double milliseconds = (double)(now - blob.nanoseconds) / 1000000.0;
                         state->writes.panic_slowest =

@@ -183,16 +183,21 @@ struct QryBuffer
     atomic_flag adding;
     int last_ringed;
     unsigned long long last_placed;
+    // the writer's tap, the pipe's name while it is open and empty where it is not (tap.c)
+    char tap_name[128];
 #if defined(_WIN32)
     HANDLE section;
     HANDLE lock;
     HANDLE wake;
     HANDLE writer;
+    HANDLE tap;
+    int tap_connected;
 #else
     unsigned char *view;
     unsigned long long view_bytes;
     int memory;
     sem_t *wake;
+    int tap;
     char memory_name[64];
     char wake_name[64];
 #endif
@@ -309,6 +314,17 @@ unsigned long long qry_milliseconds(void);
 void qry_sleep_millisecond(void);
 int qry_name_taken(const char *name, size_t *length);
 void qry_names(const char *path, char *memory, char *lock, char *wake, size_t room);
+
+// The writer's tap (tap.c): the pipe named from the hash of the .qry's path as the wake is, `\\.\pipe\qry-<hash>-tap`
+// on Windows and the FIFO `/tmp/qry-<hash>-tap` on POSIX; opened by the writer as it starts, 1, or 0 where the system
+// gives no pipe and the run goes on with no tap; one line a blob written as the writer places it, `<sequence>
+// <nanoseconds> <priority> <member> <name> <size>`, the member its ring's place or `-` for a blob that went in at the
+// tail, a line with no reader dropped and the writer never waiting on it; and closed as the writer ends
+void qry_tap_name(const char *path, char *name, size_t room);
+int qry_tap_opened(QryBuffer *buffer);
+void qry_tapped(QryBuffer *buffer, unsigned long long sequence, unsigned long long nanoseconds, unsigned int priority,
+                unsigned int member, const char *name, size_t name_length, unsigned long long size);
+void qry_tap_closed(QryBuffer *buffer);
 void qry_lock(QryBuffer *buffer);
 void qry_unlock(QryBuffer *buffer);
 void qry_wake(QryBuffer *buffer);

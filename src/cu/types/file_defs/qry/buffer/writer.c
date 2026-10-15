@@ -127,6 +127,8 @@ int qry_write_until_stopped(QryBuffer *buffer)
         atomic_store(&head->writing, 0u);
         return 0;
     }
+    // the tap open for the run, where the writer's start did not open it already
+    qry_tap_opened(buffer);
     unsigned long long last = qry_milliseconds();
     int stopped = 0;
     int moved = 0;
@@ -199,6 +201,7 @@ int qry_write_until_stopped(QryBuffer *buffer)
                  head->capacity, 0ull, &placed);
     qry_unlock(buffer);
     qry_range_written(buffer, &file, atomic_load(&head->written), atomic_load(&head->tail), state);
+    qry_tap_closed(buffer);
     const int closed = qry_file_closed(&file);
     const int failed = state->writes.failed;
     free(state);

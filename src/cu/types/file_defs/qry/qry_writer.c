@@ -89,6 +89,13 @@ int main(int count, char **words)
             return 1;
         }
         printf("  qry_writer: the buffer of %s is made\n", words[2]);
+        // the tap opened before the run goes, and named, for a reader that connects on the line
+        if (qry_tap_opened(buffer))
+        {
+            char tap[128];
+            qry_tap_name(words[2], tap, sizeof(tap));
+            printf("  qry_writer: the tap of %s is %s\n", words[2], tap);
+        }
         fflush(stdout);
         const int written = qry_write_until_stopped(buffer);
         qry_close(buffer);
