@@ -23,6 +23,26 @@ The app reads all of it from the tree each time:
 
 A job's description is the opening comment or docstring of its own file.
 
+## The protocol panel
+
+A protocol job launched from the Protocol menu, a query, a learn pass, a cross, a write or the pairs, shows its run as it goes in the protocol panel, in place of a console tee. The run's writer carries a tap (the table's run section, the tap): the app's server connects to it when the job's run names its `.qry`, and each blob the writer places arrives as a `run-blob` event, its sequence, time, priority, member, name and size. The panel is the run's telemetry, for an engineer tuning the protocol.
+
+The panel keeps the job's option fields at the top as the run started with them. Under them runs the fuse, on the time ruler as a clone's does, and along it a row of label boxes, one a step, each lit when its blob arrives:
+
+| box | lit by |
+| --- | --- |
+| Tools | the job's first console line after the tools are built |
+| Run | the run's `.qry` made and the tap connected |
+| Carried in | `forms_work.txt`, `faulted.txt` and `overseer.txt` placed |
+| First round | the kernel's question and the slot's placed |
+| Round n | `questions.txt` placed, the round written; `held.txt`, the cross read it; each `answers<n>.txt`, a question answered, the box showing answered of asked |
+| Panic | a blob at the panic priority: the fuse sputters out where it stands, and the conference's accounts and ruling are named as they land |
+| Leave | the pass's end and the leaves written |
+
+The fuse's length is the pass's progress: the questions answered or held over the count the teacher's `plan.txt` gives as the pass starts, and the time gone where no plan was handed. The console stays under the panel, folded. A run with no tap, an older writer, leaves the panel to the console, and the job's end closes the pipe and the panel says so.
+
+Checks: a C check of the tap, a writer started, blobs handed from two members and a panic, the tap's lines read back in sequence order with the panic first; a test of the server's reading of a tap line into an event; the app's harness holding that the boxes light from a recorded tap; and `orior protocol learn dry 1 --leave none` as the end-to-end run with nothing launched.
+
 ## Precepts
 
 1. Never cause the user friction: a snappy response, and the user does what they need to while we background our processes.
