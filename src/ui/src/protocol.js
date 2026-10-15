@@ -313,8 +313,12 @@ export function telemetryHistory(telemetry, nowMs) {
   return counts;
 }
 
-// A span of milliseconds as the page says it: seconds under a minute, else minutes and seconds, else hours and minutes.
+// A span of milliseconds as the page says it: tenths of a second under ten, seconds under a minute, else minutes and
+// seconds, else hours and minutes.
 export function spanSaid(ms) {
+  if (ms < 10000) {
+    return `${(Math.max(0, ms) / 1000).toFixed(1)} s`;
+  }
   const seconds = Math.round(ms / 1000);
   if (seconds < 60) {
     return `${seconds} s`;

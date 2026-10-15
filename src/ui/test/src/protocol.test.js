@@ -191,7 +191,8 @@ test("a round's line gives the latency, and the errors are counted off the conso
 });
 
 test("a span is said in the unit that fits", () => {
-  assert.equal(spanSaid(4200), "4 s");
+  assert.equal(spanSaid(4200), "4.2 s");
+  assert.equal(spanSaid(42000), "42 s");
   assert.equal(spanSaid(200000), "3 min 20 s");
   assert.equal(spanSaid(3 * 3600000 + 5 * 60000), "3 h 5 min");
 });

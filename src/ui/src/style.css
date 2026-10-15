@@ -9929,6 +9929,16 @@ textarea.report-field {
   color: var(--fg-2);
 }
 
+.console .protocol-time {
+  font: 11px var(--code);
+  color: var(--fg-3);
+  min-height: 11px;
+}
+
+.console .protocol-node.current .protocol-time {
+  color: var(--fuse-fire);
+}
+
 /* The overview of a protocol run: the line across the middle of the box. */
 .console .protocol-overview {
   flex: 1;

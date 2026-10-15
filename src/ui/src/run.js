@@ -66,15 +66,29 @@ function lineOf(run) {
   return lineBox;
 }
 
+// The run's clock: milliseconds since the job started, standing still at the end once the run has ended.
+function nowOf(run) {
+  return run.done && run.endMs !== null ? run.endMs : performance.now() - run.clock;
+}
+
+// The moment each node of the line was first reached, on the run's clock, noted as the line is read.
+function reachedNoted(run, read, nowMs) {
+  for (const node of read.nodes) {
+    if (node.reached && run.reachedAt[node.key] === undefined) {
+      run.reachedAt[node.key] = nowMs;
+    }
+  }
+}
+
 // The run's telemetry over the line: the readings, each a value over its name, and the answers a second
 // drawn over the last two minutes.
 function readingsOf(run) {
-  const nowMs = performance.now() - run.clock;
+  const nowMs = nowOf(run);
   const read = telemetryRead(run.telemetry, { nowMs, plan: run.plan, reading: run.reading, ended: run.done });
   const seconds = (value) => (value === null ? "" : `${value.toFixed(2)} s`);
   const readings = [
     ["answers a second", read.rate.toFixed(1)],
-    ["time gone", spanSaid(read.gone)],
+    ["time gone", spanSaid(nowMs)],
     ["time left", read.left === null ? "" : spanSaid(read.left)],
     ["airlock", seconds(read.airlock)],
     ["cross", seconds(read.cross)],
@@ -152,11 +166,19 @@ function viewBody(run) {
     // while the overview stands
     const ticker = setInterval(() => {
       const shown = document.getElementById("protocol-readings");
+      const nodes = document.getElementById("protocol-nodes");
       if (!shown || !overview.isConnected) {
         clearInterval(ticker);
         return;
       }
       shown.replaceWith(readingsOf(run));
+      if (nodes) {
+        nodes.replaceWith(lineNodes(run));
+      }
+      // a run that has ended stands still: drawn once more at its end, then left
+      if (run.done) {
+        clearInterval(ticker);
+      }
     }, 1000);
     return overview;
   }
@@ -191,8 +213,24 @@ function blobLines(run, key) {
 // way showing answered of asked, each a button that shows the node's blobs in place of the console.
 function lineNodes(run) {
   const read = panelRead(run.reading, shownOf(run));
+  const nowMs = nowOf(run);
+  reachedNoted(run, read, nowMs);
   const nodes = element("div", { className: "protocol-nodes", id: "protocol-nodes" });
   const last = Math.max(1, read.nodes.length - 1);
+  // the time each node took: from the node before it was reached to its own reaching, and for the node under
+  // way the time since the last one reached, still running
+  let before = 0;
+  const timeOf = (node, index) => {
+    if (node.reached && run.reachedAt[node.key] !== undefined) {
+      const span = run.reachedAt[node.key] - before;
+      before = run.reachedAt[node.key];
+      return spanSaid(span);
+    }
+    if (index === read.at + 1 && !run.done) {
+      return spanSaid(nowMs - before);
+    }
+    return "";
+  };
   read.nodes.forEach((node, index) => {
     const shown = run.view === node.key;
     const current = index === read.at + 1 && node.round !== null;
@@ -204,7 +242,8 @@ function lineNodes(run) {
     });
     made.style.left = `${(index / last) * 100}%`;
     const count = underWay || current ? (read.round.asked ? `${read.round.answered} of ${read.round.asked}` : "") : node.blobs ? String(node.blobs) : "";
-    made.append(element("span", { className: "protocol-dot" }), element("span", { className: "protocol-label", textContent: node.label }), element("span", { className: "protocol-count", textContent: count }));
+    const time = timeOf(node, index);
+    made.append(element("span", { className: "protocol-dot" }), element("span", { className: "protocol-label", textContent: node.label }), element("span", { className: "protocol-count", textContent: count }), element("span", { className: "protocol-time", textContent: time }));
     made.addEventListener("click", () => {
       run.view = node.key;
       drawStage();
@@ -238,7 +277,7 @@ const PROTOCOL = "protocol";
 
 // A run record as it starts: its console lines and, for a protocol run, the reading of its tap.
 function runRecord(run, job, lines, steps, clock) {
-  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", tapped: false, view: OVERVIEW, telemetry: telemetryStart() };
+  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", tapped: false, view: OVERVIEW, telemetry: telemetryStart(), reachedAt: {} };
 }
 
 function early(run) {
