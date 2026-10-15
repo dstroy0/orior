@@ -156,15 +156,40 @@ static unsigned int khw_register_bits(const char *ksc)
     return bits;
 }
 
+// the most seeds a discover pass asks, the listing's and their variants together
+#define KHW_SEEDS_MOST 4096u
+
+// `low` and `high` added to the seeds `seed_low` and `seed_high`, `*count` of them, where neither the working set nor
+// the seeds hold it already
+static void khw_seed_added(unsigned long long *seed_low, unsigned long long *seed_high, unsigned int *count,
+                           unsigned long long low, unsigned long long high)
+{
+    if (khw_named_already(low, high) || (*count == KHW_SEEDS_MOST))
+    {
+        return;
+    }
+    for (unsigned int at = 0u; at < *count; at += 1u)
+    {
+        if ((seed_low[at] == low) && (seed_high[at] == high))
+        {
+            return;
+        }
+    }
+    seed_low[*count] = low;
+    seed_high[*count] = high;
+    *count += 1u;
+}
+
 // Every seed of the run's blob `name` asked its relation from the top in the slot, each a line `<low> <high>` in hex
 // as a vendor's reader of a listing writes it (sass_listing_seeds): one that answers a ladder relation enters the
 // working set as a discovered form, its fields left for the turns and register passes once a cross has read them, and
 // one that answers none, or is a form the part has answered for already, is passed over. A seed is put with the
 // slot's own registers: a listing's instruction names the compiler's registers, and the slot's case words lie in the
 // kernel's. The words the kernel's own classified form holds at its register fields are written into the seed at the
-// same fields, and the part says whether the relation holds there. The seeds are the question Q17 names and the part
-// answers; no byte of the listing enters a form. Each goes through the airlock as any question: the cross reads it,
-// and the gate holds its key unknown until a conference admits it (overseer.h). The count that entered
+// same fields, every other register field is set in turn to the zero register the part answered, and the part says
+// whether the relation holds there. The seeds are the question Q17 names and the part answers; no byte of the listing
+// enters a form. They go through the airlock in rounds as any question: the cross reads each, and the gate holds its
+// key unknown until a conference admits it (overseer.h). The count that entered
 unsigned int khw_seeds_asked(const char *name)
 {
     const unsigned char *bytes = NULL;
@@ -184,6 +209,7 @@ unsigned int khw_seeds_asked(const char *name)
     static ContainerLayout s_layout;
     const unsigned int register_bits = khw_register_bits(s_ksc_path);
     const int fields_read = (register_bits != 0u) && container_layout_read(&s_layout, s_fields);
+    const unsigned int zero = khw_fixed_register("zero");
     const KhwAnswered *kernel = NULL;
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
@@ -202,11 +228,16 @@ unsigned int khw_seeds_asked(const char *name)
         printf("  khw_write: no classified form holds the slot's registers, and no seed is asked\n");
         return 0u;
     }
+    // The seeds asked: each of the listing's as it stands, the slot's registers in the register fields the kernel's
+    // form covers, and for each register field it does not cover the same with that field set to the zero register
+    // the part answered (fixed zero, Open 6.2), so that a source the slot's form does not hold adds nothing; which of
+    // these is a form the part decides. A field holding no register, set so, the vendor's reader holds before the part
+    static unsigned long long s_seed_low[KHW_SEEDS_MOST];
+    static unsigned long long s_seed_high[KHW_SEEDS_MOST];
+    unsigned int seeds = 0u;
     char line[256];
     unsigned long long next = 0ull;
-    unsigned int entered = 0u;
-    unsigned int asked = 0u;
-    while ((s_names < KHW_FORMS) && khw_line_read(bytes, size, &next, line, sizeof(line)))
+    while ((seeds < KHW_SEEDS_MOST) && khw_line_read(bytes, size, &next, line, sizeof(line)))
     {
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
@@ -214,6 +245,9 @@ unsigned int khw_seeds_asked(const char *name)
         {
             continue;
         }
+        unsigned int open_first[KHW_RUNS];
+        unsigned int open_last[KHW_RUNS];
+        unsigned int opens = 0u;
         for (unsigned int at = 0u; fields_read && (at < s_layout.rows); at += 1u)
         {
             const LayoutRow *const row = &s_layout.row[at];
@@ -224,8 +258,7 @@ unsigned int khw_seeds_asked(const char *name)
             // a field's first bit is below 128 and its width at most that: both fit an unsigned int
             const unsigned int first = (unsigned int)row->offset;
             const unsigned int last = first + row->width - 1u;
-            // a register field is one an operand run of the kernel's form lies within: a field as wide as a register
-            // that holds no operand of it keeps the seed's own bits
+            // a register field is one an operand run of the kernel's form lies within
             int operand = 0;
             for (unsigned int run = 0u; run < kernel->runs; run += 1u)
             {
@@ -236,6 +269,12 @@ unsigned int khw_seeds_asked(const char *name)
             {
                 khw_run_write(&low, &high, first, last, khw_run_read(slot_low, slot_high, first, last));
             }
+            else if (opens < KHW_RUNS)
+            {
+                open_first[opens] = first;
+                open_last[opens] = last;
+                opens += 1u;
+            }
         }
         for (unsigned int run = 0u; !fields_read && (run < kernel->runs); run += 1u)
         {
@@ -245,34 +284,58 @@ unsigned int khw_seeds_asked(const char *name)
                               khw_run_read(kernel->low, kernel->high, kernel->first[run], kernel->last[run]));
             }
         }
-        if (khw_named_already(low, high))
+        khw_seed_added(s_seed_low, s_seed_high, &seeds, low, high);
+        for (unsigned int at = 0u; (zero != KHW_FIXED_NONE) && (at < opens); at += 1u)
         {
-            continue;
+            unsigned long long zeroed_low = low;
+            unsigned long long zeroed_high = high;
+            khw_run_write(&zeroed_low, &zeroed_high, open_first[at], open_last[at], zero);
+            khw_seed_added(s_seed_low, s_seed_high, &seeds, zeroed_low, zeroed_high);
         }
-        asked += 1u;
-        KhwAnswered held;
-        memset(&held, 0, sizeof(held));
-        if (!khw_relation_asked(low, high, &held))
-        {
-            continue;
-        }
-        held.phase = KHW_PHASE_DISCOVERED;
-        s_named[s_names] = held;
-        s_names += 1u;
-        entered += 1u;
-        char relation[64];
-        printf("    seed %-14s %016llx %016llx  discovered, its turns held for a cross-check\n",
-               khw_relation_named(&held, 1, relation, sizeof(relation)), low, high);
     }
-    printf("  seeds: %u asked their relation, %u answered one and entered the working set\n", asked, entered);
+    // the seeds asked in rounds, as many a round as the pool holds, over the union's cases at the slot, and each read
+    // for its relation; one that answers a relation enters the working set discovered
+    khw_union_written();
+    unsigned int entered = 0u;
+    for (unsigned int first = 0u; first < seeds; first += SCHEDULER_ROUND_MOST)
+    {
+        const unsigned int last = ((first + SCHEDULER_ROUND_MOST) < seeds) ? (first + SCHEDULER_ROUND_MOST) : seeds;
+        s_pooled = 0u;
+        for (unsigned int at = first; at < last; at += 1u)
+        {
+            khw_pooled(s_slot, s_seed_low[at], s_seed_high[at], s_union_word, s_union_cases);
+        }
+        khw_round_carried();
+        for (unsigned int at = first; (at < last) && (s_names < KHW_FORMS); at += 1u)
+        {
+            KhwAnswered held;
+            memset(&held, 0, sizeof(held));
+            held.low = s_seed_low[at];
+            held.high = s_seed_high[at];
+            if (!khw_relation_of(&s_pool[at - first], &held))
+            {
+                continue;
+            }
+            held.phase = KHW_PHASE_DISCOVERED;
+            s_named[s_names] = held;
+            s_names += 1u;
+            entered += 1u;
+            char relation[64];
+            printf("    seed %-14s %016llx %016llx  discovered, its turns held for a cross-check\n",
+                   khw_relation_named(&held, 1, relation, sizeof(relation)), held.low, held.high);
+        }
+        s_pooled = 0u;
+    }
+    printf("  seeds: %u asked their relation, %u answered one and entered the working set\n", seeds, entered);
     return entered;
 }
 
 // Every form the part answered for widened: each bit outside its operands' runs, its key and the scheduler's word
 // turned, and the turned encoding asked its relation from the top. An operand's run is one with a place in the
 // relation's tuple; a run that carries no word of the tuple is no operand of the relation, and its bits are turned as
-// any other's. Every turned encoding's relation waits on no other answer, and
-// they are put SCHEDULER_ROUND_MOST to a round. Where `discover` is 0 each that answered a relation is then asked its
+// any other's. A pass turns at most KHW_FORMS encodings, the newest form's first: a form the set gained last is the
+// frontier of the widening, and an older form's turns, which R answers already, fill what is left of the pass. Every
+// turned encoding's relation waits on no other answer, and they are put SCHEDULER_ROUND_MOST to a round. Where `discover` is 0 each that answered a relation is then asked its
 // fields; where it is not 0 it is kept with its fields unasked, for a cross-check to read its turns before a later
 // pass asks them off a part that would hang on an encoding the vendor calls illegal. Only a classified form is a
 // source of a widening: a form still short of its operand runs would widen on bits its register-runs have not yet
@@ -287,9 +350,9 @@ unsigned int khw_widened(unsigned int from, int discover)
     static unsigned long long s_turned_high[KHW_FORMS];
     static int s_turned_frame[KHW_FORMS];
     unsigned int turned = 0u;
-    for (unsigned int at = from; at < until; at += 1u)
+    for (unsigned int at = until; at > from; at -= 1u)
     {
-        const KhwAnswered held = s_named[at];
+        const KhwAnswered held = s_named[at - 1u];
         const int framed = (held.frame != (unsigned int)FRAME_RELATION_COUNT);
         if ((discover != 0) && (held.phase != KHW_PHASE_CLASSIFIED))
         {

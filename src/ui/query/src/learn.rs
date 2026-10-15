@@ -201,7 +201,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             words.push(step_word);
             if let Step::Seed(listing) = &step {
                 let seeds = context.tool("sass_listing_seeds")?;
-                if context.handed(&run, "seeds.txt", &seeds, &[listing])? != 0 {
+                if context.handed(&run, "seeds.txt", &seeds, &[listing, "--modifiers"])? != 0 {
                     return Err("the seeds were not handed".into());
                 }
                 words.extend(["--seeds".into(), "seeds.txt".into()]);
