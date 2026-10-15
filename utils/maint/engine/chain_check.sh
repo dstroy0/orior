@@ -31,6 +31,9 @@
 #                    keeps the oldest
 #   tables_funnel_check  holds the vendor's tables read off a capture of its disassembler: the records, the
 #                    archive's LZ4 blocks unpacked with one window, and the latencies gathered from the copies
+#   tables_read_check  holds the vendor's instruction set read: the classes, their opcodes and fields, the fields
+#                    joined on one line, and the class an encoding belongs to
+#   constant_check   holds rule 13: a read of the constant bank past the bank or of a bank the container has none of
 #   naming_check     holds the vendor's writer's texts on forms written by hand: the name by relation, the mark on a
 #                    take form's second word, a flag bit printing nothing, and the guard before the operation
 #   ranges_check     holds the cross's cut of the distinct slot encodings over the host's processors: the ranges tile
@@ -91,6 +94,10 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/standing_check" "$TOP/utils/test/src/cu/t
     "$TOP/src/cu/transpiler/lstar/parser/khw_write/standing.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_funnel_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_funnel_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_read_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_read_check.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/constant_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/constant_check.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/pieces.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c \
@@ -187,6 +194,8 @@ fi
 "$OUT/turning_check" || exit 1
 "$OUT/standing_check" || exit 1
 "$OUT/tables_funnel_check" || exit 1
+"$OUT/tables_read_check" || exit 1
+"$OUT/constant_check" || exit 1
 "$OUT/naming_check" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv" || exit 1
 "$OUT/ranges_check" || exit 1
 mkdir -p "$OUT/tap_check.run"

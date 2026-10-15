@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// rules.c: the rules: a register read and held out of range, the key's form and the key straight, the exit and where it ends, the code held safe, the image, the launch, and a fault's status read
+// rules.c: the rules: a register read and held out of range, the key's form and the key straight, the exit and where it
+// ends, the code held safe, the image, the launch, and a fault's status read
 #include "cubin_safe_internal.h"
 
 // the register the operand whose run begins at `run_first` names, its whole fixed eight-bit field read: the number in
@@ -107,7 +108,8 @@ static int cubin_key_straight(const SassMachine *machine, unsigned long long low
 // 1 where `parts` is an EXIT, its modifiers whatever they are
 static int cubin_exit(const SassInstructionParts *parts)
 {
-    return (strncmp(parts->operation, "EXIT", 4u) == 0) && ((parts->operation[4] == '\0') || (parts->operation[4] == '.'));
+    return (strncmp(parts->operation, "EXIT", 4u) == 0) &&
+           ((parts->operation[4] == '\0') || (parts->operation[4] == '.'));
 }
 
 // 1 where the EXIT `parts` is taken by every thread that reaches it: no guard, and every operand it prints PT with
@@ -127,6 +129,10 @@ static int cubin_exit_ends(const SassInstructionParts *parts)
     }
     return 1;
 }
+
+// the size of the constant bank's section beside the code section under the gate, 0 where it is not known: set
+// by cubin_safe_image for each code section from the container's constant sections, in their order
+static unsigned long long s_bank_size;
 
 unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, unsigned long long code_size,
                         unsigned int registers, unsigned long long *at)
@@ -152,6 +158,12 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
         if (((high >> CUBIN_WAIT_SHIFT) & 0x3full) != SASS_WAIT_EVERY)
         {
             return CUBIN_SAFE_WAIT;
+        }
+        // a read of the constant bank the part would fault on, read through the vendor's own instruction set where
+        // the part's tables are pulled (rule 13)
+        if (cubin_safe_tables_ready() && cubin_constant_out_of_bank(cubin_safe_tables(), low, high, s_bank_size))
+        {
+            return CUBIN_SAFE_CONSTANT;
         }
         char text[256];
         if (!sass_encoding_read(machine, low, high, place, text, sizeof(text)))
@@ -226,7 +238,12 @@ unsigned int cubin_safe_image(const SassMachine *machine, const unsigned char *i
 {
     unsigned long long offsets[CUBIN_SAFE_SECTIONS];
     unsigned long long sizes[CUBIN_SAFE_SECTIONS];
+    unsigned long long bank_offsets[CUBIN_SAFE_SECTIONS];
+    unsigned long long bank_sizes[CUBIN_SAFE_SECTIONS];
     const unsigned int sections = cubin_code_sections(image, size, offsets, sizes, CUBIN_SAFE_SECTIONS);
+    // the constant bank's sections stand in the code sections' order, one a kernel; a container with fewer leaves the
+    // bank's size unknown for the code sections past them
+    const unsigned int banks = cubin_constant_sections(image, size, bank_offsets, bank_sizes, CUBIN_SAFE_SECTIONS);
     *at = 0ull;
     if (sections == 0u)
     {
@@ -235,7 +252,9 @@ unsigned int cubin_safe_image(const SassMachine *machine, const unsigned char *i
     for (unsigned int section = 0u; section < sections; section += 1u)
     {
         unsigned long long inside = 0ull;
+        s_bank_size = (section < banks) ? bank_sizes[section] : 0ull;
         const unsigned int verdict = cubin_safe(machine, &image[offsets[section]], sizes[section], registers, &inside);
+        s_bank_size = 0ull;
         if (verdict != CUBIN_SAFE)
         {
             *at = offsets[section] + inside;
@@ -252,7 +271,7 @@ unsigned int cubin_safe_launch(int status, unsigned long long waited)
         return CUBIN_SAFE_LAUNCH_TIMEOUT;
     }
     return ((status == CUBIN_SAFE_STATUS_NOT_READY) && (waited > CUBIN_SAFE_LAUNCH_BOUND)) ? CUBIN_SAFE_LAUNCH_TIMEOUT
-                                                                                            : CUBIN_SAFE;
+                                                                                           : CUBIN_SAFE;
 }
 
 // 1 where `status` is a driver fault that corrupts the context: the part faulted on the launch, the error is sticky,

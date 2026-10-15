@@ -67,4 +67,11 @@ unsigned int container_code_sections(const ContainerLayout *layout, const unsign
                                      unsigned long long size, unsigned long long *offsets, unsigned long long *sizes,
                                      unsigned int room);
 
+// every section of `container` whose name begins as the layout's text `key` does with no part, as
+// container_code_sections finds the code's by `section.code`: the offset of each through `offsets` and its length
+// through `sizes`, which hold `room`, and the count found
+unsigned int container_named_sections(const ContainerLayout *layout, const unsigned char *container,
+                                      unsigned long long size, const char *key, unsigned long long *offsets,
+                                      unsigned long long *sizes, unsigned int room);
+
 #endif

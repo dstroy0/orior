@@ -126,3 +126,11 @@ unsigned int cubin_code_sections(const unsigned char *cubin, unsigned long long 
     const ContainerLayout *const layout = cubin_layout();
     return (layout != NULL) ? container_code_sections(layout, cubin, size, offsets, sizes, room) : 0u;
 }
+
+unsigned int cubin_constant_sections(const unsigned char *cubin, unsigned long long size, unsigned long long *offsets,
+                                     unsigned long long *sizes, unsigned int room)
+{
+    const ContainerLayout *const layout = cubin_layout();
+    return (layout != NULL) ? container_named_sections(layout, cubin, size, "section.constant", offsets, sizes, room)
+                            : 0u;
+}

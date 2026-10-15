@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// verdicts.c: the verdicts: the held encodings cleared, read line by line, added and loaded, whether a verdict is ready and holds, the admitted encodings cleared, read and held, and a verdict's name
+// verdicts.c: the verdicts: the held encodings cleared, read line by line, added and loaded, whether a verdict is ready
+// and holds, the admitted encodings cleared, read and held, and a verdict's name
 #include "cubin_safe_internal.h"
 
 static unsigned long long *s_held_low = NULL;
@@ -228,18 +229,20 @@ int cubin_safe_admitted(unsigned long long low, unsigned long long high)
 
 const char *cubin_safe_name(unsigned int verdict)
 {
-    static const char *const s_names[] = {"safe",
-                                          "not a whole count of instructions",
-                                          "an instruction no form holds, stalled short of the longest",
-                                          "a wait short of all six barriers",
-                                          "a control transfer or a wait",
-                                          "an operation key unknown or holding a control transfer or a wait",
-                                          "a second instruction no form holds",
-                                          "no EXIT without a guard",
-                                          "a barrier set by an operation whose result is back in a measured count",
-                                          "a launch the driver timed out, or not back inside the bound",
-                                          "a launch that faulted the part, its context left corrupt",
-                                          "a register the kernel did not allot",
-                                          "an encoding the vendor held off the part"};
+    static const char *const s_names[] = {
+        "safe",
+        "not a whole count of instructions",
+        "an instruction no form holds, stalled short of the longest",
+        "a wait short of all six barriers",
+        "a control transfer or a wait",
+        "an operation key unknown or holding a control transfer or a wait",
+        "a second instruction no form holds",
+        "no EXIT without a guard",
+        "a barrier set by an operation whose result is back in a measured count",
+        "a launch the driver timed out, or not back inside the bound",
+        "a launch that faulted the part, its context left corrupt",
+        "a register the kernel did not allot",
+        "an encoding the vendor held off the part",
+        "a read of the constant bank past the bank, or of a bank the container has none of"};
     return (verdict < (sizeof(s_names) / sizeof(s_names[0]))) ? s_names[verdict] : "unknown";
 }

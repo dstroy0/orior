@@ -1,0 +1,476 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// read.c: the vendor's instruction set read: each CLASS with its opcode, its fields by name and its constant-bank
+// operand
+#include "read.h"
+
+#include <stdlib.h>
+#include <string.h>
+
+// the line at `*at` of `text`, `size` long, copied into `line` without its end, `*at` moved past it: 1, or 0 at
+// the end of the text; a line longer than `room` is cut to it
+static int tables_line_read(const unsigned char *text, size_t size, size_t *at, char *line, size_t room)
+{
+    if (*at >= size)
+    {
+        return 0;
+    }
+    size_t length = 0u;
+    while ((*at < size) && (text[*at] != '\n'))
+    {
+        if (length + 1u < room)
+        {
+            line[length] = (char)text[*at];
+            length += 1u;
+        }
+        *at += 1u;
+    }
+    line[length] = '\0';
+    if (*at < size)
+    {
+        *at += 1u;
+    }
+    return 1;
+}
+
+static const char *tables_past_spaces(const char *at)
+{
+    while ((*at == ' ') || (*at == '\t'))
+    {
+        at += 1;
+    }
+    return at;
+}
+
+static int tables_set_grown(TablesSet *set)
+{
+    if (set->count < set->room)
+    {
+        return 1;
+    }
+    const unsigned int room = (set->room == 0u) ? 64u : (set->room * 2u);
+    TablesClass *const grown = (TablesClass *)realloc(set->class_, (size_t)room * sizeof(TablesClass));
+    if (grown == NULL)
+    {
+        return 0;
+    }
+    set->class_ = grown;
+    set->room = room;
+    return 1;
+}
+
+// `CLASS "<name>"`: the name into `name`, `room` long: 1, or 0 where the line is no class head
+static int tables_class_head(const char *line, char *name, size_t room)
+{
+    if (strncmp(line, "CLASS \"", 7u) != 0)
+    {
+        return 0;
+    }
+    const char *const end = strchr(line + 7, '"');
+    if (end == NULL)
+    {
+        return 0;
+    }
+    const size_t length = (size_t)(end - (line + 7));
+    const size_t kept = (length < room) ? length : (room - 1u);
+    memcpy(name, line + 7, kept);
+    name[kept] = '\0';
+    return 1;
+}
+
+// the opcode of an OPCODES line, `<name> = 0b<bits>;`, the bits read as they stand
+static int tables_opcode_read(const char *line, unsigned long long *opcode)
+{
+    const char *const at = strstr(line, "0b");
+    if (at == NULL)
+    {
+        return 0;
+    }
+    unsigned long long value = 0ull;
+    for (const char *bit = at + 2; (*bit == '0') || (*bit == '1'); bit += 1)
+    {
+        value = (value << 1u) | (unsigned long long)(*bit - '0');
+    }
+    *opcode = value;
+    return 1;
+}
+
+// `BITS_<n>_<hi>_<lo>..._<name>=<operand>;` into `field`: 1, or 0 where the line is no such field
+static int tables_field_line(const char *line, TablesField *field)
+{
+    if (strncmp(line, "BITS_", 5u) != 0)
+    {
+        return 0;
+    }
+    memset(field, 0, sizeof(*field));
+    const char *at = line + 5;
+    char *end = NULL;
+    // the count, then pairs of numbers while a number follows the underscore
+    const unsigned long count = strtoul(at, &end, 10);
+    if ((end == at) || (*end != '_'))
+    {
+        return 0;
+    }
+    at = end + 1;
+    for (;;)
+    {
+        char *high_end = NULL;
+        const unsigned long high = strtoul(at, &high_end, 10);
+        if ((high_end == at) || (*high_end != '_'))
+        {
+            break;
+        }
+        char *low_end = NULL;
+        const unsigned long low = strtoul(high_end + 1, &low_end, 10);
+        if ((low_end == high_end + 1) || (*low_end != '_') || (low > high) || (high > 127ul))
+        {
+            break;
+        }
+        if (field->runs < TABLES_FIELD_RUNS)
+        {
+            // the bits are below 128, which an unsigned int holds
+            field->run[field->runs].first = (unsigned int)low;
+            field->run[field->runs].last = (unsigned int)high;
+            field->width += (unsigned int)(high - low + 1ul);
+            field->runs += 1u;
+        }
+        at = low_end + 1;
+    }
+    if (field->runs == 0u)
+    {
+        return 0;
+    }
+    const char *const equals = strchr(at, '=');
+    if (equals == NULL)
+    {
+        return 0;
+    }
+    // the name runs to the equals sign, spaces before it dropped
+    size_t length = (size_t)(equals - at);
+    while ((length != 0u) && (at[length - 1u] == ' '))
+    {
+        length -= 1u;
+    }
+    const size_t kept = (length < TABLES_NAME) ? length : (TABLES_NAME - 1u);
+    memcpy(field->name, at, kept);
+    field->name[kept] = '\0';
+    const char *operand = tables_past_spaces(equals + 1);
+    if (*operand == '*')
+    {
+        field->fixed = 1;
+        field->value = strtoull(operand + 1, NULL, 0);
+    }
+    size_t operand_length = strcspn(operand, ";");
+    while ((operand_length != 0u) && (operand[operand_length - 1u] == ' '))
+    {
+        operand_length -= 1u;
+    }
+    const size_t operand_kept = (operand_length < TABLES_NAME) ? operand_length : (TABLES_NAME - 1u);
+    memcpy(field->operand, operand, operand_kept);
+    field->operand[operand_kept] = '\0';
+    // the width the line counts is the runs' where the runs are whole; a count past them is a line cut short
+    return (unsigned long)field->width == count;
+}
+
+// An ENCODING line's fields added to `class_`: one field, or several joined by commas on the line's left and
+// written from one operand, `BITS_5_58_54_Sc_bank,BITS_14_53_40_Sc_addr=ConstBankAddress2(Sb_bank,Sb_addr)`, where
+// each field takes the operand's argument in its place, and the whole operand where it has none to give
+static void tables_fields_line(const char *line, TablesClass *class_)
+{
+    const char *const equals = strchr(line, '=');
+    if ((equals == NULL) || (strncmp(line, "BITS_", 5u) != 0))
+    {
+        return;
+    }
+    const char *const operand = tables_past_spaces(equals + 1);
+    // the operand's arguments, where it is a call: the text between its parentheses, split on commas
+    const char *const open = strchr(operand, '(');
+    const char *const close = (open != NULL) ? strrchr(operand, ')') : NULL;
+    unsigned int parts = 1u;
+    for (const char *at = line; at < equals; at += 1)
+    {
+        parts += (*at == ',') ? 1u : 0u;
+    }
+    const char *part = line;
+    for (unsigned int index = 0u; index < parts; index += 1u)
+    {
+        const char *const part_end = (index + 1u < parts) ? strchr(part, ',') : equals;
+        if (part_end == NULL)
+        {
+            return;
+        }
+        char one[1024];
+        const size_t left = (size_t)(part_end - part);
+        if (left + 2u >= sizeof(one))
+        {
+            return;
+        }
+        memcpy(one, part, left);
+        size_t length = left;
+        one[length] = '=';
+        length += 1u;
+        // the argument in this field's place, or the whole operand
+        const char *argument = operand;
+        size_t argument_length = strcspn(operand, ";");
+        if ((parts > 1u) && (open != NULL) && (close != NULL) && (close > open))
+        {
+            const char *at = open + 1;
+            for (unsigned int skipped = 0u; (skipped < index) && (at < close); at += 1)
+            {
+                skipped += (*at == ',') ? 1u : 0u;
+            }
+            const char *const comma = strchr(at, ',');
+            argument = at;
+            argument_length = (size_t)((((comma != NULL) && (comma < close)) ? comma : close) - at);
+        }
+        if (length + argument_length + 2u >= sizeof(one))
+        {
+            return;
+        }
+        memcpy(one + length, argument, argument_length);
+        length += argument_length;
+        one[length] = ';';
+        one[length + 1u] = '\0';
+        if ((class_->fields < TABLES_CLASS_FIELDS) && tables_field_line(one, &class_->field[class_->fields]))
+        {
+            class_->fields += 1u;
+        }
+        part = part_end + 1;
+    }
+}
+
+// the name after the last ':' before `end` in `text`, into `name`
+static void tables_name_before(const char *text, const char *end, char *name)
+{
+    const char *colon = NULL;
+    for (const char *at = text; at < end; at += 1)
+    {
+        colon = (*at == ':') ? at : colon;
+    }
+    name[0] = '\0';
+    if (colon == NULL)
+    {
+        return;
+    }
+    const char *at = colon + 1;
+    size_t length = 0u;
+    while ((at + length < end) && (length + 1u < TABLES_NAME) &&
+           (((at[length] >= 'a') && (at[length] <= 'z')) || ((at[length] >= 'A') && (at[length] <= 'Z')) ||
+            ((at[length] >= '0') && (at[length] <= '9')) || (at[length] == '_')))
+    {
+        name[length] = at[length];
+        length += 1u;
+    }
+    name[length] = '\0';
+}
+
+// a FORMAT line holding a constant-bank operand, `C:<name>[...:<bank>]...[...:<offset>]`: the bank the name
+// after the first bracket's last colon, the offset the name after the last bracket's last colon
+static void tables_constant_read(const char *line, TablesClass *class_)
+{
+    const char *const constant = strstr(line, "C:");
+    if ((constant == NULL) ||
+        (constant != line && (constant[-1] != '\'') && (constant[-1] != ' ') && (constant[-1] != ',')))
+    {
+        return;
+    }
+    const char *const first_open = strchr(constant, '[');
+    const char *const first_close = (first_open != NULL) ? strchr(first_open, ']') : NULL;
+    if (first_close == NULL)
+    {
+        return;
+    }
+    tables_name_before(first_open, first_close, class_->bank);
+    const char *const last_close = strrchr(first_close, ']');
+    const char *last_open = NULL;
+    for (const char *at = first_close; (last_close != NULL) && (at < last_close); at += 1)
+    {
+        last_open = (*at == '[') ? at : last_open;
+    }
+    if ((last_open != NULL) && (last_close != NULL))
+    {
+        tables_name_before(last_open, last_close, class_->offset);
+    }
+}
+
+int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
+{
+    char line[1024];
+    size_t at = 0u;
+    TablesClass *class_ = NULL;
+    enum
+    {
+        ELSEWHERE,
+        FORMAT,
+        OPCODES,
+        ENCODING
+    } part = ELSEWHERE;
+    while (tables_line_read(text, size, &at, line, sizeof(line)))
+    {
+        char name[TABLES_NAME + 16u];
+        if (tables_class_head(line, name, sizeof(name)))
+        {
+            if (!tables_set_grown(set))
+            {
+                return 0;
+            }
+            class_ = &set->class_[set->count];
+            set->count += 1u;
+            memset(class_, 0, sizeof(*class_));
+            memcpy(class_->name, name, sizeof(name));
+            part = ELSEWHERE;
+            continue;
+        }
+        if (class_ == NULL)
+        {
+            continue;
+        }
+        if (strncmp(line, "FORMAT", 6u) == 0)
+        {
+            part = FORMAT;
+        }
+        else if (strcmp(line, "OPCODES") == 0)
+        {
+            part = OPCODES;
+            continue;
+        }
+        else if (strcmp(line, "ENCODING") == 0)
+        {
+            part = ENCODING;
+            continue;
+        }
+        else if ((line[0] >= 'A') && (line[0] <= 'Z') && (strspn(line, "ABCDEFGHIJKLMNOPQRSTUVWXYZ_") == strlen(line)))
+        {
+            // another part's head, CONDITIONS, PROPERTIES, PREDICATES: capitals and underscores alone
+            part = ELSEWHERE;
+            continue;
+        }
+        if (part == FORMAT)
+        {
+            tables_constant_read(line, class_);
+            if (line[strlen(line) - ((strlen(line) != 0u) ? 1u : 0u)] == ';')
+            {
+                part = ELSEWHERE;
+            }
+        }
+        else if (part == OPCODES)
+        {
+            unsigned long long opcode = 0ull;
+            if (tables_opcode_read(line, &opcode))
+            {
+                class_->opcode = opcode;
+            }
+        }
+        else if (part == ENCODING)
+        {
+            tables_fields_line(line, class_);
+        }
+    }
+    return 1;
+}
+
+void tables_set_freed(TablesSet *set)
+{
+    free(set->class_);
+    set->class_ = NULL;
+    set->count = 0u;
+    set->room = 0u;
+}
+
+const TablesField *tables_field_named(const TablesClass *class_, const char *name)
+{
+    for (unsigned int field = 0u; field < class_->fields; field += 1u)
+    {
+        if (strcmp(class_->field[field].name, name) == 0)
+        {
+            return &class_->field[field];
+        }
+    }
+    return NULL;
+}
+
+const TablesField *tables_field_by_operand(const TablesClass *class_, const char *operand)
+{
+    for (unsigned int field = 0u; field < class_->fields; field += 1u)
+    {
+        if (!class_->field[field].fixed && (strcmp(class_->field[field].operand, operand) == 0))
+        {
+            return &class_->field[field];
+        }
+    }
+    return NULL;
+}
+
+static unsigned long long tables_bits_read(unsigned long long low, unsigned long long high, unsigned int first,
+                                           unsigned int last)
+{
+    const unsigned int width = last - first + 1u;
+    const unsigned long long mask = (width >= 64u) ? ~0ull : ((1ull << width) - 1ull);
+    if (last < 64u)
+    {
+        return (low >> first) & mask;
+    }
+    if (first >= 64u)
+    {
+        return (high >> (first - 64u)) & mask;
+    }
+    // a run across the words: the low word's part under the high word's
+    const unsigned int low_width = 64u - first;
+    return ((low >> first) | (high << low_width)) & mask;
+}
+
+static void tables_bits_write(unsigned long long *low, unsigned long long *high, unsigned int first, unsigned int last,
+                              unsigned long long value)
+{
+    for (unsigned int bit = first; bit <= last; bit += 1u)
+    {
+        const unsigned long long one = (value >> (bit - first)) & 1ull;
+        if (bit < 64u)
+        {
+            *low = (*low & ~(1ull << bit)) | (one << bit);
+        }
+        else
+        {
+            *high = (*high & ~(1ull << (bit - 64u))) | (one << (bit - 64u));
+        }
+    }
+}
+
+unsigned long long tables_field_read(const TablesField *field, unsigned long long low, unsigned long long high)
+{
+    unsigned long long value = 0ull;
+    for (unsigned int run = 0u; run < field->runs; run += 1u)
+    {
+        const unsigned int width = field->run[run].last - field->run[run].first + 1u;
+        value = (value << width) | tables_bits_read(low, high, field->run[run].first, field->run[run].last);
+    }
+    return value;
+}
+
+void tables_field_write(const TablesField *field, unsigned long long *low, unsigned long long *high,
+                        unsigned long long value)
+{
+    // the low run takes the value's low bits: the runs are written last first
+    unsigned int run = field->runs;
+    while (run != 0u)
+    {
+        run -= 1u;
+        const unsigned int width = field->run[run].last - field->run[run].first + 1u;
+        const unsigned long long mask = (width >= 64u) ? ~0ull : ((1ull << width) - 1ull);
+        tables_bits_write(low, high, field->run[run].first, field->run[run].last, value & mask);
+        value >>= width;
+    }
+}
+
+const TablesClass *tables_class_of(const TablesSet *set, unsigned long long low, unsigned long long high)
+{
+    for (unsigned int at = 0u; at < set->count; at += 1u)
+    {
+        const TablesClass *const class_ = &set->class_[at];
+        const TablesField *const opcode = tables_field_named(class_, "opcode");
+        if ((opcode != NULL) && (tables_field_read(opcode, low, high) == class_->opcode))
+        {
+            return class_;
+        }
+    }
+    return NULL;
+}

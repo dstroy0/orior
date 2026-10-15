@@ -39,6 +39,9 @@
 
 #define CUBIN_SAFE_SCHED_KEPT_HIGH 0x000001ffffffffffull
 
+// the vendor's instruction set rule 13 reads, read by cubin_safe_tables_read (constant.c)
+const struct TablesSetTag *cubin_safe_tables(void);
+
 
 
 #endif

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// A cubin written from a kernel's machine code and a cubin the toolchain made for a kernel that takes the same parameters
+// A cubin written from a kernel's machine code and a cubin the toolchain made for a kernel that takes the same
+// parameters
 #ifndef CUBIN_WRITE_H
 #define CUBIN_WRITE_H
 
@@ -64,5 +65,10 @@ unsigned int cubin_registers_read(const unsigned char *pattern, unsigned long lo
 // header, a name or a section lies past the cubin's end, or there are more than `room`
 unsigned int cubin_code_sections(const unsigned char *cubin, unsigned long long size, unsigned long long *offsets,
                                  unsigned long long *sizes, unsigned int room);
+
+// every section of the constant bank of `cubin`, which is `size` bytes, each named .nv.constant0.<function>, as
+// cubin_code_sections gives the code's: the parameters' bank of each kernel, in the kernels' order
+unsigned int cubin_constant_sections(const unsigned char *cubin, unsigned long long size, unsigned long long *offsets,
+                                     unsigned long long *sizes, unsigned int room);
 
 #endif

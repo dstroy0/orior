@@ -219,8 +219,8 @@ unsigned int container_registers_read(const ContainerLayout *layout, const unsig
 }
 
 unsigned int container_exits_read(const ContainerLayout *layout, const unsigned char *pattern,
-                                   unsigned long long pattern_size, const char *part, unsigned int *exits,
-                                   unsigned int room)
+                                  unsigned long long pattern_size, const char *part, unsigned int *exits,
+                                  unsigned int room)
 {
     Places places;
     char named[256];
@@ -269,10 +269,17 @@ unsigned int container_code_sections(const ContainerLayout *layout, const unsign
                                      unsigned long long size, unsigned long long *offsets, unsigned long long *sizes,
                                      unsigned int room)
 {
+    return container_named_sections(layout, container, size, "section.code", offsets, sizes, room);
+}
+
+unsigned int container_named_sections(const ContainerLayout *layout, const unsigned char *container,
+                                      unsigned long long size, const char *key, unsigned long long *offsets,
+                                      unsigned long long *sizes, unsigned int room)
+{
     Places places;
     char code[256];
-    // the code name with no part is what every code section's name begins with
-    if (!container_places_read(layout, &places) || !layout_text(layout, "section.code", "", code, sizeof(code)) ||
+    // the section's name with no part is what every such section's name begins with
+    if (!container_places_read(layout, &places) || !layout_text(layout, key, "", code, sizeof(code)) ||
         (places.header_bytes > size) ||
         !place_inside(places.section_table, places.section_table_width, places.header_bytes) ||
         !place_inside(places.section_entry, places.section_entry_width, places.header_bytes) ||

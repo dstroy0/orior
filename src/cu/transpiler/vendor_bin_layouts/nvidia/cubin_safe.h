@@ -72,8 +72,26 @@ enum CubinSafe
     CUBIN_SAFE_LAUNCH_TIMEOUT = 9,
     CUBIN_SAFE_LAUNCH_FAULT = 10,
     CUBIN_SAFE_REGISTER = 11,
-    CUBIN_SAFE_HELD = 12
+    CUBIN_SAFE_HELD = 12,
+    CUBIN_SAFE_CONSTANT = 13
 };
+
+// the vendor's instruction set as tables/read.h reads it
+struct TablesSetTag;
+
+// The vendor's instruction set for `part` read once off build/vendor/nvidia/tables/<part>_instructions.txt, the
+// file the tables step pulls, for rule 13: 1 where it read and holds a class, 0 where the file is not there or
+// holds none, and rule 13 holds nothing
+int cubin_safe_tables_read(const char *part);
+
+int cubin_safe_tables_ready(void);
+
+// Rule 13: 1 where the encoding `low` and `high` belongs to a class of `tables` that reads the constant bank and
+// reads a bank other than 0, the parameters' bank, the one a container of ours carries a section for; or, where
+// `bank_size` is not 0, a word ending past the bank's `bank_size` bytes, the offset's field counting words of
+// four. 0 for an encoding of no class or of a class reading no bank
+int cubin_constant_out_of_bank(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high,
+                               unsigned long long bank_size);
 
 // What the driver gives for a launch the system's watchdog ended (CUDA_ERROR_LAUNCH_TIMEOUT), and for an event the part
 // has not reached yet (CUDA_ERROR_NOT_READY)
