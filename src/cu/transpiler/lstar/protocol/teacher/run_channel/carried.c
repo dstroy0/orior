@@ -228,7 +228,8 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
     int airlocked = 0;
     while (first < count)
     {
-        if (run_channel_on_line() != 0ull)
+        // a panic on the line, or one ruled on inside this round: the questions left are held, and no process after
+        if ((run_channel_on_line() != 0ull) || run_channel_panic_ruled())
         {
             run_channel_halted(asked, first, count);
             return answered;
@@ -345,9 +346,10 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
             }
             at += 1u;
         }
-        // a panic on the line: the teacher's account handed, the question the carrier was carrying the one its ending
-        // answered or, where it ended clean, the last it answered, its refusal; and no question is put after it
-        if (run_channel_on_line() != 0ull)
+        // a panic on the line, or one ruled on as the answers were read: the teacher's account handed where the line is
+        // open, the question the carrier was carrying the one its ending answered or, where it ended clean, the last
+        // it answered, its refusal; and no question is put after it
+        if ((run_channel_on_line() != 0ull) || run_channel_panic_ruled())
         {
             const unsigned int carrying = (!clean || (unanswered == first)) ? unanswered : (unanswered - 1u);
             char line[RUN_LINE_LONGEST];
