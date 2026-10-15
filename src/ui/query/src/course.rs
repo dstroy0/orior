@@ -14,11 +14,13 @@ pub struct Step {
     words: &'static [&'static str],
 }
 
-/// The steps in order: the widening discovers forms at the slot, their turns and register runs
-/// classify them, the ruleset is written from them, the engine's stick is built from the ruleset,
-/// the pairs hold the stick's chains against the part and ask how far a container's code reaches,
-/// the forms are timed, and the ruleset is written again with the costs.
-pub const STEPS: [Step; 9] = [
+/// The steps in order: the vendor's tables are pulled off its disassembler, the widening discovers
+/// forms at the slot, their turns and register runs classify them, the ruleset is written from them,
+/// the engine's stick is built from the ruleset, the pairs hold the stick's chains against the part
+/// and ask how far a container's code reaches, the forms are timed, and the ruleset is written again
+/// with the costs.
+pub const STEPS: [Step; 10] = [
+    Step { name: "vendor tables", loop_: crate::tables::run, words: &[] },
     Step { name: "discover", loop_: crate::learn::run, words: &["discover"] },
     Step { name: "turns", loop_: crate::learn::run, words: &["turns"] },
     Step { name: "registers", loop_: crate::learn::run, words: &["registers"] },
@@ -69,10 +71,10 @@ mod steps {
 
     #[test]
     fn the_steps_run_the_protocol_in_order_and_the_names_are_offered_to_start_from() {
-        assert_eq!(names(), ["discover", "turns", "registers", "write krs", "stick engine", "pairs stick", "pairs past", "costs", "write krs"]);
+        assert_eq!(names(), ["vendor tables", "discover", "turns", "registers", "write krs", "stick engine", "pairs stick", "pairs past", "costs", "write krs"]);
         assert_eq!(from(&[]).unwrap(), 0);
-        assert_eq!(from(&["--from".into(), "costs".into()]).unwrap(), 7);
-        assert_eq!(from(&["--from".into(), "write krs".into()]).unwrap(), 3, "a name two steps share names the first");
+        assert_eq!(from(&["--from".into(), "costs".into()]).unwrap(), 8);
+        assert_eq!(from(&["--from".into(), "write krs".into()]).unwrap(), 4, "a name two steps share names the first");
         assert!(from(&["--from".into()]).is_err());
         assert!(from(&["--from".into(), "fly".into()]).unwrap_err().contains("no step of the course is fly"));
     }

@@ -27,10 +27,16 @@ pub enum Role {
     Python,
     /// nvidia-smi, which says whether the part is free.
     NvidiaSmi,
+    /// docker, which runs the harness's images.
+    Docker,
+    /// curl, which fetches the vendor's archives.
+    Curl,
+    /// tar, which unpacks them.
+    Tar,
 }
 
 impl Role {
-    pub const EVERY: [Role; 8] = [Role::C, Role::Cxx, Role::Nvcc, Role::Nvdisasm, Role::Cuobjdump, Role::Cl, Role::Python, Role::NvidiaSmi];
+    pub const EVERY: [Role; 11] = [Role::C, Role::Cxx, Role::Nvcc, Role::Nvdisasm, Role::Cuobjdump, Role::Cl, Role::Python, Role::NvidiaSmi, Role::Docker, Role::Curl, Role::Tar];
 
     /// The role as a person reads it in a message.
     pub fn name(self) -> &'static str {
@@ -43,6 +49,9 @@ impl Role {
             Role::Cl => "cl",
             Role::Python => "python",
             Role::NvidiaSmi => "nvidia-smi",
+            Role::Docker => "docker",
+            Role::Curl => "curl",
+            Role::Tar => "tar",
         }
     }
 }
@@ -126,6 +135,9 @@ impl Programs for OnPath {
             Role::Cl => on_path(&["cl"]).or_else(cl_installed),
             Role::Python => on_path(if cfg!(windows) { &["python", "python3"] } else { &["python3", "python"] }),
             Role::NvidiaSmi => on_path(&["nvidia-smi"]),
+            Role::Docker => on_path(&["docker"]),
+            Role::Curl => on_path(&["curl"]),
+            Role::Tar => on_path(&["tar"]),
         };
         found.ok_or_else(|| format!("{} is not found on the PATH", role.name()))
     }

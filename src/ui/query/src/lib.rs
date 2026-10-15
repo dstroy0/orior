@@ -18,6 +18,7 @@ pub mod pairs;
 pub mod programs;
 pub mod run;
 pub mod stick;
+pub mod tables;
 pub mod tools;
 pub mod write;
 pub mod writer;

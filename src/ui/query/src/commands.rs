@@ -97,6 +97,13 @@ pub fn list(root: &Path) -> Vec<Command> {
             words: vec![Word::Lit("course"), Word::Flag("--from", "from"), Word::Flag("--leave", "leave")],
         },
         Command {
+            id: "tables",
+            title: "tables",
+            about: "the vendor's tables, the instruction set and the latencies of every architecture, pulled off its disassembler",
+            params: vec![words("architectures"), leave_param()],
+            words: vec![Word::Lit("tables"), Word::Words("architectures"), Word::Flag("--leave", "leave")],
+        },
+        Command {
             id: "query",
             title: "query",
             about: "the bridge written over the two languages' rulesets, then its pairs put to the part where one is chosen",
@@ -251,7 +258,7 @@ impl Context<'_> {
 }
 
 fn usage() -> String {
-    "orior protocol takes one of course, query, learn, cross, write, pairs, stick, kept, sweep".to_string()
+    "orior protocol takes one of course, tables, query, learn, cross, write, pairs, stick, kept, sweep".to_string()
 }
 
 /// The words run: a code to exit with, or why they could not be.
@@ -263,6 +270,7 @@ pub fn run(root: &Path, programs: &dyn Programs, words: &[String], sink: &mut dy
     let (first, rest) = words.split_first().ok_or_else(usage)?;
     match first.as_str() {
         "course" => crate::course::run(&mut context, rest),
+        "tables" => crate::tables::run(&mut context, rest),
         "learn" => crate::learn::run(&mut context, rest),
         "cross" => crate::cross::run(&mut context, rest),
         "write" => crate::write::run(&mut context, rest),
@@ -282,7 +290,7 @@ mod dispatch {
     #[test]
     fn the_list_names_every_loop_once() {
         let ids: Vec<&str> = list(Path::new(".")).iter().map(|c| c.id).collect();
-        assert_eq!(ids, ["course", "query", "learn", "cross", "write", "pairs", "stick", "kept", "sweep"]);
+        assert_eq!(ids, ["course", "tables", "query", "learn", "cross", "write", "pairs", "stick", "kept", "sweep"]);
     }
 
     #[test]
