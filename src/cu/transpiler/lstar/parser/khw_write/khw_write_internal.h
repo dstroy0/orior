@@ -204,6 +204,12 @@ void khw_turns_asked(KhwAnswered *held, const unsigned int word[1][2]);
 unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms);
 int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], unsigned int *expected);
 int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int words);
+
+// 1 where the machine file's text, `size` bytes at `bytes`, names the encoding `low` and `high` as one of its forms, a
+// line `form <operation> <kinds> 0x<low> 0x<high> ...`. The machine file holds one form an operation and operand
+// shape, the forms a word of the web is written by and ranked among, and a cost is asked for those alone (listed.c)
+int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigned long long low,
+                    unsigned long long high);
 unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
 void khw_plan_handed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);

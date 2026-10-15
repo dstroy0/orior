@@ -284,6 +284,12 @@ int main(int count, char **word)
             snprintf(ksc_path, sizeof(ksc_path), "%.*s.ksc", (int)stem, s_path);
             const unsigned int timed = khw_costs_asked(ksc_path);
             run_channel_close();
+            // the machine file laid out by the vendor once more from the forms the part answered for, as the registers
+            // pass leaves it, in place of the gate's file of the kernel's places the pass asked under
+            if (!khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
+            {
+                return 1;
+            }
             printf("  costs: %u form(s) timed over %u launches each, %llu asks; kept in %s\n", timed, KHW_LAUNCHES,
                    s_asks, ksc_path);
             return 0;

@@ -54,8 +54,12 @@ export function roundsOf(plan) {
   return plan.pass === "costs" ? plan.questions : Math.max(1, Math.ceil(plan.questions / ROUND_MOST));
 }
 
-// A question's answer: `answers<n>.txt`, the carrier's answer to question n of the round.
-const ANSWER = /^answers(\d+)\.txt$/;
+// A question's answer: `answers<n>.txt`, the carrier's answer to question n of the round, and `answers.txt` the
+// answer to a question asked alone.
+const ANSWER = /^answers(\d*)\.txt$/;
+
+// A file of the part's table placed in the run: the machine file, the costs, a ruleset or the record.
+const TABLE_FILE = /\.(ksc|khw|krs|kqr)$/;
 
 // A line of a round's list is about this many bytes: a round's count of questions is read off the
 // list's size until its answers say it exactly.
@@ -81,13 +85,19 @@ export const KEPT_BLOBS = 4096;
 // a blob of a round is that round's, one before the plan's first round is Plan's where a round has been put
 // and Carried in's before.
 function nodeOfBlob(reading, blob, plan) {
-  if (/\.(ksc|khw|krs|kqr)$/.test(blob.name)) {
+  if (TABLE_FILE.test(blob.name) && roundsDone(reading, plan)) {
     return "written";
   }
   if (plan && reading.rounds) {
     return `round${reading.rounds}`;
   }
   return reading.rounds || blob.name === "questions.txt" ? "plan" : "carried";
+}
+
+// 1 where every round the plan counts has been put and the last answered: a file placed after that is the pass's
+// writing; one placed before is the gate's or the walk's, under the node then under way.
+function roundsDone(reading, plan) {
+  return Boolean(plan) && reading.rounds >= roundsOf(plan) && reading.answered >= reading.asked;
 }
 
 // The reading with one more blob taken, the one the writer placed next. The rounds counted are the
@@ -107,9 +117,9 @@ export function panelStep(reading, blob, { plan = null } = {}) {
   const answer = ANSWER.exec(blob.name);
   if (answer && plan) {
     reading.answered += 1;
-    reading.asked = Math.max(reading.asked, Number(answer[1]) + 1);
+    reading.asked = Math.max(reading.asked, Number(answer[1] || 0) + 1);
   }
-  if (/\.(ksc|khw|krs|kqr)$/.test(blob.name)) {
+  if (TABLE_FILE.test(blob.name) && roundsDone(reading, plan)) {
     reading.written = true;
   }
   const node = nodeOfBlob(reading, blob, plan);

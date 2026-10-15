@@ -81,7 +81,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/answer_read_check" "$TOP/utils/test/src/c
     "$TOP/src/cu/transpiler/lstar/protocol/query/answer_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/turning_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/turning_check.c" \
-    "$TOP/src/cu/transpiler/lstar/parser/khw_write/turning.c" || exit 1
+    "$TOP/src/cu/transpiler/lstar/parser/khw_write/turning.c" \
+    "$TOP/src/cu/transpiler/lstar/parser/khw_write/listed.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/pieces.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c \

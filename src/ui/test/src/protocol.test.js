@@ -108,8 +108,24 @@ test("each node keeps the blobs placed while it was under way", () => {
   assert.equal(read.nodes.find((node) => node.key === "round2").blobs, 4);
 });
 
+test("a file placed before the rounds are done is the node under way's, not the pass's writing", () => {
+  const early = [blob("forms_work.txt", 5000), blob("sm_86.khw", 3000), blob("questions.txt", 64), blob("sm_86.ksc", 100)];
+  const read = panelOf(early, { pass: "turns", plan, tools: true, started: true });
+  assert.equal(read.nodes.find((node) => node.key === "written").reached, false);
+  assert.equal(read.nodes.find((node) => node.key === "carried").blobs, 2);
+  assert.equal(read.nodes.find((node) => node.key === "round1").blobs, 2);
+  assert.equal(read.at, 4);
+});
+
+test("an answer to a question asked alone counts as the round's answer", () => {
+  const alone = [blob("questions.txt", 64), blob("answers.txt", 20)];
+  const read = panelOf(alone, { pass: "costs", plan: { pass: "costs", questions: 2 } });
+  assert.equal(read.round.asked, 1);
+  assert.equal(read.round.answered, 1);
+});
+
 test("the written files and the end reach the last nodes", () => {
-  const blobs = [...pass(), blob("sm_86.ksc", 3000)];
+  const blobs = [...pass(), blob("answers1.txt", 20), blob("sm_86.ksc", 3000)];
   const written = panelOf(blobs, { pass: "turns", plan, tools: true, started: true });
   assert.equal(written.nodes.find((node) => node.key === "written").reached, true);
   assert.equal(written.nodes.find((node) => node.key === "written").blobs, 1);

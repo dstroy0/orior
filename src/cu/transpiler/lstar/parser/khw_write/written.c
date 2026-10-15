@@ -194,28 +194,6 @@ int khw_forms_work_written(void)
 // KHW_LAUNCHES launches, each launch alone, and its runs read as the least one took and the spread past it, m_c and
 // s_c. Each is written to the part's .ksc at `path`, the .ksc's every other line kept as it was and the row of a form
 // timed again put in place of the one before. The count timed
-// 1 where the machine file at s_path, the part's .khw as the run holds it and read into `machine`, names the encoding
-// `low` and `high` as one of its forms: a line `form <operation> <kinds> 0x<low> 0x<high> ...`. The machine file holds one
-// form an operation and operand shape, the forms a word of the web is written by and ranked among, and a cost is
-// asked for those alone
-static int khw_form_listed(const KtextFile *machine, unsigned long long low, unsigned long long high)
-{
-    for (unsigned int at = 0u; at < machine->lines; at += 1u)
-    {
-        char operation[64];
-        char kinds[256];
-        unsigned long long listed_low = 0ull;
-        unsigned long long listed_high = 0ull;
-        if ((strncmp(machine->line[at], "form ", 5u) == 0) &&
-            (sscanf(machine->line[at] + 5, "%63s %255s 0x%llx 0x%llx", operation, kinds, &listed_low, &listed_high) == 4) &&
-            (listed_low == low) && (listed_high == high))
-        {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 // 1 where the .ksc read into `file` holds a cost row of the form `low` and `high`: the form was timed once, and stands
 static int khw_cost_kept(const KscFile *file, unsigned long long low, unsigned long long high)
 {
@@ -249,12 +227,16 @@ unsigned int khw_costs_asked(const char *path)
         ksc_free(&s_kept);
         memset(&s_kept, 0, sizeof(s_kept));
     }
-    // the machine file as the run holds it, for the forms a cost is asked of
-    static KtextFile s_machine;
-    if (!ktext_read(&s_machine, s_path))
+    // the machine file as the run carried it in, the first blob of its name, for the forms a cost is asked of: the
+    // file as the run holds it later is the gate's, the kernel's places laid out as forms, and names no form of a word
+    const unsigned char *machine = NULL;
+    unsigned long long machine_size = 0ull;
+    char machine_name[1024];
+    if (!qry_file_named(s_path, machine_name, sizeof(machine_name)) ||
+        !qry_first(qry_run(), machine_name, &machine, &machine_size))
     {
-        ktext_free(&s_machine);
-        memset(&s_machine, 0, sizeof(s_machine));
+        printf("  khw_write: the run carried no %s in, and no form is timed\n", s_path);
+        machine_size = 0ull;
     }
     // the forms to time, found first for the pass's plan: a form is timed once, one the .ksc holds a cost of standing;
     // and only a form the machine file names, one an operation and operand shape, the forms a word of the web is
@@ -266,7 +248,8 @@ unsigned int khw_costs_asked(const char *path)
         const KhwAnswered *const held = &s_named[at];
         const int fragment = (held->frame == (unsigned int)FRAME_RELATION_COUNT) &&
                              !khw_places_whole(held->place, held->runs, s_ladder_words[held->anchor]);
-        if ((held->phase == KHW_PHASE_CLASSIFIED) && !fragment && khw_form_listed(&s_machine, held->low, held->high) &&
+        if ((held->phase == KHW_PHASE_CLASSIFIED) && !fragment &&
+            khw_form_listed(machine, machine_size, held->low, held->high) &&
             !khw_cost_kept(&s_kept, held->low, held->high))
         {
             s_to_time[to_time] = at;
@@ -315,7 +298,6 @@ unsigned int khw_costs_asked(const char *path)
         timed += 1u;
     }
     ksc_free(&s_kept);
-    ktext_free(&s_machine);
     // the .ksc as the run holds it, the row of each form timed now in place of the one before, after the run channel's
     // last row, and handed to the run's writer whole (ksc.h); each row before that the row now does not give again is
     // kept in the part's .krf beside it (krf.h)
