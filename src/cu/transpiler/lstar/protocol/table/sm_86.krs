@@ -1,4 +1,5 @@
 krs 1
+form word_shr to from bits = ISHF.U32 {to}, {from}, {bits}\n
 form word_add to left right = IADD {to}, {left}, {right}, R0, R0\n
 form thread_idx_x to = S2R {to}\n
 form block_idx_x to = S2R {to}, R37\n
