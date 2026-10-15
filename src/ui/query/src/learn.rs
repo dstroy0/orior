@@ -183,6 +183,12 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let work = context.at(WORK);
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     match step {
+        Step::Pass(ref name, _) if name == "costs" => {
+            // the costs pass is the identity's cost instrument over the machine file's forms (pairs cost): each form
+            // put at a link of a chain of ours and the part's clock read around it, in the part's clock count and no
+            // launch's time
+            crate::pairs::run(context, &["cost".to_string(), "--part".to_string(), "sm_86".to_string(), "--to".to_string(), "sass".to_string()])
+        }
         Step::Pass(..) | Step::Seed(..) => {
             let cross = context.tool("measuring_stick_query")?;
             let nvdisasm = nvdisasm(context)?;

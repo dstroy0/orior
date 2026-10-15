@@ -298,6 +298,17 @@ fn judged(context: &mut Context, mode: &Mode, identity: &Path, folder: &str) -> 
     }
     let mut words = vec![mode.mode.clone(), text(&stick.join("engine")), "host_answers.txt".into(), text(&table.join(format!("{}.ksc", mode.part))), text(&out)];
     words.extend(targets(context.root, &mode.mode, &mode.part, &mode.words));
+    if mode.mode == "cost" {
+        // the machine file's forms placed by the vendor's writer, handed to the run for the identity to cost in the
+        // part's clock beside the arrangements
+        let writer = context.tool("khw_machine_write")?;
+        let files = Files::of(context.root, &mode.part);
+        let placed = [mode.part.clone(), text(&files.machine), text(&files.layout), text(&files.mnemonics), "krs_forms.txt".into(), "krs".into()];
+        if context.said(&run, &writer, &placed.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+            return Err("the vendor's writer placed no forms".into());
+        }
+        words.push("krs_forms.txt".into());
+    }
     words.push("--".into());
     words.extend(carry);
     if context.teed(&run, "klq_identity", identity, &words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {

@@ -8,7 +8,6 @@
 //            read the amount's run as the destination; read swapped, (2, 1) stands
 //   none     a relation with no such case gives none
 //   whole    a form's runs are whole where they carry every place of its relation's tuple
-//   listed   a form is listed where the machine file's text names its encoding on a form line
 //
 //     turning_check
 #include "../../../../../../../src/cu/transpiler/lstar/parser/khw_write/khw_write_internal.h"
@@ -71,20 +70,6 @@ int main(void)
     check_that(!khw_places_whole(none, 2u, 2u), "runs with no place are not whole");
     check_that(khw_places_whole(twice, 4u, 2u), "a run with no place beside the whole places leaves them whole");
     check_that(!khw_places_whole(whole, 0u, 2u), "no runs are not whole");
-    // a form is listed where a form line of the machine file names its encoding, whatever else the line holds
-    const char *const machine = "forms 2\n# a comment naming 0x0000000700077210 0x004fca0007ffe0ff\npart sm_86\n"
-                                "form IADD register,register,register 0x0000000700077210 0x004fca0007ffe0ff "
-                                "0:18-18:2 ladder.add 0 IADD R1, R0, R7\n"
-                                "form EXIT none 0x000000000000794d 0x000fea0003800000 8:12-15:0 frame.exit 0 EXIT\n";
-    const unsigned long long machine_size = (unsigned long long)strlen(machine);
-    check_that(khw_form_listed((const unsigned char *)machine, machine_size, 0x0000000700077210ull, 0x004fca0007ffe0ffull),
-               "the add form is listed");
-    check_that(khw_form_listed((const unsigned char *)machine, machine_size, 0x000000000000794dull, 0x000fea0003800000ull),
-               "the last form is listed");
-    check_that(!khw_form_listed((const unsigned char *)machine, machine_size, 0x0000000700077210ull, 0x004fca0007ffe4ffull),
-               "an encoding one bit apart is not listed");
-    check_that(!khw_form_listed((const unsigned char *)machine, 0ull, 0x0000000700077210ull, 0x004fca0007ffe0ffull),
-               "nothing is listed in no text");
     printf("turning_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

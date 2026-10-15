@@ -149,13 +149,6 @@ typedef struct
     int signed_read;
 } KhwCandidate;
 
-// the row a form's cost is kept under in the part's .ksc, its word the least launch and its question the form and the
-// spread: `run answers <least> cost <low> <high> <spread>`, the numbers in hex as every run row writes them; and the
-// words its question begins with, the form's
-#define KHW_COST_ROW "run answers %016llx cost %016llx %016llx %016llx"
-
-#define KHW_COST_ASKED "cost %016llx %016llx"
-
 extern unsigned int s_registers;
 extern unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned char s_code[KHW_PLACES * KHW_INSTRUCTION];
@@ -204,12 +197,6 @@ void khw_turns_asked(KhwAnswered *held, const unsigned int word[1][2]);
 unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms);
 int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], unsigned int *expected);
 int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int words);
-
-// 1 where the machine file's text, `size` bytes at `bytes`, names the encoding `low` and `high` as one of its forms, a
-// line `form <operation> <kinds> 0x<low> 0x<high> ...`. The machine file holds one form an operation and operand
-// shape, the forms a word of the web is written by and ranked among, and a cost is asked for those alone (listed.c)
-int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigned long long low,
-                    unsigned long long high);
 unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
 void khw_plan_handed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
@@ -222,7 +209,6 @@ unsigned int khw_seeds_asked(const char *name);
 unsigned int khw_widened(unsigned int from, int discover);
 int khw_answers_written(void);
 int khw_forms_work_written(void);
-unsigned int khw_costs_asked(const char *path);
 void khw_fields_written(const char *path);
 int khw_vendor_run(const char *mode, const char *answers);
 unsigned int khw_forms_read(const char *name);

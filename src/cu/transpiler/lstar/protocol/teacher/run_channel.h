@@ -79,8 +79,8 @@ typedef struct
     // the cases it is run over, a thread a case, and how many
     unsigned int word[RUN_CASES_MOST][RUN_IN_WORDS];
     unsigned int cases;
-    // how many times it is launched again once it answers, those launches timed together on the part's own timer;
-    // 0 leaves it untimed
+    // how many times it is launched again once it answers, those launches timed together on the driver's event
+    // clock, the driver's word on a launch and not the clock the ask reads (query_ask.h); 0 leaves it untimed
     unsigned int launches;
     // the threads of a block and the blocks of a launch, every thread given a case, thread t case t of the cases taken
     // round; where both are 0 it is one block of a carrier's own count
@@ -88,9 +88,11 @@ typedef struct
     unsigned int blocks;
     // each case's answer, its two words as one value
     unsigned long long answered[RUN_CASES_MOST];
-    // the time the launches took together, in nanoseconds as the part's timer counts them; 0 where it is untimed
+    // the time the launches took together, in nanoseconds off the driver's event clock, which ticks about every half
+    // microsecond; 0 where it is untimed
     unsigned long long nanoseconds;
-    // the least and the most one launch of them took, its block latency, the runs P6 reads; 0 where it is untimed
+    // the least and the most one launch of them took, a launch whole and not the question's own cost: a form costs a
+    // few cycles under a launch's overhead, and P6 ranks nothing off these; 0 where it is untimed
     unsigned long long least;
     unsigned long long most;
     unsigned int outcome;

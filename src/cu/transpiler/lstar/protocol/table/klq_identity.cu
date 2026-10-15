@@ -71,11 +71,15 @@ int main(int count, char **words)
         record_close();
         return identity_pair(words[2], words[3], words[4], words[6], words[7], carrier.data());
     }
-    if ((count >= 10) && (std::string(words[1]) == "cost") && (std::string(words[8]) == "--"))
+    if ((count >= 10) && (std::string(words[1]) == "cost") &&
+        ((std::string(words[8]) == "--") || ((count >= 11) && (std::string(words[9]) == "--"))))
     {
-        std::vector<const char *> carrier(words + 9, words + count);
+        // the machine file's forms placed by the vendor's writer, costed beside the arrangements where named
+        const int with_forms = (std::string(words[8]) != "--");
+        std::vector<const char *> carrier(words + (with_forms ? 10 : 9), words + count);
         carrier.push_back(NULL);
-        return identity_cost(words[2], words[3], words[4], words[5], words[6], words[7], carrier.data());
+        return identity_cost(words[2], words[3], words[4], words[5], words[6], words[7], with_forms ? words[8] : NULL,
+                             carrier.data());
     }
     if ((count >= 10) && (std::string(words[1]) == "text_identity") && (std::string(words[8]) == "--"))
     {
@@ -177,6 +181,7 @@ int main(int count, char **words)
     printf("klq_identity text_identity <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <manifest> -- "
            "<carrier>...\n");
     printf("klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...\n");
-    printf("klq_identity cost <ours folder> <host answers> <ksc> <folder> <kdm> <machine> -- <carrier>...\n");
+    printf("klq_identity cost <ours folder> <host answers> <ksc> <folder> <kdm> <machine> [<placed forms>] -- "
+           "<carrier>...\n");
     return 1;
 }

@@ -70,8 +70,8 @@ int main(int count, char **word)
     // emitted for the vendor's disassembler, and the blob of the run's buffer holding the forms a prior run learned to
     // seed them from, in place of the learn loop (khw_enumerate). The split's passes over the working set: [--discover]
     // widens it a round and keeps what it finds with its fields unasked; [--turns] asks the turns of what a discover
-    // left; [--registers] asks the register-runs the turns found; [--costs] times every classified form (P6) and keeps
-    // its least and spread in the part's .ksc. A cross-check reads each round's questions before it is carried
+    // left; [--registers] asks the register-runs the turns found. A cross-check reads each round's questions before it is
+    // carried
     // (run_channel.h), and no form's turns or register-runs reach the part before the vendor has read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
@@ -83,7 +83,6 @@ int main(int count, char **word)
     int discover = 0;
     int turns = 0;
     int registers = 0;
-    int costs = 0;
     for (int at = 7; at < split; at += 1)
     {
         if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
@@ -112,10 +111,6 @@ int main(int count, char **word)
         else if (strcmp(word[at], "--registers") == 0)
         {
             registers = 1;
-        }
-        else if (strcmp(word[at], "--costs") == 0)
-        {
-            costs = 1;
         }
         else
         {
@@ -192,7 +187,7 @@ int main(int count, char **word)
     // round's questions before it is carried, and neither a form's turns nor its register-runs reach the part before
     // the vendor has read them. The working set is the run's blob KHW_WORK_NAME, which the passes hand each other; the
     // slot is found afresh each pass, off the kernel's code
-    if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
+    if ((discover != 0) || (turns != 0) || (registers != 0))
     {
         KhwAnswered kernel;
         memset(&kernel, 0, sizeof(kernel));
@@ -274,24 +269,6 @@ int main(int count, char **word)
                 return 1;
             }
             printf("  turns: %u form(s) turned, %llu asks; their register-runs await a cross-check\n", asked, s_asks);
-            return 0;
-        }
-        if (costs != 0)
-        {
-            // every classified form timed at the slot, its least and spread kept in the part's .ksc beside the machine
-            // file, where the stall and the last register are kept
-            char ksc_path[1024];
-            snprintf(ksc_path, sizeof(ksc_path), "%.*s.ksc", (int)stem, s_path);
-            const unsigned int timed = khw_costs_asked(ksc_path);
-            run_channel_close();
-            // the machine file laid out by the vendor once more from the forms the part answered for, as the registers
-            // pass leaves it, in place of the gate's file of the kernel's places the pass asked under
-            if (!khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
-            {
-                return 1;
-            }
-            printf("  costs: %u form(s) timed over %u launches each, %llu asks; kept in %s\n", timed, KHW_LAUNCHES,
-                   s_asks, ksc_path);
             return 0;
         }
         // every turned form's register-runs asked at once, in shared rounds, its operand runs kept and its phase
