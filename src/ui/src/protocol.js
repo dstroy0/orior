@@ -188,6 +188,122 @@ export function panelOf(blobs, shown = {}) {
   return panelRead(blobs.reduce((reading, blob) => panelStep(reading, blob, shown), panelStart()), shown);
 }
 
+// The telemetry of a run, read off the tap and the console as the four signals a service is watched by:
+// traffic, latency, errors and saturation; with the time gone and the time left beside them. Traffic is
+// the answers a second over the last RATE_WINDOW_MS, a recent rate and not the run's average, since an
+// average over the whole run hides a slowdown. Latency is the last round's airlock, cross and carrier
+// times off the teacher's round line. Errors are the questions held off the part, refused, faulted, and
+// the panics. Saturation is the questions asked and not yet answered. The time left is the rounds left
+// times the time the last rounds took. Nothing here touches the page.
+export const RATE_WINDOW_MS = 10000;
+
+// How many seconds of the rate the history keeps for drawing.
+export const HISTORY_SECONDS = 120;
+
+// The teacher's line as a round ends: the questions put and the airlock's, pop's, cross's and carrier's seconds.
+const ROUND_LINE = /round: (\d+) question\(s\), airlock ([\d.]+) s \(pop ([\d.]+) s, cross ([\d.]+) s\), carrier ([\d.]+) s/;
+
+export function telemetryStart() {
+  return { answered: [], rounds: [], questions: 0, airlock: null, cross: null, carrier: null, held: 0, refused: 0, faulted: 0, panics: 0, firstAt: null, lastAt: null };
+}
+
+// One blob more, placed at `atMs` on the page's clock since the run began.
+export function telemetryStep(telemetry, blob, atMs) {
+  telemetry.firstAt = telemetry.firstAt ?? atMs;
+  telemetry.lastAt = atMs;
+  if (ANSWER.test(blob.name)) {
+    telemetry.answered.push(atMs);
+    const kept = atMs - HISTORY_SECONDS * 1000;
+    while (telemetry.answered.length && telemetry.answered[0] < kept) {
+      telemetry.answered.shift();
+    }
+  }
+  if (blob.name === "questions.txt") {
+    telemetry.rounds.push(atMs);
+    if (telemetry.rounds.length > 8) {
+      telemetry.rounds.shift();
+    }
+  }
+  if (blob.priority === PANIC) {
+    telemetry.panics += 1;
+  }
+  return telemetry;
+}
+
+// One console line more: a round's line gives the latency; a line saying a question was held off the part,
+// refused or faulted counts one error of its kind.
+export function telemetryLine(telemetry, text) {
+  const round = ROUND_LINE.exec(text);
+  if (round) {
+    telemetry.questions += Number(round[1]);
+    telemetry.airlock = Number(round[2]);
+    telemetry.cross = Number(round[4]);
+    telemetry.carrier = Number(round[5]);
+  }
+  if (/\bheld (off|with|by)\b/.test(text)) {
+    telemetry.held += 1;
+  }
+  if (/\brefused\b/.test(text)) {
+    telemetry.refused += 1;
+  }
+  if (/\bfaulted\b/.test(text)) {
+    telemetry.faulted += 1;
+  }
+  return telemetry;
+}
+
+// The readings at `nowMs`: `rate` answers a second over the window and `recent` the count behind it; `gone`
+// ms since the first blob; `left` ms to the end from the rounds left and the last rounds' spacing, null
+// before two rounds or where no plan was handed; the latency, the errors, and `unanswered`.
+export function telemetryRead(telemetry, { nowMs, plan = null, reading, ended = false }) {
+  const recent = telemetry.answered.filter((at) => at >= nowMs - RATE_WINDOW_MS).length;
+  const gaps = telemetry.rounds.slice(1).map((at, index) => at - telemetry.rounds[index]);
+  const gap = gaps.length ? gaps.reduce((sum, one) => sum + one, 0) / gaps.length : null;
+  const rounds = roundsOf(plan);
+  const fraction = reading.asked ? Math.min(1, reading.answered / reading.asked) : 0;
+  const roundsLeft = plan ? Math.max(0, rounds - reading.rounds + (reading.rounds ? 1 - fraction : 0)) : null;
+  const left = ended ? 0 : plan && gap !== null ? roundsLeft * gap : null;
+  return {
+    rate: recent / (RATE_WINDOW_MS / 1000),
+    recent,
+    gone: telemetry.firstAt === null ? 0 : Math.max(0, (ended ? telemetry.lastAt : nowMs) - telemetry.firstAt),
+    left,
+    airlock: telemetry.airlock,
+    cross: telemetry.cross,
+    carrier: telemetry.carrier,
+    held: telemetry.held,
+    refused: telemetry.refused,
+    faulted: telemetry.faulted,
+    panics: telemetry.panics,
+    unanswered: Math.max(0, reading.asked - reading.answered),
+  };
+}
+
+// The answers counted a second over the last HISTORY_SECONDS, oldest first, for drawing.
+export function telemetryHistory(telemetry, nowMs) {
+  const counts = new Array(HISTORY_SECONDS).fill(0);
+  for (const at of telemetry.answered) {
+    const second = Math.floor((nowMs - at) / 1000);
+    if (second >= 0 && second < HISTORY_SECONDS) {
+      counts[HISTORY_SECONDS - 1 - second] += 1;
+    }
+  }
+  return counts;
+}
+
+// A span of milliseconds as the page says it: seconds under a minute, else minutes and seconds, else hours and minutes.
+export function spanSaid(ms) {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds} s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes} min ${seconds % 60} s`;
+  }
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
 // A protocol command's words from the command line read into a job's values, as the job's fields would hold them:
 // `--<key> <value>` a parameter's value; `--<choice>` alone the choice of the first choice parameter that offers it and
 // holds none yet; a bare word the first parameter with no value, a choice where it is one of its choices and a word

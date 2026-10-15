@@ -41,6 +41,16 @@ The panel keeps the job's option fields at the top as the run started with them.
 
 A costs pass puts one form a round and every other pass 8192 questions a round: the plan's count of questions says how many rounds the line holds. A plan of more than twelve rounds shows them as one stretch of the line, its node named for the round under way out of all of them, and the fire along it stands at the rounds done over all of them. The plan's line can come after the first round's blobs: the reading is folded again when it comes, and those blobs are counted as the plan reads them. A panic is named at the right end of the line.
 
+Over the line the overview carries the run's readings, the four signals a service is watched by and the time beside them, each read off the tap and the console as they come:
+
+| reading | what it is | read off |
+| --- | --- | --- |
+| answers a second | the answers placed over the last ten seconds, a recent rate and not the run's average, which hides a slowdown; drawn a second at a time over the last two minutes | the tap, each `answers<n>.txt` |
+| time gone, time left | since the first blob; the rounds left at the spacing of the last rounds, once two have been put | the tap, each `questions.txt`, and the plan |
+| airlock, cross, carrier | the last round's seconds in each | the teacher's `round:` line |
+| unanswered | the questions put in the round under way and not yet answered | the tap |
+| held, refused, faulted, panics | the questions held off the part, refused by it, or faulting it, counted off the console; the panics off the tap | the console, and blobs at the panic priority |
+
 A node's tab holds the blobs placed while the node was under way, one a line with its sequence, priority, name and size, and pressing the node on the line opens its tab. A run with no tap, an older writer, leaves the panel to the console, and the job's end closes the pipe.
 
 Checks: a C check of the tap, a writer started, blobs handed from two members and a panic, the tap's lines read back in sequence order with the panic first; a test of the server's reading of a tap line into an event; the app's harness holding that the line's nodes are reached from a recorded tap, that a plan of many rounds is one stretch, and that a plan read late counts the earlier rounds as rounds; and `orior protocol learn dry 1 --leave none` as the end-to-end run with nothing launched.

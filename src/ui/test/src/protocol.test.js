@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { PANIC, ROUND_MOST, ROUNDS_SHOWN, blobsOfNode, nodesOf, panelOf, panelReplanned, panelStart, panelStep, planOf, roundsOf, valuesOfWords } from "../../src/protocol.js";
+import { HISTORY_SECONDS, PANIC, RATE_WINDOW_MS, ROUND_MOST, ROUNDS_SHOWN, blobsOfNode, nodesOf, panelOf, panelReplanned, panelStart, panelStep, planOf, roundsOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "../../src/protocol.js";
 
 const { test, assert } = window.__harness;
 
@@ -124,6 +124,59 @@ test("a panic is kept as the first one", () => {
   blobs.splice(8, 0, blob("conference_q7", 400, PANIC), blob("conference_q7_again", 400, PANIC));
   assert.equal(panelOf(blobs, { pass: "turns" }).panic.name, "conference_q7");
   assert.equal(panelOf(pass(), { pass: "turns" }).panic, null);
+});
+
+test("the rate is the answers over the last window, and the history counts them a second", () => {
+  const telemetry = telemetryStart();
+  // forty answers, one every 250 ms from 0 to 10 s, then nothing
+  for (let at = 0; at < 10000; at += 250) {
+    telemetryStep(telemetry, blob("answers0.txt", 20), at);
+  }
+  const reading = panelStart();
+  assert.equal(telemetryRead(telemetry, { nowMs: 10000, reading }).rate, 4);
+  assert.equal(telemetryRead(telemetry, { nowMs: 10000 + RATE_WINDOW_MS / 2, reading }).recent, 20);
+  assert.equal(telemetryRead(telemetry, { nowMs: 10000 + RATE_WINDOW_MS, reading }).recent, 0);
+  const history = telemetryHistory(telemetry, 10000);
+  assert.equal(history.length, HISTORY_SECONDS);
+  assert.equal(history.at(-1), 3);
+  assert.equal(history.at(-11), 1);
+  assert.equal(history.at(-12), 0);
+  assert.equal(telemetryRead(telemetry, { nowMs: 10000, reading }).gone, 10000);
+});
+
+test("the time left is the rounds left at the last rounds' spacing", () => {
+  const telemetry = telemetryStart();
+  const reading = panelStart();
+  const long = { pass: "turns", questions: 10 * ROUND_MOST };
+  [0, 3000, 6000].forEach((at) => {
+    telemetryStep(telemetry, blob("questions.txt", 64), at);
+    panelStep(reading, blob("questions.txt", 64 * 2), { plan: long });
+  });
+  assert.equal(telemetryRead(telemetry, { nowMs: 6000, reading }).left, null);
+  // three rounds put of ten, the third unanswered: eight rounds' worth at three seconds each
+  assert.equal(telemetryRead(telemetry, { nowMs: 6000, plan: long, reading }).left, 8 * 3000);
+  panelStep(reading, blob("answers0.txt", 20), { plan: long });
+  assert.equal(telemetryRead(telemetry, { nowMs: 6000, plan: long, reading }).left, 7.5 * 3000);
+  assert.equal(telemetryRead(telemetry, { nowMs: 6000, plan: long, reading }).unanswered, 1);
+  assert.equal(telemetryRead(telemetry, { nowMs: 6000, plan: long, reading, ended: true }).left, 0);
+});
+
+test("a round's line gives the latency, and the errors are counted off the console", () => {
+  const telemetry = telemetryStart();
+  telemetryLine(telemetry, "  round: 21 question(s), airlock 0.62 s (pop 0.11 s, cross 0.50 s), carrier 0.30 s");
+  telemetryLine(telemetry, "  held off the part at byte 232: an encoding the vendor held off the part");
+  telemetryLine(telemetry, "  refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted");
+  telemetryStep(telemetry, blob("conference_q7", 400, PANIC), 100);
+  const read = telemetryRead(telemetry, { nowMs: 200, reading: panelStart() });
+  assert.deepEqual([read.airlock, read.cross, read.carrier], [0.62, 0.5, 0.3]);
+  assert.deepEqual([read.held, read.refused, read.faulted, read.panics], [1, 1, 1, 1]);
+  assert.equal(telemetry.questions, 21);
+});
+
+test("a span is said in the unit that fits", () => {
+  assert.equal(spanSaid(4200), "4 s");
+  assert.equal(spanSaid(200000), "3 min 20 s");
+  assert.equal(spanSaid(3 * 3600000 + 5 * 60000), "3 h 5 min");
 });
 
 test("a protocol command's words read into a job's values", () => {

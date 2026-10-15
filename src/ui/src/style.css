@@ -9939,6 +9939,46 @@ textarea.report-field {
   padding: 0 1rem;
 }
 
+/* The run's readings over the line: a value over its name each, in one row, the rate drawn beside. */
+.console .protocol-readings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4rem 2rem;
+  padding: 0 1.5rem 2rem;
+}
+
+.console .protocol-readings .reading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 4.5rem;
+}
+
+.console .protocol-readings .value {
+  font: 500 20px/1 var(--head);
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.console .protocol-readings .warn .value {
+  color: var(--status-report);
+}
+
+.console .protocol-readings .name {
+  font: 12px var(--head);
+  color: var(--fg-3);
+}
+
+.console .protocol-readings .rate {
+  margin-left: auto;
+}
+
+.console .protocol-rate {
+  display: block;
+  width: 240px;
+  height: 36px;
+}
+
 /* The views of a protocol run as tabs under the console head: the overview, the console and the
    line's nodes. */
 .console .console-tabs {

@@ -7,7 +7,7 @@
 import { invoke, listen, pick } from "./bridge.js";
 
 import { makeFuse } from "./fuse.js";
-import { blobsOfNode, panelRead, panelReplanned, panelStart, panelStep, planOf, valuesOfWords } from "./protocol.js";
+import { blobsOfNode, panelRead, panelReplanned, panelStart, panelStep, planOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "./protocol.js";
 import { makeRuler } from "./ruler.js";
 import { keepLattice } from "./lattice.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
@@ -66,6 +66,58 @@ function lineOf(run) {
   return lineBox;
 }
 
+// The run's telemetry over the line: the readings, each a value over its name, and the answers a second
+// drawn over the last two minutes.
+function readingsOf(run) {
+  const nowMs = performance.now() - run.clock;
+  const read = telemetryRead(run.telemetry, { nowMs, plan: run.plan, reading: run.reading, ended: run.done });
+  const seconds = (value) => (value === null ? "" : `${value.toFixed(2)} s`);
+  const readings = [
+    ["answers a second", read.rate.toFixed(1)],
+    ["time gone", spanSaid(read.gone)],
+    ["time left", read.left === null ? "" : spanSaid(read.left)],
+    ["airlock", seconds(read.airlock)],
+    ["cross", seconds(read.cross)],
+    ["carrier", seconds(read.carrier)],
+    ["unanswered", String(read.unanswered)],
+    ["held", String(read.held)],
+    ["refused", String(read.refused)],
+    ["faulted", String(read.faulted)],
+    ["panics", String(read.panics)],
+  ];
+  const box = element("div", { className: "protocol-readings", id: "protocol-readings" });
+  for (const [name, value] of readings) {
+    const warn = ["faulted", "panics"].includes(name) && value !== "0";
+    box.append(element("div", { className: `reading${warn ? " warn" : ""}` }, element("span", { className: "value", textContent: value || "\u2014" }), element("span", { className: "name", textContent: name })));
+  }
+  const canvas = element("canvas", { className: "protocol-rate", width: 240, height: 36 });
+  canvas.setAttribute("aria-hidden", "true");
+  drawRate(canvas, telemetryHistory(run.telemetry, nowMs));
+  box.append(element("div", { className: "reading rate" }, canvas, element("span", { className: "name", textContent: "answers a second, the last two minutes" })));
+  return box;
+}
+
+// The rate history as bars, one a second, the tallest at the top of the canvas, in the fuse's colors.
+function drawRate(canvas, counts) {
+  const drawer = canvas.getContext("2d");
+  if (!drawer) {
+    return;
+  }
+  const styles = getComputedStyle(document.documentElement);
+  const most = Math.max(1, ...counts);
+  const wide = canvas.width / counts.length;
+  drawer.clearRect(0, 0, canvas.width, canvas.height);
+  drawer.fillStyle = styles.getPropertyValue("--fuse-ash").trim() || "#321262";
+  drawer.fillRect(0, canvas.height - 1, canvas.width, 1);
+  drawer.fillStyle = styles.getPropertyValue("--fuse-fire").trim() || "#945ee8";
+  counts.forEach((count, index) => {
+    if (count) {
+      const high = Math.max(1, Math.round((count / most) * (canvas.height - 2)));
+      drawer.fillRect(index * wide, canvas.height - 1 - high, Math.max(1, wide - 0.5), high);
+    }
+  });
+}
+
 // The views of a protocol run, as tabs over the console box: the overview, the pass's line with the
 // fuse burning along it; the console; then one a node of the line holding what the writer placed
 // while the node was under way, each with its count. Pressing a node of the line opens its tab too.
@@ -95,7 +147,18 @@ function tabStrip(run) {
 // The body of a protocol run's view: the line for the overview, the console's lines, or a node's blobs.
 function viewBody(run) {
   if (run.view === OVERVIEW) {
-    return element("div", { className: "protocol-overview" }, lineOf(run));
+    const overview = element("div", { className: "protocol-overview" }, readingsOf(run), lineOf(run));
+    // the time gone and the time left move with the clock, so the readings are drawn again each second
+    // while the overview stands
+    const ticker = setInterval(() => {
+      const shown = document.getElementById("protocol-readings");
+      if (!shown || !overview.isConnected) {
+        clearInterval(ticker);
+        return;
+      }
+      shown.replaceWith(readingsOf(run));
+    }, 1000);
+    return overview;
   }
   const lines = element("pre", { className: "lines", id: "lines" });
   if (run.view === CONSOLE) {
@@ -175,7 +238,7 @@ const PROTOCOL = "protocol";
 
 // A run record as it starts: its console lines and, for a protocol run, the reading of its tap.
 function runRecord(run, job, lines, steps, clock) {
-  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", tapped: false, view: OVERVIEW };
+  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", tapped: false, view: OVERVIEW, telemetry: telemetryStart() };
 }
 
 function early(run) {
@@ -554,6 +617,7 @@ function onBlob({ payload }) {
     return;
   }
   panelStep(run.reading, payload, { plan: run.plan });
+  telemetryStep(run.telemetry, payload, performance.now() - run.clock);
   panelRedrawn(run);
 }
 
@@ -637,6 +701,7 @@ function onLine({ payload }) {
   }
   run.lines.push(payload);
   planNoted(run, payload);
+  telemetryLine(run.telemetry, payload.text);
   run.clock = Math.min(run.clock, performance.now() - payload.ms);
   if (payload.stream === "command") {
     run.started += 1;
