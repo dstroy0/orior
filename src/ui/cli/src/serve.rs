@@ -276,6 +276,10 @@ pub fn keep_run(base: &Path) -> i32 {
                 line.run = run;
                 json!({"line": line})
             }
+            runner::Said::Blob(mut blob) => {
+                blob.run = run;
+                json!({"blob": blob})
+            }
             runner::Said::End(mut end) => {
                 end.run = run;
                 json!({"end": end})
@@ -562,6 +566,7 @@ impl Server {
         let emit = self.emitting();
         let sink: runner::Sink = Arc::new(move |said| match said {
             runner::Said::Line(line) => emit("run-line", serde_json::to_value(line).unwrap_or(Value::Null)),
+            runner::Said::Blob(blob) => emit("run-blob", serde_json::to_value(blob).unwrap_or(Value::Null)),
             runner::Said::End(end) => emit("run-end", serde_json::to_value(end).unwrap_or(Value::Null)),
         });
         self.runs.start(sink, root, found, values).map(|(run, _)| run)

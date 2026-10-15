@@ -164,8 +164,12 @@ impl Run {
         let qry = plain(&folder.join(next_name(folder)));
         let writer = Writer { binary, qry, top: root.to_path_buf(), path };
         let process = writer.start()?;
-        if !writer.ready() {
+        let Some(tap) = writer.tap() else {
             return Err("the run's writer did not start".into());
+        };
+        // the writer's own output stays out of this console; its tap's name is said here, for a reader to connect on
+        if !tap.is_empty() {
+            println!("{tap}");
         }
         Ok(Run { folder: folder.to_path_buf(), writer, process: Some(process), joined: false, read: Vec::new(), left: Vec::new() })
     }

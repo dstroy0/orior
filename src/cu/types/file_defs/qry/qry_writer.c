@@ -169,6 +169,11 @@ int main(int count, char **words)
             QryBuffer *const buffer = qry_open(path);
             if (buffer != NULL)
             {
+                // the tap's name said here as well as at the start, for a starter that keeps the writer's own output
+                // out of its console and reads this word's
+                char tap[128];
+                qry_tap_name(path, tap, sizeof(tap));
+                printf("  qry_writer: the tap of %s is %s\n", path, tap);
                 qry_close(buffer);
                 return 0;
             }

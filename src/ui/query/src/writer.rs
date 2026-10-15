@@ -64,7 +64,19 @@ impl Writer {
 
     /// 1 once the writer has made the buffer, waiting up to the writer's own 30 seconds.
     pub fn ready(&self) -> bool {
-        self.word(&["ready", &self.qry_text()]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok_and(|s| s.success())
+        self.tap().is_some()
+    }
+
+    /// The writer's line naming its tap, `  qry_writer: the tap of <qry> is <pipe>`, once the writer has
+    /// made the buffer, waiting up to the writer's own 30 seconds; None where it did not start. The
+    /// line is said on the console of whatever started the run, for a reader of the tap to connect on.
+    pub fn tap(&self) -> Option<String> {
+        let said = self.word(&["ready", &self.qry_text()]).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).output().ok()?;
+        if !said.status.success() {
+            return None;
+        }
+        let text = String::from_utf8_lossy(&said.stdout);
+        Some(text.lines().find(|line| line.contains("the tap of")).unwrap_or("").trim_end().to_string())
     }
 
     /// 1 where the run's writer runs now.
