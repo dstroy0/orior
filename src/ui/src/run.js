@@ -7,7 +7,7 @@
 import { invoke, listen, pick } from "./bridge.js";
 
 import { makeFuse } from "./fuse.js";
-import { panelRead, panelStart, panelStep, planOf } from "./protocol.js";
+import { blobsOfNode, panelRead, panelReplanned, panelStart, panelStep, planOf, valuesOfWords } from "./protocol.js";
 import { makeRuler } from "./ruler.js";
 import { keepLattice } from "./lattice.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
@@ -38,7 +38,7 @@ const state = {
   // Lines and ends that arrive before job_start has returned the run they belong to.
   early: new Map(),
   // The fuse at the foot of the output, kept from one drawing of the stage to the next: a protocol
-  // run with a plan burns by its progress, every other run by the ruler.
+  // run burns from objective to objective, every other run by the ruler.
   fuse: makeFuse(() => fusePlace()),
   // Which groups of the list the reader opened or closed, by key.
   opened: new Map(),
@@ -47,12 +47,111 @@ const state = {
 // The time ruler under the fuse, kept as the fuse is.
 state.ruler = makeRuler(state.fuse.canvas);
 
-// How far the fuse has burnt for the run shown: a protocol run's progress by its plan, the ruler's
-// head for any other run or where no plan was handed.
+// How far the fuse has burnt for the run shown: a protocol run's place among its objectives, the ruler's
+// head for any other run.
 function fusePlace() {
   const run = shownRun();
-  const progress = run?.plan ? panelRead(run.reading, shownOf(run)).progress : null;
-  return progress === null || progress === undefined ? state.ruler.headAt() : progress;
+  const job = run && state.jobs.find((one) => one.id === run.job);
+  return job?.group === PROTOCOL ? panelRead(run.reading, shownOf(run)).place : state.ruler.headAt();
+}
+
+// The line of a protocol run: its nodes, the fuse between them. The fuse's canvas is the one fuse of
+// the page, taken from the ruler's box while a protocol run is shown and given back after.
+let lineBox = null;
+function lineOf(run) {
+  if (!lineBox) {
+    lineBox = element("div", { className: "protocol-line" });
+  }
+  lineBox.replaceChildren(state.fuse.canvas, lineNodes(run));
+  return lineBox;
+}
+
+// The views of a protocol run, as tabs over the console box: the overview, the pass's line with the
+// fuse burning along it; the console; then one a node of the line holding what the writer placed
+// while the node was under way, each with its count. Pressing a node of the line opens its tab too.
+const OVERVIEW = "overview";
+const CONSOLE = "console";
+function tabStrip(run) {
+  const read = panelRead(run.reading, shownOf(run));
+  const strip = element("div", { className: "tabs console-tabs", id: "protocol-tabs", role: "tablist" });
+  const views = [
+    { key: OVERVIEW, label: "Overview", count: 0 },
+    { key: CONSOLE, label: "Console", count: run.lines.length },
+    ...read.nodes.map((node) => ({ key: node.key, label: node.label, count: node.blobs })),
+  ];
+  for (const view of views) {
+    const tab = element("button", { className: "tab", type: "button", role: "tab" });
+    tab.setAttribute("aria-selected", run.view === view.key ? "true" : "false");
+    tab.append(element("span", { textContent: view.label }), element("span", { className: "count", textContent: view.count ? String(view.count) : "" }));
+    tab.addEventListener("click", () => {
+      run.view = view.key;
+      drawStage();
+    });
+    strip.append(tab);
+  }
+  return strip;
+}
+
+// The body of a protocol run's view: the line for the overview, the console's lines, or a node's blobs.
+function viewBody(run) {
+  if (run.view === OVERVIEW) {
+    return element("div", { className: "protocol-overview" }, lineOf(run));
+  }
+  const lines = element("pre", { className: "lines", id: "lines" });
+  if (run.view === CONSOLE) {
+    run.lines.forEach((line) => lines.append(lineNode(line)));
+    if (run.done) {
+      lines.append(endNode(run));
+    }
+  } else {
+    lines.append(...blobLines(run, run.view));
+  }
+  return lines;
+}
+
+// The blobs a node of `run` kept, one line each as the writer placed them: the sequence, the priority
+// as a word, the name and the size; the count seen where more came than are kept.
+function blobLines(run, key) {
+  const { count, list } = blobsOfNode(run.reading, key);
+  const word = (priority) => (priority === 0 ? "panic" : priority === 1 ? "critical" : "ordinary");
+  const made = list.map((blob) => element("span", { className: `line ${blob.priority === 0 ? "stderr" : "stdout"}`, textContent: `${String(blob.sequence).padStart(8)}  ${word(blob.priority).padEnd(8)}  ${blob.name.padEnd(28)}  ${String(blob.size).padStart(10)}\n` }));
+  if (count > list.length) {
+    made.push(element("span", { className: "line stderr", textContent: `${count - list.length} more placed and not kept\n` }));
+  }
+  if (!count) {
+    made.push(element("span", { className: "line stderr", textContent: "no blob placed at this node yet\n" }));
+  }
+  return made;
+}
+
+// The nodes of the run's line, each at its place along the fuse, lit where reached, the round under
+// way showing answered of asked, each a button that shows the node's blobs in place of the console.
+function lineNodes(run) {
+  const read = panelRead(run.reading, shownOf(run));
+  const nodes = element("div", { className: "protocol-nodes", id: "protocol-nodes" });
+  const last = Math.max(1, read.nodes.length - 1);
+  read.nodes.forEach((node, index) => {
+    const shown = run.view === node.key;
+    const current = index === read.at + 1 && node.round !== null;
+    const underWay = node.rounds !== null && index === read.at;
+    const made = element("button", {
+      type: "button",
+      className: `protocol-node${node.reached ? " reached" : ""}${current || underWay ? " current" : ""}${shown ? " shown" : ""}${index === 0 ? " first" : index === last ? " last" : ""}`,
+      title: shown ? "press for the console" : `press for the ${node.blobs} blob${node.blobs === 1 ? "" : "s"} placed here`,
+    });
+    made.style.left = `${(index / last) * 100}%`;
+    const count = underWay || current ? (read.round.asked ? `${read.round.answered} of ${read.round.asked}` : "") : node.blobs ? String(node.blobs) : "";
+    made.append(element("span", { className: "protocol-dot" }), element("span", { className: "protocol-label", textContent: node.label }), element("span", { className: "protocol-count", textContent: count }));
+    made.addEventListener("click", () => {
+      run.view = node.key;
+      drawStage();
+    });
+    nodes.append(made);
+  });
+  if (read.panic) {
+    nodes.append(element("span", { className: "protocol-said", textContent: `panic: ${read.panic.name}` }));
+  }
+  return nodes;
 }
 
 // The run shown on the stage, where one is.
@@ -68,7 +167,7 @@ function shownRun() {
 // What the panel is told of a run beyond its blobs: the tools were built once the run's first
 // console line came, the run started once its tap was named, and the run ended.
 function shownOf(run) {
-  return { plan: run.plan, tools: run.lines.length > 0, started: run.tapped, ended: run.done };
+  return { pass: run.pass, plan: run.plan, tools: run.lines.length > 0, started: run.tapped, ended: run.done };
 }
 
 // The protocol jobs, whose runs show in the panel.
@@ -76,7 +175,7 @@ const PROTOCOL = "protocol";
 
 // A run record as it starts: its console lines and, for a protocol run, the reading of its tap.
 function runRecord(run, job, lines, steps, clock) {
-  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, tapped: false };
+  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", tapped: false, view: OVERVIEW };
 }
 
 function early(run) {
@@ -362,7 +461,16 @@ function console_(job) {
   if (shown?.made) {
     head.append(madeButtons(job, shown.made));
   }
-  const panel = job.group === PROTOCOL && shown ? panelNode(shown) : null;
+  const protocol = job.group === PROTOCOL && shown;
+  if (protocol) {
+    const body = viewBody(shown);
+    requestAnimationFrame(() => {
+      body.scrollTop = body.scrollHeight;
+      state.fuse.follow(shown);
+      state.ruler.follow(shown);
+    });
+    return element("div", { className: "console" }, head, tabStrip(shown), body);
+  }
   const lines = element("pre", { className: "lines", id: "lines" });
   shown?.lines.forEach((line) => lines.append(lineNode(line)));
   if (shown?.done) {
@@ -373,39 +481,63 @@ function console_(job) {
     state.fuse.follow(shown ?? null);
     state.ruler.follow(shown ?? null);
   });
-  return element("div", { className: "console" }, head, panel, lines, state.ruler.element);
-}
-
-// The protocol panel of a run: the boxes along the fuse, each lit where its blob has come, the round's
-// answered of asked, and the panic's name where one came.
-function panelNode(run) {
-  const read = panelRead(run.reading, shownOf(run));
-  const boxes = element("div", { className: "protocol-boxes" });
-  for (const box of read.boxes) {
-    const node = element("span", { className: `protocol-box${box.lit ? " lit" : ""}${box.key === "panic" && box.lit ? " panic" : ""}`, textContent: box.label });
-    if (box.key === "round" && read.round.rounds) {
-      node.append(element("small", { textContent: ` ${read.round.answered} of ${read.round.asked}` }));
-    }
-    boxes.append(node);
+  if (!state.ruler.element.contains(state.fuse.canvas)) {
+    state.ruler.element.prepend(state.fuse.canvas);
   }
-  const said = read.panic ? `panic: ${read.panic.name}` : run.plan ? `${run.plan.pass}: ${read.answered} answered, ${read.held} held of ${run.plan.questions}` : `${read.answered} answered, ${read.held} held`;
-  return element("div", { className: "protocol-panel", id: "protocol-panel" }, boxes, element("span", { className: "protocol-said", textContent: said }));
+  return element("div", { className: "console" }, head, lines, state.ruler.element);
 }
 
-// The panel drawn again in place for the run shown, as a blob or the plan comes.
+// The panel drawn again in place for the run shown, as a blob or the plan comes: once a frame however
+// many came, and only where what it shows has changed, so that it stands still between changes.
+let panelFrame = 0;
 function panelRedrawn(run) {
-  const shown = document.getElementById("protocol-panel");
-  if (shown && state.chosen === run.job && (state.shown.get(run.job) ?? run.run) === run.run) {
-    shown.replaceWith(panelNode(run));
-    state.fuse.flare();
+  if (panelFrame) {
+    return;
   }
+  panelFrame = requestAnimationFrame(() => {
+    panelFrame = 0;
+    const shown = document.getElementById("protocol-nodes");
+    const tabs = document.getElementById("protocol-tabs");
+    if ((shown || tabs) && state.chosen === run.job && (state.shown.get(run.job) ?? run.run) === run.run) {
+      const drawn = lineNodes(run);
+      if (shown && drawn.innerHTML !== shown.innerHTML) {
+        shown.replaceWith(drawn);
+      }
+      const strip = tabStrip(run);
+      if (tabs && strip.innerHTML !== tabs.innerHTML) {
+        tabs.replaceWith(strip);
+      }
+      // the node's blobs shown grow as they come
+      const lines = document.getElementById("lines");
+      if (lines && run.view !== CONSOLE) {
+        const atEnd = lines.scrollHeight - lines.scrollTop - lines.clientHeight < 40;
+        lines.replaceChildren(...blobLines(run, run.view));
+        if (atEnd) {
+          lines.scrollTop = lines.scrollHeight;
+        }
+      }
+      state.fuse.flare();
+    }
+  });
 }
 
 // The plan the teacher says on its console, kept on the run; and the writer naming its tap, which
 // says the run started.
 function planNoted(run, line) {
   if (/^\s*plan: /.test(line.text)) {
-    run.plan = planOf(line.text) ?? run.plan;
+    const planned = planOf(line.text);
+    if (planned && !run.plan) {
+      run.plan = planned;
+      run.reading = panelReplanned(run.reading, planned);
+    }
+    run.pass = run.plan?.pass ?? run.pass;
+    panelRedrawn(run);
+  }
+  if (line.stream === "command" && !run.pass) {
+    // the pass's name off the command line, `orior protocol learn <pass> ...`, for the line before the plan comes
+    const words = line.text.split(/\s+/);
+    const at = words.indexOf("learn");
+    run.pass = at >= 0 && words[at + 1] ? words[at + 1] : words[words.indexOf("protocol") + 1] ?? "";
     panelRedrawn(run);
   }
   if (/^\s*qry_writer: the tap of /.test(line.text)) {
@@ -421,7 +553,7 @@ function onBlob({ payload }) {
     early(payload.run).blobs.push(payload);
     return;
   }
-  panelStep(run.reading, payload);
+  panelStep(run.reading, payload, { plan: run.plan });
   panelRedrawn(run);
 }
 
@@ -517,7 +649,7 @@ function onLine({ payload }) {
     state.fuse.flare();
     state.ruler.wake();
     const lines = document.getElementById("lines");
-    if (lines) {
+    if (lines && run.view === CONSOLE) {
       const atEnd = lines.scrollHeight - lines.scrollTop - lines.clientHeight < 40;
       lines.append(lineNode(payload));
       if (lines.childNodes.length > KEPT_LINES) {
@@ -685,4 +817,18 @@ export async function loadRun() {
   }
   drawList();
   drawStage();
+}
+
+// A job started from a command line's words, `orior protocol learn costs --leave all` as the window hears it: the words
+// read into the job's values as its fields would hold them, the job shown and started.
+export async function startJobWords(id, words) {
+  const job = state.jobs.find((one) => one.id === id);
+  if (!job) {
+    throw new Error(`the window has no job ${id}`);
+  }
+  const values = valuesOfWords(job.params, words);
+  remember(id, values);
+  showView("run");
+  showJob(id);
+  return startJob(id, values);
 }

@@ -9798,43 +9798,191 @@ textarea.report-field {
   transition: none !important;
 }
 
-/* The protocol panel over a protocol run's console: the boxes along the fuse, each lit where its blob
-   has come, the panic's in the fire's color, and what the run says of its progress beside them. */
-.console .protocol-panel {
+/* A protocol run's line in place of the fuse box and the ruler: the pass's course as a rail of nodes
+   the fuse runs through, a dot on the rail for each with its name and its count beneath. The fire
+   walks the rail from node to node as the run reaches them. A node reached is filled and lit, the one
+   under way ringed in fire, one ahead a hollow ring of ash. The ends stand inside the box, their names
+   set in from the edge. Pressing a node shows what was placed there in place of the console. */
+.console .protocol-line {
+  position: relative;
   flex: none;
+  height: 86px;
+  padding: 0 24px;
+}
+
+.console .protocol-line .fuse {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: calc(30px + 48px);
+  margin: 0;
+  z-index: 1;
+}
+
+.console .protocol-nodes {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: 33px;
+  height: 52px;
+  z-index: 2;
+}
+
+.console .protocol-node {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.4rem 0.8rem;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.85rem;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  font: 500 12px/1 var(--head);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.console .protocol-boxes {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+.console .protocol-node.first {
+  transform: none;
+  align-items: flex-start;
 }
 
-.console .protocol-box {
-  padding: 0.15rem 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  opacity: 0.45;
+.console .protocol-node.first .protocol-dot {
+  margin-left: -6px;
 }
 
-.console .protocol-box.lit {
-  opacity: 1;
+.console .protocol-node.last {
+  transform: translateX(-100%);
+  align-items: flex-end;
+}
+
+.console .protocol-node.last .protocol-dot {
+  margin-right: -6px;
+}
+
+.console .protocol-node.reached {
+  color: var(--fg);
+}
+
+.console .protocol-node:hover .protocol-label,
+.console .protocol-node.shown .protocol-label {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: var(--fuse-fire);
+  text-underline-offset: 3px;
+}
+
+.console .protocol-node:focus-visible {
+  outline: none;
+}
+
+.console .protocol-node:focus-visible .protocol-dot {
+  outline: 2px solid var(--fuse-fire);
+  outline-offset: 2px;
+}
+
+.console .protocol-dot {
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--fuse-ash);
+  background: var(--well);
+  box-sizing: border-box;
+}
+
+.console .protocol-node.reached .protocol-dot {
   border-color: var(--fuse-burn);
+  background: var(--fuse-burn);
   box-shadow: 0 0 6px var(--fuse-burn);
 }
 
-.console .protocol-box.panic {
+.console .protocol-node.current .protocol-dot {
   border-color: var(--fuse-fire);
-  box-shadow: 0 0 8px var(--fuse-fire);
+  background: var(--fuse-fire);
+  box-shadow: 0 0 10px var(--fuse-fire);
+  animation: protocol-breath 1.6s ease-in-out infinite;
+}
+
+.console .protocol-node.shown .protocol-dot {
+  outline: 2px solid var(--fuse-fire);
+  outline-offset: 2px;
+}
+
+.console .protocol-label {
+  margin-top: 6px;
+}
+
+.console .protocol-count {
+  font: 11px var(--code);
+  color: var(--fg-3);
+  min-height: 11px;
+}
+
+.console .protocol-node.reached .protocol-count {
+  color: var(--fg-2);
+}
+
+/* The overview of a protocol run: the line across the middle of the box. */
+.console .protocol-overview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 1rem;
+}
+
+/* The views of a protocol run as tabs under the console head: the overview, the console and the
+   line's nodes. */
+.console .console-tabs {
+  min-height: 1.9rem;
+  background: none;
+  padding: 0 0.3rem;
+}
+
+.console .console-tabs .tab {
+  padding: 0 0.7rem;
+  gap: 0.4rem;
+  border-right: 0;
+  font: 500 12px var(--head);
+}
+
+.console .console-tabs .tab .count {
+  font: 11px var(--code);
+  color: var(--fg-3);
+}
+
+.console .console-tabs .tab[aria-selected="true"] .count {
+  color: var(--fg-2);
 }
 
 .console .protocol-said {
-  margin-left: auto;
-  opacity: 0.8;
+  position: absolute;
+  right: 0;
+  top: -30px;
+  font: 12px var(--head);
+  color: var(--status-report);
+}
+
+@keyframes protocol-breath {
+  0%,
+  100% {
+    box-shadow: 0 0 6px var(--fuse-fire);
+  }
+  50% {
+    box-shadow: 0 0 14px var(--fuse-fire);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console .protocol-node.current .protocol-dot {
+    animation: none;
+  }
 }

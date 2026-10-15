@@ -48,7 +48,7 @@ import { zoomBy } from "./zoom.js";
 import { printText } from "./print.js";
 import { clipText, closeMenu, copyText, menuOpen, showMenu } from "./menu.js";
 import { markdownHtml } from "./markdown.js";
-import { chosenJob, chosenLive, listedJobs, runCommands, showJob, startChosen, stopChosen, subject } from "./run.js";
+import { chosenJob, chosenLive, listedJobs, runCommands, showJob, startChosen, startJobWords, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { dockCommands, float, floatItems, solo, toolWindowsItems } from "./docks.js";
@@ -619,10 +619,14 @@ const COMMANDS = {
   validate: () => editing().validate(),
   list: (args) => searchJobs(args[0]),
   show: (args) => searchJobs(args[0]),
-  query: () => {
-    showView("run");
-    showJob("protocol/query");
-  },
+  // The protocol's jobs: shown, and with words from the command line started on them, the run in the
+  // protocol panel.
+  query: protocolJob("protocol/query"),
+  learn: protocolJob("protocol/learn"),
+  cross: protocolJob("protocol/cross"),
+  write: protocolJob("protocol/write"),
+  pairs: protocolJob("protocol/pairs"),
+  stick: protocolJob("protocol/stick"),
   new: newTerminal,
   toggle: () => toggleTerminal(),
   split: () => splitTerminal(),
@@ -1254,6 +1258,15 @@ function askYes(question, yes) {
 }
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
+// A protocol job's command: the job shown, and started with the words where a command line gave any.
+function protocolJob(id) {
+  return (args = []) => {
+    showView("run");
+    showJob(id);
+    return args.length ? startJobWords(id, args) : undefined;
+  };
+}
+
 export function runCommand(command, args = []) {
   return commandNamed(command)?.(args);
 }
