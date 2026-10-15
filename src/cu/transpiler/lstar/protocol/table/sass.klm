@@ -1,2 +1,11 @@
 klm sass
+key word_shl word_shl
+key word_shr word_shr
 key word_add word_add
+key thread_idx_x thread_idx_x
+key block_idx_x block_idx_x
+key word_set word_set
+key global_load_constant_word global_load_constant_word
+key record_store_word record_store_word
+key return return
+key exit_if exit_if
