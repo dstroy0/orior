@@ -180,6 +180,7 @@ pub fn shown(path: &Path, tree: &[u8], run: &[u8]) -> String {
             let after: Vec<&str> = after.lines().collect();
             format!("{name}:\n{}", rendered(&diff(&before, &after)))
         }
+        _ if run.len() > tree.len() => format!("{name} grew by {} bytes", run.len() - tree.len()),
         _ => format!("{name}: {} bytes in the tree, {} as the run leaves it", tree.len(), run.len()),
     }
 }
@@ -253,7 +254,9 @@ mod asking {
     #[test]
     fn a_record_file_is_shown_by_its_counts() {
         let said = shown(Path::new("a/sm_86.kqr"), b"12345", b"1234567");
-        assert_eq!(said, "sm_86.kqr: 5 bytes in the tree, 7 as the run leaves it");
+        assert_eq!(said, "sm_86.kqr grew by 2 bytes");
+        let said = shown(Path::new("a/sm_86.kqr"), b"1234567", b"12345");
+        assert_eq!(said, "sm_86.kqr: 7 bytes in the tree, 5 as the run leaves it");
     }
 
     #[test]

@@ -7,6 +7,7 @@
 //   up       the shift up's case is (3, 4): (1, 2) is passed over, 1 shifted by 1 being the second word, which would
 //            read the amount's run as the destination; read swapped, (2, 1) stands
 //   none     a relation with no such case gives none
+//   whole    a form's runs are whole where they carry every place of its relation's tuple
 //
 //     turning_check
 #include "../../../../../../../src/cu/transpiler/lstar/parser/khw_write/khw_write_internal.h"
@@ -59,6 +60,16 @@ int main(void)
     check_that(khw_turning_words((unsigned int)LADDER_UP, 1, swapped, &shifted) && (swapped[0] == 2u) &&
                    (swapped[1] == 1u) && (shifted == 4u),
                "the shift up's turning case read swapped is (2, 1): 2 shifted by 2 and 1 by 1 are apart from 1 and 4");
+    // a form is whole where its runs carry every place of its relation's tuple, the words and the answer
+    const unsigned int whole[3] = {0u, 1u, 2u};
+    const unsigned int short_of_one[4] = {2u, 0u, 2u, KHW_PLACE_NONE};
+    const unsigned int none[2] = {KHW_PLACE_NONE, KHW_PLACE_NONE};
+    const unsigned int twice[4] = {0u, 1u, 2u, KHW_PLACE_NONE};
+    check_that(khw_places_whole(whole, 3u, 2u), "runs at every place of a two-word relation are whole");
+    check_that(!khw_places_whole(short_of_one, 4u, 2u), "runs short of a word's place are not whole");
+    check_that(!khw_places_whole(none, 2u, 2u), "runs with no place are not whole");
+    check_that(khw_places_whole(twice, 4u, 2u), "a run with no place beside the whole places leaves them whole");
+    check_that(!khw_places_whole(whole, 0u, 2u), "no runs are not whole");
     printf("turning_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

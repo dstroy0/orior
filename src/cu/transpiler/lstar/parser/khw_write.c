@@ -282,8 +282,6 @@ int main(int count, char **word)
             // file, where the stall and the last register are kept
             char ksc_path[1024];
             snprintf(ksc_path, sizeof(ksc_path), "%.*s.ksc", (int)stem, s_path);
-            static KhwAnswered *s_costed[KHW_FORMS];
-            khw_plan_handed("costs", (unsigned long long)khw_forms_in_phase(KHW_PHASE_CLASSIFIED, s_costed));
             const unsigned int timed = khw_costs_asked(ksc_path);
             run_channel_close();
             printf("  costs: %u form(s) timed over %u launches each, %llu asks; kept in %s\n", timed, KHW_LAUNCHES,

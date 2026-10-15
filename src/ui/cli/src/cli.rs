@@ -620,6 +620,28 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "tests" => tests_list(&root, words),
         "bridge" => bridge(&root, first),
         "query" | "learn" | "cross" | "write" | "pairs" | "stick" | "kept" | "sweep" => {
+            // a window open on the tree runs the protocol command as its job, and shows the run in its protocol
+            // panel; with none open it runs here, and so does the job's own command, which carries the window's
+            // door in its environment and must not reach the window again
+            let inside_a_job = std::env::var_os(crate::runner::RUN_VARIABLE).is_some();
+            if let Some(answered) = (!inside_a_job).then(|| crate::reach::ask(Some(&root), "protocol", command, words)).flatten() {
+                return match answered {
+                    Ok(answer) => {
+                        if !answer.said.is_empty() {
+                            if answer.done {
+                                out(&answer.said);
+                            } else {
+                                err(&answer.said);
+                            }
+                        }
+                        if answer.done { 0 } else { WRONG }
+                    }
+                    Err(said) => {
+                        err(&said);
+                        WRONG
+                    }
+                };
+            }
             let mut all = vec![command.to_string()];
             all.extend(words.iter().cloned());
             crate::query::protocol(&root, &all)

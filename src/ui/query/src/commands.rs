@@ -99,8 +99,8 @@ pub fn list(root: &Path) -> Vec<Command> {
         Command {
             id: "learn",
             title: "learn",
-            about: "a part pass: discover, seed, turns or registers through the airlock, or rounds, dry or enumerate",
-            params: vec![choice("step", &["discover", "seed", "turns", "registers", "rounds", "dry", "enumerate"], true), word("word"), word("base"), leave_param()],
+            about: "a part pass: discover, seed, turns, registers or costs through the airlock, or rounds, dry or enumerate",
+            params: vec![choice("step", &["discover", "seed", "turns", "registers", "costs", "rounds", "dry", "enumerate"], true), word("word"), word("base"), leave_param()],
             words: vec![Word::Lit("learn"), Word::Value("step"), Word::Value("word"), Word::Flag("--base", "base"), Word::Flag("--leave", "leave")],
         },
         Command {

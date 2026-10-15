@@ -39,3 +39,23 @@ int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], un
     }
     return 0;
 }
+
+// 1 where `runs` runs with the places `place` carry every place of a relation's tuple of `words` words and its answer,
+// the places 0 to `words`: a form so placed writes its relation whole, and a word of the web can be written by it;
+// a form short of a place is a fragment the widening found, and writes none
+int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int words)
+{
+    for (unsigned int wanted = 0u; wanted <= words; wanted += 1u)
+    {
+        int found = 0;
+        for (unsigned int run = 0u; run < runs; run += 1u)
+        {
+            found = found || (place[run] == wanted);
+        }
+        if (!found)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}

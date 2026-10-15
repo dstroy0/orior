@@ -203,6 +203,7 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long 
 void khw_turns_asked(KhwAnswered *held, const unsigned int word[1][2]);
 unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms);
 int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], unsigned int *expected);
+int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int words);
 unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
 void khw_plan_handed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);

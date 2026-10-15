@@ -339,7 +339,7 @@
       "groups": ["protocol"],
       "items": [
         { "label": "Query…", "command": "query", "args": "--<from> --<to> [--<part>] [--dry] [--leave all|none]", "console": true },
-        { "label": "Learn…", "command": "learn", "args": "discover|turns|registers [--base <cu>] | seed <listing.sass> | rounds [<n>] | dry [<n>] | enumerate <slot> [--leave all|none]", "console": true },
+        { "label": "Learn…", "command": "learn", "args": "discover|turns|registers|costs [--base <cu>] | seed <listing.sass> | rounds [<n>] | dry [<n>] | enumerate <slot> [--leave all|none]", "console": true },
         { "label": "Cross…", "command": "cross", "args": "[--base <cu>] [--leave all|none]", "console": true },
         { "label": "Write…", "command": "write", "args": "bridge [<ruleset>...] | krs | gsm [--leave all|none]", "console": true },
         { "label": "Pairs…", "command": "pairs", "args": "<mode> [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>] [--leave all|none]", "console": true },

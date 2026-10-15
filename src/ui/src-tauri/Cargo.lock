@@ -2196,10 +2196,15 @@ name = "orior-cli"
 version = "0.1.0"
 dependencies = [
  "dunce",
+ "orior-query",
  "serde",
  "serde_json",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "orior-query"
+version = "0.1.0"
 
 [[package]]
 name = "orior-ui"

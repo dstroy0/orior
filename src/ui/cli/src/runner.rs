@@ -100,6 +100,10 @@ pub fn tap_named(line: &str) -> Option<String> {
     (!pipe.is_empty()).then(|| pipe.to_string())
 }
 
+/// The variable a job'"'"'s step finds the run'"'"'s number in: set on every step a run starts, and read by a
+/// command that would otherwise reach a window open on the tree.
+pub const RUN_VARIABLE: &str = "ORIOR_RUN";
+
 /// What a run says as it goes: each line, each blob its writer placed, then its end.
 pub enum Said {
     Line(Line),
@@ -646,6 +650,9 @@ impl Runs {
                 if holds(&stopped, run) {
                     break;
                 }
+                // the run's number in the step's environment: a command that would reach a window open on the
+                // tree sees it is a job's own and runs where it is
+                cmd.env(RUN_VARIABLE, run.to_string());
                 let spawned = if attached { cmd.spawn().map(|child| (child, None)) } else { crate::container::Group::spawn(&mut cmd) };
                 let mut child: Child = match spawned {
                     Ok((child, group)) => {
