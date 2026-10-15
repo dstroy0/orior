@@ -21,7 +21,7 @@ form ST address,register,immediate 0x0000040704007986 0x000fe8000c101904 8:12-15
 form IMUL register,register,register 0x0000000700078224 0x000fcc00078e00ff 0:15-16:2;0:18-18:2;1:24-27:0;2:32-34:1 ladder.product 0 IMUL R3, R0, R7
 form IADD register,register,register,register 0x0000000700077210 0x000fc8000791e006 0:18-18:2;1:24-27:0;2:32-34:1;3:63-66:-;8:72-72:- ladder.add 0 IADD R1, R0, R7, R12
 form ISHF.U32 register,register,register 0x0000000700077219 0x004fc40000001eff 0:18-18:2;1:24-27:0;2:32-34:1;8:76-76:-;1:80-80:0 ladder.down 0 ISHF.U32 R1, R0, R7
-form ISHF register,register 0x0000000700077219 0x004fc40000000eff 0:18-18:2;1:24-27:0;0:32-34:2;8:76-76:-;8:80-80:- ladder.up 0 ISHF R1, R0
+form ISHF register,register,register 0x0000000700077219 0x004fc40000000eff 0:18-18:2;1:24-27:0;2:32-34:1;8:76-76:-;8:80-80:- ladder.up 0 ISHF R1, R0, R7
 form IADD register,register,register-,register 0x8000000700077210 0x000fc8000791e006 0:18-18:2;1:24-27:0;2:32-34:1;3:63-66:-;0:74-74:2 ladder.take 0 IADD R1, R0, -R7, R13
 form IADD register,register,register,register,register,register 0x0000000700077210 0x000fc8000791e406 0:18-18:2;1:24-27:0;2:32-34:1;3:63-66:-;8:72-72:-;8:75-75:-;4:77-80:-;5:87-90:- ladder.add 0 IADD R1, R0, R7, R12, R15, R15
 form IADD3 register,register,register 0x0000000700077210 0x000fca0007ffa8ff 0:18-18:2;1:24-27:0;2:32-34:1;8:72-72:- ladder.add 0 IADD3 R1, R0, R7
