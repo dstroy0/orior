@@ -157,6 +157,10 @@ int run_channel_ask(RunQuestion *asked);
 // costs no other question its answer. The count of those answered, each with its own outcome
 unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count);
 
+// 1 once a panic on the line has been ruled on: the run is stopped, and every question put after it, on a dry channel
+// as on a live one, is held with that reason and carried by nothing. One panic a run
+int run_channel_panic_ruled(void);
+
 // the channel closed, R written back where it was opened, and what it held given back
 void run_channel_close(void);
 

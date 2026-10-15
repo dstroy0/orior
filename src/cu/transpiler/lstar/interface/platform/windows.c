@@ -144,6 +144,63 @@ static DWORD WINAPI interface_pipe_drained(LPVOID argument)
 // to the moment the interface lets its own copies go, no other probe of this process is started
 static SRWLOCK s_interface_starting = SRWLOCK_INIT;
 
+// The launch queue (interface.h): two semaphores every process on the host opens by name, the places for the children
+// running at once and the one start under way, which its taker holds for the spacing after the start is made. A
+// process the system gives no named semaphore queues its own starts alone
+static HANDLE s_launches = NULL;
+static HANDLE s_launching = NULL;
+static INIT_ONCE s_queue_opened = INIT_ONCE_STATIC_INIT;
+
+static BOOL CALLBACK interface_queue_open(PINIT_ONCE once, PVOID parameter, PVOID *context)
+{
+    (void)once;
+    (void)parameter;
+    (void)context;
+    // the counts fit a LONG
+    s_launches = CreateSemaphoreA(NULL, (LONG)INTERFACE_LAUNCHES_AT_ONCE, (LONG)INTERFACE_LAUNCHES_AT_ONCE,
+                                  "Local\\orior_launches");
+    s_launching = CreateSemaphoreA(NULL, 1L, 1L, "Local\\orior_launching");
+    if (s_launches == NULL)
+    {
+        s_launches = CreateSemaphoreA(NULL, (LONG)INTERFACE_LAUNCHES_AT_ONCE, (LONG)INTERFACE_LAUNCHES_AT_ONCE, NULL);
+    }
+    if (s_launching == NULL)
+    {
+        s_launching = CreateSemaphoreA(NULL, 1L, 1L, NULL);
+    }
+    return TRUE;
+}
+
+void interface_launch_taken(void)
+{
+    InitOnceExecuteOnce(&s_queue_opened, interface_queue_open, NULL, NULL);
+    if (s_launches != NULL)
+    {
+        WaitForSingleObject(s_launches, INFINITE);
+    }
+    if (s_launching != NULL)
+    {
+        WaitForSingleObject(s_launching, INFINITE);
+    }
+}
+
+void interface_launch_started(void)
+{
+    Sleep(INTERFACE_LAUNCH_SPACING_MILLISECONDS);
+    if (s_launching != NULL)
+    {
+        ReleaseSemaphore(s_launching, 1L, NULL);
+    }
+}
+
+void interface_launch_given(void)
+{
+    if (s_launches != NULL)
+    {
+        ReleaseSemaphore(s_launches, 1L, NULL);
+    }
+}
+
 long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {
     SECURITY_ATTRIBUTES inherited;
@@ -152,6 +209,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     inherited.bInheritHandle = TRUE;
     HANDLE output = INVALID_HANDLE_VALUE;
     HANDLE pipe_read = NULL;
+    interface_launch_taken();
     AcquireSRWLockExclusive(&s_interface_starting);
     if (probe->output_path != NULL)
     {
@@ -160,6 +218,8 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         if (!INTERFACE_CHECK(output != INVALID_HANDLE_VALUE, probe->output_path, error, ENGINE_ERROR_RESOURCE))
         {
             ReleaseSRWLockExclusive(&s_interface_starting);
+            interface_launch_started();
+            interface_launch_given();
             return -1L;
         }
     }
@@ -169,6 +229,8 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         if (!INTERFACE_CHECK(CreatePipe(&pipe_read, &output, &inherited, 0u), probe, error, ENGINE_ERROR_RESOURCE))
         {
             ReleaseSRWLockExclusive(&s_interface_starting);
+            interface_launch_started();
+            interface_launch_given();
             return -1L;
         }
         SetHandleInformation(pipe_read, HANDLE_FLAG_INHERIT, 0u);
@@ -200,6 +262,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     // the reason a probe did not start, read before any call after can set another
     const DWORD start_error = made ? 0u : GetLastError();
     SetErrorMode(mode);
+    interface_launch_started();
     free(line);
     CloseHandle(output);
     if (input != INVALID_HANDLE_VALUE)
@@ -219,6 +282,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         }
         answer->ending = INTERFACE_ENDING_NOT_STARTED;
         answer->code = start_error;
+        interface_launch_given();
         return 0L;
     }
     // a job the probe cannot join leaves only the probe itself to end at its limit
@@ -236,6 +300,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         {
             CloseHandle(job);
         }
+        interface_launch_given();
         INTERFACE_CHECK(0, probe, error, ENGINE_ERROR_RESOURCE);
         return -1L;
     }
@@ -259,6 +324,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     DWORD code = 0u;
     GetExitCodeProcess(started.hProcess, &code);
     CloseHandle(started.hProcess);
+    interface_launch_given();
     // closing the job ends every process the probe started and left
     if (job != NULL)
     {

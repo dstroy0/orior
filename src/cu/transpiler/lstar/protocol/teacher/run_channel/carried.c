@@ -27,6 +27,12 @@ void run_channel_clocks(unsigned long long *airlock, unsigned long long *pop, un
 // `asked` carried as run_channel_ask carries it, R aside
 int run_channel_carried(RunQuestion *asked)
 {
+    if (run_channel_panic_ruled())
+    {
+        RunQuestion *const one[1] = {asked};
+        run_channel_halted(one, 0u, 1u);
+        return 0;
+    }
     if (s_channel.open && s_channel.dry)
     {
         run_channel_dry_written(asked);
@@ -159,6 +165,13 @@ unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
     if (left == NULL)
     {
         return run_channel_carried_many(asked, count);
+    }
+    // a stopped run carries nothing and answers nothing from R: every question is held with the stop's reason
+    if (run_channel_panic_ruled())
+    {
+        run_channel_halted(asked, 0u, count);
+        free(left);
+        return 0u;
     }
     unsigned int recorded = 0u;
     unsigned int lefts = 0u;

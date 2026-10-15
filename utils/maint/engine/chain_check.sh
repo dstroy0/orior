@@ -35,6 +35,8 @@
 #   overseer_check   holds the overseer's conference to its consensus and its lessons, in a run of its own, on a
 #                    carrier that refuses every question and reaches no part
 #   query_interface_check walks asks from inside the cell, every ending kept as the answer of the address that caused it
+#   launch_queue_check holds the interface's launch queue: eight starts asked at once hold at most four places at a
+#                    time, and each start follows the one before it by the spacing at least
 #   query_order_check puts the known order of asks to the host on a clock found by asking, and solves every link
 #   stem_group_check holds the stem membership rule: groups on anchors, the same in every order
 #   branch_side_check asks the host whether the side a branch is read from leaves a mark
@@ -123,6 +125,9 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_walk" "$BOOT/query/query_walk.c" "$
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/query_interface_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_interface_check.c" "$BOOT/query/query_interface.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
     "$INTERFACE/interface_names.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -pthread -I"$TOP/src/cu/engine" -o "$OUT/launch_queue_check" \
+    "$TOP/utils/test/src/cu/transpiler/lstar/interface/launch_queue_check.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
+    "$INTERFACE/interface_names.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_order_check.c" \
     "$BOOT/order/query_order.c" "$BOOT/query/query_ask.c" "$BOOT/order/ask_order.c" \
     "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" || exit 1
@@ -208,6 +213,7 @@ mkdir -p "$OUT/scheduler_check.dry"
 "$OUT/host_entry_check" || exit 1
 "$OUT/bus_enum_check" "$CLASSIFY" "$OUT/classify_walk.out" || exit 1
 "$OUT/query_interface_check" "$WALK" "$OUT/query_walk.out" || exit 1
+"$OUT/launch_queue_check" || exit 1
 "$OUT/query_order_check" || exit 1
 "$OUT/stem_group_check" || exit 1
 "$OUT/branch_side_check" || exit 1

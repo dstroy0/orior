@@ -103,8 +103,11 @@ enum CubinSafe
 unsigned int cubin_safe_launch(int status, unsigned long long waited);
 
 // The verdict on one launch read under rule 8: `part_faulted` 1 where the part stamped an Xid critical error during the
-// launch, `status` the driver's own word on its stop event. CUBIN_SAFE_LAUNCH_FAULT where the part faulted, by the
-// stamp or by a `status` that corrupts the context; CUBIN_SAFE otherwise
+// launch, or the display driver wrote an error to the system log while it ran (nvlddmkm at the levels critical and
+// error, read by the listener, cubin_run/driver.c): the driver's word is the part's fault telemetry as much as the
+// part's own stamp. `status` the driver's own word on its stop event. CUBIN_SAFE_LAUNCH_FAULT where the part faulted,
+// by the stamp or by a `status` that corrupts the context, and the launch is a panic (qry_buffer.h); CUBIN_SAFE
+// otherwise
 unsigned int cubin_safe_fault(int part_faulted, int status);
 
 // The vendor's safety verdict, the gate's and shared by every path that reaches the part: the airlock. The cross

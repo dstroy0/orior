@@ -4,6 +4,8 @@
 #include "interface_internal.h"
 
 #if !defined(_WIN32)
+#include <semaphore.h>
+
 // the rule a signal names
 static InterfaceFault interface_fault_of(unsigned long long signal_number)
 {
@@ -59,10 +61,58 @@ static int interface_pipe_read(int pipe_read, InterfaceAnswer *answer, unsigned 
 // other probe of this process is forked
 static pthread_mutex_t s_interface_starting = PTHREAD_MUTEX_INITIALIZER;
 
+// The launch queue (interface.h): two semaphores every process on the host opens by name, the places for the children
+// running at once and the one start under way, which its taker holds for the spacing after the start is made. A
+// process the system gives no named semaphore queues nothing
+static sem_t *s_launches = SEM_FAILED;
+static sem_t *s_launching = SEM_FAILED;
+static pthread_once_t s_queue_opened = PTHREAD_ONCE_INIT;
+
+static void interface_queue_open(void)
+{
+    s_launches = sem_open("/orior_launches", O_CREAT, 0600, INTERFACE_LAUNCHES_AT_ONCE);
+    s_launching = sem_open("/orior_launching", O_CREAT, 0600, 1u);
+}
+
+void interface_launch_taken(void)
+{
+    pthread_once(&s_queue_opened, interface_queue_open);
+    if (s_launches != SEM_FAILED)
+    {
+        while ((sem_wait(s_launches) != 0) && (errno == EINTR))
+        {
+        }
+    }
+    if (s_launching != SEM_FAILED)
+    {
+        while ((sem_wait(s_launching) != 0) && (errno == EINTR))
+        {
+        }
+    }
+}
+
+void interface_launch_started(void)
+{
+    interface_pause((unsigned long long)INTERFACE_LAUNCH_SPACING_MILLISECONDS * INTERFACE_THOUSAND);
+    if (s_launching != SEM_FAILED)
+    {
+        sem_post(s_launching);
+    }
+}
+
+void interface_launch_given(void)
+{
+    if (s_launches != SEM_FAILED)
+    {
+        sem_post(s_launches);
+    }
+}
+
 long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {
     int output = -1;
     int pipe_read = -1;
+    interface_launch_taken();
     pthread_mutex_lock(&s_interface_starting);
     if (probe->output_path != NULL)
     {
@@ -85,6 +135,8 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     if (!INTERFACE_CHECK(output >= 0, probe, error, ENGINE_ERROR_RESOURCE))
     {
         pthread_mutex_unlock(&s_interface_starting);
+        interface_launch_started();
+        interface_launch_given();
         return -1L;
     }
     unsigned long long total = 0ull;
@@ -101,6 +153,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     if (made != 0)
     {
         pthread_mutex_unlock(&s_interface_starting);
+        interface_launch_started();
     }
     if (made == 0)
     {
@@ -139,6 +192,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         answer->ending = INTERFACE_ENDING_NOT_STARTED;
         // errno is a positive code where fork or pipe failed
         answer->code = (unsigned long long)errno;
+        interface_launch_given();
         return 0L;
     }
     // the group is set from both sides. A limit that runs out before the probe has set it still reaches it
@@ -189,6 +243,8 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         close(pipe_read);
         interface_output_ended(answer, total);
     }
+    // the probe has ended, however it ended: its place in the queue is given back
+    interface_launch_given();
     if (!INTERFACE_CHECK(reaped == made, probe->output_path, error, ENGINE_ERROR_RESOURCE))
     {
         return -1L;

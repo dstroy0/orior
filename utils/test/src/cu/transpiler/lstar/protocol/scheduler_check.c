@@ -6,6 +6,7 @@
 //              handed
 //   all        every question of a round is put, a round past SCHEDULER_ROUND_MOST to more than one process
 //   held       a question nothing carried answers nothing, and the round counts none answered
+//   stopped    a panic on the line ruled stops the run, and every question put after it is held with that reason
 //
 //     scheduler_check <folder>
 //
@@ -16,6 +17,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/scheduler.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel/run_channel_internal.h"
 #include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
 
 #include <stdio.h>
@@ -134,6 +136,23 @@ int main(int count, char **words)
         }
     }
     check_that(ordered, "the most settling first, and the order handed between equals");
+
+    // the stop: a panic on the line ruled, and every question of the round after it held with the stop's reason, on
+    // the dry channel as on a live one
+    check_that(run_channel_open(carrier, 1000000ull) == 1, "the dry channel opens again");
+    check_that(!run_channel_panic_ruled(), "the run is not stopped before a panic");
+    qry_hand(run, "panic.txt", (const unsigned char *)"faulted", 7ull, QRY_PANIC);
+    check_that(qry_panicked(run) != 0ull, "a panic opens the line");
+    run_channel_line_ruled(question[0]);
+    check_that(run_channel_panic_ruled(), "a ruling on a panic stops the run");
+    const unsigned int after = scheduler_round(question, settles, CHECK_QUESTIONS);
+    run_channel_close();
+    unsigned int stopped = 0u;
+    for (unsigned int at = 0u; at < CHECK_QUESTIONS; at += 1u)
+    {
+        stopped += ((pool[at].outcome == RUN_NO_CHANNEL) && (strstr(pool[at].refused, "stopped") != NULL)) ? 1u : 0u;
+    }
+    check_that((after == 0u) && (stopped == CHECK_QUESTIONS), "every question after the stop is held with the stop's reason");
     qry_close(run);
     free(pool);
     printf("scheduler_check: %u checks, %u failed\n", s_checks, s_failed);

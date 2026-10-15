@@ -195,6 +195,14 @@ static void khw_round_printed(unsigned int count, const unsigned long long befor
 // in its place once they are
 void khw_round_carried(void)
 {
+    // a stopped run carries no round: said once, and every round after is held by the channel with that reason
+    static int s_stop_said = 0;
+    if (run_channel_panic_ruled() && !s_stop_said)
+    {
+        s_stop_said = 1;
+        printf("  the run stopped on a panic: no round after it reaches the part, and the pass ends with what the "
+               "rounds before it left\n");
+    }
     unsigned long long before[4] = {0ull, 0ull, 0ull, 0ull};
     run_channel_clocks(&before[0], &before[1], &before[2], &before[3]);
     scheduler_round(s_pool_question, s_pool_settles, s_pooled);

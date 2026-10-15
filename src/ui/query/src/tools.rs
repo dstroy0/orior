@@ -437,13 +437,23 @@ struct Compile {
     source: PathBuf,
 }
 
-/// Every compile run, as many at once as the host has processors; the first that fails is said.
+/// The launch queue's two numbers as the interface keeps them (`interface.h`): the compilers run at most this many
+/// at once, and this much passes between one start and the next. The crate starts the compilers itself, outside the
+/// interface, and paces them by the same numbers.
+pub const LAUNCHES_AT_ONCE: usize = 4;
+pub const LAUNCH_SPACING: std::time::Duration = std::time::Duration::from_millis(50);
+
+/// Every compile run, `LAUNCHES_AT_ONCE` at a time and `LAUNCH_SPACING` between starts; the first that fails is said.
 fn compiled_at_once(compiles: &[Compile], programs: &dyn Programs) -> Result<(), String> {
-    let at_once = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-    for batch in compiles.chunks(at_once) {
+    let mut started = 0usize;
+    for batch in compiles.chunks(LAUNCHES_AT_ONCE) {
         let mut running = Vec::new();
         for compile in batch {
+            if started != 0 {
+                std::thread::sleep(LAUNCH_SPACING);
+            }
             let child = Command::new(&compile.compiler).args(&compile.words).env("PATH", programs.run_path()).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("{}: {e}", compile.compiler.display()))?;
+            started += 1;
             running.push((child, &compile.source));
         }
         for (child, source) in running {
@@ -537,6 +547,19 @@ mod building {
 
     fn root() -> PathBuf {
         crate::tree_root()
+    }
+
+    /// The number the interface's header defines under `name`, read off its `#define` line.
+    fn interface_number(name: &str) -> u64 {
+        let header = std::fs::read_to_string(root().join("src/cu/transpiler/lstar/interface/interface.h")).unwrap();
+        let line = header.lines().find(|line| line.starts_with("#define ") && line.split_whitespace().nth(1) == Some(name)).unwrap_or_else(|| panic!("{name} is not defined in interface.h"));
+        line.split_whitespace().nth(2).unwrap().trim_end_matches('u').parse().unwrap()
+    }
+
+    #[test]
+    fn the_compiles_pace_as_the_interface_s_queue_does() {
+        assert_eq!(LAUNCHES_AT_ONCE as u64, interface_number("INTERFACE_LAUNCHES_AT_ONCE"));
+        assert_eq!(LAUNCH_SPACING.as_millis() as u64, interface_number("INTERFACE_LAUNCH_SPACING_MILLISECONDS"));
     }
 
     #[test]
