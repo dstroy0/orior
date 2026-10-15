@@ -9797,3 +9797,44 @@ textarea.report-field {
   animation-play-state: paused !important;
   transition: none !important;
 }
+
+/* The protocol panel over a protocol run's console: the boxes along the fuse, each lit where its blob
+   has come, the panic's in the fire's color, and what the run says of its progress beside them. */
+.console .protocol-panel {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.4rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+
+.console .protocol-boxes {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.console .protocol-box {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  opacity: 0.45;
+}
+
+.console .protocol-box.lit {
+  opacity: 1;
+  border-color: var(--fuse-burn);
+  box-shadow: 0 0 6px var(--fuse-burn);
+}
+
+.console .protocol-box.panic {
+  border-color: var(--fuse-fire);
+  box-shadow: 0 0 8px var(--fuse-fire);
+}
+
+.console .protocol-said {
+  margin-left: auto;
+  opacity: 0.8;
+}
