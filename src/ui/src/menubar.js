@@ -619,8 +619,9 @@ const COMMANDS = {
   validate: () => editing().validate(),
   list: (args) => searchJobs(args[0]),
   show: (args) => searchJobs(args[0]),
-  // The protocol's jobs: shown, and with words from the command line started on them, the run in the
-  // protocol panel.
+  // The protocol: its one job, the course, shown and with words from the command line started, the run
+  // in the protocol panel; and its other commands, which the command line says and the menu does not list.
+  course: protocolJob("protocol/course"),
   query: protocolJob("protocol/query"),
   learn: protocolJob("protocol/learn"),
   cross: protocolJob("protocol/cross"),
@@ -1323,7 +1324,7 @@ function itemsOf(menu) {
           };
   // An entry to be filled in gives its items as the menu opens.
   const filled = (item) => (item.fill ? (FILLS[item.fill]?.() ?? []) : [shown(item)]);
-  const items = (menu.items ?? []).flatMap(filled);
+  const items = (menu.items ?? []).filter((item) => item === "-" || !item.hidden).flatMap(filled);
   const groups = menu.groups ?? [];
   let jobs;
   if (menu.split) {
@@ -1509,10 +1510,6 @@ async function openReaderMenus() {
 
 // The menus of jobs the tool strip holds in place of the bar, each its title, its icon and its
 // items, where its groups have a job in the tree.
-export function stripMenus() {
-  return state.menus.filter((menu) => menu.strip && jobsIn(menu.groups ?? []).length).map((menu) => ({ title: menu.title, icon: menu.strip, items: () => itemsOf(menu) }));
-}
-
 // Gives each title the first of its letters no title before it has.
 function lettersFor(menus) {
   const taken = new Set();

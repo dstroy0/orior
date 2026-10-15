@@ -11,9 +11,10 @@
 // run view and its jobs; Debug and Terminal, the panels under the views; Problems, the open files'
 // diagnostics, its icon marked while there are errors; Git, the branch's commits; and Runs, the tree's
 // query runs, its icon marked while one is live and in the error's color once one has panicked. The icon of
-// each window that shows is drawn in signal on a square of it. Under the top icons, a line apart, the
-// menus of jobs commands.json puts on the strip, Protocol, Ingest, Render, Sim, Pipeline and Stage,
-// each an icon whose press opens its menu beside it, and each there only where the tree has its jobs.
+// each window that shows is drawn in signal on a square of it. Under the top icons, a line apart, one
+// icon for each category of jobs the tree has, in the run view's order: a press shows the run view with
+// that category alone in its list, and the protocol's shows its one job, the course. The icon of the
+// category shown is drawn in signal.
 //
 // The top bar's tools: Preferences, Notifications, which lists what the status bar has said and is
 // marked while some of it is unread, Toolchains, and the definitions beside the editor. Past them the
@@ -26,6 +27,7 @@ import { dockIcon, iconRemoved } from "./docks.js";
 import { showGroup, shownGroup, morePanes, showPane } from "./explorer.js";
 import { icon } from "./icons.js";
 import { closeMenu, showMenu } from "./menu.js";
+import { ORDER, listedJobs, showCategory, shownCategory } from "./run.js";
 import { paneNodeShown, togglePane, togglePaneNode } from "./sides.js";
 import { clearNotices, noticesSaid, noticesSeen, noticesUnseen, onNotice, say } from "./statusbar.js";
 import { onView, shownView, showView } from "./views.js";
@@ -337,18 +339,36 @@ function toggleDefinitions() {
 }
 
 // The menus of jobs on the strip, drawn again as the menu bar is.
+// The icon of each category of jobs.
+const CATEGORY_ICONS = {
+  build: "gear",
+  executable: "run",
+  deploy: "push",
+  protocol: "protocol",
+  ingest: "ingest",
+  run: "terminal",
+  render: "render",
+  sim: "sim",
+  view: "render",
+  pipeline: "pipeline",
+  stage: "stage",
+  test: "tests",
+};
+
 function drawJobs() {
   const group = document.getElementById("strip-jobs");
-  const menus = state.hooks.jobMenus();
-  group.hidden = !menus.length;
+  const jobs = listedJobs();
+  const categories = ORDER.filter((name) => jobs.some((job) => job.group === name));
+  group.hidden = !categories.length;
   group.replaceChildren(
-    ...menus.map((menu) => {
-      const button = element("button", { className: "strip-button strip-job", type: "button", title: menu.title }, icon(menu.icon));
-      button.setAttribute("aria-label", menu.title);
-      button.setAttribute("aria-haspopup", "menu");
+    ...categories.map((name) => {
+      const button = element("button", { className: `strip-button strip-job strip-category-${name}`, type: "button", title: name }, icon(CATEGORY_ICONS[name] ?? "run"));
+      button.setAttribute("aria-label", name);
+      button.dataset.category = name;
+      button.classList.toggle("on", shownView() === "run" && shownCategory() === name);
       button.addEventListener("click", () => {
-        const box = button.getBoundingClientRect();
-        showMenu(box.right + 4, box.top, menu.items(), { anchor: button });
+        showCategory(name);
+        window.requestAnimationFrame(refreshStrip);
       });
       return button;
     }),
@@ -398,7 +418,7 @@ function startWindow() {
   });
 }
 
-// `hooks` runs a command of the menus by its name, and gives the menus of jobs the strip holds.
+// `hooks` runs a command of the menus by its name.
 export function startStrip(hooks) {
   state.hooks = hooks;
   const strip = document.getElementById("strip");
@@ -410,7 +430,7 @@ export function startStrip(hooks) {
     node.addEventListener("pointerdown", keepPreview, true);
   }
   drawJobs();
-  window.addEventListener("menus-drawn", drawJobs);
+  window.addEventListener("jobs-changed", drawJobs);
   startWindow();
   document
     .getElementById("bar-tools")

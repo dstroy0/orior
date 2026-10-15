@@ -3,9 +3,9 @@
 
 // The panes that take the editor's room: the job list, the explorer and the definitions. A moment
 // after the app loads, after its view shows, or after the pointer leaves one, it collapses, giving
-// its width back and sliding up and toward the edge it stands at, and the pointer reaching that edge
-// of the window brings it back; one brought back that the pointer never comes onto goes again a
-// moment later. A pane that holds the pointer, that is being typed in, or that a menu is open over,
+// its width back and sliding up and toward the edge it stands at, and the pointer resting on that edge
+// of the window for a moment brings it back, where one passing over the edge brings nothing; one
+// brought back that the pointer never comes onto goes again a moment later. A pane that holds the pointer, that is being typed in, or that a menu is open over,
 // or a left pane with the pointer on the tool strip beside it,
 // stays until all have left it, as every pane does while the window's frame is held, and is looked
 // at again every REST while it stays. A pane is being typed in from a key pressed in it until the
@@ -22,6 +22,10 @@ const AUTO = "orior.panes.auto";
 
 // How long the pointer stays away before a pane collapses, in milliseconds.
 const REST = 700;
+
+// How long the pointer rests on a pane's edge before the pane shows, in milliseconds: a pointer that
+// passes over the edge on its way elsewhere shows nothing.
+export const EDGE_REST = 250;
 
 // How long a pane takes to slide away, as style.css sets it, in milliseconds.
 const SLIDE = 220;
@@ -118,7 +122,7 @@ export function keepPane(node, side, { own = false } = {}) {
   edge.setAttribute("aria-hidden", "true");
   node.closest(".mode").append(edge);
   node.classList.add("collapsible", `toward-${side}`);
-  const pane = { node, edge, timer: 0, keyed: false, pinned: false, own };
+  const pane = { node, edge, timer: 0, resting: 0, keyed: false, pinned: false, own };
   node.addEventListener("pointerenter", () => window.clearTimeout(pane.timer));
   node.addEventListener("pointerleave", () => {
     pane.pinned = false;
@@ -127,11 +131,15 @@ export function keepPane(node, side, { own = false } = {}) {
   node.addEventListener("keydown", () => (pane.keyed = true), true);
   node.addEventListener("focusout", () => collapseLater(pane));
   edge.addEventListener("pointerenter", () => {
-    if (!node.hidden) {
-      setShown(pane, true);
-      collapseLater(pane);
-    }
+    window.clearTimeout(pane.resting);
+    pane.resting = window.setTimeout(() => {
+      if (!node.hidden) {
+        setShown(pane, true);
+        collapseLater(pane);
+      }
+    }, EDGE_REST);
   });
+  edge.addEventListener("pointerleave", () => window.clearTimeout(pane.resting));
   // A pane hidden while it has nothing to show starts its wait again when it shows.
   new MutationObserver(() => !node.hidden && collapseLater(pane)).observe(node, { attributes: true, attributeFilter: ["hidden"] });
   panes.push(pane);

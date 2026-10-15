@@ -9806,8 +9806,8 @@ textarea.report-field {
 .console .protocol-line {
   position: relative;
   flex: none;
-  height: 86px;
-  padding: 0 24px;
+  height: 120px;
+  padding: 0 48px;
 }
 
 .console .protocol-line .fuse {
@@ -9815,128 +9815,95 @@ textarea.report-field {
   left: 0;
   top: 0;
   width: 100%;
-  height: calc(30px + 48px);
+  height: 120px;
   margin: 0;
   z-index: 1;
 }
 
 .console .protocol-nodes {
   position: absolute;
-  left: 24px;
-  right: 24px;
-  top: 33px;
-  height: 52px;
+  left: 48px;
+  right: 48px;
+  top: 0;
+  height: 120px;
   z-index: 2;
 }
 
 .console .protocol-node {
   position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  top: 50%;
+  transform: translate(-50%, -50%);
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
   color: var(--fg-3);
-  font: 500 12px/1 var(--head);
+  font: 500 11px/1.15 var(--head);
   letter-spacing: 0.01em;
-  white-space: nowrap;
-  cursor: pointer;
 }
 
 .console .protocol-node.first {
-  transform: none;
-  align-items: flex-start;
-}
-
-.console .protocol-node.first .protocol-dot {
-  margin-left: -6px;
+  transform: translate(0, -50%);
 }
 
 .console .protocol-node.last {
-  transform: translateX(-100%);
-  align-items: flex-end;
+  transform: translate(-100%, -50%);
 }
 
-.console .protocol-node.last .protocol-dot {
-  margin-right: -6px;
+.console .protocol-dot {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--fuse-ash);
+  background: var(--well);
+  box-sizing: border-box;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .console .protocol-node.reached {
   color: var(--fg);
 }
 
-.console .protocol-node:hover .protocol-label,
-.console .protocol-node.shown .protocol-label {
-  color: var(--fg);
-  text-decoration: underline;
-  text-decoration-color: var(--fuse-fire);
-  text-underline-offset: 3px;
-}
-
-.console .protocol-node:focus-visible {
-  outline: none;
-}
-
-.console .protocol-node:focus-visible .protocol-dot {
-  outline: 2px solid var(--fuse-fire);
-  outline-offset: 2px;
-}
-
-.console .protocol-dot {
-  width: 12px;
-  height: 12px;
-  margin-top: -6px;
-  border-radius: 50%;
-  border: 2px solid var(--fuse-ash);
-  background: var(--well);
-  box-sizing: border-box;
-}
-
 .console .protocol-node.reached .protocol-dot {
   border-color: var(--fuse-burn);
-  background: var(--fuse-burn);
-  box-shadow: 0 0 6px var(--fuse-burn);
+  box-shadow: 0 0 8px var(--fuse-burn);
+}
+
+.console .protocol-node.current {
+  color: var(--fg);
 }
 
 .console .protocol-node.current .protocol-dot {
   border-color: var(--fuse-fire);
-  background: var(--fuse-fire);
-  box-shadow: 0 0 10px var(--fuse-fire);
+  box-shadow: 0 0 14px var(--fuse-fire);
   animation: protocol-breath 1.6s ease-in-out infinite;
 }
 
-.console .protocol-node.shown .protocol-dot {
-  outline: 2px solid var(--fuse-fire);
-  outline-offset: 2px;
+.console .protocol-node.failed {
+  color: var(--status-report);
 }
 
-.console .protocol-label {
-  margin-top: 6px;
+.console .protocol-node.failed .protocol-dot {
+  border-color: var(--status-report);
+  box-shadow: 0 0 10px var(--status-report);
 }
 
-.console .protocol-count {
-  font: 11px var(--code);
-  color: var(--fg-3);
-  min-height: 11px;
-}
-
-.console .protocol-node.reached .protocol-count {
+/* The one line said under the line: the step and its round, the time gone, and the errors where there are any. */
+.console .protocol-status {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0 0.6rem;
+  font: 12px var(--head);
   color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
 }
 
-.console .protocol-time {
-  font: 11px var(--code);
-  color: var(--fg-3);
-  min-height: 11px;
-}
-
-.console .protocol-node.current .protocol-time {
-  color: var(--fuse-fire);
+.console .protocol-status .warn {
+  color: var(--status-report);
 }
 
 /* The overview of a protocol run: the line across the middle of the box. */
@@ -9949,138 +9916,10 @@ textarea.report-field {
   padding: 0 1rem;
 }
 
-/* The run's readings over the line: a value over its name each, in one row, the rate drawn beside. */
-.console .protocol-readings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.4rem 2rem;
-  padding: 0 1.5rem 2rem;
-}
-
-.console .protocol-readings .reading {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 4.5rem;
-}
-
-.console .protocol-readings .value {
-  font: 500 20px/1 var(--head);
-  color: var(--fg);
-  font-variant-numeric: tabular-nums;
-}
-
-.console .protocol-readings .warn .value {
-  color: var(--status-report);
-}
-
-.console .protocol-readings .name {
-  font: 12px var(--head);
-  color: var(--fg-3);
-}
-
-.console .protocol-readings .rate {
-  margin-left: auto;
-}
-
-.console .protocol-rate {
-  display: block;
-  width: 240px;
-  height: 36px;
-}
-
-/* The steps of the run, one row a console line, as the run names them: dense, every row a line. */
 .console .protocol-overview {
-  justify-content: flex-start;
-  gap: 0.4rem;
+  justify-content: center;
+  gap: 0.6rem;
   padding: 0.3rem 0.6rem 0.6rem;
-  overflow: auto;
-}
-
-.console .protocol-overview .protocol-readings {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-  gap: 0.3rem 0.8rem;
-  padding: 0 0.2rem;
-}
-
-.console .protocol-overview .protocol-readings .value {
-  font: 500 14px/1.1 var(--head);
-}
-
-.console .protocol-overview .protocol-readings .name {
-  font: 10.5px var(--head);
-}
-
-.console .protocol-overview .protocol-readings .reading {
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.console .protocol-overview .protocol-readings .rate {
-  grid-column: span 2;
-}
-
-.console .protocol-overview .protocol-rate {
-  width: 100%;
-  height: 24px;
-}
-
-.console .protocol-overview .protocol-line {
-  height: 40px;
-  margin: 0.2rem 0;
-}
-
-.console .protocol-steps {
-  width: 100%;
-  border-collapse: collapse;
-  font: 11.5px/1.35 var(--code);
-  color: var(--fg-2);
-}
-
-.console .protocol-steps th {
-  text-align: left;
-  font: 500 11px var(--head);
-  color: var(--fg-3);
-  padding: 0 0.4rem 0.15rem;
-  border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 0;
-  background: var(--well);
-}
-
-.console .protocol-steps td {
-  padding: 0.05rem 0.4rem;
-  vertical-align: top;
-  border-bottom: 1px solid var(--line);
-}
-
-.console .protocol-steps td.at,
-.console .protocol-steps td.took {
-  white-space: nowrap;
-  color: var(--fg-3);
-  font-variant-numeric: tabular-nums;
-}
-
-.console .protocol-steps td.step {
-  white-space: nowrap;
-  color: var(--fg);
-}
-
-.console .protocol-steps td.said {
-  word-break: break-word;
-}
-
-.console .protocol-steps tr.current td {
-  color: var(--fg);
-}
-
-.console .protocol-steps tr.current td.took {
-  color: var(--fuse-fire);
-}
-
-.console .protocol-steps tr.stderr td.said {
-  color: var(--status-report);
 }
 
 /* The views of a protocol run as tabs under the console head: the overview and the console. */

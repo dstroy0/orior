@@ -11,7 +11,7 @@ import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, hearCommandLine, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar, stripMenus } from "./menubar.js";
+import { drawMenubar, hearCommandLine, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar } from "./menubar.js";
 import { forgetRuns } from "./runs.js";
 import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
@@ -294,7 +294,7 @@ async function start() {
     showView("edit");
     (line === null || line === undefined ? openFile(path) : openAt(path, line, col ?? 0)).then(showWindow);
   });
-  startStrip({ run: runCommand, jobMenus: stripMenus });
+  startStrip({ run: runCommand });
   startKeyHints();
   startSight();
   startWaits();

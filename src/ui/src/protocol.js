@@ -361,3 +361,58 @@ export function valuesOfWords(params, words) {
   }
   return values;
 }
+
+// The course of the protocol: the one job's steps in order, read off the lines the course says on its console.
+// `course: <n> steps: <name>, <name>, ...` names them before the first; `course: step <k> of <n>: <name>` says the
+// step under way; `course: stopped at step <k>, <name>, exit <code>` that it stopped there; `course: ended, <n>
+// steps` that every step ended. A run that says no course line is no course.
+export function courseStart() {
+  return { steps: [], at: 0, stopped: null, ended: false };
+}
+
+const COURSE_STEPS = /^\s*course: (\d+) steps: (.*)$/;
+const COURSE_STEP = /^\s*course: step (\d+) of \d+: /;
+const COURSE_STOPPED = /^\s*course: stopped at step (\d+), /;
+const COURSE_ENDED = /^\s*course: ended, /;
+
+export function courseLine(course, text) {
+  const steps = COURSE_STEPS.exec(text);
+  if (steps) {
+    course.steps = steps[2].split(",").map((name) => name.trim()).filter(Boolean);
+    return course;
+  }
+  const step = COURSE_STEP.exec(text);
+  if (step) {
+    course.at = Number(step[1]);
+    return course;
+  }
+  const stopped = COURSE_STOPPED.exec(text);
+  if (stopped) {
+    course.stopped = Number(stopped[1]);
+    return course;
+  }
+  if (COURSE_ENDED.test(text)) {
+    course.ended = true;
+  }
+  return course;
+}
+
+// What the line shows of a course: each step a node, reached once a later step is under way or the course ended,
+// current while under way, failed where the course stopped at it; and `place`, how far the fire has burnt along the
+// line, 0 to 1: the steps done, and the step under way part way to the next by `passPlace`, how far its own pass has
+// come. A course that ended burns the whole line; one that stopped stands where it stopped.
+export function courseRead(course, passPlace, ended) {
+  const count = course.steps.length;
+  const done = course.ended || (ended && course.stopped === null);
+  const nodes = course.steps.map((label, index) => {
+    const step = index + 1;
+    const failed = course.stopped === step;
+    return { key: `step${step}`, label, reached: !failed && (done || step < course.at), current: !done && !failed && step === course.at, failed };
+  });
+  if (count < 2) {
+    return { nodes, place: done ? 1 : 0 };
+  }
+  const part = Math.max(0, Math.min(1, passPlace));
+  const place = done ? 1 : course.at === 0 ? 0 : Math.min(1, (course.at - 1 + part) / (count - 1));
+  return { nodes, place };
+}

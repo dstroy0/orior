@@ -25,17 +25,9 @@ A job's description is the opening comment or docstring of its own file.
 
 ## The protocol panel
 
-A protocol job launched from the Protocol menu, a query, a learn pass, a cross, a write or the pairs, shows its run as it goes in the protocol panel, in place of a console tee. The run's writer carries a tap (the table's run section, the tap): the app's server connects to it when the job's run names its `.qry`, and each blob the writer places arrives as a `run-blob` event, its sequence, time, priority, member, name and size. The panel is the run's telemetry, for an engineer tuning the protocol.
+The protocol is one job, the course, which runs the passes in order and is the Protocol menu's one entry, the Protocol button of the strip and the one job the Run view lists under protocol; its other commands, a query, a learn pass, a cross, a write or the pairs, are the command line's. A protocol job launched either way shows its run as it goes in the protocol panel, in place of a console tee. The run's writer carries a tap (the table's run section, the tap): the app's server connects to it when the job's run names its `.qry`, and each blob the writer places arrives as a `run-blob` event, its sequence, time, priority, member, name and size. The panel is the run's telemetry, for an engineer tuning the protocol.
 
-The panel keeps the job's option fields at the top as the run started with them. Under them the console box holds the run as tabs: the overview and the console. The overview is the run's dashboard: the readings in a dense grid, the fuse across the box burning with the plan's progress, and the steps of the run as the run names them, one row a console line in order, `t` the time it came at, `step` the words before the line's colon as the teacher, the carrier or the writer printed them, `message` the rest of the line, and `duration` how long the step stood until the next. The last row is the step under way until the next comes.
-
-| reading | what it is | read off |
-| --- | --- | --- |
-| throughput, answers/s | the answers placed over the last ten seconds, a recent rate and not the run's average; drawn a second at a time over the last two minutes | the tap, each `answers<n>.txt` |
-| elapsed, remaining | since the job started, standing still at the run's end; the rounds left at the spacing of the last rounds, once two have been put | the job's clock, the tap, each `questions.txt`, and the plan |
-| airlock delay, cross delay, carrier busy | the last round's seconds in each | the teacher's `round:` line |
-| in flight | the questions put in the round under way and not yet answered | the tap |
-| held, refused, faulted, panics | the questions held off the part, refused by it, or faulting it, counted off the console; the panics off the tap | the console, and blobs at the panic priority |
+The panel keeps the job's option fields at the top as the run started with them. Under them the console box holds the run as tabs: the overview and the console. The overview is the run's line: a circle for each step holding its name, the fuse between them burnt behind the step under way and afire at it, part way to the next by how far the step's own pass has come, read off the tap as each round's questions and answers are placed, and a step the course stopped at in the error's color. The course's steps are read off its console lines, `course: <n> steps: ...` before the first and `course: step <k> of <n>: <name>` at each; a pass run alone shows its own steps, Tools, Run, Carried in, Plan, its rounds, Written and Leave. Under the line one line of words says the step and its round, the answers of the questions, the time gone, and the questions held, refused and faulted and the panics where there are any, counted off the console and the tap.
 
 A run with no tap, an older writer, leaves the panel to the console, and the job's end closes the pipe.
 

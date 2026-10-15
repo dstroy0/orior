@@ -336,16 +336,17 @@
     {
       "title": "Protocol",
       "strip": "protocol",
-      "groups": ["protocol"],
+      "groups": [],
       "items": [
-        { "label": "Query…", "command": "query", "args": "--<from> --<to> [--<part>] [--dry] [--leave all|none]", "console": true },
-        { "label": "Learn…", "command": "learn", "args": "discover|turns|registers|costs [--base <cu>] | seed <listing.sass> | rounds [<n>] | dry [<n>] | enumerate <slot> | clock [<from> [<words>]] [--leave all|none]", "console": true },
-        { "label": "Cross…", "command": "cross", "args": "[--base <cu>] [--leave all|none]", "console": true },
-        { "label": "Write…", "command": "write", "args": "bridge [<ruleset>...] | krs | gsm [--leave all|none]", "console": true },
-        { "label": "Pairs…", "command": "pairs", "args": "<mode> [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>] [--leave all|none]", "console": true },
-        { "label": "Stick…", "command": "stick", "args": "[vendor | engine | read <words>] [--leave all|none]", "console": true },
-        { "label": "Kept", "command": "kept", "console": true },
-        { "label": "Sweep", "command": "sweep", "console": true }
+        { "label": "Protocol", "command": "course", "args": "[--from <step>] [--leave all|none]", "console": true },
+        { "label": "Query…", "command": "query", "args": "--<from> --<to> [--<part>] [--dry] [--leave all|none]", "console": true, "hidden": true },
+        { "label": "Learn…", "command": "learn", "args": "discover|turns|registers|costs [--base <cu>] | seed <listing.sass> | rounds [<n>] | dry [<n>] | enumerate <slot> | clock [<from> [<words>]] [--leave all|none]", "console": true, "hidden": true },
+        { "label": "Cross…", "command": "cross", "args": "[--base <cu>] [--leave all|none]", "console": true, "hidden": true },
+        { "label": "Write…", "command": "write", "args": "bridge [<ruleset>...] | krs | gsm [--leave all|none]", "console": true, "hidden": true },
+        { "label": "Pairs…", "command": "pairs", "args": "<mode> [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>] [--leave all|none]", "console": true, "hidden": true },
+        { "label": "Stick…", "command": "stick", "args": "[vendor | engine | read <words>] [--leave all|none]", "console": true, "hidden": true },
+        { "label": "Kept", "command": "kept", "console": true, "hidden": true },
+        { "label": "Sweep", "command": "sweep", "console": true, "hidden": true }
       ]
     },
     { "title": "Ingest", "strip": "ingest", "groups": ["ingest"] },

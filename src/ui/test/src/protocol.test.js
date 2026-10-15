@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { HISTORY_SECONDS, PANIC, RATE_WINDOW_MS, ROUND_MOST, ROUNDS_SHOWN, blobsOfNode, nodesOf, panelOf, panelReplanned, panelStart, panelStep, planOf, roundsOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "../../src/protocol.js";
+import { HISTORY_SECONDS, PANIC, RATE_WINDOW_MS, ROUND_MOST, ROUNDS_SHOWN, blobsOfNode, courseLine, courseRead, courseStart, nodesOf, panelOf, panelReplanned, panelStart, panelStep, planOf, roundsOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "../../src/protocol.js";
 
 const { test, assert } = window.__harness;
 
@@ -216,4 +216,60 @@ test("a protocol command's words read into a job's values", () => {
   assert.deepEqual(valuesOfWords(query, ["--cu", "--sass", "--sm_86", "--dry"]), { from: ["cu"], to: ["sass"], part: ["sm_86"], dry: ["dry"] });
   assert.deepEqual(valuesOfWords(query, ["--from", "cu", "--to", "sass"]), { from: ["cu"], to: ["sass"] });
   assert.deepEqual(valuesOfWords(learn, ["--fly"]), {});
+});
+
+// The course of the protocol, one line of steps, read off the lines the course says: its steps before the first,
+// the step under way, the step it stopped at and its end. The fire stands at the step under way, part way to the
+// next by how far that step's own pass has come.
+test("the course's steps are read off its first line, and the step under way off each step's line", () => {
+  let course = courseStart();
+  course = courseLine(course, "course: 4 steps: discover, turns, registers, write krs");
+  assert.deepEqual(course.steps, ["discover", "turns", "registers", "write krs"]);
+  assert.equal(course.at, 0);
+  course = courseLine(course, "course: step 1 of 4: discover");
+  assert.equal(course.at, 1);
+  course = courseLine(course, "  round: 1 question(s), airlock 0.6 s");
+  assert.equal(course.at, 1, "a line of the pass changes nothing");
+  course = courseLine(course, "course: step 3 of 4: registers");
+  assert.equal(course.at, 3);
+  assert.equal(course.stopped, null);
+  assert.equal(course.ended, false);
+});
+
+test("the fire stands at the step under way, part way to the next by its pass's own place", () => {
+  let course = courseStart();
+  course = courseLine(course, "course: 3 steps: discover, turns, registers");
+  let read = courseRead(course, 0, false);
+  assert.deepEqual(read.nodes.map((node) => node.label), ["discover", "turns", "registers"]);
+  assert.equal(read.place, 0);
+  assert.ok(read.nodes.every((node) => !node.reached && !node.current));
+  course = courseLine(course, "course: step 1 of 3: discover");
+  read = courseRead(course, 0.5, false);
+  assert.equal(read.place, 0.25, "half of the first step is a quarter of the line");
+  assert.ok(read.nodes[0].current && !read.nodes[0].reached);
+  course = courseLine(course, "course: step 2 of 3: turns");
+  read = courseRead(course, 0, false);
+  assert.equal(read.place, 0.5);
+  assert.ok(read.nodes[0].reached && read.nodes[1].current && !read.nodes[2].reached);
+  course = courseLine(course, "course: ended, 3 steps");
+  read = courseRead(course, 1, true);
+  assert.equal(read.place, 1);
+  assert.ok(read.nodes.every((node) => node.reached) && read.nodes.every((node) => !node.current));
+});
+
+test("a course stopped at a step marks it failed and the fire stands there", () => {
+  let course = courseStart();
+  course = courseLine(course, "course: 3 steps: discover, turns, registers");
+  course = courseLine(course, "course: step 2 of 3: turns");
+  course = courseLine(course, "course: stopped at step 2, turns, exit 1");
+  assert.equal(course.stopped, 2);
+  const read = courseRead(course, 0.7, true);
+  assert.ok(read.nodes[0].reached && read.nodes[1].failed && !read.nodes[2].reached);
+  assert.equal(read.place, 0.5 + 0.7 / 2);
+});
+
+test("a run with no course line reads as no course", () => {
+  const course = courseLine(courseStart(), "plan: discover 16384");
+  assert.deepEqual(course.steps, []);
+  assert.equal(courseRead(course, 0.3, false).nodes.length, 0);
 });
