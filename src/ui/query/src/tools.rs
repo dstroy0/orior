@@ -109,6 +109,7 @@ pub const EVERY: &[Tool] = &[
         c: &[&[
             "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/*.c",
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c",
             "src/cu/transpiler/vendor_bin_layouts/container_write.c",

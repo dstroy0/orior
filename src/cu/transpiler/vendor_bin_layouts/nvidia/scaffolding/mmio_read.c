@@ -4,6 +4,7 @@
 // writes the part: the driver answers reads alone.
 #include "mmio_read.h"
 
+#if defined(_WIN32)
 #include <winioctl.h>
 
 #include "mmio.h"
@@ -53,3 +54,5 @@ int mmio_read(HANDLE device, unsigned int offset, unsigned int words, unsigned i
     }
     return 1;
 }
+
+#endif

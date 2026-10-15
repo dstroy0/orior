@@ -95,6 +95,9 @@ typedef struct
     // few cycles under a launch's overhead, and P6 ranks nothing off these; 0 where it is untimed
     unsigned long long least;
     unsigned long long most;
+    // 1 where the launches were timed on the clock the part named, read off the bus (bus_clock.c); 0 where on the
+    // driver's event clock
+    unsigned int clock_bus;
     unsigned int outcome;
     // what the carrier said where the outcome is not RUN_ANSWERED
     char refused[128];

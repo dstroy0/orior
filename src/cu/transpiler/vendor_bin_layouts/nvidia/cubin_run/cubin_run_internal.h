@@ -217,6 +217,15 @@ extern CubinRunClocks s_clocks;
 
 unsigned long long cubin_run_host_now(void);
 
+// the clock the part named in its .ksc beside `machine_path` opened through the listener: 1 where its word is read
+// from here on, 0 where the part names none or the listener is not reached (clock.c)
+int cubin_run_clock_open(const char *machine_path);
+// the clock's word read into `word`: 1, or 0 where no clock is open
+int cubin_run_clock_read(unsigned int *word);
+// the clock's offset into the aperture, 0 where none is open
+unsigned int cubin_run_clock_offset(void);
+void cubin_run_clock_close(void);
+
 unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsigned long long room);
 unsigned long long cubin_run_ask_key(const char *code_path);
 void cubin_run_verdict_row(unsigned long long ask, unsigned int verdict, unsigned long long at, int dry);

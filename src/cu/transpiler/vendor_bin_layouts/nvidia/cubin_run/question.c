@@ -381,6 +381,10 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     if (launches != 0u)
     {
         cubin_run_say(answers, "timed %u %llu %llu %llu\n", launches, nanoseconds, s_timed_least, s_timed_most);
+        if (cubin_run_clock_offset() != 0u)
+        {
+            cubin_run_say(answers, "clock bus %x\n", cubin_run_clock_offset());
+        }
     }
     const unsigned long long handed_began = cubin_run_host_now();
     cubin_run_launch_row(ask, CUBIN_RUN_ANSWERED, launches, (launches != 0u) ? nanoseconds : 0ull,

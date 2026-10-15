@@ -332,10 +332,11 @@ int main(int count, char **word)
     }
     else
     {
-        printf("  the kernel: ladder.%s, its words read %s, %u candidates surviving, %llu ns a launch over %u "
-               "launches\n",
+        printf("  the kernel: ladder.%s, its words read %s, %u candidates surviving, %llu a launch over %u launches "
+               "on the %s\n",
                s_anchor_text[kernel.anchor], (kernel.swapped != 0) ? "swapped" : "in order", kernel.survivors,
-               nanoseconds / KHW_LAUNCHES, KHW_LAUNCHES);
+               nanoseconds / KHW_LAUNCHES, KHW_LAUNCHES,
+               (s_question.clock_bus != 0u) ? "clock the part named, read off the bus" : "driver's event clock");
     }
     s_slot = slot;
     if (s_slot == s_kernel_places)

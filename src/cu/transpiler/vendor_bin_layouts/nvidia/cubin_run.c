@@ -190,6 +190,8 @@ int main(int count, char **words)
     }
     // the gate reads every instruction of every question against the forms, and the forms' places are found once
     sass_encoding_places_hold(&s_machine);
+    // the clock the part named beside the machine file, where it names one and the listener answers
+    cubin_run_clock_open(words[1]);
     const CubinRunShape unshaped = {CUBIN_RUN_THREADS, 1u};
     if (!listed)
     {

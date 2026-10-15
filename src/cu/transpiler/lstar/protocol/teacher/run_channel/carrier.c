@@ -124,6 +124,7 @@ void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned lon
     asked->nanoseconds = 0ull;
     asked->least = 0ull;
     asked->most = 0ull;
+    asked->clock_bus = 0u;
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     unsigned long long sequence = 0ull;
@@ -154,7 +155,10 @@ void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned lon
         if (strncmp(line, "timed ", 6u) == 0)
         {
             snprintf(timed_line, sizeof(timed_line), "%s", line);
-            break;
+        }
+        if (strncmp(line, "clock bus ", 10u) == 0)
+        {
+            asked->clock_bus = 1u;
         }
     }
     unsigned int launches = 0u;

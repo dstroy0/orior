@@ -5,6 +5,7 @@
 #ifndef MMIO_READ_H
 #define MMIO_READ_H
 
+#if defined(_WIN32)
 #include <windows.h>
 
 // The driver's device opened for reading: a handle to close with mmio_close, or INVALID_HANDLE_VALUE where the driver
@@ -22,4 +23,5 @@ int mmio_extent(HANDLE device, unsigned long long *base, unsigned long long *siz
 // aperture, or the driver refuses it
 int mmio_read(HANDLE device, unsigned int offset, unsigned int words, unsigned int *out);
 
+#endif
 #endif
