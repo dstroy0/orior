@@ -26,6 +26,8 @@
 #                    read at, and the channel's fill word and block to the carrier's own
 #   naming_check     holds the vendor's writer's texts on forms written by hand: the name by relation, the mark on a
 #                    take form's second word, a flag bit printing nothing, and the guard before the operation
+#   ranges_check     holds the cross's cut of the distinct slot encodings over the host's processors: the ranges tile
+#                    the encodings end to end, none empty and none past the last
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
 #                    section and the pipes written again under who lines, and the part's section written again as it was
 #   survivors_check  holds the gate to P2 on the ladder's own relations
@@ -81,6 +83,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/tra
     "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" \
     "${FILE_DEFS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -pthread -o "$OUT/ranges_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/ranges_check.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/ranges.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kqr_check" "$TOP/utils/test/src/cu/types/file_defs/kqr/kqr_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/file_defs/who/who_check.c" \
@@ -159,6 +163,7 @@ fi
 "$OUT/answer_read_check" || exit 1
 "$OUT/frame_relation_check" || exit 1
 "$OUT/naming_check" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv" || exit 1
+"$OUT/ranges_check" || exit 1
 # R's check, the who's and the rows' in a run of their own, whose writer writes the records and the file they are held
 # to, ended with the subshell
 (

@@ -216,15 +216,14 @@ int main(int count, char **words)
     pool.addressed = addressed;
     pthread_mutex_init(&pool.lock, NULL);
     const unsigned int processors = msq_processors();
-    const size_t ranges = (slot_words.count < processors) ? slot_words.count : processors;
-    const size_t range_size = (ranges != 0u) ? ((slot_words.count + ranges - 1u) / ranges) : 0u;
+    MsqWork *const cut = (MsqWork *)calloc((size_t)processors + 1u, sizeof(MsqWork));
+    whole = whole && (cut != NULL);
+    const size_t ranges = whole ? msq_ranges(slot_words.count, processors, cut) : 0u;
     for (size_t range = 0u; whole && (range < ranges); range += 1u)
     {
-        const size_t first = range * range_size;
-        const size_t count = ((first + range_size) <= slot_words.count) ? range_size : (slot_words.count - first);
-        const MsqWork work = {MSQ_WORK_RANGE, first, count};
-        whole = (count == 0u) || msq_pool_put(&pool, work);
+        whole = msq_pool_put(&pool, cut[range]);
     }
+    free(cut);
     for (size_t frame = 0u; whole && (frame < frame_count); frame += 1u)
     {
         const MsqWork work = {MSQ_WORK_FRAME, frame, 1u};
@@ -242,6 +241,7 @@ int main(int count, char **words)
     {
         if (pthread_create(&started[thread], NULL, msq_pool_worker, &pool) != 0)
         {
+            pool.why = "a reader thread could not be started";
             atomic_store(&pool.failed, 1);
             break;
         }
@@ -269,9 +269,8 @@ int main(int count, char **words)
     free(frame_read);
     if (!whole)
     {
-        fprintf(stderr,
-                "measuring_stick_query: the vendor's disassembler %s could not be run, or there was no memory\n",
-                s_nvdisasm);
+        fprintf(stderr, "measuring_stick_query: the vendor's disassembler %s could not be run, or there was no memory: %s\n",
+                s_nvdisasm, (pool.why != NULL) ? pool.why : "the work could not be queued");
         return 2;
     }
     // the questions held, each with why, the held list and the report handed to the run's buffer. A question is held

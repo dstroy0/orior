@@ -2,6 +2,16 @@
 // frames.c: the readings: the cross's work read by a pool of reader threads, a range of the slot encodings read as one run and read on past each stop, the tails read a code at a time, each frame read against the vendor, and what the cross says of an instruction read clear or held
 #include "msq_internal.h"
 
+// the pool marked failed for `why`, the first reason given kept as the pool's
+static void msq_failed(MsqPool *pool, const char *why)
+{
+    if (!atomic_load(&pool->failed))
+    {
+        pool->why = why;
+    }
+    atomic_store(&pool->failed, 1);
+}
+
 // a reader's pause while the queue is empty and another reader may still put to it
 static void msq_paused(void)
 {
@@ -59,7 +69,7 @@ static void msq_range_read(MsqReader *reader, MsqPool *pool, size_t first, size_
     MsqBytes *const runs = (MsqBytes *)malloc((count + 1u) * sizeof(MsqBytes));
     if (runs == NULL)
     {
-        atomic_store(&pool->failed, 1);
+        msq_failed(pool, "no memory for a range of slot encodings");
         return;
     }
     const MsqBytes nop = {s_nop, sizeof(s_nop)};
@@ -72,7 +82,7 @@ static void msq_range_read(MsqReader *reader, MsqPool *pool, size_t first, size_
     free(runs);
     if (status < 0)
     {
-        atomic_store(&pool->failed, 1);
+        msq_failed(pool, "the disassembler could not be run on a range of slot encodings");
         return;
     }
     if (status == 0)
@@ -80,7 +90,7 @@ static void msq_range_read(MsqReader *reader, MsqPool *pool, size_t first, size_
         MsqListing listing;
         if (!msq_listing_read(reader->output, (size_t)reader->output_size, &listing))
         {
-            atomic_store(&pool->failed, 1);
+            msq_failed(pool, "the listing of a range of slot encodings did not read");
             return;
         }
         for (size_t at = 0u; at < count; at += 1u)
@@ -120,7 +130,7 @@ static void msq_range_read(MsqReader *reader, MsqPool *pool, size_t first, size_
     }
     if (!put)
     {
-        atomic_store(&pool->failed, 1);
+        msq_failed(pool, "a range of slot encodings could not be put back to the queue");
     }
 }
 
@@ -135,7 +145,7 @@ void *msq_pool_worker(void *argument)
     reader.output = (char *)malloc((size_t)reader.output_room);
     if (reader.output == NULL)
     {
-        atomic_store(&pool->failed, 1);
+        msq_failed(pool, "no memory for a reader's output");
         return NULL;
     }
     reader.stream = atomic_fetch_add(&pool->readers, 1u) + 1u;
@@ -169,12 +179,13 @@ void *msq_pool_worker(void *argument)
         {
             if (!msq_frame_read(&reader, &pool->frames[work.first], &pool->frame_read[work.first]))
             {
-                atomic_store(&pool->failed, 1);
+                msq_failed(pool, "a frame did not read: the disassembler could not be run on it, its listing did not "
+                                 "read, or there was no memory");
             }
         }
         else if (!msq_tails_read(&reader, pool->tails, pool->addressed))
         {
-            atomic_store(&pool->failed, 1);
+            msq_failed(pool, "the codes past the slots did not read");
         }
         atomic_fetch_sub(&pool->active, 1u);
     }

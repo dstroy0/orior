@@ -187,6 +187,8 @@ typedef struct
     _Atomic unsigned int readers;
     _Atomic unsigned long long calls;
     _Atomic int failed;
+    // why the pool failed, the first reason a reader gave, NULL where it has not
+    const char *why;
 } MsqPool;
 
 // what the cross holds, kept as it goes: the held list, the report, the lines it says of each hold, the holds the
@@ -235,6 +237,7 @@ int msq_distinct_made(MsqDistinct *set, size_t most);
 size_t msq_distinct_index(MsqDistinct *set, const MsqBytes *item);
 void msq_distinct_free(MsqDistinct *set);
 int msq_illegal_said(const char *text, size_t length);
+size_t msq_ranges(size_t words, unsigned int processors, MsqWork *ranges);
 int msq_pool_put(MsqPool *pool, MsqWork work);
 int msq_pool_starving(MsqPool *pool);
 void *msq_pool_worker(void *argument);
