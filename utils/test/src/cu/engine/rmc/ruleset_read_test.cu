@@ -120,6 +120,23 @@ static int target_check(Target &target, HeldSet *set)
     return relations_check(schema->file, paths, count, &flat.schema, schema, set);
 }
 
+// a form the part's ruleset does not give is open (P10): the ruleset reads, a lane that decides the open form is
+// refused, and one that decides a given form is written
+static void open_check(Target &target)
+{
+    s_checks += 1u;
+    const Ruleset *const rules = target.ruleset(1);
+    const auto scratch = [](const std::string &) { return std::string("R100"); };
+    std::string text;
+    const std::vector<std::string> note(6u, "0");
+    const int open_written = (rules != NULL) ? ruleset_opcode(rules, "program_note", note, scratch, text) : 1;
+    const int given_written =
+        (rules != NULL) ? ruleset_opcode(rules, "word_add", {"R1", "R0", "R7"}, scratch, text) : 0;
+    printf("  sass.krs: a lane through program_note, open, is %s; through word_add, given, is %s\n",
+           (open_written != 0) ? "written" : "refused", (given_written != 0) ? "written" : "refused");
+    s_failed += ((open_written != 0) || (given_written == 0)) ? 1u : 0u;
+}
+
 // the map from `from` to `to`, each name `from` gives against the same name in `to`: every relation written
 static void map_check(const char *label, const HeldSet *from, const HeldSet *to)
 {
@@ -167,6 +184,7 @@ int main(int argc, char **argv)
         target_check(code_generator("ptx.krs"), &sets[2]);
         target_check(code_generator("vhdl.krs"), &sets[3]);
         const int sass = target_check(code_generator("sass.krs"), &sets[4]);
+        open_check(code_generator("sass.krs"));
         if ((cu != 0) && (sass != 0))
         {
             map_check("cu.krs to sass.krs", &sets[1], &sets[4]);

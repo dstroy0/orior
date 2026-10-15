@@ -208,8 +208,6 @@ static std::string ruleset_flat_why(const RulesetCoreRead *read, const std::stri
         return "the bank " + std::string(schema->banks[read->at].text) + " is not given";
     case RULESET_CORE_REGISTER_MISSING:
         return "the register " + std::string(schema->fixed[read->at].text) + " is not given";
-    case RULESET_CORE_FORM_MISSING:
-        return "the form " + building + " is not given";
     default:
         return "its ruleset, toolchain or header is not named";
     }

@@ -367,14 +367,8 @@ CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
             return;
         }
     }
-    for (unsigned int named = 0u; named < schema->form_count; named += 1u)
-    {
-        if (read->form_given[named] == 0u)
-        {
-            ruleset_core_ended(read, RULESET_CORE_FORM_MISSING, named, none);
-            return;
-        }
-    }
+    // a form of the schema the file does not give is open (P10): its mark stays 0, the file reads, and a lane that
+    // decides the form is refused where it is written (ruleset_opcode_text), as one that decides an err is
     if (!ruleset_core_fixed_folded(read))
     {
         ruleset_core_ended(read, RULESET_CORE_FORM_WRONG, 0u, none);
