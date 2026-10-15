@@ -55,7 +55,7 @@ impl Files {
 /// What a learn's words ask for.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Step {
-    /// discover, turns or registers, with a base source where one is given.
+    /// discover, turns, registers or costs, with a base source where one is given.
     Pass(String, Option<String>),
     /// A discover pass seeded from the listing named.
     Seed(String),
@@ -69,7 +69,7 @@ pub enum Step {
 
 impl Step {
     pub fn read(words: &[String]) -> Result<Step, String> {
-        let usage = "learn takes discover|turns|registers [--base <cu>], seed <listing.sass>, rounds [<n>], dry [<n>] or enumerate <slot>";
+        let usage = "learn takes discover|turns|registers|costs [--base <cu>], seed <listing.sass>, rounds [<n>], dry [<n>] or enumerate <slot>";
         let (first, rest) = words.split_first().ok_or(usage)?;
         let base = || -> Result<Option<String>, String> {
             match rest {
@@ -80,7 +80,7 @@ impl Step {
         };
         let count = || -> Result<u32, String> { rest.first().map(|n| n.parse::<u32>().map_err(|_| usage.to_string())).transpose().map(|n| n.unwrap_or(1)) };
         match first.as_str() {
-            "discover" | "turns" | "registers" => Ok(Step::Pass(first.clone(), base()?)),
+            "discover" | "turns" | "registers" | "costs" => Ok(Step::Pass(first.clone(), base()?)),
             "seed" => rest.first().map(|listing| Step::Seed(listing.clone())).ok_or(usage.into()),
             "rounds" => Ok(Step::Rounds(count()?)),
             "dry" => Ok(Step::Dry(count()?)),
@@ -306,6 +306,7 @@ mod passes {
         let said = |words: &[&str]| Step::read(&words.iter().map(|w| w.to_string()).collect::<Vec<_>>());
         assert_eq!(said(&["turns"]).unwrap(), Step::Pass("turns".into(), None));
         assert_eq!(said(&["turns", "--base", "a.cu"]).unwrap(), Step::Pass("turns".into(), Some("a.cu".into())));
+        assert_eq!(said(&["costs"]).unwrap(), Step::Pass("costs".into(), None));
         assert_eq!(said(&["seed", "listing.sass"]).unwrap(), Step::Seed("listing.sass".into()));
         assert_eq!(said(&["rounds", "3"]).unwrap(), Step::Rounds(3));
         assert_eq!(said(&["dry"]).unwrap(), Step::Dry(1));

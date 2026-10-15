@@ -206,10 +206,10 @@ typedef struct
     unsigned int read_at;
 } KhwStaged;
 
-// The turning case of `held` into `stage`: for a ladder form, the first case of its relation whose two words differ
-// from each other and whose answer differs from both, read in the order the form reads them, so that a changed answer
-// is a changed answer and not a coincidence; for a frame form, the words 3 and 5 over the frame's shape. 1, or 0
-// where the relation holds no such case
+// The turning case of `held` into `stage`: for a ladder form, the first case of its relation whose readings in the
+// register pass stand apart (khw_turning_words), in the order the form reads its words, so that a changed answer is a
+// changed answer and not a coincidence; for a frame form, the words 3 and 5 over the frame's shape. 1, or 0 where the
+// relation holds no such case
 static int khw_turning_case(KhwAnswered *held, KhwStaged *stage)
 {
     stage->held = held;
@@ -225,22 +225,10 @@ static int khw_turning_case(KhwAnswered *held, KhwStaged *stage)
     }
     stage->count = 1u;
     stage->read_at = 0u;
-    for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
-    {
-        const LadderQuestion *const question = &s_ladder_cases[at];
-        unsigned int gave = 0u;
-        if ((question->anchor != held->anchor) || (question->words < 2u) ||
-            !ladder_answer(held->anchor, question->word, question->words, &gave) ||
-            (question->word[0] == question->word[1]) || (gave == question->word[0]) || (gave == question->word[1]))
-        {
-            continue;
-        }
-        stage->word[0][0] = (held->swapped != 0) ? question->word[1] : question->word[0];
-        stage->word[0][1] = (held->swapped != 0) ? question->word[0] : question->word[1];
-        stage->expected = gave;
-        return 1;
-    }
-    return 0;
+    unsigned int gave = 0u;
+    const int found = khw_turning_words(held->anchor, held->swapped, stage->word[0], &gave);
+    stage->expected = gave;
+    return found;
 }
 
 // `low` and `high` pooled as a question of `stage`'s shape: a ladder form's at the slot over its one case, a frame
@@ -333,6 +321,36 @@ unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms)
         if (s_named[at].phase == phase)
         {
             forms[count] = &s_named[at];
+            count += 1u;
+        }
+    }
+    return count;
+}
+
+// The classified ladder forms of the working set two of whose runs carry one place of the relation's tuple, added to
+// `forms` after its `count`: a place a relation's word takes once is held by two runs only where the turning case
+// read a run by a coincidence, and the form is asked its register pass again over a case whose readings stand apart
+// (khw_turning_words). The count with them
+unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count)
+{
+    for (unsigned int at = 0u; (at < s_names) && (count < KHW_FORMS); at += 1u)
+    {
+        KhwAnswered *const held = &s_named[at];
+        if ((held->phase != KHW_PHASE_CLASSIFIED) || (held->frame != (unsigned int)FRAME_RELATION_COUNT))
+        {
+            continue;
+        }
+        int twice = 0;
+        for (unsigned int run = 0u; run < held->runs; run += 1u)
+        {
+            for (unsigned int other = run + 1u; other < held->runs; other += 1u)
+            {
+                twice = twice || ((held->place[run] != KHW_PLACE_NONE) && (held->place[run] == held->place[other]));
+            }
+        }
+        if (twice)
+        {
+            forms[count] = held;
             count += 1u;
         }
     }
@@ -432,10 +450,6 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
 // register holding none; then, the address runs apart, a run inside the field the .ksc names `immediate` takes 0 and
 // KHW_OFFSET_WORD, the aligned offset of the record's second word, which a load and a store answer apart and a number
 // answers as itself, and every other run 0 and the register the kernel stores
-#define KHW_SETTINGS 2u
-
-#define KHW_STAGES 2u
-
 #define KHW_OFFSET_WORD 4u
 
 static unsigned int khw_run_settings(const KhwAnswered *held, unsigned int stage, unsigned int run,

@@ -247,6 +247,7 @@ int main(int count, char **word)
             const unsigned int framed = (slot_form != NULL) ? khw_frame_round(slot_form, 1) : 0u;
             printf("  the frame round: %s%u place(s) answered a frame relation\n",
                    (slot_form == NULL) ? "the slot's form is not yet classified, " : "", framed);
+            khw_plan_handed("discover", (unsigned long long)KHW_FORMS);
             const unsigned int found = khw_widened(0u, 1);
             run_channel_close();
             if (!khw_forms_work_written())
@@ -265,6 +266,7 @@ int main(int count, char **word)
             // from the working set
             static KhwAnswered *s_forms[KHW_FORMS];
             const unsigned int count = khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms);
+            khw_plan_handed("turns", (unsigned long long)count * ((unsigned long long)KHW_TURNS + 1ull));
             const unsigned int asked = khw_fields_turns(s_forms, count);
             run_channel_close();
             if (!khw_forms_work_written())
@@ -280,6 +282,8 @@ int main(int count, char **word)
             // file, where the stall and the last register are kept
             char ksc_path[1024];
             snprintf(ksc_path, sizeof(ksc_path), "%.*s.ksc", (int)stem, s_path);
+            static KhwAnswered *s_costed[KHW_FORMS];
+            khw_plan_handed("costs", (unsigned long long)khw_forms_in_phase(KHW_PHASE_CLASSIFIED, s_costed));
             const unsigned int timed = khw_costs_asked(ksc_path);
             run_channel_close();
             printf("  costs: %u form(s) timed over %u launches each, %llu asks; kept in %s\n", timed, KHW_LAUNCHES,
@@ -289,7 +293,19 @@ int main(int count, char **word)
         // every turned form's register-runs asked at once, in shared rounds, its operand runs kept and its phase
         // classified; what the part has answered for whole then laid out by the vendor
         static KhwAnswered *s_forms[KHW_FORMS];
-        const unsigned int count = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
+        const unsigned int turned = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
+        // a classified form two of whose runs carry one place is asked again, over a turning case that reads apart
+        const unsigned int count = khw_forms_placed_twice(s_forms, turned);
+        if (count != turned)
+        {
+            printf("  registers: %u classified form(s) with a place held twice asked again\n", count - turned);
+        }
+        unsigned long long settings = 0ull;
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            settings += (unsigned long long)s_forms[at]->runs * KHW_SETTINGS * KHW_STAGES;
+        }
+        khw_plan_handed("registers", settings);
         const unsigned int asked = khw_fields_registers(s_forms, count);
         run_channel_close();
         if (!khw_forms_work_written() || !khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))

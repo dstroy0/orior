@@ -191,6 +191,21 @@ static void khw_round_printed(unsigned int count, const unsigned long long befor
     fflush(stdout);
 }
 
+// The plan of a pass handed to the run as the pass starts, the blob `plan.txt`, one line `<pass> <questions>`: the
+// count of questions the pass is to put, an upper bound a reader of the run's tap takes the pass's progress against
+void khw_plan_handed(const char *pass, unsigned long long questions)
+{
+    char line[128];
+    const int length = snprintf(line, sizeof(line), "%s %llu\n", pass, questions);
+    if ((length > 0) && (qry_run() != NULL))
+    {
+        // the line fits its room, and its length is positive
+        qry_hand(qry_run(), "plan.txt", line, (unsigned long long)length, QRY_ORDINARY);
+    }
+    // the plan on the console as well, for a reader of the console that has no hand on the run
+    printf("  plan: %s %llu\n", pass, questions);
+}
+
 // The round written carried as one (scheduler.h), its questions read after from s_pool, and the next round written
 // in its place once they are
 void khw_round_carried(void)

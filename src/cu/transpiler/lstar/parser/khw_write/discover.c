@@ -297,6 +297,7 @@ unsigned int khw_seeds_asked(const char *name)
     // for its relation; one that answers a relation enters the working set discovered
     khw_union_written();
     unsigned int entered = 0u;
+    khw_plan_handed("seed", (unsigned long long)seeds);
     for (unsigned int first = 0u; first < seeds; first += SCHEDULER_ROUND_MOST)
     {
         const unsigned int last = ((first + SCHEDULER_ROUND_MOST) < seeds) ? (first + SCHEDULER_ROUND_MOST) : seeds;

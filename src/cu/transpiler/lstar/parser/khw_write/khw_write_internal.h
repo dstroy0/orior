@@ -36,6 +36,10 @@
 // the most runs a form's operands sit in, and the most forms the part answers for
 #define KHW_RUNS 32u
 
+// the settings a run is probed with in a stage of the register pass, and the stages
+#define KHW_SETTINGS 2u
+#define KHW_STAGES 2u
+
 #define KHW_FORMS 16384u
 
 // how far a form has been asked, for a pass to ask only what a cross-check has read before it: a discovered form holds
@@ -198,6 +202,9 @@ int khw_relation_asked(unsigned long long low, unsigned long long high, KhwAnswe
 int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long *nanoseconds);
 void khw_turns_asked(KhwAnswered *held, const unsigned int word[1][2]);
 unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms);
+int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], unsigned int *expected);
+unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
+void khw_plan_handed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
 unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count);
 void khw_fields_asked(KhwAnswered *held);
