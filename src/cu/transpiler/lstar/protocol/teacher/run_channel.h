@@ -105,12 +105,14 @@ typedef struct
 // before the carrier starts; a round that cannot be put there is not carried. 1, or 0 with the reason printed where
 // no writer runs for the run. A channel is opened once and every question after goes through it.
 //
-// A carrier whose only word is `dry` is a dry run: nothing carries a question and nothing answers it. Each question is
-// handed as question<n>.bin and cases<n>.txt, and as a line of questions.txt in the form a carrier's list takes,
-// `<code> <registers> <cases> <answers> <slot> <launches>`, the list handed whole once the channel closes, and it reads
-// RUN_HELD. What the protocol put is then checked by handing that list to a carrier that stops before the part. A
-// carrier whose own words hold --dry stops before the driver too, and every round reaches it through the airlock as a
-// live round does: nothing is launched, and R is read and nothing it answers is kept in R.
+// A carrier whose first word is `dry` is a dry run: nothing carries a question and nothing answers it. A round is
+// written as a live round is, each question as question<n>.bin and cases<n>.txt and the round as questions.txt in the
+// form a carrier's list takes, `<code> <registers> <cases> <answers> <slot> <launches>`, and passes the airlock the
+// words after `dry` open as a live round does; then each question reads RUN_HELD, and the last round's list is handed
+// whole once the channel closes. What the protocol put is then checked by handing that list to a carrier that stops
+// before the part. A question asked alone on a dry channel is written and held without an airlock. A carrier whose own
+// words hold --dry stops before the driver too, and every round reaches it through the airlock as a live round does:
+// nothing is launched, and R is read and nothing it answers is kept in R.
 //
 // Every round a live channel carries passes the airlock first, and nothing the vendor's reader has not read goes to the
 // part. The words after the carrier's may open one: `--pop <words>`, the carrier with the part taken out, which hands

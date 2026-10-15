@@ -229,13 +229,23 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             Ok(code)
         }
         Step::Dry(rounds) => {
-            // the dry machine file and the costs and record beside it, under the working folder, not the tree's
+            // the dry machine file and the costs beside it under the working folder, each the tree's copied there so
+            // that the dry pass leaves the tree's as they are: the slot the pass puts its rounds at is the part's
+            // answer kept in the costs, and the vendor's writer reads them beside the machine file. The rounds go
+            // through the airlock as a live pass's do, the cross reading each against the vendor's disassembler
             let machine = work.join("sm_86.khw");
+            let costs = work.join("sm_86.ksc");
+            for (from, to) in [(&files.machine, &machine), (&files.costs, &costs)] {
+                std::fs::copy(from, to).map_err(|error| format!("{} could not be copied under {}: {error}", from.display(), work.display()))?;
+            }
+            let cross = context.tool("measuring_stick_query")?;
+            let nvdisasm = nvdisasm(context)?;
             let mut run = context.started(FOLDER)?;
             carried(context, &run, false)?;
-            run.read(&[machine.clone(), work.join("sm_86.ksc"), work.join("sm_86.kqr"), files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
+            run.read(&[machine.clone(), costs, work.join("sm_86.kqr"), files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
             let mut words = teacher_words(&machine, &files, &writer);
             words.extend([rounds.to_string(), "--".into(), "dry".into()]);
+            words.extend(carrier_words(&carrier, &cross, &nvdisasm, &machine, &files.layout, false));
             if context.said(&run, &teacher, &as_words(&words))? != 0 {
                 return Err("the protocol did not run dry".into());
             }
@@ -243,8 +253,9 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             if questions == 0 {
                 return Err("the protocol put no question".into());
             }
+            // the gate reads the list against the tree's machine file, whose forms stand whatever the dry pass wrote
             context.say(&format!("  the protocol put {questions} questions; each held to cubin_safe with the part taken out:"));
-            if context.said(&run, &carrier, &["--dry", &text(&machine), &text(&files.layout), "--list", "questions.txt"])? != 0 {
+            if context.said(&run, &carrier, &["--dry", &text(&files.machine), &text(&files.layout), "--list", "questions.txt"])? != 0 {
                 return Err("the carrier did not read the list".into());
             }
             verdicts_said(context, &run);

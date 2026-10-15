@@ -331,7 +331,10 @@ int main(int count, char **word)
         printf("  the first round: the kernel's relation and %llu places asked for the slot, %llu asks\n",
                s_asks - 1ull, s_asks);
     }
-    if (!related)
+    // a dry channel carries every question by nothing: the kernel answers no relation, and the pass goes on with the
+    // slot the .ksc names, every round put through the airlock as on a live channel and nothing launched
+    const int dry = !related && (strncmp(s_pool[0].refused, "dry:", 4u) == 0);
+    if (!related && !dry)
     {
         printf("  khw_write: the kernel the system accepted answered no relation of the ladder (%s), and "
                "nothing was asked after it\n",
@@ -339,9 +342,18 @@ int main(int count, char **word)
         run_channel_close();
         return 1;
     }
-    printf("  the kernel: ladder.%s, its words read %s, %u candidates surviving, %llu ns a launch over %u launches\n",
-           s_anchor_text[kernel.anchor], (kernel.swapped != 0) ? "swapped" : "in order", kernel.survivors,
-           nanoseconds / KHW_LAUNCHES, KHW_LAUNCHES);
+    if (dry)
+    {
+        printf("  the kernel: dry, carried by nothing; the slot the .ksc names, and every round put through the "
+               "airlock with nothing launched\n");
+    }
+    else
+    {
+        printf("  the kernel: ladder.%s, its words read %s, %u candidates surviving, %llu ns a launch over %u "
+               "launches\n",
+               s_anchor_text[kernel.anchor], (kernel.swapped != 0) ? "swapped" : "in order", kernel.survivors,
+               nanoseconds / KHW_LAUNCHES, KHW_LAUNCHES);
+    }
     s_slot = slot;
     if (s_slot == s_kernel_places)
     {

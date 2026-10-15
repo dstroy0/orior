@@ -58,7 +58,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     }
     s_channel.words = words;
     s_channel.limit_microseconds = limit_microseconds;
-    s_channel.dry = (words == 1u) && (strcmp(s_channel.word[0], "dry") == 0);
+    s_channel.dry = (words >= 1u) && (strcmp(s_channel.word[0], "dry") == 0);
     s_channel.stopped = 0;
     for (unsigned int at = 1u; at < words; at += 1u)
     {

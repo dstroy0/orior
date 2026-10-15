@@ -202,15 +202,6 @@ unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
 unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int count)
 {
     unsigned int answered = 0u;
-    if (s_channel.open && s_channel.dry)
-    {
-        for (unsigned int at = 0u; at < count; at += 1u)
-        {
-            asked[at]->refused[0] = '\0';
-            run_channel_dry_written(asked[at]);
-        }
-        return 0u;
-    }
     if (!s_channel.open)
     {
         for (unsigned int at = 0u; at < count; at += 1u)
@@ -263,6 +254,17 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
                 return answered;
             }
             airlocked = 1;
+        }
+        // a dry channel: the round has passed the airlock as a live round does, and nothing carries it
+        if (s_channel.dry)
+        {
+            for (unsigned int at = first; at < count; at += 1u)
+            {
+                asked[at]->outcome = RUN_HELD;
+                snprintf(asked[at]->refused, sizeof(asked[at]->refused), "dry: written, carried by nothing");
+            }
+            s_channel.dry_written += count - first;
+            return answered;
         }
         // the round handed critical, on disk before its carrier starts
         const unsigned long long after = written ? run_channel_round_handed() : 0ull;
