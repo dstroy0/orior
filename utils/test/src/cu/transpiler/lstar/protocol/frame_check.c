@@ -293,15 +293,17 @@ int main(int count, char **words)
     const char *const frame_fresh = "krf frame_check_frame\n";
     check_that(qry_filed(qry_run(), removals, frame_fresh, strlen(frame_fresh)) != 0ull,
                "and the .krf beside its .ksc, its head alone");
-    const KrsFrameForm handed[3] = {load, {"frame.load", "LD {2}, [{0}.64], {1}"}, lane};
+    const KrsFrameForm handed[4] = {load, {"frame.load", "LD {2}, [{0}.64], {1}"}, lane, guarded};
     QryText frame_forms = {NULL, 0ull, 0ull, 0};
-    check_that(krs_frame_written(&frame_forms, handed, 3u, named, ruleset_path, path) == 3u,
-               "three lines come from two loads of one text, a lane and the block's given line");
+    check_that(krs_frame_written(&frame_forms, handed, 4u, named, ruleset_path, path) == 5u,
+               "five lines come from two loads of one text, a lane, a guarded exit and the block's given line");
     check_that((frame_forms.bytes != NULL) &&
                    (strcmp(frame_forms.bytes, "form thread_idx_x to = S2R {to}\\n\nform block_idx_x to = S2R {to}, "
                                               "SR_CTAID.X\\n\nform global_load_constant_word to address offset = LD "
-                                              "{to}, [{address}.64], {offset}\\n\n") == 0),
-               "in the table's order: the lane's line, the block's given line and one load line");
+                                              "{to}, [{address}.64], {offset}\\n\nform return = EXIT\\n\nform exit_if "
+                                              "where = @{where} EXIT\\n\n") == 0),
+               "in the table's order: the lane's line, the block's given line, one load line, and return then exit_if "
+               "from the one guarded exit");
     free(frame_forms.bytes);
     static KrfFile s_frame_removed;
     check_that(krf_read(&s_frame_removed, removals) && (s_frame_removed.lines == 3u) &&

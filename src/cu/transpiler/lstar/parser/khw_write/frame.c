@@ -50,9 +50,8 @@ int khw_field_read(const char *name, unsigned int *first, unsigned int *bits)
     return found;
 }
 
-// the narrowest field of the instruction word, as the part's .ksc gives them, that holds the bits `first` to `last`:
-// 1 with its first bit and its width, 0 where the .ksc gives none that does
-static int khw_field_holding(unsigned int first, unsigned int last, unsigned int *field_first, unsigned int *field_bits)
+int khw_field_holding(unsigned int first, unsigned int last, char *name, size_t room, unsigned int *field_first,
+                      unsigned int *field_bits)
 {
     static KscFile s_file;
     int found = 0;
@@ -66,6 +65,7 @@ static int khw_field_holding(unsigned int first, unsigned int last, unsigned int
         if ((sscanf(s_file.line[at], "field %63s %u %u", read, &from, &width) == 3) && (width != 0u) &&
             (from <= first) && (last < (from + width)) && (!found || (width < narrowest)))
         {
+            snprintf(name, room, "%s", read);
             *field_first = from;
             *field_bits = width;
             narrowest = width;
@@ -315,8 +315,10 @@ unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover)
             const int first_word = (slot_form->place[run] == 0u);
             unsigned int field_first = 0u;
             unsigned int field_bits = 0u;
+            char field[64];
             if ((slot_form->place[run] == KHW_PLACE_NONE) || (first_word && (record == KHW_FIXED_NONE)) ||
-                !khw_field_holding(slot_form->first[run], slot_form->last[run], &field_first, &field_bits))
+                !khw_field_holding(slot_form->first[run], slot_form->last[run], field, sizeof(field), &field_first,
+                                   &field_bits))
             {
                 continue;
             }

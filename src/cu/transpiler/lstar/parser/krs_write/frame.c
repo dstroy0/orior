@@ -141,6 +141,23 @@ static const KrsFrameRow *frame_row_of(const KrsFrameForm *form)
     return NULL;
 }
 
+// `form` with its guard struck, into `bare`, where its text opens with a placed guard, `@{<place>}`, and that is its
+// one place: the vendor writes a guard at every predicate as none, and the form read with its guard is then the
+// relation's form with no place as well, exit_if's instruction return's. 1 where `bare` is written
+static int frame_unguarded(const KrsFrameForm *form, KrsFrameForm *bare)
+{
+    unsigned int place = 0u;
+    int length = 0;
+    if ((sscanf(form->text, "@{%u}%n", &place, &length) != 1) || (length == 0) || (form->text[length] != ' ') ||
+        (frame_places_held(form->text) != 1u))
+    {
+        return 0;
+    }
+    *bare = *form;
+    snprintf(bare->text, sizeof(bare->text), "%s", form->text + length + 1);
+    return 1;
+}
+
 int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *line, size_t room)
 {
     const KrsFrameRow *const row = frame_row_of(form);
@@ -270,6 +287,11 @@ unsigned int krs_frame_written(QryText *forms, const KrsFrameForm *form, unsigne
         {
             named =
                 (frame_row_of(&form[each]) == row) && krs_frame_named(&form[each], named_ruleset, line, sizeof(line));
+            // a row of no places is also written from a form of its relation whose one place is a guard
+            KrsFrameForm bare;
+            named =
+                named || ((row->places == 0u) && frame_unguarded(&form[each], &bare) && (frame_row_of(&bare) == row) &&
+                          krs_frame_named(&bare, named_ruleset, line, sizeof(line)));
         }
         const char *const before = frame_given_of(s_given, givens, row->form);
         if (named)

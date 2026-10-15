@@ -119,11 +119,13 @@ static int khw_runs_read(KhwForm *held, const char *text)
             {
                 return 0;
             }
+            // the none mark, with its kind's letter after it where the run is no register's, or the place with its
+            // letter after it; the letter's place among the four is its kind, and no letter is a register's
             char *end = NULL;
-            held->place[run] = (strcmp(place, SASS_RUN_NO_PLACE_TEXT) == 0) ? SASS_RUN_NO_PLACE
-                                                                            : (unsigned int)strtoul(place, &end, 10);
+            const int none = (strncmp(place, SASS_RUN_NO_PLACE_TEXT, strlen(SASS_RUN_NO_PLACE_TEXT)) == 0);
+            held->place[run] = none ? SASS_RUN_NO_PLACE : (unsigned int)strtoul(place, &end, 10);
+            end = none ? (place + strlen(SASS_RUN_NO_PLACE_TEXT)) : end;
             const char *const letter = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_LETTERS, *end) : NULL;
-            // the letter's place among the four is its kind
             held->kind[run] = (letter != NULL) ? (unsigned int)(letter - KHW_KIND_LETTERS) : KHW_KIND_REGISTER;
         }
         rest += step;

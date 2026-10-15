@@ -58,7 +58,12 @@ static void khw_run_printed(KhwText *text, const KhwAnswered *held, unsigned int
 {
     if (held->place[run] == KHW_PLACE_NONE)
     {
-        khw_text_added(text, " %u %u %s", held->first[run], held->last[run], KHW_PLACE_NONE_TEXT);
+        // a run with no place carries its kind's letter after the none mark where it is not a register's
+        const unsigned int kind = (held->kind[run] < 4u) ? held->kind[run] : KHW_KIND_REGISTER;
+        (kind == KHW_KIND_REGISTER)
+            ? khw_text_added(text, " %u %u %s", held->first[run], held->last[run], KHW_PLACE_NONE_TEXT)
+            : khw_text_added(text, " %u %u %s%c", held->first[run], held->last[run], KHW_PLACE_NONE_TEXT,
+                             KHW_KIND_LETTERS[kind]);
         return;
     }
     khw_text_added(text, " %u %u %u%c", held->first[run], held->last[run], held->place[run],
@@ -102,11 +107,13 @@ static int khw_runs_read(KhwAnswered *held, const char *text)
             {
                 return 0;
             }
+            // the none mark, with its kind's letter after it where the run is no register's, or the place with its
+            // letter after it; the letter's place among the four is its kind, and no letter is a register's
             char *end = NULL;
-            held->place[run] =
-                (strcmp(place, KHW_PLACE_NONE_TEXT) == 0) ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
+            const int none = (strncmp(place, KHW_PLACE_NONE_TEXT, strlen(KHW_PLACE_NONE_TEXT)) == 0);
+            held->place[run] = none ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
+            end = none ? (place + strlen(KHW_PLACE_NONE_TEXT)) : end;
             const char *const letter = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_LETTERS, *end) : NULL;
-            // the letter's place among the four is its kind, and a place with no letter is a register's
             held->kind[run] = (letter != NULL) ? (unsigned int)(letter - KHW_KIND_LETTERS) : KHW_KIND_REGISTER;
         }
         rest += step;

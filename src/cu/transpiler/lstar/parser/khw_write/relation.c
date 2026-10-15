@@ -447,25 +447,73 @@ static unsigned int khw_run_settings(const KhwAnswered *held, unsigned int stage
         settings[1] = KHW_SECOND_REGISTER;
         return (stage == 0u) ? 2u : 0u;
     }
-    if (stage == 0u)
-    {
-        const unsigned int index = khw_fixed_register("index");
-        const unsigned int record = khw_fixed_register("record");
-        settings[0] = index;
-        settings[1] = record;
-        return ((index == KHW_FIXED_NONE) || (record == KHW_FIXED_NONE)) ? 0u : 2u;
-    }
-    if (held->kind[run] == KHW_KIND_ADDRESS)
+    if ((stage == 0u) || (held->kind[run] == KHW_KIND_ADDRESS))
     {
         return 0u;
     }
+    char field[64] = "";
     unsigned int first = 0u;
     unsigned int bits = 0u;
-    const int immediate =
-        khw_field_read("immediate", &first, &bits) && (held->first[run] >= first) && (held->last[run] < (first + bits));
+    const int immediate = khw_field_holding(held->first[run], held->last[run], field, sizeof(field), &first, &bits) &&
+                          (strcmp(field, "immediate") == 0);
     settings[0] = KHW_FIRST_REGISTER;
     settings[1] = immediate ? KHW_OFFSET_WORD : KHW_SECOND_REGISTER;
     return 2u;
+}
+
+// the slot's own form: the classified ladder form whose encoding the kernel's slot holds, or NULL where none is yet
+static const KhwAnswered *khw_slot_form(void)
+{
+    const unsigned long long low = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 0u);
+    const unsigned long long high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
+    for (unsigned int at = 0u; at < s_names; at += 1u)
+    {
+        const KhwAnswered *const held = &s_named[at];
+        if ((held->phase == KHW_PHASE_CLASSIFIED) && (held->runs != 0u) && (held->low == low) && (held->high == high) &&
+            (held->frame == (unsigned int)FRAME_RELATION_COUNT))
+        {
+            return held;
+        }
+    }
+    return NULL;
+}
+
+// The fields of the instruction word, as the part's .ksc gives them, that hold the slot's own form's operand runs, the
+// register fields a frame form's address is looked for in, each once: into `first` and `bits`, KHW_RUNS of each. The
+// count, 0 where the slot's form is not yet classified or the .ksc names no index or record register to probe with
+static unsigned int khw_slot_fields(unsigned int *first, unsigned int *bits)
+{
+    const KhwAnswered *const slot_form = khw_slot_form();
+    unsigned int count = 0u;
+    if ((slot_form == NULL) || (khw_fixed_register("index") == KHW_FIXED_NONE) ||
+        (khw_fixed_register("record") == KHW_FIXED_NONE))
+    {
+        return 0u;
+    }
+    for (unsigned int run = 0u; run < slot_form->runs; run += 1u)
+    {
+        char field[64];
+        unsigned int field_first = 0u;
+        unsigned int field_bits = 0u;
+        if ((slot_form->place[run] == KHW_PLACE_NONE) ||
+            !khw_field_holding(slot_form->first[run], slot_form->last[run], field, sizeof(field), &field_first,
+                               &field_bits))
+        {
+            continue;
+        }
+        int held = 0;
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            held = held || (first[at] == field_first);
+        }
+        if (!held && (count < KHW_RUNS))
+        {
+            first[count] = field_first;
+            bits[count] = field_bits;
+            count += 1u;
+        }
+    }
+    return count;
 }
 
 // The register-runs of a ladder form read off the round carried, its questions at `at` in s_pool and after, two a
@@ -522,27 +570,66 @@ static void khw_ladder_registers_read(KhwAnswered *held, unsigned int at, const 
     held->phase = KHW_PHASE_CLASSIFIED;
 }
 
-// The address runs of a frame form read off the first stage's round, two questions a run, the index's register then
-// the record's, each read at the stage's case. A run is the address where the two answer apart and one of them
-// answers the relation: a load reads the case's word through the index's register and the record's own through the
-// record's, and a store writes the record through the record's register and the case through the index's. A load's is
-// a place of its tuple, and a store's an operand the form holds with no place, since the record is where a store
-// writes. Each such run marked an address, every other run left for the second stage
+// The address of a frame form read off the first stage's round, two questions a field of the slot's form
+// (khw_slot_fields), the field set whole to the index's register then to the record's, each read at the stage's case.
+// A field is the address where the two answer apart and one of them answers the relation: a load reads the case's word
+// through the index's register and the record's own through the record's, and a store writes the record through the
+// record's register and the case through the index's. A load's is a place of its tuple, and a store's an operand the
+// form holds with no place, since the record is where a store writes. The runs the turns found inside such a field
+// give way to one run, the field, marked an address; every other run is left for the second stage. The turns alone
+// cannot find an address field, since each bit of it turned reads through a register that holds no address
 static void khw_frame_addresses_read(KhwAnswered *held, unsigned int at, const KhwStaged *stage)
 {
     const unsigned long long expected = stage->expected;
-    for (unsigned int run = 0u; run < held->runs; run += 1u)
+    unsigned int first[KHW_RUNS];
+    unsigned int bits[KHW_RUNS];
+    const unsigned int fields = khw_slot_fields(first, bits);
+    for (unsigned int field = 0u; field < fields; field += 1u)
     {
-        const RunQuestion *const by_index = &s_pool[at + (2u * run)];
-        const RunQuestion *const by_record = &s_pool[at + (2u * run) + 1u];
+        const RunQuestion *const by_index = &s_pool[at + (2u * field)];
+        const RunQuestion *const by_record = &s_pool[at + (2u * field) + 1u];
         const int answered = (by_index->outcome == RUN_ANSWERED) && (by_record->outcome == RUN_ANSWERED);
         const unsigned long long from_index = by_index->answered[stage->read_at];
         const unsigned long long from_record = by_record->answered[stage->read_at];
-        if (answered && (from_index != from_record) && ((from_index == expected) || (from_record == expected)))
+        if (!answered || (from_index == from_record) || ((from_index != expected) && (from_record != expected)))
         {
-            held->place[run] = frame_place_address(held->frame);
-            held->kind[run] = KHW_KIND_ADDRESS;
+            continue;
         }
+        // the field takes the place of the runs inside it, in the order of first bits the runs keep
+        const unsigned int last = first[field] + bits[field] - 1u;
+        KhwAnswered kept = *held;
+        kept.runs = 0u;
+        int placed = 0;
+        for (unsigned int run = 0u; run < held->runs; run += 1u)
+        {
+            if (!placed && (held->first[run] > first[field]) && (kept.runs < KHW_RUNS))
+            {
+                kept.first[kept.runs] = first[field];
+                kept.last[kept.runs] = last;
+                kept.place[kept.runs] = frame_place_address(held->frame);
+                kept.kind[kept.runs] = KHW_KIND_ADDRESS;
+                kept.runs += 1u;
+                placed = 1;
+            }
+            if (((held->first[run] >= first[field]) && (held->last[run] <= last)) || (kept.runs == KHW_RUNS))
+            {
+                continue;
+            }
+            kept.first[kept.runs] = held->first[run];
+            kept.last[kept.runs] = held->last[run];
+            kept.place[kept.runs] = held->place[run];
+            kept.kind[kept.runs] = held->kind[run];
+            kept.runs += 1u;
+        }
+        if (!placed && (kept.runs < KHW_RUNS))
+        {
+            kept.first[kept.runs] = first[field];
+            kept.last[kept.runs] = last;
+            kept.place[kept.runs] = frame_place_address(held->frame);
+            kept.kind[kept.runs] = KHW_KIND_ADDRESS;
+            kept.runs += 1u;
+        }
+        *held = kept;
     }
 }
 
@@ -632,6 +719,15 @@ static void khw_frame_registers_read(KhwAnswered *held, unsigned int at, const K
             {
                 continue;
             }
+            // an operand with no place that reaches into the field the .ksc names the guard is a predicate, which the
+            // vendor writes before the operation, as nothing at every predicate, and with the bit past the field's
+            // for a predicate read the other way
+            unsigned int guard_first = 0u;
+            unsigned int guard_bits = 0u;
+            kind = ((place == KHW_PLACE_NONE) && khw_field_read("guard", &guard_first, &guard_bits) &&
+                    (held->first[run] <= (guard_first + guard_bits - 1u)) && (held->last[run] >= guard_first))
+                       ? KHW_KIND_PREDICATE
+                       : kind;
         }
         if (kept.runs < KHW_RUNS)
         {
@@ -672,14 +768,49 @@ static unsigned int khw_staged_read(KhwStaged *staged_forms, unsigned int first,
     return classified;
 }
 
-// the questions a stage asks of `held`: each run's settings for the stage, summed
-static unsigned int khw_stage_asks(const KhwAnswered *held, unsigned int stage)
+// the questions a stage asks of `held`, pooled into `stage_held` where it is not NULL: a frame form's first stage two
+// a field of the slot's form, the field set whole to the index's register and to the record's; otherwise each run's
+// settings for the stage, the run set to each. The count
+static unsigned int khw_stage_pooled(const KhwAnswered *held, unsigned int stage, const KhwStaged *stage_held)
 {
     unsigned int asks = 0u;
+    if ((held->frame != (unsigned int)FRAME_RELATION_COUNT) && (stage == 0u))
+    {
+        unsigned int first[KHW_RUNS];
+        unsigned int bits[KHW_RUNS];
+        const unsigned int fields = khw_slot_fields(first, bits);
+        const unsigned int settings[2] = {khw_fixed_register("index"), khw_fixed_register("record")};
+        for (unsigned int field = 0u; field < fields; field += 1u)
+        {
+            for (unsigned int setting = 0u; setting < 2u; setting += 1u)
+            {
+                unsigned long long low = held->low;
+                unsigned long long high = held->high;
+                khw_run_write(&low, &high, first[field], first[field] + bits[field] - 1u, settings[setting]);
+                if (stage_held != NULL)
+                {
+                    khw_staged_pooled(stage_held, low, high);
+                }
+                asks += 1u;
+            }
+        }
+        return asks;
+    }
     for (unsigned int run = 0u; run < held->runs; run += 1u)
     {
         unsigned int settings[KHW_SETTINGS];
-        asks += khw_run_settings(held, stage, run, settings);
+        const unsigned int probes = khw_run_settings(held, stage, run, settings);
+        for (unsigned int setting = 0u; setting < probes; setting += 1u)
+        {
+            unsigned long long low = held->low;
+            unsigned long long high = held->high;
+            khw_run_write(&low, &high, held->first[run], held->last[run], settings[setting]);
+            if (stage_held != NULL)
+            {
+                khw_staged_pooled(stage_held, low, high);
+            }
+            asks += 1u;
+        }
     }
     return asks;
 }
@@ -701,7 +832,7 @@ unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count)
         {
             KhwStaged *const stage = &s_staged[staged];
             memset(stage, 0, sizeof(*stage));
-            const unsigned int asks = khw_stage_asks(forms[at], stage_number);
+            const unsigned int asks = khw_stage_pooled(forms[at], stage_number, NULL);
             if ((asks == 0u) || !khw_turning_case(forms[at], stage))
             {
                 continue;
@@ -714,18 +845,7 @@ unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count)
                 s_pooled = 0u;
             }
             stage->at = s_pooled;
-            for (unsigned int run = 0u; run < forms[at]->runs; run += 1u)
-            {
-                unsigned int settings[KHW_SETTINGS];
-                const unsigned int probes = khw_run_settings(forms[at], stage_number, run, settings);
-                for (unsigned int setting = 0u; setting < probes; setting += 1u)
-                {
-                    unsigned long long low = forms[at]->low;
-                    unsigned long long high = forms[at]->high;
-                    khw_run_write(&low, &high, forms[at]->first[run], forms[at]->last[run], settings[setting]);
-                    khw_staged_pooled(stage, low, high);
-                }
-            }
+            khw_stage_pooled(forms[at], stage_number, stage);
             staged += 1u;
         }
         if (staged != first)

@@ -216,6 +216,10 @@ void khw_enumerate(unsigned int slot, const char *forms);
 const char *khw_relation_named(const KhwAnswered *held, int with_reading, char *written, size_t room);
 unsigned int khw_fixed_register(const char *name);
 int khw_named_already(unsigned long long low, unsigned long long high);
+// the narrowest field of the instruction word, as the part's .ksc gives them, that holds the bits `first` to `last`:
+// 1 with its name, into `name` of `room` bytes, its first bit and its width; 0 where the .ksc gives none that does
+int khw_field_holding(unsigned int first, unsigned int last, char *name, size_t room, unsigned int *field_first,
+                      unsigned int *field_bits);
 int khw_field_read(const char *name, unsigned int *first, unsigned int *bits);
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2], unsigned int count);
 const unsigned int (*khw_frame_cases(unsigned int *count))[2];

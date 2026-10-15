@@ -177,11 +177,26 @@ static void khw_name_composed(const KhwForm *held, char *written, size_t room)
     (void)at;
 }
 
+// 1 where `run` of `held` prints no operand of its own: a run before it stands at the same place of the relation's
+// tuple, two runs of one place being one operand printed once, by the first. A run with no place prints as its kind
+// reads its bits, a register where the table names nothing for it, so that two forms apart in such a run read apart
+static int khw_place_printed(const KhwForm *held, unsigned int run)
+{
+    for (unsigned int before = 0u; before < run; before += 1u)
+    {
+        if ((held->place[run] != SASS_RUN_NO_PLACE) && (held->place[before] == held->place[run]))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // The text of a form the part answered `held` of: a predicate run as the vendor writes a guard, `@P<n>` before the
 // operation, `@!P<n>` where the bit past the predicate's three is set, and nothing where it is every predicate; its
-// name; then each other run in the order its first bit rises, the order they are printed in, each read from the
-// encoding through its own run by its kind: a register `R<n>`, or the name the tree writes a register the part answers
-// nothing at under; an address `[R<n>.64]`; a number `0x<n>`
+// name; then each other run in the order its first bit rises, the order they are printed in, the runs of one place
+// one operand printed by the first, each read from the encoding through its own run by its kind: a register `R<n>`,
+// or the name the tree writes a register the part answers nothing at under; an address `[R<n>.64]`; a number `0x<n>`
 void khw_text_composed(const KhwForm *held, char *written, size_t room)
 {
     char name[KHW_NAME];
@@ -194,7 +209,7 @@ void khw_text_composed(const KhwForm *held, char *written, size_t room)
     size_t at = 0u;
     for (unsigned int run = 0u; (run < held->runs) && (at < room); run += 1u)
     {
-        if (held->kind[run] != KHW_KIND_PREDICATE)
+        if ((held->kind[run] != KHW_KIND_PREDICATE) || khw_place_printed(held, run))
         {
             continue;
         }
@@ -210,7 +225,7 @@ void khw_text_composed(const KhwForm *held, char *written, size_t room)
     unsigned int printed = 0u;
     for (unsigned int run = 0u; (run < held->runs) && (at < room); run += 1u)
     {
-        if (held->kind[run] == KHW_KIND_PREDICATE)
+        if ((held->kind[run] == KHW_KIND_PREDICATE) || khw_place_printed(held, run))
         {
             continue;
         }
@@ -249,18 +264,27 @@ int khw_form_kept(SassMachine *machine, const KhwForm *held, const char *text)
     snprintf(kept->relation, sizeof(kept->relation), "%.*s", (int)(sizeof(kept->relation) - 1u), held->relation);
     kept->signed_read = held->signed_read;
     kept->runs = 0u;
-    // each run's operand is its order among the printed ones; a predicate run is the guard, printed before the
-    // operation and no operand, kept under the operand count as its mark
+    // each run's operand is its order among the printed ones, the runs of one place sharing the first's; a predicate
+    // run is the guard, printed before the operation and no operand, kept under the operand count as its mark
     unsigned int printed = 0u;
+    unsigned int operand_of[SASS_MACHINE_RUNS];
     for (unsigned int run = 0u; (run < held->runs) && (kept->runs < SASS_MACHINE_RUNS); run += 1u)
     {
         const int guard = (held->kind[run] == KHW_KIND_PREDICATE);
-        kept->run[kept->runs].operand = guard ? SASS_MACHINE_OPERANDS : printed;
+        unsigned int operand = guard ? SASS_MACHINE_OPERANDS : printed;
+        for (unsigned int before = 0u; before < run; before += 1u)
+        {
+            operand = ((held->place[run] != SASS_RUN_NO_PLACE) && (held->place[before] == held->place[run]))
+                          ? operand_of[before]
+                          : operand;
+        }
+        operand_of[run] = operand;
+        kept->run[kept->runs].operand = operand;
         kept->run[kept->runs].first = held->first[run];
         kept->run[kept->runs].last = held->last[run];
         kept->run[kept->runs].place = held->place[run];
         kept->runs += 1u;
-        printed += guard ? 0u : 1u;
+        printed += (guard || khw_place_printed(held, run)) ? 0u : 1u;
     }
     return 1;
 }

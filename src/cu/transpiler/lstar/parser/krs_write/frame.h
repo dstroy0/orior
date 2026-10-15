@@ -33,8 +33,10 @@ unsigned int krs_frame_read(const char *path);
 int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *line, size_t room);
 
 // The frame forms written to `forms`, one line a row of the table in the table's order: of the `count` forms in
-// `form`, the first the row names writes the line, the writers of one placed text being one; and where the run hands
-// none the row names, the line the ruleset at `krs_path` gave the row's form before this run, kept whole. A given line
+// `form`, the first the row names writes the line, the writers of one placed text being one, a row of no places
+// written as well from a form of its relation whose one place is a guard, with the guard struck, since the vendor
+// writes a guard at every predicate as none; and where the run hands none the row names, the line the ruleset at
+// `krs_path` gave the row's form before this run, kept whole. A given line
 // a written one replaces with another text is kept in the .krf beside the .ksc at `ksc_path` (krf.h). `krs_path` may
 // be NULL or name no file, and then nothing is given. The count written
 unsigned int krs_frame_written(QryText *forms, const KrsFrameForm *form, unsigned int count, const char *named_ruleset,
