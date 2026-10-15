@@ -1,0 +1,9 @@
+krf sm_86
+who 03e2013e01bd000018de8aa36669ea34
+removed krs query28-20261014T235535 replaced form word_set to value = MOV {to}, {value}, {to}\n
+who 03e2013f01bd000018de8b664fb62474
+removed krs query29-20261015T000933 replaced form global_load_constant_word to address offset = LD {to}, {offset}, R0, [{address}.64]\n
+removed krs query29-20261015T000933 replaced form record_store_word offset from = ST R7, {from}, {offset}, R4\n
+removed krs query30-20261015T001152 replaced form global_load_constant_word to address offset = LD {to}, [{address}.64], {offset}\n
+removed krs query30-20261015T001152 replaced form record_store_word offset from = ST {from}, {offset}\n
+removed krs query32-20261015T001759 replaced form record_store_word offset from = ST R7, R4, {from}, {offset}\n
