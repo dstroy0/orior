@@ -55,10 +55,12 @@ const HEAD_BYTES: u64 = 65536;
 
 /// The bytes of the buffer's head as each system lays it out: its words, the lock POSIX gives it, which
 /// differs by system and is none on Windows, and its spans.
-const HEAD_SIZES: [u64; 4] = [32952, 32992, 33000, 33016];
+const HEAD_SIZES: [u64; 4] = [32960, 33000, 33008, 33024];
 
-/// The places of the words of the buffer's head (qry_buffer.c's QryHead), the same on every system: the
-/// lock POSIX keeps in the head stands after them, and the spans after the lock.
+/// The places of the words of the buffer's head (QryHead in buffer/qry_buffer_internal.h), the same on
+/// every system: the lock POSIX keeps in the head stands after them, and the spans after the lock. The
+/// words between those read here, `closed` after `panicked` and `stopping` before `writing`, are the
+/// writer's own.
 mod head {
     pub const CAPACITY: u64 = 8;
     pub const SLOTS: u64 = 16;
@@ -78,12 +80,12 @@ mod head {
     pub const CRITICAL_HANDED: u64 = 128;
     pub const CRITICAL_WRITTEN: u64 = 136;
     pub const PANICKED: u64 = 144;
-    pub const WRITING: u64 = 156;
-    pub const ROWS: u64 = 160;
-    pub const ROWS_COMMITTED: u64 = 168;
-    pub const TABLE_FULL: u64 = 176;
+    pub const WRITING: u64 = 164;
+    pub const ROWS: u64 = 168;
+    pub const ROWS_COMMITTED: u64 = 176;
+    pub const TABLE_FULL: u64 = 184;
     #[cfg(target_os = "linux")]
-    pub const LOCK: u64 = 184;
+    pub const LOCK: u64 = 192;
 }
 
 /// The priorities a blob is handed at, as qry_buffer.h numbers them.
@@ -1408,7 +1410,14 @@ mod tests {
                 let out = std::env::temp_dir().join(format!("orior-qry-writer-{}", std::process::id()));
                 std::fs::create_dir_all(&out).ok()?;
                 let binary = out.join(if cfg!(windows) { "qry_writer.exe" } else { "qry_writer" });
-                let built = std::process::Command::new("cc").args(["-std=c11", "-O2", "-o"]).arg(&binary).arg(sources.join("qry_writer.c")).arg(sources.join("qry_buffer.c")).status().ok()?;
+                // The writer's sources as qry_run.sh compiles them: its own file and those of
+                // writer/ and buffer/.
+                let mut compiled = vec![sources.join("qry_writer.c")];
+                for folder in ["writer", "buffer"] {
+                    let entries = std::fs::read_dir(sources.join(folder)).ok()?;
+                    compiled.extend(entries.flatten().map(|entry| entry.path()).filter(|path| path.extension().is_some_and(|ending| ending == "c")));
+                }
+                let built = std::process::Command::new("cc").args(["-std=c11", "-O2", "-o"]).arg(&binary).args(&compiled).status().ok()?;
                 built.success().then_some(binary)
             })
             .clone()

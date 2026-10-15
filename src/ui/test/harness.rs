@@ -210,17 +210,24 @@ impl Report {
 /// where its sources or a compiler are missing.
 fn qry_writer(ui: &Path, here: &Path) -> Option<PathBuf> {
     let sources = ui.parent()?.join("cu").join("types").join("file_defs").join("qry");
-    let read = ["qry_writer.c", "qry_buffer.c", "qry_buffer.h", "qry.h"].map(|name| sources.join(name));
-    if !read[0].exists() {
+    if !sources.join("qry_writer.c").exists() {
         return None;
+    }
+    // The writer's sources as qry_run.sh compiles them: its own file and those of writer/ and
+    // buffer/; and the headers they read, which date the binary too.
+    let mut compiled = vec![sources.join("qry_writer.c")];
+    let mut read = vec![sources.join("qry_buffer.h"), sources.join("qry.h")];
+    for folder in ["writer", "buffer"] {
+        compiled.extend(files_under(&sources.join(folder), ".c").into_iter().map(|file| sources.join(folder).join(file)));
+        read.extend(files_under(&sources.join(folder), ".h").into_iter().map(|file| sources.join(folder).join(file)));
     }
     let out = here.join("target").join("qry");
     std::fs::create_dir_all(&out).ok()?;
     let binary = out.join(if cfg!(windows) { "qry_writer.exe" } else { "qry_writer" });
-    let newest = read.iter().filter_map(|file| file.metadata().ok()?.modified().ok()).max();
+    let newest = compiled.iter().chain(read.iter()).filter_map(|file| file.metadata().ok()?.modified().ok()).max();
     let built = binary.metadata().ok().and_then(|meta| meta.modified().ok());
     if built.is_none() || newest > built {
-        let made = Command::new("cc").args(["-std=c11", "-O2", "-Wall", "-Wextra", "-o"]).arg(&binary).arg(&read[0]).arg(&read[1]).status().ok()?;
+        let made = Command::new("cc").args(["-std=c11", "-O2", "-Wall", "-Wextra", "-o"]).arg(&binary).args(&compiled).status().ok()?;
         if !made.success() {
             return None;
         }
