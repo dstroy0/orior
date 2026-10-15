@@ -22,8 +22,9 @@ export const ROUND_MOST = 8192;
 export const ROUNDS_SHOWN = 12;
 
 // The nodes of a pass's line, in order. The rounds between Plan and Written are one node a round
-// once the plan says how many: a costs pass puts one form a round, every other pass ROUND_MOST
-// questions a round. Before the plan is known the rounds are one node named for the pass.
+// once the plan says how many: a costs pass puts one form a round, a cost mode of the identity every
+// question in one round, every other pass ROUND_MOST questions a round. Before the plan is known the
+// rounds are one node named for the pass, with the round under way where one is.
 export function nodesOf(pass, plan, underWay = 1) {
   const nodes = [
     { key: "tools", label: "Tools" },
@@ -40,7 +41,7 @@ export function nodesOf(pass, plan, underWay = 1) {
       nodes.push({ key: `round${round}`, label: `Round ${round}`, round });
     }
   } else {
-    nodes.push({ key: "rounds", label: pass || "Rounds", round: 1 });
+    nodes.push({ key: "rounds", label: `${pass || "Rounds"}${underWay > 1 ? `, round ${underWay}` : ""}`, round: 1 });
   }
   nodes.push({ key: "written", label: "Written" }, { key: "leave", label: "Leave" });
   return nodes;
@@ -51,7 +52,13 @@ export function roundsOf(plan) {
   if (!plan) {
     return 1;
   }
-  return plan.pass === "costs" ? plan.questions : Math.max(1, Math.ceil(plan.questions / ROUND_MOST));
+  if (plan.pass === "costs") {
+    return plan.questions;
+  }
+  if (plan.pass === "cost") {
+    return 1;
+  }
+  return Math.max(1, Math.ceil(plan.questions / ROUND_MOST));
 }
 
 // A question's answer: `answers<n>.txt`, the carrier's answer to question n of the round, and `answers.txt` the
@@ -91,7 +98,10 @@ function nodeOfBlob(reading, blob, plan) {
   if (plan && reading.rounds) {
     return `round${reading.rounds}`;
   }
-  return reading.rounds || blob.name === "questions.txt" ? "plan" : "carried";
+  if (reading.rounds) {
+    return "rounds";
+  }
+  return "carried";
 }
 
 // 1 where every round the plan counts has been put and the last answered: a file placed after that is the pass's
@@ -109,13 +119,13 @@ export function panelStep(reading, blob, { plan = null } = {}) {
   if (blob.name === "forms_work.txt" || blob.name === "faulted.txt" || blob.name === "overseer.txt") {
     reading.carried = true;
   }
-  if (blob.name === "questions.txt" && plan) {
+  if (blob.name === "questions.txt") {
     reading.rounds += 1;
     reading.asked = Math.max(1, Math.round(blob.size / LIST_LINE));
     reading.answered = 0;
   }
   const answer = ANSWER.exec(blob.name);
-  if (answer && plan) {
+  if (answer) {
     reading.answered += 1;
     reading.asked = Math.max(reading.asked, Number(answer[1] || 0) + 1);
   }
@@ -153,6 +163,8 @@ export function panelRead(reading, { pass = "", plan = null, tools = false, star
         return reading.written || ended;
       case "leave":
         return ended;
+      case "rounds":
+        return reading.rounds >= 1;
       default:
         return Boolean(plan) && reading.rounds >= node.round;
     }

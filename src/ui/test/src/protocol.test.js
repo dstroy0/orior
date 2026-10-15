@@ -63,11 +63,12 @@ test("a plan of many rounds is one stretch of the line, named for the round unde
 
 test("the reading folded again once the plan comes reads the earlier rounds as rounds", () => {
   const late = pass().reduce((kept, one) => panelStep(kept, one, { plan: null }), panelStart());
-  assert.equal(late.rounds, 0);
-  assert.equal(blobsOfNode(late, "plan").count, 3);
+  assert.equal(late.rounds, 3);
+  assert.equal(blobsOfNode(late, "rounds").count, 8);
   const again = panelReplanned(late, plan);
   assert.equal(again.rounds, 3);
   assert.equal(blobsOfNode(again, "plan").count, 0);
+  assert.equal(blobsOfNode(again, "rounds").count, 0);
   assert.equal(blobsOfNode(again, "round1").count, 2);
   assert.equal(blobsOfNode(again, "carried").count, 3);
 });

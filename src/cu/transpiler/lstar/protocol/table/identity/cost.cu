@@ -372,6 +372,14 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         round.push_back(each.code);
         mark = std::max(mark, each.mark);
     }
+    // the plan handed as the teacher hands one, for the panel: the questions of the one round
+    char plan[64];
+    const int plan_length = snprintf(plan, sizeof(plan), "cost %zu\n", round.size());
+    if ((plan_length > 0) && (qry_run() != NULL))
+    {
+        qry_hand(qry_run(), "plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
+    }
+    printf("  plan: cost %zu\n", round.size());
     printf("  %zu questions written, put in one round\n", round.size());
     std::vector<RunQuestion> asked;
     cuts_asked(round, std::vector<int>(round.size(), 0), std::vector<unsigned int>(round.size(), RUN_SLOT_NONE),
