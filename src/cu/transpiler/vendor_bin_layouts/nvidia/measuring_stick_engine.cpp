@@ -71,7 +71,8 @@ extern "C" const char __ehdr_start = 0;
 
 // the part the stick is assembled for, and the folder its machine file and its .kdm are in
 #define STICK_MACHINES "src/cu/transpiler/lstar/protocol/table"
-#define STICK_PART "sm_86"
+// the part whose machine file and classification the stick reads, as sass.krs names it in its part line
+static std::string s_part;
 
 // the width a value held in a predicate is given
 #define STICK_PREDICATE_BITS 1u
@@ -85,7 +86,7 @@ extern "C" const char __ehdr_start = 0;
 #define STICK_COUNT_BITS 0u
 
 // the schema's forms by their place in it, as machine_ir_types.h names them
-#define STICK_FORM_NAME(name_, text_, parameters_) text_,
+#define STICK_FORM_NAME(name_, text_, parameters_, kind_) text_,
 
 static const char *const s_form_names[OPCODE_COUNT] = {OPCODES(STICK_FORM_NAME)};
 
@@ -2882,7 +2883,7 @@ static void stick_folds_write(const Ruleset *sass, const std::set<std::string> &
     const std::string file = sass->path.substr(slash + 1u);
     const std::string stem = file.substr(0u, file.find_last_of('.'));
     sass_class_read(rulesets.c_str(), stem.c_str());
-    sass_pipe_read(STICK_MACHINES, STICK_PART);
+    sass_pipe_read(STICK_MACHINES, s_part.c_str());
     for (const std::string &opening : openings)
     {
         sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS, opening.c_str());
@@ -2922,7 +2923,7 @@ static void stick_pipes_write(const std::map<std::string, std::vector<std::strin
             }
         }
     }
-    sass_pipe_read(STICK_MACHINES, STICK_PART);
+    sass_pipe_read(STICK_MACHINES, s_part.c_str());
     for (const auto &operation : seen)
     {
         unsigned int best = 0u;
@@ -2949,7 +2950,7 @@ static void stick_pipes_write(const std::map<std::string, std::vector<std::strin
                 operation.first.c_str(), written_on[operation.first].c_str(), chosen.first, chosen.second, best,
                 operation.second.size());
     }
-    sass_pipe_write(STICK_MACHINES, STICK_PART);
+    sass_pipe_write(STICK_MACHINES, s_part.c_str());
 }
 
 int main(int argc, char **argv)
@@ -2977,9 +2978,16 @@ int main(int argc, char **argv)
         return 1;
     }
     static SassMachine machine;
-    if (sass_machine_read(&machine, STICK_MACHINES "/" STICK_PART) == 0)
+    s_part = sass->part;
+    if (s_part.empty())
     {
-        fprintf(stderr, "the machine file is not read\n");
+        fprintf(stderr, "sass.krs names no part, and no machine file is read\n");
+        return 1;
+    }
+    const std::string machine_path = std::string(STICK_MACHINES) + "/" + s_part + ".khw";
+    if (sass_machine_read(&machine, machine_path.c_str()) == 0)
+    {
+        fprintf(stderr, "the machine file %s is not read\n", machine_path.c_str());
         return 1;
     }
     const std::vector<StickPattern> patterns = stick_patterns(cu, sass);

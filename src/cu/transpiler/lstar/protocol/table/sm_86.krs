@@ -9,3 +9,37 @@ form global_load_constant_word to address offset = LD {to}, [{address}.64], {off
 form record_store_word offset from = ST [R4.64], {from}, {offset}\n
 form return = EXIT\n
 form exit_if where = @{where} EXIT\n
+nop program_note steps major minor compiler_major compiler_minor block
+nop lane_open
+nop lane_body
+nop lane_close
+nop declare_predicates count
+nop declare_fixed_predicates
+nop declare_file count
+nop declare_signs count
+nop declare_out count
+nop declare_atoms count
+nop declare_temporaries count
+nop declare_wides count
+nop declare_fixed_words
+nop declare_fixed_wides
+nop declare_members count
+nop launch_open
+nop cast_global to
+nop shared_open
+nop shared_close
+nop step_note at operation
+nop declare_states count
+nop state_start state
+nop state_open state
+nop state_next state error
+nop state_exit
+nop state_dispatch error state
+nop launch_ask offset
+nop global_ask address offset
+nop global_ask_if where address
+nop global_ask_atomic address
+nop state_loop back where next
+nop program_unit launch_bytes count_offset hot_offset block_offset number_offset ttl_offset checkin_every_offset next_offset start_offset finished_offset checkins_offset owner_at command_at state_at offset_at step_at launch_time_at exectime_at checkin_at checkin_time_at run_command stop_command done_state stopped_state yielded_state
+nop kernel_open
+nop kernel_close

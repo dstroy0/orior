@@ -15,180 +15,9 @@
 #else
 #define CODEGEN_CORE static inline
 #endif
+#include "schema_forms.h"
 
-// every form the code generator writes: its name here, its name in a .krs file, and how many parameters it takes
-// One form a line, held from the formatter: it splits a form's name inside its words, and a search for the name
-// then misses it
 // clang-format off
-#define OPCODES(form_)                                              \
-    form_(PROGRAM_NOTE, "program_note", 6u)                         \
-    form_(LANE_OPEN, "lane_open", 0u)                               \
-    form_(LANE_BODY, "lane_body", 0u)                               \
-    form_(LANE_CLOSE, "lane_close", 0u)                             \
-    form_(DECLARE_PREDICATES, "declare_predicates", 1u)             \
-    form_(DECLARE_FIXED_PREDICATES, "declare_fixed_predicates", 0u) \
-    form_(DECLARE_FILE, "declare_file", 1u)                         \
-    form_(DECLARE_SIGNS, "declare_signs", 1u)                       \
-    form_(DECLARE_OUT, "declare_out", 1u)                           \
-    form_(DECLARE_ATOMS, "declare_atoms", 1u)                       \
-    form_(DECLARE_TEMPORARIES, "declare_temporaries", 1u)           \
-    form_(DECLARE_WIDES, "declare_wides", 1u)                       \
-    form_(DECLARE_FIXED_WORDS, "declare_fixed_words", 0u)           \
-    form_(DECLARE_FIXED_WIDES, "declare_fixed_wides", 0u)           \
-    form_(DECLARE_MEMBERS, "declare_members", 1u)                   \
-    form_(LAUNCH_OPEN, "launch_open", 0u)                           \
-    form_(LAUNCH_LOAD_WIDE, "launch_load_wide", 2u)                 \
-    form_(CAST_GLOBAL, "cast_global", 1u)                           \
-    form_(SHARED_OPEN, "shared_open", 0u)                           \
-    form_(SHARED_CLOSE, "shared_close", 0u)                         \
-    form_(GLOBAL_LOAD_WORD_IF, "global_load_word_if", 3u)           \
-    form_(WIDE_FROM_WORD_IF, "wide_from_word_if", 3u)               \
-    form_(ERROR_OPEN_UNLESS, "error_open_unless", 1u)               \
-    form_(ERROR_IF, "error_if", 2u)                                 \
-    form_(LABEL_ERROR_OPEN, "label_error_open", 0u)                 \
-    form_(LABEL_ERROR, "label_error", 1u)                           \
-    form_(GLOBAL_ADD_ATOMIC_WORD, "global_add_atomic_word", 1u)     \
-    form_(RETURN, "return", 0u)                                     \
-    form_(STEP_NOTE, "step_note", 2u)                               \
-    form_(WORD_ADD, "word_add", 3u)                                 \
-    form_(WORD_ADD_FIRST, "word_add_first", 3u)                     \
-    form_(WORD_ADD_MIDDLE, "word_add_middle", 3u)                   \
-    form_(WORD_ADD_LAST, "word_add_last", 3u)                       \
-    form_(WORD_SUB, "word_sub", 3u)                       \
-    form_(WORD_SUB_FIRST, "word_sub_first", 3u)           \
-    form_(WORD_SUB_MIDDLE, "word_sub_middle", 3u)         \
-    form_(WORD_SUB_LAST, "word_sub_last", 3u)             \
-    form_(WORD_BORROW_READ, "word_borrow_read", 2u)                 \
-    form_(WORD_COPY, "word_copy", 2u)                               \
-    form_(WORD_SET, "word_set", 2u)                                 \
-    form_(WORD_BITAND, "word_bitand", 3u)                                 \
-    form_(WORD_BITOR, "word_bitor", 3u)                                   \
-    form_(WORD_BITXOR, "word_bitxor", 3u)                                 \
-    form_(WORD_NOT, "word_not", 2u)                                       \
-    form_(WORD_NAND, "word_nand", 3u)                                     \
-    form_(WORD_NOR, "word_nor", 3u)                                       \
-    form_(WORD_SHL, "word_shl", 3u)                   \
-    form_(WORD_SHR, "word_shr", 3u)                 \
-    form_(WORD_FUNNEL_RIGHT, "word_funnel_right", 4u)               \
-    form_(SIGNED_WORD_SHR, "signed_word_shr", 3u)                   \
-    form_(WORD_ROL, "word_rol", 3u)                                       \
-    form_(WORD_ROR, "word_ror", 3u)                                       \
-    form_(WORD_MUL, "word_mul", 3u)                       \
-    form_(WORD_MUL_ADD, "word_mul_add", 4u)               \
-    form_(WORD_DIV, "word_div", 3u)                           \
-    form_(WORD_REM, "word_rem", 3u)                           \
-    form_(SIGNED_WORD_DIV, "signed_word_div", 3u)             \
-    form_(SIGNED_WORD_REM, "signed_word_rem", 3u)             \
-    form_(WORD_SELECT, "word_select", 4u)                           \
-    form_(WORD_MUL_LOW, "word_mul_low", 4u)               \
-    form_(WORD_MUL_HIGH, "word_mul_high", 3u)             \
-    form_(SIGN_SET, "sign_set", 2u)                                 \
-    form_(SIGN_SELECT, "sign_select", 4u)                           \
-    form_(SIGN_MUL, "sign_mul", 3u)                       \
-    form_(SIGN_ABSOLUTE, "sign_absolute", 2u)                       \
-    form_(SIGN_NEG, "sign_neg", 2u)                           \
-    form_(TEST_WORD_NONZERO, "test_word_nonzero", 2u)               \
-    form_(TEST_WORD_ZERO, "test_word_zero", 2u)                     \
-    form_(TEST_SIGNED_WORD_NEGATIVE, "test_signed_word_negative", 2u) \
-    form_(TEST_SIGN_NE, "test_sign_ne", 3u)                       \
-    form_(TEST_SIGN_GT, "test_sign_gt", 3u)               \
-    form_(TEST_WIDE_NONZERO, "test_wide_nonzero", 2u)               \
-    form_(TEST_WIDE_EQ, "test_wide_eq", 3u)           \
-    form_(TEST_WIDE_LT, "test_wide_lt", 3u)                   \
-    form_(TEST_WIDE_LT_AND, "test_wide_lt_and", 4u)           \
-    form_(PREDICATE_BITXOR, "predicate_bitxor", 3u)                       \
-    form_(PREDICATE_BITAND, "predicate_bitand", 3u)                       \
-    form_(WIDE_FROM_WORD, "wide_from_word", 2u)                     \
-    form_(WORD_FROM_WIDE, "word_from_wide", 2u)                     \
-    form_(WIDE_PACK, "wide_pack", 3u)                               \
-    form_(WIDE_UNPACK, "wide_unpack", 3u)                           \
-    form_(WIDE_MUL, "wide_mul", 3u)                       \
-    form_(WIDE_MUL_WORD, "wide_mul_word", 3u)             \
-    form_(WIDE_ADD, "wide_add", 3u)                                 \
-    form_(WIDE_SHL, "wide_shl", 3u)                   \
-    form_(WIDE_SELECT, "wide_select", 4u)                           \
-    form_(WIDE_DIV, "wide_div", 3u)                           \
-    form_(GLOBAL_LOAD_CONSTANT_WORD, "global_load_constant_word", 3u) \
-    form_(RECORD_STORE_WORD, "record_store_word", 2u)               \
-    form_(DECLARE_STATES, "declare_states", 1u)                     \
-    form_(STATE_START, "state_start", 1u)                           \
-    form_(STATE_OPEN, "state_open", 1u)                             \
-    form_(STATE_NEXT, "state_next", 2u)                             \
-    form_(STATE_EXIT, "state_exit", 0u)                             \
-    form_(STATE_DISPATCH, "state_dispatch", 2u)                     \
-    form_(LAUNCH_ASK, "launch_ask", 1u)                             \
-    form_(GLOBAL_ASK, "global_ask", 2u)                             \
-    form_(GLOBAL_ASK_IF, "global_ask_if", 2u)                       \
-    form_(GLOBAL_ASK_ATOMIC, "global_ask_atomic", 1u)               \
-    form_(LABEL_LOOP, "label_loop", 1u)                             \
-    form_(LOOP_BACK_IF, "loop_back_if", 2u)                         \
-    form_(STATE_LOOP, "state_loop", 3u)                             \
-    form_(PROGRAM_UNIT, "program_unit", 25u)                        \
-    form_(KERNEL_OPEN, "kernel_open", 0u)                           \
-    form_(KERNEL_CLOSE, "kernel_close", 0u)                         \
-    form_(THREAD_IDX_X, "thread_idx_x", 1u)                         \
-    form_(THREAD_IDX_Y, "thread_idx_y", 1u)                         \
-    form_(THREAD_IDX_Z, "thread_idx_z", 1u)                         \
-    form_(BLOCK_IDX_X, "block_idx_x", 1u)                           \
-    form_(BLOCK_IDX_Y, "block_idx_y", 1u)                           \
-    form_(BLOCK_IDX_Z, "block_idx_z", 1u)                           \
-    form_(BLOCK_DIM_X, "block_dim_x", 1u)                           \
-    form_(BLOCK_DIM_Y, "block_dim_y", 1u)                           \
-    form_(BLOCK_DIM_Z, "block_dim_z", 1u)                           \
-    form_(GRID_DIM_X, "grid_dim_x", 1u)                             \
-    form_(GRID_DIM_Y, "grid_dim_y", 1u)                             \
-    form_(GRID_DIM_Z, "grid_dim_z", 1u)                             \
-    form_(WARP_SIZE, "warp_size", 1u)                               \
-    form_(PARAMETER_LOAD_WORD, "parameter_load_word", 2u)           \
-    form_(PARAMETER_LOAD_WIDE, "parameter_load_wide", 2u)           \
-    form_(TEST_WORD_LT, "test_word_lt", 3u)                   \
-    form_(EXIT_UNLESS, "exit_unless", 1u)                           \
-    form_(WIDE_MUL_WORD_ADD, "wide_mul_word_add", 4u)     \
-    form_(GLOBAL_LOAD_WORD, "global_load_word", 3u)                 \
-    form_(GLOBAL_LOAD_WIDE, "global_load_wide", 3u)                 \
-    form_(GLOBAL_STORE_WIDE, "global_store_wide", 3u)               \
-    form_(WIDE_FROM_SIGNED_WORD, "wide_from_signed_word", 2u)       \
-    form_(TEST_WORD_GE, "test_word_ge", 3u)                       \
-    form_(EXIT_IF, "exit_if", 1u)                                   \
-    form_(TEST_WORD_LE, "test_word_le", 3u)                       \
-    form_(TEST_WORD_NE, "test_word_ne", 3u)                       \
-    form_(TEST_WORD_EQ, "test_word_eq", 3u)           \
-    form_(TEST_WORD_GT, "test_word_gt", 3u)               \
-    form_(TEST_SIGNED_WORD_LT, "test_signed_word_lt", 3u)     \
-    form_(TEST_SIGNED_WORD_GE, "test_signed_word_ge", 3u)         \
-    form_(TEST_SIGNED_WORD_LE, "test_signed_word_le", 3u)         \
-    form_(TEST_SIGNED_WORD_GT, "test_signed_word_gt", 3u) \
-    form_(TEST_WIDE_NE, "test_wide_ne", 3u)                       \
-    form_(TEST_WIDE_LE, "test_wide_le", 3u)                       \
-    form_(TEST_WIDE_GT, "test_wide_gt", 3u)               \
-    form_(TEST_WIDE_GE, "test_wide_ge", 3u)                       \
-    form_(TEST_SIGNED_WIDE_LT, "test_signed_wide_lt", 3u)     \
-    form_(TEST_SIGNED_WIDE_LE, "test_signed_wide_le", 3u)         \
-    form_(TEST_SIGNED_WIDE_GT, "test_signed_wide_gt", 3u) \
-    form_(TEST_SIGNED_WIDE_GE, "test_signed_wide_ge", 3u)         \
-    form_(TEST_WIDE_ZERO, "test_wide_zero", 2u)                     \
-    form_(WORD_FROM_BYTE, "word_from_byte", 2u)                     \
-    form_(WORD_FROM_SIGNED_BYTE, "word_from_signed_byte", 2u)       \
-    form_(WORD_FROM_HALFWORD, "word_from_halfword", 2u)             \
-    form_(WORD_FROM_SIGNED_HALFWORD, "word_from_signed_halfword", 2u) \
-    form_(GLOBAL_LOAD_BYTE, "global_load_byte", 3u)                 \
-    form_(GLOBAL_LOAD_SIGNED_BYTE, "global_load_signed_byte", 3u)   \
-    form_(GLOBAL_LOAD_HALFWORD, "global_load_halfword", 3u)         \
-    form_(GLOBAL_LOAD_SIGNED_HALFWORD, "global_load_signed_halfword", 3u) \
-    form_(TEST_WORD_NONZERO_AND, "test_word_nonzero_and", 3u)       \
-    form_(TEST_WORD_NONZERO_OR, "test_word_nonzero_or", 3u)         \
-    form_(TEST_WIDE_NONZERO_AND, "test_wide_nonzero_and", 3u)       \
-    form_(TEST_WIDE_NONZERO_OR, "test_wide_nonzero_or", 3u)         \
-    form_(WIDE_SUB, "wide_sub", 3u)                                 \
-    form_(WIDE_BITAND, "wide_bitand", 3u)                           \
-    form_(WIDE_BITOR, "wide_bitor", 3u)                             \
-    form_(WIDE_BITXOR, "wide_bitxor", 3u)                           \
-    form_(WIDE_NOT, "wide_not", 2u)                                 \
-    form_(WIDE_SHR, "wide_shr", 3u)                                 \
-    form_(SIGNED_WIDE_SHR, "signed_wide_shr", 3u)
-// clang-format on
-
-// every bank of registers the code generator takes from, each written with one parameter, the register's number n
 #define REGCLASSES(bank_)                                                                                              \
     bank_(FILE, "file") bank_(SIGN, "sign") bank_(OUT, "out") bank_(ATOM, "atom") bank_(TEMPORARY, "temporary")        \
         bank_(WIDE, "wide") bank_(PREDICATE, "predicate") bank_(MEMBER, "member") bank_(IMMEDIATE, "immediate")
@@ -200,7 +29,7 @@
             fixed_(SIGN_BASE, "sign_base") fixed_(INDEXED, "indexed") fixed_(ONE, "one") fixed_(OK, "ok")              \
                 fixed_(LAUNCH, "launch") fixed_(CARRY, "carry")
 
-#define OPCODE_NAMED(name_, text_, parameters_) OPCODE_##name_,
+#define OPCODE_NAMED(name_, text_, parameters_, kind_) OPCODE_##name_,
 #define REGCLASS_NAMED(name_, text_) REGCLASS_##name_,
 #define PHYSREG_NAMED(name_, text_) PHYSREG_##name_,
 
@@ -220,7 +49,7 @@ enum PhysicalRegister
 };
 
 // the parameters each form takes, by its place in the schema
-#define OPCODE_PARAMETERS(name_, text_, parameters_)                                                                   \
+#define OPCODE_PARAMETERS(name_, text_, parameters_, kind_)                                                                   \
     case OPCODE_##name_:                                                                                               \
         return parameters_;
 

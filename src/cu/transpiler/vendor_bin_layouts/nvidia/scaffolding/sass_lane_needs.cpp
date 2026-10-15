@@ -35,7 +35,7 @@ extern "C" const char __ehdr_start = 0;
 #endif
 
 // the schema's forms by their place in it, each with the parameters it takes, as machine_ir_types.h gives them
-#define LANE_FORM_TEXT(name_, text_, parameters_) {text_, parameters_},
+#define LANE_FORM_TEXT(name_, text_, parameters_, kind_) {text_, parameters_},
 
 static const struct
 {
@@ -43,12 +43,12 @@ static const struct
     unsigned int parameters;
 } s_forms[OPCODE_COUNT] = {OPCODES(LANE_FORM_TEXT)};
 
-// 1 where the ruleset gives the form at `place` as an error, and that blocks a lane: a nop writes nothing and
-// the lane goes on without it, and only an err refuses. The two read the same from the outside, both writing an
-// empty text, and the ruleset says which it means
+// 1 where the ruleset gives the form at `place` as an error or leaves it open, and that blocks a lane: a nop writes
+// nothing and the lane goes on without it, and an err or an open form refuses (P10). A nop and an err read the same
+// from the outside, both writing an empty text, and the ruleset says which it means
 static int lane_form_errors(const Ruleset *rules, unsigned int place)
 {
-    return rules->form_given[place] == (unsigned char)RULESET_CORE_GIVEN_ERR;
+    return (rules->form_given[place] == (unsigned char)RULESET_CORE_GIVEN_ERR) || (rules->form_given[place] == 0u);
 }
 
 // the part's machine file, read once, against which a written lane is assembled

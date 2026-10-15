@@ -26,15 +26,63 @@
 // ruleset at `named ruleset` names them, one line a row of the table, the writers of one placed text being one. A row
 // the run hands no form for keeps the line the ruleset gave its form before, as a word does.
 //
+// The lane's structure, each form the schema gives as SCHEMA_FORM_STRUCTURE (schema_forms.h), is written `nop`: the
+// declarations, the notes, the lane's and the kernel's opening and close, the launch's and the shared memory's, the
+// states and the asks, and the unit name no operation and have no tree, and the kernel the system accepted is the
+// lane's frame on the part (The frame asked, Open 6.3). A slot whose relation holds of nothing has every form and
+// the empty text as survivors, and P6 keeps the cheapest, the empty text. Every other form the part has not answered
+// for is left open, and the reader reads it so (P10).
+//
 // Two files are written beside the machine file: <language>.krs, which opens a ruleset of the language and names the
 // part, and <part>.krs, which the reader reads after it (ruleset_flat.cu) and which holds the forms. A bank, a fixed
 // register, the toolchain and the header are answered by no form, and neither file gives one.
 //
 // It runs in a query run, the .qry QRY names (qry_buffer.h): the forms the vendor's writer hands back are the blob
 // KRS_FORMS_NAME of the run's buffer, and what it prints is handed to the run's buffer as KRS_MACHINE_NAME.
+#include "../../../engine/rmc/schema_forms.h"
 #include "krs_write/fixed.h"
 #include "krs_write/head.h"
 #include "krs_write/krs_write_internal.h"
+
+// the schema's forms, each with its parameter count and its kind
+#define KRS_SCHEMA_ROW(name_, text_, parameters_, kind_) {text_, parameters_, kind_},
+static const struct
+{
+    const char *name;
+    unsigned int parameters;
+    unsigned int kind;
+} s_schema[] = {OPCODES(KRS_SCHEMA_ROW)};
+
+// the lane's structure written to `forms`, one `nop` line a form the schema gives as structure, its parameters as the
+// ruleset at `named_ruleset` names them. The count written; a form that ruleset names with another count of
+// parameters than the schema's is said and left out
+static unsigned int krs_structure_written(QryText *forms, const char *named_ruleset)
+{
+    unsigned int written = 0u;
+    for (unsigned int at = 0u; at < (sizeof(s_schema) / sizeof(s_schema[0])); at += 1u)
+    {
+        if (s_schema[at].kind != SCHEMA_FORM_STRUCTURE)
+        {
+            continue;
+        }
+        char parameter[KRS_PARAMETERS][KRS_NAME];
+        const unsigned int parameters = krs_parameters_named(named_ruleset, s_schema[at].name, parameter);
+        if (parameters != s_schema[at].parameters)
+        {
+            printf("  krs_write: %s names %s with %u parameters, where the schema gives it %u, and it is not written\n",
+                   named_ruleset, s_schema[at].name, parameters, s_schema[at].parameters);
+            continue;
+        }
+        qry_text_printed(forms, "nop %s", s_schema[at].name);
+        for (unsigned int place = 0u; place < parameters; place += 1u)
+        {
+            qry_text_printed(forms, " %s", parameter[place]);
+        }
+        qry_text_printed(forms, "\n");
+        written += 1u;
+    }
+    return written;
+}
 
 int main(int count, char **word)
 {
@@ -161,6 +209,8 @@ int main(int count, char **word)
         printf("  krs_write: the table of frame forms could not be read, and no frame form is written\n");
     }
     given += krs_frame_written(&forms, s_frame_form, s_frame_forms, named_ruleset, path, ksc);
+    const unsigned int structure = krs_structure_written(&forms, named_ruleset);
+    printf("  krs_write: the lane's structure, %u forms, written nop\n", structure);
     if (qry_text_filed(qry_run(), path, &forms) == 0ull)
     {
         printf("  krs_write: %s could not be written\n", path);
