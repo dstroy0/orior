@@ -212,6 +212,17 @@ function liveOf(id) {
   return runsOf(id).some((run) => !run.done);
 }
 
+// The run on the stage: the one the reader chose of the chosen job's runs, else its newest, or null
+// where no job is chosen or it has not run.
+function shownRun() {
+  if (state.chosen === null) {
+    return null;
+  }
+  const chosen = state.shown.get(state.chosen);
+  const run = chosen !== undefined ? state.runs.get(chosen) : undefined;
+  return run ?? runsOf(state.chosen).at(-1) ?? null;
+}
+
 // What a stage job works on, which the stage group is split by.
 export function subject(job) {
   return job.file.split("/")[1] || job.file;
