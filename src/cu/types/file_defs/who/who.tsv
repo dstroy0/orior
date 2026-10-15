@@ -993,3 +993,4 @@ number	source
 0x03e2	src/cu/transpiler/lstar/parser/krs_write/frame.c
 0x03e3	src/cu/transpiler/lstar/parser/krs_write/frame.h
 0x03e4	utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c
+0x03e5	utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c

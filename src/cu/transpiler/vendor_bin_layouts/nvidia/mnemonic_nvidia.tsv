@@ -12,6 +12,8 @@
 # operation	<piece>	<reads>	<gloss>      the relation it answers, a ladder relation or a word of the high order language
 # count	<piece>	<reads>	<gloss>          how many sources its fields hold, where NVIDIA writes the count
 # qualifier	<piece>	<reads>	<gloss>      what its answers read it into, a coherence category or a word of the high order language
+# mark	<piece>	<reads>	<gloss>           the mark NVIDIA writes before the operand at the relation's second word, where
+#                                        the relation is one it writes as another with that operand marked
 #
 # <reads> names what puts the piece in the name: ladder.<relation> (ladder.h), hol.<word> (gnascor_hol_lng.tsv), or
 # <set> (the coherence sets of the query protocol table, P13)
@@ -25,7 +27,7 @@ kind	U	vector_coherence	a value every thread of a warp holds alike, the uniform 
 kind	P	hol.==0	a predicate
 
 # the relation answered
-operation	ADD	ladder.add hol.add	a sum
+operation	ADD	ladder.add ladder.take hol.add hol.sub	a sum, a difference being a sum with the second word negated
 operation	MUL	ladder.product hol.mul	a product
 operation	MAD	ladder.product ladder.add hol.mul hol.add	a product with a sum added to it
 operation	MNMX	hol.lt hol.gt	the least or the most of two
@@ -43,7 +45,10 @@ operation	EXIT	control_coherence frame.exit	the thread's end
 operation	BRA	control_coherence	a branch
 
 # the count of sources
-count	3	ladder.add hol.bitand	three sources, the third added or tabled in
+count	3	ladder.add ladder.take hol.bitand	three sources, the third added or tabled in
+
+# the marks
+mark	-	ladder.take	the word taken away, negated
 
 # the qualifiers
 qualifier	X	range_coherence	takes the carry an earlier one of the chain left, a later limb
