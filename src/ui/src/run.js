@@ -7,7 +7,7 @@
 import { invoke, listen, pick } from "./bridge.js";
 
 import { makeFuse } from "./fuse.js";
-import { blobsOfNode, panelRead, panelReplanned, panelStart, panelStep, planOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "./protocol.js";
+import { panelRead, panelReplanned, panelStart, panelStep, planOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "./protocol.js";
 import { makeRuler } from "./ruler.js";
 import { keepLattice } from "./lattice.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
@@ -62,22 +62,13 @@ function lineOf(run) {
   if (!lineBox) {
     lineBox = element("div", { className: "protocol-line" });
   }
-  lineBox.replaceChildren(state.fuse.canvas, lineNodes(run));
+  lineBox.replaceChildren(state.fuse.canvas);
   return lineBox;
 }
 
 // The run's clock: milliseconds since the job started, standing still at the end once the run has ended.
 function nowOf(run) {
   return run.done && run.endMs !== null ? run.endMs : performance.now() - run.clock;
-}
-
-// The moment each node of the line was first reached, on the run's clock, noted as the line is read.
-function reachedNoted(run, read, nowMs) {
-  for (const node of read.nodes) {
-    if (node.reached && run.reachedAt[node.key] === undefined) {
-      run.reachedAt[node.key] = nowMs;
-    }
-  }
 }
 
 // The run's telemetry over the line: the readings, each a value over its name, and the answers a second
@@ -87,13 +78,13 @@ function readingsOf(run) {
   const read = telemetryRead(run.telemetry, { nowMs, plan: run.plan, reading: run.reading, ended: run.done });
   const seconds = (value) => (value === null ? "" : `${value.toFixed(2)} s`);
   const readings = [
-    ["answers a second", read.rate.toFixed(1)],
-    ["time gone", spanSaid(nowMs)],
-    ["time left", read.left === null ? "" : spanSaid(read.left)],
-    ["airlock", seconds(read.airlock)],
-    ["cross", seconds(read.cross)],
-    ["carrier", seconds(read.carrier)],
-    ["unanswered", String(read.unanswered)],
+    ["throughput, answers/s", read.rate.toFixed(1)],
+    ["elapsed", spanSaid(nowMs)],
+    ["remaining", read.left === null ? "" : spanSaid(read.left)],
+    ["airlock delay", seconds(read.airlock)],
+    ["cross delay", seconds(read.cross)],
+    ["carrier busy", seconds(read.carrier)],
+    ["in flight", String(read.unanswered)],
     ["held", String(read.held)],
     ["refused", String(read.refused)],
     ["faulted", String(read.faulted)],
@@ -107,7 +98,7 @@ function readingsOf(run) {
   const canvas = element("canvas", { className: "protocol-rate", width: 240, height: 36 });
   canvas.setAttribute("aria-hidden", "true");
   drawRate(canvas, telemetryHistory(run.telemetry, nowMs));
-  box.append(element("div", { className: "reading rate" }, canvas, element("span", { className: "name", textContent: "answers a second, the last two minutes" })));
+  box.append(element("div", { className: "reading rate" }, canvas, element("span", { className: "name", textContent: "throughput, last 2 min" })));
   return box;
 }
 
@@ -132,18 +123,15 @@ function drawRate(canvas, counts) {
   });
 }
 
-// The views of a protocol run, as tabs over the console box: the overview, the pass's line with the
-// fuse burning along it; the console; then one a node of the line holding what the writer placed
-// while the node was under way, each with its count. Pressing a node of the line opens its tab too.
+// The views of a protocol run, as tabs over the console box: the overview, the run's dashboard with the
+// readings, the fuse and the steps as the run names them; and the console.
 const OVERVIEW = "overview";
 const CONSOLE = "console";
 function tabStrip(run) {
-  const read = panelRead(run.reading, shownOf(run));
   const strip = element("div", { className: "tabs console-tabs", id: "protocol-tabs", role: "tablist" });
   const views = [
     { key: OVERVIEW, label: "Overview", count: 0 },
     { key: CONSOLE, label: "Console", count: run.lines.length },
-    ...read.nodes.map((node) => ({ key: node.key, label: node.label, count: node.blobs })),
   ];
   for (const view of views) {
     const tab = element("button", { className: "tab", type: "button", role: "tab" });
@@ -161,21 +149,20 @@ function tabStrip(run) {
 // The body of a protocol run's view: the line for the overview, the console's lines, or a node's blobs.
 function viewBody(run) {
   if (run.view === OVERVIEW) {
-    const overview = element("div", { className: "protocol-overview" }, readingsOf(run), lineOf(run));
-    // the time gone and the time left move with the clock, so the readings are drawn again each second
-    // while the overview stands
+    const overview = element("div", { className: "protocol-overview" }, readingsOf(run), lineOf(run), stepsOf(run));
+    // the clock moves, so the readings and the step under way are drawn again each second while the overview
+    // stands; a run that has ended stands still, drawn once more at its end and then left
     const ticker = setInterval(() => {
       const shown = document.getElementById("protocol-readings");
-      const nodes = document.getElementById("protocol-nodes");
+      const steps = document.getElementById("protocol-steps");
       if (!shown || !overview.isConnected) {
         clearInterval(ticker);
         return;
       }
       shown.replaceWith(readingsOf(run));
-      if (nodes) {
-        nodes.replaceWith(lineNodes(run));
+      if (steps) {
+        stepsKept(steps, stepsOf(run));
       }
-      // a run that has ended stands still: drawn once more at its end, then left
       if (run.done) {
         clearInterval(ticker);
       }
@@ -183,91 +170,57 @@ function viewBody(run) {
     return overview;
   }
   const lines = element("pre", { className: "lines", id: "lines" });
-  if (run.view === CONSOLE) {
-    run.lines.forEach((line) => lines.append(lineNode(line)));
-    if (run.done) {
-      lines.append(endNode(run));
-    }
-  } else {
-    lines.append(...blobLines(run, run.view));
+  run.lines.forEach((line) => lines.append(lineNode(line)));
+  if (run.done) {
+    lines.append(endNode(run));
   }
   return lines;
 }
 
-// The blobs a node of `run` kept, one line each as the writer placed them: the sequence, the priority
-// as a word, the name and the size; the count seen where more came than are kept.
-function blobLines(run, key) {
-  const { count, list } = blobsOfNode(run.reading, key);
-  const word = (priority) => (priority === 0 ? "panic" : priority === 1 ? "critical" : "ordinary");
-  const made = list.map((blob) => element("span", { className: `line ${blob.priority === 0 ? "stderr" : "stdout"}`, textContent: `${String(blob.sequence).padStart(8)}  ${word(blob.priority).padEnd(8)}  ${blob.name.padEnd(28)}  ${String(blob.size).padStart(10)}\n` }));
-  if (count > list.length) {
-    made.push(element("span", { className: "line stderr", textContent: `${count - list.length} more placed and not kept\n` }));
-  }
-  if (!count) {
-    made.push(element("span", { className: "line stderr", textContent: "no blob placed at this node yet\n" }));
-  }
-  return made;
-}
+// The steps of the run, as the run names them: every line the run writes to its console, in order, is a step the
+// protocol took, `<step>: <what it says>`, and the table shows each as it came with the time it came at and how long
+// it stood until the next. The last step stands until the next comes, or until the run ends.
+const STEP_LINE = /^\s*([^:]{1,48}?):\s+(.*)$/;
 
-// The nodes of the run's line, each at its place along the fuse, lit where reached, the round under
-// way showing answered of asked, each a button that shows the node's blobs in place of the console.
-function lineNodes(run) {
-  const read = panelRead(run.reading, shownOf(run));
+function stepsOf(run) {
   const nowMs = nowOf(run);
-  reachedNoted(run, read, nowMs);
-  const nodes = element("div", { className: "protocol-nodes", id: "protocol-nodes" });
-  const last = Math.max(1, read.nodes.length - 1);
-  // the time each node took: from the node before it was reached to its own reaching, and for the node under
-  // way the time since the last one reached, still running
-  let before = 0;
-  const timeOf = (node, index) => {
-    if (node.reached && run.reachedAt[node.key] !== undefined) {
-      const span = run.reachedAt[node.key] - before;
-      before = run.reachedAt[node.key];
-      return spanSaid(span);
-    }
-    if (index === read.at + 1 && !run.done) {
-      return spanSaid(nowMs - before);
-    }
-    return "";
-  };
-  read.nodes.forEach((node, index) => {
-    const shown = run.view === node.key;
-    const current = index === read.at + 1 && node.round !== null;
-    const underWay = node.rounds !== null && index === read.at;
-    const made = element("button", {
-      type: "button",
-      className: `protocol-node${node.reached ? " reached" : ""}${current || underWay ? " current" : ""}${shown ? " shown" : ""}${index === 0 ? " first" : index === last ? " last" : ""}`,
-      title: shown ? "press for the console" : `press for the ${node.blobs} blob${node.blobs === 1 ? "" : "s"} placed here`,
-    });
-    made.style.left = `${(index / last) * 100}%`;
-    const count = underWay || current ? (read.round.asked ? `${read.round.answered} of ${read.round.asked}` : "") : node.blobs ? String(node.blobs) : "";
-    const time = timeOf(node, index);
-    made.append(element("span", { className: "protocol-dot" }), element("span", { className: "protocol-label", textContent: node.label }), element("span", { className: "protocol-count", textContent: count }), element("span", { className: "protocol-time", textContent: time }));
-    made.addEventListener("click", () => {
-      run.view = node.key;
-      drawStage();
-    });
-    nodes.append(made);
+  const table = element("table", { className: "protocol-steps", id: "protocol-steps" });
+  const head = element("tr");
+  for (const name of ["t", "step", "message", "duration"]) {
+    head.append(element("th", { textContent: name }));
+  }
+  table.append(element("thead", {}, head));
+  const body = element("tbody");
+  const lines = run.lines.filter((line) => line.stream !== "command" && line.text.trim() !== "");
+  lines.forEach((line, index) => {
+    const read = STEP_LINE.exec(line.text);
+    const step = read ? read[1].trim() : "";
+    const said = read ? read[2] : line.text.trim();
+    const next = index + 1 < lines.length ? lines[index + 1].ms : run.done ? run.endMs ?? nowMs : nowMs;
+    const last = index + 1 === lines.length;
+    const row = element("tr", { className: `${last && !run.done ? "current" : ""}${line.stream === "stderr" ? " stderr" : ""}` });
+    row.append(
+      element("td", { className: "at", textContent: spanSaid(line.ms) }),
+      element("td", { className: "step", textContent: step }),
+      element("td", { className: "said", textContent: said }),
+      element("td", { className: "took", textContent: spanSaid(Math.max(0, next - line.ms)) }),
+    );
+    body.append(row);
   });
-  if (read.panic) {
-    nodes.append(element("span", { className: "protocol-said", textContent: `panic: ${read.panic.name}` }));
-  }
-  return nodes;
+  table.append(body);
+  return table;
 }
 
-// The run shown on the stage, where one is.
-function shownRun() {
-  const job = state.jobs.find((one) => one.id === state.chosen);
-  if (!job) {
-    return null;
+// The steps table in place, kept scrolled to its end where it was at the end.
+function stepsKept(shown, drawn) {
+  const box = shown.parentElement;
+  const atEnd = !box || box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  shown.replaceWith(drawn);
+  if (atEnd && box) {
+    box.scrollTop = box.scrollHeight;
   }
-  const runs = runsOf(job.id);
-  return state.runs.get(state.shown.get(job.id)) ?? runs[runs.length - 1] ?? null;
 }
 
-// What the panel is told of a run beyond its blobs: the tools were built once the run's first
-// console line came, the run started once its tap was named, and the run ended.
 function shownOf(run) {
   // the tools are built by the time the run names its tap, and the run has started once its first blob comes
   return { pass: run.pass, plan: run.plan, tools: run.tapped, started: run.telemetry.firstAt !== null, ended: run.done };
@@ -599,25 +552,15 @@ function panelRedrawn(run) {
   }
   panelFrame = requestAnimationFrame(() => {
     panelFrame = 0;
-    const shown = document.getElementById("protocol-nodes");
+    const steps = document.getElementById("protocol-steps");
     const tabs = document.getElementById("protocol-tabs");
-    if ((shown || tabs) && state.chosen === run.job && (state.shown.get(run.job) ?? run.run) === run.run) {
-      const drawn = lineNodes(run);
-      if (shown && drawn.innerHTML !== shown.innerHTML) {
-        shown.replaceWith(drawn);
+    if ((steps || tabs) && state.chosen === run.job && (state.shown.get(run.job) ?? run.run) === run.run) {
+      if (steps) {
+        stepsKept(steps, stepsOf(run));
       }
       const strip = tabStrip(run);
       if (tabs && strip.innerHTML !== tabs.innerHTML) {
         tabs.replaceWith(strip);
-      }
-      // the node's blobs shown grow as they come
-      const lines = document.getElementById("lines");
-      if (lines && run.view !== CONSOLE) {
-        const atEnd = lines.scrollHeight - lines.scrollTop - lines.clientHeight < 40;
-        lines.replaceChildren(...blobLines(run, run.view));
-        if (atEnd) {
-          lines.scrollTop = lines.scrollHeight;
-        }
       }
       state.fuse.flare();
     }
@@ -742,6 +685,7 @@ function onLine({ payload }) {
   run.lines.push(payload);
   planNoted(run, payload);
   telemetryLine(run.telemetry, payload.text);
+  panelRedrawn(run);
   run.clock = Math.min(run.clock, performance.now() - payload.ms);
   if (payload.stream === "command") {
     run.started += 1;

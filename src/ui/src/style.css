@@ -9989,8 +9989,101 @@ textarea.report-field {
   height: 36px;
 }
 
-/* The views of a protocol run as tabs under the console head: the overview, the console and the
-   line's nodes. */
+/* The steps of the run, one row a console line, as the run names them: dense, every row a line. */
+.console .protocol-overview {
+  justify-content: flex-start;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem 0.6rem;
+  overflow: auto;
+}
+
+.console .protocol-overview .protocol-readings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 0.3rem 0.8rem;
+  padding: 0 0.2rem;
+}
+
+.console .protocol-overview .protocol-readings .value {
+  font: 500 14px/1.1 var(--head);
+}
+
+.console .protocol-overview .protocol-readings .name {
+  font: 10.5px var(--head);
+}
+
+.console .protocol-overview .protocol-readings .reading {
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.console .protocol-overview .protocol-readings .rate {
+  grid-column: span 2;
+}
+
+.console .protocol-overview .protocol-rate {
+  width: 100%;
+  height: 24px;
+}
+
+.console .protocol-overview .protocol-line {
+  height: 40px;
+  margin: 0.2rem 0;
+}
+
+.console .protocol-steps {
+  width: 100%;
+  border-collapse: collapse;
+  font: 11.5px/1.35 var(--code);
+  color: var(--fg-2);
+}
+
+.console .protocol-steps th {
+  text-align: left;
+  font: 500 11px var(--head);
+  color: var(--fg-3);
+  padding: 0 0.4rem 0.15rem;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--well);
+}
+
+.console .protocol-steps td {
+  padding: 0.05rem 0.4rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.console .protocol-steps td.at,
+.console .protocol-steps td.took {
+  white-space: nowrap;
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.console .protocol-steps td.step {
+  white-space: nowrap;
+  color: var(--fg);
+}
+
+.console .protocol-steps td.said {
+  word-break: break-word;
+}
+
+.console .protocol-steps tr.current td {
+  color: var(--fg);
+}
+
+.console .protocol-steps tr.current td.took {
+  color: var(--fuse-fire);
+}
+
+.console .protocol-steps tr.stderr td.said {
+  color: var(--status-report);
+}
+
+/* The views of a protocol run as tabs under the console head: the overview and the console. */
 .console .console-tabs {
   min-height: 1.9rem;
   background: none;

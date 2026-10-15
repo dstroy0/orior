@@ -27,31 +27,17 @@ A job's description is the opening comment or docstring of its own file.
 
 A protocol job launched from the Protocol menu, a query, a learn pass, a cross, a write or the pairs, shows its run as it goes in the protocol panel, in place of a console tee. The run's writer carries a tap (the table's run section, the tap): the app's server connects to it when the job's run names its `.qry`, and each blob the writer places arrives as a `run-blob` event, its sequence, time, priority, member, name and size. The panel is the run's telemetry, for an engineer tuning the protocol.
 
-The panel keeps the job's option fields at the top as the run started with them. Under them the console box holds the run's views as tabs: Overview, Console, then one a node of the line. The overview is the pass's line: the fuse, and on it a node for each step of the pass, its name and its count beneath. The whole line stands from the moment the run starts, since the pass is planned before it runs, and the fire walks the line from node to node as the run reaches them. Under each node reached is the time it took, from the node before it to its own reaching, the tools' build and the run's start among them; under the node under way the time running since the last. A node reached is filled and lit, the one under way is ringed in fire, and one ahead is a hollow ring.
-
-| node | reached by | the count beneath |
-| --- | --- | --- |
-| Tools | the run naming its tap, which the tools are built before; its time is the build's | |
-| Run | the first blob off the tap | |
-| Carried in | `forms_work.txt`, `faulted.txt` and `overseer.txt` placed | the blobs placed before the plan |
-| Plan | the teacher's `plan: <pass> <questions>` line | |
-| Round n | the round's `questions.txt` placed | the blobs placed in the round; under way, answered of asked, each `answers<n>.txt` one answered |
-| Written | a `.ksc`, `.khw`, `.krs` or `.kqr` placed | the files written |
-| Leave | the job's end | |
-
-A costs pass puts one form a round and every other pass 8192 questions a round: the plan's count of questions says how many rounds the line holds. A plan of more than twelve rounds shows them as one stretch of the line, its node named for the round under way out of all of them, and the fire along it stands at the rounds done over all of them. The plan's line can come after the first round's blobs: the reading is folded again when it comes, and those blobs are counted as the plan reads them. A panic is named at the right end of the line.
-
-Over the line the overview carries the run's readings, the four signals a service is watched by and the time beside them, each read off the tap and the console as they come:
+The panel keeps the job's option fields at the top as the run started with them. Under them the console box holds the run as tabs: the overview and the console. The overview is the run's dashboard: the readings in a dense grid, the fuse across the box burning with the plan's progress, and the steps of the run as the run names them, one row a console line in order, `t` the time it came at, `step` the words before the line's colon as the teacher, the carrier or the writer printed them, `message` the rest of the line, and `duration` how long the step stood until the next. The last row is the step under way until the next comes.
 
 | reading | what it is | read off |
 | --- | --- | --- |
-| answers a second | the answers placed over the last ten seconds, a recent rate and not the run's average, which hides a slowdown; drawn a second at a time over the last two minutes | the tap, each `answers<n>.txt` |
-| time gone, time left | since the job started, standing still at the run's end; the rounds left at the spacing of the last rounds, once two have been put | the job's clock, the tap, each `questions.txt`, and the plan |
-| airlock, cross, carrier | the last round's seconds in each | the teacher's `round:` line |
-| unanswered | the questions put in the round under way and not yet answered | the tap |
+| throughput, answers/s | the answers placed over the last ten seconds, a recent rate and not the run's average; drawn a second at a time over the last two minutes | the tap, each `answers<n>.txt` |
+| elapsed, remaining | since the job started, standing still at the run's end; the rounds left at the spacing of the last rounds, once two have been put | the job's clock, the tap, each `questions.txt`, and the plan |
+| airlock delay, cross delay, carrier busy | the last round's seconds in each | the teacher's `round:` line |
+| in flight | the questions put in the round under way and not yet answered | the tap |
 | held, refused, faulted, panics | the questions held off the part, refused by it, or faulting it, counted off the console; the panics off the tap | the console, and blobs at the panic priority |
 
-A node's tab holds the blobs placed while the node was under way, one a line with its sequence, priority, name and size, and pressing the node on the line opens its tab. A run with no tap, an older writer, leaves the panel to the console, and the job's end closes the pipe.
+A run with no tap, an older writer, leaves the panel to the console, and the job's end closes the pipe.
 
 Checks: a C check of the tap, a writer started, blobs handed from two members and a panic, the tap's lines read back in sequence order with the panic first; a test of the server's reading of a tap line into an event; the app's harness holding that the line's nodes are reached from a recorded tap, that a plan of many rounds is one stretch, and that a plan read late counts the earlier rounds as rounds; and `orior protocol learn dry 1 --leave none` as the end-to-end run with nothing launched.
 
