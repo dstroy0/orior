@@ -9,8 +9,8 @@
 // the steps in one turn of a costed chain, unrolled; a run is `turns` of them
 #define MONOLITH_BLOCK 100u
 
-// the precepts costed: NOP, then NOT and every precept after it through SUB. ERR, BRA and JCC carry no word
-#define MONOLITH_COSTED_COUNT 15u
+// the precepts costed: NOP, then NOT and every precept after it through MUL. ERR, BRA and JCC carry no word
+#define MONOLITH_COSTED_COUNT 16u
 
 // the precept at place `at_` of the costed run
 #define MONOLITH_COSTED(at_) (((at_) == 0u) ? 0u : ((at_) + 1u))

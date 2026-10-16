@@ -59,7 +59,7 @@ static const char s_text[] = "ARCHITECTURE \"Test\"\n"
                              "\n"
                              "\n"
                              "CLASS \"ldc__RaRZ\"\n"
-                             "FORMAT PREDICATE @[!]Predicate(PT):Pg Opcode /SZ(\"32\"):sz\n"
+                             "FORMAT PREDICATE @[!]Predicate(PT):Pg Opcode /SZ_U8_S8_U16_S16_32_64(\"32\"):sz\n"
                              "Register:Rd\n"
                              "','C:Sa[UImm(5/0*):Sa_bank]*   [ZeroRegister(\"RZ\"):Ra + SImm(17/0)*:Ra_offset]\n"
                              "$( { '&' REQ:req '=' BITSET(6/0x0000):req_bit_set } )$;\n"
@@ -71,6 +71,7 @@ static const char s_text[] = "ARCHITECTURE \"Test\"\n"
                              "BITS_13_91_91_11_0_opcode=Opcode;\n"
                              "BITS_8_23_16_Rd=Rd;\n"
                              "BITS_5_58_54_Sc_bank,BITS_14_53_40_Sc_addr=ConstBankAddress2(Sa_bank,Ra_offset);\n"
+                             "BITS_3_75_73_sz=sz;\n"
                              "\n";
 
 int main(void)
@@ -118,6 +119,18 @@ int main(void)
     check_that(tables_field_by_operand(mov, "Sa_bank") == NULL, "constant: an operand no field takes is NULL");
     check_that((ldc->offset_bits == 17u) && (mov->offset_bits == 0u),
                "constant: the offset operand's width is read off the FORMAT, SImm(17), and a class with none holds 0");
+    // the bytes a read takes: the size operand's choices as the FORMAT lists them, U8 S8 U16 S16 32 64, the field's
+    // value choosing one; four where the FORMAT names no size
+    unsigned long long sized_low = 0ull;
+    unsigned long long sized_high = 0ull;
+    tables_field_write(tables_field_named(ldc, "sz"), &sized_low, &sized_high, 5ull);
+    check_that(tables_class_bytes(ldc, sized_low, sized_high) == 8u,
+               "size: the load's sz of 5 reads 64 bits, eight bytes");
+    tables_field_write(tables_field_named(ldc, "sz"), &sized_low, &sized_high, 4ull);
+    check_that(tables_class_bytes(ldc, sized_low, sized_high) == 4u, "size: and sz of 4 reads 32 bits, four bytes");
+    tables_field_write(tables_field_named(ldc, "sz"), &sized_low, &sized_high, 1ull);
+    check_that(tables_class_bytes(ldc, sized_low, sized_high) == 1u, "size: and sz of 1 reads S8, one byte");
+    check_that(tables_class_bytes(mov, 0ull, 0ull) == 4u, "size: a class with no size operand reads four bytes");
 
     low = 0ull;
     high = 0ull;

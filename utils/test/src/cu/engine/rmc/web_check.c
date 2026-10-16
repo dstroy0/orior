@@ -3,10 +3,12 @@
 // reach only nodes below it, which is what makes the root reachable and keeps a tree from looping; a node's children
 // must be as many as its precept takes; and a leaf must be an operand the word actually reads. None of this needs a
 // device or a target: the webs are the compiler's own and are the same on every part
+#include "../../../../../../src/cu/engine/rmc/precept_value.h"
 #include "../../../../../../src/cu/engine/rmc/tree_number.h"
 #include "../../../../../../src/cu/engine/rmc/word_web.h"
 
 #include <stdio.h>
+#include <string.h>
 
 static const char *const s_precept_names[] = {
 #define PRECEPT_TEXT(name_, text_, arity_) text_,
@@ -103,9 +105,7 @@ static unsigned char tree_number_read(unsigned long long number, unsigned int ar
     if (symbol >= (unsigned int)PRECEPT_COUNT)
     {
         const unsigned int leaf = symbol - (unsigned int)PRECEPT_COUNT;
-        return (unsigned char)((leaf == 4u)   ? PRECEPT_ZERO
-                               : (leaf == 5u) ? PRECEPT_ONES
-                                              : PRECEPT_ARG_AT(leaf));
+        return (unsigned char)((leaf == 4u) ? PRECEPT_ZERO : (leaf == 5u) ? PRECEPT_ONES : PRECEPT_ARG_AT(leaf));
     }
     unsigned char child[2] = {PRECEPT_NONE, PRECEPT_NONE};
     for (unsigned int side = 0u; side < arity_of[symbol]; side += 1u)
@@ -192,10 +192,10 @@ int main(void)
     for (unsigned int at = 0u; at < PRECEPT_WEB_COUNT; at += 1u)
     {
         const PreceptRewrite *const one = &s_precept_web[at];
-        broken += checked("precept", s_precept_names[one->precept], s_precept_arity[one->precept], one->node,
-                          one->nodes)
-                      ? 1u
-                      : 0u;
+        broken +=
+            checked("precept", s_precept_names[one->precept], s_precept_arity[one->precept], one->node, one->nodes)
+                ? 1u
+                : 0u;
     }
     for (unsigned int at = 0u; at < WORD_WEB_COUNT; at += 1u)
     {
@@ -226,7 +226,34 @@ int main(void)
            "long long: %u bytes of node list carry what %u bytes of number do\n",
            numbers, listed, TREE_SYMBOLS, TREE_PLACES, (unsigned int)(listed * sizeof(PreceptNode)),
            (unsigned int)(numbers * sizeof(unsigned long long)));
-    // each tree is checked once as a tree and once through a number
-    printf("web check: %u checks, %u failed\n", 2u * numbers, broken);
+    // the multiply is a word of one precept, and its tree answers the product's cases as the ladder puts them
+    const Word *multiply = NULL;
+    for (unsigned int at = 0u; at < WORD_WEB_COUNT; at += 1u)
+    {
+        multiply = (strcmp(s_word_web[at].name, "word_mul") == 0) ? &s_word_web[at] : multiply;
+    }
+    static const unsigned int s_products[3][3] = {{3u, 3u, 9u}, {6u, 7u, 42u}, {11u, 13u, 143u}};
+    unsigned int answered = 0u;
+    for (unsigned int at = 0u; (multiply != NULL) && (at < 3u); at += 1u)
+    {
+        PreceptCase given;
+        memset(&given, 0, sizeof(given));
+        given.operands = 2u;
+        given.operand[0] = s_products[at][0];
+        given.operand[1] = s_products[at][1];
+        unsigned int value = 0u;
+        answered +=
+            (precept_value(multiply->node, multiply->nodes, &given, &value) && (value == s_products[at][2])) ? 1u : 0u;
+    }
+    const int multiplies = (multiply != NULL) && (multiply->reads == 2u) && (multiply->nodes == 1u) &&
+                           (multiply->node[0].precept == PRECEPT_MUL) && (answered == 3u);
+    if (!multiplies)
+    {
+        printf(
+            "  FAILED: word_mul is a word of the one precept MUL, answering 9, 42 and 143 for the product's cases\n");
+        broken += 1u;
+    }
+    // each tree is checked once as a tree and once through a number, and the multiply once for its answers
+    printf("web check: %u checks, %u failed\n", (2u * numbers) + 1u, broken);
     return (broken == 0u) ? 0 : 1;
 }

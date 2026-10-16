@@ -116,22 +116,28 @@ fn cubin(context: &mut Context, run: &Run, out: &Path, arch: &str) -> Result<Pat
     Ok(cubin)
 }
 
+/// A line of the step's own said on the sink and kept for the run's console.
+fn told(context: &mut Context, lines: &mut Vec<String>, text: &str) {
+    context.say(text);
+    lines.push(text.to_string());
+}
+
 /// The tables of every architecture wanted that lacks them pulled: 0 where each now stands, 1 where
-/// the funnel found no tables in some capture.
-fn pulled(context: &mut Context, run: &Run, words: &[String]) -> Result<i32, String> {
+/// the funnel found no tables in some capture. Every line said is kept in `lines`.
+fn pulled(context: &mut Context, run: &Run, words: &[String], lines: &mut Vec<String>) -> Result<i32, String> {
     let out = context.at(OUT);
     let wanted = architectures(context, run, words)?;
     let mut missing: Vec<String> = Vec::new();
     for arch in &wanted {
         let (instructions, latencies) = tables_of(&out, arch);
         if instructions.is_file() && latencies.is_file() {
-            context.say(&format!("  {arch}: its tables stand"));
+            told(context, lines, &format!("  {arch}: its tables stand"));
         } else {
             missing.push(arch.clone());
         }
     }
     if missing.is_empty() {
-        context.say(&format!("tables: every one of {} architectures stands under {}", wanted.len(), out.join("tables").display()));
+        told(context, lines, &format!("tables: every one of {} architectures stands under {}", wanted.len(), out.join("tables").display()));
         return Ok(0);
     }
     let disassembler = disassembler(context, run, &out)?;
@@ -148,7 +154,7 @@ fn pulled(context: &mut Context, run: &Run, words: &[String]) -> Result<i32, Str
     docker_words.push(in_container(&root, &context.at(TABLES).join("tables_intercept.c")));
     docker_words.push(in_container(&root, &out.join("captures")));
     docker_words.extend(cubins.iter().map(|cubin| in_container(&root, cubin)));
-    context.say(&format!("  the disassembler run over {} key cubins in {IMAGE}", missing.len()));
+    told(context, lines, &format!("  the disassembler run over {} key cubins in {IMAGE}", missing.len()));
     if context.said(run, &docker, &docker_words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
         return Err(format!("the capture in {IMAGE} did not end clean"));
     }
@@ -162,20 +168,28 @@ fn pulled(context: &mut Context, run: &Run, words: &[String]) -> Result<i32, Str
         let code = context.said(run, &funnel, &[&native(&capture), &native(&instructions), &native(&latencies)])?;
         if code == 0 {
             written += 1;
-            context.say(&format!("  {arch}: its tables written"));
+            told(context, lines, &format!("  {arch}: its tables written"));
         } else {
-            context.say(&format!("  {arch}: the funnel found no tables in its capture, exit {code}"));
+            told(context, lines, &format!("  {arch}: the funnel found no tables in its capture, exit {code}"));
         }
     }
-    context.say(&format!("tables: {written} of {} architectures written under {}", missing.len(), tables.display()));
+    told(context, lines, &format!("tables: {written} of {} architectures written under {}", missing.len(), tables.display()));
     Ok(if written == missing.len() { 0 } else { 1 })
 }
 
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let run = context.started(&format!("{OUT}/qry"))?;
-    let code = pulled(context, &run, words)?;
+    let mut lines: Vec<String> = Vec::new();
+    let code = pulled(context, &run, words, &mut lines);
+    // the step's own lines are the run's console, as a program's output is where one is teed
+    let mut console = lines.join("\n");
+    if let Err(said) = &code {
+        console.push('\n');
+        console.push_str(said);
+    }
+    run.writer().hand("tables.console", console.as_bytes(), crate::writer::Priority::Ordinary)?;
     context.ended(run)?;
-    Ok(code)
+    code
 }
 
 #[cfg(test)]

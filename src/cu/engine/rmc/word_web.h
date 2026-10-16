@@ -22,8 +22,8 @@
 //    word out node by node, and the .kdm records which. That reading is the coherence, and the part gives it.
 //
 // A word's leaves are its operands by place, PRECEPT_ARG_AT(0) first, in the order the schema's form takes them
-// after the destination. word_bitand's form is `word_bitand to left right`, putting left at place 0 and right at place 1.
-// The destination is where the root lands and is never a leaf.
+// after the destination. word_bitand's form is `word_bitand to left right`, putting left at place 0 and right at
+// place 1. The destination is where the root lands and is never a leaf.
 typedef struct
 {
     const char *name;
@@ -43,14 +43,14 @@ typedef struct
 //  global_add_atomic_word). A load is not a
 //    gate and reduces to nothing in the alphabet: a target either reaches memory or does not.
 //  - Every word whose tree counts the register's width. This is the larger half, and one missing node accounts for
-//    all of it. An adder is a rank of gates per bit; a multiply is one adder per bit again; a rotate written over the
-//    shifts is a shift left by the amount ORed with a shift right by the width less the amount, where ROL and ROR
-//    alone are one node each and are here; a sign spread is a carry right by the width
-//    less one; a test against zero is the word ORed down to a single bit, taking as many ranks as the width has
-//    powers of two. Each of those is a real tree and none of them is fixed arity, because the width sets the count
-//    of nodes. A width-counted node is a second kind of node and is not designed yet. Writing any of these as a
-//    fixed tree in the meantime would put a wrong tree in the web, and a wrong tree is worse than a missing one.
-//    ADD and SUB are precepts for this same reason: they are where the fixed-arity trees stop.
+//    all of it. An adder is a rank of gates per bit; a rotate written over the shifts is a shift left by the amount
+//    ORed with a shift right by the width less the amount, where ROL and ROR alone are one node each and are here; a
+//    sign spread is a carry right by the width less one; a test against zero is the word ORed down to a single bit,
+//    taking as many ranks as the width has powers of two. Each of those is a real tree and none of them is fixed
+//    arity, because the width sets the count of nodes. A width-counted node is a second kind of node and is not
+//    designed yet. Writing any of these as a fixed tree in the meantime would put a wrong tree in the web, and a
+//    wrong tree is worse than a missing one. ADD, SUB and MUL are precepts for this same reason: they are where the
+//    fixed-arity trees stop, and each is one node here.
 //
 // This table is the floor of the word web and not all of it. What it does hold, it holds exactly.
 static const Word s_word_web[] = {
@@ -74,6 +74,7 @@ static const Word s_word_web[] = {
     // width counted and are not here
     {"word_add", 2u, 1u, {{PRECEPT_ADD, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"word_sub", 2u, 1u, {{PRECEPT_SUB, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_mul", 2u, 1u, {{PRECEPT_MUL, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     // gates over words that carry one bit, which need no width because there is only the one bit
     {"predicate_bitxor", 2u, 1u, {{PRECEPT_BITXOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"predicate_bitand", 2u, 1u, {{PRECEPT_BITAND, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},

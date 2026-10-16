@@ -277,6 +277,56 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
     return 0u;
 }
 
+// a FORMAT line holding a size operand, `/SZ_U8_S8_U16_S16_32_64("32"):sz`: the choices between `SZ_` and the
+// parenthesis, each a width in bits after any letters, in the order the field counts them, and the operand's name
+// after the colon
+static void tables_size_read(const char *line, TablesClass *class_)
+{
+    const char *const size = strstr(line, "/SZ_");
+    const char *const open = (size != NULL) ? strchr(size, '(') : NULL;
+    const char *const close = (open != NULL) ? strchr(open, ')') : NULL;
+    if ((close == NULL) || (close[1] != ':'))
+    {
+        return;
+    }
+    class_->sizes = 0u;
+    for (const char *at = size + 4; (at < open) && (class_->sizes < TABLES_SIZES);)
+    {
+        const char *end = at;
+        while ((end < open) && (*end != '_'))
+        {
+            end += 1;
+        }
+        const char *digits = at;
+        while ((digits < end) && ((*digits < '0') || (*digits > '9')))
+        {
+            digits += 1;
+        }
+        class_->size_bytes[class_->sizes] = (unsigned int)strtoul(digits, NULL, 10) / 8u;
+        class_->sizes += 1u;
+        at = end + 1;
+    }
+    size_t length = 0u;
+    for (const char *at = close + 2; (*at != '\0') && (*at != ' ') && (*at != ';') && (length + 1u < TABLES_NAME);
+         at += 1)
+    {
+        class_->size[length] = *at;
+        length += 1u;
+    }
+    class_->size[length] = '\0';
+}
+
+unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long low, unsigned long long high)
+{
+    const TablesField *const field = (class_->size[0] != '\0') ? tables_field_by_operand(class_, class_->size) : NULL;
+    if (field == NULL)
+    {
+        return 4u;
+    }
+    const unsigned long long choice = tables_field_read(field, low, high);
+    return (choice < class_->sizes) ? class_->size_bytes[choice] : 4u;
+}
+
 // a FORMAT line holding a constant-bank operand, `C:<name>[...:<bank>]...[...:<offset>]`: the bank the name
 // after the first bracket's last colon, the offset the name after the last bracket's last colon, and the offset
 // operand's width the immediate's inside that bracket
@@ -363,6 +413,7 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         if (part == FORMAT)
         {
             tables_constant_read(line, class_);
+            tables_size_read(line, class_);
             if (line[strlen(line) - ((strlen(line) != 0u) ? 1u : 0u)] == ';')
             {
                 part = ELSEWHERE;

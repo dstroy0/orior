@@ -4,10 +4,10 @@
 // the guard cut and NOP left out, each as many times as it is written. Every operation nvcc writes that no form of
 // sass.krs writes is where sass.krs falls short, and the record counts the kernels each is in.
 //
-// Given the run of `orior protocol stick engine`, each kernel it writes through cu.krs and sass.krs is held against nvcc's:
-// the operations nvdisasm reads back from the kernel's encodings, against the operations of nvcc's listing. A kernel is
-// at parity where the two are the same multiset. The read back is checked against the kernel's own text, instruction by
-// instruction: the assembler and the disassembler agree on every operation the comparison counts.
+// Given the run of `orior protocol stick engine`, each kernel it writes through cu.krs and sass.krs is held against
+// nvcc's: the operations nvdisasm reads back from the kernel's encodings, against the operations of nvcc's listing. A
+// kernel is at parity where the two are the same multiset. The read back is checked against the kernel's own text,
+// instruction by instruction: the assembler and the disassembler agree on every operation the comparison counts.
 //
 // Each operation is held as a number, the place of its name in the run's table of names, and compared as one. Every
 // file is read as the run holds it (ktext.h), and the record is handed to the run's writer, which writes it.
@@ -154,11 +154,12 @@ int main(int argc, char **argv)
     const size_t prefix = sizeof(s_prefix) - 1u;
     QryText record = {NULL, 0ull, 0ull, 0};
     qry_text_printed(&record, "# The measuring stick: nvcc's listing, the answer key\n\n");
-    qry_text_printed(&record, "Written by `orior protocol stick` whole on every run. Each kernel of the measuring stick "
-                              "(measuring_stick.py), every function of the CUDA language in a kernel of its own, is "
-                              "compiled by nvcc for sm_86 and read here. What the engine builds for each function is "
-                              "held against it, a kernel at parity where the engine's code uses the same operations as "
-                              "nvcc's, each as many times.\n\n");
+    qry_text_printed(&record,
+                     "Written by `orior protocol stick` whole on every run. Each kernel of the measuring stick "
+                     "(measuring_stick.py), every function of the CUDA language in a kernel of its own, is "
+                     "compiled by nvcc for sm_86 and read here. What the engine builds for each function is "
+                     "held against it, a kernel at parity where the engine's code uses the same operations as "
+                     "nvcc's, each as many times.\n\n");
     qry_text_printed(&record,
                      "- kernels: %u\n- instructions: %u\n- operations nvcc writes over the stick: %u, of which "
                      "sass.krs writes %u\n\n",
@@ -190,12 +191,14 @@ int main(int argc, char **argv)
                          "question: %u\n- the engine's instructions: %u in its lanes' text, %u read back by nvdisasm, "
                          "%u of them the operation the text wrote\n\n",
                          answered, parity, sticks - answered, text, read_back, agree);
+        // a table is written with its rows, and a table with none is one line saying so
         qry_text_printed(&record,
                          "## The engine against nvcc\n\nEach kernel the engine answers: its record steps, "
                          "nvcc's instructions and the engine's as nvdisasm reads them back, and the operations "
-                         "only one of the two writes, each by how many more times it writes it.\n\n"
-                         "| kernel | function | steps | nvcc | engine | only nvcc | only the engine |\n"
-                         "|---|---|---|---|---|---|---|\n");
+                         "only one of the two writes, each by how many more times it writes it.\n\n");
+        qry_text_printed(&record, (answered != 0u) ? "| kernel | function | steps | nvcc | engine | only nvcc | only "
+                                                     "the engine |\n|---|---|---|---|---|---|---|\n"
+                                                   : "The engine answers no kernel.\n");
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
             const StickEngine *const entry = stick_engine_of(stick[at].name);
@@ -237,7 +240,9 @@ int main(int argc, char **argv)
             note_kernels[one] += 1u;
         }
         qry_text_printed(&record, "\n## The questions the engine puts\n\nEach kernel the engine does not answer, by "
-                                  "the question it puts.\n\n| question | kernels | first kernel |\n|---|---|---|\n");
+                                  "the question it puts.\n\n");
+        qry_text_printed(&record, (notes != 0u) ? "| question | kernels | first kernel |\n|---|---|---|\n"
+                                                : "The engine puts no question.\n");
         for (unsigned int written_notes = 0u; written_notes < notes; written_notes += 1u)
         {
             unsigned int best = notes;
@@ -267,8 +272,15 @@ int main(int argc, char **argv)
     {
         qry_text_printed(&record, "| %s | %u | %u |\n", category[at], category_kernels[at], category_instructions[at]);
     }
-    qry_text_printed(&record, "\n## Operations nvcc writes that no form of sass.krs writes\n\n"
-                              "| operation | kernels it is in | first kernel | its function |\n|---|---|---|---|\n");
+    unsigned int unwritten = 0u;
+    for (unsigned int at = 0u; at < s_names; at += 1u)
+    {
+        unwritten += (missing[at] != 0u) ? 1u : 0u;
+    }
+    qry_text_printed(&record, "\n## Operations nvcc writes that no form of sass.krs writes\n\n");
+    qry_text_printed(&record, (unwritten != 0u) ? "| operation | kernels it is in | first kernel | its function |\n"
+                                                  "|---|---|---|---|\n"
+                                                : "Every operation nvcc writes, a form of sass.krs writes.\n");
     for (;;)
     {
         unsigned int best = s_names;

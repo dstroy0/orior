@@ -14,6 +14,7 @@ extern "C"
 #define TABLES_NAME 48u
 #define TABLES_FIELD_RUNS 4u
 #define TABLES_CLASS_FIELDS 48u
+#define TABLES_SIZES 8u
 
     // one run of bits of a field, `first` the low bit and `last` the high, of the 128
     typedef struct
@@ -48,6 +49,11 @@ extern "C"
         char bank[TABLES_NAME];
         char offset[TABLES_NAME];
         unsigned int offset_bits;
+        // the size operand where the FORMAT holds one, `/SZ_U8_S8_U16_S16_32_64("32"):sz`: its name, and the bytes
+        // each value of its field reads, in the order the FORMAT lists the choices; empty where it holds none
+        char size[TABLES_NAME];
+        unsigned int sizes;
+        unsigned int size_bytes[TABLES_SIZES];
     } TablesClass;
 
     typedef struct TablesSetTag
@@ -79,6 +85,11 @@ extern "C"
     // The first class of `set` whose opcode field, read off the encoding `low` and `high`, is its opcode; NULL
     // where none is
     const TablesClass *tables_class_of(const TablesSet *set, unsigned long long low, unsigned long long high);
+
+    // The bytes a read of `class_` takes in the encoding `low` and `high`: the choice its size operand's field holds,
+    // as the FORMAT lists the choices; four where the class names no size operand or the field holds a choice past
+    // the list
+    unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long low, unsigned long long high);
 
 #ifdef __cplusplus
 }

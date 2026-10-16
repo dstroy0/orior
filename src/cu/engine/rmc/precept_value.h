@@ -73,11 +73,11 @@ static unsigned int precept_applied(unsigned char precept, unsigned int left, un
         return (count == 0u) ? left : (left >> count);
     case PRECEPT_ASR:
         // the sign spread by hand, since C leaves a signed right shift to the implementation
-        return (count == 0u) ? left
-                             : (((left >> count) |
-                                 (((left & 0x80000000u) != 0u) ? (PRECEPT_WORD_MASK << (PRECEPT_WORD_BITS - count))
-                                                               : 0u)) &
-                                PRECEPT_WORD_MASK);
+        return (count == 0u)
+                   ? left
+                   : (((left >> count) |
+                       (((left & 0x80000000u) != 0u) ? (PRECEPT_WORD_MASK << (PRECEPT_WORD_BITS - count)) : 0u)) &
+                      PRECEPT_WORD_MASK);
     case PRECEPT_ROL:
         return (count == 0u) ? left : (((left << count) | (left >> (PRECEPT_WORD_BITS - count))) & PRECEPT_WORD_MASK);
     case PRECEPT_ROR:
@@ -86,6 +86,8 @@ static unsigned int precept_applied(unsigned char precept, unsigned int left, un
         return (left + right) & PRECEPT_WORD_MASK;
     case PRECEPT_SUB:
         return (left - right) & PRECEPT_WORD_MASK;
+    case PRECEPT_MUL:
+        return (left * right) & PRECEPT_WORD_MASK;
     default:
         // ERR, BRA and JCC carry no word: a tree holding one answers nothing and is never matched by running
         return 0u;
