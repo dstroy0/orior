@@ -346,7 +346,9 @@
         { "label": "Pairs…", "command": "pairs", "args": "<mode> [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>] [--leave all|none]", "console": true, "hidden": true },
         { "label": "Stick…", "command": "stick", "args": "[vendor | engine | read <words>] [--leave all|none]", "console": true, "hidden": true },
         { "label": "Kept", "command": "kept", "console": true, "hidden": true },
-        { "label": "Sweep", "command": "sweep", "console": true, "hidden": true }
+        { "label": "Sweep", "command": "sweep", "console": true, "hidden": true },
+        { "label": "Tables", "command": "tables", "args": "[<arch>...] [--leave all|none]", "console": true, "hidden": true },
+        { "label": "Decode", "command": "decode", "args": "--table <table> <run.qry> | [--latest] --blob <name> <run.qry>", "console": true, "hidden": true }
       ]
     },
     { "title": "Ingest", "strip": "ingest", "groups": ["ingest"] },

@@ -11,6 +11,7 @@
 pub mod commands;
 pub mod course;
 pub mod cross;
+pub mod decode;
 pub mod kept;
 pub mod learn;
 pub mod leaves;

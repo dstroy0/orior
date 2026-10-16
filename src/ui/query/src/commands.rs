@@ -99,9 +99,16 @@ pub fn list(root: &Path) -> Vec<Command> {
         Command {
             id: "tables",
             title: "tables",
-            about: "the vendor's tables, the instruction set and the latencies of every architecture, pulled off its disassembler",
+            about: "the vendor's tables, the instruction set and the latencies of every architecture, pulled off its disassembler; `read <arch> [--bank <size>] <low> <high>...` names each encoding's class and its constant read, `fields <arch>` the constant address spans",
             params: vec![words("architectures"), leave_param()],
             words: vec![Word::Lit("tables"), Word::Words("architectures"), Word::Flag("--leave", "leave")],
+        },
+        Command {
+            id: "decode",
+            title: "decode",
+            about: "a run's table or blob printed through the decoder: --table <table> <run.qry>, or --blob <name> <run.qry>",
+            params: vec![words("words")],
+            words: vec![Word::Lit("decode"), Word::Words("words")],
         },
         Command {
             id: "query",
@@ -258,7 +265,7 @@ impl Context<'_> {
 }
 
 fn usage() -> String {
-    "orior protocol takes one of course, tables, query, learn, cross, write, pairs, stick, kept, sweep".to_string()
+    "orior protocol takes one of course, tables, decode, query, learn, cross, write, pairs, stick, kept, sweep".to_string()
 }
 
 /// The words run: a code to exit with, or why they could not be.
@@ -271,6 +278,7 @@ pub fn run(root: &Path, programs: &dyn Programs, words: &[String], sink: &mut dy
     match first.as_str() {
         "course" => crate::course::run(&mut context, rest),
         "tables" => crate::tables::run(&mut context, rest),
+        "decode" => crate::decode::run(&mut context, rest),
         "learn" => crate::learn::run(&mut context, rest),
         "cross" => crate::cross::run(&mut context, rest),
         "write" => crate::write::run(&mut context, rest),
@@ -290,7 +298,7 @@ mod dispatch {
     #[test]
     fn the_list_names_every_loop_once() {
         let ids: Vec<&str> = list(Path::new(".")).iter().map(|c| c.id).collect();
-        assert_eq!(ids, ["course", "tables", "query", "learn", "cross", "write", "pairs", "stick", "kept", "sweep"]);
+        assert_eq!(ids, ["course", "tables", "decode", "query", "learn", "cross", "write", "pairs", "stick", "kept", "sweep"]);
     }
 
     #[test]

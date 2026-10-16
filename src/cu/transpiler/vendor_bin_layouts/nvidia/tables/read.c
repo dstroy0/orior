@@ -3,6 +3,8 @@
 // operand
 #include "read.h"
 
+#include <stdio.h>
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -314,6 +316,40 @@ static void tables_size_read(const char *line, TablesClass *class_)
         length += 1u;
     }
     class_->size[length] = '\0';
+}
+
+unsigned long long tables_class_offset(const TablesClass *class_, unsigned long long low, unsigned long long high)
+{
+    const TablesField *const offset =
+        (class_->offset[0] != '\0') ? tables_field_by_operand(class_, class_->offset) : NULL;
+    if (offset == NULL)
+    {
+        return 0ull;
+    }
+    const unsigned int magnitude = (class_->offset_bits != 0u) ? (class_->offset_bits - 1u) : offset->width;
+    const unsigned int dropped = (magnitude > offset->width) ? (magnitude - offset->width) : 0u;
+    return tables_field_read(offset, low, high) << dropped;
+}
+
+int tables_class_described(const TablesSet *set, unsigned long long low, unsigned long long high, char *text,
+                           size_t room)
+{
+    const TablesClass *const class_ = tables_class_of(set, low, high);
+    if (class_ == NULL)
+    {
+        snprintf(text, room, "%016llx %016llx -", low, high);
+        return 0;
+    }
+    const TablesField *const bank = (class_->bank[0] != '\0') ? tables_field_by_operand(class_, class_->bank) : NULL;
+    if (bank == NULL)
+    {
+        snprintf(text, room, "%016llx %016llx %s", low, high, class_->name);
+        return 1;
+    }
+    snprintf(text, room, "%016llx %016llx %s bank %llu offset 0x%llx reads %u", low, high, class_->name,
+             tables_field_read(bank, low, high), tables_class_offset(class_, low, high),
+             tables_class_bytes(class_, low, high));
+    return 1;
 }
 
 unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long low, unsigned long long high)

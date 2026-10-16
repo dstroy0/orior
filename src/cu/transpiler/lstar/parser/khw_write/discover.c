@@ -193,6 +193,62 @@ static void khw_seed_added(unsigned long long *seed_low, unsigned long long *see
 // whether the relation holds there. The seeds are the question Q17 names and the part answers; no byte of the listing
 // enters a form. They go through the airlock in rounds as any question: the cross reads each, and the gate holds its
 // key unknown until a conference admits it (overseer.h). The count that entered
+// The forms of the round carried that answered a relation, into `related`: the pool's `count` questions in their
+// order, each put at the slot with the encoding `lows` and `highs` give, a frame candidate where `frame` marks it
+// read for its frame relation and every other read against the register relations. A candidate that answered none
+// and left the second word standing on every case, as a form that writes a predicate does, is put again in a round
+// of its own with the store guarded by P0 and read against the predicate relations. The count related
+static unsigned int khw_round_related(const unsigned long long *lows, const unsigned long long *highs, const int *frame,
+                                      unsigned int count, KhwAnswered *related)
+{
+    static unsigned int s_again[SCHEDULER_ROUND_MOST];
+    unsigned int found = 0u;
+    unsigned int again = 0u;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        KhwAnswered held;
+        memset(&held, 0, sizeof(held));
+        held.low = lows[at];
+        held.high = highs[at];
+        const int framed = (frame != NULL) && (frame[at] != 0);
+        if (framed ? khw_frame_of(&s_pool[at], &held) : khw_relation_of(&s_pool[at], &held, 0))
+        {
+            related[found] = held;
+            found += 1u;
+        }
+        else if (!framed && khw_second_word_standing(&s_pool[at]))
+        {
+            s_again[again] = at;
+            again += 1u;
+        }
+    }
+    if (again == 0u)
+    {
+        return found;
+    }
+    s_pooled = 0u;
+    khw_store_guarded(1);
+    for (unsigned int at = 0u; at < again; at += 1u)
+    {
+        khw_pooled(s_slot, lows[s_again[at]], highs[s_again[at]], s_union_word, s_union_cases);
+    }
+    khw_store_guarded(0);
+    khw_round_carried();
+    for (unsigned int at = 0u; at < again; at += 1u)
+    {
+        KhwAnswered held;
+        memset(&held, 0, sizeof(held));
+        held.low = lows[s_again[at]];
+        held.high = highs[s_again[at]];
+        if (khw_relation_of(&s_pool[at], &held, 1))
+        {
+            related[found] = held;
+            found += 1u;
+        }
+    }
+    return found;
+}
+
 unsigned int khw_seeds_asked(const char *name)
 {
     const unsigned char *bytes = NULL;
@@ -310,14 +366,14 @@ unsigned int khw_seeds_asked(const char *name)
             khw_pooled(s_slot, s_seed_low[at], s_seed_high[at], s_union_word, s_union_cases);
         }
         khw_round_carried();
-        for (unsigned int at = first; (at < last) && (s_names < KHW_FORMS); at += 1u)
+        static KhwAnswered s_seed_related[SCHEDULER_ROUND_MOST];
+        const unsigned int related =
+            khw_round_related(s_seed_low + first, s_seed_high + first, NULL, last - first, s_seed_related);
+        for (unsigned int at = 0u; (at < related) && (s_names < KHW_FORMS); at += 1u)
         {
-            KhwAnswered held;
-            memset(&held, 0, sizeof(held));
-            held.low = s_seed_low[at];
-            held.high = s_seed_high[at];
+            KhwAnswered held = s_seed_related[at];
             // a seed the set's form answers for already, a turn of it, is that form, and enters nowhere
-            if (!khw_relation_of(&s_pool[at - first], &held) || khw_form_stood_for(s_named, s_names, &held))
+            if (khw_form_stood_for(s_named, s_names, &held))
             {
                 continue;
             }
@@ -411,21 +467,8 @@ unsigned int khw_widened(unsigned int from, int discover)
             }
         }
         khw_round_carried();
-        unsigned int related = 0u;
-        for (unsigned int at = first; at < last; at += 1u)
-        {
-            KhwAnswered held;
-            memset(&held, 0, sizeof(held));
-            held.low = s_turned_low[at];
-            held.high = s_turned_high[at];
-            const int answered = (s_turned_frame[at] != 0) ? khw_frame_of(&s_pool[at - first], &held)
-                                                           : khw_relation_of(&s_pool[at - first], &held);
-            if (answered)
-            {
-                s_related[related] = held;
-                related += 1u;
-            }
-        }
+        const unsigned int related = khw_round_related(s_turned_low + first, s_turned_high + first,
+                                                       s_turned_frame + first, last - first, s_related);
         s_pooled = 0u;
         for (unsigned int at = 0u; (at < related) && (s_names < KHW_FORMS); at += 1u)
         {

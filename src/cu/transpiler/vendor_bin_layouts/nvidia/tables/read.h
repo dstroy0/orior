@@ -91,6 +91,16 @@ extern "C"
     // the list
     unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long low, unsigned long long high);
 
+    // The byte offset into the constant bank the encoding `low` and `high` of `class_` reads: the offset field's
+    // value scaled by the bits the field leaves below the operand's magnitude (the operand `SImm(n)` with its sign)
+    unsigned long long tables_class_offset(const TablesClass *class_, unsigned long long low, unsigned long long high);
+
+    // The encoding `low` and `high` described in one line into `text`, which holds `room`: its class's name, or `-`
+    // where no class's opcode reads it, and, where the class reads the constant bank, the bank, the byte offset and
+    // the bytes read. 1 where a class reads it, 0 where none does
+    int tables_class_described(const TablesSet *set, unsigned long long low, unsigned long long high, char *text,
+                               size_t room);
+
 #ifdef __cplusplus
 }
 #endif

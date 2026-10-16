@@ -14,12 +14,14 @@
 # qualifier	<piece>	<reads>	<gloss>      what its answers read it into, a coherence category or a word of the high order language
 # mark	<piece>	<reads>	<gloss>           the mark NVIDIA writes before the operand at the relation's second word, where
 #                                        the relation is one it writes as another with that operand marked
+# test	<piece>	<reads>	<gloss>           the test a comparison makes, after the operation and before the qualifier
+# join	<piece>	<reads>	<gloss>           how a comparison's flag joins the predicate it reads, written last
 #
 # <reads> names what puts the piece in the name: ladder.<relation> (ladder.h), hol.<word> (gnascor_hol_lng.tsv), or
 # <set> (the coherence sets of the query protocol table, P13)
 
 # the kind of value
-kind	I	ladder.same ladder.add ladder.take ladder.up ladder.down ladder.product hol.i<n>_t hol.u<n>_t	an integer
+kind	I	ladder.same ladder.add ladder.take ladder.up ladder.down ladder.product ladder.less ladder.at_most ladder.more ladder.at_least ladder.apart hol.i<n>_t hol.u<n>_t	an integer
 kind	F	hol.efloat<n>	a float of 32 bits
 kind	D	hol.edouble<n>	a float of 64 bits
 kind	H	hol.efloat<n>	a float of 16 bits
@@ -32,7 +34,7 @@ operation	MUL	ladder.product hol.mul	a product
 operation	MAD	ladder.product ladder.add hol.mul hol.add	a product with a sum added to it
 operation	MNMX	hol.lt hol.gt	the least or the most of two
 operation	ABS	hol.neg	a value's magnitude
-operation	SETP	comparison_coherence	a comparison, its answer a predicate
+operation	SETP	ladder.same ladder.less ladder.at_most ladder.more ladder.at_least ladder.apart comparison_coherence	a comparison, its answer a predicate
 operation	LOP	hol.bitand hol.bitor hol.bitxor hol.not	a table over bits
 operation	SHF	ladder.up ladder.down hol.shl hol.shr	a shift of the pair (high, low)
 operation	SEL	comparison_coherence	one of two values, chosen by a predicate
@@ -46,6 +48,22 @@ operation	BRA	control_coherence	a branch
 
 # the count of sources
 count	3	ladder.add ladder.take hol.bitand	three sources, the third added or tabled in
+
+# the test a comparison makes, written after the operation; the orderings read unsigned carry U32 after it, and
+# read signed carry nothing, the vendor's default
+test	EQ	ladder.same	the two words equal
+test	NE	ladder.apart	the two words apart
+test	LT	ladder.less	the first word below the second
+test	LE	ladder.at_most	the first word at most the second
+test	GT	ladder.more	the first word above the second
+test	GE	ladder.at_least	the first word at least the second
+
+# how a comparison's flag joins the predicate it reads, written last
+join	AND	ladder.same ladder.apart ladder.less ladder.at_most ladder.more ladder.at_least	the flag and the predicate read, both
+
+# the order a comparison's operands are written in, a letter an operand: the predicate written, the second predicate
+# written, the two words, and the predicate read
+order	PPRRP	ladder.same ladder.apart ladder.less ladder.at_most ladder.more ladder.at_least	the predicates written stand before the words, the predicate read after them
 
 # the marks
 mark	-	ladder.take	the word taken away, negated

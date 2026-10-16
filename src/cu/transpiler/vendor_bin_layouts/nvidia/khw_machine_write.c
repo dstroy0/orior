@@ -128,6 +128,23 @@ int main(int count, char **word)
     {
         return 1;
     }
+    // the guard field as the part's .ksc beside the machine file names it: a predicate run inside it prints as the
+    // guard, and one outside it as an operand
+    {
+        char ksc[1024];
+        snprintf(ksc, sizeof(ksc), "%s", path);
+        char *const extension = strrchr(ksc, '.');
+        if (extension != NULL)
+        {
+            snprintf(extension, sizeof(ksc) - (size_t)(extension - ksc), ".ksc");
+        }
+        unsigned int guard_first = 0u;
+        unsigned int guard_bits = 0u;
+        if (khw_guard_field_read(ksc, &guard_first, &guard_bits))
+        {
+            khw_guard_field_set(guard_first, guard_bits);
+        }
+    }
     memset(&s_machine, 0, sizeof(s_machine));
     snprintf(s_machine.part, sizeof(s_machine.part), "%s", part);
     const int gate = strcmp(mode, "gate") == 0;
@@ -147,7 +164,8 @@ int main(int count, char **word)
         }
         kept = khw_kernel_forms_kept();
     }
-    // the forms the part answered for, each named from the vendor's table, after the kernel's places where those are held
+    // the forms the part answered for, each named from the vendor's table, after the kernel's places where those are
+    // held
     static KhwForm s_form[SASS_MACHINE_FORMS];
     unsigned int forms = 0u;
     unsigned int named = 0u;

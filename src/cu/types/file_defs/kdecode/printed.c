@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// printed.c: what is printed: a row's word, a key named, a text, a who and a column printed, the columns of a table, the format oracle, a change, and the table
+// printed.c: what is printed: a row's word, a key named, a text, a who and a column printed, the columns of a table,
+// the format oracle, a change, and the table
 #include "kdecode_internal.h"
 
 // the word at `place` of the kept row `row`
@@ -274,10 +275,81 @@ static void kdecode_change_printed(const KdecodeRun *run, const KdecodeOracle *r
     printf("\n");
 }
 
+// what the blob walk of kdecode_blobs keeps: the name wanted, whether the latest alone is printed, and that one's
+// bytes where so
+typedef struct
+{
+    const char *name;
+    int latest;
+    unsigned long long sequence;
+    unsigned char *bytes;
+    unsigned long long size;
+    int failed;
+} KdecodeBlobs;
+
+// a blob printed whole: a line of its sequence, its name and its size, then its bytes, a NUL as a space, and a newline
+static void blob_printed(const char *name, unsigned long long sequence, const unsigned char *bytes,
+                         unsigned long long size)
+{
+    printf("%llu %s %llu\n", sequence, name, size);
+    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    {
+        putchar((bytes[at] == 0u) ? ' ' : (int)bytes[at]);
+    }
+    putchar('\n');
+}
+
+static void blobs_each(void *context, const char *name, unsigned long long sequence, const unsigned char *bytes,
+                       unsigned long long size)
+{
+    KdecodeBlobs *const walk = (KdecodeBlobs *)context;
+    if (strcmp(name, walk->name) != 0)
+    {
+        return;
+    }
+    if (!walk->latest)
+    {
+        blob_printed(name, sequence, bytes, size);
+        return;
+    }
+    unsigned char *const kept = (unsigned char *)realloc(walk->bytes, (size_t)size + 1u);
+    if (kept == NULL)
+    {
+        walk->failed = 1;
+        return;
+    }
+    memcpy(kept, bytes, (size_t)size);
+    walk->bytes = kept;
+    walk->size = size;
+    walk->sequence = sequence;
+}
+
+int kdecode_blobs(const char *path, const char *name, int latest)
+{
+    KdecodeBlobs walk = {name, latest, 0ull, NULL, 0ull, 0};
+    char error[1400];
+    error[0] = '\0';
+    const int read = qry_file_each(path, blobs_each, &walk, error, sizeof(error));
+    if (!read || walk.failed)
+    {
+        fprintf(stderr, "kdecode: %s\n", walk.failed ? "no memory to read the run" : error);
+    }
+    else if (error[0] != '\0')
+    {
+        fprintf(stderr, "kdecode: %s\n", error);
+    }
+    if (read && latest && (walk.bytes != NULL))
+    {
+        blob_printed(name, walk.sequence, walk.bytes, walk.size);
+    }
+    free(walk.bytes);
+    return read && !walk.failed;
+}
+
 // the table `table` of the run at `path` from `from` through `to`, `most` rows of it or every one where `most` is 0,
 // raw or decoded: 1, or 0 where the run could not be read
 int kdecode_table(const char *path, const char *table, int raw, unsigned long long from, unsigned long long to,
-                         unsigned long long most)
+                  unsigned long long most)
 {
     KdecodeRun run;
     memset(&run, 0, sizeof(run));

@@ -89,23 +89,27 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
         {
             continue;
         }
-        if (strncmp(relation, KRS_READS_FRAME, strlen(KRS_READS_FRAME)) == 0)
-        {
-            if ((s_frame_forms < KRS_FRAME_FORMS) && (strlen(line + at) < KRS_FRAME_TEXT))
-            {
-                KrsFrameForm *const held = &s_frame_form[s_frame_forms];
-                snprintf(held->relation, sizeof(held->relation), "%.*s", (int)(sizeof(held->relation) - 1u), relation);
-                snprintf(held->text, sizeof(held->text), "%s", line + at);
-                s_frame_forms += 1u;
-            }
-            continue;
-        }
         const size_t prefix = strlen(KRS_READS_LADDER);
         const char *const name = (strncmp(relation, KRS_READS_LADDER, prefix) == 0) ? (relation + prefix) : relation;
         unsigned int anchor = (unsigned int)LADDER_ANCHOR_COUNT;
         for (unsigned int each = 0u; each < (unsigned int)LADDER_ANCHOR_COUNT; each += 1u)
         {
             anchor = (strcmp(s_anchor_text[each], name) == 0) ? each : anchor;
+        }
+        // a frame relation's form, and a predicate relation's, is written as the schema's form the table beside this
+        // writer maps it to, a predicate relation read signed under its relation with `.signed` after it
+        const int predicate = (anchor != (unsigned int)LADDER_ANCHOR_COUNT) && ladder_predicate(anchor);
+        if ((strncmp(relation, KRS_READS_FRAME, strlen(KRS_READS_FRAME)) == 0) || predicate)
+        {
+            if ((s_frame_forms < KRS_FRAME_FORMS) && (strlen(line + at) < KRS_FRAME_TEXT))
+            {
+                KrsFrameForm *const held = &s_frame_form[s_frame_forms];
+                snprintf(held->relation, sizeof(held->relation), "%.*s%s", (int)(sizeof(held->relation) - 9u), relation,
+                         (predicate && (signed_read != 0)) ? ".signed" : "");
+                snprintf(held->text, sizeof(held->text), "%s", line + at);
+                s_frame_forms += 1u;
+            }
+            continue;
         }
         if ((anchor == (unsigned int)LADDER_ANCHOR_COUNT) || (strlen(line + at) >= KRS_LINE))
         {

@@ -41,7 +41,15 @@
     /* 4,1 -> 2 */                                                                                                     \
     anchor_(DOWN, "down", 2u, 0)                                                                                       \
     /* 3,3 -> 9 */                                                                                                     \
-    anchor_(PRODUCT, "product", 2u, 0)
+    anchor_(PRODUCT, "product", 2u, 0)                                                                                 \
+    /* the orderings and the inequality, each a predicate relation (ladder_predicate) answered as SAME is, a word of \
+       ones where it holds and of zeroes where it does not: 0,1 -> ones for less, and 0xffffffff,0 read as the part   \
+       reads a word, unsigned or signed */                                                                             \
+    anchor_(LESS, "less", 2u, 0)                                                                                       \
+    anchor_(AT_MOST, "at_most", 2u, 0)                                                                                 \
+    anchor_(MORE, "more", 2u, 0)                                                                                       \
+    anchor_(AT_LEAST, "at_least", 2u, 0)                                                                               \
+    anchor_(APART, "apart", 2u, 0)
 
 #define LADDER_NAMED(name_, text_, words_, measured_) LADDER_##name_,
 
@@ -143,6 +151,34 @@ static const LadderQuestion s_ladder_cases[] = {
     {LADDER_PRODUCT, {1u, 7u}, 2u, 7u, 0u, 0},
     {LADDER_PRODUCT, {6u, 7u}, 2u, 42u, 0u, 0},
     {LADDER_PRODUCT, {11u, 13u}, 2u, 143u, 0u, 0},
+    // the orderings: each holds and fails on small words, holds or fails on equal words, and reads 0xffffffff against
+    // 0 one way unsigned and the other signed
+    {LADDER_LESS, {0u, 1u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_LESS, {1u, 0u}, 2u, 0u, 0u, 0},
+    {LADDER_LESS, {1u, 1u}, 2u, 0u, 0u, 0},
+    {LADDER_LESS, {3u, 7u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_LESS, {0xffffffffu, 0u}, 2u, 0u, 0u, 0},
+    {LADDER_AT_MOST, {1u, 1u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_AT_MOST, {0u, 1u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_AT_MOST, {2u, 1u}, 2u, 0u, 0u, 0},
+    {LADDER_AT_MOST, {7u, 3u}, 2u, 0u, 0u, 0},
+    {LADDER_AT_MOST, {0xffffffffu, 0u}, 2u, 0u, 0u, 0},
+    {LADDER_MORE, {1u, 0u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_MORE, {0u, 1u}, 2u, 0u, 0u, 0},
+    {LADDER_MORE, {1u, 1u}, 2u, 0u, 0u, 0},
+    {LADDER_MORE, {7u, 3u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_MORE, {0xffffffffu, 0u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_AT_LEAST, {1u, 1u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_AT_LEAST, {1u, 0u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_AT_LEAST, {0u, 1u}, 2u, 0u, 0u, 0},
+    {LADDER_AT_LEAST, {3u, 7u}, 2u, 0u, 0u, 0},
+    {LADDER_AT_LEAST, {0xffffffffu, 0u}, 2u, 0xffffffffu, 0u, 0},
+    // the inequality, SAME's complement
+    {LADDER_APART, {1u, 0u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_APART, {1u, 1u}, 2u, 0u, 0u, 0},
+    {LADDER_APART, {0u, 0u}, 2u, 0u, 0u, 0},
+    {LADDER_APART, {5u, 7u}, 2u, 0xffffffffu, 0u, 0},
+    {LADDER_APART, {0x80000000u, 0x80000000u}, 2u, 0u, 0u, 0},
 };
 
 #define LADDER_CASE_COUNT (sizeof(s_ladder_cases) / sizeof(s_ladder_cases[0]))
@@ -158,7 +194,8 @@ static const LadderQuestion s_ladder_cases[] = {
 //
 // A count for UP and DOWN is read from the low places of the second word, the way precept_value.h reads one. A
 // chain and the relation it is checked against are then asked the same question.
-static inline int ladder_answer(unsigned int anchor, const unsigned int *word, unsigned int words, unsigned int *answered)
+static inline int ladder_answer(unsigned int anchor, const unsigned int *word, unsigned int words,
+                                unsigned int *answered)
 {
     if (words < 2u)
     {
@@ -185,9 +222,33 @@ static inline int ladder_answer(unsigned int anchor, const unsigned int *word, u
     case LADDER_PRODUCT:
         *answered = word[0] * word[1];
         return 1;
+    case LADDER_LESS:
+        *answered = (word[0] < word[1]) ? 0xffffffffu : 0u;
+        return 1;
+    case LADDER_AT_MOST:
+        *answered = (word[0] <= word[1]) ? 0xffffffffu : 0u;
+        return 1;
+    case LADDER_MORE:
+        *answered = (word[0] > word[1]) ? 0xffffffffu : 0u;
+        return 1;
+    case LADDER_AT_LEAST:
+        *answered = (word[0] >= word[1]) ? 0xffffffffu : 0u;
+        return 1;
+    case LADDER_APART:
+        *answered = (word[0] != word[1]) ? 0xffffffffu : 0u;
+        return 1;
     default:
         return 0;
     }
+}
+
+// 1 where `anchor` is a predicate relation: its answer is a truth and no word, SAME, the orderings and the
+// inequality, read off the part through a store guarded by the predicate the slot writes
+static inline int ladder_predicate(unsigned int anchor)
+{
+    return (anchor == (unsigned int)LADDER_SAME) || (anchor == (unsigned int)LADDER_LESS) ||
+           (anchor == (unsigned int)LADDER_AT_MOST) || (anchor == (unsigned int)LADDER_MORE) ||
+           (anchor == (unsigned int)LADDER_AT_LEAST) || (anchor == (unsigned int)LADDER_APART);
 }
 
 // What the host answers for `anchor` on the two words `word` where the word it reads is signed. The two readings of a
@@ -196,6 +257,22 @@ static inline int ladder_answer(unsigned int anchor, const unsigned int *word, u
 static inline unsigned int ladder_signed_answer(unsigned int anchor, const unsigned int *word)
 {
     unsigned int answered = 0u;
+    // the orderings read signed: the high place a sign, 0xffffffff below 0
+    const int left = (int)word[0];
+    const int right = (int)word[1];
+    switch (anchor)
+    {
+    case LADDER_LESS:
+        return (left < right) ? 0xffffffffu : 0u;
+    case LADDER_AT_MOST:
+        return (left <= right) ? 0xffffffffu : 0u;
+    case LADDER_MORE:
+        return (left > right) ? 0xffffffffu : 0u;
+    case LADDER_AT_LEAST:
+        return (left >= right) ? 0xffffffffu : 0u;
+    default:
+        break;
+    }
     if (anchor != (unsigned int)LADDER_DOWN)
     {
         return ladder_answer(anchor, word, 2u, &answered) ? answered : 0u;

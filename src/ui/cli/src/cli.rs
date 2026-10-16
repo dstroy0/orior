@@ -619,12 +619,14 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "list" => list(&root, first),
         "tests" => tests_list(&root, words),
         "bridge" => bridge(&root, first),
-        "course" | "tables" | "query" | "learn" | "cross" | "write" | "pairs" | "stick" | "kept" | "sweep" => {
+        "course" | "tables" | "decode" | "query" | "learn" | "cross" | "write" | "pairs" | "stick" | "kept" | "sweep" => {
             // a window open on the tree runs the protocol command as its job, and shows the run in its protocol
             // panel; with none open it runs here, and so does the job's own command, which carries the window's
-            // door in its environment and must not reach the window again
+            // door in its environment and must not reach the window again. A reading, `decode` and the two readings
+            // of a pulled table, prints here and is no job of the window's
             let inside_a_job = std::env::var_os(crate::runner::RUN_VARIABLE).is_some();
-            if let Some(answered) = (!inside_a_job).then(|| crate::reach::ask(Some(&root), "protocol", command, words)).flatten() {
+            let reading = command == "decode" || (command == "tables" && matches!(first, Some("read") | Some("fields")));
+            if let Some(answered) = (!inside_a_job && !reading).then(|| crate::reach::ask(Some(&root), "protocol", command, words)).flatten() {
                 return match answered {
                     Ok(answer) => {
                         if !answer.said.is_empty() {

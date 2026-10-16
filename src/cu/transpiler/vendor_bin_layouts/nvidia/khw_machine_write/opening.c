@@ -4,6 +4,7 @@
 
 #include "../../../../types/file_defs/ksc/ksc.h"
 
+#include <stdio.h>
 #include <string.h>
 
 // the word of the row `run answers <k> <question>` of the .ksc at `ksc_path` whose question begins with `question`, or
@@ -34,4 +35,25 @@ unsigned int khw_opening_read(const char *ksc_path)
 unsigned int khw_slot_read(const char *ksc_path)
 {
     return opening_row_read(ksc_path, "slot place", KHW_SLOT_NONE);
+}
+
+int khw_guard_field_read(const char *ksc_path, unsigned int *first, unsigned int *bits)
+{
+    static KscFile s_file;
+    int found = 0;
+    ksc_read(&s_file, ksc_path);
+    for (unsigned int at = 0u; at < s_file.lines; at += 1u)
+    {
+        char name[64];
+        unsigned int from = 0u;
+        unsigned int width = 0u;
+        if ((sscanf(s_file.line[at], "field %63s %u %u", name, &from, &width) == 3) && (strcmp(name, "guard") == 0))
+        {
+            *first = from;
+            *bits = width;
+            found = 1;
+        }
+    }
+    ksc_free(&s_file);
+    return found;
 }

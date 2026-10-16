@@ -90,11 +90,48 @@ void khw_run_write(unsigned long long *low, unsigned long long *high, unsigned i
     }
 }
 
-// the kernel into `code`, as the part accepted it. The carrier makes every instruction wait on all six barriers
-// before the part sees it; nothing of the scheduler's own word is set here (P9)
+// whether the questions put now store through the predicate the slot writes: the store after the slot guarded by P0
+static int s_store_guarded;
+
+void khw_store_guarded(int on)
+{
+    s_store_guarded = on;
+}
+
+int khw_store_is_guarded(void)
+{
+    return s_store_guarded;
+}
+
+// the kernel into `code`, as the part accepted it, the store after the slot guarded by P0 where the question is a
+// predicate one: it then stores the slot's second word where the slot's predicate holds and leaves the record's fill
+// word where it does not, and P0 is false at the slot for every lane that reached it. The carrier makes every
+// instruction wait on all six barriers before the part sees it; nothing of the scheduler's own word is set here (P9)
 void khw_kernel_put(unsigned char *code)
 {
     memcpy(code, s_kernel_text, (size_t)s_kernel_places * KHW_INSTRUCTION);
+    static unsigned int s_guard_first;
+    static unsigned int s_guard_bits;
+    static int s_guard_read;
+    if (!s_store_guarded || ((s_slot + 1u) >= s_kernel_places))
+    {
+        return;
+    }
+    if (!s_guard_read)
+    {
+        s_guard_read = khw_field_read("guard", &s_guard_first, &s_guard_bits) ? 1 : -1;
+    }
+    if (s_guard_read < 0)
+    {
+        return;
+    }
+    unsigned char *const store = &code[(s_slot + 1u) * KHW_INSTRUCTION];
+    unsigned long long low = khw_word_read(store, 0u);
+    unsigned long long high = khw_word_read(store, 8u);
+    // P0, and the bit past the predicate's three, which negates the guard, clear
+    khw_run_write(&low, &high, s_guard_first, s_guard_first + s_guard_bits, 0ull);
+    khw_word_write(store, 0u, low);
+    khw_word_write(store, 8u, high);
 }
 
 // The question's code, into `code`: the kernel with `low` and `high` at `place`. The slot the question names is sent
@@ -250,7 +287,8 @@ unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int wor
     return found;
 }
 
-// the host's answer of `candidate` to the case of words `word`
+// the host's answer of `candidate` to the case of words `word`: a predicate relation's as the guarded store reads it,
+// the second word where the relation holds and the record's fill word where it does not
 unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned int *word)
 {
     const unsigned int read[2] = {(candidate->swapped != 0) ? word[1] : word[0],
@@ -258,9 +296,17 @@ unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned 
     unsigned int answered = 0u;
     if (candidate->signed_read != 0)
     {
-        return ladder_signed_answer(candidate->anchor, read);
+        answered = ladder_signed_answer(candidate->anchor, read);
     }
-    return ladder_answer(candidate->anchor, read, 2u, &answered) ? answered : 0u;
+    else if (!ladder_answer(candidate->anchor, read, 2u, &answered))
+    {
+        answered = 0u;
+    }
+    if (ladder_predicate(candidate->anchor))
+    {
+        return (answered != 0u) ? word[1] : RUN_UNWRITTEN_WORD;
+    }
+    return answered;
 }
 
 // The cases a relation is read over, written once: every two-word case of every relation of the ladder that is no

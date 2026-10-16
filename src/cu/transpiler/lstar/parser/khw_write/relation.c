@@ -68,7 +68,7 @@ void khw_union_written(void)
 // alike: no cost enters S, and the survivors are the conjunction over every case. The first survivor in the ladder's
 // order, in order before swapped and plain before signed, is kept in `held` with the count of survivors, its reading
 // (Q11). 1 where one survived, 0 where none did
-int khw_relation_of(const RunQuestion *question, KhwAnswered *held)
+int khw_relation_of(const RunQuestion *question, KhwAnswered *held, int guarded)
 {
     static unsigned char s_fails[GATE_CANDIDATES][GATE_CASES];
     held->anchor = (unsigned int)LADDER_ANCHOR_COUNT;
@@ -79,12 +79,18 @@ int khw_relation_of(const RunQuestion *question, KhwAnswered *held)
     held->survivors = 0u;
     for (unsigned int candidate = 0u; candidate < s_candidates; candidate += 1u)
     {
+        // a question put plain is read against the register relations alone, and one put with the store guarded
+        // against the predicate relations alone: each kernel reads the other's relations as nothing
+        const int predicate = ladder_predicate(s_candidate[candidate].anchor);
         for (unsigned int place = 0u; place < s_union_cases; place += 1u)
         {
             const unsigned int host = khw_candidate_answer(&s_candidate[candidate], s_union_word[place]);
             const AnswerBracket bracket = {1, host, host};
             s_fails[candidate][place] =
-                (answer_read(&bracket, question->outcome, question->answered[place]) != ANSWER_ALIKE) ? 1u : 0u;
+                ((predicate != (guarded != 0)) ||
+                 (answer_read(&bracket, question->outcome, question->answered[place]) != ANSWER_ALIKE))
+                    ? 1u
+                    : 0u;
         }
     }
     unsigned char survives[GATE_CANDIDATES];
@@ -117,16 +123,44 @@ static int khw_relation_read(KhwAnswered *held)
     static unsigned long long s_answered[RUN_CASES_MOST];
     khw_union_written();
     khw_asked(s_union_word, s_union_cases, s_slot, s_answered);
-    return khw_relation_of(&s_question, held);
+    return khw_relation_of(&s_question, held, khw_store_is_guarded());
 }
 
-// the relation `low` and `high` at the slot answers, read as khw_relation_read reads it. 1 where one relation answered
+// 1 where `question`, put plain, answered the second word on every case: the slot left the register the kernel
+// stores alone, as a form that writes a predicate does, and the question is put again with the store guarded
+int khw_second_word_standing(const RunQuestion *question)
+{
+    if (question->outcome != RUN_ANSWERED)
+    {
+        return 0;
+    }
+    for (unsigned int place = 0u; place < question->cases; place += 1u)
+    {
+        if (question->answered[place] != (unsigned long long)question->word[place][1])
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// the relation `low` and `high` at the slot answers, read as khw_relation_read reads it, plain and then, where no
+// relation answered and the second word stood on every case, with the store guarded. 1 where one relation answered
 int khw_relation_asked(unsigned long long low, unsigned long long high, KhwAnswered *held)
 {
     held->low = low;
     held->high = high;
+    khw_store_guarded(0);
     khw_code_put(s_code, s_slot, low, high);
-    return khw_relation_read(held);
+    int answered = khw_relation_read(held);
+    if (!answered && khw_second_word_standing(&s_question))
+    {
+        khw_store_guarded(1);
+        khw_code_put(s_code, s_slot, low, high);
+        answered = khw_relation_read(held);
+        khw_store_guarded(0);
+    }
+    return answered;
 }
 
 // The first round: the kernel's own relation and the slot, put together, since neither waits on the other's answer.
@@ -170,7 +204,7 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long 
         }
     }
     khw_round_carried();
-    const int related = khw_relation_of(&s_pool[kernel_at], kernel);
+    const int related = khw_relation_of(&s_pool[kernel_at], kernel, 0);
     *slot = (s_kernel_slot < s_kernel_places) ? s_kernel_slot : *slot;
     for (unsigned int at = kernel_at + 1u; (at < s_pooled) && (*slot == s_kernel_places); at += 1u)
     {
@@ -228,6 +262,32 @@ static int khw_turning_case(KhwAnswered *held, KhwStaged *stage)
     stage->count = 1u;
     stage->read_at = 0u;
     unsigned int gave = 0u;
+    if (ladder_predicate(held->anchor))
+    {
+        // a predicate form's case: one of its relation's where the relation holds for the form's reading of the
+        // words and the words differ, so that the guarded store writes the second word and a turn that stops the
+        // predicate, or moves a word, leaves the fill word or writes it where the relation fails
+        const KhwCandidate form = {held->anchor, held->swapped, held->signed_read};
+        for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
+        {
+            const LadderQuestion *const question = &s_ladder_cases[at];
+            if ((question->anchor != held->anchor) || (question->word[0] == question->word[1]))
+            {
+                continue;
+            }
+            for (unsigned int order = 0u; order < 2u; order += 1u)
+            {
+                stage->word[0][0] = (order == 0u) ? question->word[0] : question->word[1];
+                stage->word[0][1] = (order == 0u) ? question->word[1] : question->word[0];
+                if (khw_candidate_answer(&form, stage->word[0]) == stage->word[0][1])
+                {
+                    stage->expected = stage->word[0][1];
+                    return 1;
+                }
+            }
+        }
+        return 0;
+    }
     const int found = khw_turning_words(held->anchor, held->swapped, stage->word[0], &gave);
     stage->expected = gave;
     return found;
@@ -243,9 +303,15 @@ static unsigned int khw_staged_pooled(const KhwStaged *stage, unsigned long long
         s_words[at][0] = stage->word[0][0];
         s_words[at][1] = stage->word[0][1];
     }
-    return (stage->held->frame != (unsigned int)FRAME_RELATION_COUNT)
-               ? khw_frame_pooled(low, high, s_words, stage->count)
-               : khw_pooled(s_slot, low, high, s_words, stage->count);
+    if (stage->held->frame != (unsigned int)FRAME_RELATION_COUNT)
+    {
+        return khw_frame_pooled(low, high, s_words, stage->count);
+    }
+    // a predicate form's questions are put with the store guarded by the predicate it writes
+    khw_store_guarded(ladder_predicate(stage->held->anchor));
+    const unsigned int at = khw_pooled(s_slot, low, high, s_words, stage->count);
+    khw_store_guarded(0);
+    return at;
 }
 
 // The turns of `stage`'s form: each bit from KHW_TURN_FIRST to KHW_TURN_LAST turned one at a time over its case, each a
@@ -443,6 +509,11 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
 static unsigned int khw_run_settings(const KhwAnswered *held, unsigned int stage, unsigned int run,
                                      unsigned int *settings)
 {
+    // a predicate form's runs are read off its own encoding, and no setting is asked
+    if ((held->frame == (unsigned int)FRAME_RELATION_COUNT) && ladder_predicate(held->anchor))
+    {
+        return 0u;
+    }
     if (held->frame == (unsigned int)FRAME_RELATION_COUNT)
     {
         settings[0] = KHW_FIRST_REGISTER;
@@ -763,11 +834,60 @@ static void khw_frame_registers_read(KhwAnswered *held, unsigned int at, const K
 
 // the register-runs of `held` read off the round `stage_number` carried, as its relation's kind reads them: a ladder
 // form's in the first stage, a frame form's addresses in the first and the rest in the second
+// The runs of a predicate form read off its own encoding, no question asked: a run inside a field the .ksc names
+// for a predicate that holds P0 is the destination, the answer's place, a predicate, and one holding another
+// predicate an operand with no place; a run inside a register field holding the first word's register is the first
+// word's place and the second word's register the second's, the other way round where the form reads the words
+// swapped; every other run is an operand with no place, kept as seen. The phase classified where a run stands at every
+// place of the relation's tuple, void otherwise
+static void khw_predicate_runs_read(KhwAnswered *held)
+{
+    static const char *const s_predicate_fields[] = {"guard", "pl", "pu", "pv", "pg", "po", "pt"};
+    const unsigned int words = s_ladder_words[held->anchor];
+    for (unsigned int run = 0u; run < held->runs; run += 1u)
+    {
+        char field[64] = "";
+        unsigned int first = 0u;
+        unsigned int bits = 0u;
+        held->place[run] = KHW_PLACE_NONE;
+        held->kind[run] = KHW_KIND_REGISTER;
+        if (!khw_field_holding(held->first[run], held->last[run], field, sizeof(field), &first, &bits))
+        {
+            continue;
+        }
+        const unsigned long long value = khw_run_read(held->low, held->high, first, first + bits - 1u);
+        int predicate = 0;
+        for (unsigned int each = 0u; each < (sizeof(s_predicate_fields) / sizeof(s_predicate_fields[0])); each += 1u)
+        {
+            predicate = predicate || (strcmp(field, s_predicate_fields[each]) == 0);
+        }
+        if (predicate)
+        {
+            held->kind[run] = KHW_KIND_PREDICATE;
+            held->place[run] = ((value == 0ull) && (strcmp(field, "guard") != 0)) ? words : KHW_PLACE_NONE;
+        }
+        else if (value == KHW_FIRST_REGISTER)
+        {
+            held->place[run] = (held->swapped != 0) ? 1u : 0u;
+        }
+        else if (value == KHW_SECOND_REGISTER)
+        {
+            held->place[run] = (held->swapped != 0) ? 0u : 1u;
+        }
+    }
+    held->phase = khw_places_whole(held->place, held->runs, words) ? KHW_PHASE_CLASSIFIED : KHW_PHASE_VOID;
+}
+
 static void khw_registers_read(KhwAnswered *held, unsigned int at, const KhwStaged *stage, unsigned int stage_number)
 {
     if (held->frame != (unsigned int)FRAME_RELATION_COUNT)
     {
         (stage_number == 0u) ? khw_frame_addresses_read(held, at, stage) : khw_frame_registers_read(held, at, stage);
+        return;
+    }
+    if (ladder_predicate(held->anchor))
+    {
+        khw_predicate_runs_read(held);
         return;
     }
     khw_ladder_registers_read(held, at, stage);
@@ -852,6 +972,14 @@ unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count)
             KhwStaged *const stage = &s_staged[staged];
             memset(stage, 0, sizeof(*stage));
             const unsigned int asks = khw_stage_pooled(forms[at], stage_number, NULL);
+            // a predicate form asks nothing: its runs are read off its own encoding in the first stage
+            if ((asks == 0u) && (stage_number == 0u) && (forms[at]->frame == (unsigned int)FRAME_RELATION_COUNT) &&
+                ladder_predicate(forms[at]->anchor))
+            {
+                khw_predicate_runs_read(forms[at]);
+                classified += (forms[at]->phase == KHW_PHASE_CLASSIFIED) ? 1u : 0u;
+                continue;
+            }
             if ((asks == 0u) || !khw_turning_case(forms[at], stage))
             {
                 continue;

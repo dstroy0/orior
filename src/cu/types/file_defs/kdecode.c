@@ -7,6 +7,11 @@
 //
 //     kdecode [--raw] [--from <record>] [--count <records>] <file>...
 //     kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> <run.qry>...
+//     kdecode [--latest] --blob <name> <run.qry>...
+//
+// A blob of the run by its name is printed whole, every blob of that name in sequence or the latest alone with
+// --latest, each after a line of its sequence, its name and its size, a NUL byte shown as a space: a console's blob,
+// a trace, a kernel listing or a file the run holds, as the run holds it.
 //
 // A reader that shows a file grows it a slice at a time, from the record it stands at, a slice after it or before it
 // as it scrolls and on both sides as it stands still. Where it moves fast it asks --raw, each record a line of its code
@@ -35,6 +40,8 @@ int main(int count, char **words)
     unsigned long long to = ~0ull;
     unsigned long long slice = 0ull;
     const char *table = NULL;
+    const char *blob = NULL;
+    int latest = 0;
     int given = 1;
     while ((given < count) && (strncmp(words[given], "--", 2u) == 0))
     {
@@ -62,6 +69,16 @@ int main(int count, char **words)
             table = words[given + 1];
             given += 2;
         }
+        else if ((strcmp(words[given], "--blob") == 0) && ((given + 1) < count))
+        {
+            blob = words[given + 1];
+            given += 2;
+        }
+        else if (strcmp(words[given], "--latest") == 0)
+        {
+            latest = 1;
+            given += 1;
+        }
         else
         {
             break;
@@ -70,7 +87,8 @@ int main(int count, char **words)
     if (given >= count)
     {
         fprintf(stderr, "kdecode [--raw] [--from <record>] [--count <records>] <file>...\n"
-                        "kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> <run.qry>...\n");
+                        "kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> <run.qry>...\n"
+                        "kdecode [--latest] --blob <name> <run.qry>...\n");
         return 2;
     }
 #if defined(_WIN32)
@@ -85,6 +103,11 @@ int main(int count, char **words)
     {
         unsigned char *bytes = NULL;
         unsigned long long size = 0ull;
+        if (blob != NULL)
+        {
+            read = kdecode_blobs(words[given], blob, latest) && read;
+            continue;
+        }
         if (table != NULL)
         {
             read = kdecode_table(words[given], table, raw, from, to, slice) && read;

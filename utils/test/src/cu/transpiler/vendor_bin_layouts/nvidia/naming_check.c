@@ -119,6 +119,23 @@ int main(int count, char **words)
     hand_form(&banked, "frame.dim", 0x0040000000017a02ull | (0x28ull << 38u), 0x000fe40000000f00ull, dim_runs, 3u);
     check_text(&banked, "MOV R1, c[0x1][0x28]", "the bank and the offset read from the encoding's bits");
 
+    // a test: the predicate it writes in the field at 81 is an operand, the answer's place, and the predicates it
+    // reads at 84 and 87, PT, are operands with no place; the relation read unsigned carries U32 and signed nothing
+    khw_guard_field_set(12u, 3u);
+    const HandRun test_runs[5] = {{24u, 31u, 0u, KHW_KIND_REGISTER},
+                                  {32u, 39u, 1u, KHW_KIND_REGISTER},
+                                  {81u, 83u, 2u, KHW_KIND_PREDICATE},
+                                  {84u, 86u, SASS_RUN_NO_PLACE, KHW_KIND_PREDICATE},
+                                  {87u, 89u, SASS_RUN_NO_PLACE, KHW_KIND_PREDICATE}};
+    KhwForm test;
+    hand_form(&test, "ladder.at_least", 0x000000070000720cull, 0x0000000003f00000ull, test_runs, 5u);
+    test.signedness_asked = 1;
+    check_text(&test, "ISETP.GE.U32.AND P0, PT, R0, R7, PT",
+               "a test form names its test, its unsigned reading and its join, the predicates it writes and reads "
+               "operands in their order");
+    test.signed_read = 1;
+    check_text(&test, "ISETP.GE.AND P0, PT, R0, R7, PT", "and read signed carries no qualifier");
+
     // a guarded exit
     const HandRun exit_runs[1] = {{12u, 15u, 0u, KHW_KIND_PREDICATE}};
     KhwForm guarded;

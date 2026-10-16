@@ -131,6 +131,21 @@ int main(void)
     tables_field_write(tables_field_named(ldc, "sz"), &sized_low, &sized_high, 1ull);
     check_that(tables_class_bytes(ldc, sized_low, sized_high) == 1u, "size: and sz of 1 reads S8, one byte");
     check_that(tables_class_bytes(mov, 0ull, 0ull) == 4u, "size: a class with no size operand reads four bytes");
+    // an encoding described in one line: the class, and for a constant read the bank, the byte offset the field's
+    // value scales to, and the bytes read
+    unsigned long long read_low = 0ull;
+    unsigned long long read_high = 0ull;
+    tables_field_write(tables_field_named(ldc, "opcode"), &read_low, &read_high, ldc->opcode);
+    tables_field_write(tables_field_named(ldc, "Sc_addr"), &read_low, &read_high, 0x46ull);
+    tables_field_write(tables_field_named(ldc, "sz"), &read_low, &read_high, 5ull);
+    check_that(tables_class_offset(ldc, read_low, read_high) == 0x118ull,
+               "described: a fourteen-bit offset field of 0x46 under a seventeen-bit operand is byte 0x118");
+    char line[256];
+    check_that(tables_class_described(&set, read_low, read_high, line, sizeof(line)) &&
+                   (strstr(line, "ldc__RaRZ bank 0 offset 0x118 reads 8") != NULL),
+               "described: the load's line names its class, bank 0, offset 0x118 and eight bytes read");
+    check_that(!tables_class_described(&set, 0ull, 0ull, line, sizeof(line)) && (strstr(line, " -") != NULL),
+               "described: an encoding no class reads is named -");
 
     low = 0ull;
     high = 0ull;

@@ -177,7 +177,52 @@ fn pulled(context: &mut Context, run: &Run, words: &[String], lines: &mut Vec<St
     Ok(if written == missing.len() { 0 } else { 1 })
 }
 
+/// The two readings of a pulled table, `read <arch> [--bank <size>] <low> <high>...` and `fields <arch>`, each a
+/// run of the `tables_read` tool over the architecture's instruction set; None where the words ask for a pull.
+pub fn reading(words: &[String]) -> Option<Result<(String, Vec<String>), String>> {
+    let (first, rest) = words.split_first()?;
+    let mode = match first.as_str() {
+        "read" => "class",
+        "fields" => "spans",
+        _ => return None,
+    };
+    let Some((arch, tail)) = rest.split_first() else {
+        return Some(Err(format!("tables {first} takes the architecture, sm_86, first")));
+    };
+    if (mode == "spans") && !tail.is_empty() {
+        return Some(Err("tables fields takes the architecture alone".into()));
+    }
+    if mode == "class" {
+        let banked = tail.first().is_some_and(|word| word == "--bank");
+        let encodings = tail.len().saturating_sub(if banked { 2 } else { 0 });
+        if (banked && tail.len() < 2) || encodings < 2 || encodings % 2 != 0 {
+            return Some(Err("tables read takes the architecture, --bank <size> where the bank's size is known, then each encoding's two words".into()));
+        }
+    }
+    Some(Ok((arch.clone(), std::iter::once(mode.to_string()).chain(tail.iter().cloned()).collect())))
+}
+
+/// `read` and `fields` run the reader over the architecture's table and say what it prints.
+fn read(context: &mut Context, arch: &str, words: &[String]) -> Result<i32, String> {
+    let (instructions, _) = tables_of(&context.at(OUT), arch);
+    if !instructions.is_file() {
+        return Err(format!("no table for {arch}: run orior protocol tables {arch} first"));
+    }
+    let reader = context.tool("tables_read")?;
+    let mut given: Vec<String> = vec![native(&instructions)];
+    given.extend(words.iter().cloned());
+    let output = std::process::Command::new(&reader).args(&given).output().map_err(|e| format!("{}: {e}", reader.display()))?;
+    for line in String::from_utf8_lossy(&output.stdout).lines().chain(String::from_utf8_lossy(&output.stderr).lines()) {
+        context.say(line);
+    }
+    Ok(output.status.code().unwrap_or(-1))
+}
+
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
+    if let Some(asked) = reading(words) {
+        let (arch, given) = asked?;
+        return read(context, &arch, &given);
+    }
     let run = context.started(&format!("{OUT}/qry"))?;
     let mut lines: Vec<String> = Vec::new();
     let code = pulled(context, &run, words, &mut lines);
@@ -195,6 +240,22 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
 #[cfg(test)]
 mod reading {
     use super::*;
+
+    #[test]
+    fn the_readings_of_a_table_are_told_apart_from_a_pull() {
+        let words = |text: &str| -> Vec<String> { text.split_whitespace().map(str::to_string).collect() };
+        assert!(reading(&words("sm_86 sm_90")).is_none(), "architectures alone ask for a pull");
+        assert!(reading(&[]).is_none());
+        assert_eq!(reading(&words("fields sm_86")).unwrap().unwrap(), ("sm_86".to_string(), words("spans")));
+        assert!(reading(&words("fields sm_86 extra")).unwrap().is_err());
+        assert!(reading(&words("fields")).unwrap().is_err());
+        assert_eq!(
+            reading(&words("read sm_86 --bank 0x174 0000460000047ab9 000fc80000000a00")).unwrap().unwrap(),
+            ("sm_86".to_string(), words("class --bank 0x174 0000460000047ab9 000fc80000000a00"))
+        );
+        assert!(reading(&words("read sm_86 0000460000047ab9")).unwrap().is_err(), "an encoding is two words");
+        assert!(reading(&words("read sm_86 --bank")).unwrap().is_err());
+    }
 
     #[test]
     fn the_version_and_the_architectures_are_read_off_nvcc() {

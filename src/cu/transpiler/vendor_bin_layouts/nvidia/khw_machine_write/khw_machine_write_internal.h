@@ -96,6 +96,9 @@ extern SassMachine s_machine;
 unsigned long long khw_word_read(const unsigned char *instruction, unsigned int byte);
 int khw_pieces_read(const char *path);
 const char *khw_piece_reading(const char *kind, const char *word);
+// the field the part's .ksc names the guard, `first` and `bits`: a predicate run inside it prints as the guard, and
+// one outside it as an operand in its order; with none set, every predicate run is the guard
+void khw_guard_field_set(unsigned int first, unsigned int bits);
 void khw_text_composed(const KhwForm *held, char *written, size_t room);
 int khw_form_kept(SassMachine *machine, const KhwForm *held, const char *text);
 int khw_kernel_read(const char *path);

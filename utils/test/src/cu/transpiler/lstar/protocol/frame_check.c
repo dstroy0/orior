@@ -241,8 +241,10 @@ int main(int count, char **words)
                "the given line the row replaced is kept in the .krf beside the .ksc, under a who line");
     krf_free(&s_removed);
 
-    // the frame forms: the table's rows, and a form's line as the schema's form through a ruleset naming the eight
-    check_that(krs_frame_read(NULL) == 8u, "the table of frame forms beside its source holds eight rows");
+    // the frame forms: the table's rows, eight frame relations' and ten the ladder's predicate relations', and a
+    // form's line as the schema's form through a ruleset naming the eight
+    check_that(krs_frame_read(NULL) == 18u,
+               "the table of frame forms beside its source holds eighteen rows, the frame's eight and the tests' ten");
     char named[1024];
     snprintf(named, sizeof(named), "%s/frame_check_named.krs", words[1]);
     const char *const naming =

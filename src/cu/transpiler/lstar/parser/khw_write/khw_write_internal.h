@@ -208,8 +208,16 @@ void khw_round_carried(void);
 unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int word[][2], unsigned int *plain,
                               unsigned int *signed_read);
 unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned int *word);
+// whether the questions put now are predicate ones, the store after the slot guarded by P0 (khw_kernel_put)
+void khw_store_guarded(int on);
+int khw_store_is_guarded(void);
 void khw_union_written(void);
-int khw_relation_of(const RunQuestion *question, KhwAnswered *held);
+// the relation `question` answers, judged against the register relations where `guarded` is 0 and against the
+// predicate relations where it is 1, the question having been put with the store guarded by P0
+int khw_relation_of(const RunQuestion *question, KhwAnswered *held, int guarded);
+// 1 where `question`, put plain, answered the second word on every case: the slot left the register the kernel
+// stores alone, as a form that writes a predicate does
+int khw_second_word_standing(const RunQuestion *question);
 int khw_relation_asked(unsigned long long low, unsigned long long high, KhwAnswered *held);
 int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long *nanoseconds);
 void khw_turns_asked(KhwAnswered *held, const unsigned int word[1][2]);
