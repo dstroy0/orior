@@ -275,7 +275,12 @@ int main(int count, char **word)
             // from the working set
             static KhwAnswered *s_forms[KHW_FORMS];
             const unsigned int count = khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms);
-            khw_plan_handed("turns", (unsigned long long)count * ((unsigned long long)KHW_TURNS + 1ull));
+            unsigned long long stages = 0ull;
+            for (unsigned int at = 0u; at < count; at += 1u)
+            {
+                stages += (unsigned long long)khw_turning_cases(s_forms[at]);
+            }
+            khw_plan_handed("turns", stages * ((unsigned long long)KHW_TURNS + 1ull));
             const unsigned int asked = khw_fields_turns(s_forms, count);
             run_channel_close();
             if (!khw_forms_work_written())

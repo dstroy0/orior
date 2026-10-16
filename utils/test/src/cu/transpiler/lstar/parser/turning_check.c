@@ -7,6 +7,8 @@
 //   up       the shift up's case is (3, 4): (1, 2) is passed over, 1 shifted by 1 being the second word, which would
 //            read the amount's run as the destination; read swapped, (2, 1) stands
 //   none     a relation with no such case gives none
+//   predicate  a predicate form's turning cases are every case of its relation, in both orders, whose words differ
+//            and over which it holds in the form's reading, one of them with a first word above 0
 //   whole    a form's runs are whole where they carry every place of its relation's tuple
 //   cut      the turned bits are gathered into runs cut where the fields the part names end: two adjacent turned bits
 //            are one run where one field holds both, the narrowest where fields nest, or none holds either
@@ -63,6 +65,41 @@ int main(void)
     check_that(khw_turning_words((unsigned int)LADDER_UP, 1, swapped, &shifted) && (swapped[0] == 2u) &&
                    (swapped[1] == 1u) && (shifted == 4u),
                "the shift up's turning case read swapped is (2, 1): 2 shifted by 2 and 1 by 1 are apart from 1 and 4");
+    // a predicate form's turning cases: every case of its relation, in both orders, whose words differ and over
+    // which the relation holds in the form's reading; at most, read plain, holds over (0, 1), (1, 2), (3, 7) and
+    // (0, 0xffffffff), and a case whose first word is above 0 is among them, so that the second word moved to a
+    // register holding 0 breaks the relation as the first word moved to one holding more than the second does
+    const unsigned int at_most[4][2] = {{0u, 1u}, {1u, 2u}, {3u, 7u}, {0u, 0xffffffffu}};
+    unsigned int cases = 0u;
+    int every = 1;
+    int raised = 0;
+    unsigned int pair[2] = {0u, 0u};
+    while (khw_predicate_words((unsigned int)LADDER_AT_MOST, 0, 0, cases, pair))
+    {
+        every = every && (cases < 4u) && (pair[0] == at_most[cases][0]) && (pair[1] == at_most[cases][1]);
+        raised = raised || (pair[0] != 0u);
+        cases += 1u;
+    }
+    check_that(every && (cases == 4u) && raised,
+               "predicate: at most read plain turns over (0, 1), (1, 2), (3, 7) and (0, 0xffffffff), one first word "
+               "above 0");
+    unsigned int swapped_cases = 0u;
+    int swapped_hold = 1;
+    while (khw_predicate_words((unsigned int)LADDER_AT_MOST, 1, 0, swapped_cases, pair))
+    {
+        swapped_hold = swapped_hold && (pair[1] <= pair[0]) && (pair[0] != pair[1]);
+        swapped_cases += 1u;
+    }
+    check_that((swapped_cases == 4u) && swapped_hold,
+               "predicate: at most read swapped turns over the four cases with the words the other way round");
+    unsigned int same_cases = 0u;
+    while (khw_predicate_words((unsigned int)LADDER_SAME, 0, 0, same_cases, pair))
+    {
+        same_cases += 1u;
+    }
+    check_that(same_cases == 0u, "predicate: the same relation holds over no case whose words differ");
+    check_that(!khw_predicate_words((unsigned int)LADDER_ADD, 0, 0, 0u, pair),
+               "predicate: a relation that is no predicate has no predicate turning case");
     // a form is whole where its runs carry every place of its relation's tuple, the words and the answer
     const unsigned int whole[3] = {0u, 1u, 2u};
     const unsigned int short_of_one[4] = {2u, 0u, 2u, KHW_PLACE_NONE};

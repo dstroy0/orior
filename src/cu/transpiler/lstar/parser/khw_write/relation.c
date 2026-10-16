@@ -230,7 +230,8 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long 
 // What one form holds through a stage of a pass: the form, its turning case `word` and the answer `expected` of it,
 // where its questions begin in the round being written, and the answer the part gave its turning case `base`. A
 // ladder form's questions carry one case, read at 0; a frame form's carry FRAME_READ_AT + 1 cases of its word pair,
-// read at FRAME_READ_AT, the thread whose lane and block differ from each other and from 0
+// read at FRAME_READ_AT, the thread whose lane and block differ from each other and from 0. A predicate form is turned
+// over each of its turning cases (khw_predicate_words), `turning` the one this stage holds
 typedef struct
 {
     KhwAnswered *held;
@@ -240,6 +241,7 @@ typedef struct
     unsigned long long base;
     unsigned int count;
     unsigned int read_at;
+    unsigned int turning;
 } KhwStaged;
 
 // The turning case of `held` into `stage`: for a ladder form, the first case of its relation whose readings in the
@@ -264,29 +266,15 @@ static int khw_turning_case(KhwAnswered *held, KhwStaged *stage)
     unsigned int gave = 0u;
     if (ladder_predicate(held->anchor))
     {
-        // a predicate form's case: one of its relation's where the relation holds for the form's reading of the
-        // words and the words differ, so that the guarded store writes the second word and a turn that stops the
-        // predicate, or moves a word, leaves the fill word or writes it where the relation fails
-        const KhwCandidate form = {held->anchor, held->swapped, held->signed_read};
-        for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
+        // a predicate form's case: the stage's turning case of its relation, one where the relation holds for the
+        // form's reading of the words and the words differ, so that the guarded store writes the second word and a
+        // turn that stops the predicate, or moves a word, leaves the fill word or writes it where the relation fails
+        if (!khw_predicate_words(held->anchor, held->swapped, held->signed_read, stage->turning, stage->word[0]))
         {
-            const LadderQuestion *const question = &s_ladder_cases[at];
-            if ((question->anchor != held->anchor) || (question->word[0] == question->word[1]))
-            {
-                continue;
-            }
-            for (unsigned int order = 0u; order < 2u; order += 1u)
-            {
-                stage->word[0][0] = (order == 0u) ? question->word[0] : question->word[1];
-                stage->word[0][1] = (order == 0u) ? question->word[1] : question->word[0];
-                if (khw_candidate_answer(&form, stage->word[0]) == stage->word[0][1])
-                {
-                    stage->expected = stage->word[0][1];
-                    return 1;
-                }
-            }
+            return 0;
         }
-        return 0;
+        stage->expected = stage->word[0][1];
+        return 1;
     }
     const int found = khw_turning_words(held->anchor, held->swapped, stage->word[0], &gave);
     stage->expected = gave;
@@ -333,15 +321,24 @@ static void khw_turns_pooled(const KhwStaged *stage)
 // The turns of `held` read off the round carried, its turns at `at` in s_pool and after, each read at the case
 // `read_at`: a bit whose turning changed the answer `base` gathered into the runs the operands might sit in, cut
 // where the fields the part's .ksc names end (khw_runs_gathered), none yet asked whether it carries a register. The
-// runs are the candidates a register pass reads, and the phase turned
-static void khw_turns_read(KhwAnswered *held, unsigned int at, unsigned long long base, unsigned int read_at)
+// runs are the candidates a register pass reads, and the phase turned. A predicate form's turns over a turning case
+// after its first, `turning` above 0, join the bits of the runs its earlier cases turned
+static void khw_turns_read(KhwAnswered *held, unsigned int at, unsigned long long base, unsigned int read_at,
+                           unsigned int turning)
 {
     int turned[KHW_TURN_LAST + 1u];
     memset(turned, 0, sizeof(turned));
+    for (unsigned int run = 0u; (turning != 0u) && (held->phase == KHW_PHASE_TURNED) && (run < held->runs); run += 1u)
+    {
+        for (unsigned int bit = held->first[run]; (bit <= held->last[run]) && (bit <= KHW_TURN_LAST); bit += 1u)
+        {
+            turned[bit] = 1;
+        }
+    }
     for (unsigned int bit = KHW_TURN_FIRST; bit <= KHW_TURN_LAST; bit += 1u)
     {
         const RunQuestion *const question = &s_pool[at + (bit - KHW_TURN_FIRST)];
-        turned[bit] = ((question->outcome == RUN_ANSWERED) && (question->answered[read_at] != base)) ? 1 : 0;
+        turned[bit] = turned[bit] || ((question->outcome == RUN_ANSWERED) && (question->answered[read_at] != base));
     }
     unsigned int field_first[KHW_FIELDS];
     unsigned int field_bits[KHW_FIELDS];
@@ -433,7 +430,8 @@ static unsigned int khw_turning_read(KhwStaged *staged, unsigned int first, unsi
 // stage. The turning cases first, one question a form, as many forms a round as the pool holds: a form the part
 // answers as the host expects goes on, and one it does not is left where it is. Then the turns: each form's bits from
 // 12 to 104 turned one at a time over its case, as many forms a round as the pool holds, and what came back read
-// into each form's candidate runs. The count of forms turned
+// into each form's candidate runs. A predicate form is staged once for each of its turning cases, and the bits any of
+// them turned are its runs. The count of forms turned
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
 {
     static KhwStaged s_staged[KHW_FORMS];
@@ -442,22 +440,28 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
     // the turning cases, a round at a time; a round carried leaves the forms that go on packed at the front
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        KhwStaged stage;
-        memset(&stage, 0, sizeof(stage));
-        if (!khw_turning_case(forms[at], &stage))
+        const int predicate =
+            (forms[at]->frame == (unsigned int)FRAME_RELATION_COUNT) && ladder_predicate(forms[at]->anchor);
+        for (unsigned int turning = 0u; staged < KHW_FORMS; turning += 1u)
         {
-            continue;
+            KhwStaged stage;
+            memset(&stage, 0, sizeof(stage));
+            stage.turning = turning;
+            if (((turning != 0u) && !predicate) || !khw_turning_case(forms[at], &stage))
+            {
+                break;
+            }
+            if (s_pooled == SCHEDULER_ROUND_MOST)
+            {
+                khw_round_carried();
+                on = khw_turning_read(s_staged, on, staged);
+                staged = on;
+                s_pooled = 0u;
+            }
+            stage.at = khw_staged_pooled(&stage, forms[at]->low, forms[at]->high);
+            s_staged[staged] = stage;
+            staged += 1u;
         }
-        if (s_pooled == SCHEDULER_ROUND_MOST)
-        {
-            khw_round_carried();
-            on = khw_turning_read(s_staged, on, staged);
-            staged = on;
-            s_pooled = 0u;
-        }
-        stage.at = khw_staged_pooled(&stage, forms[at]->low, forms[at]->high);
-        s_staged[staged] = stage;
-        staged += 1u;
     }
     if (s_pooled != 0u)
     {
@@ -465,8 +469,7 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
         on = khw_turning_read(s_staged, on, staged);
         s_pooled = 0u;
     }
-    // the turns, as many forms a round as the pool holds
-    unsigned int turned = 0u;
+    // the turns, as many stages a round as the pool holds, a form's stages read in the order they were staged
     unsigned int first = 0u;
     for (unsigned int at = 0u; at < on; at += 1u)
     {
@@ -475,9 +478,9 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
             khw_round_carried();
             for (unsigned int read = first; read < at; read += 1u)
             {
-                khw_turns_read(s_staged[read].held, s_staged[read].at, s_staged[read].base, s_staged[read].read_at);
+                khw_turns_read(s_staged[read].held, s_staged[read].at, s_staged[read].base, s_staged[read].read_at,
+                               s_staged[read].turning);
             }
-            turned += at - first;
             first = at;
             s_pooled = 0u;
         }
@@ -489,12 +492,32 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
         khw_round_carried();
         for (unsigned int read = first; read < on; read += 1u)
         {
-            khw_turns_read(s_staged[read].held, s_staged[read].at, s_staged[read].base, s_staged[read].read_at);
+            khw_turns_read(s_staged[read].held, s_staged[read].at, s_staged[read].base, s_staged[read].read_at,
+                           s_staged[read].turning);
         }
-        turned += on - first;
         s_pooled = 0u;
     }
+    unsigned int turned = 0u;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        turned += (forms[at]->phase == KHW_PHASE_TURNED) ? 1u : 0u;
+    }
     return turned;
+}
+
+unsigned int khw_turning_cases(const KhwAnswered *held)
+{
+    if ((held->frame != (unsigned int)FRAME_RELATION_COUNT) || !ladder_predicate(held->anchor))
+    {
+        return 1u;
+    }
+    unsigned int cases = 0u;
+    unsigned int word[2] = {0u, 0u};
+    while (khw_predicate_words(held->anchor, held->swapped, held->signed_read, cases, word))
+    {
+        cases += 1u;
+    }
+    return cases;
 }
 
 // The settings `run` of `held` is probed with in `stage` of the register pass, into `settings`, which holds

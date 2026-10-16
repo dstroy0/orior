@@ -42,6 +42,78 @@ int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], un
     return 0;
 }
 
+// 1 where the predicate relation `anchor`, read swapped where `swapped` and signed where `signed_read`, holds over
+// `first` and `second`
+static int khw_predicate_holds(unsigned int anchor, int swapped, int signed_read, unsigned int first,
+                               unsigned int second)
+{
+    const unsigned int read[2] = {(swapped != 0) ? second : first, (swapped != 0) ? first : second};
+    unsigned int answered = 0u;
+    if (signed_read != 0)
+    {
+        answered = ladder_signed_answer(anchor, read);
+    }
+    else if (!ladder_answer(anchor, read, 2u, &answered))
+    {
+        answered = 0u;
+    }
+    return answered != 0u;
+}
+
+// The turning case `which` of a predicate form of the relation `anchor`, read swapped where `swapped` and signed where
+// `signed_read`, into `word`: the cases of the relation in the order the ladder holds them, each in its order and then
+// the other, each pair once, whose words differ and over which the relation holds in the form's reading, so that the
+// guarded store writes the second word. A turn that moves a word to another register shows only where that register
+// breaks the relation, which a case does for one word and not the other: the turns are put over every such case and
+// the bits any of them turned read as one. 1, or 0 where the relation holds fewer than `which` + 1 such cases or is
+// no predicate
+int khw_predicate_words(unsigned int anchor, int swapped, int signed_read, unsigned int which, unsigned int word[2])
+{
+    if (!ladder_predicate(anchor))
+    {
+        return 0;
+    }
+    unsigned int found = 0u;
+    for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
+    {
+        const LadderQuestion *const question = &s_ladder_cases[at];
+        if ((question->anchor != anchor) || (question->words < 2u) || (question->word[0] == question->word[1]))
+        {
+            continue;
+        }
+        for (unsigned int order = 0u; order < 2u; order += 1u)
+        {
+            const unsigned int first = (order == 0u) ? question->word[0] : question->word[1];
+            const unsigned int second = (order == 0u) ? question->word[1] : question->word[0];
+            if (!khw_predicate_holds(anchor, swapped, signed_read, first, second))
+            {
+                continue;
+            }
+            // a pair an earlier case gave already is that case
+            int earlier = 0;
+            for (unsigned int before = 0u; before < at; before += 1u)
+            {
+                const LadderQuestion *const other = &s_ladder_cases[before];
+                earlier = earlier || ((other->anchor == anchor) && (other->words >= 2u) &&
+                                      (((other->word[0] == first) && (other->word[1] == second)) ||
+                                       ((other->word[0] == second) && (other->word[1] == first))));
+            }
+            if (earlier)
+            {
+                continue;
+            }
+            if (found == which)
+            {
+                word[0] = first;
+                word[1] = second;
+                return 1;
+            }
+            found += 1u;
+        }
+    }
+    return 0;
+}
+
 // 1 where `runs` runs with the places `place` carry every place of a relation's tuple of `words` words and its answer,
 // the places 0 to `words`: a form so placed writes its relation whole, and a word of the web can be written by it;
 // a form short of a place is a fragment the widening found, and writes none

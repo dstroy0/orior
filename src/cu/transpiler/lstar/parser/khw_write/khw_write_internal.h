@@ -223,6 +223,7 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long 
 void khw_turns_asked(KhwAnswered *held, const unsigned int word[1][2]);
 unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms);
 int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], unsigned int *expected);
+int khw_predicate_words(unsigned int anchor, int swapped, int signed_read, unsigned int which, unsigned int word[2]);
 int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int words);
 int khw_answers_alike(const KhwAnswered *held, const KhwAnswered *other);
 int khw_form_stands_for(const KhwAnswered *older, const KhwAnswered *newer);
@@ -231,6 +232,8 @@ unsigned int khw_forms_folded(KhwAnswered *forms, unsigned int count);
 unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
 void khw_plan_handed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
+// the turning cases `held` is turned over: one, or for a predicate form each of khw_predicate_words
+unsigned int khw_turning_cases(const KhwAnswered *held);
 unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count);
 void khw_fields_asked(KhwAnswered *held);
 int khw_line_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at, char *line, size_t room);
