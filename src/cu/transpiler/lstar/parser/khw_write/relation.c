@@ -378,6 +378,25 @@ unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms)
     return count;
 }
 
+// The void comparison forms of the working set, added to `forms` after its `count`: a comparison form's runs are what
+// its turns found, and a turning case shows the move of one word and not the other: a void one is turned again over
+// every turning case of its relation (khw_predicate_words) and its runs read as the part answers them. The count with
+// them
+unsigned int khw_comparisons_void(KhwAnswered **forms, unsigned int count)
+{
+    for (unsigned int at = 0u; (at < s_names) && (count < KHW_FORMS); at += 1u)
+    {
+        KhwAnswered *const held = &s_named[at];
+        if ((held->phase == KHW_PHASE_VOID) && (held->frame == (unsigned int)FRAME_RELATION_COUNT) &&
+            ladder_predicate(held->anchor))
+        {
+            forms[count] = held;
+            count += 1u;
+        }
+    }
+    return count;
+}
+
 // The classified ladder forms of the working set two of whose runs carry one place of the relation's tuple, added to
 // `forms` after its `count`: a place a relation's word takes once is held by two runs only where the turning case
 // read a run by a coincidence, and the form is asked its register pass again over a case whose readings stand apart

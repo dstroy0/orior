@@ -230,6 +230,7 @@ int khw_form_stands_for(const KhwAnswered *older, const KhwAnswered *newer);
 int khw_form_stood_for(const KhwAnswered *forms, unsigned int count, const KhwAnswered *newer);
 unsigned int khw_forms_folded(KhwAnswered *forms, unsigned int count);
 unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
+unsigned int khw_comparisons_void(KhwAnswered **forms, unsigned int count);
 void khw_plan_handed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
 // the turning cases `held` is turned over: one, or for a predicate form each of khw_predicate_words

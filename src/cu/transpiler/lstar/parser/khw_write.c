@@ -274,7 +274,8 @@ int main(int count, char **word)
             // after: a discover set its relation and the order its words read, which the turns need and read back
             // from the working set
             static KhwAnswered *s_forms[KHW_FORMS];
-            const unsigned int count = khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms);
+            const unsigned int count =
+                khw_comparisons_void(s_forms, khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms));
             unsigned long long stages = 0ull;
             for (unsigned int at = 0u; at < count; at += 1u)
             {
