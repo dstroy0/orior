@@ -131,35 +131,32 @@ int msq_word(char c)
     return ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || (c == '_');
 }
 
-// a copy of `length` bytes at `text`, ended by a zero byte
-static char *msq_copied(const char *text, size_t length)
-{
-    char *const copy = (char *)malloc(length + 1u);
-    if (copy != NULL)
-    {
-        memcpy(copy, text, length);
-        copy[length] = '\0';
-    }
-    return copy;
-}
-
 void msq_listing_free(MsqListing *listing)
 {
-    for (size_t at = 0u; at < listing->count; at += 1u)
+    // a view holds neither room nor text: its lines are another listing's
+    if (listing->room != 0u)
     {
-        free(listing->lines[at].raw);
-        free(listing->lines[at].body);
+        free(listing->lines);
     }
-    free(listing->lines);
+    free(listing->text);
     memset(listing, 0, sizeof(*listing));
 }
 
-// Every instruction of the listing `text` of `length` bytes, in the order printed: a comment of four or more hex digits
-// giving its offset, `/*<offset>*/`, then space, then its text to the first `;` on its line. Its text past a guard,
-// `@P0 `, `@!UPT `, is its body. 1, or 0 where the system gives no memory
-int msq_listing_read(const char *text, size_t length, MsqListing *listing)
+// Every instruction of the listing `printed` of `length` bytes, in the order printed: a comment of four or more hex
+// digits giving its offset, `/*<offset>*/`, then space, then its text to the first `;` on its line. Its text past a
+// guard, `@P0 `, `@!UPT `, is its body. The listing keeps one copy of the text, each instruction's text ended in it
+// where it ends. 1, or 0 where the system gives no memory
+int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
 {
     memset(listing, 0, sizeof(*listing));
+    char *const text = (char *)malloc(length + 1u);
+    if (text == NULL)
+    {
+        return 0;
+    }
+    memcpy(text, printed, length);
+    text[length] = '\0';
+    listing->text = text;
     size_t at = 0u;
     while ((at + 1u) < length)
     {
@@ -252,14 +249,10 @@ int msq_listing_read(const char *text, size_t length, MsqListing *listing)
         }
         MsqLine *const line = &listing->lines[listing->count];
         line->offset = offset;
-        line->raw = msq_copied(text + walk, last - walk);
-        line->body = msq_copied(text + body, last - body);
-        if ((line->raw == NULL) || (line->body == NULL))
-        {
-            free(line->raw);
-            free(line->body);
-            return 0;
-        }
+        line->raw = text + walk;
+        line->body = text + body;
+        // the instruction's text ended in the copy where it ends, past which the walk has already read
+        text[last] = '\0';
         listing->count += 1u;
     }
     return 1;
@@ -287,7 +280,7 @@ MsqReading msq_listing_at(const MsqListing *listing, unsigned long long offset)
         }
         memcpy(reading.operation, line->body, length);
         reading.operation[length] = '\0';
-        reading.body = msq_copied(line->body, strlen(line->body));
+        reading.body = line->body;
         break;
     }
     return reading;

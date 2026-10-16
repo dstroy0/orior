@@ -4,6 +4,8 @@
 #ifndef CUBIN_WRITE_H
 #define CUBIN_WRITE_H
 
+#include "../container_write.h"
+
 // A cubin is an ELF, and almost all of it says what the kernel takes and not what it does: its parameters, the
 // constant bank they lie in, its notes, its symbols and its relocations. The cell's probes found that between two
 // cubins of one kernel only its code, the size of the code, the count of registers it holds and the offsets of its
@@ -37,6 +39,26 @@ typedef struct
 // the cubin written into `written`, which holds `room` bytes, and its size through `size`. 1, or 0 with the reason
 // printed, having written nothing
 int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long long room, unsigned long long *size);
+
+// what a cubin of many kernels is written from: a cubin the toolchain made that holds every one of them, and each
+// kernel's name, code and exits (container_write.h, ContainerPart), its register count 0 where the pattern's is kept
+typedef struct
+{
+    const unsigned char *pattern;
+    unsigned long long pattern_size;
+    const ContainerPart *kernels;
+    unsigned int kernel_count;
+} CubinKernels;
+
+// the cubin written with every kernel of `args` put in at one laying out, into `written`, which holds `room` bytes,
+// and its size through `size`. 1, or 0 with the reason printed, having written nothing
+int cubin_kernels_write(const CubinKernels *args, unsigned char *written, unsigned long long room,
+                        unsigned long long *size);
+
+// where the code of `kernel` lies in `pattern`, which is `pattern_size` bytes: its offset and its length. 1, or 0
+// where the pattern holds no such kernel
+int cubin_code_of(const unsigned char *pattern, unsigned long long pattern_size, const char *kernel,
+                  unsigned long long *offset, unsigned long long *size);
 
 // the container a system accepted, read from the container rows of its layout at `path`: its bytes into `pattern`,
 // which holds `room`, and the kernel it enters at into `kernel`, which holds `kernel_room`. The bytes read, or 0 where

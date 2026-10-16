@@ -41,6 +41,34 @@ typedef struct
 int container_write(const ContainerWrite *args, unsigned char *written, unsigned long long room,
                     unsigned long long *size);
 
+// one part of many put into one container: its name, its code and the code's size, the registers it holds, 0 where
+// the pattern's count for it is kept, and where each of its exits lies in its code
+typedef struct
+{
+    const char *part;
+    const unsigned char *code;
+    unsigned long long code_size;
+    unsigned int registers;
+    const unsigned int *exits;
+    unsigned int exit_count;
+} ContainerPart;
+
+// what a container of many parts is written from: the layout, the pattern, and the parts, each a part the pattern
+// already holds, every one of them put in at one laying out of the container
+typedef struct
+{
+    const ContainerLayout *layout;
+    const unsigned char *pattern;
+    unsigned long long pattern_size;
+    const ContainerPart *parts;
+    unsigned int part_count;
+} ContainerParts;
+
+// the container written with every part of `args` put in, into `written`, which holds `room` bytes, and its size
+// through `size`. 1, or 0 with the reason printed, having written nothing
+int container_parts_write(const ContainerParts *args, unsigned char *written, unsigned long long room,
+                          unsigned long long *size);
+
 // the offsets in `code` of every instruction whose low word matches `ending`, into `exits` which holds `room` of
 // them: the count found. What ends a part is the target's to say and is passed in
 unsigned int container_endings_find(const ContainerLayout *layout, const unsigned char *code,
@@ -58,6 +86,11 @@ unsigned int container_registers_read(const ContainerLayout *layout, const unsig
 unsigned int container_exits_read(const ContainerLayout *layout, const unsigned char *pattern,
                                   unsigned long long pattern_size, const char *part, unsigned int *exits,
                                   unsigned int room);
+
+// where the code of `part` lies in `pattern`, which is `pattern_size` bytes: its offset through `offset` and its length
+// through `size`. 1, or 0 where the pattern holds no such part or its code lies past the pattern's end
+int container_part_code(const ContainerLayout *layout, const unsigned char *pattern, unsigned long long pattern_size,
+                        const char *part, unsigned long long *offset, unsigned long long *size);
 
 // every code section of `container`, which is `size` bytes, each a section whose name is the layout's code name for
 // some part: the offset of each through `offsets` and its length through `sizes`, which hold `room`. The count found,

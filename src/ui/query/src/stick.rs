@@ -132,40 +132,29 @@ fn vendor(context: &mut Context) -> Result<i32, String> {
     Ok(code)
 }
 
-/// Every `.bin` under `folder` read back by nvdisasm into its `.dis`, as many at once as the host
-/// has processors, each in the run's environment and the context's.
-fn read_back(context: &Context, run: &Run, nvdisasm: &Path, folder: &Path) -> Result<(), String> {
-    let codes: Vec<PathBuf> = std::fs::read_dir(folder).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "bin")).collect();
-    let at_once = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-    let next = std::sync::atomic::AtomicUsize::new(0);
-    let failed = std::sync::Mutex::new(None);
-    let (root, env, writer) = (context.root, &context.env, run.writer());
-    std::thread::scope(|scope| {
-        for _ in 0..at_once.min(codes.len().max(1)) {
-            scope.spawn(|| loop {
-                let at = next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                let Some(code) = codes.get(at) else { break };
-                let mut command = writer.command_of(nvdisasm);
-                command.envs(env.iter().map(|(k, v)| (k.as_str(), v.as_str()))).current_dir(root).stdin(std::process::Stdio::null());
-                match command.args(["-b", "SM86", &native(code)]).output() {
-                    Ok(read) => {
-                        let mut bytes = read.stdout;
-                        bytes.extend(&read.stderr);
-                        let _ = std::fs::write(code.with_extension("dis"), bytes);
-                    }
-                    Err(said) => {
-                        if let Ok(mut f) = failed.lock() {
-                            *f = Some(format!("{}: {said}", nvdisasm.display()));
-                        }
-                    }
-                }
-            });
-        }
-    });
-    match failed.into_inner().ok().flatten() {
-        Some(said) => Err(said),
-        None => Ok(()),
+/// Every `.bin` under `folder`, each the code of the kernel `<prefix><number>` of the cubin at
+/// `pattern`, read by the vendor at one start (`cubin_listing`): the codes put into that cubin and
+/// read once, a code that stops the vendor read alone, and each code's listing, the run's
+/// `<number>.dis`, kept as its `.dis` beside it.
+pub fn listings_read(context: &mut Context, run: &Run, pattern: &Path, prefix: &str, architecture: &str, folder: &Path) -> Result<(), String> {
+    let mut codes: Vec<PathBuf> = std::fs::read_dir(folder).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "bin")).collect();
+    if codes.is_empty() {
+        return Ok(());
     }
+    codes.sort();
+    let listing = context.tool("cubin_listing")?;
+    let nvdisasm = context.program(Role::Nvdisasm)?;
+    let list: String = codes.iter().map(|code| native(code) + "\n").collect();
+    run.writer().hand("cubin_listing_codes.txt", list.as_bytes(), crate::writer::Priority::Ordinary)?;
+    if context.teed(run, "cubin_listing", &listing, &[&native(pattern), prefix, architecture, &native(&nvdisasm), "cubin_listing_codes.txt"])? != 0 {
+        return Err("the vendor did not read the codes".into());
+    }
+    for code in &codes {
+        let number = code.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let read = run.writer().latest(&format!("{number}.dis")).ok_or_else(|| format!("the run holds no listing of {}", code.display()))?;
+        std::fs::write(code.with_extension("dis"), &*read).map_err(|e| format!("{}: {e}", code.display()))?;
+    }
+    Ok(())
 }
 
 /// The engine's stick: each kernel written through the rulesets, its encodings read back, and the
@@ -173,7 +162,6 @@ fn read_back(context: &Context, run: &Run, nvdisasm: &Path, folder: &Path) -> Re
 fn engine(context: &mut Context) -> Result<i32, String> {
     let engine = context.tool("measuring_stick_engine")?;
     let reader = context.tool("measuring_stick_read")?;
-    let nvdisasm = context.program(Role::Nvdisasm)?;
     let paths = vendor_paths(context.root);
     let out = paths.out.join("engine");
     std::fs::create_dir_all(&out).map_err(|e| format!("{}: {e}", out.display()))?;
@@ -193,7 +181,7 @@ fn engine(context: &mut Context) -> Result<i32, String> {
         context.ended(run)?;
         return Ok(1);
     }
-    read_back(context, &run, &nvdisasm, &out)?;
+    listings_read(context, &run, &paths.cubin, "measuring_stick_", "SM86", &out)?;
     let code = context.teed(&run, "measuring_stick_read", &reader, &[&native(&paths.sass), &native(&paths.tsv), &native(&table.join("sass.krs")), &native(&record), &native(&out.join("engine.tsv")), &native(&out)])?;
     context.ended(run)?;
     Ok(code)

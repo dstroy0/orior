@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// container_write.c: one container written from another, with new code in it, driven by a layout file
+// container_write.c: one container written from another, with new code in it for one part or many, driven by a layout
+// file
 #include "container_write_internal.h"
+
+#include <stdlib.h>
 
 static void value_put(unsigned char *bytes, unsigned int width, unsigned long long value)
 {
@@ -75,8 +78,17 @@ static void registers_set(const Places *places, unsigned char *bytes, unsigned l
     }
 }
 
-int container_write(const ContainerWrite *args, unsigned char *written, unsigned long long room,
-                    unsigned long long *size)
+// where one part of the many lies in the pattern, as the write finds it: its code section, its own attributes
+// section and its symbol
+typedef struct
+{
+    unsigned int code_index;
+    unsigned int part_info;
+    unsigned int symbol;
+} PartPlace;
+
+int container_parts_write(const ContainerParts *args, unsigned char *written, unsigned long long room,
+                          unsigned long long *size)
 {
     Places places;
     if (!container_places_read(args->layout, &places))
@@ -101,7 +113,9 @@ int container_write(const ContainerWrite *args, unsigned char *written, unsigned
         container_value_read(&pattern[places.segment_entry], places.segment_entry_width);
     const unsigned int segments =
         (unsigned int)container_value_read(&pattern[places.segment_count], places.segment_count_width);
-    Section kept[CONTAINER_SECTIONS];
+    // the sections as the write holds them, as many as CONTAINER_SECTIONS bounds, kept apart from the stack
+    static Section s_kept[CONTAINER_SECTIONS];
+    Section *const kept = s_kept;
     for (unsigned int index = 0u; index < sections; index += 1u)
     {
         const unsigned long long at = section_table + ((unsigned long long)index * section_entry);
@@ -116,18 +130,8 @@ int container_write(const ContainerWrite *args, unsigned char *written, unsigned
         kept[index].align = container_value_read(&pattern[at + places.section_align], places.section_align_width);
     }
     char named[256];
-    unsigned int code_index = sections;
-    unsigned int part_info = sections;
     unsigned int all_info = sections;
     unsigned int symbols = sections;
-    if (layout_text(args->layout, "section.code", args->part, named, sizeof(named)))
-    {
-        code_index = container_section_named(&places, pattern, kept, sections, strings, named);
-    }
-    if (layout_text(args->layout, "section.part_info", args->part, named, sizeof(named)))
-    {
-        part_info = container_section_named(&places, pattern, kept, sections, strings, named);
-    }
     if (layout_text(args->layout, "section.program_info", NULL, named, sizeof(named)))
     {
         all_info = container_section_named(&places, pattern, kept, sections, strings, named);
@@ -136,45 +140,96 @@ int container_write(const ContainerWrite *args, unsigned char *written, unsigned
     {
         symbols = container_section_named(&places, pattern, kept, sections, strings, named);
     }
-    if ((code_index == sections) || (part_info == sections) || (all_info == sections) || (symbols == sections))
+    if ((all_info == sections) || (symbols == sections))
     {
-        printf("  container_write: the pattern holds no part named %s\n", args->part);
+        printf("  container_write: the pattern holds no program attributes or no symbol table\n");
         return 0;
     }
-    static unsigned char s_part[CONTAINER_ATTRIBUTE_ROOM];
-    static unsigned char s_all[CONTAINER_ATTRIBUTE_ROOM];
-    const unsigned long long part_size = attributes_written(&places, kept[part_info].bytes, kept[part_info].size,
-                                                            args->exits, args->exit_count, s_part, sizeof(s_part));
-    if (part_size == 0ull)
+    // every part's place, and the room its rewritten attributes take: what they took, and four bytes an exit more
+    PartPlace *const place = (PartPlace *)calloc((size_t)args->part_count + 1u, sizeof(PartPlace));
+    if (place == NULL)
     {
-        printf("  container_write: %s holds no endings to write\n", args->part);
+        printf("  container_write: no memory for the places of %u parts\n", args->part_count);
         return 0;
     }
-    if (kept[all_info].size > sizeof(s_all))
+    unsigned long long attribute_room = 0ull;
+    int found = 1;
+    for (unsigned int part = 0u; found && (part < args->part_count); part += 1u)
     {
-        printf("  container_write: the container's attributes take %llu bytes where the room is %llu\n",
-               kept[all_info].size, (unsigned long long)sizeof(s_all));
+        const ContainerPart *const one = &args->parts[part];
+        place[part].code_index = sections;
+        place[part].part_info = sections;
+        if (layout_text(args->layout, "section.code", one->part, named, sizeof(named)))
+        {
+            place[part].code_index = container_section_named(&places, pattern, kept, sections, strings, named);
+        }
+        if (layout_text(args->layout, "section.part_info", one->part, named, sizeof(named)))
+        {
+            place[part].part_info = container_section_named(&places, pattern, kept, sections, strings, named);
+        }
+        found = (place[part].code_index != sections) && (place[part].part_info != sections);
+        if (!found)
+        {
+            printf("  container_write: the pattern holds no part named %s\n", one->part);
+            break;
+        }
+        place[part].symbol =
+            (unsigned int)(container_value_read(&pattern[kept[place[part].code_index].was_at + places.section_info],
+                                                places.section_info_width) &
+                           places.registers_symbol_mask);
+        // the symbol's size is written inside the symbol table
+        found = (((unsigned long long)place[part].symbol * places.symbol_bytes) + places.symbol_size +
+                 places.symbol_size_width) <= kept[symbols].size;
+        if (!found)
+        {
+            printf("  container_write: the symbol %u of %s lies past the %llu bytes of its symbol table\n",
+                   place[part].symbol, one->part, kept[symbols].size);
+            break;
+        }
+        attribute_room += kept[place[part].part_info].size + (4ull * one->exit_count);
+    }
+    // one block of memory for the program's attributes and every part's own, each part's after the last
+    unsigned char *const block = found ? (unsigned char *)malloc((size_t)(kept[all_info].size + attribute_room + 1ull))
+                                       : NULL;
+    if (block == NULL)
+    {
+        printf("  container_write: no room was had for the attributes of %u parts\n", args->part_count);
+        free(place);
         return 0;
     }
-    memcpy(s_all, kept[all_info].bytes, kept[all_info].size);
-    const unsigned int symbol =
-        (unsigned int)(container_value_read(&pattern[kept[code_index].was_at + places.section_info],
-                                            places.section_info_width) &
-                       places.registers_symbol_mask);
-    // the symbol's size is written inside the symbol table
-    if ((((unsigned long long)symbol * places.symbol_bytes) + places.symbol_size + places.symbol_size_width) >
-        kept[symbols].size)
+    unsigned char *const all = block;
+    memcpy(all, kept[all_info].bytes, kept[all_info].size);
+    kept[all_info].bytes = all;
+    unsigned long long used = kept[all_info].size;
+    for (unsigned int part = 0u; found && (part < args->part_count); part += 1u)
     {
-        printf("  container_write: the part's symbol %u lies past the %llu bytes of its symbol table\n", symbol,
-               kept[symbols].size);
+        const ContainerPart *const one = &args->parts[part];
+        const unsigned long long part_room = kept[place[part].part_info].size + (4ull * one->exit_count);
+        const unsigned long long part_size =
+            attributes_written(&places, kept[place[part].part_info].bytes, kept[place[part].part_info].size,
+                               one->exits, one->exit_count, block + used, part_room);
+        found = (part_size != 0ull);
+        if (!found)
+        {
+            printf("  container_write: %s holds no endings to write\n", one->part);
+            break;
+        }
+        if (one->registers != 0u)
+        {
+            registers_set(&places, all, kept[all_info].size, place[part].symbol, one->registers);
+        }
+        kept[place[part].code_index].bytes = one->code;
+        kept[place[part].code_index].size = one->code_size;
+        kept[place[part].part_info].bytes = block + used;
+        kept[place[part].part_info].size = part_size;
+        used += part_size;
+    }
+    if (!found)
+    {
+        free(block);
+        free(place);
         return 0;
     }
-    registers_set(&places, s_all, kept[all_info].size, symbol, args->registers);
-    kept[code_index].bytes = args->code;
-    kept[code_index].size = args->code_size;
-    kept[part_info].bytes = s_part;
-    kept[part_info].size = part_size;
-    kept[all_info].bytes = s_all;
 
     unsigned long long at = places.header_bytes;
     for (unsigned int index = 1u; index < sections; index += 1u)
@@ -188,6 +243,8 @@ int container_write(const ContainerWrite *args, unsigned char *written, unsigned
     if (whole > room)
     {
         printf("  container_write: the container takes %llu bytes where the room is %llu\n", whole, room);
+        free(block);
+        free(place);
         return 0;
     }
     memset(written, 0, whole);
@@ -208,12 +265,21 @@ int container_write(const ContainerWrite *args, unsigned char *written, unsigned
             }
         }
     }
-    unsigned char *const code_header = &written[new_sections + ((unsigned long long)code_index * section_entry)];
-    value_put(&code_header[places.section_info], places.section_info_width,
-              ((unsigned long long)args->registers << places.registers_shift) | symbol);
     unsigned char *const symbol_table = &written[kept[symbols].goes_at];
-    value_put(&symbol_table[((unsigned long long)symbol * places.symbol_bytes) + places.symbol_size],
-              places.symbol_size_width, args->code_size);
+    for (unsigned int part = 0u; part < args->part_count; part += 1u)
+    {
+        const ContainerPart *const one = &args->parts[part];
+        // a part given a register count has it in its code section's header; one given none keeps the pattern's
+        if (one->registers != 0u)
+        {
+            unsigned char *const code_header =
+                &written[new_sections + ((unsigned long long)place[part].code_index * section_entry)];
+            value_put(&code_header[places.section_info], places.section_info_width,
+                      ((unsigned long long)one->registers << places.registers_shift) | place[part].symbol);
+        }
+        value_put(&symbol_table[((unsigned long long)place[part].symbol * places.symbol_bytes) + places.symbol_size],
+                  places.symbol_size_width, one->code_size);
+    }
     for (unsigned int index = 0u; index < segments; index += 1u)
     {
         const unsigned long long was = segment_table + ((unsigned long long)index * segment_entry);
@@ -250,6 +316,17 @@ int container_write(const ContainerWrite *args, unsigned char *written, unsigned
             value_put(&header[places.segment_memory_size], places.segment_memory_width, last - first);
         }
     }
+    free(block);
+    free(place);
     *size = whole;
     return 1;
+}
+
+int container_write(const ContainerWrite *args, unsigned char *written, unsigned long long room,
+                    unsigned long long *size)
+{
+    const ContainerPart one = {args->part,      args->code,  args->code_size,
+                               args->registers, args->exits, args->exit_count};
+    const ContainerParts parts = {args->layout, args->pattern, args->pattern_size, &one, 1u};
+    return container_parts_write(&parts, written, room, size);
 }

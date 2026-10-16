@@ -378,8 +378,8 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/opening.h	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick.md	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick.py	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_engine.cpp	40
-src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query.c	41
-src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/frames.c	4
+src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query.c	40
+src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/frames.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/msq_internal.h	12
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/ranges.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_read.c	3
@@ -552,7 +552,7 @@ theory/thought_experiments/cell_tracking/proposal.md	1
 theory/thought_experiments/engine/state_vectors.md	1
 theory/thought_experiments/orior/chapters/chapter_thought_experiments_boundary_holds.tex	2
 theory/workbooks/Lstar_protocol/angluin.md	3
-theory/workbooks/Lstar_protocol/query_protocol_table.md	178
+theory/workbooks/Lstar_protocol/query_protocol_table.md	176
 theory/workbooks/casmi/casmi_problem_table.md	7
 theory/workbooks/casmi/casmi_workbook.md	2
 theory/workbooks/cell_tracking/README.md	2
@@ -684,7 +684,7 @@ utils/maint/data/salishan/orior_algorithmic_extraction/boundary_check.py	2
 utils/maint/data/salishan/orior_algorithmic_extraction/corpus_admit.py	8
 utils/maint/data/salishan/orior_algorithmic_extraction/corpus_growth.py	1
 utils/maint/data/salishan/paper_supervisor.py	4
-utils/maint/engine/chain_check.sh	3
+utils/maint/engine/chain_check.sh	2
 utils/maint/engine/emit_crc_key.py	1
 utils/maint/engine/gnascor_measure.py	7
 utils/maint/engine/gnascor_read.py	20

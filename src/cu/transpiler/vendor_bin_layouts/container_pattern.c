@@ -218,6 +218,36 @@ unsigned int container_registers_read(const ContainerLayout *layout, const unsig
     return found;
 }
 
+int container_part_code(const ContainerLayout *layout, const unsigned char *pattern, unsigned long long pattern_size,
+                        const char *part, unsigned long long *offset, unsigned long long *size)
+{
+    Places places;
+    char named[256];
+    if (!container_places_read(layout, &places) || !container_pattern_holds(&places, pattern, pattern_size) ||
+        !layout_text(layout, "section.code", part, named, sizeof(named)))
+    {
+        return 0;
+    }
+    unsigned int count = 0u;
+    unsigned long long strings = 0ull;
+    unsigned long long entry = 0ull;
+    const unsigned long long table = container_sections_of(&places, pattern, &count, &strings, &entry);
+    for (unsigned int index = 0u; index < count; index += 1u)
+    {
+        const unsigned long long at = table + ((unsigned long long)index * entry);
+        const unsigned long long name =
+            strings + container_value_read(&pattern[at + places.section_name], places.section_name_width);
+        if (strcmp((const char *)&pattern[name], named) != 0)
+        {
+            continue;
+        }
+        *offset = container_value_read(&pattern[at + places.section_offset], places.section_offset_width);
+        *size = container_value_read(&pattern[at + places.section_size], places.section_size_width);
+        return (*offset <= pattern_size) && (*size <= (pattern_size - *offset));
+    }
+    return 0;
+}
+
 unsigned int container_exits_read(const ContainerLayout *layout, const unsigned char *pattern,
                                   unsigned long long pattern_size, const char *part, unsigned int *exits,
                                   unsigned int room)

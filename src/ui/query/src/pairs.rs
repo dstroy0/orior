@@ -216,7 +216,6 @@ fn text_identity(context: &mut Context, mode: &Mode, identity: &Path, folder: &s
     let python = context.program(Role::Python)?;
     let nvcc = context.program(Role::Nvcc)?;
     let cuobjdump = context.program(Role::Cuobjdump)?;
-    let nvdisasm = context.program(Role::Nvdisasm)?;
     let ccbin = if cfg!(windows) { context.program(Role::Cl).ok().and_then(|cl| cl.parent().map(Path::to_path_buf)) } else { None };
     let table = context.at(TABLE);
     let stick = context.at(STICK);
@@ -247,14 +246,7 @@ fn text_identity(context: &mut Context, mode: &Mode, identity: &Path, folder: &s
     if context.handed(&run, "assembler.log", &engine, &[&text(&cu), &text(&sass), &text(&sides.join("engine"))])? != 0 {
         return Err("the engine did not write the sides".into());
     }
-    for code in std::fs::read_dir(sides.join("engine")).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "bin")) {
-        let name = format!("{}.dis", code.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
-        if context.handed(&run, &name, &nvdisasm, &["-b", &part_read(&mode.part), &text(&code)])? == 0 {
-            if let Some(read) = run.writer().latest(&name) {
-                let _ = std::fs::write(code.with_extension("dis"), &*read);
-            }
-        }
-    }
+    crate::stick::listings_read(context, &run, &cubin, "measuring_stick_", &part_read(&mode.part), &sides.join("engine"))?;
     if context.teed(&run, "klq_identity", identity, &["slice", &text(&sass), &text(&stick.join("measuring_stick.tsv")), &text(&cu), &text(&sides), &text(&sides.join("engine"))])? != 0 {
         return Err("the sides were not sliced".into());
     }

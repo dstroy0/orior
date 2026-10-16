@@ -24,11 +24,6 @@
 #include <unistd.h>
 #endif
 
-// the least encodings a range the vendor stopped in is read on as two while the pool is starving, the part to its stop
-// and the part past it, so that a long range's stops are read past at once; a shorter range, or any while the pool has
-// a piece waiting for every reader, is read again whole with its stop put to a NOP, one reading more for each stop
-#define MSQ_SPLIT 128u
-
 // a NOP for the architecture: put in place of an instruction the vendor calls illegal so the run reads past it. The
 // instruction it stands in for is already held; its own reading is never used
 static const unsigned char s_nop[16] = {0x18u, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
@@ -63,22 +58,26 @@ typedef struct
 {
     MsqKind kind;
     char operation[48];
-    char *body;
+    const char *body;
 } MsqReading;
 
-// one instruction of a listing: its offset, its text as printed, and that text past its guard
+// one instruction of a listing: its offset, its text as printed, and that text past its guard, both in the listing's
+// own copy of what the vendor printed
 typedef struct
 {
     unsigned long long offset;
-    char *raw;
-    char *body;
+    const char *raw;
+    const char *body;
 } MsqLine;
 
+// A listing: its instructions, and the one copy of the vendor's text they lie in. A listing that is a view of the
+// lines of another, a piece of one reading, holds no room and no text of its own
 typedef struct
 {
     MsqLine *lines;
     size_t count;
     size_t room;
+    char *text;
 } MsqListing;
 
 // a run of bytes in the run's buffer, or of memory of the program's own
@@ -150,40 +149,48 @@ typedef struct
     int readable;
 } MsqFrame;
 
-// one piece of the cross's work: a range of the distinct slot encodings read as one run, one frame read whole, or every
-// distinct tail read together
+// one piece the cross reads: a distinct slot encoding, a frame, or a distinct tail, all of them read together as one
+// accumulated run (msq_accumulated_read)
 typedef enum
 {
-    MSQ_WORK_RANGE = 0,
-    MSQ_WORK_FRAME = 1,
-    MSQ_WORK_TAILS = 2
-} MsqWorkKind;
+    MSQ_PIECE_WORD = 0,
+    MSQ_PIECE_FRAME = 1,
+    MSQ_PIECE_TAIL = 2
+} MsqPieceKind;
 
+// where a piece stands after the accumulated run: read in it, stopped at by the vendor and so set aside, or set aside
+// unread where the vendor stopped at no address it named
+typedef enum
+{
+    MSQ_PIECE_READ = 0,
+    MSQ_PIECE_STOPPED = 1,
+    MSQ_PIECE_UNREAD = 2
+} MsqPieceState;
+
+// a piece: its kind, its index among the distinct ones of its kind, its bytes, where it stood in the last run read, and
+// how it stands
 typedef struct
 {
-    MsqWorkKind kind;
-    size_t first;
-    size_t count;
-} MsqWork;
+    MsqPieceKind kind;
+    size_t index;
+    MsqBytes bytes;
+    unsigned long long start;
+    MsqPieceState state;
+} MsqPiece;
 
-// The cross's work, read by a pool of reader threads at once, each thread a reader of its own: the ranges of the
-// distinct slot encodings, each frame and the tails, taken off the queue in the order put. A range the vendor stops in
-// puts ranges of its own to the queue (msq_range_read). The queue is kept under its lock; `active` counts the readers
-// at work, so that a thread finding the queue empty waits while one of them may still put to it
+// The pieces set aside from the accumulated run, each read alone by a pool of reader threads at once, each thread a
+// reader of its own: `aside` lists them by their place in `pieces`, every one put before a thread starts, and a thread
+// takes the next by `next`. What each reads goes where its kind's reading is kept: a slot encoding's into `readings`,
+// a frame's into `frame_read`, a tail's addressed registers into `addressed`
 typedef struct
 {
-    const MsqDistinct *words;
+    const MsqPiece *pieces;
+    const size_t *aside;
+    size_t aside_count;
+    _Atomic size_t next;
     MsqReading *readings;
-    const MsqBytes *frames;
     MsqFrame *frame_read;
-    const MsqDistinct *tails;
     MsqRegisters *addressed;
-    MsqWork *queue;
-    size_t queued;
-    size_t room;
-    size_t taken;
-    pthread_mutex_t lock;
-    _Atomic unsigned int active;
     _Atomic unsigned int readers;
     _Atomic unsigned long long calls;
     _Atomic int failed;
@@ -237,12 +244,10 @@ int msq_distinct_made(MsqDistinct *set, size_t most);
 size_t msq_distinct_index(MsqDistinct *set, const MsqBytes *item);
 void msq_distinct_free(MsqDistinct *set);
 int msq_illegal_said(const char *text, size_t length);
-size_t msq_ranges(size_t words, unsigned int processors, MsqWork *ranges);
-int msq_pool_put(MsqPool *pool, MsqWork work);
-int msq_pool_starving(MsqPool *pool);
 void *msq_pool_worker(void *argument);
 unsigned int msq_processors(void);
-int msq_tails_read(MsqReader *reader, const MsqDistinct *tails, MsqRegisters *addressed);
+int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqListing *listing);
+void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, MsqReading *readings, MsqFrame *frames, MsqRegisters *addressed);
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read);
 void msq_frame_free(MsqFrame *read);
 int msq_control_read(const char *body);

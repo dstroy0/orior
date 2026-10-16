@@ -40,6 +40,25 @@ int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long lo
     return container_write(&container, written, room, size);
 }
 
+int cubin_kernels_write(const CubinKernels *args, unsigned char *written, unsigned long long room,
+                        unsigned long long *size)
+{
+    const ContainerLayout *const layout = cubin_layout();
+    if (layout == NULL)
+    {
+        return 0;
+    }
+    const ContainerParts parts = {layout, args->pattern, args->pattern_size, args->kernels, args->kernel_count};
+    return container_parts_write(&parts, written, room, size);
+}
+
+int cubin_code_of(const unsigned char *pattern, unsigned long long pattern_size, const char *kernel,
+                  unsigned long long *offset, unsigned long long *size)
+{
+    const ContainerLayout *const layout = cubin_layout();
+    return (layout != NULL) && container_part_code(layout, pattern, pattern_size, kernel, offset, size);
+}
+
 // the value of one hex digit, or 16 where `digit` is none
 static unsigned int cubin_hex_digit(char digit)
 {
