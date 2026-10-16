@@ -17,7 +17,7 @@ use crate::commands::Context;
 use crate::programs::{Programs, Role};
 use crate::run;
 use crate::tools::text;
-use crate::writer::{Priority, Writer};
+use crate::writer::Writer;
 
 /// The keepers' own run folder, and the sweeps'.
 const KEPT: &str = "build/qry_kept/qry";
@@ -101,7 +101,7 @@ pub fn folders_with_runs(root: &Path) -> Vec<PathBuf> {
 
 /// A writer for the run at `qry`, in the image of `own`.
 fn writer_of(own: &Writer, qry: &Path) -> Writer {
-    Writer { binary: own.binary.clone(), qry: qry.to_path_buf(), top: own.top.clone(), path: own.path.clone() }
+    Writer { binary: own.binary.clone(), qry: qry.to_path_buf(), top: own.top.clone(), path: own.path.clone(), member: None }
 }
 
 /// Each run of `folder` still a `.qry` with its writer's account read: a line each, then the
@@ -351,35 +351,6 @@ fn crystals_refused(free: &Result<(), String>, crystal: Option<&Path>) -> Vec<St
     }
 }
 
-/// What the keepers say of the folders, sorted into the writers' accounts, the crystals' lines and
-/// the runs kept.
-pub struct Said {
-    pub writers: Vec<String>,
-    pub crystals: Vec<String>,
-    pub kept: Vec<String>,
-}
-
-/// Every folder given kept and its writers read; the sweeps' folder like the rest but made no
-/// crystal.
-pub fn folders_said(root: &Path, programs: &dyn Programs, folders: &[PathBuf], sweeps: &Path, crystal: Option<&Path>, most: usize, own: &Writer) -> Said {
-    let mut said = Said { writers: Vec::new(), crystals: Vec::new(), kept: Vec::new() };
-    for folder in folders {
-        let crystal_here = if crate::run::plain(folder) == crate::run::plain(sweeps) { None } else { crystal };
-        let mut lines = Vec::new();
-        kept_folder(root, programs, folder, crystal_here, most, own, &mut |line| lines.push(line.to_string()));
-        for line in lines {
-            if line.contains(" runs kept") || line.contains("left as it is") {
-                said.kept.push(line);
-            } else if line.contains("crystal") || line.contains(" ms") && !line.contains("ms writing") {
-                said.crystals.push(line);
-            } else {
-                said.writers.push(line);
-            }
-        }
-    }
-    said
-}
-
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     if !words.is_empty() {
         return Err("kept takes no words".into());
@@ -391,32 +362,23 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
         Ok(()) => crystal_built(context),
         Err(_) => None,
     };
-    let mut crystals_said = crystals_refused(&free, crystal.as_deref());
+    for line in crystals_refused(&free, crystal.as_deref()) {
+        context.say(&line);
+    }
     let sweeps = context.at(SWEEPS);
-    let said = folders_said(context.root, context.programs, &folders_with_runs(context.root), &sweeps, crystal.as_deref(), run::kept_most(), own.writer());
-    let writers_said = said.writers;
-    crystals_said.extend(said.crystals);
-    let kept_said = said.kept;
-    for (name, lines) in [("writers", &writers_said), ("crystals", &crystals_said), ("kept", &kept_said)] {
-        own.writer().hand(name, format!("{}\n", lines.join("\n")).as_bytes(), Priority::Ordinary)?;
-        for line in lines {
-            context.say(line);
-        }
+    // every line a keeper says goes out as it is said, to the sink and to this run
+    for folder in folders_with_runs(context.root) {
+        let crystal_here = if run::plain(&folder) == run::plain(&sweeps) { None } else { crystal.as_deref() };
+        kept_folder(context.root, context.programs, &folder, crystal_here, run::kept_most(), own.writer(), &mut |line| {
+            (context.sink)(line);
+            crate::member::said(line);
+        });
     }
     let hours: u64 = std::env::var("QRY_SWEEP_HOURS").ok().and_then(|v| v.parse().ok()).unwrap_or(12);
-    let swept = if swept_within(&sweeps, hours) {
-        vec![format!("  a sweep of the host is newer than {hours} hours: none is run")]
-    } else {
-        let mut lines = Vec::new();
-        let mut inner = Context { root: context.root, programs: context.programs, sink: &mut |line: &str| lines.push(line.to_string()), leave: context.leave, asker: context.asker, env: context.env.clone() };
-        if let Err(said) = sweep(&mut inner, &[]) {
-            lines.push(format!("  {said}"));
-        }
-        lines
-    };
-    own.writer().hand("swept", format!("{}\n", swept.join("\n")).as_bytes(), Priority::Ordinary)?;
-    for line in &swept {
-        context.say(line);
+    if swept_within(&sweeps, hours) {
+        context.say(&format!("  a sweep of the host is newer than {hours} hours: none is run"));
+    } else if let Err(said) = sweep(context, &[]) {
+        context.say(&format!("  {said}"));
     }
     context.ended(own)?;
     Ok(0)
@@ -513,10 +475,12 @@ mod keeping {
         std::fs::write(sweeps.join("query2-20250101T000002.qry"), "").unwrap();
         std::fs::write(other.join("query1-20250101T000003.qry"), "").unwrap();
         std::fs::write(other.join("query2-20250101T000004.qry"), "").unwrap();
-        let said = folders_said(&root, &OnPath, &[sweeps.clone(), other.clone()], &sweeps, Some(&base.join("no_crystal_here")), 64, live.writer());
-        assert!(said.kept.iter().any(|l| l.contains("sweep") && l.contains("2 of 2 runs kept")), "{:?}", said.kept);
-        assert!(said.crystals.iter().any(|l| l.contains("000003")), "{:?}", said.crystals);
-        assert!(!said.crystals.iter().any(|l| l.contains("000001") || l.contains("000002")), "{:?}", said.crystals);
+        let mut said = Vec::new();
+        kept_folder(&root, &OnPath, &sweeps, None, 64, live.writer(), &mut |line| said.push(line.to_string()));
+        kept_folder(&root, &OnPath, &other, Some(&base.join("no_crystal_here")), 64, live.writer(), &mut |line| said.push(line.to_string()));
+        assert!(said.iter().any(|l| l.contains("sweep") && l.contains("2 of 2 runs kept")), "{said:?}");
+        assert!(said.iter().any(|l| l.contains("000003")), "{said:?}");
+        assert!(!said.iter().any(|l| (l.contains("000001") || l.contains("000002")) && l.contains("crystal")), "{said:?}");
         drop(live);
         let _ = std::fs::remove_dir_all(&base);
     }

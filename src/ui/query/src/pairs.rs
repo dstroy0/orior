@@ -167,12 +167,11 @@ fn configs(context: &Context, run: &mut Run, part: &str) -> Result<(), String> {
 fn host_answered(context: &mut Context, run: &Run, out: &Path) -> Result<(), String> {
     let questions = run.writer().latest("host_questions.cpp").ok_or("the run holds no host_questions.cpp")?;
     let source = out.join("host_questions.cpp");
-    std::fs::write(&source, &questions).map_err(|e| format!("{}: {e}", source.display()))?;
+    std::fs::write(&source, &*questions).map_err(|e| format!("{}: {e}", source.display()))?;
     let program = out.join(crate::tools::binary_name("host_questions"));
     let cxx = context.program(Role::Cxx)?;
-    let compiled = context.ran(run, &cxx, &["-std=c++17", "-O0", "-fwrapv", "-w", "-o", &text(&program), &text(&source)])?;
-    if !compiled.status.success() {
-        return Err(format!("the host questions did not compile\n{}", String::from_utf8_lossy(&compiled.stderr).trim_end()));
+    if context.teed(run, "host_questions_compile", &cxx, &["-std=c++17", "-O0", "-fwrapv", "-w", "-o", &text(&program), &text(&source)])? != 0 {
+        return Err("the host questions did not compile".into());
     }
     if context.handed(run, "host_answers.txt", &program, &[])? != 0 {
         return Err("the host questions did not run".into());
@@ -229,7 +228,7 @@ fn text_identity(context: &mut Context, mode: &Mode, identity: &Path, folder: &s
     let cu = sides.join("measuring_stick.cu");
     let cubin = sides.join("measuring_stick_nvcc.cubin");
     let sass = sides.join("measuring_stick_nvcc.sass");
-    if context.said(&run, &python, &[&text(&context.at(NVIDIA).join("measuring_stick.py")), &text(&cu), &text(&stick.join("measuring_stick.tsv")), &text(&table.join("Lstar.klq"))])? != 0 {
+    if context.teed(&run, "measuring_stick_sides", &python, &[&text(&context.at(NVIDIA).join("measuring_stick.py")), &text(&cu), &text(&stick.join("measuring_stick.tsv")), &text(&table.join("Lstar.klq"))])? != 0 {
         return Err("the sides were not written".into());
     }
     let mut compile: Vec<String> = Vec::new();
@@ -237,24 +236,26 @@ fn text_identity(context: &mut Context, mode: &Mode, identity: &Path, folder: &s
         compile.extend(["-ccbin".into(), text(ccbin)]);
     }
     compile.extend(["-cubin".into(), format!("-arch={}", mode.part), "-O3".into(), "-diag-suppress".into(), "177".into(), "-o".into(), text(&cubin), text(&cu)]);
-    if context.said(&run, &nvcc, &compile.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+    if context.teed(&run, "nvcc", &nvcc, &compile.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
         return Err("nvcc did not compile the sides".into());
     }
-    let listed = context.ran(&run, &cuobjdump, &["-sass", &text(&cubin)])?;
-    if !listed.status.success() {
+    if context.handed(&run, "measuring_stick_nvcc.sass", &cuobjdump, &["-sass", &text(&cubin)])? != 0 {
         return Err("cuobjdump did not read the sides".into());
     }
-    std::fs::write(&sass, &listed.stdout).map_err(|e| format!("{}: {e}", sass.display()))?;
+    let listed = run.writer().latest("measuring_stick_nvcc.sass").ok_or("the run holds no measuring_stick_nvcc.sass")?;
+    std::fs::write(&sass, &*listed).map_err(|e| format!("{}: {e}", sass.display()))?;
     if context.handed(&run, "assembler.log", &engine, &[&text(&cu), &text(&sass), &text(&sides.join("engine"))])? != 0 {
         return Err("the engine did not write the sides".into());
     }
     for code in std::fs::read_dir(sides.join("engine")).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "bin")) {
-        let read = context.ran(&run, &nvdisasm, &["-b", &part_read(&mode.part), &text(&code)])?;
-        let mut bytes = read.stdout;
-        bytes.extend(&read.stderr);
-        let _ = std::fs::write(code.with_extension("dis"), bytes);
+        let name = format!("{}.dis", code.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
+        if context.handed(&run, &name, &nvdisasm, &["-b", &part_read(&mode.part), &text(&code)])? == 0 {
+            if let Some(read) = run.writer().latest(&name) {
+                let _ = std::fs::write(code.with_extension("dis"), &*read);
+            }
+        }
     }
-    if context.said(&run, identity, &["slice", &text(&sass), &text(&stick.join("measuring_stick.tsv")), &text(&cu), &text(&sides), &text(&sides.join("engine"))])? != 0 {
+    if context.teed(&run, "klq_identity", identity, &["slice", &text(&sass), &text(&stick.join("measuring_stick.tsv")), &text(&cu), &text(&sides), &text(&sides.join("engine"))])? != 0 {
         return Err("the sides were not sliced".into());
     }
     host_answered(context, &run, &sides)?;
@@ -282,7 +283,7 @@ fn judged(context: &mut Context, mode: &Mode, identity: &Path, folder: &str) -> 
         let writer = context.tool("khw_machine_write")?;
         let files = Files::of(context.root, &mode.part);
         let words = kernel_words(&mode.part, &files);
-        if context.said(&run, &writer, &words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+        if context.teed(&run, "khw_machine_write", &writer, &words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
             return Err("the vendor's writer handed the run no kernel".into());
         }
     }
@@ -304,7 +305,7 @@ fn judged(context: &mut Context, mode: &Mode, identity: &Path, folder: &str) -> 
         let writer = context.tool("khw_machine_write")?;
         let files = Files::of(context.root, &mode.part);
         let placed = [mode.part.clone(), text(&files.machine), text(&files.layout), text(&files.mnemonics), "krs_forms.txt".into(), "krs".into()];
-        if context.said(&run, &writer, &placed.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+        if context.teed(&run, "khw_machine_write", &writer, &placed.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
             return Err("the vendor's writer placed no forms".into());
         }
         words.push("krs_forms.txt".into());

@@ -622,12 +622,15 @@ const COMMANDS = {
   // The protocol: its one job, the course, shown and with words from the command line started, the run
   // in the protocol panel; and its other commands, which the command line says and the menu does not list.
   course: protocolJob("protocol/course"),
+  tables: protocolJob("protocol/tables"),
   query: protocolJob("protocol/query"),
   learn: protocolJob("protocol/learn"),
   cross: protocolJob("protocol/cross"),
   write: protocolJob("protocol/write"),
   pairs: protocolJob("protocol/pairs"),
   stick: protocolJob("protocol/stick"),
+  kept: protocolJob("protocol/kept"),
+  sweep: protocolJob("protocol/sweep"),
   new: newTerminal,
   toggle: () => toggleTerminal(),
   split: () => splitTerminal(),

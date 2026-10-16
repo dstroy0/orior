@@ -61,8 +61,9 @@ fn architectures(context: &mut Context, run: &Run, words: &[String]) -> Result<V
         return Ok(words.to_vec());
     }
     let nvcc = context.program(Role::Nvcc)?;
-    let listed = context.ran(run, &nvcc, &["--list-gpu-arch"])?;
-    let found = architectures_of(&String::from_utf8_lossy(&listed.stdout));
+    context.handed(run, "nvcc_architectures.txt", &nvcc, &["--list-gpu-arch"])?;
+    let listed = run.writer().latest("nvcc_architectures.txt").ok_or("the run holds no nvcc_architectures.txt")?;
+    let found = architectures_of(&String::from_utf8_lossy(&listed));
     if found.is_empty() {
         return Err("nvcc lists no architecture".into());
     }
@@ -72,8 +73,9 @@ fn architectures(context: &mut Context, run: &Run, words: &[String]) -> Result<V
 /// The disassembler for Linux under the tables' folder, fetched and unpacked where it is not there.
 fn disassembler(context: &mut Context, run: &Run, out: &Path) -> Result<PathBuf, String> {
     let nvcc = context.program(Role::Nvcc)?;
-    let said = context.ran(run, &nvcc, &["--version"])?;
-    let version = version_of(&String::from_utf8_lossy(&said.stdout)).ok_or("nvcc --version names no version")?;
+    context.handed(run, "nvcc_version.txt", &nvcc, &["--version"])?;
+    let said = run.writer().latest("nvcc_version.txt").ok_or("the run holds no nvcc_version.txt")?;
+    let version = version_of(&String::from_utf8_lossy(&said)).ok_or("nvcc --version names no version")?;
     let download = out.join("download");
     let program = download.join(archive_name(&version)).join("bin").join("nvdisasm");
     if program.is_file() {
@@ -83,11 +85,11 @@ fn disassembler(context: &mut Context, run: &Run, out: &Path) -> Result<PathBuf,
     let tar = download.join(format!("{}.tar.xz", archive_name(&version)));
     let curl = context.program(Role::Curl)?;
     context.say(&format!("  the vendor's disassembler for Linux at {version} fetched"));
-    if context.said(run, &curl, &["-s", "-f", "-o", &native(&tar), &archive_url(&version)])? != 0 {
+    if context.teed(run, "curl", &curl, &["-s", "-f", "-o", &native(&tar), &archive_url(&version)])? != 0 {
         return Err(format!("the vendor's archive could not be fetched: {}", archive_url(&version)));
     }
     let unpack = context.program(Role::Tar)?;
-    if context.said(run, &unpack, &["xf", &native(&tar), "-C", &native(&download)])? != 0 {
+    if context.teed(run, "tar", &unpack, &["xf", &native(&tar), "-C", &native(&download)])? != 0 {
         return Err(format!("{} could not be unpacked", tar.display()));
     }
     if !program.is_file() {
@@ -110,34 +112,29 @@ fn cubin(context: &mut Context, run: &Run, out: &Path, arch: &str) -> Result<Pat
     }
     let nvcc = context.program(Role::Nvcc)?;
     let arch_flag = format!("-arch={arch}");
-    if context.said(run, &nvcc, &[&arch_flag, "-cubin", "-o", &native(&cubin), &native(&key)])? != 0 {
+    if context.teed(run, "nvcc", &nvcc, &[&arch_flag, "-cubin", "-o", &native(&cubin), &native(&key)])? != 0 {
         return Err(format!("nvcc did not compile the key for {arch}"));
     }
     Ok(cubin)
 }
 
-/// A line of the step's own said on the sink and kept for the run's console.
-fn told(context: &mut Context, lines: &mut Vec<String>, text: &str) {
-    context.say(text);
-    lines.push(text.to_string());
-}
-
 /// The tables of every architecture wanted that lacks them pulled: 0 where each now stands, 1 where
-/// the funnel found no tables in some capture. Every line said is kept in `lines`.
-fn pulled(context: &mut Context, run: &Run, words: &[String], lines: &mut Vec<String>) -> Result<i32, String> {
+/// the funnel found no tables in some capture. Each program runs through the writer's tee, the
+/// capture as `tables_capture.console` and the funnel as `tables_funnel.console`.
+fn pulled(context: &mut Context, run: &Run, words: &[String]) -> Result<i32, String> {
     let out = context.at(OUT);
     let wanted = architectures(context, run, words)?;
     let mut missing: Vec<String> = Vec::new();
     for arch in &wanted {
         let (instructions, latencies) = tables_of(&out, arch);
         if instructions.is_file() && latencies.is_file() {
-            told(context, lines, &format!("  {arch}: its tables stand"));
+            context.say(&format!("  {arch}: its tables stand"));
         } else {
             missing.push(arch.clone());
         }
     }
     if missing.is_empty() {
-        told(context, lines, &format!("tables: every one of {} architectures stands under {}", wanted.len(), out.join("tables").display()));
+        context.say(&format!("tables: every one of {} architectures stands under {}", wanted.len(), out.join("tables").display()));
         return Ok(0);
     }
     let disassembler = disassembler(context, run, &out)?;
@@ -154,8 +151,8 @@ fn pulled(context: &mut Context, run: &Run, words: &[String], lines: &mut Vec<St
     docker_words.push(in_container(&root, &context.at(TABLES).join("tables_intercept.c")));
     docker_words.push(in_container(&root, &out.join("captures")));
     docker_words.extend(cubins.iter().map(|cubin| in_container(&root, cubin)));
-    told(context, lines, &format!("  the disassembler run over {} key cubins in {IMAGE}", missing.len()));
-    if context.said(run, &docker, &docker_words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+    context.say(&format!("  the disassembler run over {} key cubins in {IMAGE}", missing.len()));
+    if context.teed(run, "tables_capture", &docker, &docker_words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
         return Err(format!("the capture in {IMAGE} did not end clean"));
     }
     let funnel = context.tool("tables_funnel")?;
@@ -165,15 +162,15 @@ fn pulled(context: &mut Context, run: &Run, words: &[String], lines: &mut Vec<St
     for arch in &missing {
         let capture = out.join("captures").join(format!("{arch}.capture"));
         let (instructions, latencies) = tables_of(&out, arch);
-        let code = context.said(run, &funnel, &[&native(&capture), &native(&instructions), &native(&latencies)])?;
+        let code = context.teed(run, "tables_funnel", &funnel, &[&native(&capture), &native(&instructions), &native(&latencies)])?;
         if code == 0 {
             written += 1;
-            told(context, lines, &format!("  {arch}: its tables written"));
+            context.say(&format!("  {arch}: its tables written"));
         } else {
-            told(context, lines, &format!("  {arch}: the funnel found no tables in its capture, exit {code}"));
+            context.say(&format!("  {arch}: the funnel found no tables in its capture, exit {code}"));
         }
     }
-    told(context, lines, &format!("tables: {written} of {} architectures written under {}", missing.len(), tables.display()));
+    context.say(&format!("tables: {written} of {} architectures written under {}", missing.len(), tables.display()));
     Ok(if written == missing.len() { 0 } else { 1 })
 }
 
@@ -202,8 +199,9 @@ pub fn reading(words: &[String]) -> Option<Result<(String, Vec<String>), String>
     Some(Ok((arch.clone(), std::iter::once(mode.to_string()).chain(tail.iter().cloned()).collect())))
 }
 
-/// `read` and `fields` run the reader over the architecture's table and say what it prints.
-fn read(context: &mut Context, arch: &str, words: &[String]) -> Result<i32, String> {
+/// `read` and `fields` run the reader over the architecture's table through the writer's tee, as
+/// `tables_read.console`.
+fn read(context: &mut Context, run: &Run, arch: &str, words: &[String]) -> Result<i32, String> {
     let (instructions, _) = tables_of(&context.at(OUT), arch);
     if !instructions.is_file() {
         return Err(format!("no table for {arch}: run orior protocol tables {arch} first"));
@@ -211,28 +209,19 @@ fn read(context: &mut Context, arch: &str, words: &[String]) -> Result<i32, Stri
     let reader = context.tool("tables_read")?;
     let mut given: Vec<String> = vec![native(&instructions)];
     given.extend(words.iter().cloned());
-    let output = std::process::Command::new(&reader).args(&given).output().map_err(|e| format!("{}: {e}", reader.display()))?;
-    for line in String::from_utf8_lossy(&output.stdout).lines().chain(String::from_utf8_lossy(&output.stderr).lines()) {
-        context.say(line);
-    }
-    Ok(output.status.code().unwrap_or(-1))
+    context.teed(run, "tables_read", &reader, &given.iter().map(String::as_str).collect::<Vec<_>>())
 }
 
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
-    if let Some(asked) = reading(words) {
-        let (arch, given) = asked?;
-        return read(context, &arch, &given);
-    }
+    let asked = reading(words).transpose()?;
     let run = context.started(&format!("{OUT}/qry"))?;
-    let mut lines: Vec<String> = Vec::new();
-    let code = pulled(context, &run, words, &mut lines);
-    // the step's own lines are the run's console, as a program's output is where one is teed
-    let mut console = lines.join("\n");
+    let code = match &asked {
+        Some((arch, given)) => read(context, &run, arch, given),
+        None => pulled(context, &run, words),
+    };
     if let Err(said) = &code {
-        console.push('\n');
-        console.push_str(said);
+        context.say(said);
     }
-    run.writer().hand("tables.console", console.as_bytes(), crate::writer::Priority::Ordinary)?;
     context.ended(run)?;
     code
 }

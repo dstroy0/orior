@@ -15,6 +15,7 @@ pub mod decode;
 pub mod kept;
 pub mod learn;
 pub mod leaves;
+pub mod member;
 pub mod pairs;
 pub mod programs;
 pub mod run;

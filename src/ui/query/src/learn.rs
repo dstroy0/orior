@@ -165,7 +165,7 @@ fn as_words(words: &[String]) -> Vec<&str> {
 
 /// The gate's verdicts counted off the dry record, a line a verdict.
 fn verdicts_said(context: &mut Context, run: &Run) {
-    let dry = run.writer().read("dry.txt").unwrap_or_default();
+    let Some(dry) = run.writer().read("dry.txt") else { return };
     let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
     for line in String::from_utf8_lossy(&dry).lines() {
         if let Some(at) = line.find("the gate: ") {
@@ -256,7 +256,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             let mut words = teacher_words(&files.machine, &files, &writer);
             words.extend([rounds.to_string(), "--".into()]);
             words.extend(carrier_words(&carrier, &cross, &nvdisasm, &files.machine, &files.layout, false));
-            let code = context.said(&run, &teacher, &as_words(&words))?;
+            let code = context.teed(&run, "khw_write", &teacher, &as_words(&words))?;
             context.ended(run)?;
             Ok(code)
         }
@@ -280,7 +280,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             let mut words = teacher_words(&machine, &files, &writer);
             words.extend([rounds.to_string(), "--".into(), "dry".into()]);
             words.extend(carrier_words(&carrier, &cross, &nvdisasm, &machine, &files.layout, false));
-            if context.said(&run, &teacher, &as_words(&words))? != 0 {
+            if context.teed(&run, "khw_write", &teacher, &as_words(&words))? != 0 {
                 return Err("the protocol did not run dry".into());
             }
             let questions = lines(&run, "questions.txt");
@@ -289,7 +289,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             }
             // the gate reads the list against the tree's machine file, whose forms stand whatever the dry pass wrote
             context.say(&format!("  the protocol put {questions} questions; each held to cubin_safe with the part taken out:"));
-            if context.said(&run, &carrier, &["--dry", &text(&files.machine), &text(&files.layout), "--list", "questions.txt"])? != 0 {
+            if context.teed(&run, "cubin_run", &carrier, &["--dry", &text(&files.machine), &text(&files.layout), "--list", "questions.txt"])? != 0 {
                 return Err("the carrier did not read the list".into());
             }
             verdicts_said(context, &run);
@@ -310,7 +310,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
                 context.say(&format!("  seeding from the {seeded} forms in {forms}"));
             }
             words.extend(["--".into(), "dry".into()]);
-            if context.said(&run, &teacher, &as_words(&words))? != 0 {
+            if context.teed(&run, "khw_write", &teacher, &as_words(&words))? != 0 {
                 return Err("the enumerate did not run".into());
             }
             let questions = lines(&run, "questions.txt");

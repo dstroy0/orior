@@ -7,7 +7,7 @@
 //! programs.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command as Process, Output, Stdio};
+use std::process::{Command as Process, Stdio};
 
 use crate::leaves::{Asker, Leave, Terminal};
 use crate::programs::{Programs, Role};
@@ -197,8 +197,10 @@ pub struct Context<'a> {
 }
 
 impl Context<'_> {
+    /// `text` said on the sink, and handed to the run this process is a member of as it is said.
     pub fn say(&mut self, text: &str) {
-        (self.sink)(text)
+        (self.sink)(text);
+        crate::member::said(text);
     }
 
     pub fn program(&self, role: Role) -> Result<PathBuf, String> {
@@ -227,34 +229,21 @@ impl Context<'_> {
         command
     }
 
-    /// `program` run with `words`, waited for, its output whole.
-    pub fn ran(&self, run: &Run, program: &Path, words: &[&str]) -> Result<Output, String> {
-        self.command(run, program).args(words).output().map_err(|e| format!("{}: {e}", program.display()))
-    }
-
-    /// `program` run with `words`, its output said through the sink line by line and handed as
-    /// `<name>.console`. Its exit code.
+    /// `program` run with `words`, its output piped into the writer's tee: each piece to this
+    /// process's standard output and to the run as `<name>.console` as it comes. Its exit code.
     pub fn teed(&mut self, run: &Run, name: &str, program: &Path, words: &[&str]) -> Result<i32, String> {
-        let child = self.command(run, program).args(words).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("{}: {e}", program.display()))?;
-        run.writer().tee(name, child, self.sink)
+        let mut command = self.command(run, program);
+        command.args(words);
+        run.writer().tee(name, command)
     }
 
-    /// `program` run with `words`, its output said through the sink line by line and not handed. Its exit code.
-    pub fn said(&mut self, run: &Run, program: &Path, words: &[&str]) -> Result<i32, String> {
-        let output = self.ran(run, program, words)?;
-        for line in String::from_utf8_lossy(&output.stdout).lines().chain(String::from_utf8_lossy(&output.stderr).lines()) {
-            (self.sink)(line);
-        }
-        Ok(output.status.code().unwrap_or(-1))
-    }
-
-    /// `program` run with `words`, its output, the standard error after the standard output, handed
-    /// as the blob `name` and nothing said. Its exit code.
+    /// `program` run with `words` for what it writes out: its output whole, the standard error after
+    /// the standard output, handed as the one blob `name`, which the run's programs read by that
+    /// name, and nothing said. Its exit code.
     pub fn handed(&self, run: &Run, name: &str, program: &Path, words: &[&str]) -> Result<i32, String> {
-        let output = self.ran(run, program, words)?;
-        let mut bytes = output.stdout;
-        bytes.extend(&output.stderr);
-        run.writer().hand(name, &bytes, crate::writer::Priority::Ordinary)?;
+        let mut output = self.command(run, program).args(words).output().map_err(|e| format!("{}: {e}", program.display()))?;
+        output.stdout.extend(&output.stderr);
+        run.writer().hand(name, &output.stdout, crate::writer::Priority::Ordinary)?;
         Ok(output.status.code().unwrap_or(-1))
     }
 
@@ -275,6 +264,8 @@ pub fn run(root: &Path, programs: &dyn Programs, words: &[String], sink: &mut dy
     let mut terminal = Terminal;
     let mut context = Context { root, programs, sink, leave, asker: &mut terminal, env: Vec::new() };
     let (first, rest) = words.split_first().ok_or_else(usage)?;
+    // the loop's own lines go to its run as `<loop>.console`
+    crate::member::console_named(first);
     match first.as_str() {
         "course" => crate::course::run(&mut context, rest),
         "tables" => crate::tables::run(&mut context, rest),

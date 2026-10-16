@@ -1,14 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-//! The writer's words as functions over its process (`qry_writer.c`): the run's writer started,
-//! waited for, stopped and asked, and every blob handed to it or read from it. Nothing here opens
-//! the buffer: each word is one run of `qry_writer`, given `QRY`, `QRY_TOP` and the PATH.
+//! The run's writer (`qry_writer.c`) and its buffer, from this process. The writer's process is
+//! started, waited for and stopped by its words, each one run of `qry_writer` given `QRY`,
+//! `QRY_TOP` and the PATH. Every blob handed or read goes through the buffer this process is a
+//! member of (`member.rs`): a hand is one write into this process's ring, a read is the blob where
+//! it stands. A program's output goes to the run through `qry_writer tee`, the program's output
+//! piped straight into it, the tee's standard output this process's own.
 
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
+use crate::member::{Bytes, Freed, Member};
 
 /// A blob's priority as the writer takes it: 0 a panic, 1 critical, 2 ordinary.
 #[derive(Clone, Copy)]
@@ -26,12 +31,14 @@ pub struct Writer {
     pub top: PathBuf,
     /// The PATH every program of the run runs with.
     pub path: std::ffi::OsString,
+    /// The buffer, open while the writer runs and this process is a member of the run.
+    pub member: Option<Arc<Member>>,
 }
 
 /// The output's bytes where the word succeeded, else `what` with what the writer said.
-fn whole(output: std::process::Output, what: &str) -> Result<Vec<u8>, String> {
+fn whole(output: std::process::Output, what: &str) -> Result<Freed, String> {
     if output.status.success() {
-        Ok(output.stdout)
+        Freed::of(&output.stdout).ok_or_else(|| format!("{what}: no memory for what the writer said"))
     } else {
         Err(format!("{what}: {}", String::from_utf8_lossy(&output.stderr).trim()))
     }
@@ -84,6 +91,17 @@ impl Writer {
         self.word(&["runs", &self.qry_text()]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok_and(|s| s.success())
     }
 
+    /// The buffer opened, this process a member of the run: 1, or 0 where the writer does not run.
+    pub fn joined(&mut self) -> bool {
+        self.member = Member::opened(&self.qry).map(Arc::new);
+        self.member.is_some()
+    }
+
+    /// The buffer let go: this process is a member of the run no more.
+    pub fn parted(&mut self) {
+        self.member = None;
+    }
+
     /// The writer asked to write the rest and stop, and waited for.
     pub fn stop(&self) -> Result<(), String> {
         let output = self.word(&["stop", &self.qry_text()]).stdin(Stdio::null()).output().map_err(|e| e.to_string())?;
@@ -91,7 +109,7 @@ impl Writer {
     }
 
     /// `bytes` given on the word's standard input, and what came of it.
-    fn given(&self, words: &[&str], bytes: &[u8], what: &str) -> Result<Vec<u8>, String> {
+    fn given(&self, words: &[&str], bytes: &[u8], what: &str) -> Result<Freed, String> {
         let mut child = self.word(words).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| e.to_string())?;
         let mut stdin = child.stdin.take().ok_or("the writer took no input")?;
         stdin.write_all(bytes).map_err(|e| e.to_string())?;
@@ -100,39 +118,37 @@ impl Writer {
         whole(output, what)
     }
 
-    /// Every byte of `bytes` handed as one blob of `name`.
+    /// Every byte of `bytes` handed as one blob of `name`, into this process's ring, and moved into
+    /// the run's buffer before this returns, so that what is handed is there for the next read and
+    /// the next program.
     pub fn hand(&self, name: &str, bytes: &[u8], priority: Priority) -> Result<(), String> {
-        let priority = match priority {
-            Priority::Panic => "0",
-            Priority::Critical => "1",
-            Priority::Ordinary => "2",
-        };
-        self.given(&["hand", name, priority], bytes, &format!("{name} was not handed to the run")).map(|_| ())
+        let member = self.member.as_ref().ok_or_else(|| format!("{name} was not handed: this process is a member of no run"))?;
+        if !member.hand(name, bytes, priority) {
+            return Err(format!("{name} was not handed to the run"));
+        }
+        member.moved();
+        Ok(())
     }
 
-    fn blob(&self, word: &str, name: &str) -> Option<Vec<u8>> {
-        let output = self.word(&[word, name]).stdin(Stdio::null()).stderr(Stdio::null()).output().ok()?;
-        if output.status.success() { Some(output.stdout) } else { None }
-    }
-
-    /// The latest blob of `name`, from the buffer while the writer runs and from the `.qry` after.
-    pub fn latest(&self, name: &str) -> Option<Vec<u8>> {
-        self.blob("latest", name)
+    /// The latest blob of `name`: in the buffer while this process is a member, from the `.qry` after.
+    pub fn latest(&self, name: &str) -> Option<Bytes<'_>> {
+        match &self.member {
+            Some(member) => member.latest(name).map(Bytes::Held),
+            None => Member::file_latest(&self.qry, name).map(Bytes::Freed),
+        }
     }
 
     /// Every blob of `name` joined.
-    pub fn read(&self, name: &str) -> Option<Vec<u8>> {
-        self.blob("read", name)
-    }
-
-    /// The first blob of `name`.
-    pub fn first(&self, name: &str) -> Option<Vec<u8>> {
-        self.blob("first", name)
+    pub fn read(&self, name: &str) -> Option<Freed> {
+        match &self.member {
+            Some(member) => member.joined(name),
+            None => Member::file_joined(&self.qry, name),
+        }
     }
 
     /// The file at `path` as the run holds it: its latest blob, or the file where the run holds none.
-    pub fn current(&self, path: &Path) -> Option<Vec<u8>> {
-        self.blob("current", &path.to_string_lossy())
+    pub fn current(&self, path: &Path) -> Option<Freed> {
+        self.member.as_ref()?.file_read(path)
     }
 
     /// `bytes` handed as the current file at `path`, which the writer writes in its place as the run ends.
@@ -150,9 +166,9 @@ impl Writer {
     /// `names` empty, every name `from` holds. What the writer said of it.
     pub fn carry(&self, from: &Path, names: &[String]) -> Result<String, String> {
         let from = from.to_string_lossy().into_owned();
-        let mut words = vec!["carry", from.as_str()];
-        words.extend(names.iter().map(String::as_str));
-        let output = self.word(&words).stdin(Stdio::null()).output().map_err(|e| e.to_string())?;
+        let mut command = self.word(&["carry", from.as_str()]);
+        command.args(names).stdin(Stdio::null());
+        let output = command.output().map_err(|e| e.to_string())?;
         whole(output, &format!("the blobs of {from} were not carried")).map(|said| String::from_utf8_lossy(&said).trim().to_string())
     }
 
@@ -163,53 +179,37 @@ impl Writer {
         self.given(&["carry", &from, "-"], listed.as_bytes(), &format!("the blobs of {from} were not carried")).map(|said| String::from_utf8_lossy(&said).trim().to_string())
     }
 
-    /// `child`'s output, its standard output and error alike, passed to `sink` a line at a time and
-    /// handed to the run as `<name>.console` through `qry_writer tee`. The child's exit code, or
-    /// -1 where it was ended by a signal.
-    pub fn tee(&self, name: &str, mut child: Child, sink: &mut dyn FnMut(&str)) -> Result<i32, String> {
-        let mut tee = self.word(&["tee", name]).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().map_err(|e| format!("qry_writer tee: {e}"))?;
-        let into = Arc::new(Mutex::new(tee.stdin.take().ok_or("qry_writer tee took no input")?));
-        let out = tee.stdout.take().ok_or("qry_writer tee gave no output")?;
-        let readers: Vec<Box<dyn Read + Send>> = [child.stdout.take().map(|s| Box::new(s) as Box<dyn Read + Send>), child.stderr.take().map(|s| Box::new(s) as Box<dyn Read + Send>)].into_iter().flatten().collect();
-        let status = std::thread::scope(|scope| {
-            let mut copiers = Vec::new();
-            for reader in readers {
-                let into = into.clone();
-                copiers.push(scope.spawn(move || {
-                    let mut lines = BufReader::new(reader);
-                    let mut line = Vec::new();
-                    while lines.read_until(b'\n', &mut line).is_ok_and(|n| n > 0) {
-                        if let Ok(mut w) = into.lock() {
-                            let _ = w.write_all(&line);
-                            let _ = w.flush();
-                        }
-                        line.clear();
-                    }
-                }));
-            }
-            let waited = scope.spawn(move || {
-                for copier in copiers {
-                    let _ = copier.join();
-                }
-                drop(into);
-                child.wait()
-            });
-            for line in BufReader::new(out).lines().map_while(Result::ok) {
-                sink(line.trim_end_matches(['\r', '\n']));
-            }
-            waited.join().map_err(|_| "the output's copiers ended wrong".to_string())
-        })?;
+    /// `command` run with its standard output and error piped straight into `qry_writer tee <name>`,
+    /// which writes each piece to this process's standard output and hands it to the run as
+    /// `<name>.console` as it comes. The command's exit code, or -1 where it was ended by a signal.
+    pub fn tee(&self, name: &str, mut command: Command) -> Result<i32, String> {
+        let mut tee = self.word(&["tee", name]).stdin(Stdio::piped()).stdout(Stdio::inherit()).stderr(Stdio::inherit()).spawn().map_err(|e| format!("qry_writer tee: {e}"))?;
+        let into = tee.stdin.take().ok_or("qry_writer tee took no input")?;
+        let (out, err) = both_ends(into)?;
+        command.stdin(Stdio::null()).stdout(out).stderr(err);
+        let mut child = command.spawn().map_err(|e| format!("{:?}: {e}", command.get_program()))?;
+        // the command's handles on the tee's input close with the command, so that the tee's input ends with the
+        // child's output and not with this process
+        drop(command);
+        let status = child.wait().map_err(|e| e.to_string())?;
         let _ = tee.wait();
-        Ok(status.map_err(|e| e.to_string())?.code().unwrap_or(-1))
+        Ok(status.code().unwrap_or(-1))
     }
+}
 
-    /// Each who code named through the who table, a line each.
-    pub fn who(&self, codes: &[&str]) -> Result<String, String> {
-        let mut words = vec!["who"];
-        words.extend(codes);
-        let output = self.word(&words).stdin(Stdio::null()).output().map_err(|e| e.to_string())?;
-        whole(output, "no who code is named").map(|said| String::from_utf8_lossy(&said).into_owned())
-    }
+/// The tee's input as two standard streams, one for a child's output and one for its error.
+#[cfg(windows)]
+fn both_ends(into: std::process::ChildStdin) -> Result<(Stdio, Stdio), String> {
+    let owned: std::os::windows::io::OwnedHandle = into.into();
+    let second = owned.try_clone().map_err(|e| format!("the tee's input was not doubled: {e}"))?;
+    Ok((Stdio::from(owned), Stdio::from(second)))
+}
+
+#[cfg(unix)]
+fn both_ends(into: std::process::ChildStdin) -> Result<(Stdio, Stdio), String> {
+    let owned: std::os::fd::OwnedFd = into.into();
+    let second = owned.try_clone().map_err(|e| format!("the tee's input was not doubled: {e}"))?;
+    Ok((Stdio::from(owned), Stdio::from(second)))
 }
 
 #[cfg(test)]
@@ -227,46 +227,46 @@ mod words {
         let _ = std::fs::remove_dir_all(&out);
         std::fs::create_dir_all(&out).unwrap();
         let binary = tools::built_into(&root, &OnPath, "qry_writer", &out).unwrap();
-        Some((out.clone(), Writer { binary, qry: out.join("query1-test.qry"), top: root, path: OnPath.run_path() }))
+        Some((out.clone(), Writer { binary, qry: out.join("query1-test.qry"), top: root, path: OnPath.run_path(), member: None }))
     }
 
     #[test]
     fn a_run_is_started_handed_read_and_stopped() {
-        let Some((out, writer)) = writer_in("writer") else { return };
+        let Some((out, mut writer)) = writer_in("writer") else { return };
         assert!(!writer.runs());
         let mut process = writer.start().unwrap();
         assert!(writer.ready(), "the writer came ready");
         assert!(writer.runs());
+        assert!(writer.joined(), "this process is a member of the run");
         writer.hand("a.txt", b"one\ntwo\n", Priority::Ordinary).unwrap();
-        assert_eq!(writer.latest("a.txt").unwrap(), b"one\ntwo\n");
+        writer.member.as_ref().unwrap().moved();
+        assert_eq!(&*writer.latest("a.txt").unwrap(), b"one\ntwo\n");
         assert!(writer.latest("none.txt").is_none());
+        writer.parted();
         writer.stop().unwrap();
         process.wait().unwrap();
         assert!(!writer.runs());
-        assert_eq!(writer.latest("a.txt").unwrap(), b"one\ntwo\n", "read from the .qry once the writer stopped");
+        assert_eq!(&*writer.latest("a.txt").unwrap(), b"one\ntwo\n", "read from the .qry once the writer stopped");
+        assert_eq!(&*writer.read("a.txt").unwrap(), b"one\ntwo\n");
         let _ = std::fs::remove_dir_all(&out);
     }
 
     #[test]
-    fn a_program_s_output_is_teed_into_the_run_and_the_sink() {
-        let Some((out, writer)) = writer_in("tee") else { return };
+    fn a_program_s_output_is_teed_into_the_run() {
+        let Some((out, mut writer)) = writer_in("tee") else { return };
         let Ok(python) = OnPath.program(Role::Python) else { return };
         let mut process = writer.start().unwrap();
         assert!(writer.ready());
-        let child = writer
-            .command_of(&python)
-            .args(["-c", "import sys; print('out'); print('err', file=sys.stderr); sys.exit(3)"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
-        let mut lines = Vec::new();
-        let code = writer.tee("said", child, &mut |line| lines.push(line.to_string())).unwrap();
+        assert!(writer.joined());
+        let mut command = writer.command_of(&python);
+        command.args(["-c", "import sys; print('out'); print('err', file=sys.stderr); sys.exit(3)"]);
+        let code = writer.tee("said", command).unwrap();
         assert_eq!(code, 3);
-        assert!(lines.contains(&"out".to_string()) && lines.contains(&"err".to_string()), "{lines:?}");
         // the tee hands a piece at a time, a blob each: every blob joined is the console
-        let console = String::from_utf8(writer.read("said.console").unwrap()).unwrap();
+        let console = writer.read("said.console").unwrap();
+        let console = String::from_utf8_lossy(&console);
         assert!(console.contains("out") && console.contains("err"), "{console}");
+        writer.parted();
         writer.stop().unwrap();
         process.wait().unwrap();
         let _ = std::fs::remove_dir_all(&out);

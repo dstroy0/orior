@@ -87,7 +87,7 @@ fn vendor_read(context: &mut Context, run: &Run) -> Result<(), String> {
     std::fs::create_dir_all(&paths.out).map_err(|e| format!("{}: {e}", paths.out.display()))?;
     let python = context.program(Role::Python)?;
     let generator = context.at(NVIDIA).join("measuring_stick.py");
-    if context.said(run, &python, &[&native(&generator), &native(&paths.cu_new), &native(&paths.tsv)])? != 0 {
+    if context.teed(run, "measuring_stick", &python, &[&native(&generator), &native(&paths.cu_new), &native(&paths.tsv)])? != 0 {
         return Err("the stick was not written".into());
     }
     if !changed(&paths.cu, &paths.cu_new, &paths.cubin) {
@@ -106,14 +106,14 @@ fn vendor_read(context: &mut Context, run: &Run) -> Result<(), String> {
         }
     }
     compile.extend(["-cubin".into(), "-arch=sm_86".into(), "-O3".into(), "-diag-suppress".into(), "177".into(), "-o".into(), native(&paths.cubin), native(&paths.cu)]);
-    if context.said(run, &nvcc, &compile.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+    if context.teed(run, "nvcc", &nvcc, &compile.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
         return Err("nvcc did not compile the stick".into());
     }
-    let listed = context.ran(run, &cuobjdump, &["-sass", &native(&paths.cubin)])?;
-    if !listed.status.success() {
+    if context.handed(run, "measuring_stick_nvcc.sass", &cuobjdump, &["-sass", &native(&paths.cubin)])? != 0 {
         return Err("cuobjdump did not read the stick".into());
     }
-    std::fs::write(&paths.sass, &listed.stdout).map_err(|e| format!("{}: {e}", paths.sass.display()))?;
+    let listed = run.writer().latest("measuring_stick_nvcc.sass").ok_or("the run holds no measuring_stick_nvcc.sass")?;
+    std::fs::write(&paths.sass, &*listed).map_err(|e| format!("{}: {e}", paths.sass.display()))?;
     Ok(())
 }
 
@@ -127,7 +127,7 @@ fn vendor(context: &mut Context) -> Result<i32, String> {
     let krs = context.at(TABLE).join("sass.krs");
     // the record is the read's to write through the run's writer; named here as a leaf, so that it is shown and asked
     run.left(&[record.clone()]);
-    let code = context.said(&run, &reader, &[&native(&paths.sass), &native(&paths.tsv), &native(&krs), &native(&record)])?;
+    let code = context.teed(&run, "measuring_stick_read", &reader, &[&native(&paths.sass), &native(&paths.tsv), &native(&krs), &native(&record)])?;
     context.ended(run)?;
     Ok(code)
 }
@@ -194,7 +194,7 @@ fn engine(context: &mut Context) -> Result<i32, String> {
         return Ok(1);
     }
     read_back(context, &run, &nvdisasm, &out)?;
-    let code = context.said(&run, &reader, &[&native(&paths.sass), &native(&paths.tsv), &native(&table.join("sass.krs")), &native(&record), &native(&out.join("engine.tsv")), &native(&out)])?;
+    let code = context.teed(&run, "measuring_stick_read", &reader, &[&native(&paths.sass), &native(&paths.tsv), &native(&table.join("sass.krs")), &native(&record), &native(&out.join("engine.tsv")), &native(&out)])?;
     context.ended(run)?;
     Ok(code)
 }
@@ -203,7 +203,7 @@ fn engine(context: &mut Context) -> Result<i32, String> {
 fn read(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let reader = context.tool("measuring_stick_read")?;
     let run = context.started(&format!("{OUT}/qry"))?;
-    let code = context.said(&run, &reader, &words.iter().map(String::as_str).collect::<Vec<_>>())?;
+    let code = context.teed(&run, "measuring_stick_read", &reader, &words.iter().map(String::as_str).collect::<Vec<_>>())?;
     context.ended(run)?;
     Ok(code)
 }

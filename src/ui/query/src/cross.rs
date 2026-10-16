@@ -35,8 +35,8 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     if !here.joined() {
         // the latest listed questions carried in, with every code and cases the list names
         let latest = run::latest(&folder, "questions.txt", Some(&here.writer().qry), here.writer(), run::crystal(context.root).as_deref()).ok_or_else(|| format!("no run in {} holds a questions.txt to read", folder.display()))?;
-        let other = Writer { binary: here.writer().binary.clone(), qry: latest.clone(), top: here.writer().top.clone(), path: here.writer().path.clone() };
-        let list = other.latest("questions.txt").unwrap_or_default();
+        let other = Writer { binary: here.writer().binary.clone(), qry: latest.clone(), top: here.writer().top.clone(), path: here.writer().path.clone(), member: None };
+        let list = other.latest("questions.txt").ok_or_else(|| format!("{} holds no questions.txt", latest.display()))?;
         let mut names = String::from("questions.txt\n");
         for line in String::from_utf8_lossy(&list).lines() {
             let words: Vec<&str> = line.split_whitespace().collect();
@@ -68,7 +68,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     if let Some(base) = &base {
         learn::base_compiled(context, &here, Path::new(base))?;
     }
-    let code = context.said(&here, &cross, &["questions.txt", &text(&nvdisasm), "SM86", "measuring_stick_query.md", "held.txt"])?;
+    let code = context.teed(&here, "measuring_stick_query", &cross, &["questions.txt", &text(&nvdisasm), "SM86", "measuring_stick_query.md", "held.txt"])?;
     context.say(&format!("  the report is the blob measuring_stick_query.md of {}; the vendor's feedback is its blob held.txt", here.writer().qry.display()));
     context.say("  a live run holds those encodings with: cubin_run --held held.txt ...");
     context.ended(here)?;
