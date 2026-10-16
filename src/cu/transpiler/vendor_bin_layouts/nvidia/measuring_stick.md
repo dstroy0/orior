@@ -4,7 +4,7 @@ Written by `orior protocol stick` whole on every run. Each kernel of the measuri
 
 - kernels: 1016
 - instructions: 55072
-- operations nvcc writes over the stick: 326, of which sass.krs writes 3
+- operations nvcc writes over the stick: 326, of which sass.krs writes 4
 
 - kernels the engine answers: 0, of which at parity with nvcc: 0; kernels that put a question: 1016
 - the engine's instructions: 0 in its lanes' text, 0 read back by nvdisasm, 0 of them the operation the text wrote
@@ -189,7 +189,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `F2I.S64.F64` | 6 | 0551 | `long long __double2ll_rn(a)` |
 | `FRND.F64` | 6 | 0755 | `double cospi(a)` |
 | `FSETP.LT.AND` | 6 | 0738 | `float nextafterf(a, b)` |
-| `ISETP.LE.U32.AND` | 6 | 0793 | `double y1(a)` |
 | `ISETP.LT.U32.AND.EX` | 6 | 0533 | `unsigned long long min(a, b)` |
 | `DADD.RZ` | 5 | 0656 | `double __dadd_rz(a, b)` |
 | `DSETP.NE.AND` | 5 | 0670 | `double __dsqrt_rn(a)` |
