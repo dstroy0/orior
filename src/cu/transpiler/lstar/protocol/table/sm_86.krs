@@ -4,6 +4,7 @@ form word_shr to from bits = ISHF.U32 {to}, {from}, {bits}\n
 form word_add to left right = IADD {to}, {left}, {right}, R0, R0\n
 form word_sub to left right = IADD {to}, -{right}, {left}\n
 form word_mul to left right = IMUL {to}, {left}, {right}\n
+form test_word_lt where left right = ISETP.LT.U32.AND {left}, {right}, {where}\n
 form test_word_le where left right = ISETP.LE.U32.AND {right}, {left}, {where}\n
 form thread_idx_x to = S2R {to}\n
 form block_idx_x to = S2R {to}, R37\n

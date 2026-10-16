@@ -4,7 +4,7 @@ Written by `orior protocol stick` whole on every run. Each kernel of the measuri
 
 - kernels: 1016
 - instructions: 55072
-- operations nvcc writes over the stick: 326, of which sass.krs writes 4
+- operations nvcc writes over the stick: 326, of which sass.krs writes 5
 
 - kernels the engine answers: 0, of which at parity with nvcc: 0; kernels that put a question: 1016
 - the engine's instructions: 0 in its lanes' text, 0 read back by nvdisasm, 0 of them the operation the text wrote
@@ -144,7 +144,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `FRND.TRUNC` | 14 | 0690 | `float coshf(a)` |
 | `I2F.RP` | 14 | 0030 | `signed char a / b` |
 | `IMAD.U32` | 14 | 0110 | `short a < b` |
-| `ISETP.LT.U32.AND` | 14 | 0511 | `unsigned int __fns(a, b, c)` |
 | `DSETP.GEU.AND` | 13 | 0117 | `double a < b` |
 | `I2F.F64` | 13 | 0393 | `(double)(int)` |
 | `I2F.U32.RP` | 13 | 0035 | `unsigned int a / b` |

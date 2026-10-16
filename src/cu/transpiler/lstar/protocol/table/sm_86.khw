@@ -29,3 +29,4 @@ form IADD register,register-,register,register 0x0000000700077210 0x000fca0007ff
 form IMUL register,register,register,register 0x0000000700078224 0x000fcc00078e04ff 0:15-16:2;0:18-18:2;1:24-27:0;2:32-34:1;8:75-75:-;3:87-90:- ladder.product 0 IMUL R3, R0, R7, R15
 form MOV register,constant 0x0000000000077a02 0x000fe40000000f00 8:12-14:-;8:15-15:-;0:16-16:0;0:18-18:0;1:40-46:-;0:74-74:0;8:91-91:- frame.dim 0 MOV R1, c[0x0][0x0]
 form ISETP.LE.U32.AND register,register,predicate 0x0000000700067210 0x000fc8000791e106 8:12-14:-;8:15-15:-;8:16-16:-;0:27-27:1;1:33-34:0;8:63-63:-;2:81-83:2 ladder.at_most 0 ISETP.LE.U32.AND R0, R1, P0
+form ISETP.LT.U32.AND register,register,predicate 0x8000000700067210 0x000fc8000791e406 8:12-14:-;8:15-15:-;8:16-16:-;0:24-26:0;1:32-32:1;8:72-72:-;2:81-83:2 ladder.less 0 ISETP.LT.U32.AND R0, R3, P0
