@@ -50,18 +50,18 @@ pub fn from(words: &[String]) -> Result<usize, String> {
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let first = from(words)?;
     let count = STEPS.len();
-    (context.sink)(&format!("course: {count} steps: {}", names().join(", ")));
+    context.say(&format!("course: {count} steps: {}", names().join(", ")));
     for (index, step) in STEPS.iter().enumerate().skip(first) {
         let number = index + 1;
-        (context.sink)(&format!("course: step {number} of {count}: {}", step.name));
+        context.say(&format!("course: step {number} of {count}: {}", step.name));
         let given: Vec<String> = step.words.iter().map(|word| word.to_string()).collect();
         let code = (step.loop_)(context, &given)?;
         if code != 0 {
-            (context.sink)(&format!("course: stopped at step {number}, {}, exit {code}", step.name));
+            context.say(&format!("course: stopped at step {number}, {}, exit {code}", step.name));
             return Ok(code);
         }
     }
-    (context.sink)(&format!("course: ended, {count} steps"));
+    context.say(&format!("course: ended, {count} steps"));
     Ok(0)
 }
 
