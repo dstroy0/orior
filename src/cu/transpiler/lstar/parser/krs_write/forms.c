@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// forms.c: the forms: the vendor's run, the forms, costs and givens read, a form's cost and given, and the forms of a word ranked
+// forms.c: the forms: the vendor's run, the forms, costs and givens read, a form's cost and given, and the forms of a
+// word ranked
 #include "krs_write_internal.h"
 
 // each form's cost as the part's .ksc keeps it: its encoding, its least launch m and its spread s
@@ -56,8 +57,8 @@ int krs_vendor_run(char *const *word)
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
-        printf("  krs_write: the vendor's writer did not end clean (%s, code %llx)\n", interface_ending_name(answer.ending),
-               answer.code);
+        printf("  krs_write: the vendor's writer did not end clean (%s, code %llx)\n",
+               interface_ending_name(answer.ending), answer.code);
         return 0;
     }
     return 1;
@@ -199,28 +200,41 @@ const char *krs_given_of(const char *name)
 
 unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writers)
 {
-    unsigned int found = 0u;
+    unsigned int found = writers;
     unsigned int fewest = 0u;
     for (unsigned int at = 0u; at < writers; at += 1u)
     {
-        const char *const text = s_form[writer[at]].text;
-        unsigned int operands = (strchr(text, ' ') != NULL) ? 1u : 0u;
-        for (const char *walk = text; *walk != '\0'; walk += 1)
+        const KrsForm *const form = &s_form[writer[at]];
+        // a form whose text leaves a place of its relation's tuple unwritten carries no word there and writes none
+        const unsigned int words = s_ladder_words[form->anchor];
+        int carries = 1;
+        for (unsigned int place = 0u; place <= words; place += 1u)
+        {
+            char held[8];
+            snprintf(held, sizeof(held), "{%u}", place);
+            carries = carries && (strstr(form->text, held) != NULL);
+        }
+        if (!carries)
+        {
+            continue;
+        }
+        unsigned int operands = (strchr(form->text, ' ') != NULL) ? 1u : 0u;
+        for (const char *walk = form->text; *walk != '\0'; walk += 1)
         {
             operands += (*walk == ',') ? 1u : 0u;
         }
-        if ((at == 0u) || (operands < fewest))
+        if ((found == writers) || (operands < fewest))
         {
             fewest = operands;
             found = at;
         }
     }
-    return found;
+    return (found == writers) ? 0u : found;
 }
 
 // The form P6 gives a word, of the `writers` forms in `writer`: c_1, the form of least m, where the next least m is
-// past it by more than s, the greatest spread of them. Its place in `writer`, or `writers` where a form has no cost kept
-// or the least do not separate, the survivors then one cost
+// past it by more than s, the greatest spread of them. Its place in `writer`, or `writers` where a form has no cost
+// kept or the least do not separate, the survivors then one cost
 unsigned int krs_ranked(const unsigned int *writer, unsigned int writers)
 {
     unsigned int first = writers;

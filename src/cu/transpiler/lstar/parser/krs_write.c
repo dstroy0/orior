@@ -178,9 +178,10 @@ int main(int count, char **word)
                 continue;
             }
             ranked = krs_fewest_operands(s_writer, writers);
-            printf("  krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset gave it none, and the "
-                   "one of the fewest operands is written\n",
-                   writers, each->name);
+            printf(
+                "  krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset gave it none, and the "
+                "one of the fewest operands is written\n",
+                writers, each->name);
         }
         const unsigned int first = s_writer[ranked];
         const unsigned int *const first_order = s_order[ranked];
