@@ -6,8 +6,8 @@ part sm_86
 form IADD register,register,register 0x0000000700077210 0x004fca0007ffe0ff 0:12-12:2;0:18-18:2;1:24-27:0;2:32-34:1;0:63-66:2;8:72-72:-;8:74-74:- ladder.add 0 IADD R1, R0, R7
 form IADD register,register,register,register,register 0x0000000700077210 0x004fca0007ffe4ff 0:18-18:2;1:24-27:0;2:32-34:1;8:63-63:-;8:72-72:-;8:75-75:-;3:77-80:-;4:89-90:- ladder.add 0 IADD R1, R0, R7, R15, R15
 form IADD register 0x8000000700077210 0x004fca0007ffe0ff 0:12-12:2;0:18-18:2;8:63-63:-;8:72-72:-;8:74-74:- ladder.add 0 IADD R1
-form IADD register,register-,register 0x0000000700077210 0x004fca0007ffe1ff 0:18-18:2;1:24-27:1;2:32-34:0;0:64-66:2;8:72-72:-;8:74-74:- ladder.take 0 IADD R1, -R0, R7
-form IADD register,register,register- 0x8000010700077210 0x004fca0007ffe0ff 0:12-12:2;0:18-18:2;1:24-27:0;2:32-34:1;8:63-63:-;0:74-74:2 ladder.take 0 IADD R1, R0, -R7
+form IADD register,register-,register 0x0000000700077210 0x004fca0007ffe1ff 0:12-14:2;0:15-15:2;0:16-16:2;0:18-18:2;1:24-27:1;2:32-34:0;8:67-67:-;8:72-72:-;8:74-74:- ladder.take 0 IADD R1, -R0, R7
+form IADD register,register,register- 0x8000010700077210 0x004fca0007ffe0ff 0:12-14:2;0:15-15:2;0:16-16:2;0:18-18:2;1:24-27:0;2:32-34:1;8:63-63:-;8:67-67:-;0:74-74:2 ladder.take 0 IADD R1, R0, -R7
 form IADD3 register,register,register- 0x8000020700077210 0x004fca0007ffe0ff 0:18-18:2;1:24-27:0;2:32-34:1;8:63-63:- ladder.take 0 IADD3 R1, R0, -R7
 form IADD3 register,register-,register 0x0000400700077210 0x004fca0007ffc1ff 0:18-18:2;1:24-27:1;2:32-34:0;8:72-72:- ladder.take 0 IADD3 R1, -R0, R7
 form IADD3 register 0x0020800700077210 0x004fca0007ffe4ff 0:12-12:2;0:18-18:2;8:72-72:-;8:74-74:- ladder.take 0 IADD3 R1
@@ -27,3 +27,4 @@ form IADD register,register,register,register,register,register 0x00000007000772
 form IADD3 register,register,register 0x0000000700077210 0x000fca0007ffa8ff 0:18-18:2;1:24-27:0;2:32-34:1;8:72-72:- ladder.add 0 IADD3 R1, R0, R7
 form IADD register,register-,register,register 0x0000000700077210 0x000fca0007ffe906 0:18-18:2;1:24-27:1;2:32-34:0;3:64-66:-;8:72-72:-;1:74-74:1 ladder.take 0 IADD R1, -R0, R7, R6
 form IMUL register,register,register,register 0x0000000700078224 0x000fcc00078e04ff 0:15-16:2;0:18-18:2;1:24-27:0;2:32-34:1;8:75-75:-;3:87-90:- ladder.product 0 IMUL R3, R0, R7, R15
+form MOV register,constant 0x0000000000077a02 0x000fe40000000f00 8:12-14:-;8:15-15:-;0:16-16:0;0:18-18:0;1:40-46:-;0:74-74:0;8:91-91:- frame.dim 0 MOV R1, c[0x0][0x0]
