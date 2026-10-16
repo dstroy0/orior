@@ -221,7 +221,7 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long 
     khw_kernel_put(s_code);
     const unsigned int count = khw_anchor_cases(kernel->anchor, kernel->swapped, s_word, s_plain, s_signed);
     s_launches = KHW_LAUNCHES;
-    const int timed = khw_asked(s_word, count, RUN_SLOT_NONE, s_answered);
+    const int timed = khw_asked(s_word, count, s_slot, s_answered);
     s_launches = 0u;
     *nanoseconds = timed ? s_question.nanoseconds : 0ull;
     return 1;

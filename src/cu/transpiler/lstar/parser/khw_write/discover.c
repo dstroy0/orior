@@ -222,6 +222,8 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
             again += 1u;
         }
     }
+    printf("  round: %u answered a relation, %u answered none, %u of those left the second word standing%s\n", found,
+           count - found, again, (again != 0u) ? " and are put again with the store guarded by P0" : "");
     if (again == 0u)
     {
         return found;
@@ -234,6 +236,7 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
     }
     khw_store_guarded(0);
     khw_round_carried();
+    unsigned int predicates = 0u;
     for (unsigned int at = 0u; at < again; at += 1u)
     {
         KhwAnswered held;
@@ -244,8 +247,10 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
         {
             related[found] = held;
             found += 1u;
+            predicates += 1u;
         }
     }
+    printf("  round: %u of the %u put again answered a predicate relation\n", predicates, again);
     return found;
 }
 

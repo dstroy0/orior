@@ -173,22 +173,17 @@ void khw_frame_stalled(unsigned long long *low, unsigned long long *high)
     khw_run_write(low, high, s_first + s_bits, s_first + s_bits, 0ull);
 }
 
-// The question of the frame added to the round being written: the kernel with `low` and `high` at the slot, put whole,
-// naming no slot, the changed place stalled the longest. A question that names the slot is held by the cross for a
-// memory operand there, and a load or a store is what the frame asks. Over `count` cases from `word`. Its place in
-// the round, or SCHEDULER_ROUND_MOST where the round is full
+// The question of the frame added to the round being written: the kernel with `low` and `high` at the probe point,
+// the changed place stalled the longest, named at the probe point as every question is, read by the cross and the
+// gate as every question is, and a fault it causes kept as every fault is. Over `count` cases from `word`. Its place
+// in the round, or SCHEDULER_ROUND_MOST where the round is full
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2],
                               unsigned int count)
 {
     unsigned long long stalled_low = low;
     unsigned long long stalled_high = high;
     khw_frame_stalled(&stalled_low, &stalled_high);
-    const unsigned int at = khw_pooled(s_slot, stalled_low, stalled_high, word, count);
-    if (at < SCHEDULER_ROUND_MOST)
-    {
-        s_pool[at].slot = RUN_SLOT_NONE;
-    }
-    return at;
+    return khw_pooled(s_slot, stalled_low, stalled_high, word, count);
 }
 
 // the thread of the frame's cases the gate reads as its case `read`: the first half of the gate's cases from the

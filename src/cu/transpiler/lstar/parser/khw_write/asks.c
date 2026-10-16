@@ -204,7 +204,11 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
     question->code_size = (unsigned long long)s_kernel_places * KHW_INSTRUCTION;
     question->registers = s_registers;
     question->cases = count;
-    question->slot = (place < s_kernel_places) ? place : RUN_SLOT_NONE;
+    // the kernel put whole names the probe point the kernel listing gives, as every question does; only a kernel whose
+    // listing names none, before its probe point is found, names none
+    question->slot = (place < s_kernel_places)          ? place
+                     : (s_kernel_slot < s_kernel_places) ? s_kernel_slot
+                                                         : RUN_SLOT_NONE;
     for (unsigned int each = 0u; each < count; each += 1u)
     {
         question->word[each][0] = word[each][0];

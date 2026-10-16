@@ -306,7 +306,7 @@ src/cu/transpiler/lstar/parser/kdm_write.c	1
 src/cu/transpiler/lstar/parser/khw_write.c	13
 src/cu/transpiler/lstar/parser/khw_write/asks.c	14
 src/cu/transpiler/lstar/parser/khw_write/discover.c	10
-src/cu/transpiler/lstar/parser/khw_write/frame.c	14
+src/cu/transpiler/lstar/parser/khw_write/frame.c	10
 src/cu/transpiler/lstar/parser/khw_write/frame_relation.h	3
 src/cu/transpiler/lstar/parser/khw_write/khw_write_internal.h	4
 src/cu/transpiler/lstar/parser/khw_write/relation.c	22
