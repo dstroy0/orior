@@ -319,10 +319,15 @@ int qry_table_dumped(QryBuffer *buffer, unsigned long long *count)
     table.frame_align = QRY_FRAME_ALIGN;
     static const unsigned char s_zeros[QRY_FRAME_ALIGN] = {0};
     const unsigned long long padding = table.blobs_at - table.rows_at - (*count * sizeof(QryRow));
-    // each row given its blob's CRC and its places made the file's, and the rows' CRC the root of the file's checks
+    // each row carries the CRC its member took as it handed the blob; a row read off a frame, where the table was
+    // full, is given its blob's here. Each row's places are made the file's, and the rows' CRC is the root of the
+    // file's checks
     for (unsigned long long row = 0ull; row < *count; row += 1ull)
     {
-        taken[row].crc = qry_crc(buffer->data + taken[row].bytes_at, taken[row].size);
+        if (taken[row].crc == 0ull)
+        {
+            taken[row].crc = qry_crc(buffer->data + taken[row].bytes_at, taken[row].size);
+        }
         taken[row].name_at += table.blobs_at;
         taken[row].bytes_at += table.blobs_at;
     }

@@ -233,8 +233,8 @@ unsigned long long qry_streamed(QryBuffer *buffer, const char *name, const void 
 // (qry_dumped_said), and counted as dumped where it is ordinary and does not fit: its sequence, with `placed` 1 where
 // it went in
 unsigned long long qry_placed(QryBuffer *buffer, const char *name, size_t length, const void *bytes,
-                                     unsigned long long size, unsigned int priority, unsigned int marks,
-                                     unsigned long long handed_at, int *placed)
+                                     unsigned long long size, unsigned long long crc, unsigned int priority,
+                                     unsigned int marks, unsigned long long handed_at, int *placed)
 {
     QryHead *const head = buffer->head;
     const unsigned long long room = (priority < QRY_ORDINARY) ? head->capacity : (head->capacity - QRY_CRITICAL_ROOM);
@@ -246,7 +246,7 @@ unsigned long long qry_placed(QryBuffer *buffer, const char *name, size_t length
         qry_dumped_said(buffer);
     }
     const unsigned long long sequence =
-        qry_appended(buffer, name, length, bytes, size, priority, marks, room, handed_at, placed);
+        qry_appended(buffer, name, length, bytes, size, crc, priority, marks, room, handed_at, placed);
     if (!*placed && (priority == QRY_ORDINARY))
     {
         head->dumped_first = (head->dumped_blobs == 0ull) ? sequence : head->dumped_first;

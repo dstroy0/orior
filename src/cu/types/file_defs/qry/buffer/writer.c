@@ -24,7 +24,8 @@ static int qry_oracle_put(QryBuffer *buffer, const char *top, const char *name)
     }
     qry_lock(buffer);
     int placed = 0;
-    qry_appended(buffer, name, strlen(name), bytes, size, QRY_ORDINARY, 0u, buffer->head->capacity, 0ull, &placed);
+    qry_appended(buffer, name, strlen(name), bytes, size, qry_crc(bytes, size), QRY_ORDINARY, 0u, buffer->head->capacity,
+                 0ull, &placed);
     qry_unlock(buffer);
     free(bytes);
     return placed;
@@ -189,15 +190,17 @@ int qry_write_until_stopped(QryBuffer *buffer)
     char account[384];
     const QryWrites *const writes = &state->writes;
     const int length = snprintf(account, sizeof(account),
-                                "%llu blobs handed, %llu dumped, %llu bytes in %llu writes, the slowest %.3f ms for "
-                                "%llu bytes, %.3f ms writing in all; %llu panics, the slowest %.3f ms from its hand to "
-                                "the disk%s\n",
-                                head->sequence, head->dumped_all, writes->bytes, writes->writes, writes->slowest,
-                                writes->slowest_bytes, writes->all, writes->panics, writes->panic_slowest,
-                                writes->failed ? "; a write did not reach the file whole" : "");
+                                "%llu blobs handed, %llu dumped, %llu corrupt in a ring, %llu bytes in %llu writes, "
+                                "the slowest %.3f ms for %llu bytes, %.3f ms writing in all; %llu panics, the slowest "
+                                "%.3f ms from its hand to the disk%s\n",
+                                head->sequence, head->dumped_all, head->corrupt, writes->bytes, writes->writes,
+                                writes->slowest, writes->slowest_bytes, writes->all, writes->panics,
+                                writes->panic_slowest, writes->failed ? "; a write did not reach the file whole" : "");
     qry_lock(buffer);
     int placed = 0;
-    qry_appended(buffer, "writer", strlen("writer"), account, (unsigned long long)length, QRY_ORDINARY, 0u,
+    // the length is positive here, and counts the account's bytes
+    qry_appended(buffer, "writer", strlen("writer"), account, (unsigned long long)length,
+                 qry_crc((const unsigned char *)account, (unsigned long long)length), QRY_ORDINARY, 0u,
                  head->capacity, 0ull, &placed);
     qry_unlock(buffer);
     qry_range_written(buffer, &file, atomic_load(&head->written), atomic_load(&head->tail), state);

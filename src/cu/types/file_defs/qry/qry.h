@@ -22,8 +22,11 @@
 // little endian. A row's hash is the 64-bit FNV-1a of the name's bytes, 1 where that is 0.
 //
 // The file is a tree of checks two deep: each row holds the CRC-64/XZ of its blob's bytes, and the head the CRC-64/XZ
-// of every row's bytes; the head is the root of every byte past it. A reader holds a blob to its row's CRC as it
-// reads it, and the rows to the head's as it reads them all; a blob or a row the file lost is told from one it holds.
+// of every row's bytes; the head is the root of every byte past it. A blob's CRC is taken by the member that hands it,
+// as it hands it: the member's ring carries it, the writer holds the bytes to it as it moves them out of the ring and
+// leaves a blob that does not hold where it is, and the row carries it from there. A reader holds a blob to its row's
+// CRC as it reads it, and the rows to the head's as it reads them all; a blob or a row the file lost is told from one
+// it holds.
 //
 // A .qry that does not open with QRY_TABLE_MAGIC is one the writer wrote as the run ran and did not dump, a run whose
 // writer ended before the run did. Its panics and critical blobs were written ahead of the blobs waiting, and its order
