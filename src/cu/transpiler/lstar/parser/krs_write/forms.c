@@ -197,6 +197,27 @@ const char *krs_given_of(const char *name)
     return NULL;
 }
 
+unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writers)
+{
+    unsigned int found = 0u;
+    unsigned int fewest = 0u;
+    for (unsigned int at = 0u; at < writers; at += 1u)
+    {
+        const char *const text = s_form[writer[at]].text;
+        unsigned int operands = (strchr(text, ' ') != NULL) ? 1u : 0u;
+        for (const char *walk = text; *walk != '\0'; walk += 1)
+        {
+            operands += (*walk == ',') ? 1u : 0u;
+        }
+        if ((at == 0u) || (operands < fewest))
+        {
+            fewest = operands;
+            found = at;
+        }
+    }
+    return found;
+}
+
 // The form P6 gives a word, of the `writers` forms in `writer`: c_1, the form of least m, where the next least m is
 // past it by more than s, the greatest spread of them. Its place in `writer`, or `writers` where a form has no cost kept
 // or the least do not separate, the survivors then one cost

@@ -776,6 +776,9 @@ export function stopChosen() {
 export async function startRun(openFile) {
   state.openFile = openFile;
   await listen("run-line", onLine);
+  // the lines a run said between two of the server's readings come as one event, so that a run saying thousands a
+  // second leaves the page's event queue open to every other event, the command line's among them
+  await listen("run-lines", ({ payload }) => payload.forEach((line) => onLine({ payload: line })));
   await listen("run-blob", onBlob);
   await listen("run-end", onEnd);
   document.getElementById("job-filter").addEventListener("input", drawList);

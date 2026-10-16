@@ -252,7 +252,7 @@ With the survivors ordered by m, c_1 the least and c_2 the next, c_1 is the part
 
   m_c2 − m_c1 > s
 
-and otherwise the survivors are one cost and the ruleset keeps its form. The gate (P2) decides which candidates hold and this rule orders the survivors, and the two are never added together.
+and otherwise the survivors are one cost and the ruleset keeps its form; where it gave the word no form yet, the survivors being one answer of the part's, the one of the fewest operands is written, and the first seen among those. The gate (P2) decides which candidates hold and this rule orders the survivors, and the two are never added together.
 
 Over the bridge the survivors are S(σ), and the rank is kept at σ with the part and the size it was read on (Q10): the language's `.klm` gives σ the form c_1 where m_c2 − m_c1 > s, and otherwise keeps its form.
 

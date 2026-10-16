@@ -64,6 +64,9 @@ unsigned int krs_costs_read(const char *path);
 unsigned int krs_given_read(const char *path);
 const char *krs_given_of(const char *name);
 unsigned int krs_ranked(const unsigned int *writer, unsigned int writers);
+// the place in `writer` of the form of the fewest operands, the first where several have as few: the operands are
+// the comma-separated places after the operation in the form's text
+unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writers);
 unsigned int krs_parameters_named(const char *path, const char *name, char parameter[][KRS_NAME]);
 int krs_word_written(const Word *word, const KrsForm *form, unsigned int *order);
 int krs_text_named(const KrsForm *form, const unsigned int *order, char parameter[][KRS_NAME], unsigned int parameters, char *written, size_t room);

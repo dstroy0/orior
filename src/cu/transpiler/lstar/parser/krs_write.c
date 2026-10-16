@@ -163,8 +163,9 @@ int main(int count, char **word)
             continue;
         }
         // one form writes the word, or P6 separates the least of several; otherwise the survivors are one cost and the
-        // ruleset keeps the form it gave the word (Step 11)
-        const unsigned int ranked = (writers == 1u) ? 0u : krs_ranked(s_writer, writers);
+        // ruleset keeps the form it gave the word (Step 11), or, where it gave none yet, the survivors being one answer
+        // of the part's, takes the one of the fewest operands, the first seen among those
+        unsigned int ranked = (writers == 1u) ? 0u : krs_ranked(s_writer, writers);
         if (ranked == writers)
         {
             const char *const kept = krs_given_of(each->name);
@@ -172,10 +173,14 @@ int main(int count, char **word)
             {
                 qry_text_printed(&forms, "%s\n", kept);
                 given += 1u;
+                printf("  krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset keeps its form\n",
+                       writers, each->name);
+                continue;
             }
-            printf("  krs_write: %u forms write %s, one cost or a cost not read (P6); %s\n", writers, each->name,
-                   (kept != NULL) ? "the ruleset keeps its form" : "the ruleset gave it none, and none is written");
-            continue;
+            ranked = krs_fewest_operands(s_writer, writers);
+            printf("  krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset gave it none, and the "
+                   "one of the fewest operands is written\n",
+                   writers, each->name);
         }
         const unsigned int first = s_writer[ranked];
         const unsigned int *const first_order = s_order[ranked];

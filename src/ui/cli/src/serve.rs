@@ -564,10 +564,43 @@ impl Server {
         let root = self.root()?;
         let found = catalog::read(&root).into_iter().find(|j| j.id == job).ok_or_else(|| format!("no job {job}"))?;
         let emit = self.emitting();
+        // the lines said are gathered and go to the page as one event every fifty milliseconds, so that a run saying
+        // thousands a second leaves the page's event queue open to every other event; the end goes after the last of
+        // them
+        let pending: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
+        let alive = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let flush = {
+            let pending = pending.clone();
+            let emit = emit.clone();
+            Arc::new(move || {
+                let taken: Vec<Value> = pending.lock().map(|mut held| std::mem::take(&mut *held)).unwrap_or_default();
+                if !taken.is_empty() {
+                    emit("run-lines", Value::Array(taken));
+                }
+            })
+        };
+        {
+            let flush = flush.clone();
+            let alive = alive.clone();
+            std::thread::spawn(move || {
+                while alive.load(std::sync::atomic::Ordering::Relaxed) {
+                    std::thread::sleep(Duration::from_millis(50));
+                    flush();
+                }
+            });
+        }
         let sink: runner::Sink = Arc::new(move |said| match said {
-            runner::Said::Line(line) => emit("run-line", serde_json::to_value(line).unwrap_or(Value::Null)),
+            runner::Said::Line(line) => {
+                if let Ok(mut held) = pending.lock() {
+                    held.push(serde_json::to_value(line).unwrap_or(Value::Null));
+                }
+            }
             runner::Said::Blob(blob) => emit("run-blob", serde_json::to_value(blob).unwrap_or(Value::Null)),
-            runner::Said::End(end) => emit("run-end", serde_json::to_value(end).unwrap_or(Value::Null)),
+            runner::Said::End(end) => {
+                alive.store(false, std::sync::atomic::Ordering::Relaxed);
+                flush();
+                emit("run-end", serde_json::to_value(end).unwrap_or(Value::Null));
+            }
         });
         self.runs.start(sink, root, found, values).map(|(run, _)| run)
     }
@@ -720,16 +753,26 @@ impl Server {
                     at += bytes.len() as u64;
                     held.push_str(&String::from_utf8_lossy(&bytes));
                     quiet = 0;
-                    while let Some(cut) = held.find('\n') {
+                    // the lines of one reading go to the page as one event, so that a run saying thousands a second
+                    // leaves the page's event queue open to every other event
+                    let mut lines: Vec<Value> = Vec::new();
+                    let mut ended: Option<Value> = None;
+                    while ended.is_none() {
+                        let Some(cut) = held.find('\n') else { break };
                         let line: String = held.drain(..=cut).collect();
                         let Ok(line) = serde_json::from_str::<Value>(&line) else { continue };
                         if let Some(end) = line.get("end") {
-                            emit("run-end", end.clone());
-                            return;
+                            ended = Some(end.clone());
+                        } else if let Some(one) = line.get("line") {
+                            lines.push(one.clone());
                         }
-                        if let Some(one) = line.get("line") {
-                            emit("run-line", one.clone());
-                        }
+                    }
+                    if !lines.is_empty() {
+                        emit("run-lines", Value::Array(lines));
+                    }
+                    if let Some(end) = ended {
+                        emit("run-end", end);
+                        return;
                     }
                     continue;
                 }

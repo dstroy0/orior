@@ -213,7 +213,8 @@ pub const EVERY: &[Tool] = &[
         c_flags: C11,
         cxx_flags: &[],
         link: &[],
-        headers: &[],
+        // the word web and the precepts the words are written over
+        headers: &["src/cu/engine/rmc"],
     },
     Tool {
         name: "gsm_write",
