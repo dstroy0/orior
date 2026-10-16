@@ -323,10 +323,6 @@ static void sass_answers_read(SassMachine *machine, const char *path)
 {
     machine->register_last = SASS_MACHINE_UNANSWERED;
     machine->register_past = SASS_MACHINE_UNANSWERED;
-    machine->slot_place = SASS_MACHINE_UNANSWERED;
-    machine->opening_least = SASS_MACHINE_UNANSWERED;
-    machine->fixed_record = SASS_MACHINE_UNANSWERED;
-    machine->fixed_index = SASS_MACHINE_UNANSWERED;
     char ksc[1024];
     const size_t length = strlen(path);
     const int typed = (length > 4u) && (strcmp(path + length - 4u, ".khw") == 0);
@@ -353,26 +349,6 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         if (strncmp(s_row.question, "register past", 13u) == 0)
         {
             machine->register_past = answered;
-            continue;
-        }
-        if (strcmp(s_row.question, "slot place") == 0)
-        {
-            machine->slot_place = answered;
-            continue;
-        }
-        if (strcmp(s_row.question, "opening least") == 0)
-        {
-            machine->opening_least = answered;
-            continue;
-        }
-        if (strcmp(s_row.question, "fixed record") == 0)
-        {
-            machine->fixed_record = answered;
-            continue;
-        }
-        if (strcmp(s_row.question, "fixed index") == 0)
-        {
-            machine->fixed_index = answered;
             continue;
         }
         if (sscanf(s_row.question, "stall %63s %63s", writer, reader) != 2)

@@ -367,9 +367,9 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/cubin_run_internal.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/input.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/launch.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/question.c	16
-src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.h	21
-src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/cubin_safe_internal.h	4
-src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/rules.c	6
+src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.h	13
+src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/cubin_safe_internal.h	1
+src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/rules.c	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/slot.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/verdicts.c	6
 src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write.c	6
@@ -386,7 +386,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_read.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.cu	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/sass_assemble_internal.h	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	5
+src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/cubin_safe_check.c	6
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_descent.md	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_held.py	5
@@ -552,7 +552,7 @@ theory/thought_experiments/cell_tracking/proposal.md	1
 theory/thought_experiments/engine/state_vectors.md	1
 theory/thought_experiments/orior/chapters/chapter_thought_experiments_boundary_holds.tex	2
 theory/workbooks/Lstar_protocol/angluin.md	3
-theory/workbooks/Lstar_protocol/query_protocol_table.md	189
+theory/workbooks/Lstar_protocol/query_protocol_table.md	178
 theory/workbooks/casmi/casmi_problem_table.md	7
 theory/workbooks/casmi/casmi_workbook.md	2
 theory/workbooks/cell_tracking/README.md	2

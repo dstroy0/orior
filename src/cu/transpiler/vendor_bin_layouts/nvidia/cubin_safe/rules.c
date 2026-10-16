@@ -172,16 +172,10 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
             return CUBIN_SAFE_CONTROL;
         }
         // an encoding its class's own conditions name illegal, a register out of range or misaligned for its width,
-        // is held before the part faults on it (rule 15)
+        // is held before the part faults on it (rule 14)
         if (cubin_safe_tables_ready() && cubin_class_illegal(cubin_safe_tables(), low, high))
         {
             return CUBIN_SAFE_ILLEGAL;
-        }
-        // the slot's instruction writes none of the registers the kernel holds fixed around the slot, the address the
-        // store after it reads (rule 14)
-        if (cubin_safe_tables_ready() && cubin_slot_writes_fixed(machine, cubin_safe_tables(), code, code_size, place))
-        {
-            return CUBIN_SAFE_FIXED;
         }
         char text[256];
         if (!sass_encoding_read(machine, low, high, place, text, sizeof(text)))

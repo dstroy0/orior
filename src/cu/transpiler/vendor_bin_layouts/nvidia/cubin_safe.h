@@ -62,17 +62,7 @@
 //
 //  13. an instruction of a class that reads the constant bank reads bank 0, the parameters' bank, the one bank a
 //      container of ours carries a section for, and ends inside that section (cubin_safe_tables_read, constant.c);
-//  14. the instruction at the slot, the place the .ksc names `slot place` counted from `opening least`, writes none of
-//      the registers the kernel holds fixed around the slot: the record's address and the index's, as the .ksc names
-//      them `fixed record` and `fixed index`, the record's over as many registers as the class of the place that reads
-//      it as an address spans, two where that class's `e` names a 64-bit address. The slot's destination is the
-//      field its class writes from the operand Rd. A variant that wrote one of them would overwrite the address the
-//      store after the slot reads, and the part faults on it. Where the slot instruction's class reads a memory
-//      address from a register, the operand in the FORMAT's brackets, it reads it from the record's or the index's
-//      register alone: a register is a hardware location, what the kernel holds in each at the slot is a fixed fact
-//      of the kernel, and every other register holds a case's word or nothing, which the part faults on as an
-//      address (slot.c);
-//  15. an encoding holds to its class's own conditions on its registers, OOR_REG_ERROR and MISALIGNED_REG_ERROR as
+//  14. an encoding holds to its class's own conditions on its registers, OOR_REG_ERROR and MISALIGNED_REG_ERROR as
 //      the instruction set states them: a register in range for its width and a 64-bit register pair even. This is
 //      the vendor's pipe, its rules read off its text before the part is asked, and it stands apart from ours, what
 //      the part answered as the learned files hold it, the forms of the .khw, the answers and the refusals of the
@@ -98,8 +88,7 @@ enum CubinSafe
     CUBIN_SAFE_REGISTER = 11,
     CUBIN_SAFE_HELD = 12,
     CUBIN_SAFE_CONSTANT = 13,
-    CUBIN_SAFE_FIXED = 14,
-    CUBIN_SAFE_ILLEGAL = 15
+    CUBIN_SAFE_ILLEGAL = 14
 };
 
 // the vendor's instruction set as tables/read.h reads it
