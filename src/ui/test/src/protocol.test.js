@@ -6,10 +6,10 @@ import { HISTORY_SECONDS, PANIC, RATE_WINDOW_MS, ROUND_MOST, ROUNDS_SHOWN, blobs
 const { test, assert } = window.__harness;
 
 let sequence = 0;
-const blob = (name, size = 100, priority = 2) => ({ sequence: ++sequence, nanoseconds: sequence * 1000, priority, member: "0", name, size });
+const blob = (name, size = 100, priority = 2) => ({ sequence: ++sequence, nanoseconds: sequence * 1000, priority, name, size });
 
-// A pass's tap, as the writer places it: the files carried in, the first round's question, then two
-// rounds of questions with their answers.
+// A pass's blobs, as the writer's queue places them and the window's reader reads them: the files carried in, the
+// first round's question, then two rounds of questions with their answers.
 function pass() {
   return [
     blob("forms_work.txt", 5000),

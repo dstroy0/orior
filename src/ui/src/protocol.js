@@ -7,9 +7,9 @@
 // nothing on it appears or moves as blobs come in. Nothing here touches the page: the run page
 // draws what this reads.
 //
-// A blob is `{ sequence, nanoseconds, priority, member, name, size }` as the server reads it off the
-// tap, the priority 0 a panic, 1 critical, 2 ordinary. The reading is a fold: `panelStart()` is the
-// reading of no blobs, `panelStep(reading, blob)` takes one more as it arrives, and `panelRead` gives
+// A blob is `{ sequence, nanoseconds, priority, name, size }` as the window's reader reads it off the
+// run's buffer, the priority 0 a panic, 1 critical, 2 ordinary. The reading is a fold: `panelStart()` is the
+// reading of no blobs, `panelStep(reading, blob)` takes one more as it is read, and `panelRead` gives
 // the nodes and where the fire stands.
 
 export const PANIC = 0;
@@ -145,7 +145,7 @@ export function panelStep(reading, blob, { plan = null } = {}) {
 // What the panel shows of a reading: `nodes` the line, each node with whether it is reached; `at`
 // the index of the furthest node reached; `place` how far the fire has burnt, 0 to 1, the node
 // reached plus the current round's answered over asked toward the next; `panic` the first panic's
-// blob or null, each node with the count of blobs it keeps. `tools` says the tools were built, `started` that the run's tap was named, `plan`
+// blob or null, each node with the count of blobs it keeps. `tools` says the tools were built, `started` that the run's first blob was read, `plan`
 // the plan where it has come, `ended` that the run ended.
 export function panelRead(reading, { pass = "", plan = null, tools = false, started = false, ended = false } = {}) {
   const nodes = nodesOf(pass, plan, Math.max(1, reading.rounds));
@@ -210,7 +210,7 @@ export function panelOf(blobs, shown = {}) {
   return panelRead(blobs.reduce((reading, blob) => panelStep(reading, blob, shown), panelStart()), shown);
 }
 
-// The telemetry of a run, read off the tap and the console as the four signals a service is watched by:
+// The telemetry of a run, read off the run's database and the console as the four signals a service is watched by:
 // traffic, latency, errors and saturation; with the time gone and the time left beside them. Traffic is
 // the answers a second over the last RATE_WINDOW_MS, a recent rate and not the run's average, since an
 // average over the whole run hides a slowdown. Latency is the last round's airlock, cross and carrier

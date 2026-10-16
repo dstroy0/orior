@@ -374,15 +374,6 @@ extern "C"
     // 1, or 0 where the file could not be written
     int qry_write_until_stopped(QryBuffer *buffer);
 
-    // The writer's tap: the pipe a reader connects to for one line a blob as the writer places it, `<sequence>
-    // <nanoseconds> <priority> <member> <name> <size>`, named from the hash of the .qry's path as the buffer's wake
-    // is, `\\.\pipe\qry-<hash>-tap` on Windows and the FIFO `/tmp/qry-<hash>-tap` on POSIX. The writer opens it as it
-    // starts, 1, or 0 where the system gives no pipe and the run goes on with none; the writer never waits on it, and
-    // a line with no reader is dropped
-    void qry_tap_name(const char *path, char *name, size_t room);
-
-    int qry_tap_opened(QryBuffer *buffer);
-
     // the writer asked to write the rest and stop, and waited for: 1, or 0 where it did not stop within `milliseconds`
     int qry_stop(QryBuffer *buffer, unsigned int milliseconds);
 

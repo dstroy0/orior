@@ -63,51 +63,22 @@ pub struct End {
     pub ms: f64,
 }
 
-/// One blob the run's writer placed, read off the writer's tap: its sequence, the nanoseconds of its
-/// hand, its priority (0 a panic, 1 critical, 2 ordinary), the member's ring or `-` for a blob that
-/// went in at the tail, its name and its size.
+/// A run's start, said before its first line: its number and its job, so that whoever hears the run
+/// knows it before anything it says.
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Blob {
+pub struct Start {
     pub run: u64,
-    pub sequence: u64,
-    pub nanoseconds: u64,
-    pub priority: u32,
-    pub member: String,
-    pub name: String,
-    pub size: u64,
-}
-
-impl Blob {
-    /// A tap line read into a blob of `run`, or None where the line is not one.
-    pub fn read(run: u64, line: &str) -> Option<Blob> {
-        let mut words = line.split_whitespace();
-        let sequence = words.next()?.parse().ok()?;
-        let nanoseconds = words.next()?.parse().ok()?;
-        let priority = words.next()?.parse().ok()?;
-        let member = words.next()?.to_string();
-        let name = words.next()?.to_string();
-        let size = words.next()?.parse().ok()?;
-        words.next().is_none().then_some(Blob { run, sequence, nanoseconds, priority, member, name, size })
-    }
-}
-
-/// The tap's name in the writer's line `  qry_writer: the tap of <qry> is <pipe>`, or None for any
-/// other line.
-pub fn tap_named(line: &str) -> Option<String> {
-    let line = line.trim();
-    let rest = line.strip_prefix("qry_writer: the tap of ")?;
-    let (_, pipe) = rest.rsplit_once(" is ")?;
-    (!pipe.is_empty()).then(|| pipe.to_string())
+    pub job: String,
 }
 
 /// The variable a job'"'"'s step finds the run'"'"'s number in: set on every step a run starts, and read by a
 /// command that would otherwise reach a window open on the tree.
 pub const RUN_VARIABLE: &str = "ORIOR_RUN";
 
-/// What a run says as it goes: each line, each blob its writer placed, then its end.
+/// What a run says as it goes: its start, each line, then its end, in that order.
 pub enum Said {
+    Start(Start),
     Line(Line),
-    Blob(Blob),
     End(End),
 }
 
@@ -408,28 +379,6 @@ pub fn quiet(cmd: &mut Command) {
     }
 }
 
-/// The writer's tap at `pipe` read to its end on a thread of its own, each line a `Said::Blob` of `run`.
-/// A pipe that cannot be opened reads as nothing: the run goes on with its console alone.
-fn tapped(sink: Sink, run: u64, pipe: String) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        let Ok(opened) = std::fs::File::open(&pipe) else { return };
-        let mut reader = BufReader::new(opened);
-        let mut bytes = Vec::new();
-        loop {
-            bytes.clear();
-            match reader.read_until(b'\n', &mut bytes) {
-                Ok(0) | Err(_) => break,
-                Ok(_) => {
-                    let text = String::from_utf8_lossy(&bytes);
-                    if let Some(blob) = Blob::read(run, &text) {
-                        sink(Said::Blob(blob));
-                    }
-                }
-            }
-        }
-    })
-}
-
 fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, from: R, seen: Arc<Mutex<Vec<String>>>, began: Instant, first: Arc<Mutex<Option<f64>>>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut reader = BufReader::new(from);
@@ -442,10 +391,6 @@ fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, f
                     let text = String::from_utf8_lossy(&bytes).trim_end_matches(['\r', '\n']).to_string();
                     if let Ok(mut seen) = seen.lock() {
                         seen.push(text.clone());
-                    }
-                    // the run's writer naming its tap: a reader on it from here, each blob placed an event
-                    if let Some(pipe) = tap_named(&text) {
-                        tapped(sink.clone(), run, pipe);
                     }
                     let ms = since(began);
                     if let Ok(mut first) = first.lock() {
@@ -553,6 +498,8 @@ impl Runs {
             commands.insert(at, Ready::Sign);
         }
         let run = self.next.fetch_add(1, Ordering::SeqCst) + 1;
+        // the run's start said before any line of it, so that a hearer knows the run and its job first
+        sink(Said::Start(Start { run, job: job.id.clone() }));
         // Run numbers start again in each process, and the window and the command line can run at
         // once. The folder is named by both and emptied before the run writes to it.
         let view_out = root.join("build").join("ui").join("views").join(format!("{}-{run}", std::process::id()));
@@ -817,26 +764,3 @@ mod splitting {
     }
 }
 
-#[cfg(test)]
-mod tapping {
-    use super::{tap_named, Blob};
-
-    #[test]
-    fn a_tap_line_is_read_into_a_blob() {
-        let blob = Blob::read(7, "12 345678 2 0 answers3.txt 20\n").unwrap();
-        assert_eq!(blob, Blob { run: 7, sequence: 12, nanoseconds: 345678, priority: 2, member: "0".into(), name: "answers3.txt".into(), size: 20 });
-        assert_eq!(Blob::read(7, "13 1 0 - conference_q7 400").unwrap().member, "-");
-        assert!(Blob::read(7, "12 345678 2 0 answers3.txt").is_none());
-        assert!(Blob::read(7, "twelve 345678 2 0 answers3.txt 20").is_none());
-        assert!(Blob::read(7, "12 345678 2 0 answers3.txt 20 more").is_none());
-        assert!(Blob::read(7, "").is_none());
-    }
-
-    #[test]
-    fn the_tap_name_is_found_in_the_writers_line() {
-        assert_eq!(tap_named("  qry_writer: the tap of build/engine/khw/qry/query9-x.qry is \\\\.\\pipe\\qry-0123456789abcdef-tap"), Some("\\\\.\\pipe\\qry-0123456789abcdef-tap".into()));
-        assert_eq!(tap_named("  qry_writer: the tap of /tmp/a is b.qry is /tmp/qry-1-tap"), Some("/tmp/qry-1-tap".into()));
-        assert_eq!(tap_named("  qry_writer: the buffer of a.qry is made"), None);
-        assert_eq!(tap_named("round: 8 question(s)"), None);
-    }
-}

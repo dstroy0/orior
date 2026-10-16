@@ -79,11 +79,25 @@ pub fn branch(root: &Path) -> Option<String> {
 }
 
 /// A repository of the tree: its folder's path in the tree, empty for the one the tree itself is in,
-/// and the branch it is on.
+/// its name, and the branch it is on.
 #[derive(Serialize)]
 pub struct Repository {
     pub path: String,
+    pub name: String,
     pub branch: Option<String>,
+}
+
+/// The name of the repository at `root`: the last part of its `origin` remote's address, without a
+/// `.git` ending, `https://github.com/dstroy0/orior.git` naming `orior`; the folder's name where it has
+/// no `origin`.
+pub fn name(root: &Path) -> String {
+    let remote = git(root, &["config", "--get", "remote.origin.url"]).map(|out| String::from_utf8_lossy(&out).trim().to_string()).unwrap_or_default();
+    let last = remote.trim_end_matches('/').rsplit(['/', ':', '\\']).next().unwrap_or("");
+    let named = last.strip_suffix(".git").unwrap_or(last);
+    if !named.is_empty() {
+        return named.to_string();
+    }
+    root.file_name().map(|folder| folder.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
 /// Folders a search for the tree's repositories does not go into: those a build or a package manager
@@ -99,7 +113,7 @@ const REPOSITORY_DEPTH: usize = 4;
 pub fn repositories(root: &Path) -> Vec<Repository> {
     let mut found = Vec::new();
     if git(root, &["rev-parse", "--is-inside-work-tree"]).is_some() {
-        found.push(Repository { path: String::new(), branch: branch(root) });
+        found.push(Repository { path: String::new(), name: name(root), branch: branch(root) });
     }
     let mut nested = Vec::new();
     let mut stack = vec![(root.to_path_buf(), 0)];
@@ -122,7 +136,7 @@ pub fn repositories(root: &Path) -> Vec<Repository> {
         }
     }
     nested.sort();
-    found.extend(nested.into_iter().map(|path| Repository { path: crate::root::relative(root, &path), branch: branch(&path) }));
+    found.extend(nested.into_iter().map(|path| Repository { path: crate::root::relative(root, &path), name: name(&path), branch: branch(&path) }));
     found
 }
 

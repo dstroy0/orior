@@ -37,8 +37,6 @@ const state = {
   runs: new Map(),
   shown: new Map(),
   openFile: () => {},
-  // Lines and ends that arrive before job_start has returned the run they belong to.
-  early: new Map(),
   // The fuse at the foot of the output, kept from one drawing of the stage to the next: a protocol
   // run burns from objective to objective, every other run by the ruler.
   fuse: makeFuse(() => fusePlace()),
@@ -177,22 +175,62 @@ function viewBody(run) {
 
 function shownOf(run) {
   // the tools are built by the time the run names its tap, and the run has started once its first blob comes
-  return { pass: run.pass, plan: run.plan, tools: run.tapped, started: run.telemetry.firstAt !== null, ended: run.done };
+  return { pass: run.pass, plan: run.plan, tools: run.qry !== null, started: run.telemetry.firstAt !== null, ended: run.done };
 }
 
 // The protocol jobs, whose runs show in the panel.
 const PROTOCOL = "protocol";
 
-// A run record as it starts: its console lines and, for a protocol run, the reading of its tap.
+// A run record as it starts: its console lines and, for a protocol run, the reading of its database, the
+// .qry its writer names and where the next read of it goes on from.
 function runRecord(run, job, lines, steps, clock) {
-  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", tapped: false, view: OVERVIEW, telemetry: telemetryStart(), reachedAt: {}, course: courseStart() };
+  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", qry: null, next: 0, reader: null, readingNow: false, view: OVERVIEW, telemetry: telemetryStart(), reachedAt: {}, course: courseStart() };
 }
 
-function early(run) {
-  if (!state.early.has(run)) {
-    state.early.set(run, { lines: [], blobs: [], end: null });
+// A run's start, said before its first line: its record made here, so that every line finds it.
+function onStart({ payload }) {
+  if (!state.runs.has(payload.run)) {
+    state.runs.set(payload.run, runRecord(payload.run, payload.job, [], [], performance.now()));
+    drawList();
   }
-  return state.early.get(run);
+}
+
+// A protocol run's blobs read off its database from where the last read stopped: the writer's queue is the one
+// order, and the panel reads it in that order, a tenth of a second at a time while the run goes and once more as it
+// ends. A read that fails, the buffer not there yet, is made again at the next step.
+async function readingStepped(run) {
+  if (!run.qry || run.readingNow) {
+    return;
+  }
+  run.readingNow = true;
+  try {
+    const read = await invoke("qry_read", { path: run.qry, from: run.next });
+    for (const blob of read.blobs) {
+      panelStep(run.reading, blob, { plan: run.plan });
+      telemetryStep(run.telemetry, blob, performance.now() - run.clock);
+    }
+    run.next = read.next;
+    if (read.blobs.length) {
+      panelRedrawn(run);
+    }
+  } catch {
+    // read again at the next step
+  }
+  run.readingNow = false;
+}
+
+function readingStarted(run) {
+  if (run.reader) {
+    return;
+  }
+  run.reader = setInterval(() => {
+    readingStepped(run);
+    if (run.done) {
+      clearInterval(run.reader);
+      run.reader = null;
+      readingStepped(run);
+    }
+  }, 100);
 }
 
 const remembered = (id) => JSON.parse(localStorage.getItem(`orior.values.${id}`) || "{}");
@@ -443,19 +481,8 @@ const BUILDS = new Set(["build", "executable"]);
 // the run view, its job chosen, wherever it was started from.
 export async function startJob(id, values) {
   const run = await invoke("job_start", { job: id, values });
-  const before = early(run);
-  state.early.delete(run);
-  // `started` counts the steps begun, each of which writes its command line first, and `steps` holds
-  // when each began. `clock` is the page's time when the run started, as near as its lines place it.
-  const steps = before.lines.filter((line) => line.stream === "command").map((line) => line.ms);
-  const clock = performance.now() - (before.lines[before.lines.length - 1]?.ms ?? 0);
-  state.runs.set(run, runRecord(run, id, before.lines, steps, clock));
-  before.blobs.forEach((blob) => onBlob({ payload: blob }));
-  before.lines.forEach((line) => planNoted(state.runs.get(run), line));
-  // A run that ended before its number came back ends here as it comes.
-  if (before.end) {
-    onEnd({ payload: before.end });
-  }
+  // the run's start was said before this answer came, and its record stands; one is made here where it was not
+  onStart({ payload: { run, job: id } });
   const kept = runsOf(id);
   for (const old of kept.filter((one) => one.done).slice(0, Math.max(0, kept.length - KEPT_RUNS))) {
     state.runs.delete(old.run);
@@ -467,10 +494,6 @@ export async function startJob(id, values) {
     if (state.chosen !== id) {
       showJob(id);
     }
-  }
-  if (before.end) {
-    onEnd({ payload: before.end });
-    return run;
   }
   drawList();
   if (state.chosen === id) {
@@ -577,7 +600,9 @@ function planNoted(run, line) {
       run.reading = panelStart();
       run.plan = null;
       run.pass = run.course.steps[run.course.at - 1] ?? "";
-      run.tapped = false;
+      // the step to come starts a run of its own, whose database its writer names
+      run.qry = null;
+      run.next = 0;
     }
     panelRedrawn(run);
     return;
@@ -598,22 +623,14 @@ function planNoted(run, line) {
     run.pass = at >= 0 && words[at + 1] ? words[at + 1] : words[words.indexOf("protocol") + 1] ?? "";
     panelRedrawn(run);
   }
-  if (/^\s*qry_writer: the tap of /.test(line.text)) {
-    run.tapped = true;
+  // the writer naming the run's database: the panel reads the run from there, from its first blob on
+  const made = /^\s*qry_writer: the buffer of (.+) is made\s*$/.exec(line.text);
+  if (made) {
+    run.qry = made[1];
+    run.next = 0;
+    readingStarted(run);
     panelRedrawn(run);
   }
-}
-
-// A blob the run's writer placed, off its tap.
-function onBlob({ payload }) {
-  const run = state.runs.get(payload.run);
-  if (!run) {
-    early(payload.run).blobs.push(payload);
-    return;
-  }
-  panelStep(run.reading, payload, { plan: run.plan });
-  telemetryStep(run.telemetry, payload, performance.now() - run.clock);
-  panelRedrawn(run);
 }
 
 function status(run) {
@@ -691,7 +708,6 @@ function endNode(run) {
 function onLine({ payload }) {
   const run = state.runs.get(payload.run);
   if (!run) {
-    early(payload.run).lines.push(payload);
     return;
   }
   run.lines.push(payload);
@@ -726,7 +742,6 @@ function onLine({ payload }) {
 function onEnd({ payload }) {
   const run = state.runs.get(payload.run);
   if (!run) {
-    early(payload.run).end = payload;
     return;
   }
   Object.assign(run, { done: true, code: payload.code, stopped: payload.stopped, views: payload.views, made: payload.made ?? null, endMs: payload.ms });
@@ -775,11 +790,11 @@ export function stopChosen() {
 
 export async function startRun(openFile) {
   state.openFile = openFile;
+  await listen("run-start", onStart);
   await listen("run-line", onLine);
   // the lines a run said between two of the server's readings come as one event, so that a run saying thousands a
   // second leaves the page's event queue open to every other event, the command line's among them
   await listen("run-lines", ({ payload }) => payload.forEach((line) => onLine({ payload: line })));
-  await listen("run-blob", onBlob);
   await listen("run-end", onEnd);
   document.getElementById("job-filter").addEventListener("input", drawList);
   keepListKeys(document.getElementById("jobs"), document.getElementById("job-filter"));

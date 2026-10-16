@@ -508,7 +508,7 @@ src/sims/cu/types/integers/pi_tower/pi_tower_engine.cu	1
 src/sims/cu/types/integers/pi_tower/pi_tower_internal.h	3
 src/sims/cu/types/integers/pi_tower/pi_tower_walk.cu	1
 src/ui/COMPLETED_ROADMAP.md	21
-src/ui/README.md	11
+src/ui/README.md	1
 src/ui/ROADMAP.md	2
 src/ui/test/memory.py	1
 src/ui/test/walk.py	5

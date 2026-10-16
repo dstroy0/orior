@@ -276,9 +276,9 @@ pub fn keep_run(base: &Path) -> i32 {
                 line.run = run;
                 json!({"line": line})
             }
-            runner::Said::Blob(mut blob) => {
-                blob.run = run;
-                json!({"blob": blob})
+            runner::Said::Start(mut start) => {
+                start.run = run;
+                json!({"start": start})
             }
             runner::Said::End(mut end) => {
                 end.run = run;
@@ -590,12 +590,13 @@ impl Server {
             });
         }
         let sink: runner::Sink = Arc::new(move |said| match said {
+            // the start goes before any line, so that the page knows the run as its first line comes
+            runner::Said::Start(start) => emit("run-start", serde_json::to_value(start).unwrap_or(Value::Null)),
             runner::Said::Line(line) => {
                 if let Ok(mut held) = pending.lock() {
                     held.push(serde_json::to_value(line).unwrap_or(Value::Null));
                 }
             }
-            runner::Said::Blob(blob) => emit("run-blob", serde_json::to_value(blob).unwrap_or(Value::Null)),
             runner::Said::End(end) => {
                 alive.store(false, std::sync::atomic::Ordering::Relaxed);
                 flush();
@@ -763,6 +764,8 @@ impl Server {
                         let Ok(line) = serde_json::from_str::<Value>(&line) else { continue };
                         if let Some(end) = line.get("end") {
                             ended = Some(end.clone());
+                        } else if let Some(start) = line.get("start") {
+                            emit("run-start", start.clone());
                         } else if let Some(one) = line.get("line") {
                             lines.push(one.clone());
                         }

@@ -167,9 +167,11 @@ function repoOpen() {
   return (file && repoOf(file)) ?? (paths.includes("") ? "" : (paths[0] ?? ""));
 }
 
-// A repository's name: its folder's, the tree's own folder's for the tree's.
+// A repository's name as the server gives it, its `origin` remote's; its folder's where the server has not
+// listed it yet.
 function repoName(repo) {
-  return (repo || document.getElementById("tree-path").textContent.replace(/\\/g, "/")).split("/").filter(Boolean).pop() ?? "";
+  const listed = (state.repos ?? []).find((one) => one.path === (repo ?? ""))?.name;
+  return listed || (repo || document.getElementById("tree-path").textContent.replace(/\\/g, "/")).split("/").filter(Boolean).pop() || "";
 }
 
 // The branch on the status bar: the repository open's, named with it where the tree holds more than
@@ -188,6 +190,12 @@ function drawRepoBranch() {
 async function loadChanges() {
   if (!state.repos) {
     state.repos = await invoke("git_repositories").catch(() => []);
+    // the bar names the tree by its own repository's name where the tree is in one; the folder's stands
+    // where it is in none
+    const own = state.repos.find((one) => one.path === "")?.name;
+    if (own) {
+      document.getElementById("bar-project").textContent = own;
+    }
   }
   const [changed, branch] = await Promise.all([invoke("tree_changed", { repos: repoPaths() }).catch(() => []), invoke("tree_branch", { repo: repoOpen() }).catch(() => null)]);
   state.changes = new Map((changed ?? []).map(({ path, state: mark }) => [path, mark]));

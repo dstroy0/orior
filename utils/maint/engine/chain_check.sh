@@ -38,8 +38,6 @@
 #                    take form's second word, a flag bit printing nothing, and the guard before the operation
 #   ranges_check     holds the cross's cut of the distinct slot encodings over the host's processors: the ranges tile
 #                    the encodings end to end, none empty and none past the last
-#   tap_check        holds the writer's tap: a reader on the pipe reads one line a blob as the writer places it, a
-#                    panic's first, each line its blob's name and size
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
 #                    section and the pipes written again under who lines, and the part's section written again as it was
 #   survivors_check  holds the gate to P2 on the ladder's own relations
@@ -119,8 +117,6 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/krf_check" "$TOP/utils/test/src/cu/types/file_defs/krf/krf_check.c" \
     "${FILE_DEFS[@]}" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -pthread -o "$OUT/tap_check" "$TOP/utils/test/src/cu/types/file_defs/qry/tap_check.c" \
-    "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/frame_check.c" \
     "$TOP/src/cu/transpiler/lstar/parser/krs_write/head.c" \
     "$TOP/src/cu/transpiler/lstar/parser/krs_write/fixed.c" \
@@ -198,8 +194,6 @@ fi
 "$OUT/constant_check" || exit 1
 "$OUT/naming_check" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv" || exit 1
 "$OUT/ranges_check" || exit 1
-mkdir -p "$OUT/tap_check.run"
-"$OUT/tap_check" "$OUT/tap_check.run" || exit 1
 # R's check, the who's and the rows' in a run of their own, whose writer writes the records and the file they are held
 # to, ended with the subshell
 (

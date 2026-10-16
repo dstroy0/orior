@@ -89,13 +89,6 @@ int main(int count, char **words)
             return 1;
         }
         printf("  qry_writer: the buffer of %s is made\n", words[2]);
-        // the tap opened before the run goes, and named, for a reader that connects on the line
-        if (qry_tap_opened(buffer))
-        {
-            char tap[128];
-            qry_tap_name(words[2], tap, sizeof(tap));
-            printf("  qry_writer: the tap of %s is %s\n", words[2], tap);
-        }
         fflush(stdout);
         const int written = qry_write_until_stopped(buffer);
         qry_close(buffer);
@@ -169,11 +162,9 @@ int main(int count, char **words)
             QryBuffer *const buffer = qry_open(path);
             if (buffer != NULL)
             {
-                // the tap's name said here as well as at the start, for a starter that keeps the writer's own output
-                // out of its console and reads this word's
-                char tap[128];
-                qry_tap_name(path, tap, sizeof(tap));
-                printf("  qry_writer: the tap of %s is %s\n", path, tap);
+                // the buffer's path said here as at the start, for a starter that keeps the writer's own output out of
+                // its console and reads this word's: a reader of the run finds the run by it
+                printf("  qry_writer: the buffer of %s is made\n", path);
                 qry_close(buffer);
                 return 0;
             }
