@@ -54,6 +54,26 @@
 //      answered as refused, so that R holds it off the part ever after, and nothing is launched after it in that
 //      process. An out-of-range register the part faults on in microseconds is caught here, where rule 6's bound, read
 //      for a launch that runs too long, never sees it.
+//
+// Where the vendor's instruction set is there, the tables the tables step pulls, rules 2 and 3 read each encoding's
+// class off it as well, and hold an operation it names as a control transfer or a wait whatever name the machine
+// file's form gives the encoding (class.c); a kernel's own places, handed as forms with no operation of their own,
+// are so read by what they are. Two rules more read the code against the instruction set:
+//
+//  13. an instruction of a class that reads the constant bank reads bank 0, the parameters' bank, the one bank a
+//      container of ours carries a section for, and ends inside that section (cubin_safe_tables_read, constant.c);
+//  14. the instruction at the slot, the place the .ksc names `slot place` counted from `opening least`, writes none of
+//      the registers the kernel holds fixed around the slot: the record's address and the index's, as the .ksc names
+//      them `fixed record` and `fixed index`, the record's over as many registers as the class of the place that reads
+//      it as an address spans, two where that class's `e` names a 64-bit address. The slot's destination is the
+//      field its class writes from the operand Rd. A variant that wrote one of them would overwrite the address the
+//      store after the slot reads, and the part faults on it (slot.c);
+//  15. an encoding holds to its class's own conditions on its registers, OOR_REG_ERROR and MISALIGNED_REG_ERROR as
+//      the instruction set states them: a register in range for its width and a 64-bit register pair even. This is
+//      the vendor's pipe, its rules read off its text before the part is asked, and it stands apart from ours, what
+//      the part answered as the learned files hold it, the forms of the .khw, the answers and the refusals of the
+//      .ksc, the ruleset of the .krs, the record of the .kqr and R over them: the verdict names which pipe held a
+//      question, so that the two are compared (class.c, tables_class_legal).
 
 #include "sass_machine.h"
 
@@ -73,7 +93,9 @@ enum CubinSafe
     CUBIN_SAFE_LAUNCH_FAULT = 10,
     CUBIN_SAFE_REGISTER = 11,
     CUBIN_SAFE_HELD = 12,
-    CUBIN_SAFE_CONSTANT = 13
+    CUBIN_SAFE_CONSTANT = 13,
+    CUBIN_SAFE_FIXED = 14,
+    CUBIN_SAFE_ILLEGAL = 15
 };
 
 // the vendor's instruction set as tables/read.h reads it

@@ -132,7 +132,12 @@ typedef struct
 // machine file (`run answers <last> register last`), and SASS_MACHINE_UNANSWERED where it holds no answer.
 // `register_past` is how many registers past the highest its code names a container declares, as the part answers:
 // a container declaring d names R0 through R(d - past) and no other, and one past that faults the part with a register
-// out of range (`run answers <past> register past`); SASS_MACHINE_UNANSWERED where the part has not answered it
+// out of range (`run answers <past> register past`); SASS_MACHINE_UNANSWERED where the part has not answered it.
+// `slot_place` is the place of the slot in the protocol's kernel and `opening_least` the place its code is handed
+// from (`run answers <n> slot place`, `run answers <n> opening least`), so that the slot's instruction in a question's
+// code stands at slot_place - opening_least; `fixed_record` and `fixed_index` are the registers the part answered
+// hold the record's and the index's address at the slot (`run answers <n> fixed record`, `fixed index`); each
+// SASS_MACHINE_UNANSWERED where the .ksc holds no answer
 typedef struct
 {
     char part[SASS_MACHINE_PART];
@@ -143,6 +148,10 @@ typedef struct
     unsigned int soonests;
     unsigned int register_last;
     unsigned int register_past;
+    unsigned int slot_place;
+    unsigned int opening_least;
+    unsigned int fixed_record;
+    unsigned int fixed_index;
     // where each form's operands sit and the bits it leaves open, held once by sass_encoding_places_hold
     // (sass_assemble.h) for every encoding read after; NULL where each read finds them again
     void *places_held;

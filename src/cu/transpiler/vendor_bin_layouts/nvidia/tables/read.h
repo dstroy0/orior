@@ -15,6 +15,8 @@ extern "C"
 #define TABLES_FIELD_RUNS 4u
 #define TABLES_CLASS_FIELDS 48u
 #define TABLES_SIZES 8u
+#define TABLES_CONDITIONS 16u
+#define TABLES_CONDITION_TEXT 320u
 
     // one run of bits of a field, `first` the low bit and `last` the high, of the 128
     typedef struct
@@ -54,6 +56,14 @@ extern "C"
         char size[TABLES_NAME];
         unsigned int sizes;
         unsigned int size_bytes[TABLES_SIZES];
+        // the size operand's list as the FORMAT names it, `SZ_U8_S8_U16_S16_32_64`, which a condition's constant
+        // names a choice under, `SZ_U8_S8_U16_S16_32_64@"64"`; empty where the class holds no size operand
+        char size_list[TABLES_NAME];
+        // the class's CONDITIONS on its registers, under OOR_REG_ERROR and MISALIGNED_REG_ERROR: each an
+        // expression over the class's operands that holds for a legal encoding, kept as the text gives it without
+        // its closing colon; one longer than its room is not kept
+        char condition[TABLES_CONDITIONS][TABLES_CONDITION_TEXT];
+        unsigned int conditions;
     } TablesClass;
 
     typedef struct TablesSetTag
@@ -95,6 +105,13 @@ extern "C"
     // value scaled by the bits the field leaves below the operand's magnitude (the operand `SImm(n)` with its sign)
     unsigned long long tables_class_offset(const TablesClass *class_, unsigned long long low, unsigned long long high);
 
+    // Whether the encoding `low` and `high` holds to every register condition of `class_`: 1 where each holds or is
+    // one this reader cannot judge, 0 where one fails, that one's text given through `failed` where it is not NULL.
+    // A condition is judged over the class's fields by operand, the registers' own constants, RZ, R<n>, URZ, UR<n>,
+    // PT and UPT, the register counts %MAX_REG_COUNT and %MAX_UNIFORM_REG_COUNT, and the size operand's choices
+    // under its list; one naming anything else is not judged
+    int tables_class_legal(const TablesClass *class_, unsigned long long low, unsigned long long high,
+                           const char **failed);
     // The encoding `low` and `high` described in one line into `text`, which holds `room`: its class's name, or `-`
     // where no class's opcode reads it, and, where the class reads the constant bank, the bank, the byte offset and
     // the bytes read. 1 where a class reads it, 0 where none does

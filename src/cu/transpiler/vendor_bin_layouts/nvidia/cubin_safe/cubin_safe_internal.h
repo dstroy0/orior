@@ -42,6 +42,20 @@
 // the vendor's instruction set rule 13 reads, read by cubin_safe_tables_read (constant.c)
 const struct TablesSetTag *cubin_safe_tables(void);
 
+// 1 where the class the vendor's instruction set reads the encoding `low` and `high` as is named for an operation
+// that transfers control or waits, EXIT apart, whatever name the machine file's form gives it (rules 2 and 3, class.c)
+int cubin_class_control_or_wait(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high);
+
+// 1 where the class the vendor's instruction set reads the encoding `low` and `high` as names it illegal by one of
+// its conditions on the registers, out of range or misaligned for its width: the vendor's own pipe, read before the
+// part, apart from what the part answers (rule 15, class.c)
+int cubin_class_illegal(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high);
+
+// 1 where the instruction at byte `place` of `code` is the slot's and writes a register the kernel holds fixed around
+// the slot, the record's address or the index's (rule 14, slot.c)
+int cubin_slot_writes_fixed(const SassMachine *machine, const struct TablesSetTag *tables, const unsigned char *code,
+                            unsigned long long code_size, unsigned long long place);
+
 
 
 #endif

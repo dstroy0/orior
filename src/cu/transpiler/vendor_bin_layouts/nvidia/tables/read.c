@@ -292,6 +292,11 @@ static void tables_size_read(const char *line, TablesClass *class_)
         return;
     }
     class_->sizes = 0u;
+    // the list's name, from the slash to the parenthesis, which a condition's constant names a choice under
+    const size_t list_length = (size_t)(open - (size + 1));
+    const size_t list_kept = (list_length < TABLES_NAME) ? list_length : (TABLES_NAME - 1u);
+    memcpy(class_->size_list, size + 1, list_kept);
+    class_->size_list[list_kept] = '\0';
     for (const char *at = size + 4; (at < open) && (class_->sizes < TABLES_SIZES);)
     {
         const char *end = at;
@@ -404,8 +409,12 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         ELSEWHERE,
         FORMAT,
         OPCODES,
-        ENCODING
+        ENCODING,
+        CONDITIONS
     } part = ELSEWHERE;
+    // within CONDITIONS, whether the conditions read are under a kind on the registers, OOR_REG_ERROR or
+    // MISALIGNED_REG_ERROR
+    int register_kind = 0;
     while (tables_line_read(text, size, &at, line, sizeof(line)))
     {
         char name[TABLES_NAME + 16u];
@@ -426,6 +435,7 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         {
             continue;
         }
+        const size_t length = strlen(line);
         if (strncmp(line, "FORMAT", 6u) == 0)
         {
             part = FORMAT;
@@ -440,10 +450,41 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
             part = ENCODING;
             continue;
         }
-        else if ((line[0] >= 'A') && (line[0] <= 'Z') && (strspn(line, "ABCDEFGHIJKLMNOPQRSTUVWXYZ_") == strlen(line)))
+        else if (strcmp(line, "CONDITIONS") == 0)
         {
-            // another part's head, CONDITIONS, PROPERTIES, PREDICATES: capitals and underscores alone
+            part = CONDITIONS;
+            register_kind = 0;
+            continue;
+        }
+        else if ((line[0] >= 'A') && (line[0] <= 'Z') && (strspn(line, "ABCDEFGHIJKLMNOPQRSTUVWXYZ_") == length))
+        {
+            // within CONDITIONS, a kind of error the conditions after it are under; elsewhere another part's head,
+            // PROPERTIES, PREDICATES: capitals and underscores alone
+            if ((part == CONDITIONS) && (length > 6u) && (strcmp(line + length - 6u, "_ERROR") == 0))
+            {
+                register_kind = (strstr(line, "REG_ERROR") != NULL);
+                continue;
+            }
             part = ELSEWHERE;
+            continue;
+        }
+        if (part == CONDITIONS)
+        {
+            // a condition is a line ending in a colon, under a kind on the registers; the line after it, in quotes, is
+            // its message, and a condition longer than its room is not kept
+            const char *const text_at = tables_past_spaces(line);
+            size_t kept = strlen(text_at);
+            while ((kept != 0u) && ((text_at[kept - 1u] == ' ') || (text_at[kept - 1u] == ':')))
+            {
+                kept -= 1u;
+            }
+            if (register_kind && (kept != 0u) && (text_at[strlen(text_at) - 1u] == ':') &&
+                (kept + 1u < TABLES_CONDITION_TEXT) && (class_->conditions < TABLES_CONDITIONS))
+            {
+                memcpy(class_->condition[class_->conditions], text_at, kept);
+                class_->condition[class_->conditions][kept] = '\0';
+                class_->conditions += 1u;
+            }
             continue;
         }
         if (part == FORMAT)
@@ -562,6 +603,370 @@ void tables_field_write(const TablesField *field, unsigned long long *low, unsig
         tables_bits_write(low, high, field->run[run].first, field->run[run].last, value & mask);
         value >>= width;
     }
+}
+
+// A condition read: the text walked, the class and the encoding it is judged over, and whether anything it names is
+// past this reader's judgment; a condition naming one such thing is not judged at all
+typedef struct
+{
+    const char *at;
+    const TablesClass *class_;
+    unsigned long long low;
+    unsigned long long high;
+    int unjudged;
+} TablesCondition;
+
+// the registers' own constants, as a condition names them after the backquote: RZ, R<n>, URZ, UR<n>, PT and UPT
+#define TABLES_REGISTER_ZERO 255ll
+#define TABLES_UNIFORM_ZERO 63ll
+#define TABLES_PREDICATE_TRUE 7ll
+#define TABLES_REGISTER_COUNT 256ll
+#define TABLES_UNIFORM_COUNT 64ll
+
+static void tables_condition_spaces(TablesCondition *condition)
+{
+    while (*condition->at == ' ')
+    {
+        condition->at += 1;
+    }
+}
+
+// 1 where the text at the condition's place begins with `word`, which is then stepped over
+static int tables_condition_word(TablesCondition *condition, const char *word)
+{
+    tables_condition_spaces(condition);
+    const size_t length = strlen(word);
+    if (strncmp(condition->at, word, length) != 0)
+    {
+        return 0;
+    }
+    condition->at += length;
+    return 1;
+}
+
+static int tables_condition_name_char(char character)
+{
+    return ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
+           ((character >= '0') && (character <= '9')) || (character == '_');
+}
+
+// a constant after the backquote, `` `Register@RZ ``, `` `SZ_U8_S8_U16_S16_32_64@"64" ``: the registers' own by
+// name, a choice of the class's size list by its place in the list, and anything else unjudged
+static long long tables_condition_constant(TablesCondition *condition)
+{
+    char list[TABLES_NAME];
+    char value[TABLES_NAME];
+    size_t length = 0u;
+    while (tables_condition_name_char(*condition->at) && (length + 1u < sizeof(list)))
+    {
+        list[length] = *condition->at;
+        length += 1u;
+        condition->at += 1;
+    }
+    list[length] = '\0';
+    if (*condition->at != '@')
+    {
+        condition->unjudged = 1;
+        return 0ll;
+    }
+    condition->at += 1;
+    const int quoted = (*condition->at == '"');
+    condition->at += quoted ? 1 : 0;
+    length = 0u;
+    while ((*condition->at != '\0') && (*condition->at != ')') && (*condition->at != ' ') &&
+           (!quoted || (*condition->at != '"')) && (quoted || tables_condition_name_char(*condition->at)) &&
+           (length + 1u < sizeof(value)))
+    {
+        value[length] = *condition->at;
+        length += 1u;
+        condition->at += 1;
+    }
+    value[length] = '\0';
+    condition->at += (quoted && (*condition->at == '"')) ? 1 : 0;
+    if (strcmp(list, "Register") == 0)
+    {
+        if (strcmp(value, "RZ") == 0)
+        {
+            return TABLES_REGISTER_ZERO;
+        }
+        if (value[0] == 'R')
+        {
+            return strtoll(value + 1, NULL, 10);
+        }
+    }
+    if (strcmp(list, "UniformRegister") == 0)
+    {
+        if (strcmp(value, "URZ") == 0)
+        {
+            return TABLES_UNIFORM_ZERO;
+        }
+        if (strncmp(value, "UR", 2u) == 0)
+        {
+            return strtoll(value + 2, NULL, 10);
+        }
+    }
+    if (((strcmp(list, "Predicate") == 0) && (strcmp(value, "PT") == 0)) ||
+        ((strcmp(list, "UniformPredicate") == 0) && (strcmp(value, "UPT") == 0)))
+    {
+        return TABLES_PREDICATE_TRUE;
+    }
+    if ((condition->class_->size_list[0] != '\0') && (strcmp(list, condition->class_->size_list) == 0))
+    {
+        // the choice's place in the list, counted from the first underscore past the list's prefix: the size field
+        // holds that place
+        const char *choice = strchr(list, '_');
+        long long place = 0ll;
+        while (choice != NULL)
+        {
+            choice += 1;
+            const char *const end = strchr(choice, '_');
+            const size_t choice_length = (end != NULL) ? (size_t)(end - choice) : strlen(choice);
+            if ((choice_length == strlen(value)) && (strncmp(choice, value, choice_length) == 0))
+            {
+                return place;
+            }
+            place += 1ll;
+            choice = end;
+        }
+    }
+    condition->unjudged = 1;
+    return 0ll;
+}
+
+static long long tables_condition_implies(TablesCondition *condition);
+
+// a primary: a parenthesized condition, a number, a constant after a backquote, a register count after a percent,
+// or an operand of the class read off the encoding; anything else is unjudged
+static long long tables_condition_primary(TablesCondition *condition)
+{
+    tables_condition_spaces(condition);
+    if (*condition->at == '(')
+    {
+        condition->at += 1;
+        const long long value = tables_condition_implies(condition);
+        tables_condition_spaces(condition);
+        if (*condition->at == ')')
+        {
+            condition->at += 1;
+        }
+        else
+        {
+            condition->unjudged = 1;
+        }
+        return value;
+    }
+    if ((*condition->at >= '0') && (*condition->at <= '9'))
+    {
+        char *end = NULL;
+        const long long value = strtoll(condition->at, &end, 0);
+        condition->at = end;
+        return value;
+    }
+    if (*condition->at == '`')
+    {
+        condition->at += 1;
+        return tables_condition_constant(condition);
+    }
+    if (*condition->at == '%')
+    {
+        condition->at += 1;
+        if (tables_condition_word(condition, "MAX_REG_COUNT"))
+        {
+            return TABLES_REGISTER_COUNT;
+        }
+        if (tables_condition_word(condition, "MAX_UNIFORM_REG_COUNT"))
+        {
+            return TABLES_UNIFORM_COUNT;
+        }
+        while (tables_condition_name_char(*condition->at))
+        {
+            condition->at += 1;
+        }
+        condition->unjudged = 1;
+        return 0ll;
+    }
+    char operand[TABLES_NAME];
+    size_t length = 0u;
+    while (tables_condition_name_char(*condition->at) && (length + 1u < sizeof(operand)))
+    {
+        operand[length] = *condition->at;
+        length += 1u;
+        condition->at += 1;
+    }
+    operand[length] = '\0';
+    const TablesField *const field = (length != 0u) ? tables_field_by_operand(condition->class_, operand) : NULL;
+    if (field == NULL)
+    {
+        // a name no field of the class is written from, or no name at all where one was due
+        condition->at += (length == 0u && *condition->at != '\0') ? 1 : 0;
+        condition->unjudged = 1;
+        return 0ll;
+    }
+    // a field holds at most 64 bits, read as the number it holds
+    return (long long)tables_field_read(field, condition->low, condition->high);
+}
+
+static long long tables_condition_unary(TablesCondition *condition)
+{
+    tables_condition_spaces(condition);
+    if ((*condition->at == '!') && (condition->at[1] != '='))
+    {
+        condition->at += 1;
+        return (tables_condition_unary(condition) == 0ll) ? 1ll : 0ll;
+    }
+    if (*condition->at == '-')
+    {
+        condition->at += 1;
+        return -tables_condition_unary(condition);
+    }
+    return tables_condition_primary(condition);
+}
+
+static long long tables_condition_product(TablesCondition *condition)
+{
+    long long value = tables_condition_unary(condition);
+    for (;;)
+    {
+        tables_condition_spaces(condition);
+        if (*condition->at == '*')
+        {
+            condition->at += 1;
+            value *= tables_condition_unary(condition);
+        }
+        else if ((*condition->at == '%') && (condition->at[1] != 'M'))
+        {
+            condition->at += 1;
+            const long long divisor = tables_condition_unary(condition);
+            value = (divisor != 0ll) ? (value % divisor) : 0ll;
+            condition->unjudged = condition->unjudged || (divisor == 0ll);
+        }
+        else if (*condition->at == '/')
+        {
+            condition->at += 1;
+            const long long divisor = tables_condition_unary(condition);
+            value = (divisor != 0ll) ? (value / divisor) : 0ll;
+            condition->unjudged = condition->unjudged || (divisor == 0ll);
+        }
+        else
+        {
+            return value;
+        }
+    }
+}
+
+static long long tables_condition_sum(TablesCondition *condition)
+{
+    long long value = tables_condition_product(condition);
+    for (;;)
+    {
+        tables_condition_spaces(condition);
+        if (*condition->at == '+')
+        {
+            condition->at += 1;
+            value += tables_condition_product(condition);
+        }
+        else if ((*condition->at == '-') && (condition->at[1] != '>'))
+        {
+            condition->at += 1;
+            value -= tables_condition_product(condition);
+        }
+        else
+        {
+            return value;
+        }
+    }
+}
+
+static long long tables_condition_compared(TablesCondition *condition)
+{
+    const long long left = tables_condition_sum(condition);
+    tables_condition_spaces(condition);
+    if (tables_condition_word(condition, "=="))
+    {
+        return (left == tables_condition_sum(condition)) ? 1ll : 0ll;
+    }
+    if (tables_condition_word(condition, "!="))
+    {
+        return (left != tables_condition_sum(condition)) ? 1ll : 0ll;
+    }
+    if (tables_condition_word(condition, "<="))
+    {
+        return (left <= tables_condition_sum(condition)) ? 1ll : 0ll;
+    }
+    if (tables_condition_word(condition, ">="))
+    {
+        return (left >= tables_condition_sum(condition)) ? 1ll : 0ll;
+    }
+    if ((*condition->at == '<') && (condition->at[1] != '<'))
+    {
+        condition->at += 1;
+        return (left < tables_condition_sum(condition)) ? 1ll : 0ll;
+    }
+    if ((*condition->at == '>') && (condition->at[1] != '>'))
+    {
+        condition->at += 1;
+        return (left > tables_condition_sum(condition)) ? 1ll : 0ll;
+    }
+    return left;
+}
+
+static long long tables_condition_both(TablesCondition *condition)
+{
+    long long value = tables_condition_compared(condition);
+    while (tables_condition_word(condition, "&&"))
+    {
+        const long long right = tables_condition_compared(condition);
+        value = ((value != 0ll) && (right != 0ll)) ? 1ll : 0ll;
+    }
+    return value;
+}
+
+static long long tables_condition_either(TablesCondition *condition)
+{
+    long long value = tables_condition_both(condition);
+    while (tables_condition_word(condition, "||"))
+    {
+        const long long right = tables_condition_both(condition);
+        value = ((value != 0ll) || (right != 0ll)) ? 1ll : 0ll;
+    }
+    return value;
+}
+
+// `left -> right`: the right holds where the left does, and the whole holds where the left does not
+static long long tables_condition_implies(TablesCondition *condition)
+{
+    const long long left = tables_condition_either(condition);
+    if (tables_condition_word(condition, "->"))
+    {
+        const long long right = tables_condition_implies(condition);
+        return ((left == 0ll) || (right != 0ll)) ? 1ll : 0ll;
+    }
+    return left;
+}
+
+int tables_class_legal(const TablesClass *class_, unsigned long long low, unsigned long long high,
+                       const char **failed)
+{
+    for (unsigned int at = 0u; at < class_->conditions; at += 1u)
+    {
+        TablesCondition condition = {class_->condition[at], class_, low, high, 0};
+        const long long held = tables_condition_implies(&condition);
+        tables_condition_spaces(&condition);
+        // text left over is a condition this reader did not read whole, and does not judge
+        if (*condition.at != '\0')
+        {
+            condition.unjudged = 1;
+        }
+        if (!condition.unjudged && (held == 0ll))
+        {
+            if (failed != NULL)
+            {
+                *failed = class_->condition[at];
+            }
+            return 0;
+        }
+    }
+    return 1;
 }
 
 const TablesClass *tables_class_of(const TablesSet *set, unsigned long long low, unsigned long long high)
