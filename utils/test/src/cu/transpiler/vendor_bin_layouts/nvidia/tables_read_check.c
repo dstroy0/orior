@@ -165,6 +165,8 @@ int main(void)
     // ILLEGAL_INSTR_ENCODING_ERROR passed over as no condition on the registers
     check_that((mov->conditions == 1u) && (ldc->conditions == 2u) && (strcmp(ldc->size_list, "SZ_U8_S8_U16_S16_32_64") == 0),
                "conditions: the register conditions of each class are kept, under their list's name");
+    check_that((mov->address[0] == '\0') && (ldc->address[0] == '\0'),
+               "address: the move reads no memory address, and the load's bracket is the constant bank's");
     const char *failed = NULL;
     unsigned long long odd_low = read_low;
     unsigned long long odd_high = read_high;

@@ -67,7 +67,11 @@
 //      them `fixed record` and `fixed index`, the record's over as many registers as the class of the place that reads
 //      it as an address spans, two where that class's `e` names a 64-bit address. The slot's destination is the
 //      field its class writes from the operand Rd. A variant that wrote one of them would overwrite the address the
-//      store after the slot reads, and the part faults on it (slot.c);
+//      store after the slot reads, and the part faults on it. Where the slot instruction's class reads a memory
+//      address from a register, the operand in the FORMAT's brackets, it reads it from the record's or the index's
+//      register alone: a register is a hardware location, what the kernel holds in each at the slot is a fixed fact
+//      of the kernel, and every other register holds a case's word or nothing, which the part faults on as an
+//      address (slot.c);
 //  15. an encoding holds to its class's own conditions on its registers, OOR_REG_ERROR and MISALIGNED_REG_ERROR as
 //      the instruction set states them: a register in range for its width and a 64-bit register pair even. This is
 //      the vendor's pipe, its rules read off its text before the part is asked, and it stands apart from ours, what

@@ -279,6 +279,32 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
     return 0u;
 }
 
+// a FORMAT line holding a memory address in brackets, `[ NonZeroRegister:Ra + SImm(24/0)*:Ra_offset ]`: the register
+// operand inside the brackets, by the name after the colon of its Register token; a line whose bracket is the constant
+// bank's, after `C:`, names none
+static void tables_address_read(const char *line, TablesClass *class_)
+{
+    const char *const open = strchr(line, '[');
+    const char *const close = (open != NULL) ? strchr(open, ']') : NULL;
+    if ((close == NULL) || (strstr(line, "C:") != NULL))
+    {
+        return;
+    }
+    const char *const register_token = strstr(open, "Register");
+    if ((register_token == NULL) || (register_token > close))
+    {
+        return;
+    }
+    const char *const colon = strchr(register_token, ':');
+    if ((colon == NULL) || (colon > close))
+    {
+        return;
+    }
+    // the name runs from the colon to the first character that is no name's
+    const char *const end = colon + 1 + strspn(colon + 1, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
+    tables_name_before(register_token, end, class_->address);
+}
+
 // a FORMAT line holding a size operand, `/SZ_U8_S8_U16_S16_32_64("32"):sz`: the choices between `SZ_` and the
 // parenthesis, each a width in bits after any letters, in the order the field counts them, and the operand's name
 // after the colon
@@ -490,6 +516,7 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         if (part == FORMAT)
         {
             tables_constant_read(line, class_);
+            tables_address_read(line, class_);
             tables_size_read(line, class_);
             if (line[strlen(line) - ((strlen(line) != 0u) ? 1u : 0u)] == ';')
             {

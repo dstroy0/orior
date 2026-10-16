@@ -244,7 +244,7 @@ const char *cubin_safe_name(unsigned int verdict)
         "a register the kernel did not allot",
         "an encoding the vendor held off the part",
         "a read of the constant bank past the bank, or of a bank the container has none of",
-        "the slot's instruction writes a register the kernel holds fixed, the record's address or the index's",
+        "the slot's instruction writes a fixed register, or reads an address from one that holds none",
         "an encoding its class's conditions name illegal, a register out of range or misaligned"};
     return (verdict < (sizeof(s_names) / sizeof(s_names[0]))) ? s_names[verdict] : "unknown";
 }

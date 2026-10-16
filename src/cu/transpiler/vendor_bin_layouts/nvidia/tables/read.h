@@ -56,6 +56,10 @@ extern "C"
         char size[TABLES_NAME];
         unsigned int sizes;
         unsigned int size_bytes[TABLES_SIZES];
+        // the register operand a memory address is read from where the FORMAT holds one in brackets,
+        // `[ NonZeroRegister:Ra + SImm(24/0)*:Ra_offset ]`, by name; empty where the class reads no memory address,
+        // and where its bracket is the constant bank's
+        char address[TABLES_NAME];
         // the size operand's list as the FORMAT names it, `SZ_U8_S8_U16_S16_32_64`, which a condition's constant
         // names a choice under, `SZ_U8_S8_U16_S16_32_64@"64"`; empty where the class holds no size operand
         char size_list[TABLES_NAME];

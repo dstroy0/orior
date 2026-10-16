@@ -76,6 +76,18 @@ int cubin_slot_writes_fixed(const SassMachine *machine, const struct TablesSetTa
     {
         return 0;
     }
+    // a memory address the slot's instruction reads comes from the record's or the index's register alone: every
+    // other register holds a case's word or nothing, and the part faults on it as an address
+    if ((class_->address[0] != '\0') && (class_->bank[0] == '\0'))
+    {
+        const unsigned int address = cubin_slot_operand(class_, class_->address, low, high);
+        const int record = (machine->fixed_record != SASS_MACHINE_UNANSWERED) && (address == machine->fixed_record);
+        const int index = (machine->fixed_index != SASS_MACHINE_UNANSWERED) && (address == machine->fixed_index);
+        if (!record && !index)
+        {
+            return 1;
+        }
+    }
     const unsigned int destination = cubin_slot_operand(class_, "Rd", low, high);
     if (destination == CUBIN_REGISTER_ZERO)
     {
