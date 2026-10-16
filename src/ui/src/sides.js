@@ -68,6 +68,9 @@ function setShown(pane, shown) {
   if (!shown && !node.classList.contains("collapsed") && !reduced.matches) {
     const box = node.getBoundingClientRect();
     node.style.setProperty("--held", `${node.classList.contains("toward-bottom") ? box.height : box.width}px`);
+    // a pane still arriving stands where it collapses to; the slide away starts from the pane shown, so the arrival
+    // is over as it begins
+    node.classList.remove("arriving");
     node.classList.add("sliding");
     pane.slide = window.setTimeout(() => {
       node.classList.remove("sliding");
