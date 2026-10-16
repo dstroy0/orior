@@ -8,6 +8,8 @@
 //            read the amount's run as the destination; read swapped, (2, 1) stands
 //   none     a relation with no such case gives none
 //   whole    a form's runs are whole where they carry every place of its relation's tuple
+//   cut      the turned bits are gathered into runs cut where the fields the part names end: two adjacent turned bits
+//            are one run where one field holds both, the narrowest where fields nest, or none holds either
 //
 //     turning_check
 #include "../../../../../../../src/cu/transpiler/lstar/parser/khw_write/khw_write_internal.h"
@@ -70,6 +72,48 @@ int main(void)
     check_that(!khw_places_whole(none, 2u, 2u), "runs with no place are not whole");
     check_that(khw_places_whole(twice, 4u, 2u), "a run with no place beside the whole places leaves them whole");
     check_that(!khw_places_whole(whole, 0u, 2u), "no runs are not whole");
+    // the turned bits 12 to 16 and 24 to 27 under a guard field at 12 of 3 bits and a destination field at 16 of 8:
+    // the guard's bits, the bit no field holds, the destination's one bit and the second field's run
+    int turned[KHW_TURN_LAST + 1u];
+    memset(turned, 0, sizeof(turned));
+    for (unsigned int bit = 12u; bit <= 16u; bit += 1u)
+    {
+        turned[bit] = 1;
+    }
+    for (unsigned int bit = 24u; bit <= 27u; bit += 1u)
+    {
+        turned[bit] = 1;
+    }
+    const unsigned int field_first[2] = {12u, 16u};
+    const unsigned int field_bits[2] = {3u, 8u};
+    KhwAnswered cut;
+    memset(&cut, 0, sizeof(cut));
+    check_that((khw_runs_gathered(turned, 2u, field_first, field_bits, &cut) == 4u) && (cut.runs == 4u) &&
+                   (cut.first[0] == 12u) && (cut.last[0] == 14u) && (cut.first[1] == 15u) && (cut.last[1] == 15u) &&
+                   (cut.first[2] == 16u) && (cut.last[2] == 16u) && (cut.first[3] == 24u) && (cut.last[3] == 27u),
+               "cut: turned bits 12 to 16 under the guard and destination fields are three runs, and 24 to 27 one");
+    check_that((cut.place[0] == KHW_PLACE_NONE) && (cut.kind[0] == KHW_KIND_REGISTER) &&
+                   (cut.place[2] == KHW_PLACE_NONE) && (cut.kind[2] == KHW_KIND_REGISTER),
+               "cut: each run gathered holds no place yet and a register's kind");
+    KhwAnswered uncut;
+    memset(&uncut, 0, sizeof(uncut));
+    check_that((khw_runs_gathered(turned, 0u, field_first, field_bits, &uncut) == 2u) && (uncut.first[0] == 12u) &&
+                   (uncut.last[0] == 16u) && (uncut.first[1] == 24u) && (uncut.last[1] == 27u),
+               "cut: with no fields named, adjacent turned bits are one run");
+    // the second word's field at 32 of 8 bits inside the immediate's at 32 of 32: the narrowest holds the bit, and
+    // turned bits 36 to 42 are the second word's 36 to 39 and the immediate's 40 to 42
+    memset(turned, 0, sizeof(turned));
+    for (unsigned int bit = 36u; bit <= 42u; bit += 1u)
+    {
+        turned[bit] = 1;
+    }
+    const unsigned int nested_first[2] = {32u, 32u};
+    const unsigned int nested_bits[2] = {32u, 8u};
+    KhwAnswered nested;
+    memset(&nested, 0, sizeof(nested));
+    check_that((khw_runs_gathered(turned, 2u, nested_first, nested_bits, &nested) == 2u) && (nested.first[0] == 36u) &&
+                   (nested.last[0] == 39u) && (nested.first[1] == 40u) && (nested.last[1] == 42u),
+               "cut: where fields nest, the narrowest holding a bit is the bit's field");
     printf("turning_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

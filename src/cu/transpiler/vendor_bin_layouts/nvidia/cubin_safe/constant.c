@@ -75,12 +75,17 @@ int cubin_constant_out_of_bank(const struct TablesSetTag *tables, unsigned long 
     {
         return 0;
     }
-    // bank 0 is the parameters' bank, the one section of a bank a container of ours carries; the offset's field
-    // counts words of four bytes, and the word read must end inside the bank where the bank's size is known
+    // bank 0 is the parameters' bank, the one section of a bank a container of ours carries
     if (tables_field_read(bank, low, high) != 0ull)
     {
         return 1;
     }
-    const unsigned long long bytes = tables_field_read(offset, low, high) * 4ull;
+    // the offset operand is an immediate of `offset_bits` with its sign, the byte offset below the sign; the field
+    // holds the operand's upper bits, and the bits the field leaves below it are the scale: a field of fourteen under
+    // seventeen holds the offset in words of four, one of sixteen the bytes. The word read must end inside the bank
+    // where the bank's size is known
+    const unsigned int magnitude = (class_->offset_bits != 0u) ? (class_->offset_bits - 1u) : offset->width;
+    const unsigned int dropped = (magnitude > offset->width) ? (magnitude - offset->width) : 0u;
+    const unsigned long long bytes = tables_field_read(offset, low, high) << dropped;
     return (bank_size != 0ull) && (bytes + 4ull > bank_size);
 }

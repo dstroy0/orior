@@ -8,6 +8,11 @@ int run_channel_key_held(const char *refused)
     return strncmp(refused, RUN_GATE_KEY_RULE, sizeof(RUN_GATE_KEY_RULE) - 1u) == 0;
 }
 
+int run_channel_vendor_held(const char *refused)
+{
+    return strncmp(refused, RUN_GATE_VENDOR_RULE, sizeof(RUN_GATE_VENDOR_RULE) - 1u) == 0;
+}
+
 RunChannel s_channel;
 unsigned int s_registers_past = RUN_REGISTERS_UNANSWERED;
 char s_answer_line[RUN_ANSWER_LONGEST];

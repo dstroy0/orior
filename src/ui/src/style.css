@@ -9810,12 +9810,14 @@ textarea.report-field {
   padding: 0 48px;
 }
 
+/* The fuse's line lies at the reach plus seven tenths of the height inside it, which the height below puts at the
+   circles' middle, and its reach on each side meets the nodes' inset, so the fire crosses each circle's center. */
 .console .protocol-line .fuse {
   position: absolute;
-  left: 0;
+  left: 24px;
   top: 0;
-  width: 100%;
-  height: 120px;
+  width: calc(100% - 48px);
+  height: 99px;
   margin: 0;
   z-index: 1;
 }

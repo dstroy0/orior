@@ -247,6 +247,16 @@ int khw_named_already(unsigned long long low, unsigned long long high);
 int khw_field_holding(unsigned int first, unsigned int last, char *name, size_t room, unsigned int *field_first,
                       unsigned int *field_bits);
 int khw_field_read(const char *name, unsigned int *first, unsigned int *bits);
+// the fields of the instruction word the part's .ksc gives, each its first bit and its width, into `first` and
+// `bits`, which hold `room`: their count
+#define KHW_FIELDS 32u
+unsigned int khw_fields_listed(unsigned int *first, unsigned int *bits, unsigned int room);
+// The runs of `held` gathered from `turned`, one entry a bit up to KHW_TURN_LAST, 1 where the bit's turn changed the
+// answer: the adjacent turned bits, cut where the fields the part names end, `fields` of them with their first bits
+// and widths. Two adjacent turned bits are one run where one field holds both, the narrowest where fields nest, or
+// none holds either. Each run holds no place and a register's kind. The count of runs
+unsigned int khw_runs_gathered(const int *turned, unsigned int fields, const unsigned int *field_first,
+                               const unsigned int *field_bits, KhwAnswered *held);
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2],
                               unsigned int count);
 const unsigned int (*khw_frame_cases(unsigned int *count))[2];

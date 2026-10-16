@@ -92,7 +92,7 @@ pub fn list(root: &Path) -> Vec<Command> {
         Command {
             id: "course",
             title: "protocol",
-            about: "the whole protocol in order: discover, turns, registers, write krs, stick engine, pairs stick, pairs past, costs, write krs",
+            about: "the whole protocol in order: vendor tables, discover, turns, registers, write krs, stick engine, pairs stick, pairs past, costs, write krs",
             params: vec![choice_of("from", crate::course::names(), false), leave_param()],
             words: vec![Word::Lit("course"), Word::Flag("--from", "from"), Word::Flag("--leave", "leave")],
         },

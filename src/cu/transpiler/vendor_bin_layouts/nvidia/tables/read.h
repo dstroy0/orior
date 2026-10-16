@@ -37,7 +37,8 @@ extern "C"
     } TablesField;
 
     // one CLASS: its name, its opcode as OPCODES gives it, its fields, and its constant-bank operand's bank and
-    // offset fields by name where the FORMAT holds a `C:` operand, empty where it holds none
+    // offset fields by name where the FORMAT holds a `C:` operand, empty where it holds none, with the offset
+    // operand's width in bits as the FORMAT gives it, `SImm(17)`, its sign bit counted, 0 where it gives none
     typedef struct
     {
         char name[TABLES_NAME + 16u];
@@ -46,6 +47,7 @@ extern "C"
         TablesField field[TABLES_CLASS_FIELDS];
         char bank[TABLES_NAME];
         char offset[TABLES_NAME];
+        unsigned int offset_bits;
     } TablesClass;
 
     typedef struct TablesSetTag

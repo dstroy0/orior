@@ -116,6 +116,8 @@ int main(void)
                    (offset->run[0].last == 53u) && (offset->width == 14u),
                "constant: the offset's field is the second, bits 40 to 53");
     check_that(tables_field_by_operand(mov, "Sa_bank") == NULL, "constant: an operand no field takes is NULL");
+    check_that((ldc->offset_bits == 17u) && (mov->offset_bits == 0u),
+               "constant: the offset operand's width is read off the FORMAT, SImm(17), and a class with none holds 0");
 
     low = 0ull;
     high = 0ull;

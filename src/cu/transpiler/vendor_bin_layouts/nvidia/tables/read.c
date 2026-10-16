@@ -263,8 +263,23 @@ static void tables_name_before(const char *text, const char *end, char *name)
     name[length] = '\0';
 }
 
+// the width of the immediate written before `end` inside a FORMAT bracket, `SImm(17/0)*:Ra_offset` or
+// `UImm(5/0*):Sa_bank`, read off the digits after `Imm(`; 0 where the bracket holds none
+static unsigned int tables_immediate_bits(const char *open, const char *end)
+{
+    for (const char *at = open; at + 4 < end; at += 1)
+    {
+        if (strncmp(at, "Imm(", 4u) == 0)
+        {
+            return (unsigned int)strtoul(at + 4, NULL, 10);
+        }
+    }
+    return 0u;
+}
+
 // a FORMAT line holding a constant-bank operand, `C:<name>[...:<bank>]...[...:<offset>]`: the bank the name
-// after the first bracket's last colon, the offset the name after the last bracket's last colon
+// after the first bracket's last colon, the offset the name after the last bracket's last colon, and the offset
+// operand's width the immediate's inside that bracket
 static void tables_constant_read(const char *line, TablesClass *class_)
 {
     const char *const constant = strstr(line, "C:");
@@ -289,6 +304,7 @@ static void tables_constant_read(const char *line, TablesClass *class_)
     if ((last_open != NULL) && (last_close != NULL))
     {
         tables_name_before(last_open, last_close, class_->offset);
+        class_->offset_bits = tables_immediate_bits(last_open, last_close);
     }
 }
 

@@ -59,3 +59,46 @@ int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int 
     }
     return 1;
 }
+
+// the field of `bit` among `fields`, the narrowest holding it, or `fields` where none does
+static unsigned int khw_field_of(unsigned int bit, unsigned int fields, const unsigned int *field_first,
+                                 const unsigned int *field_bits)
+{
+    unsigned int found = fields;
+    for (unsigned int field = 0u; field < fields; field += 1u)
+    {
+        if ((field_first[field] <= bit) && (bit < (field_first[field] + field_bits[field])) &&
+            ((found == fields) || (field_bits[field] < field_bits[found])))
+        {
+            found = field;
+        }
+    }
+    return found;
+}
+
+unsigned int khw_runs_gathered(const int *turned, unsigned int fields, const unsigned int *field_first,
+                               const unsigned int *field_bits, KhwAnswered *held)
+{
+    held->runs = 0u;
+    for (unsigned int bit = KHW_TURN_FIRST; (bit <= KHW_TURN_LAST) && (held->runs < KHW_RUNS); bit += 1u)
+    {
+        if (turned[bit] == 0)
+        {
+            continue;
+        }
+        const unsigned int field = khw_field_of(bit, fields, field_first, field_bits);
+        unsigned int end = bit;
+        while ((end < KHW_TURN_LAST) && (turned[end + 1u] != 0) &&
+               (khw_field_of(end + 1u, fields, field_first, field_bits) == field))
+        {
+            end += 1u;
+        }
+        held->first[held->runs] = bit;
+        held->last[held->runs] = end;
+        held->place[held->runs] = KHW_PLACE_NONE;
+        held->kind[held->runs] = KHW_KIND_REGISTER;
+        held->runs += 1u;
+        bit = end;
+    }
+    return held->runs;
+}

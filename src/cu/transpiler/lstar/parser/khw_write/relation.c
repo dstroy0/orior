@@ -265,36 +265,22 @@ static void khw_turns_pooled(const KhwStaged *stage)
 }
 
 // The turns of `held` read off the round carried, its turns at `at` in s_pool and after, each read at the case
-// `read_at`: a bit whose turning changed the answer `base` gathered into the runs the operands might sit in, none yet
-// asked whether it carries a register. The runs are the candidates a register pass reads, and the phase turned
+// `read_at`: a bit whose turning changed the answer `base` gathered into the runs the operands might sit in, cut
+// where the fields the part's .ksc names end (khw_runs_gathered), none yet asked whether it carries a register. The
+// runs are the candidates a register pass reads, and the phase turned
 static void khw_turns_read(KhwAnswered *held, unsigned int at, unsigned long long base, unsigned int read_at)
 {
     int turned[KHW_TURN_LAST + 1u];
+    memset(turned, 0, sizeof(turned));
     for (unsigned int bit = KHW_TURN_FIRST; bit <= KHW_TURN_LAST; bit += 1u)
     {
         const RunQuestion *const question = &s_pool[at + (bit - KHW_TURN_FIRST)];
         turned[bit] = ((question->outcome == RUN_ANSWERED) && (question->answered[read_at] != base)) ? 1 : 0;
     }
-    held->runs = 0u;
-    // the adjacent bits that changed the answer, the candidate runs a register pass reads
-    for (unsigned int bit = KHW_TURN_FIRST; (bit <= KHW_TURN_LAST) && (held->runs < KHW_RUNS); bit += 1u)
-    {
-        if (turned[bit] == 0)
-        {
-            continue;
-        }
-        unsigned int end = bit;
-        while ((end < KHW_TURN_LAST) && (turned[end + 1u] != 0))
-        {
-            end += 1u;
-        }
-        held->first[held->runs] = bit;
-        held->last[held->runs] = end;
-        held->place[held->runs] = KHW_PLACE_NONE;
-        held->kind[held->runs] = KHW_KIND_REGISTER;
-        held->runs += 1u;
-        bit = end;
-    }
+    unsigned int field_first[KHW_FIELDS];
+    unsigned int field_bits[KHW_FIELDS];
+    const unsigned int fields = khw_fields_listed(field_first, field_bits, KHW_FIELDS);
+    khw_runs_gathered(turned, fields, field_first, field_bits, held);
     held->phase = KHW_PHASE_TURNED;
 }
 

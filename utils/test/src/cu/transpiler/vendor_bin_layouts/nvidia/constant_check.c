@@ -4,6 +4,9 @@
 //
 //   inside     a read of bank 0 whose word ends inside the bank passes
 //   past       one whose word ends past the bank's size is held, and the last word of the bank passes
+//   bytes      a sixteen-bit offset field holds the byte offset itself: the operand is 17 bits with its sign, the
+//              field holds the upper bits, and the bits dropped below it scale the value, two for a field of fourteen
+//              and none for one of sixteen
 //   bank       a read of a bank other than 0 is held, whatever its offset
 //   unknown    a bank size of 0 is unknown, and only the bank is held against
 //   none       an encoding of a class with no constant operand, or of no class, passes
@@ -13,7 +16,6 @@
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.h"
 
 #include <stdio.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -52,6 +54,18 @@ static const char s_text[] = "CLASS \"mov__RC\"\n"
                              "BITS_13_91_91_11_0_opcode=Opcode;\n"
                              "BITS_8_23_16_Rd=Rd;\n"
                              "BITS_32_63_32_Ra_offset=Sb;\n"
+                             "\n"
+                             "CLASS \"uldc_const__RCR\"\n"
+                             "FORMAT PREDICATE @[!]UniformPredicate(UPT):UPg Opcode\n"
+                             "UniformRegister:URd\n"
+                             "','C:Sa[UImm(5/0*):Sa_bank]*   [SImm(17)*:Sa_addr];\n"
+                             "OPCODES\n"
+                             "        ULDC =  0b101010111001;\n"
+                             "ENCODING\n"
+                             "BITS_13_91_91_11_0_opcode=Opcode;\n"
+                             "BITS_3_14_12_UPg=UPg;\n"
+                             "BITS_6_21_16_URd=URd;\n"
+                             "BITS_5_58_54_Sc_bank,BITS_16_53_38_Ra_offset=ConstBankAddress2(Sa_bank,Sa_addr);\n"
                              "\n";
 
 // a move off the constant bank: `MOV R7, c[<bank>][<words> * 4]`
@@ -71,8 +85,8 @@ static void constant_move(const TablesSet *set, unsigned long long bank, unsigne
 int main(void)
 {
     TablesSet set = {NULL, 0u, 0u};
-    check_that(tables_set_read(&set, (const unsigned char *)s_text, sizeof(s_text) - 1u) && (set.count == 2u),
-               "the two classes read");
+    check_that(tables_set_read(&set, (const unsigned char *)s_text, sizeof(s_text) - 1u) && (set.count == 3u),
+               "the three classes read");
     unsigned long long low = 0ull;
     unsigned long long high = 0ull;
     constant_move(&set, 0ull, 0ull, &low, &high);
@@ -84,6 +98,19 @@ int main(void)
     check_that(cubin_constant_out_of_bank(&set, low, high, 0x160ull), "past: the word at 0x160 is held");
     constant_move(&set, 0ull, 0x2000ull, &low, &high);
     check_that(cubin_constant_out_of_bank(&set, low, high, 0x160ull), "past: a word far past the bank is held");
+    // the uniform load of the memory descriptor the vendor's own kernels open with, `ULDC.64 UR4, c[0x0][0x118]`
+    low = 0ull;
+    high = 0ull;
+    tables_field_write(tables_field_named(&set.class_[2], "opcode"), &low, &high, 0xab9ull);
+    tables_field_write(tables_field_named(&set.class_[2], "UPg"), &low, &high, 7ull);
+    tables_field_write(tables_field_named(&set.class_[2], "URd"), &low, &high, 4ull);
+    tables_field_write(tables_field_named(&set.class_[2], "Ra_offset"), &low, &high, 0x118ull);
+    char encoded[96];
+    snprintf(encoded, sizeof(encoded), "bytes: the load of c[0x0][0x118] encodes as the vendor's does, not %016llx", low);
+    check_that(low == 0x0000460000047ab9ull, encoded);
+    check_that(!cubin_constant_out_of_bank(&set, low, high, 0x160ull), "bytes: c[0x0][0x118] passes a bank of 0x160");
+    check_that(!cubin_constant_out_of_bank(&set, low, high, 0x120ull), "bytes: and a bank of 0x120, its word's end");
+    check_that(cubin_constant_out_of_bank(&set, low, high, 0x118ull), "bytes: a bank of 0x118 holds it");
     constant_move(&set, 3ull, 0ull, &low, &high);
     check_that(cubin_constant_out_of_bank(&set, low, high, 0x160ull), "bank: bank 3 is held");
     constant_move(&set, 0ull, 0x2000ull, &low, &high);

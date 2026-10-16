@@ -76,6 +76,27 @@ int khw_field_holding(unsigned int first, unsigned int last, char *name, size_t 
     return found;
 }
 
+unsigned int khw_fields_listed(unsigned int *first, unsigned int *bits, unsigned int room)
+{
+    static KscFile s_file;
+    unsigned int count = 0u;
+    ksc_read(&s_file, s_ksc_path);
+    for (unsigned int at = 0u; (at < s_file.lines) && (count < room); at += 1u)
+    {
+        char read[64];
+        unsigned int from = 0u;
+        unsigned int width = 0u;
+        if ((sscanf(s_file.line[at], "field %63s %u %u", read, &from, &width) == 3) && (width != 0u))
+        {
+            first[count] = from;
+            bits[count] = width;
+            count += 1u;
+        }
+    }
+    ksc_free(&s_file);
+    return count;
+}
+
 // 1 where the instruction `low` and `high` holds `value` in some run of its bits, `value` not 0: a number a form
 // writes stands in the instruction, and a constant it computes does not
 static int khw_encoding_holds(unsigned long long low, unsigned long long high, unsigned long long value)

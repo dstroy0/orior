@@ -50,6 +50,11 @@ extern "C"
 // it, and a conference may admit it (overseer.h)
 #define RUN_GATE_KEY_RULE "skipped 5 "
 
+// the gate's hold on an encoding the vendor's own reader called illegal, as the carrier answers it (cubin_safe.h,
+// CUBIN_SAFE_HELD). An ask held so stays held in R: the verdict is the vendor's and stands. An ask the gate held
+// under any other rule is open in R: the part never saw it, and the gate reads it again as its rules stand
+#define RUN_GATE_VENDOR_RULE "skipped 12 "
+
 // what a run came to
 typedef enum
 {
@@ -154,6 +159,9 @@ int run_channel_registers_past(const char *ksc);
 // 1 where `refused`, what a carrier said of a question, is the gate's hold for an unknown operation key
 // (RUN_GATE_KEY_RULE)
 int run_channel_key_held(const char *refused);
+
+// 1 where `refused` is the gate's hold on an encoding the vendor's reader called illegal (RUN_GATE_VENDOR_RULE)
+int run_channel_vendor_held(const char *refused);
 
 // `asked` put and answered. 1 where the outcome is RUN_ANSWERED, 0 otherwise, with `asked->outcome` saying which
 int run_channel_ask(RunQuestion *asked);

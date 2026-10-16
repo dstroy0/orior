@@ -14,13 +14,13 @@ pub struct Step {
     words: &'static [&'static str],
 }
 
-/// The steps in order: the vendor's tables are pulled off its disassembler, the widening discovers
+/// The steps in order: the part's tables are pulled off the vendor's disassembler, the widening discovers
 /// forms at the slot, their turns and register runs classify them, the ruleset is written from them,
 /// the engine's stick is built from the ruleset, the pairs hold the stick's chains against the part
 /// and ask how far a container's code reaches, the forms are timed, and the ruleset is written again
 /// with the costs.
 pub const STEPS: [Step; 10] = [
-    Step { name: "vendor tables", loop_: crate::tables::run, words: &[] },
+    Step { name: "vendor tables", loop_: crate::tables::run, words: &["sm_86"] },
     Step { name: "discover", loop_: crate::learn::run, words: &["discover"] },
     Step { name: "turns", loop_: crate::learn::run, words: &["turns"] },
     Step { name: "registers", loop_: crate::learn::run, words: &["registers"] },
