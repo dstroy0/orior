@@ -662,9 +662,11 @@ static int khw_frame_whole(const KhwAnswered *held)
 // the immediate field is a number where the relation is number and the answers are the settings themselves, and the
 // offset where the relation holds a number place and the two settings answer apart. Any other run is the destination
 // where 0 leaves `nothing` and the register the kernel stores answers the relation, or the guard where the relation is
-// exit, since P0 is false at the slot and PT is every lane; the register a store keeps where the relation is store and
-// that register answers the relation; and an operand with no place where the two answer apart, its bits kept as seen.
-// Each kept with its kind, and the phase classified, or void where a place of the tuple holds no run
+// exit or the run lies inside the field the .ksc names the guard, since P0 is false at the slot and PT is every lane,
+// exit's guard a place of its tuple and any other relation's a predicate with none; the register a store keeps where
+// the relation is store and that register answers the relation; and an operand with no place where the two answer
+// apart, its bits kept as seen. Each kept with its kind, and the phase classified, or void where a place of the tuple
+// holds no run
 static void khw_frame_registers_read(KhwAnswered *held, unsigned int at, const KhwStaged *stage)
 {
     const unsigned int runs = held->runs;
@@ -714,9 +716,18 @@ static void khw_frame_registers_read(KhwAnswered *held, unsigned int at, const K
             }
             else if (!immediate && both && (answer[0] == nothing) && (answer[1] == expected))
             {
-                place =
-                    (held->frame == FRAME_EXIT) ? frame_place_guard(held->frame) : frame_place_destination(held->frame);
-                kind = (held->frame == FRAME_EXIT) ? KHW_KIND_PREDICATE : KHW_KIND_REGISTER;
+                // a run inside the field the .ksc names the guard answers so too, P0 false at the slot and PT every
+                // lane: it is the guard, exit's place where the relation is exit and a predicate with no place
+                // elsewhere, never the destination
+                unsigned int guard_first = 0u;
+                unsigned int guard_bits = 0u;
+                const int in_guard = khw_field_read("guard", &guard_first, &guard_bits) &&
+                                     (held->first[run] >= guard_first) &&
+                                     (held->last[run] < (guard_first + guard_bits));
+                place = (held->frame == FRAME_EXIT) ? frame_place_guard(held->frame)
+                        : in_guard                  ? KHW_PLACE_NONE
+                                                    : frame_place_destination(held->frame);
+                kind = ((held->frame == FRAME_EXIT) || in_guard) ? KHW_KIND_PREDICATE : KHW_KIND_REGISTER;
             }
             else if (!immediate && (held->frame == FRAME_STORE) && both && (answer[1] == expected) &&
                      (answer[0] != answer[1]))

@@ -106,7 +106,8 @@ int main(void)
     tables_field_write(tables_field_named(&set.class_[2], "URd"), &low, &high, 4ull);
     tables_field_write(tables_field_named(&set.class_[2], "Ra_offset"), &low, &high, 0x118ull);
     char encoded[96];
-    snprintf(encoded, sizeof(encoded), "bytes: the load of c[0x0][0x118] encodes as the vendor's does, not %016llx", low);
+    snprintf(encoded, sizeof(encoded), "bytes: the load of c[0x0][0x118] encodes as the vendor's does, not %016llx",
+             low);
     check_that(low == 0x0000460000047ab9ull, encoded);
     check_that(!cubin_constant_out_of_bank(&set, low, high, 0x160ull), "bytes: c[0x0][0x118] passes a bank of 0x160");
     check_that(!cubin_constant_out_of_bank(&set, low, high, 0x120ull), "bytes: and a bank of 0x120, its word's end");

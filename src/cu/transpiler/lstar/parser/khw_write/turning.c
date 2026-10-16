@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// turning.c: the turning case of a ladder form: the first case of its relation whose readings in the register pass stand apart
+// turning.c: the turning case of a ladder form: the first case of its relation whose readings in the register pass
+// stand apart
 #include "khw_write_internal.h"
 
 // The turning case of the relation `anchor`, read swapped where `swapped`, into `word`, with the relation's answer to
@@ -16,8 +17,8 @@ int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], un
         const LadderQuestion *const question = &s_ladder_cases[at];
         unsigned int gave = 0u;
         if ((question->anchor != anchor) || (question->words < 2u) ||
-            !ladder_answer(anchor, question->word, question->words, &gave) || (question->word[0] == question->word[1]) ||
-            (gave == question->word[0]) || (gave == question->word[1]))
+            !ladder_answer(anchor, question->word, question->words, &gave) ||
+            (question->word[0] == question->word[1]) || (gave == question->word[0]) || (gave == question->word[1]))
         {
             continue;
         }
@@ -27,8 +28,9 @@ int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], un
         const unsigned int second_twice[2] = {second, second};
         unsigned int first_answer = 0u;
         unsigned int second_answer = 0u;
-        if (!ladder_answer(anchor, first_twice, 2u, &first_answer) || !ladder_answer(anchor, second_twice, 2u, &second_answer) ||
-            (first_answer == second) || (second_answer == second) || (first_answer == gave) || (second_answer == gave))
+        if (!ladder_answer(anchor, first_twice, 2u, &first_answer) ||
+            !ladder_answer(anchor, second_twice, 2u, &second_answer) || (first_answer == second) ||
+            (second_answer == second) || (first_answer == gave) || (second_answer == gave))
         {
             continue;
         }

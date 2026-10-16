@@ -47,8 +47,9 @@ int main(void)
         snprintf(what, sizeof(what), "relation %u: the words (%u, %u) and the answer %u stand apart", anchor, word[0],
                  word[1], expected);
         check_that((word[0] != word[1]) && (expected != word[0]) && (expected != word[1]), what);
-        snprintf(what, sizeof(what), "relation %u: each word twice answers %u and %u, apart from the second word and the answer",
-                 anchor, first_answer, second_answer);
+        snprintf(what, sizeof(what),
+                 "relation %u: each word twice answers %u and %u, apart from the second word and the answer", anchor,
+                 first_answer, second_answer);
         check_that(read && (first_answer != word[1]) && (second_answer != word[1]) && (first_answer != expected) &&
                        (second_answer != expected),
                    what);
