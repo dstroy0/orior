@@ -154,7 +154,7 @@ pub const EVERY: &[Tool] = &[
     },
     Tool {
         name: "measuring_stick_query",
-        c: &[&["src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query.c", "src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/*.c"], INTERFACE],
+        c: &[&["src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query.c", "src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/*.c", "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c"], INTERFACE],
         cxx: &[],
         cxx_tool: &[],
         file_defs: true,

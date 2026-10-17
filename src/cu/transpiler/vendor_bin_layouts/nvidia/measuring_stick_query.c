@@ -225,6 +225,13 @@ int main(int count, char **words)
         run_pieces[placed] = (MsqPiece){MSQ_PIECE_TAIL, tail, tails.items[tail], 0ull, MSQ_PIECE_READ};
         placed += 1u;
     }
+    // a piece holding an instruction the vendor's own instruction set reads as no class is one its disassembler stops
+    // at: set aside before the run, to be read alone, so that the run is read clean at one start
+    for (size_t piece = 0u; whole && msq_tables_read() && (piece < piece_count); piece += 1u)
+    {
+        run_pieces[piece].state =
+            msq_vendor_reads(&run_pieces[piece].bytes) ? MSQ_PIECE_READ : MSQ_PIECE_UNREAD;
+    }
     MsqReader reader;
     memset(&reader, 0, sizeof(reader));
     reader.output_room = 8ull << 20u;

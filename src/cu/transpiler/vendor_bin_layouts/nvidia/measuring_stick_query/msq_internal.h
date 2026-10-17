@@ -247,6 +247,8 @@ int msq_illegal_said(const char *text, size_t length);
 void *msq_pool_worker(void *argument);
 unsigned int msq_processors(void);
 int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqListing *listing);
+int msq_tables_read(void);
+int msq_vendor_reads(const MsqBytes *piece);
 void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, MsqReading *readings, MsqFrame *frames, MsqRegisters *addressed);
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read);
 void msq_frame_free(MsqFrame *read);
