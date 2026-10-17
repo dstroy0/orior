@@ -4,7 +4,7 @@ Written by `orior protocol stick` whole on every run. Each kernel of the measuri
 
 - kernels: 1016
 - instructions: 55072
-- operations nvcc writes over the stick: 326, of which sass.krs writes 5
+- operations nvcc writes over the stick: 326, of which sass.krs writes 7
 
 - kernels the engine answers: 0, of which at parity with nvcc: 0; kernels that put a question: 1016
 - the engine's instructions: 0 in its lanes' text, 0 read back by nvdisasm, 0 of them the operation the text wrote
@@ -68,7 +68,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `SEL` | 301 | 0036 | `long long a / b` |
 | `SHF.R.S32.HI` | 228 | 0000 | `signed char a + b` |
 | `I2F.U64` | 184 | 0008 | `float a + b` |
-| `ISETP.NE.AND` | 177 | 0030 | `signed char a / b` |
 | `I2F.F64.U64` | 170 | 0009 | `double a + b` |
 | `BSSY` | 139 | 0036 | `long long a / b` |
 | `BSYNC` | 139 | 0036 | `long long a / b` |
@@ -193,7 +192,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `DSETP.NE.AND` | 5 | 0670 | `double __dsqrt_rn(a)` |
 | `I2FP.F32.U32.RZ` | 5 | 0031 | `unsigned char a / b` |
 | `IMNMX.U32` | 5 | 0459 | `int r; switch (b) { case 1: r = a; break; case 100: r = a + 1; break; case 10000: r = a + 2; break; case -7: r = a + 3; break; default: r = 0; break; }` |
-| `ISETP.LT.AND` | 5 | 0511 | `unsigned int __fns(a, b, c)` |
 | `SHF.R.S64` | 5 | 0086 | `long long a >> b` |
 | `ATOMG.E.ADD.STRONG.GPU` | 4 | 0854 | `int atomicAdd` |
 | `BREV` | 4 | 0504 | `unsigned int __brev(a)` |

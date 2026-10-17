@@ -2023,6 +2023,7 @@ open 0
 slice_identity 0092:00c0 0112:00c0
 first ISETP.NE.AND P, PT, R, R, PT
 second ISETP.GE.AND P, PT, R, R, PT
+form first test_word_ne
 context 0092:00c0 0112:00c0
 after 0 3 SEL R, RZ, 1, P
 before 0 g @P EXIT
@@ -2042,6 +2043,7 @@ closed 0102:00c0 0142:00c0 0,0,0->0,1
 slice_identity 0092:00c0 0113:00c0
 first ISETP.NE.AND P, PT, R, R, PT
 second ISETP.GE.U32.AND P, PT, R, R, PT
+form first test_word_ne
 context 0092:00c0 0113:00c0
 after 0 3 SEL R, RZ, 1, P
 before 0 g @P EXIT
@@ -2061,6 +2063,7 @@ closed 0102:00c0 0143:00c0 0,0,0->0,1
 slice_identity 0092:00c0 0132:00c0
 first ISETP.NE.AND P, PT, R, R, PT
 second ISETP.GT.AND P, PT, R, R, PT
+form first test_word_ne
 context 0092:00c0 0132:00c0
 after 0 3 SEL R, RZ, 1, P
 before 0 g @P EXIT
@@ -2080,6 +2083,7 @@ closed 0102:00c0 0122:00c0 0,1,0->1,0
 slice_identity 0092:00c0 0133:00c0
 first ISETP.NE.AND P, PT, R, R, PT
 second ISETP.GT.U32.AND P, PT, R, R, PT
+form first test_word_ne
 context 0092:00c0 0133:00c0
 after 0 3 SEL R, RZ, 1, P
 before 0 g @P EXIT
