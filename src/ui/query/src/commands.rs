@@ -194,6 +194,9 @@ pub struct Context<'a> {
     pub leave: Leave,
     pub asker: &'a mut dyn Asker,
     pub env: Vec<(String, String)>,
+    /// The run a loop of many steps opened, the course's, that every step joins; none where each
+    /// loop opens its own
+    pub open: Option<PathBuf>,
 }
 
 impl Context<'_> {
@@ -212,9 +215,13 @@ impl Context<'_> {
         tools::built(self.root, self.programs, name)
     }
 
-    /// A run started in `folder`, a path from the top of the tree, or joined.
+    /// A run started in `folder`, a path from the top of the tree, or joined: the run the context
+    /// holds open where it holds one, every step of the course a member of the course's run.
     pub fn started(&self, folder: &str) -> Result<Run, String> {
-        Run::started(self.root, &self.root.join(folder), self.programs)
+        match &self.open {
+            Some(qry) => Run::joining(self.root, qry, self.programs),
+            None => Run::started(self.root, &self.root.join(folder), self.programs),
+        }
     }
 
     /// The file `under` the top of the tree.
@@ -262,7 +269,7 @@ pub fn run(root: &Path, programs: &dyn Programs, words: &[String], sink: &mut dy
     let mut words: Vec<String> = words.to_vec();
     let leave = Leave::chosen(leave_taken(&mut words)?);
     let mut terminal = Terminal;
-    let mut context = Context { root, programs, sink, leave, asker: &mut terminal, env: Vec::new() };
+    let mut context = Context { root, programs, sink, leave, asker: &mut terminal, env: Vec::new(), open: None };
     let (first, rest) = words.split_first().ok_or_else(usage)?;
     // the loop's own lines go to its run as `<loop>.console`
     crate::member::console_named(first);

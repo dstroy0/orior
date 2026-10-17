@@ -182,6 +182,19 @@ impl Run {
         Ok(Run { folder: folder.to_path_buf(), writer, process: Some(process), joined: false, read: Vec::new(), left: Vec::new() })
     }
 
+    /// The run at `qry` joined, its writer already running: this process a member of it with a
+    /// buffer of its own handed to the run's one writer. An error where no writer runs it.
+    pub fn joining(root: &Path, qry: &Path, programs: &dyn Programs) -> Result<Run, String> {
+        let binary = tools::built(root, programs, "qry_writer")?;
+        let mut writer = Writer { binary, qry: qry.to_path_buf(), top: root.to_path_buf(), path: programs.run_path(), member: None };
+        if !(writer.runs() && writer.joined()) {
+            return Err(format!("no writer runs {}", qry.display()));
+        }
+        member::current_set(writer.member.clone());
+        let folder = qry.parent().map(Path::to_path_buf).unwrap_or_else(|| root.to_path_buf());
+        Ok(Run { folder, writer, process: None, joined: true, read: Vec::new(), left: Vec::new() })
+    }
+
     /// 1 where the run was joined, started by another process.
     pub fn joined(&self) -> bool {
         self.joined
@@ -196,7 +209,16 @@ impl Run {
     /// is there.
     pub fn carried(&self, folder: &Path, files: &[&str], crystal: Option<&Path>) -> Result<(), String> {
         let base = |file: &str| Path::new(file).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        for (_, held) in each(folder) {
+        // the runs of `folder` and the course's, newest first by when each last changed: a pass run alone
+        // after a course carries what the course left
+        let course = self.writer.top.join(crate::course::FOLDER);
+        let mut runs: Vec<(std::time::SystemTime, PathBuf)> = each(folder)
+            .into_iter()
+            .chain(if plain(&course) == plain(folder) { Vec::new() } else { each(&course) })
+            .map(|(_, path)| (std::fs::metadata(&path).and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH), path))
+            .collect();
+        runs.sort_by(|a, b| b.0.cmp(&a.0));
+        for (_, held) in runs {
             let missing: Vec<String> = files.iter().map(|f| base(f)).filter(|name| self.writer.latest(name).is_none()).collect();
             if missing.is_empty() {
                 break;
@@ -354,6 +376,30 @@ mod runs {
         let writer = Writer { binary: tools::built(&root, &OnPath, "qry_writer").unwrap(), qry: qry.clone(), top: root.clone(), path: OnPath.run_path(), member: None };
         assert!(!writer.runs());
         assert!(qry.is_file());
+        let _ = std::fs::remove_dir_all(folder.parent().unwrap());
+    }
+
+    #[test]
+    fn a_step_joins_the_run_held_open_and_its_end_leaves_the_writer_running() {
+        if OnPath.program(Role::C).is_err() {
+            return;
+        }
+        let root = root();
+        let folder = root.join("build/query_test/joining/qry");
+        let _ = std::fs::remove_dir_all(folder.parent().unwrap());
+        let held = Run::started(&root, &folder, &OnPath).unwrap();
+        let qry = held.writer().qry.clone();
+        {
+            let step = Run::joining(&root, &qry, &OnPath).unwrap();
+            assert!(step.joined());
+            assert_eq!(plain(&step.writer().qry), plain(&qry));
+            step.writer().hand("step.console", b"a step's line\n", Priority::Ordinary).unwrap();
+        }
+        // the step parted as it was dropped, and the writer it joined still runs and holds its line
+        assert!(held.writer().runs());
+        assert_eq!(held.writer().read("step.console").as_deref(), Some(&b"a step's line\n"[..]));
+        drop(held);
+        assert!(Run::joining(&root, &qry, &OnPath).is_err(), "no step joins a run whose writer has stopped");
         let _ = std::fs::remove_dir_all(folder.parent().unwrap());
     }
 

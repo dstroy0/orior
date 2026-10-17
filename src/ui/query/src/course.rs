@@ -1,11 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-//! The course: the whole protocol as one job, its steps run in order, each a pass of its own with
-//! its own run. The course says its steps before the first, each step as it begins, where it stops
-//! and that it ended, lines the window's panel reads to draw the line and walk the fire along it.
+//! The course: the whole protocol as one job and one run, its steps run in order. The course opens
+//! the run and names it to every step, each step joining it as a member as every module does, its
+//! own buffer handed to the run's one writer. The course says its steps before the first, each step
+//! as it begins, where it stops and that it ended, through its own buffer into the run, which the
+//! window's panel reads to draw the line and walk the fire along it.
 
 use crate::commands::Context;
+
+/// The folder the course's runs are kept in, a path from the top of the tree.
+pub const FOLDER: &str = "build/engine/course/qry";
 
 /// One step of the course: its name on the line, the loop it runs and the words it gives it.
 pub struct Step {
@@ -50,19 +55,40 @@ pub fn from(words: &[String]) -> Result<usize, String> {
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let first = from(words)?;
     let count = STEPS.len();
+    // the course's run, held open on the context so that every step joins it; a course run inside a
+    // run already open joins that one
+    let run = context.started(FOLDER)?;
+    let held = context.open.replace(run.writer().qry.clone());
+    let member = run.writer().member.clone();
     context.say(&format!("course: {count} steps: {}", names().join(", ")));
+    let mut ended = Ok(0);
     for (index, step) in STEPS.iter().enumerate().skip(first) {
         let number = index + 1;
         context.say(&format!("course: step {number} of {count}: {}", step.name));
         let given: Vec<String> = step.words.iter().map(|word| word.to_string()).collect();
-        let code = (step.loop_)(context, &given)?;
-        if code != 0 {
-            context.say(&format!("course: stopped at step {number}, {}, exit {code}", step.name));
-            return Ok(code);
+        let code = (step.loop_)(context, &given);
+        // a step that joined the run parts from it as it ends: the course is the run's member again
+        crate::member::current_set(member.clone());
+        match code {
+            Ok(0) => {}
+            Ok(code) => {
+                context.say(&format!("course: stopped at step {number}, {}, exit {code}", step.name));
+                ended = Ok(code);
+                break;
+            }
+            Err(said) => {
+                context.say(&format!("course: stopped at step {number}, {}: {said}", step.name));
+                ended = Err(said);
+                break;
+            }
         }
     }
-    context.say(&format!("course: ended, {count} steps"));
-    Ok(0)
+    if matches!(ended, Ok(0)) {
+        context.say(&format!("course: ended, {count} steps"));
+    }
+    context.open = held;
+    context.ended(run)?;
+    ended
 }
 
 #[cfg(test)]
