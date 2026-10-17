@@ -6,7 +6,7 @@ part sm_86
 form IADD register,register,register 0x0000000700077210 0x004fca0007ffe0ff 0:12-12:2;0:18-18:2;1:24-27:0;2:32-34:1;0:63-66:2;8:72-72:-;8:74-74:- ladder.add 0 IADD R1, R0, R7
 form IADD register,register,register,register,register 0x0000000700077210 0x004fca0007ffe4ff 0:18-18:2;1:24-27:0;2:32-34:1;8:63-63:-;8:72-72:-;8:75-75:-;3:77-80:-;4:89-90:- ladder.add 0 IADD R1, R0, R7, R15, R15
 form IADD register 0x8000000700077210 0x004fca0007ffe0ff 0:12-12:2;0:18-18:2;8:63-63:-;8:72-72:-;8:74-74:- ladder.add 0 IADD R1
-form IADD register,register-,register 0x0000000700077210 0x004fca0007ffe1ff 0:12-14:2;0:15-15:2;0:16-16:2;0:18-18:2;1:24-27:1;2:32-34:0;8:67-67:-;8:72-72:-;8:74-74:- ladder.take 0 IADD R1, -R0, R7
+form IADD register,register-,register 0x0000000700077210 0x004fca0007ffe1ff 0:12-14:2;0:15-15:2;0:16-16:2;0:18-18:2;1:24-27:1;2:32-34:0;8:72-72:-;8:74-74:- ladder.take 0 IADD R1, -R0, R7
 form IADD register,register,register- 0x8000010700077210 0x004fca0007ffe0ff 0:12-14:2;0:15-15:2;0:16-16:2;0:18-18:2;1:24-27:0;2:32-34:1;8:63-63:-;8:67-67:-;0:74-74:2 ladder.take 0 IADD R1, R0, -R7
 form IADD3 register,register,register- 0x8000020700077210 0x004fca0007ffe0ff 0:18-18:2;1:24-27:0;2:32-34:1;8:63-63:- ladder.take 0 IADD3 R1, R0, -R7
 form IADD3 register,register-,register 0x0000400700077210 0x004fca0007ffc1ff 0:18-18:2;1:24-27:1;2:32-34:0;8:72-72:- ladder.take 0 IADD3 R1, -R0, R7
@@ -30,3 +30,10 @@ form IMUL register,register,register,register 0x0000000700078224 0x000fcc00078e0
 form MOV register,constant 0x0000000000077a02 0x000fe40000000f00 8:12-14:-;8:15-15:-;0:16-16:0;0:18-18:0;1:40-46:-;0:74-74:0;8:91-91:- frame.dim 0 MOV R1, c[0x0][0x0]
 form ISETP.LE.U32.AND register,register,predicate 0x0000000700067210 0x000fc8000791e106 8:12-14:-;8:15-15:-;8:16-16:-;0:27-27:1;1:33-34:0;8:63-63:-;2:81-83:2 ladder.at_most 0 ISETP.LE.U32.AND R0, R1, P0
 form ISETP.LT.U32.AND register,register,predicate 0x8000000700067210 0x000fc8000791e406 8:12-14:-;8:15-15:-;8:16-16:-;0:24-26:0;1:32-32:1;8:72-72:-;2:81-83:2 ladder.less 0 ISETP.LT.U32.AND R0, R3, P0
+form ISETP.NE.AND register,register,register,predicate,predicate 0x000000070007720c 0x000fc80003f05100 8:12-14:-;8:15-15:-;0:27-27:0;1:32-32:1;2:75-76:-;8:78-78:-;3:81-83:2;4:87-89:-;8:90-90:- ladder.apart 0 ISETP.NE.AND R0, R1, R2, P0, PT
+form ISETP.LT.U32.AND register,register,predicate,predicate 0x000000070007720c 0x004fc80003f04070 8:12-14:-;8:15-15:-;0:27-27:1;1:33-34:0;8:73-73:-;8:75-75:-;8:78-78:-;2:81-83:2;3:87-89:-;8:90-90:- ladder.less 0 ISETP.LT.U32.AND R0, R3, P0, PT
+form ISETP.LT.AND register,register,predicate,predicate 0x000000070007720c 0x004fc80003f04270 8:12-14:-;8:15-15:-;0:27-27:1;1:33-34:0;8:75-75:-;8:78-78:-;2:81-83:2;3:87-89:-;8:90-90:- ladder.less 1 ISETP.LT.AND R0, R3, P0, PT
+form ISETP.NE.AND register,register,predicate 0x000000070007720c 0x000fda0000705670 8:12-14:-;8:15-15:-;0:27-27:0;1:32-32:1;8:74-74:-;8:76-76:-;8:78-78:-;2:81-83:2 ladder.apart 0 ISETP.NE.AND R0, R1, P0
+form ISETP.LE.U32.AND register,register,predicate,predicate 0x000000070007720c 0x000fda0003f06070 8:12-14:-;8:15-15:-;0:27-27:1;1:33-34:0;8:73-73:-;8:75-75:-;8:78-78:-;2:81-83:2;3:87-89:-;8:90-90:- ladder.at_most 0 ISETP.LE.U32.AND R0, R3, P0, PT
+form ISETP.LT.U32.AND register,register,register,predicate,predicate 0x000000070007720c 0x004fc80003f01070 8:12-14:-;8:15-15:-;0:24-26:0;1:32-32:1;2:75-76:-;3:81-83:2;4:87-89:-;8:90-90:- ladder.less 0 ISETP.LT.U32.AND R0, R1, R2, P0, PT
+form ISETP.LT.AND register,register,register,predicate,predicate 0x000000070007720c 0x000fc60003f01270 8:12-14:-;8:15-15:-;0:24-27:0;1:32-32:1;8:73-73:-;2:75-76:-;3:81-83:2;4:87-89:-;8:90-90:- ladder.less 1 ISETP.LT.AND R0, R1, R2, P0, PT
