@@ -127,13 +127,18 @@ static unsigned int frame_places_held(const char *text)
     return count;
 }
 
-// the row that names `form`: the row of its relation whose places are as many as its text holds, or NULL where none
+// 1 where `row` names `form`: the row is of the form's relation and its places are as many as the form's text holds
+static int frame_row_fits(const KrsFrameRow *row, const KrsFrameForm *form)
+{
+    return (strcmp(row->relation, form->relation) == 0) && (row->places == frame_places_held(form->text));
+}
+
+// the first row that names `form`, or NULL where none does
 static const KrsFrameRow *frame_row_of(const KrsFrameForm *form)
 {
-    const unsigned int held = frame_places_held(form->text);
     for (unsigned int at = 0u; at < s_rows; at += 1u)
     {
-        if ((strcmp(s_row[at].relation, form->relation) == 0) && (s_row[at].places == held))
+        if (frame_row_fits(&s_row[at], form))
         {
             return &s_row[at];
         }
@@ -158,9 +163,11 @@ static int frame_unguarded(const KrsFrameForm *form, KrsFrameForm *bare)
     return 1;
 }
 
-int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *line, size_t room)
+// `form` written as the schema's form `row` names, into `line`: 1, or 0 where the row fits no parameters the ruleset
+// names or the line does not fit
+static int frame_row_named(const KrsFrameRow *row, const KrsFrameForm *form, const char *named_ruleset, char *line,
+                           size_t room)
 {
-    const KrsFrameRow *const row = frame_row_of(form);
     if (row == NULL)
     {
         return 0;
@@ -219,6 +226,11 @@ int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *l
     return (used < room) ? 1 : 0;
 }
 
+int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *line, size_t room)
+{
+    return frame_row_named(frame_row_of(form), form, named_ruleset, line, room);
+}
+
 // every `form <name> ...` line the ruleset at `krs_path` gave, into `given`, at most KRS_FRAME_GIVEN_MOST; the count,
 // 0 where there is no path or no file
 static unsigned int frame_given_read(const char *krs_path, KrsFrameGiven *given)
@@ -269,6 +281,33 @@ static int frame_same_line(const char *before, const char *line)
     return (strlen(before) == length) && (strncmp(before, line, length) == 0);
 }
 
+// `row` written into `line` from the first of the `count` forms in `form` it fits: 1, or 0 where none is named by it
+static int frame_row_written(const KrsFrameRow *row, const KrsFrameForm *form, unsigned int count,
+                             const char *named_ruleset, char *line, size_t room)
+{
+    int named = 0;
+    for (unsigned int each = 0u; (each < count) && !named; each += 1u)
+    {
+        named = frame_row_fits(row, &form[each]) && frame_row_named(row, &form[each], named_ruleset, line, room);
+        // a row of no places is also written from a form of its relation whose one place is a guard
+        KrsFrameForm bare;
+        named = named || ((row->places == 0u) && frame_unguarded(&form[each], &bare) && frame_row_fits(row, &bare) &&
+                          frame_row_named(row, &bare, named_ruleset, line, room));
+    }
+    return named;
+}
+
+// the first row of the table that writes the schema's form the row at `at` writes
+static unsigned int frame_form_first(unsigned int at)
+{
+    unsigned int first = 0u;
+    while (strcmp(s_row[first].form, s_row[at].form) != 0)
+    {
+        first += 1u;
+    }
+    return first;
+}
+
 unsigned int krs_frame_written(QryText *forms, const KrsFrameForm *form, unsigned int count, const char *named_ruleset,
                                const char *krs_path, const char *ksc_path)
 {
@@ -280,18 +319,19 @@ unsigned int krs_frame_written(QryText *forms, const KrsFrameForm *form, unsigne
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < s_rows; at += 1u)
     {
+        // a schema form more than one row writes, its relation's own row and another relation's mirror row, is one
+        // line, at its first row, from the first of its rows in the table's order a form is named by
+        if (frame_form_first(at) != at)
+        {
+            continue;
+        }
         const KrsFrameRow *const row = &s_row[at];
         char line[KRS_FRAME_LINE];
         int named = 0;
-        for (unsigned int each = 0u; (each < count) && !named; each += 1u)
+        for (unsigned int other = at; (other < s_rows) && !named; other += 1u)
         {
-            named =
-                (frame_row_of(&form[each]) == row) && krs_frame_named(&form[each], named_ruleset, line, sizeof(line));
-            // a row of no places is also written from a form of its relation whose one place is a guard
-            KrsFrameForm bare;
-            named =
-                named || ((row->places == 0u) && frame_unguarded(&form[each], &bare) && (frame_row_of(&bare) == row) &&
-                          krs_frame_named(&bare, named_ruleset, line, sizeof(line)));
+            named = (strcmp(s_row[other].form, row->form) == 0) &&
+                    frame_row_written(&s_row[other], form, count, named_ruleset, line, sizeof(line));
         }
         const char *const before = frame_given_of(s_given, givens, row->form);
         if (named)

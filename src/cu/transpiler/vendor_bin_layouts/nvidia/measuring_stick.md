@@ -4,7 +4,7 @@ Written by `orior protocol stick` whole on every run. Each kernel of the measuri
 
 - kernels: 1016
 - instructions: 55072
-- operations nvcc writes over the stick: 326, of which sass.krs writes 7
+- operations nvcc writes over the stick: 326, of which sass.krs writes 8
 
 - kernels the engine answers: 0, of which at parity with nvcc: 0; kernels that put a question: 1016
 - the engine's instructions: 0 in its lanes' text, 0 read back by nvdisasm, 0 of them the operation the text wrote
@@ -21,7 +21,10 @@ Each kernel the engine does not answer, by the question it puts.
 
 | question | kernels | first kernel |
 |---|---|---|
-| sass.krs's exit_if assembles with no reading of its operands | 1016 | 0000 |
+| sass.krs writes no parameter_load_word | 669 | 0000 |
+| a value of type float | 178 | 0008 |
+| a value of type double | 168 | 0009 |
+| a value of type long | 1 | 0539 |
 
 ## By category
 
@@ -250,7 +253,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `IMAD.WIDE.U32.X` | 2 | 0518 | `long long __mul64hi(a, b)` |
 | `ISETP.GE.OR` | 2 | 0802 | `double pow(a, b)` |
 | `ISETP.GT.OR` | 2 | 0502 | `int r = measuring_stick_recursive(a & 15, b);` |
-| `ISETP.LE.AND` | 2 | 0465 | `int r = 0; for (int i = 0; i < b; i++) { if (r > a) { break; } r += i; }` |
 | `ISETP.NE.U32.AND.EX` | 2 | 0503 | `int (*f)(int, int) = ((b & 1) != 0) ? measuring_stick_noinline : measuring_stick_other; int r = f(a, b);` |
 | `ISETP.NE.U32.OR` | 2 | 0740 | `float remainderf(a, b)` |
 | `LDL.128` | 2 | 0841 | `double norm(a, o1)` |

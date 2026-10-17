@@ -241,10 +241,10 @@ int main(int count, char **words)
                "the given line the row replaced is kept in the .krf beside the .ksc, under a who line");
     krf_free(&s_removed);
 
-    // the frame forms: the table's rows, eight frame relations' and ten the ladder's predicate relations', and a
-    // form's line as the schema's form through a ruleset naming the eight
-    check_that(krs_frame_read(NULL) == 18u,
-               "the table of frame forms beside its source holds eighteen rows, the frame's eight and the tests' ten");
+    // the frame forms: the table's rows, eight frame relations', ten the ladder's predicate relations' and eight their
+    // mirrors', and a form's line as the schema's form through a ruleset naming the eight
+    check_that(krs_frame_read(NULL) == 26u, "the table of frame forms beside its source holds twenty-six rows, the "
+                                            "frame's eight, the tests' ten and their mirrors' eight");
     char named[1024];
     snprintf(named, sizeof(named), "%s/frame_check_named.krs", words[1]);
     const char *const naming =
@@ -320,6 +320,34 @@ int main(int count, char **words)
                    (strcmp(s_removal.row, "form thread_idx_x to = S2R {to}, SR_TID.X\\n") == 0),
                "the given lane line the written one replaced is kept in the .krf, under a who line");
     krf_free(&s_frame_removed);
+
+    // the mirror rows: an at-most form writes its own test and the greater-or-equal test with its words changed over,
+    // and a test two rows write is one line, from its own relation's form where one is handed
+    snprintf(named, sizeof(named), "%s/frame_check_tests.krs", words[1]);
+    const char *const tests = "krs 1\nruleset cu\nform test_word_le where left right = {where} = ({left} <= "
+                              "{right});\\n\nform test_word_ge where left right = {where} = ({left} >= {right});\\n\n";
+    check_that(qry_filed(qry_run(), named, tests, strlen(tests)) != 0ull,
+               "a ruleset naming the two tests of at most and at least is written");
+    const KrsFrameForm at_most = {"ladder.at_most", "ISETP.LE.U32.AND {2}, PT, {0}, {1}, PT"};
+    QryText mirrored = {NULL, 0ull, 0ull, 0};
+    check_that(krs_frame_written(&mirrored, &at_most, 1u, named, NULL, path) == 2u,
+               "two lines come from one at-most form");
+    check_that((mirrored.bytes != NULL) &&
+                   (strcmp(mirrored.bytes, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
+                                           "{right}, PT\\n\nform test_word_ge where left right = ISETP.LE.U32.AND "
+                                           "{where}, PT, {right}, {left}, PT\\n\n") == 0),
+               "its own test, and the greater-or-equal test with left and right changed over");
+    free(mirrored.bytes);
+    const KrsFrameForm both_tests[2] = {at_most, {"ladder.at_least", "ISETP.GE.U32.AND {2}, PT, {0}, {1}, PT"}};
+    QryText own = {NULL, 0ull, 0ull, 0};
+    check_that(krs_frame_written(&own, both_tests, 2u, named, NULL, path) == 2u,
+               "an at-most and an at-least form write two lines, each test once");
+    check_that((own.bytes != NULL) &&
+                   (strcmp(own.bytes, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
+                                      "{right}, PT\\n\nform test_word_ge where left right = ISETP.GE.U32.AND {where}, "
+                                      "PT, {left}, {right}, PT\\n\n") == 0),
+               "each from its own relation's form");
+    free(own.bytes);
     printf("frame_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }
