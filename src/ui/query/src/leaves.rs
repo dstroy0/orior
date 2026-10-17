@@ -10,6 +10,7 @@
 use std::io::{BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 
+use crate::member::Freed;
 use crate::run::Run;
 
 /// Whether a run's files are left as it leaves them: every one, none, or each asked.
@@ -180,6 +181,7 @@ pub fn shown(path: &Path, tree: &[u8], run: &[u8]) -> String {
             let after: Vec<&str> = after.lines().collect();
             format!("{name}:\n{}", rendered(&diff(&before, &after)))
         }
+        _ if run.len() > tree.len() => format!("{name} grew by {} bytes", run.len() - tree.len()),
         _ => format!("{name}: {} bytes in the tree, {} as the run leaves it", tree.len(), run.len()),
     }
 }
@@ -187,10 +189,10 @@ pub fn shown(path: &Path, tree: &[u8], run: &[u8]) -> String {
 /// Each file apart decided: shown through `sink`, asked of `asker` under `Ask`, and handed back as
 /// the tree holds it through `handed` where refused. `files` is each path with the tree's bytes and
 /// the run's.
-pub fn decided(files: &[(PathBuf, Vec<u8>, Vec<u8>)], leave: Leave, asker: &mut dyn Asker, sink: &mut dyn FnMut(&str), handed: &mut dyn FnMut(&Path, &[u8]) -> Result<(), String>) -> Result<(), String> {
+pub fn decided(files: &[(PathBuf, Vec<u8>, Freed)], leave: Leave, asker: &mut dyn Asker, sink: &mut dyn FnMut(&str), handed: &mut dyn FnMut(&Path, &[u8]) -> Result<(), String>) -> Result<(), String> {
     let mut standing = leave;
     for (path, tree, run) in files {
-        if tree == run {
+        if tree.as_slice() == &**run {
             continue;
         }
         sink(&shown(path, tree, run));
@@ -253,7 +255,9 @@ mod asking {
     #[test]
     fn a_record_file_is_shown_by_its_counts() {
         let said = shown(Path::new("a/sm_86.kqr"), b"12345", b"1234567");
-        assert_eq!(said, "sm_86.kqr: 5 bytes in the tree, 7 as the run leaves it");
+        assert_eq!(said, "sm_86.kqr grew by 2 bytes");
+        let said = shown(Path::new("a/sm_86.kqr"), b"1234567", b"12345");
+        assert_eq!(said, "sm_86.kqr: 7 bytes in the tree, 5 as the run leaves it");
     }
 
     #[test]
@@ -274,9 +278,9 @@ mod asking {
             }
         }
         let files = [
-            (PathBuf::from("a.khw"), b"tree".to_vec(), b"run".to_vec()),
-            (PathBuf::from("b.krs"), b"tree".to_vec(), b"run".to_vec()),
-            (PathBuf::from("c.krs"), b"same".to_vec(), b"same".to_vec()),
+            (PathBuf::from("a.khw"), b"tree".to_vec(), Freed::of(b"run").unwrap()),
+            (PathBuf::from("b.krs"), b"tree".to_vec(), Freed::of(b"run").unwrap()),
+            (PathBuf::from("c.krs"), b"same".to_vec(), Freed::of(b"same").unwrap()),
         ];
         let mut handed = Vec::new();
         let mut said = Vec::new();

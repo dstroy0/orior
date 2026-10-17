@@ -28,7 +28,7 @@ const WORK: &str = "build/engine/identity";
 /// The run folder where no trace folder is named.
 const FOLDER: &str = "build/engine/qry";
 
-const MODES: &[&str] = &["frame", "pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"];
+const MODES: &[&str] = &["frame", "fixed", "pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"];
 
 /// What a pairs' words ask for: the mode, its own words, the part and the language, dry or not,
 /// the seed the links' order is drawn from, and the folder the run goes in.
@@ -45,7 +45,7 @@ pub struct Mode {
 
 impl Mode {
     pub fn read(words: &[String]) -> Result<Mode, String> {
-        let usage = "pairs takes frame|pair|cost|stall|register|past|queue|curve|text_identity|stick [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>]";
+        let usage = "pairs takes frame|fixed|pair|cost|stall|register|past|queue|curve|text_identity|stick [<words>] [--part <part>] [--to <language>] [--dry] [--seed <n>] [--trace <folder>]";
         let (mode, rest) = words.split_first().ok_or(usage)?;
         if !MODES.contains(&mode.as_str()) {
             return Err(usage.into());
@@ -103,10 +103,10 @@ pub fn kernel_words(part: &str, files: &Files) -> Vec<String> {
     vec![part.to_string(), text(&files.machine), text(&files.layout), text(&files.mnemonics), "kernel.txt".into(), "kernel".into()]
 }
 
-/// Whether a mode opens with the frame's asks, which read the kernel: `frame` itself and `pair`,
-/// whose opening runs it.
+/// Whether a mode opens with the kernel the system accepted: `frame` and `fixed`, which read it, and
+/// `pair`, whose opening runs both.
 pub fn kernel_handed(mode: &str) -> bool {
-    matches!(mode, "frame" | "pair")
+    matches!(mode, "frame" | "fixed" | "pair")
 }
 
 /// The pairs of the bridge put to `part` in the language `to`, dry where `dry`.
@@ -167,12 +167,11 @@ fn configs(context: &Context, run: &mut Run, part: &str) -> Result<(), String> {
 fn host_answered(context: &mut Context, run: &Run, out: &Path) -> Result<(), String> {
     let questions = run.writer().latest("host_questions.cpp").ok_or("the run holds no host_questions.cpp")?;
     let source = out.join("host_questions.cpp");
-    std::fs::write(&source, &questions).map_err(|e| format!("{}: {e}", source.display()))?;
+    std::fs::write(&source, &*questions).map_err(|e| format!("{}: {e}", source.display()))?;
     let program = out.join(crate::tools::binary_name("host_questions"));
     let cxx = context.program(Role::Cxx)?;
-    let compiled = context.ran(run, &cxx, &["-std=c++17", "-O0", "-fwrapv", "-w", "-o", &text(&program), &text(&source)])?;
-    if !compiled.status.success() {
-        return Err(format!("the host questions did not compile\n{}", String::from_utf8_lossy(&compiled.stderr).trim_end()));
+    if context.teed(run, "host_questions_compile", &cxx, &["-std=c++17", "-O0", "-fwrapv", "-w", "-o", &text(&program), &text(&source)])? != 0 {
+        return Err("the host questions did not compile".into());
     }
     if context.handed(run, "host_answers.txt", &program, &[])? != 0 {
         return Err("the host questions did not run".into());
@@ -217,7 +216,6 @@ fn text_identity(context: &mut Context, mode: &Mode, identity: &Path, folder: &s
     let python = context.program(Role::Python)?;
     let nvcc = context.program(Role::Nvcc)?;
     let cuobjdump = context.program(Role::Cuobjdump)?;
-    let nvdisasm = context.program(Role::Nvdisasm)?;
     let ccbin = if cfg!(windows) { context.program(Role::Cl).ok().and_then(|cl| cl.parent().map(Path::to_path_buf)) } else { None };
     let table = context.at(TABLE);
     let stick = context.at(STICK);
@@ -229,7 +227,7 @@ fn text_identity(context: &mut Context, mode: &Mode, identity: &Path, folder: &s
     let cu = sides.join("measuring_stick.cu");
     let cubin = sides.join("measuring_stick_nvcc.cubin");
     let sass = sides.join("measuring_stick_nvcc.sass");
-    if context.said(&run, &python, &[&text(&context.at(NVIDIA).join("measuring_stick.py")), &text(&cu), &text(&stick.join("measuring_stick.tsv")), &text(&table.join("Lstar.klq"))])? != 0 {
+    if context.teed(&run, "measuring_stick_sides", &python, &[&text(&context.at(NVIDIA).join("measuring_stick.py")), &text(&cu), &text(&stick.join("measuring_stick.tsv")), &text(&table.join("Lstar.klq"))])? != 0 {
         return Err("the sides were not written".into());
     }
     let mut compile: Vec<String> = Vec::new();
@@ -237,24 +235,19 @@ fn text_identity(context: &mut Context, mode: &Mode, identity: &Path, folder: &s
         compile.extend(["-ccbin".into(), text(ccbin)]);
     }
     compile.extend(["-cubin".into(), format!("-arch={}", mode.part), "-O3".into(), "-diag-suppress".into(), "177".into(), "-o".into(), text(&cubin), text(&cu)]);
-    if context.said(&run, &nvcc, &compile.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+    if context.teed(&run, "nvcc", &nvcc, &compile.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
         return Err("nvcc did not compile the sides".into());
     }
-    let listed = context.ran(&run, &cuobjdump, &["-sass", &text(&cubin)])?;
-    if !listed.status.success() {
+    if context.handed(&run, "measuring_stick_nvcc.sass", &cuobjdump, &["-sass", &text(&cubin)])? != 0 {
         return Err("cuobjdump did not read the sides".into());
     }
-    std::fs::write(&sass, &listed.stdout).map_err(|e| format!("{}: {e}", sass.display()))?;
+    let listed = run.writer().latest("measuring_stick_nvcc.sass").ok_or("the run holds no measuring_stick_nvcc.sass")?;
+    std::fs::write(&sass, &*listed).map_err(|e| format!("{}: {e}", sass.display()))?;
     if context.handed(&run, "assembler.log", &engine, &[&text(&cu), &text(&sass), &text(&sides.join("engine"))])? != 0 {
         return Err("the engine did not write the sides".into());
     }
-    for code in std::fs::read_dir(sides.join("engine")).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "bin")) {
-        let read = context.ran(&run, &nvdisasm, &["-b", &part_read(&mode.part), &text(&code)])?;
-        let mut bytes = read.stdout;
-        bytes.extend(&read.stderr);
-        let _ = std::fs::write(code.with_extension("dis"), bytes);
-    }
-    if context.said(&run, identity, &["slice", &text(&sass), &text(&stick.join("measuring_stick.tsv")), &text(&cu), &text(&sides), &text(&sides.join("engine"))])? != 0 {
+    crate::stick::listings_read(context, &run, &cubin, "measuring_stick_", &part_read(&mode.part), &sides.join("engine"))?;
+    if context.teed(&run, "klq_identity", identity, &["slice", &text(&sass), &text(&stick.join("measuring_stick.tsv")), &text(&cu), &text(&sides), &text(&sides.join("engine"))])? != 0 {
         return Err("the sides were not sliced".into());
     }
     host_answered(context, &run, &sides)?;
@@ -282,14 +275,14 @@ fn judged(context: &mut Context, mode: &Mode, identity: &Path, folder: &str) -> 
         let writer = context.tool("khw_machine_write")?;
         let files = Files::of(context.root, &mode.part);
         let words = kernel_words(&mode.part, &files);
-        if context.said(&run, &writer, &words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+        if context.teed(&run, "khw_machine_write", &writer, &words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
             return Err("the vendor's writer handed the run no kernel".into());
         }
     }
     let host_answers = text(&work.join("host_answers.txt"));
     let overseer = text(&work.join("overseer.txt"));
     run.carried(&context.at(folder), &[host_answers.as_str(), overseer.as_str(), "faulted.txt"], crate::run::crystal(context.root).as_deref())?;
-    if mode.mode != "frame" && run.writer().latest("host_answers.txt").is_none() {
+    if !matches!(mode.mode.as_str(), "frame" | "fixed") && run.writer().latest("host_answers.txt").is_none() {
         return Err("no host answers: run orior protocol pairs stick first".into());
     }
     configs(context, &mut run, &mode.part)?;
@@ -298,6 +291,17 @@ fn judged(context: &mut Context, mode: &Mode, identity: &Path, folder: &str) -> 
     }
     let mut words = vec![mode.mode.clone(), text(&stick.join("engine")), "host_answers.txt".into(), text(&table.join(format!("{}.ksc", mode.part))), text(&out)];
     words.extend(targets(context.root, &mode.mode, &mode.part, &mode.words));
+    if mode.mode == "cost" {
+        // the machine file's forms placed by the vendor's writer, handed to the run for the identity to cost in the
+        // part's clock beside the arrangements
+        let writer = context.tool("khw_machine_write")?;
+        let files = Files::of(context.root, &mode.part);
+        let placed = [mode.part.clone(), text(&files.machine), text(&files.layout), text(&files.mnemonics), "krs_forms.txt".into(), "krs".into()];
+        if context.teed(&run, "khw_machine_write", &writer, &placed.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
+            return Err("the vendor's writer placed no forms".into());
+        }
+        words.push("krs_forms.txt".into());
+    }
     words.push("--".into());
     words.extend(carry);
     if context.teed(&run, "klq_identity", identity, &words.iter().map(String::as_str).collect::<Vec<_>>())? != 0 {
@@ -380,6 +384,7 @@ mod modes {
         assert_eq!(targets(root, "curve", "sm_86", &said(&["1006", "1007"])), ["1006", "1007"]);
         assert_eq!(targets(root, "register", "sm_86", &[]), Vec::<String>::new());
         assert_eq!(targets(root, "frame", "sm_86", &[]), Vec::<String>::new());
+        assert_eq!(targets(root, "fixed", "sm_86", &[]), Vec::<String>::new());
     }
 
     #[test]
@@ -402,7 +407,7 @@ mod modes {
         assert!(words[2].ends_with("/nvidia/elf64_nvidia.tsv"), "{}", words[2]);
         assert!(words[3].ends_with("/nvidia/mnemonic_nvidia.tsv"), "{}", words[3]);
         assert_eq!(&words[4..], ["kernel.txt", "kernel"]);
-        assert!(kernel_handed("frame") && kernel_handed("pair") && !kernel_handed("register"));
+        assert!(kernel_handed("frame") && kernel_handed("fixed") && kernel_handed("pair") && !kernel_handed("register"));
     }
 
     #[test]
@@ -422,6 +427,9 @@ mod modes {
         let frame = Mode::read(&said(&["frame", "--part", "sm_86"])).unwrap();
         assert_eq!(frame.mode, "frame");
         assert!(frame.words.is_empty());
+        let fixed = Mode::read(&said(&["fixed", "--dry"])).unwrap();
+        assert_eq!(fixed.mode, "fixed");
+        assert!(fixed.dry && fixed.words.is_empty());
         assert!(Mode::read(&said(&["pair", "--to", "ptx"])).is_err(), "klq_identity writes forms in sass alone");
         assert!(Mode::read(&said(&["fly"])).is_err());
         assert!(Mode::read(&said(&["pair", "--seed"])).is_err());

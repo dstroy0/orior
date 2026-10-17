@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files.cu: the files read: a file's bytes from the run or the disk, a file appended, the paths of a part, a ruleset's text, and what the relations and the maps said
 #include "ruleset_flat_internal.h"
+#include "../tree_folder.h"
 
 // The run's buffer (qry/buffer) is linked into a program of a run, and many a program reads rulesets with no run at
 // all. Where it is not linked these stand in for its two calls the reader makes, weakly: no run, and every file read
@@ -62,10 +63,7 @@ extern "C" __attribute__((weak)) int qry_file_read(QryBuffer *buffer, const char
 // the part's machine file, its .kdm and its .ksc are
 static std::string ruleset_part_folder(void)
 {
-    const std::string file = __FILE__;
-    const size_t slash = file.find_last_of("/\\");
-    const std::string here = (slash == std::string::npos) ? std::string() : file.substr(0u, slash + 1u);
-    return here + "../../../../transpiler/lstar/protocol/table";
+    return tree_folder_from(__FILE__, 4u, "transpiler/lstar/protocol/table");
 }
 
 int ruleset_bytes_read(const std::string &path, std::string *text)

@@ -140,6 +140,37 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
     return 1;
 }
 
+// `code` put to the part as `question` says, to read what it answers, not to hold it to the host. R holds a verdict
+// alone and cannot answer a reading: the record is neither read nor written. 1 where the part answers it, each case's
+// value in `question->answered`, 0 where it refuses it or the gate holds it, each counted in `asks`
+int question_read(const std::vector<unsigned char> &code, RunQuestion *question, unsigned long long *asks)
+{
+    ask_files_opened();
+    question->code = code.data();
+    question->code_size = code.size();
+    *asks += 1ull;
+    if (s_ask_trace != NULL)
+    {
+        ask_written(s_ask_trace,
+                    "ask %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases, read: ", *asks,
+                    question->code_size, question->registers, question->threads, question->blocks, question->launches,
+                    question->cases);
+    }
+    RunQuestion *const asked[1] = {question};
+    asks_carried(asked, &t_dangerous, 1u);
+    const int answered = question->outcome == RUN_ANSWERED;
+    if (s_ask_trace != NULL)
+    {
+        ask_written(s_ask_trace, "%s\n", answered ? "answered" : question->refused);
+        ask_flushed(s_ask_trace);
+    }
+    if (s_ask_log != NULL)
+    {
+        ask_written(s_ask_log, "ask %llu %s\n", *asks, answered ? "read" : "refused");
+    }
+    return answered;
+}
+
 // 1 where the part answers `code` alike with the host on every case it computes, in a container declaring every
 // register its file holds (sm_86.kdm), 0 where it answers apart, refuses it or the gate holds it, each counted in
 // `asks`
@@ -219,21 +250,33 @@ unsigned int chain_registers(const char *engine, const std::string &number)
 
 // The .ksc rewritten by `who` with `rows` in place of every row of the run channel it held to a question beginning
 // with the words `asked`, whatever came back, the rows put after its last row of the run channel and its counts of the
-// run channel taken again (ksc_rows_replaced_by). 1, or 0 where the .ksc could not be written
+// run channel taken again (ksc_rows_replaced_traced_by); every row let go that no row put gives again is kept in the
+// part's .krf beside it (krf.h). 1, or 0 where the .ksc could not be written
 int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows,
                                QryWho who)
 {
     KscFile file = {};
+    KtextFile removed = {};
     std::vector<const char *> texts;
     for (const std::string &row : rows)
     {
         texts.push_back(row.c_str());
     }
-    const int written =
-        ksc_read(&file, ksc) &&
-        ksc_rows_replaced_by(&file, "run", asked.c_str(), texts.data(), (unsigned int)texts.size(), who) &&
-        ksc_write_by(&file, ksc, who);
+    const int written = ksc_read(&file, ksc) &&
+                        ksc_rows_replaced_traced_by(&file, "run", asked.c_str(), texts.data(),
+                                                    (unsigned int)texts.size(), who, &removed) &&
+                        ksc_write_by(&file, ksc, who);
     ksc_free(&file);
+    if (written && (removed.lines != 0u))
+    {
+        char krf[1200];
+        krf_path_beside(ksc, krf, sizeof(krf));
+        if (!krf_removed_by(krf, "ksc", "replaced", removed.line, removed.lines, who))
+        {
+            printf("  %u rows let go from %s could not be kept in %s\n", removed.lines, ksc, krf);
+        }
+    }
+    ktext_free(&removed);
     return written;
 }
 

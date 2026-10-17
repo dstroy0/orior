@@ -54,6 +54,20 @@
 //      answered as refused, so that R holds it off the part ever after, and nothing is launched after it in that
 //      process. An out-of-range register the part faults on in microseconds is caught here, where rule 6's bound, read
 //      for a launch that runs too long, never sees it.
+//
+// Where the vendor's instruction set is there, the tables the tables step pulls, rules 2 and 3 read each encoding's
+// class off it as well, and hold an operation it names as a control transfer or a wait whatever name the machine
+// file's form gives the encoding (class.c); a kernel's own places, handed as forms with no operation of their own,
+// are so read by what they are. Two rules more read the code against the instruction set:
+//
+//  13. an instruction of a class that reads the constant bank reads bank 0, the parameters' bank, the one bank a
+//      container of ours carries a section for, and ends inside that section (cubin_safe_tables_read, constant.c);
+//  14. an encoding holds to its class's own conditions on its registers, OOR_REG_ERROR and MISALIGNED_REG_ERROR as
+//      the instruction set states them: a register in range for its width and a 64-bit register pair even. This is
+//      the vendor's pipe, its rules read off its text before the part is asked, and it stands apart from ours, what
+//      the part answered as the learned files hold it, the forms of the .khw, the answers and the refusals of the
+//      .ksc, the ruleset of the .krs, the record of the .kqr and R over them: the verdict names which pipe held a
+//      question, so that the two are compared (class.c, tables_class_legal).
 
 #include "sass_machine.h"
 
@@ -72,8 +86,27 @@ enum CubinSafe
     CUBIN_SAFE_LAUNCH_TIMEOUT = 9,
     CUBIN_SAFE_LAUNCH_FAULT = 10,
     CUBIN_SAFE_REGISTER = 11,
-    CUBIN_SAFE_HELD = 12
+    CUBIN_SAFE_HELD = 12,
+    CUBIN_SAFE_CONSTANT = 13,
+    CUBIN_SAFE_ILLEGAL = 14
 };
+
+// the vendor's instruction set as tables/read.h reads it
+struct TablesSetTag;
+
+// The vendor's instruction set for `part` read once off build/vendor/nvidia/tables/<part>_instructions.txt, the
+// file the tables step pulls, for rule 13: 1 where it read and holds a class, 0 where the file is not there or
+// holds none, and rule 13 holds nothing
+int cubin_safe_tables_read(const char *part);
+
+int cubin_safe_tables_ready(void);
+
+// Rule 13: 1 where the encoding `low` and `high` belongs to a class of `tables` that reads the constant bank and
+// reads a bank other than 0, the parameters' bank, the one a container of ours carries a section for; or, where
+// `bank_size` is not 0, a word ending past the bank's `bank_size` bytes, the offset's field counting words of
+// four. 0 for an encoding of no class or of a class reading no bank
+int cubin_constant_out_of_bank(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high,
+                               unsigned long long bank_size);
 
 // What the driver gives for a launch the system's watchdog ended (CUDA_ERROR_LAUNCH_TIMEOUT), and for an event the part
 // has not reached yet (CUDA_ERROR_NOT_READY)
@@ -103,8 +136,11 @@ enum CubinSafe
 unsigned int cubin_safe_launch(int status, unsigned long long waited);
 
 // The verdict on one launch read under rule 8: `part_faulted` 1 where the part stamped an Xid critical error during the
-// launch, `status` the driver's own word on its stop event. CUBIN_SAFE_LAUNCH_FAULT where the part faulted, by the
-// stamp or by a `status` that corrupts the context; CUBIN_SAFE otherwise
+// launch, or the display driver wrote an error to the system log while it ran (nvlddmkm at the levels critical and
+// error, read by the listener, cubin_run/driver.c): the driver's word is the part's fault telemetry as much as the
+// part's own stamp. `status` the driver's own word on its stop event. CUBIN_SAFE_LAUNCH_FAULT where the part faulted,
+// by the stamp or by a `status` that corrupts the context, and the launch is a panic (qry_buffer.h); CUBIN_SAFE
+// otherwise
 unsigned int cubin_safe_fault(int part_faulted, int status);
 
 // The vendor's safety verdict, the gate's and shared by every path that reaches the part: the airlock. The cross

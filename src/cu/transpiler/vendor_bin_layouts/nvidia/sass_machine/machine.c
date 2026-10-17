@@ -111,7 +111,25 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
 {
     SassInstructionParts parts;
     sass_instruction_read(form->text, &parts);
-    int printed = snprintf(written, room, "%s%s%s", parts.guard, (parts.guard[0] != '\0') ? " " : "", parts.operation);
+    // a guard run with a place is written as its place before the operation, in the guard's position
+    unsigned int guard_place = SASS_RUN_NO_PLACE;
+    for (unsigned int number = 0u; number < form->runs; number += 1u)
+    {
+        guard_place =
+            ((form->run[number].operand == SASS_MACHINE_OPERANDS) && (form->run[number].place != SASS_RUN_NO_PLACE))
+                ? form->run[number].place
+                : guard_place;
+    }
+    char guard[SASS_MACHINE_TOKEN];
+    if (guard_place != SASS_RUN_NO_PLACE)
+    {
+        snprintf(guard, sizeof(guard), "@{%u}", guard_place);
+    }
+    else
+    {
+        snprintf(guard, sizeof(guard), "%s", parts.guard);
+    }
+    int printed = snprintf(written, room, "%s%s%s", guard, (guard[0] != '\0') ? " " : "", parts.operation);
     size_t at = (printed > 0) ? (size_t)printed : room;
     for (unsigned int operand = 0u; (operand < parts.operands) && (at < room); operand += 1u)
     {
@@ -124,8 +142,19 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         }
         const char *const between = (operand == 0u) ? " " : ", ";
         const char *const mark = s_mark_names[parts.mark[operand]];
-        printed = (place == SASS_RUN_NO_PLACE)
-                      ? snprintf(written + at, room - at, "%s%s%s", between, mark, parts.operand[operand])
+        const char *const text = parts.operand[operand];
+        // a placed address keeps its brackets and what follows its register inside them, `[{<place>}.64]`, so that
+        // the operand reads as an address where the place is filled
+        const int address = (parts.kind[operand] == SASS_OPERAND_ADDRESS) && (text[0] == '[');
+        const size_t inner = address ? (1u + strcspn(text + 1, ".+]")) : 0u;
+        // a placed constant whose offset is a base and a term, `c[0x0][0x160+0x10]`, keeps its bank and its base, the
+        // place the term, `c[0x0][0x160+{<place>}]`
+        const char *const term = (parts.kind[operand] == SASS_OPERAND_CONSTANT) ? strrchr(text, '+') : NULL;
+        printed = (place == SASS_RUN_NO_PLACE) ? snprintf(written + at, room - at, "%s%s%s", between, mark, text)
+                  : address ? snprintf(written + at, room - at, "%s%s[{%u}%s", between, mark, place, text + inner)
+                  : (term != NULL)
+                      ? snprintf(written + at, room - at, "%s%s%.*s{%u}]", between, mark, (int)(term - text + 1), text,
+                                 place)
                       : snprintf(written + at, room - at, "%s%s{%u}", between, mark, place);
         at += (printed > 0) ? (size_t)printed : room;
     }

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kdecode_internal.h: what the modules of kdecode share: its includes, the bounds of a line, a word and the names, the record and file read, the code, column, oracle, blob, text, file, row and run structures, and the functions one module reads from another
+// kdecode_internal.h: what the modules of kdecode share: its includes, the bounds of a line, a word and the names, the
+// record and file read, the code, column, oracle, blob, text, file, row and run structures, and the functions one
+// module reads from another
 #ifndef KDECODE_INTERNAL_H
 #define KDECODE_INTERNAL_H
 
@@ -133,8 +135,13 @@ int kdecode_number(const char *word, unsigned long long *value);
 void kdecode_oracle_free(KdecodeOracle *oracle);
 const char *kdecode_code_named(const KdecodeOracle *oracle, const char *family, unsigned long long value);
 int kdecode_family_given(const KdecodeOracle *oracle, const char *family);
-void kdecode_blob(void *context, const char *name, unsigned long long sequence, const unsigned char *bytes, unsigned long long size);
+void kdecode_blob(void *context, const char *name, unsigned long long sequence, const unsigned char *bytes,
+                  unsigned long long size);
 int kdecode_oracle_read(const KdecodeRun *run, const char *path, KdecodeOracle *oracle, int codes_only);
-int kdecode_table(const char *path, const char *table, int raw, unsigned long long from, unsigned long long to, unsigned long long most);
+int kdecode_table(const char *path, const char *table, int raw, unsigned long long from, unsigned long long to,
+                  unsigned long long most);
+// every blob of the run at `path` named `name`, each printed whole after a line of its sequence, its name and its size,
+// a NUL byte shown as a space; the latest alone where `latest` is 1. 1, or 0 where the run could not be read
+int kdecode_blobs(const char *path, const char *name, int latest);
 
 #endif

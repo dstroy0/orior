@@ -84,15 +84,51 @@ static int ksc_count_read(const char *line, const char *channel, char *answer)
 int ksc_rows_replaced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
                          unsigned int count, QryWho who)
 {
+    return ksc_rows_replaced_traced_by(file, channel, asked, rows, count, who, NULL);
+}
+
+int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
+                                unsigned int count, QryWho who, KtextFile *removed)
+{
     static KscRow s_row;
-    // the rows go after the last row of the channel the file keeps, or after its last line where it keeps none
+    // the rows let go that no row put gives again, in the order the file holds them, before any line moves
+    for (unsigned int at = 0u; (removed != NULL) && (at < file->lines); at += 1u)
+    {
+        if (!ksc_row_asked(file->line[at], channel, asked))
+        {
+            continue;
+        }
+        unsigned int same = 0u;
+        while ((same < count) && (strcmp(rows[same], file->line[at]) != 0))
+        {
+            same += 1u;
+        }
+        if ((same == count) && !ktext_line_add(removed, file->line[at]))
+        {
+            return 0;
+        }
+    }
+    // the rows go where the first row of the question stood, so that a row put again keeps its place; where the file
+    // holds none of the question, after the last row of the channel it keeps, or after its last line where it keeps
+    // none of the channel
     unsigned int place = file->lines;
+    unsigned int first_asked = file->lines;
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
-        place = (ksc_row_read(file->line[at], channel, &s_row) && !ksc_row_asked(file->line[at], channel, asked))
-                    ? (at + 1u)
-                    : place;
+        if (!ksc_row_read(file->line[at], channel, &s_row))
+        {
+            continue;
+        }
+        if (ksc_row_asked(file->line[at], channel, asked))
+        {
+            first_asked = (first_asked == file->lines) ? at : first_asked;
+        }
+        else
+        {
+            place = at + 1u;
+        }
     }
+    place = (first_asked != file->lines) ? first_asked : place;
     const unsigned int put = ktext_lines_put_by(file, place, rows, count, who);
     if ((put == 0u) && (count != 0u))
     {

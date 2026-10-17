@@ -9,14 +9,18 @@
 //! toolchains.
 
 pub mod commands;
+pub mod course;
 pub mod cross;
+pub mod decode;
 pub mod kept;
 pub mod learn;
 pub mod leaves;
+pub mod member;
 pub mod pairs;
 pub mod programs;
 pub mod run;
 pub mod stick;
+pub mod tables;
 pub mod tools;
 pub mod write;
 pub mod writer;

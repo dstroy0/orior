@@ -20,7 +20,7 @@ struct RulesetName
     unsigned int parameters;
 };
 
-#define OPCODE_WRITTEN(name_, text_, parameters_) {text_, parameters_},
+#define OPCODE_WRITTEN(name_, text_, parameters_, kind_) {text_, parameters_},
 #define REGCLASS_WRITTEN(name_, text_) {text_, 1u},
 #define PHYSREG_WRITTEN(name_, text_) {text_, 0u},
 

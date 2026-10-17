@@ -2870,3 +2870,11 @@ down	3	shr(nand(nor(w0, w0), nor(w0, w0)), w1)	-	0
 down	3	shr(w0, sub(w1, shl(ones, ones)))	-	0
 down	3	shr(bitxor(ones, nand(w0, w0)), w1)	-	0
 product	0	-	-	0
+who 01ed0b8901ed000018dec80268c27cdc
+
+# operations the system writes on the FMA pipe in place of the integer pipe: the operation, its
+# writing there, and the lane it moves in, one whose integer pipe holds the first number of
+# operations or more and the second more than its FMA pipe.
+pipe IADD3.X IMAD.X 0 4
+pipe MOV IMAD.MOV.U32 5 2
+pipe SHF.L.U32 IMAD.SHL.U32 0 2

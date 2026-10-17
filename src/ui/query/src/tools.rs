@@ -24,6 +24,7 @@ pub const FILE_DEFS: &[Pattern] = &[
     "src/cu/types/file_defs/kqr/record/*.c",
     "src/cu/types/file_defs/ksc/ksc.c",
     "src/cu/types/file_defs/kdm/kdm.c",
+    "src/cu/types/file_defs/krf/krf.c",
 ];
 
 /// The folders the file definitions' headers stand in beyond their sources' own.
@@ -74,6 +75,23 @@ pub struct Tool {
 
 pub const EVERY: &[Tool] = &[
     Tool {
+        name: "bus_clock",
+        c: &[&[
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/bus_clock.c",
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.c",
+            "src/cu/transpiler/lstar/protocol/query/query_ask.c",
+        ]],
+        cxx: &[],
+        cxx_tool: &[],
+        file_defs: true,
+        skip: &[],
+        includes: &[],
+        c_flags: C11,
+        cxx_flags: &[],
+        link: &[],
+        headers: &["src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding", "src/cu/transpiler/lstar/protocol/query"],
+    },
+    Tool {
         name: "qry_writer",
         c: &[&["src/cu/types/file_defs/qry/qry_writer.c", "src/cu/types/file_defs/qry/writer/*.c", "src/cu/types/file_defs/qry/buffer/*.c"]],
         cxx: &[],
@@ -91,7 +109,9 @@ pub const EVERY: &[Tool] = &[
         c: &[&[
             "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/*.c",
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c",
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c",
             "src/cu/transpiler/vendor_bin_layouts/container_write.c",
             "src/cu/transpiler/vendor_bin_layouts/container_pattern.c",
@@ -110,8 +130,31 @@ pub const EVERY: &[Tool] = &[
         headers: &[],
     },
     Tool {
+        name: "cubin_listing",
+        c: &[
+            &[
+                "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing.c",
+                "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing/*.c",
+                "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c",
+                "src/cu/transpiler/vendor_bin_layouts/container_write.c",
+                "src/cu/transpiler/vendor_bin_layouts/container_pattern.c",
+                "src/cu/transpiler/vendor_bin_layouts/container_layout.c",
+            ],
+            INTERFACE,
+        ],
+        cxx: &[],
+        cxx_tool: &[],
+        file_defs: true,
+        skip: &[],
+        includes: &["src/cu/engine"],
+        c_flags: C11,
+        cxx_flags: &[],
+        link: &[],
+        headers: &[],
+    },
+    Tool {
         name: "measuring_stick_query",
-        c: &[&["src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query.c", "src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/*.c"], INTERFACE],
+        c: &[&["src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query.c", "src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/*.c", "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c"], INTERFACE],
         cxx: &[],
         cxx_tool: &[],
         file_defs: true,
@@ -158,6 +201,7 @@ pub const EVERY: &[Tool] = &[
             "src/cu/transpiler/vendor_bin_layouts/container_layout.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c",
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c",
         ]],
         cxx: &[],
         cxx_tool: &[],
@@ -193,7 +237,8 @@ pub const EVERY: &[Tool] = &[
         c_flags: C11,
         cxx_flags: &[],
         link: &[],
-        headers: &[],
+        // the word web and the precepts the words are written over
+        headers: &["src/cu/engine/rmc"],
     },
     Tool {
         name: "gsm_write",
@@ -250,6 +295,49 @@ pub const EVERY: &[Tool] = &[
         cxx_flags: CXX17,
         link: &["-static"],
         headers: &["src/cu/types/file_defs/qry"],
+    },
+    Tool {
+        name: "tables_funnel",
+        c: &[&["src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_funnel.c", "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c"]],
+        cxx: &[],
+        cxx_tool: &[],
+        file_defs: false,
+        skip: &[],
+        includes: &[],
+        c_flags: C11,
+        cxx_flags: &[],
+        link: &[],
+        headers: &[],
+    },
+    Tool {
+        name: "tables_read",
+        c: &[&[
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_read.c",
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c",
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c",
+        ]],
+        cxx: &[],
+        cxx_tool: &[],
+        file_defs: false,
+        skip: &[],
+        includes: &[],
+        c_flags: C11,
+        cxx_flags: &[],
+        link: &[],
+        headers: &["src/cu/transpiler/vendor_bin_layouts/nvidia/tables", "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe"],
+    },
+    Tool {
+        name: "kdecode",
+        c: &[&["src/cu/types/file_defs/kdecode.c", "src/cu/types/file_defs/kdecode/*.c"]],
+        cxx: &[],
+        cxx_tool: &[],
+        file_defs: true,
+        skip: &[],
+        includes: &[],
+        c_flags: C11,
+        cxx_flags: &[],
+        link: &[],
+        headers: &["src/cu/types/file_defs/kdecode", "src/cu/types/file_defs/qry", "src/cu/types/file_defs/kqr"],
     },
     Tool {
         name: "measuring_stick_read",
@@ -436,13 +524,23 @@ struct Compile {
     source: PathBuf,
 }
 
-/// Every compile run, as many at once as the host has processors; the first that fails is said.
+/// The launch queue's two numbers as the interface keeps them (`interface.h`): the compilers run at most this many
+/// at once, and this much passes between one start and the next. The crate starts the compilers itself, outside the
+/// interface, and paces them by the same numbers.
+pub const LAUNCHES_AT_ONCE: usize = 4;
+pub const LAUNCH_SPACING: std::time::Duration = std::time::Duration::from_millis(50);
+
+/// Every compile run, `LAUNCHES_AT_ONCE` at a time and `LAUNCH_SPACING` between starts; the first that fails is said.
 fn compiled_at_once(compiles: &[Compile], programs: &dyn Programs) -> Result<(), String> {
-    let at_once = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-    for batch in compiles.chunks(at_once) {
+    let mut started = 0usize;
+    for batch in compiles.chunks(LAUNCHES_AT_ONCE) {
         let mut running = Vec::new();
         for compile in batch {
+            if started != 0 {
+                std::thread::sleep(LAUNCH_SPACING);
+            }
             let child = Command::new(&compile.compiler).args(&compile.words).env("PATH", programs.run_path()).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("{}: {e}", compile.compiler.display()))?;
+            started += 1;
             running.push((child, &compile.source));
         }
         for (child, source) in running {
@@ -536,6 +634,19 @@ mod building {
 
     fn root() -> PathBuf {
         crate::tree_root()
+    }
+
+    /// The number the interface's header defines under `name`, read off its `#define` line.
+    fn interface_number(name: &str) -> u64 {
+        let header = std::fs::read_to_string(root().join("src/cu/transpiler/lstar/interface/interface.h")).unwrap();
+        let line = header.lines().find(|line| line.starts_with("#define ") && line.split_whitespace().nth(1) == Some(name)).unwrap_or_else(|| panic!("{name} is not defined in interface.h"));
+        line.split_whitespace().nth(2).unwrap().trim_end_matches('u').parse().unwrap()
+    }
+
+    #[test]
+    fn the_compiles_pace_as_the_interface_s_queue_does() {
+        assert_eq!(LAUNCHES_AT_ONCE as u64, interface_number("INTERFACE_LAUNCHES_AT_ONCE"));
+        assert_eq!(LAUNCH_SPACING.as_millis() as u64, interface_number("INTERFACE_LAUNCH_SPACING_MILLISECONDS"));
     }
 
     #[test]

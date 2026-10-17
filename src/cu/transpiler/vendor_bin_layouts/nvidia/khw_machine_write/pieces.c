@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pieces.c: the pieces: a word and a run read, the pieces of the vendor's listing read, what a read holds, a piece's reading and name, a form's name and text composed, and a form kept
+// pieces.c: the pieces: a word and a run read, the pieces of the vendor's listing read, what a read holds, a piece's
+// reading and name, a form's name and text composed, and a form kept
 #include "khw_machine_write_internal.h"
 
 // one piece of a name as the vendor's table gives it
@@ -139,11 +140,12 @@ static const char *khw_piece_named(const char *kind, const char *text)
 }
 
 // The name of a form the part answered `held` of, composed from the pieces of the vendor's table: the kind of value
-// the cases hold, the relation answered, how many sources the fields found, and the qualifier the answers read a word
-// into where a case of the relation reads two ways. Into `written`, which holds `room`
+// the cases hold, the piece whose reads hold the relation, none where no kind row reads it; the relation answered; how
+// many sources the fields found; and the qualifier the answers read a word into where a case of the relation reads
+// two ways. Into `written`, which holds `room`
 static void khw_name_composed(const KhwForm *held, char *written, size_t room)
 {
-    const char *const kind = khw_piece_reading("kind", KHW_READS_WORD);
+    const char *const kind = khw_piece_reading("kind", held->relation);
     const char *const operation = khw_piece_reading("operation", held->relation);
     written[0] = '\0';
     if (operation == NULL)
@@ -164,7 +166,14 @@ static void khw_name_composed(const KhwForm *held, char *written, size_t room)
             break;
         }
     }
-    if (held->signedness_asked != 0)
+    // a test form carries the test the relation reads, then the unsigned reading's qualifier alone, the vendor
+    // writing a signed comparison with no qualifier, then the join of its flag to another
+    const char *const test = khw_piece_reading("test", held->relation);
+    if (test != NULL)
+    {
+        at += (size_t)snprintf(&written[at], room - at, ".%s", test);
+    }
+    if ((held->signedness_asked != 0) && ((test == NULL) || (held->signed_read == 0)))
     {
         const char *const read_as =
             khw_piece_named("qualifier", (held->signed_read != 0) ? KHW_PIECE_SIGNED : KHW_PIECE_UNSIGNED);
@@ -173,12 +182,190 @@ static void khw_name_composed(const KhwForm *held, char *written, size_t room)
             at += (size_t)snprintf(&written[at], room - at, ".%s", read_as);
         }
     }
+    const char *const join = khw_piece_reading("join", held->relation);
+    if (join != NULL)
+    {
+        at += (size_t)snprintf(&written[at], room - at, ".%s", join);
+    }
     (void)at;
 }
 
-// The text of a form the part answered `held` of: its name, then each operand in the order its run's first bit rises,
-// the order they are printed in, each read from the encoding through its own run. A register the part
-// answers nothing at is printed by the name the tree writes it under
+// 1 where `run` of `held` is a flag: one bit with no place, which the form's encoding holds and no operand prints
+static int khw_flag(const KhwForm *held, unsigned int run)
+{
+    return (held->place[run] == SASS_RUN_NO_PLACE) && (held->first[run] == held->last[run]);
+}
+
+// 1 where `run` of `held` prints no operand of its own: a flag; or a run before it stands at the same place of the
+// relation's tuple, two runs of one place being one operand printed once, by the first. A wider run with no place
+// prints as its kind reads its bits, a register where the table names nothing for it, so that two forms apart in such
+// a run read apart
+static int khw_place_printed(const KhwForm *held, unsigned int run)
+{
+    if (khw_flag(held, run))
+    {
+        return 1;
+    }
+    for (unsigned int before = 0u; before < run; before += 1u)
+    {
+        if ((held->place[run] != SASS_RUN_NO_PLACE) && (held->place[before] == held->place[run]))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// 1 where `run` of `held` is a constant run after the form's first: the constant bank's operand is printed once,
+// by the first constant run, the offset, with the bank read from the second where the form holds one
+static int khw_constant_later(const KhwForm *held, unsigned int run)
+{
+    if (held->kind[run] != KHW_KIND_CONSTANT)
+    {
+        return 0;
+    }
+    for (unsigned int before = 0u; before < run; before += 1u)
+    {
+        if (held->kind[before] == KHW_KIND_CONSTANT)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the bank the constant bank's operand of `held` reads, the second constant run's value; 0 where the form holds one
+// constant run alone, the bank its encoding holds
+static unsigned long long khw_constant_bank(const KhwForm *held, unsigned int first_run)
+{
+    for (unsigned int run = first_run + 1u; run < held->runs; run += 1u)
+    {
+        if (held->kind[run] == KHW_KIND_CONSTANT)
+        {
+            return khw_run_read(held->low, held->high, held->first[run], held->last[run]);
+        }
+    }
+    return 0ull;
+}
+
+// the vendor's instruction set for the part the machine file is written for, read once: a constant bank's operand is
+// printed by the bank and the byte offset its class reads. Empty where the part's tables are not pulled
+static TablesSet s_tables;
+
+void khw_tables_read(const char *machine_path)
+{
+    // the part is the machine file's name, sm_86.khw the part sm_86, and its tables stand where the tables pass pulls them
+    const char *const forward = strrchr(machine_path, '/');
+    const char *const back = strrchr(machine_path, '\\');
+    const char *const slash = ((back != NULL) && ((forward == NULL) || (back > forward))) ? back : forward;
+    const char *const name = (slash != NULL) ? (slash + 1) : machine_path;
+    const size_t length = strcspn(name, ".");
+    char path[512];
+    snprintf(path, sizeof(path), "build/vendor/nvidia/tables/%.*s_instructions.txt", (int)length, name);
+    unsigned char *text = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_file_read(qry_run(), path, &text, &size))
+    {
+        printf("  khw_machine_write: %s is not pulled, and a constant's offset is printed as its run holds it\n", path);
+        return;
+    }
+    if (!tables_set_read(&s_tables, text, (size_t)size))
+    {
+        printf("  khw_machine_write: %s did not read\n", path);
+    }
+    free(text);
+}
+
+// the bank and the byte offset the constant bank's operand of `held` reads, its first constant run `run`: as the
+// vendor's instruction set reads the encoding where it holds a class for it that reads the bank, and otherwise the
+// runs' values as they stand
+static void khw_constant_read(const KhwForm *held, unsigned int run, unsigned long long *bank,
+                              unsigned long long *offset)
+{
+    const TablesClass *const class_ = (s_tables.count != 0u) ? tables_class_of(&s_tables, held->low, held->high) : NULL;
+    const TablesField *const bank_field =
+        ((class_ != NULL) && (class_->offset[0] != '\0')) ? tables_field_named(class_, class_->bank) : NULL;
+    if (bank_field != NULL)
+    {
+        *bank = tables_field_read(bank_field, held->low, held->high);
+        *offset = tables_class_offset(class_, held->low, held->high);
+        return;
+    }
+    *bank = khw_constant_bank(held, run);
+    *offset = khw_run_read(held->low, held->high, held->first[run], held->last[run]);
+}
+
+// the field of the instruction word the part's .ksc names the guard, as khw_guard_field_set gives it; a predicate run
+// inside it is the guard, printed before the operation, and one outside it an operand in its order
+static unsigned int s_guard_first;
+static unsigned int s_guard_bits;
+
+void khw_guard_field_set(unsigned int first, unsigned int bits)
+{
+    s_guard_first = first;
+    s_guard_bits = bits;
+}
+
+// 1 where `run` of `held` is the guard: a predicate run inside the guard field, or, where no guard field is known, any
+// predicate run
+static int khw_guard(const KhwForm *held, unsigned int run)
+{
+    return (held->kind[run] == KHW_KIND_PREDICATE) &&
+           ((s_guard_bits == 0u) ||
+            ((held->first[run] >= s_guard_first) && (held->first[run] < (s_guard_first + s_guard_bits))));
+}
+
+// The runs of `held` that print an operand, in the order they are printed, into `order`, which holds
+// SASS_MACHINE_RUNS: the guard, a flag, a run of a place printed by an earlier run and a constant's bank run print
+// none; the rest stand in the order their first bits rise, or, where the table gives the relation an `order` piece,
+// a letter an operand, P a predicate and R any other, in that order, each letter taking the next run of its kind by
+// its first bit. The count
+static unsigned int khw_printed_runs(const KhwForm *held, unsigned int *order)
+{
+    unsigned int count = 0u;
+    for (unsigned int run = 0u; (run < held->runs) && (count < SASS_MACHINE_RUNS); run += 1u)
+    {
+        if (!khw_guard(held, run) && !khw_place_printed(held, run) && !khw_constant_later(held, run))
+        {
+            order[count] = run;
+            count += 1u;
+        }
+    }
+    const char *const pattern = khw_piece_reading("order", held->relation);
+    if ((pattern == NULL) || (strlen(pattern) != count))
+    {
+        return count;
+    }
+    unsigned int ordered[SASS_MACHINE_RUNS];
+    unsigned int taken[SASS_MACHINE_RUNS] = {0u};
+    for (unsigned int each = 0u; each < count; each += 1u)
+    {
+        const int predicate = (pattern[each] == 'P');
+        unsigned int found = count;
+        for (unsigned int at = 0u; (at < count) && (found == count); at += 1u)
+        {
+            const int kind_matches = (held->kind[order[at]] == KHW_KIND_PREDICATE) == predicate;
+            found = (!taken[at] && kind_matches) ? at : found;
+        }
+        if (found == count)
+        {
+            // the pattern asks a kind the form has no more runs of: the bit order stands
+            return count;
+        }
+        taken[found] = 1u;
+        ordered[each] = order[found];
+    }
+    memcpy(order, ordered, count * sizeof(order[0]));
+    return count;
+}
+
+// The text of a form the part answered `held` of: a predicate run inside the guard field as the vendor writes a
+// guard, `@P<n>` before the operation, `@!P<n>` where the bit past the predicate's three is set, and nothing where it
+// is every predicate; its name; then each other run in the order its first bit rises, the order they are printed in,
+// the runs of one place one operand printed by the first, each read from the encoding through its own run by its
+// kind: a register `R<n>`, or the name the tree writes a register the part answers nothing at under; a predicate
+// `P<n>`, `PT` where it is every predicate; an address `[R<n>.64]`; a number `0x<n>`; the constant bank's operand
+// `c[0x<bank>][0x<offset>]`, printed once by its offset run
 void khw_text_composed(const KhwForm *held, char *written, size_t room)
 {
     char name[KHW_NAME];
@@ -188,18 +375,69 @@ void khw_text_composed(const KhwForm *held, char *written, size_t room)
     {
         return;
     }
-    size_t at = (size_t)snprintf(written, room, "%s", name);
+    size_t at = 0u;
     for (unsigned int run = 0u; (run < held->runs) && (at < room); run += 1u)
     {
-        const unsigned long long number = khw_run_read(held->low, held->high, held->first[run], held->last[run]);
-        if (number == KHW_REGISTER_NONE)
+        if (!khw_guard(held, run) || khw_place_printed(held, run))
         {
-            at += (size_t)snprintf(&written[at], room - at, "%s%s", (run == 0u) ? " " : ", ", KHW_REGISTER_NONE_TEXT);
+            continue;
+        }
+        const unsigned long long guard = khw_run_read(held->low, held->high, held->first[run], held->last[run]);
+        const unsigned long long predicate = guard & 7ull;
+        if (predicate != 7ull)
+        {
+            at +=
+                (size_t)snprintf(&written[at], room - at, "@%sP%llu ", ((guard & 8ull) != 0ull) ? "!" : "", predicate);
+        }
+    }
+    at += (size_t)snprintf(&written[at], room - at, "%s", name);
+    // the mark the vendor writes before the operand at the relation's second word, where the table gives one
+    const char *const marked = khw_piece_reading("mark", held->relation);
+    unsigned int printed = 0u;
+    unsigned int order[SASS_MACHINE_RUNS];
+    const unsigned int operands = khw_printed_runs(held, order);
+    for (unsigned int each = 0u; (each < operands) && (at < room); each += 1u)
+    {
+        const unsigned int run = order[each];
+        const unsigned long long number = khw_run_read(held->low, held->high, held->first[run], held->last[run]);
+        const char *const mark = ((marked != NULL) && (held->place[run] == 1u)) ? marked : "";
+        char between[8];
+        snprintf(between, sizeof(between), "%s%s", (printed == 0u) ? " " : ", ", mark);
+        if (held->kind[run] == KHW_KIND_PREDICATE)
+        {
+            ((number & 7ull) == 7ull)
+                ? (at += (size_t)snprintf(&written[at], room - at, "%sPT", between))
+                : (at += (size_t)snprintf(&written[at], room - at, "%sP%llu", between, number & 7ull));
+        }
+        else if (held->kind[run] == KHW_KIND_CONSTANT)
+        {
+            unsigned long long bank = 0ull;
+            unsigned long long offset = 0ull;
+            khw_constant_read(held, run, &bank, &offset);
+            // an offset with a place, a parameter's, is written from the parameters' base and the place among them
+            // its reading names, `c[0x0][0x160+0x10]`, so that the place is filled where the parameters begin
+            ((held->place[run] != SASS_RUN_NO_PLACE) && (offset >= held->reading))
+                ? (at += (size_t)snprintf(&written[at], room - at, "%sc[0x%llx][0x%llx+0x%llx]", between, bank,
+                                          offset - held->reading, held->reading))
+                : (at += (size_t)snprintf(&written[at], room - at, "%sc[0x%llx][0x%llx]", between, bank, offset));
+        }
+        else if (held->kind[run] == KHW_KIND_IMMEDIATE)
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%s0x%llx", between, number);
+        }
+        else if (held->kind[run] == KHW_KIND_ADDRESS)
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%s[R%llu.64]", between, number);
+        }
+        else if (number == KHW_REGISTER_NONE)
+        {
+            at += (size_t)snprintf(&written[at], room - at, "%s%s", between, KHW_REGISTER_NONE_TEXT);
         }
         else
         {
-            at += (size_t)snprintf(&written[at], room - at, "%sR%llu", (run == 0u) ? " " : ", ", number);
+            at += (size_t)snprintf(&written[at], room - at, "%sR%llu", between, number);
         }
+        printed += 1u;
     }
 }
 
@@ -216,9 +454,29 @@ int khw_form_kept(SassMachine *machine, const KhwForm *held, const char *text)
     snprintf(kept->relation, sizeof(kept->relation), "%.*s", (int)(sizeof(kept->relation) - 1u), held->relation);
     kept->signed_read = held->signed_read;
     kept->runs = 0u;
+    // each run's operand is its order among the printed ones, the runs of one place sharing the first's; a predicate
+    // run inside the guard field is the guard, printed before the operation and no operand, and a flag prints none,
+    // each kept under the operand count as its mark
+    unsigned int order[SASS_MACHINE_RUNS];
+    const unsigned int operands = khw_printed_runs(held, order);
+    unsigned int operand_of[SASS_MACHINE_RUNS];
     for (unsigned int run = 0u; (run < held->runs) && (kept->runs < SASS_MACHINE_RUNS); run += 1u)
     {
-        kept->run[kept->runs].operand = run;
+        // the operand this run prints, where it prints one, as the text orders them
+        unsigned int operand = SASS_MACHINE_OPERANDS;
+        for (unsigned int each = 0u; each < operands; each += 1u)
+        {
+            operand = (order[each] == run) ? each : operand;
+        }
+        // a run of a place an earlier run prints shares that run's operand
+        for (unsigned int before = 0u; before < run; before += 1u)
+        {
+            operand = ((held->place[run] != SASS_RUN_NO_PLACE) && (held->place[before] == held->place[run]))
+                          ? operand_of[before]
+                          : operand;
+        }
+        operand_of[run] = operand;
+        kept->run[kept->runs].operand = operand;
         kept->run[kept->runs].first = held->first[run];
         kept->run[kept->runs].last = held->last[run];
         kept->run[kept->runs].place = held->place[run];

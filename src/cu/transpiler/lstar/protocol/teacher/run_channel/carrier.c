@@ -58,7 +58,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     }
     s_channel.words = words;
     s_channel.limit_microseconds = limit_microseconds;
-    s_channel.dry = (words == 1u) && (strcmp(s_channel.word[0], "dry") == 0);
+    s_channel.dry = (words >= 1u) && (strcmp(s_channel.word[0], "dry") == 0);
     s_channel.stopped = 0;
     for (unsigned int at = 1u; at < words; at += 1u)
     {
@@ -124,6 +124,7 @@ void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned lon
     asked->nanoseconds = 0ull;
     asked->least = 0ull;
     asked->most = 0ull;
+    asked->clock_address = 0u;
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     unsigned long long sequence = 0ull;
@@ -135,22 +136,31 @@ void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned lon
         snprintf(asked->refused, sizeof(asked->refused), "the carrier wrote no answer: it ended the round before it");
         return;
     }
-    // the first line, and the second where there is one
+    // the first line, the answer; and after it, in any order, the lines the carrier adds: the registers it read off
+    // the part, and the time its launches took, which is read wherever it stands
     const unsigned char *const first_end = (const unsigned char *)memchr(bytes, '\n', (size_t)size);
     const size_t first_length = (first_end != NULL) ? (size_t)(first_end - bytes) : (size_t)size;
     const size_t kept = (first_length < (sizeof(s_answer_line) - 1u)) ? first_length : (sizeof(s_answer_line) - 1u);
     memcpy(s_answer_line, bytes, kept);
     s_answer_line[kept] = '\0';
-    char timed_line[64] = "";
-    if (first_end != NULL)
+    char timed_line[128] = "";
+    unsigned long long line_at = (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ull : size;
+    while (line_at < size)
     {
-        const unsigned char *const second = first_end + 1;
-        const size_t left = (size_t)size - (size_t)(second - bytes);
-        const unsigned char *const second_end = (const unsigned char *)memchr(second, '\n', left);
-        size_t second_length = (second_end != NULL) ? (size_t)(second_end - second) : left;
-        second_length = (second_length < (sizeof(timed_line) - 1u)) ? second_length : (sizeof(timed_line) - 1u);
-        memcpy(timed_line, second, second_length);
-        timed_line[second_length] = '\0';
+        char line[128];
+        if (!qry_line_next(bytes, size, &line_at, line, sizeof(line)))
+        {
+            break;
+        }
+        if (strncmp(line, "timed ", 6u) == 0)
+        {
+            snprintf(timed_line, sizeof(timed_line), "%s", line);
+        }
+        if (strncmp(line, "clock address ", 14u) == 0)
+        {
+            // the timer register's address, in hex as the carrier writes it
+            asked->clock_address = (unsigned int)strtoul(line + 14, NULL, 16);
+        }
     }
     unsigned int launches = 0u;
     const int timed = (sscanf(timed_line, "timed %u %llu %llu %llu", &launches, &asked->nanoseconds, &asked->least,

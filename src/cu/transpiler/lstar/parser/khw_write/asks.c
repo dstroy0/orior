@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// asks.c: the asks: a question's words and runs read and written, the kernel and the code put, a question asked and pooled, the round carried, the anchor cases and a candidate's answer
+// asks.c: the asks: a question's words and runs read and written, the kernel and the code put, a question asked and
+// pooled, the round carried, the anchor cases and a candidate's answer
 #include "khw_write_internal.h"
 
 // how many registers a thread of the kernel holds, read with the kernel
@@ -11,6 +12,8 @@ unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
 
 unsigned char s_code[KHW_PLACES * KHW_INSTRUCTION];
 unsigned int s_kernel_places;
+unsigned char s_opening_text[KHW_PLACES * KHW_INSTRUCTION];
+unsigned int s_opening_places;
 unsigned int s_slot;
 unsigned long long s_unreached_low;
 unsigned long long s_unreached_high;
@@ -65,8 +68,7 @@ void khw_word_write(unsigned char *instruction, unsigned int byte, unsigned long
 }
 
 // the bits `first` to `last` of the instruction `low` and `high` make, and the pair with that run set to `value`
-unsigned long long khw_run_read(unsigned long long low, unsigned long long high, unsigned int first,
-                                       unsigned int last)
+unsigned long long khw_run_read(unsigned long long low, unsigned long long high, unsigned int first, unsigned int last)
 {
     unsigned long long value = 0ull;
     for (unsigned int bit = first; bit <= last; bit += 1u)
@@ -78,7 +80,7 @@ unsigned long long khw_run_read(unsigned long long low, unsigned long long high,
 }
 
 void khw_run_write(unsigned long long *low, unsigned long long *high, unsigned int first, unsigned int last,
-                          unsigned long long value)
+                   unsigned long long value)
 {
     for (unsigned int bit = first; bit <= last; bit += 1u)
     {
@@ -88,17 +90,54 @@ void khw_run_write(unsigned long long *low, unsigned long long *high, unsigned i
     }
 }
 
-// the kernel into `code`, as the part accepted it. The carrier makes every instruction wait on all six barriers
-// before the part sees it; nothing of the scheduler's own word is set here (P9)
+// whether the questions put now store through the predicate the slot writes: the store after the slot guarded by P0
+static int s_store_guarded;
+
+void khw_store_guarded(int on)
+{
+    s_store_guarded = on;
+}
+
+int khw_store_is_guarded(void)
+{
+    return s_store_guarded;
+}
+
+// the kernel into `code`, as the part accepted it, the store after the slot guarded by P0 where the question is a
+// predicate one: it then stores the slot's second word where the slot's predicate holds and leaves the record's fill
+// word where it does not, and P0 is false at the slot for every lane that reached it. The carrier makes every
+// instruction wait on all six barriers before the part sees it; nothing of the scheduler's own word is set here (P9)
 void khw_kernel_put(unsigned char *code)
 {
     memcpy(code, s_kernel_text, (size_t)s_kernel_places * KHW_INSTRUCTION);
+    static unsigned int s_guard_first;
+    static unsigned int s_guard_bits;
+    static int s_guard_read;
+    if (!s_store_guarded || ((s_slot + 1u) >= s_kernel_places))
+    {
+        return;
+    }
+    if (!s_guard_read)
+    {
+        s_guard_read = khw_field_read("guard", &s_guard_first, &s_guard_bits) ? 1 : -1;
+    }
+    if (s_guard_read < 0)
+    {
+        return;
+    }
+    unsigned char *const store = &code[(s_slot + 1u) * KHW_INSTRUCTION];
+    unsigned long long low = khw_word_read(store, 0u);
+    unsigned long long high = khw_word_read(store, 8u);
+    // P0, and the bit past the predicate's three, which negates the guard, clear
+    khw_run_write(&low, &high, s_guard_first, s_guard_first + s_guard_bits, 0ull);
+    khw_word_write(store, 0u, low);
+    khw_word_write(store, 8u, high);
 }
 
 // The question's code, into `code`: the kernel with `low` and `high` at `place`. The slot the question names is sent
 // to the carrier, which there makes the slot wait on all six barriers, stall the longest and hold no barrier; a
-// form the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it standing
-// (P9, cubin_safe.h)
+// form the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it
+// standing (P9, cubin_safe.h)
 void khw_code_put(unsigned char *code, unsigned int place, unsigned long long low, unsigned long long high)
 {
     khw_kernel_put(code);
@@ -107,7 +146,6 @@ void khw_code_put(unsigned char *code, unsigned int place, unsigned long long lo
 }
 
 // The question in s_code put over `count` cases, each case's two words from `word`, the carrier making the slot at
-static void khw_round_printed(unsigned int count, const unsigned long long before[4]);
 
 // `slot` conservative (RUN_SLOT_NONE where the code holds no slot), and each answer into `answered`. 1 where the part
 // answered every case, 0 where it refused the question, the gate held it off the part or nothing carried it
@@ -145,7 +183,7 @@ int khw_asked(const unsigned int word[][2], unsigned int count, unsigned int slo
 // where `place` is past its places, over `count` cases from `word`, settling one entry. Its place in the round, or
 // SCHEDULER_ROUND_MOST where the round is full
 unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned long long high,
-                               const unsigned int word[][2], unsigned int count)
+                        const unsigned int word[][2], unsigned int count)
 {
     if (s_pooled == SCHEDULER_ROUND_MOST)
     {
@@ -166,7 +204,11 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
     question->code_size = (unsigned long long)s_kernel_places * KHW_INSTRUCTION;
     question->registers = s_registers;
     question->cases = count;
-    question->slot = (place < s_kernel_places) ? place : RUN_SLOT_NONE;
+    // the kernel put whole names the probe point the kernel listing gives, as every question does; only a kernel whose
+    // listing names none, before its probe point is found, names none
+    question->slot = (place < s_kernel_places)          ? place
+                     : (s_kernel_slot < s_kernel_places) ? s_kernel_slot
+                                                         : RUN_SLOT_NONE;
     for (unsigned int each = 0u; each < count; each += 1u)
     {
         question->word[each][0] = word[each][0];
@@ -180,7 +222,7 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
 
 // a round's line printed: how many questions it put, and the seconds its airlock and its carrier took, read off the
 // channel's clocks against the readings `airlock_before` and `carried_before` taken before it
-static void khw_round_printed(unsigned int count, const unsigned long long before[4])
+void khw_round_printed(unsigned int count, const unsigned long long before[4])
 {
     unsigned long long now[4] = {0ull, 0ull, 0ull, 0ull};
     run_channel_clocks(&now[0], &now[1], &now[2], &now[3]);
@@ -191,10 +233,33 @@ static void khw_round_printed(unsigned int count, const unsigned long long befor
     fflush(stdout);
 }
 
+// The plan of a pass handed to the run as the pass starts, the blob `plan.txt`, one line `<pass> <questions>`: the
+// count of questions the pass is to put, an upper bound a reader of the run's tap takes the pass's progress against
+void khw_plan_handed(const char *pass, unsigned long long questions)
+{
+    char line[128];
+    const int length = snprintf(line, sizeof(line), "%s %llu\n", pass, questions);
+    if ((length > 0) && (qry_run() != NULL))
+    {
+        // the line fits its room, and its length is positive
+        qry_hand(qry_run(), "plan.txt", line, (unsigned long long)length, QRY_ORDINARY);
+    }
+    // the plan on the console as well, for a reader of the console that has no hand on the run
+    printf("  plan: %s %llu\n", pass, questions);
+}
+
 // The round written carried as one (scheduler.h), its questions read after from s_pool, and the next round written
 // in its place once they are
 void khw_round_carried(void)
 {
+    // a stopped run carries no round: said once, and every round after is held by the channel with that reason
+    static int s_stop_said = 0;
+    if (run_channel_panic_ruled() && !s_stop_said)
+    {
+        s_stop_said = 1;
+        printf("  the run stopped on a panic: no round after it reaches the part, and the pass ends with what the "
+               "rounds before it left\n");
+    }
     unsigned long long before[4] = {0ull, 0ull, 0ull, 0ull};
     run_channel_clocks(&before[0], &before[1], &before[2], &before[3]);
     scheduler_round(s_pool_question, s_pool_settles, s_pooled);
@@ -205,7 +270,7 @@ void khw_round_carried(void)
 // the cases of `anchor` the host computes both readings of, their words into `word` in the order `swapped` says, and
 // each reading into `plain` and `signed_read`. The count found
 unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int word[][2], unsigned int *plain,
-                                     unsigned int *signed_read)
+                              unsigned int *signed_read)
 {
     unsigned int found = 0u;
     for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
@@ -226,7 +291,8 @@ unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int wor
     return found;
 }
 
-// the host's answer of `candidate` to the case of words `word`
+// the host's answer of `candidate` to the case of words `word`: a predicate relation's as the guarded store reads it,
+// the second word where the relation holds and the record's fill word where it does not
 unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned int *word)
 {
     const unsigned int read[2] = {(candidate->swapped != 0) ? word[1] : word[0],
@@ -234,9 +300,17 @@ unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned 
     unsigned int answered = 0u;
     if (candidate->signed_read != 0)
     {
-        return ladder_signed_answer(candidate->anchor, read);
+        answered = ladder_signed_answer(candidate->anchor, read);
     }
-    return ladder_answer(candidate->anchor, read, 2u, &answered) ? answered : 0u;
+    else if (!ladder_answer(candidate->anchor, read, 2u, &answered))
+    {
+        answered = 0u;
+    }
+    if (ladder_predicate(candidate->anchor))
+    {
+        return (answered != 0u) ? word[1] : RUN_UNWRITTEN_WORD;
+    }
+    return answered;
 }
 
 // The cases a relation is read over, written once: every two-word case of every relation of the ladder that is no

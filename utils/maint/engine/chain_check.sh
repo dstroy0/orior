@@ -14,10 +14,32 @@
 #   who_check        holds a who to what the who table gives, and every write to the who the run records of it
 #   qry_rows_check   holds a row of a table of the run to its who and its columns as handed, and a text of the table
 #                    of texts to its number, handed once
+#   blob_said_check  holds the writer's line for each blob it places to the blob, in the order it places them, a
+#                    panic's before the blobs handed after it
 #   kdecode_check    holds kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
-#                    a who line, and the part's cost rows put again as it was
-#   frame_check      holds the frame's walk, krs_write's head and the kernel mode's place to the .ksc's rows
+#                    a who line, the rows let go handed back, and the part's cost rows put again as it was
+#   krf_check        holds the .krf's reader and writer to what its users read of it: a row a k-file let go kept with
+#                    its type, the run's name, the reason and its text, under a who line
+#   frame_check      holds the frame's walk, krs_write's head and fixed lines, the kernel mode's place and a
+#                    register's reading at the slot to the .ksc's rows, and krs_write's frame lines to the table of
+#                    frame forms and the named ruleset
+#   frame_relation_check  holds the frame relations' host answers, their tuple places and the thread their fields are
+#                    read at, and the channel's fill word and block to the carrier's own
+#   turning_check    holds a ladder form's turning case: the first case of its relation whose three readings in the
+#                    register pass stand apart, the shift up's (3, 4) among them
+#   standing_check   holds one form standing for the encodings that answer as it does: a turn outside its operands
+#                    is its, a bit of an operand, the key or the scheduler's word is another's, and the set folded
+#                    keeps the oldest
+#   tables_funnel_check  holds the vendor's tables read off a capture of its disassembler: the records, the
+#                    archive's LZ4 blocks unpacked with one window, and the latencies gathered from the copies
+#   tables_read_check  holds the vendor's instruction set read: the classes, their opcodes and fields, the fields
+#                    joined on one line, and the class an encoding belongs to
+#   constant_check   holds rule 13: a read of the constant bank past the bank or of a bank the container has none of
+#   naming_check     holds the vendor's writer's texts on forms written by hand: the name by relation, the mark on a
+#                    take form's second word, a flag bit printing nothing, and the guard before the operation
+#   cubin_listing_check  holds the cut of a cubin's listing into each kernel's, as the vendor prints a kernel's code
+#                    read alone: its instruction lines, each label put as its offset, a branch note put as one space
 #   kdm_check        holds the .kdm's reader and writer and the block rule to what their users read of them, the
 #                    section and the pipes written again under who lines, and the part's section written again as it was
 #   survivors_check  holds the gate to P2 on the ladder's own relations
@@ -25,6 +47,8 @@
 #   overseer_check   holds the overseer's conference to its consensus and its lessons, in a run of its own, on a
 #                    carrier that refuses every question and reaches no part
 #   query_interface_check walks asks from inside the cell, every ending kept as the answer of the address that caused it
+#   launch_queue_check holds the interface's launch queue: eight starts asked at once hold at most four places at a
+#                    time, and each start follows the one before it by the spacing at least
 #   query_order_check puts the known order of asks to the host on a clock found by asking, and solves every link
 #   stem_group_check holds the stem membership rule: groups on anchors, the same in every order
 #   branch_side_check asks the host whether the side a branch is read from leaves a mark
@@ -63,16 +87,46 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_ask_check" "$TOP/utils/test/src/cu/
     "$TOP/src/cu/transpiler/lstar/protocol/query/query_ask.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/answer_read_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/answer_read_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/query/answer_read.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/turning_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/turning_check.c" \
+    "$TOP/src/cu/transpiler/lstar/parser/khw_write/turning.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/standing_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/standing_check.c" \
+    "$TOP/src/cu/transpiler/lstar/parser/khw_write/standing.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_funnel_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_funnel_check.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_read_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_read_check.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/constant_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/constant_check.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/pieces.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" \
+    "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c \
+    "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" \
+    "${FILE_DEFS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/cubin_listing_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing_check.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing/cut.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kqr_check" "$TOP/utils/test/src/cu/types/file_defs/kqr/kqr_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/file_defs/who/who_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_rows_check" "$TOP/utils/test/src/cu/types/file_defs/qry/qry_rows_check.c" \
     "${FILE_DEFS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -pthread -o "$OUT/blob_said_check" \
+    "$TOP/utils/test/src/cu/types/file_defs/qry/blob_said_check.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/file_defs/ksc/ksc_check.c" \
+    "${FILE_DEFS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/krf_check" "$TOP/utils/test/src/cu/types/file_defs/krf/krf_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/frame_check.c" \
     "$TOP/src/cu/transpiler/lstar/parser/krs_write/head.c" \
+    "$TOP/src/cu/transpiler/lstar/parser/krs_write/fixed.c" \
+    "$TOP/src/cu/transpiler/lstar/parser/krs_write/frame.c" \
+    "$TOP/src/cu/transpiler/lstar/parser/krs_write/words.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/opening.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kdm_check" "$TOP/utils/test/src/cu/types/file_defs/kdm/kdm_check.c" \
@@ -95,6 +149,9 @@ INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_walk" "$BOOT/query/query_walk.c" "$BOOT/query/query_ask.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/query_interface_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_interface_check.c" "$BOOT/query/query_interface.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
+    "$INTERFACE/interface_names.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -pthread -I"$TOP/src/cu/engine" -o "$OUT/launch_queue_check" \
+    "$TOP/utils/test/src/cu/transpiler/lstar/interface/launch_queue_check.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
     "$INTERFACE/interface_names.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_order_check.c" \
     "$BOOT/order/query_order.c" "$BOOT/query/query_ask.c" "$BOOT/order/ask_order.c" \
@@ -134,6 +191,14 @@ fi
 "$OUT/ask_order_check" || exit 1
 "$OUT/query_ask_check" || exit 1
 "$OUT/answer_read_check" || exit 1
+"$OUT/frame_relation_check" || exit 1
+"$OUT/turning_check" || exit 1
+"$OUT/standing_check" || exit 1
+"$OUT/tables_funnel_check" || exit 1
+"$OUT/tables_read_check" || exit 1
+"$OUT/constant_check" || exit 1
+"$OUT/naming_check" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv" || exit 1
+"$OUT/cubin_listing_check" || exit 1
 # R's check, the who's and the rows' in a run of their own, whose writer writes the records and the file they are held
 # to, ended with the subshell
 (
@@ -145,9 +210,11 @@ fi
         "$OUT/who_check" "$OUT" &&
         "$OUT/qry_rows_check" &&
         "$OUT/frame_check" "$OUT" &&
+        "$OUT/krf_check" "$OUT" &&
         "$OUT/ksc_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.ksc" &&
         "$OUT/kdm_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kdm"
 ) || exit 1
+"$OUT/blob_said_check" "$OUT" || exit 1
 # the file kdm_check handed its run, in its place once that run has ended: it names the run's .qry, the newest
 newest_run="$(ls -t "$OUT"/kqr_runs/query*.qry | head -1)"
 command -v cygpath > /dev/null && newest_run="$(cygpath -m "$newest_run")"
@@ -177,6 +244,7 @@ mkdir -p "$OUT/scheduler_check.dry"
 "$OUT/host_entry_check" || exit 1
 "$OUT/bus_enum_check" "$CLASSIFY" "$OUT/classify_walk.out" || exit 1
 "$OUT/query_interface_check" "$WALK" "$OUT/query_walk.out" || exit 1
+"$OUT/launch_queue_check" || exit 1
 "$OUT/query_order_check" || exit 1
 "$OUT/stem_group_check" || exit 1
 "$OUT/branch_side_check" || exit 1

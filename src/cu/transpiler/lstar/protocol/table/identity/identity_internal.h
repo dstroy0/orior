@@ -5,6 +5,7 @@
 
 #include "../../../../../types/file_defs/kdm/kdm.h"
 #include "../../../../../types/file_defs/kqr/kqr.h"
+#include "../../../../../types/file_defs/krf/krf.h"
 #include "../../../../../types/file_defs/ksc/ksc.h"
 #include "../../../interface/interface.h"
 #include "../../overseer/overseer.h"
@@ -388,6 +389,9 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
 long long walk_step(const std::function<int(long long)> &holds, long long from, long long step, long long end);
 long long walk_halved(const std::function<int(long long)> &holds, long long truthy, long long falsy);
 int identity_frame(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
+int frame_kernel_read(const char *mode, std::vector<unsigned char> *code, unsigned int *registers);
+int question_read(const std::vector<unsigned char> &code, RunQuestion *question, unsigned long long *asks);
+int identity_fixed(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
 int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
 int identity_predicate(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
 int identity_past(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
@@ -424,7 +428,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
 const Word *word_produced(const std::vector<PreceptNode> &nodes);
 std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNode> &nodes, const std::vector<std::string> &operands, const std::string &ones, const std::string &to, unsigned int next);
 void kdm_rows_read(const char *kdm, std::vector<std::string> *lines, std::vector<CostRow> *rows, std::map<std::string, std::vector<size_t>> *operators);
-int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *kdm, const char *machine_path, const char *const *carrier);
+int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *kdm, const char *machine_path, const char *forms, const char *const *carrier);
 void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host, const std::string &kdm, const Ruleset *sass, const SassMachine *machine, const StallField &stall, unsigned long long longest, const std::set<std::pair<std::string, std::string>> &held, size_t most, std::vector<StallAsk> *asks, std::vector<std::vector<unsigned char>> *codes);
 
 #endif

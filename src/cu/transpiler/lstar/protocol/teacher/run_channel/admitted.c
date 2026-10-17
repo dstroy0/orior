@@ -236,6 +236,12 @@ int run_channel_ask(RunQuestion *asked)
 {
     asked->refused[0] = '\0';
     RunQuestion *const one[1] = {asked};
+    // a run whose panic was ruled on carries nothing and answers nothing from R
+    if (run_channel_panic_ruled())
+    {
+        run_channel_halted(one, 0u, 1u);
+        return 0;
+    }
     if (run_channel_recorded(asked))
     {
         run_channel_traced(one, 1u, "from R");

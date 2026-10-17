@@ -249,7 +249,7 @@ reads has changed.
 2. **`.krs` has no derived half.** Five are written. None can be completed by asking. A partly written one is the
    normal case and not a failure.
 
-3. **The answer keys still hold the weight.** `precepts.h` holds 18 precepts and `word_web.h` 18 words, both typed.
+3. **The answer keys still hold the weight.** `precepts.h` holds 19 precepts and `word_web.h` 19 words, both typed.
    `sm_86.khw` is one run's output read back as an input. These are for checking a derivation against. Nothing
    that derives may read them.
 

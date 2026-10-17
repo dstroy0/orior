@@ -138,12 +138,19 @@ int qry_firsts_written(QryBuffer *buffer, QryFile *file, QryWriterState *state)
                 whole &= qry_file_added(file, buffer->data + s_taken[place].at, s_taken[place].size, 1);
                 whole &= qry_marked_written(buffer, s_taken[place].at);
                 bytes += s_taken[place].size;
+                // the blob read off its frame: said, a panic or a critical blob as it is written first, and a panic's
+                // time from its hand to the disk
+                QryBlob blob;
+                const int read = qry_blob_read(buffer->data, *tail_seen, s_taken[place].at, &blob);
+                if (read)
+                {
+                    qry_blob_said(buffer, blob.sequence, blob.nanoseconds, priority, QRY_MEMBERS,
+                                  (const char *)(buffer->data + blob.name_at), (size_t)blob.name_length, blob.size);
+                }
                 if (priority == QRY_PANIC)
                 {
-                    // a panic's time from its hand to the disk, its hand's time read off its frame
-                    QryBlob blob;
                     const unsigned long long now = qry_nanoseconds();
-                    if (qry_blob_read(buffer->data, *tail_seen, s_taken[place].at, &blob) && (now > blob.nanoseconds))
+                    if (read && (now > blob.nanoseconds))
                     {
                         const double milliseconds = (double)(now - blob.nanoseconds) / 1000000.0;
                         state->writes.panic_slowest =
@@ -312,10 +319,15 @@ int qry_table_dumped(QryBuffer *buffer, unsigned long long *count)
     table.frame_align = QRY_FRAME_ALIGN;
     static const unsigned char s_zeros[QRY_FRAME_ALIGN] = {0};
     const unsigned long long padding = table.blobs_at - table.rows_at - (*count * sizeof(QryRow));
-    // each row given its blob's CRC and its places made the file's, and the rows' CRC the root of the file's checks
+    // each row carries the CRC its member took as it handed the blob; a row read off a frame, where the table was
+    // full, is given its blob's here. Each row's places are made the file's, and the rows' CRC is the root of the
+    // file's checks
     for (unsigned long long row = 0ull; row < *count; row += 1ull)
     {
-        taken[row].crc = qry_crc(buffer->data + taken[row].bytes_at, taken[row].size);
+        if (taken[row].crc == 0ull)
+        {
+            taken[row].crc = qry_crc(buffer->data + taken[row].bytes_at, taken[row].size);
+        }
         taken[row].name_at += table.blobs_at;
         taken[row].bytes_at += table.blobs_at;
     }

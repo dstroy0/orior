@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// airlock.c: the airlock: the cross run over the list and passed or held, the questions named and relisted, the check traced, and a register hold put again with the count raised
+// airlock.c: the airlock: the cross run over the list and passed or held, the questions named and relisted, the check
+// traced, and a register hold put again with the count raised
 #include "run_channel_internal.h"
 
 // The words `command`, ended by NULL, run as a process given `limit_microseconds`, what it printed handed as the blob
@@ -121,8 +122,9 @@ static int run_channel_airlock_passed(unsigned int questions)
     return qry_latest(s_channel.buffer, s_channel.held, &held, &held_size, &held_sequence) && (held_sequence > began);
 }
 
-// 1 where the round on the channel's list, `questions` of them, may be carried: it passed the airlock, or the channel
-// has none and its carrier is handed the held list of a cross that read the whole pass before it. 0 otherwise, `why`
+// 1 where the round on the channel's list, `questions` of them, may be carried: it passed the airlock; or the channel
+// has none and its carrier is handed the held list of a cross that read the whole pass before it; or the channel is
+// dry with no airlock at all, where nothing reaches the part and there is nothing to keep off it. 0 otherwise, `why`
 // said into `refused`, which holds `room`: nothing the vendor has not read goes to the part
 int run_channel_airlocked(unsigned int questions, char *refused, size_t room)
 {
@@ -135,7 +137,7 @@ int run_channel_airlocked(unsigned int questions, char *refused, size_t room)
         snprintf(refused, room, "the airlock: the cross did not read this round, and nothing goes to the part");
         return 0;
     }
-    if (s_channel.held_given)
+    if (s_channel.held_given || s_channel.dry)
     {
         return 1;
     }
@@ -265,7 +267,8 @@ unsigned int run_channel_raised(RunQuestion *const *asked, unsigned int first, u
         }
         if (s_registers_past == RUN_REGISTERS_UNANSWERED)
         {
-            run_channel_check_traced(asked[at], "kept held: the part has not answered how far a container's code reaches");
+            run_channel_check_traced(asked[at],
+                                     "kept held: the part has not answered how far a container's code reaches");
             continue;
         }
         // the cross clears a hold with one past the register it read, and a container's code reaches no further than

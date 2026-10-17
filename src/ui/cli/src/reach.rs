@@ -118,8 +118,10 @@ fn ask_window(client: &Client, menu: &str, command: &str, args: &[String]) -> Re
     let id: String = crate::comms::secret(8)?.iter().map(|byte| format!("{byte:02x}")).collect();
     let channel = format!("answer/{id}");
     client.listen(&channel)?;
-    client.say("command", json!({"id": id, "menu": menu, "command": command, "args": args}))?;
-    let answer = client.next(ANSWER_WAIT).ok_or("the window gave no answer")?;
+    let heard = client.say("command", json!({"id": id, "menu": menu, "command": command, "args": args}))?;
+    // the count says where the silence is: 0 where no part of the window listens on command any more, more where
+    // the page heard and did not answer
+    let answer = client.next(ANSWER_WAIT).ok_or_else(|| format!("the window gave no answer, heard by {heard}"))?;
     Ok(answer_of(&answer.body))
 }
 

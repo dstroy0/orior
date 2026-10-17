@@ -8,6 +8,7 @@
 #include "../../../../types/file_defs/qry/qry_buffer.h"
 #include "../../interface/interface.h"
 #include "../../protocol/counterexample/ladder.h"
+#include "frame.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,8 +27,14 @@
 // the words of the web
 #define KRS_WORDS ((unsigned int)(sizeof(s_word_web) / sizeof(s_word_web[0])))
 
-// the name a form's relation is handed back under, as khw_write writes it
+// the names a form's relation is handed back under, as khw_write writes them: a ladder relation's, and a frame
+// relation's (The frame forms asked, Open 6.4)
 #define KRS_READS_LADDER "ladder."
+
+#define KRS_READS_FRAME "frame."
+
+// the most frame forms the vendor's writer hands back
+#define KRS_FRAME_FORMS 64u
 
 // the blobs of the run's buffer the vendor's writer hands: the forms it hands back, and what it printed
 #define KRS_FORMS_NAME "krs_forms.txt"
@@ -48,6 +55,8 @@ typedef struct
 
 extern KrsForm s_form[KRS_FORMS];
 extern unsigned int s_forms;
+extern KrsFrameForm s_frame_form[KRS_FRAME_FORMS];
+extern unsigned int s_frame_forms;
 
 int krs_vendor_run(char *const *word);
 unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size);
@@ -55,6 +64,9 @@ unsigned int krs_costs_read(const char *path);
 unsigned int krs_given_read(const char *path);
 const char *krs_given_of(const char *name);
 unsigned int krs_ranked(const unsigned int *writer, unsigned int writers);
+// the place in `writer` of the form of the fewest operands, the first where several have as few: the operands are
+// the comma-separated places after the operation in the form's text
+unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writers);
 unsigned int krs_parameters_named(const char *path, const char *name, char parameter[][KRS_NAME]);
 int krs_word_written(const Word *word, const KrsForm *form, unsigned int *order);
 int krs_text_named(const KrsForm *form, const unsigned int *order, char parameter[][KRS_NAME], unsigned int parameters, char *written, size_t room);

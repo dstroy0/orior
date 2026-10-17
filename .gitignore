@@ -60,3 +60,4 @@ Thumbs.db
 
 # A host's own sweep of timings for the run's buffer, written by `orior protocol sweep` for that host alone.
 src/cu/types/file_defs/qry/qry_host.h
+src/ui/test/target/

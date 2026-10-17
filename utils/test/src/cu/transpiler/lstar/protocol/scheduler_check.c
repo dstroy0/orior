@@ -6,6 +6,9 @@
 //              handed
 //   all        every question of a round is put, a round past SCHEDULER_ROUND_MOST to more than one process
 //   held       a question nothing carried answers nothing, and the round counts none answered
+//   stopped    a panic on the line ruled stops the run, and every question put after it is held with that reason; a
+//              refusal the conference rules the instruction's own, the carrier ended clean, closes the line and
+//              stops nothing
 //
 //     scheduler_check <folder>
 //
@@ -16,6 +19,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/scheduler.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel/run_channel_internal.h"
 #include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
 
 #include <stdio.h>
@@ -54,7 +58,9 @@ int main(int count, char **words)
 #else
     setenv(QRY_ENVIRONMENT, path, 1);
 #endif
-    const char *const carrier[] = {"dry", NULL};
+    // the airlock lets a round through a channel whose carrier reads a held list alone (run_channel_checked): the dry
+    // carrier reads none, and the list is named so that the round passes the airlock as a live one does
+    const char *const carrier[] = {"dry", "--held", "held.txt", NULL};
     check_that(run_channel_open(carrier, 1000000ull) == 1, "the dry channel opens");
     RunQuestion *const pool = (RunQuestion *)calloc(CHECK_QUESTIONS, sizeof(RunQuestion));
     if (pool == NULL)
@@ -122,8 +128,8 @@ int main(int count, char **words)
     int ordered = 1;
     for (unsigned int first = 0u; first < written_count; first += SCHEDULER_ROUND_MOST)
     {
-        const unsigned int last = ((first + SCHEDULER_ROUND_MOST) < written_count) ? (first + SCHEDULER_ROUND_MOST)
-                                                                                    : written_count;
+        const unsigned int last =
+            ((first + SCHEDULER_ROUND_MOST) < written_count) ? (first + SCHEDULER_ROUND_MOST) : written_count;
         for (unsigned int at = first + 1u; at < last; at += 1u)
         {
             const unsigned int before = written[at - 1u];
@@ -134,6 +140,46 @@ int main(int count, char **words)
         }
     }
     check_that(ordered, "the most settling first, and the order handed between equals");
+
+    // the stop: a panic on the line ruled, and every question of the round after it held with the stop's reason, on
+    // the dry channel as on a live one
+    check_that(run_channel_open(carrier, 1000000ull) == 1, "the dry channel opens again");
+    check_that(!run_channel_panic_ruled(), "the run is not stopped before a panic");
+    // a clean refusal: the carrier ended clean, and every account the conference hears reads the cause as the
+    // question's own instruction; the line closes and the run goes on
+    qry_hand(run, "panic.txt", (const unsigned char *)"refused", 7ull, QRY_PANIC);
+    check_that(qry_panicked(run) != 0ull, "a refusal's panic opens the line");
+    KqrIdentity numbered;
+    char identity[96];
+    char conference[160];
+    run_channel_identity(question[0], &numbered);
+    kqr_identity_text(&numbered, identity, sizeof(identity));
+    snprintf(conference, sizeof(conference), "%s_%s", QRY_CONFERENCE_CALL, identity);
+    for (char *space = strchr(conference, ' '); space != NULL; space = strchr(space, ' '))
+    {
+        *space = '_';
+    }
+    const char *const account = "carrier: the part refused the launch as an illegal instruction; cause instruction\n";
+    qry_hand(run, conference, (const unsigned char *)account, strlen(account), QRY_PANIC);
+    s_channel.carrier_clean = 1;
+    run_channel_line_ruled(question[0]);
+    check_that(!run_channel_panic_ruled() && (qry_panicked(run) == 0ull),
+               "a clean refusal ruled the instruction's own closes the line and stops nothing");
+    // a panic no conference heard an account of, on a question of its own: the line stays open and the run stops
+    qry_hand(run, "panic.txt", (const unsigned char *)"faulted", 7ull, QRY_PANIC);
+    check_that(qry_panicked(run) != 0ull, "a panic opens the line");
+    s_channel.carrier_clean = 0;
+    run_channel_line_ruled(question[1]);
+    check_that(run_channel_panic_ruled(), "a ruling on a panic stops the run");
+    const unsigned int after = scheduler_round(question, settles, CHECK_QUESTIONS);
+    run_channel_close();
+    unsigned int stopped = 0u;
+    for (unsigned int at = 0u; at < CHECK_QUESTIONS; at += 1u)
+    {
+        stopped += ((pool[at].outcome == RUN_NO_CHANNEL) && (strstr(pool[at].refused, "stopped") != NULL)) ? 1u : 0u;
+    }
+    check_that((after == 0u) && (stopped == CHECK_QUESTIONS),
+               "every question after the stop is held with the stop's reason");
     qry_close(run);
     free(pool);
     printf("scheduler_check: %u checks, %u failed\n", s_checks, s_failed);

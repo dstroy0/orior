@@ -7,7 +7,7 @@
 //! programs.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command as Process, Output, Stdio};
+use std::process::{Command as Process, Stdio};
 
 use crate::leaves::{Asker, Leave, Terminal};
 use crate::programs::{Programs, Role};
@@ -90,6 +90,27 @@ pub fn list(root: &Path) -> Vec<Command> {
     let parts = whole(root, &["khw", "kqr", "ksc"]);
     vec![
         Command {
+            id: "course",
+            title: "protocol",
+            about: "the whole protocol in order: vendor tables, discover, turns, registers, write krs, stick engine, pairs stick, pairs past, costs, write krs",
+            params: vec![choice_of("from", crate::course::names(), false), leave_param()],
+            words: vec![Word::Lit("course"), Word::Flag("--from", "from"), Word::Flag("--leave", "leave")],
+        },
+        Command {
+            id: "tables",
+            title: "tables",
+            about: "the vendor's tables, the instruction set and the latencies of every architecture, pulled off its disassembler; `read <arch> [--bank <size>] <low> <high>...` names each encoding's class and its constant read, `fields <arch>` the constant address spans",
+            params: vec![words("architectures"), leave_param()],
+            words: vec![Word::Lit("tables"), Word::Words("architectures"), Word::Flag("--leave", "leave")],
+        },
+        Command {
+            id: "decode",
+            title: "decode",
+            about: "a run's table or blob printed through the decoder: --table <table> <run.qry>, or --blob <name> <run.qry>",
+            params: vec![words("words")],
+            words: vec![Word::Lit("decode"), Word::Words("words")],
+        },
+        Command {
             id: "query",
             title: "query",
             about: "the bridge written over the two languages' rulesets, then its pairs put to the part where one is chosen",
@@ -99,8 +120,8 @@ pub fn list(root: &Path) -> Vec<Command> {
         Command {
             id: "learn",
             title: "learn",
-            about: "a part pass: discover, seed, turns or registers through the airlock, or rounds, dry or enumerate",
-            params: vec![choice("step", &["discover", "seed", "turns", "registers", "rounds", "dry", "enumerate"], true), word("word"), word("base"), leave_param()],
+            about: "a part pass: discover, seed, turns, registers or costs through the airlock, or rounds, dry or enumerate",
+            params: vec![choice("step", &["discover", "seed", "turns", "registers", "costs", "rounds", "dry", "enumerate", "clock"], true), word("word"), word("base"), leave_param()],
             words: vec![Word::Lit("learn"), Word::Value("step"), Word::Value("word"), Word::Flag("--base", "base"), Word::Flag("--leave", "leave")],
         },
         Command {
@@ -122,7 +143,7 @@ pub fn list(root: &Path) -> Vec<Command> {
             title: "pairs",
             about: "the bridge's pairs put to the part, and the other modes of klq_identity",
             params: vec![
-                choice("mode", &["frame", "pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"], true),
+                choice("mode", &["frame", "fixed", "pair", "cost", "stall", "register", "past", "queue", "curve", "text_identity", "stick"], true),
                 words("words"),
                 choice_of("part", parts, false),
                 choice_of("to", languages, false),
@@ -173,11 +194,16 @@ pub struct Context<'a> {
     pub leave: Leave,
     pub asker: &'a mut dyn Asker,
     pub env: Vec<(String, String)>,
+    /// The run a loop of many steps opened, the course's, that every step joins; none where each
+    /// loop opens its own
+    pub open: Option<PathBuf>,
 }
 
 impl Context<'_> {
+    /// `text` said on the sink, and handed to the run this process is a member of as it is said.
     pub fn say(&mut self, text: &str) {
-        (self.sink)(text)
+        (self.sink)(text);
+        crate::member::said(text);
     }
 
     pub fn program(&self, role: Role) -> Result<PathBuf, String> {
@@ -189,9 +215,13 @@ impl Context<'_> {
         tools::built(self.root, self.programs, name)
     }
 
-    /// A run started in `folder`, a path from the top of the tree, or joined.
+    /// A run started in `folder`, a path from the top of the tree, or joined: the run the context
+    /// holds open where it holds one, every step of the course a member of the course's run.
     pub fn started(&self, folder: &str) -> Result<Run, String> {
-        Run::started(self.root, &self.root.join(folder), self.programs)
+        match &self.open {
+            Some(qry) => Run::joining(self.root, qry, self.programs),
+            None => Run::started(self.root, &self.root.join(folder), self.programs),
+        }
     }
 
     /// The file `under` the top of the tree.
@@ -206,34 +236,21 @@ impl Context<'_> {
         command
     }
 
-    /// `program` run with `words`, waited for, its output whole.
-    pub fn ran(&self, run: &Run, program: &Path, words: &[&str]) -> Result<Output, String> {
-        self.command(run, program).args(words).output().map_err(|e| format!("{}: {e}", program.display()))
-    }
-
-    /// `program` run with `words`, its output said through the sink line by line and handed as
-    /// `<name>.console`. Its exit code.
+    /// `program` run with `words`, its output piped into the writer's tee: each piece to this
+    /// process's standard output and to the run as `<name>.console` as it comes. Its exit code.
     pub fn teed(&mut self, run: &Run, name: &str, program: &Path, words: &[&str]) -> Result<i32, String> {
-        let child = self.command(run, program).args(words).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("{}: {e}", program.display()))?;
-        run.writer().tee(name, child, self.sink)
+        let mut command = self.command(run, program);
+        command.args(words);
+        run.writer().tee(name, command)
     }
 
-    /// `program` run with `words`, its output said through the sink line by line and not handed. Its exit code.
-    pub fn said(&mut self, run: &Run, program: &Path, words: &[&str]) -> Result<i32, String> {
-        let output = self.ran(run, program, words)?;
-        for line in String::from_utf8_lossy(&output.stdout).lines().chain(String::from_utf8_lossy(&output.stderr).lines()) {
-            (self.sink)(line);
-        }
-        Ok(output.status.code().unwrap_or(-1))
-    }
-
-    /// `program` run with `words`, its output, the standard error after the standard output, handed
-    /// as the blob `name` and nothing said. Its exit code.
+    /// `program` run with `words` for what it writes out: its output whole, the standard error after
+    /// the standard output, handed as the one blob `name`, which the run's programs read by that
+    /// name, and nothing said. Its exit code.
     pub fn handed(&self, run: &Run, name: &str, program: &Path, words: &[&str]) -> Result<i32, String> {
-        let output = self.ran(run, program, words)?;
-        let mut bytes = output.stdout;
-        bytes.extend(&output.stderr);
-        run.writer().hand(name, &bytes, crate::writer::Priority::Ordinary)?;
+        let mut output = self.command(run, program).args(words).output().map_err(|e| format!("{}: {e}", program.display()))?;
+        output.stdout.extend(&output.stderr);
+        run.writer().hand(name, &output.stdout, crate::writer::Priority::Ordinary)?;
         Ok(output.status.code().unwrap_or(-1))
     }
 
@@ -244,7 +261,7 @@ impl Context<'_> {
 }
 
 fn usage() -> String {
-    "orior protocol takes one of query, learn, cross, write, pairs, stick, kept, sweep".to_string()
+    "orior protocol takes one of course, tables, decode, query, learn, cross, write, pairs, stick, kept, sweep".to_string()
 }
 
 /// The words run: a code to exit with, or why they could not be.
@@ -252,9 +269,14 @@ pub fn run(root: &Path, programs: &dyn Programs, words: &[String], sink: &mut dy
     let mut words: Vec<String> = words.to_vec();
     let leave = Leave::chosen(leave_taken(&mut words)?);
     let mut terminal = Terminal;
-    let mut context = Context { root, programs, sink, leave, asker: &mut terminal, env: Vec::new() };
+    let mut context = Context { root, programs, sink, leave, asker: &mut terminal, env: Vec::new(), open: None };
     let (first, rest) = words.split_first().ok_or_else(usage)?;
+    // the loop's own lines go to its run as `<loop>.console`
+    crate::member::console_named(first);
     match first.as_str() {
+        "course" => crate::course::run(&mut context, rest),
+        "tables" => crate::tables::run(&mut context, rest),
+        "decode" => crate::decode::run(&mut context, rest),
         "learn" => crate::learn::run(&mut context, rest),
         "cross" => crate::cross::run(&mut context, rest),
         "write" => crate::write::run(&mut context, rest),
@@ -274,7 +296,7 @@ mod dispatch {
     #[test]
     fn the_list_names_every_loop_once() {
         let ids: Vec<&str> = list(Path::new(".")).iter().map(|c| c.id).collect();
-        assert_eq!(ids, ["query", "learn", "cross", "write", "pairs", "stick", "kept", "sweep"]);
+        assert_eq!(ids, ["course", "tables", "decode", "query", "learn", "cross", "write", "pairs", "stick", "kept", "sweep"]);
     }
 
     #[test]

@@ -63,10 +63,63 @@ pub struct End {
     pub ms: f64,
 }
 
-/// What a run says as it goes: each line, then its end.
+/// A run's start, said before its first line: its number and its job, so that whoever hears the run
+/// knows it before anything it says.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Start {
+    pub run: u64,
+    pub job: String,
+}
+
+/// The variable a job'"'"'s step finds the run'"'"'s number in: set on every step a run starts, and read by a
+/// command that would otherwise reach a window open on the tree.
+pub const RUN_VARIABLE: &str = "ORIOR_RUN";
+
+/// What a run says as it goes: its start, each line, then its end, in that order.
 pub enum Said {
+    Start(Start),
     Line(Line),
+    Blob(Blob),
     End(End),
+}
+
+/// A blob a run's writer placed, as it says it on the job's output (qry_blob_said in the run's buffer): its sequence,
+/// the time it was handed, its priority, the member whose ring it came from, its size and its name, and when the
+/// line came.
+#[derive(Clone, Serialize, Debug, PartialEq)]
+pub struct Blob {
+    pub run: u64,
+    pub sequence: u64,
+    pub nanoseconds: u64,
+    pub priority: u32,
+    pub member: u32,
+    pub size: u64,
+    pub name: String,
+    pub ms: f64,
+}
+
+impl Blob {
+    /// The writer's line read apart, `qry_blob <sequence> <nanoseconds> <priority> <member> <size> <name>`; None
+    /// where the line is no such line.
+    pub fn read(run: u64, text: &str, ms: f64) -> Option<Blob> {
+        let mut words = text.strip_prefix("qry_blob ")?.split(' ');
+        let mut number = || words.next()?.parse::<u64>().ok();
+        let (sequence, nanoseconds, priority, member, size) = (number()?, number()?, number()?, number()?, number()?);
+        let name = words.next()?.to_string();
+        if name.is_empty() || words.next().is_some() {
+            return None;
+        }
+        Some(Blob { run, sequence, nanoseconds, priority: u32::try_from(priority).ok()?, member: u32::try_from(member).ok()?, size, name, ms })
+    }
+
+    /// 1 where the protocol panel reads this blob by itself (the page's protocol.js): a panic or a critical blob,
+    /// a round's list of questions, an answer, a carried file, or a file of the part's table. Every other blob the
+    /// panel only counts.
+    pub fn panel_reads(&self) -> bool {
+        let answer = self.name.strip_prefix("answers").and_then(|rest| rest.strip_suffix(".txt")).is_some_and(|number| number.bytes().all(|b| b.is_ascii_digit()));
+        let table = [".ksc", ".khw", ".krs", ".kqr"].iter().any(|kind| self.name.ends_with(kind));
+        self.priority < 2 || answer || table || ["questions.txt", "forms_work.txt", "faulted.txt", "overseer.txt"].contains(&self.name.as_str())
+    }
 }
 
 /// The milliseconds since `began`.
@@ -376,6 +429,11 @@ fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, f
                 Ok(0) | Err(_) => break,
                 Ok(_) => {
                     let text = String::from_utf8_lossy(&bytes).trim_end_matches(['\r', '\n']).to_string();
+                    // a blob the run's writer placed is the panel's, and no line of the console
+                    if let Some(blob) = Blob::read(run, &text, since(began)) {
+                        sink(Said::Blob(blob));
+                        continue;
+                    }
                     if let Ok(mut seen) = seen.lock() {
                         seen.push(text.clone());
                     }
@@ -485,6 +543,8 @@ impl Runs {
             commands.insert(at, Ready::Sign);
         }
         let run = self.next.fetch_add(1, Ordering::SeqCst) + 1;
+        // the run's start said before any line of it, so that a hearer knows the run and its job first
+        sink(Said::Start(Start { run, job: job.id.clone() }));
         // Run numbers start again in each process, and the window and the command line can run at
         // once. The folder is named by both and emptied before the run writes to it.
         let view_out = root.join("build").join("ui").join("views").join(format!("{}-{run}", std::process::id()));
@@ -582,6 +642,9 @@ impl Runs {
                 if holds(&stopped, run) {
                     break;
                 }
+                // the run's number in the step's environment: a command that would reach a window open on the
+                // tree sees it is a job's own and runs where it is
+                cmd.env(RUN_VARIABLE, run.to_string());
                 let spawned = if attached { cmd.spawn().map(|child| (child, None)) } else { crate::container::Group::spawn(&mut cmd) };
                 let mut child: Child = match spawned {
                     Ok((child, group)) => {
@@ -668,6 +731,33 @@ impl Runs {
 }
 
 #[cfg(test)]
+mod blobs {
+    use super::Blob;
+
+    #[test]
+    fn a_blob_the_writer_placed_is_read_off_its_line_and_any_other_line_is_none() {
+        let read = Blob::read(7, "qry_blob 12 1792201727932693100 0 256 7 panic.txt", 3.5).unwrap();
+        assert_eq!(read, Blob { run: 7, sequence: 12, nanoseconds: 1792201727932693100, priority: 0, member: 256, size: 7, name: "panic.txt".into(), ms: 3.5 });
+        assert!(Blob::read(7, "  qry_writer: the buffer of a.qry is made", 0.0).is_none(), "a line of the writer's that names no blob");
+        assert!(Blob::read(7, "qry_blob 12 1 0 256 7", 0.0).is_none(), "a line with no name");
+        assert!(Blob::read(7, "qry_blob 12 1 0 256 7 two names", 0.0).is_none(), "a name holds no space");
+        assert!(Blob::read(7, "qry_blob x 1 0 256 7 a.txt", 0.0).is_none(), "a word that is no number");
+    }
+
+    #[test]
+    fn the_panel_reads_its_own_blobs_and_counts_the_rest() {
+        let named = |name: &str, priority: u32| Blob::read(1, &format!("qry_blob 1 1 {priority} 0 1 {name}"), 0.0).unwrap();
+        for name in ["answers.txt", "answers12.txt", "questions.txt", "overseer.txt", "sm_86.khw", "sm_86.krs"] {
+            assert!(named(name, 2).panel_reads(), "{name} is read");
+        }
+        assert!(named("dry.txt", 0).panel_reads() && named("dry.txt", 1).panel_reads(), "a panic and a critical blob are read");
+        for name in ["dry.txt", "question12.bin", "answers_x.txt", "forms.txt"] {
+            assert!(!named(name, 2).panel_reads(), "{name} is only counted");
+        }
+    }
+}
+
+#[cfg(test)]
 mod stopping {
     use std::collections::HashMap;
     use std::sync::Arc;
@@ -745,3 +835,4 @@ mod splitting {
         assert!(shell_words("'open").is_err());
     }
 }
+

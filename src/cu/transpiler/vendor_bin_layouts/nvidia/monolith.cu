@@ -35,8 +35,8 @@
 #include "monolith.h"
 
 static_assert((PRECEPT_NOP == 0) && (PRECEPT_ERR == 1) && (PRECEPT_NOT == 2) &&
-                  (PRECEPT_SUB == (int)MONOLITH_COSTED_COUNT),
-              "monolith: the costed run is NOP, then NOT through SUB, with ERR alone left out");
+                  (PRECEPT_MUL == (int)MONOLITH_COSTED_COUNT),
+              "monolith: the costed run is NOP, then NOT through MUL, with ERR alone left out");
 
 // the tags are in the program where MONOLITH_TAGGED is 1, its default, and out of it where 0. The two builds are held
 // against each other for what the tags cost: cycles, and the instructions the compiler keeps apart across a tag
@@ -150,6 +150,9 @@ extern "C" __global__ void monolith(const unsigned int *in, unsigned int *out)
     MONOLITH_TAG(PRECEPT_SUB);
     monolith_write(out, PRECEPT_SUB, monolith_read(in, 0u) - monolith_read(in, 1u));
 
+    MONOLITH_TAG(PRECEPT_MUL);
+    monolith_write(out, PRECEPT_MUL, monolith_read(in, 0u) * monolith_read(in, 1u));
+
     MONOLITH_TAG(PRECEPT_BRA);
     // An unconditional jump stays in the program only where something jumps around it: the arm taken on the flag ends
     // in a jump over the other. Each arm holds four stores, more than the compiler writes as predicated stores in
@@ -246,12 +249,14 @@ static __device__ __forceinline__ void monolith_step(unsigned int &word, unsigne
     case PRECEPT_SUB:
         MONOLITH_PREDICATED("@taken sub.u32 %0, %0, %1;");
         break;
+    case PRECEPT_MUL:
+        MONOLITH_PREDICATED("@taken mul.lo.u32 %0, %0, %1;");
+        break;
     default:
         // NOP is no instruction
         break;
     }
 }
-
 
 // what every costed section is run with: the two words, the turns, the flag the steps are predicated on, and where
 // each section's count and last word are written

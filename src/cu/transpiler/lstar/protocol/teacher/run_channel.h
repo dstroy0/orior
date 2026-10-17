@@ -39,10 +39,25 @@ extern "C"
 // a question's slot where its code holds none: the carrier makes no place conservative past the wait on all six
 #define RUN_SLOT_NONE 0xffffffffu
 
+// what the carrier leaves in a record no lane wrote, and the threads a block it launches where a question fixes no
+// shape, each the carrier's own number (cubin_run_internal.h): the frame's asks read a lane that wrote nothing and
+// compute each thread's lane and block from them
+#define RUN_UNWRITTEN_WORD 0xffffffffu
+#define RUN_THREADS_A_BLOCK 256u
+
+// the place among the launch's parameters the count stands at, in bytes, the carrier's own (cubin_run_internal.h):
+// the frame's asks read the count as a parameter's word, the threads the launch gives a case each
+#define RUN_COUNT_PLACE 16u
+
 // the gate's hold under rule 3 of the airlock, an operation key unknown, as the carrier answers it: `skipped` and the
 // rule's number (cubin_safe.h, CUBIN_SAFE_KEY). An ask held so is open in R, as a timed-out one is: the part never saw
 // it, and a conference may admit it (overseer.h)
 #define RUN_GATE_KEY_RULE "skipped 5 "
+
+// the gate's hold on an encoding the vendor's own reader called illegal, as the carrier answers it (cubin_safe.h,
+// CUBIN_SAFE_HELD). An ask held so stays held in R: the verdict is the vendor's and stands. An ask the gate held
+// under any other rule is open in R: the part never saw it, and the gate reads it again as its rules stand
+#define RUN_GATE_VENDOR_RULE "skipped 12 "
 
 // what a run came to
 typedef enum
@@ -73,8 +88,8 @@ typedef struct
     // the cases it is run over, a thread a case, and how many
     unsigned int word[RUN_CASES_MOST][RUN_IN_WORDS];
     unsigned int cases;
-    // how many times it is launched again once it answers, those launches timed together on the part's own timer;
-    // 0 leaves it untimed
+    // how many times it is launched again once it answers, those launches timed together on the driver's event
+    // clock, the driver's word on a launch and not the clock the ask reads (query_ask.h); 0 leaves it untimed
     unsigned int launches;
     // the threads of a block and the blocks of a launch, every thread given a case, thread t case t of the cases taken
     // round; where both are 0 it is one block of a carrier's own count
@@ -82,11 +97,16 @@ typedef struct
     unsigned int blocks;
     // each case's answer, its two words as one value
     unsigned long long answered[RUN_CASES_MOST];
-    // the time the launches took together, in nanoseconds as the part's timer counts them; 0 where it is untimed
+    // the time the launches took together, in nanoseconds off the driver's event timer, which ticks about every half
+    // microsecond; 0 where it is untimed
     unsigned long long nanoseconds;
-    // the least and the most one launch of them took, its block latency, the runs P6 reads; 0 where it is untimed
+    // the least and the most one launch of them took, a launch whole and not the question's own cost: a form costs a
+    // few cycles under a launch's overhead, and P6 ranks nothing off these; 0 where it is untimed
     unsigned long long least;
     unsigned long long most;
+    // the address of the timer register the launches were timed on, read through the BAR0 driver (bus_clock.c); 0
+    // where they were timed on the driver's event timer
+    unsigned int clock_address;
     unsigned int outcome;
     // what the carrier said where the outcome is not RUN_ANSWERED
     char refused[128];
@@ -99,12 +119,14 @@ typedef struct
 // before the carrier starts; a round that cannot be put there is not carried. 1, or 0 with the reason printed where
 // no writer runs for the run. A channel is opened once and every question after goes through it.
 //
-// A carrier whose only word is `dry` is a dry run: nothing carries a question and nothing answers it. Each question is
-// handed as question<n>.bin and cases<n>.txt, and as a line of questions.txt in the form a carrier's list takes,
-// `<code> <registers> <cases> <answers> <slot> <launches>`, the list handed whole once the channel closes, and it reads
-// RUN_HELD. What the protocol put is then checked by handing that list to a carrier that stops before the part. A
-// carrier whose own words hold --dry stops before the driver too, and every round reaches it through the airlock as a
-// live round does: nothing is launched, and R is read and nothing it answers is kept in R.
+// A carrier whose first word is `dry` is a dry run: nothing carries a question and nothing answers it. A round is
+// written as a live round is, each question as question<n>.bin and cases<n>.txt and the round as questions.txt in the
+// form a carrier's list takes, `<code> <registers> <cases> <answers> <slot> <launches>`, and passes the airlock the
+// words after `dry` open as a live round does; then each question reads RUN_HELD, and the last round's list is handed
+// whole once the channel closes. What the protocol put is then checked by handing that list to a carrier that stops
+// before the part. A question asked alone on a dry channel is written and held without an airlock. A carrier whose own
+// words hold --dry stops before the driver too, and every round reaches it through the airlock as a live round does:
+// nothing is launched, and R is read and nothing it answers is kept in R.
 //
 // Every round a live channel carries passes the airlock first, and nothing the vendor's reader has not read goes to the
 // part. The words after the carrier's may open one: `--pop <words>`, the carrier with the part taken out, which hands
@@ -142,6 +164,9 @@ int run_channel_registers_past(const char *ksc);
 // (RUN_GATE_KEY_RULE)
 int run_channel_key_held(const char *refused);
 
+// 1 where `refused` is the gate's hold on an encoding the vendor's reader called illegal (RUN_GATE_VENDOR_RULE)
+int run_channel_vendor_held(const char *refused);
+
 // `asked` put and answered. 1 where the outcome is RUN_ANSWERED, 0 otherwise, with `asked->outcome` saying which
 int run_channel_ask(RunQuestion *asked);
 
@@ -150,6 +175,10 @@ int run_channel_ask(RunQuestion *asked);
 // its ending is its answer, and the questions after it are carried in a process of their own, so that one refusal
 // costs no other question its answer. The count of those answered, each with its own outcome
 unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count);
+
+// 1 once a panic on the line has been ruled on: the run is stopped, and every question put after it, on a dry channel
+// as on a live one, is held with that reason and carried by nothing. One panic a run
+int run_channel_panic_ruled(void);
 
 // the channel closed, R written back where it was opened, and what it held given back
 void run_channel_close(void);

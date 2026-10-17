@@ -303,8 +303,9 @@ int main(int count, char **words)
     check_that(overseer_convened(run, "check-dissent", 0, &ruling) == 1, "dissent: the conference is heard");
     check_that(!ruling.agreed && (ruling.guidance == OVERSEER_HANDS_OFF) && !ruling.taught,
                "dissent: two causes rule nothing, the learner left to go on as it would");
-    check_that(strstr(ruling.said, "no consensus: proctor reads instruction, listener reads address") != NULL,
-               "dissent: the ruling keeps the dissent");
+    check_that(strstr(ruling.said,
+                      "every cause read the question's own: proctor reads instruction, listener reads address") != NULL,
+               "dissent: the ruling keeps the dissent, every cause the question's own");
 
     // exception: an exception agrees with an instruction, and an encoding is held at every carrier
     static const char *const s_exception[] = {
@@ -471,6 +472,24 @@ int main(int count, char **words)
                                   "--cross", words[1], "cross", "held.txt", NULL};
     check_that(run_channel_open(unheld, 10000000ull) == 0,
                "airlock: one whose carrier reads no held list does not open");
+
+    // the part's count of registers past what a container declares, which a hold's clearing count is raised by: 1,
+    // read off a .ksc of the check's own written beside the carrier
+    char past_path[1024];
+    size_t folder = 0u;
+    for (size_t at = 0u; words[1][at] != '\0'; at += 1u)
+    {
+        folder = ((words[1][at] == '/') || (words[1][at] == '\\')) ? (at + 1u) : folder;
+    }
+    snprintf(past_path, sizeof(past_path), "%.*soverseer_registers.ksc", (int)folder, words[1]);
+    FILE *const past = fopen(past_path, "w");
+    check_that(past != NULL, "check: the .ksc naming the registers past is written beside the carrier");
+    if (past != NULL)
+    {
+        fputs("ksc part\nrun answers 00000001 register past\n", past);
+        fclose(past);
+    }
+    check_that(run_channel_registers_past(past_path) == 1, "check: the channel reads the registers past off it");
 
     // check: a question the cross holds only for a register past its count is put again with the count that clears
     // it and read again, and one held for what no count clears is kept held, each hold and each count a line of the

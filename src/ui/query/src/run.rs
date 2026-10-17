@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::Child;
 
 use crate::leaves::{self, Asker, Leave};
+use crate::member;
 use crate::programs::Programs;
 use crate::tools;
 use crate::writer::{Priority, Writer};
@@ -139,7 +140,7 @@ pub fn latest(folder: &Path, name: &str, own: Option<&Path>, writer: &Writer, cr
         if own.is_some_and(|o| plain(o) == plain(&named)) {
             continue;
         }
-        let other = Writer { binary: writer.binary.clone(), qry: named.clone(), top: writer.top.clone(), path: writer.path.clone() };
+        let other = Writer { binary: writer.binary.clone(), qry: named.clone(), top: writer.top.clone(), path: writer.path.clone(), member: None };
         if other.latest(name).is_some() {
             return Some(named);
         }
@@ -154,20 +155,44 @@ impl Run {
         let binary = tools::built(root, programs, "qry_writer")?;
         let path = programs.run_path();
         if let Some(qry) = std::env::var_os("QRY").map(PathBuf::from) {
-            let writer = Writer { binary: binary.clone(), qry: qry.clone(), top: root.to_path_buf(), path: path.clone() };
-            if writer.runs() {
+            let mut writer = Writer { binary: binary.clone(), qry: qry.clone(), top: root.to_path_buf(), path: path.clone(), member: None };
+            if writer.runs() && writer.joined() {
+                member::current_set(writer.member.clone());
                 let folder = qry.parent().map(Path::to_path_buf).unwrap_or_else(|| folder.to_path_buf());
                 return Ok(Run { folder, writer, process: None, joined: true, read: Vec::new(), left: Vec::new() });
             }
         }
         std::fs::create_dir_all(folder).map_err(|e| format!("{} is no folder: {e}", folder.display()))?;
         let qry = plain(&folder.join(next_name(folder)));
-        let writer = Writer { binary, qry, top: root.to_path_buf(), path };
+        let mut writer = Writer { binary, qry, top: root.to_path_buf(), path, member: None };
         let process = writer.start()?;
-        if !writer.ready() {
+        let Some(made) = writer.made() else {
             return Err("the run's writer did not start".into());
+        };
+        // the writer's own output stays out of this console; the line naming the run's database is said here, for a
+        // reader of the run to find it by
+        if !made.is_empty() {
+            println!("{made}");
         }
+        if !writer.joined() {
+            let _ = writer.stop();
+            return Err("the run's buffer could not be opened".into());
+        }
+        member::current_set(writer.member.clone());
         Ok(Run { folder: folder.to_path_buf(), writer, process: Some(process), joined: false, read: Vec::new(), left: Vec::new() })
+    }
+
+    /// The run at `qry` joined, its writer already running: this process a member of it with a
+    /// buffer of its own handed to the run's one writer. An error where no writer runs it.
+    pub fn joining(root: &Path, qry: &Path, programs: &dyn Programs) -> Result<Run, String> {
+        let binary = tools::built(root, programs, "qry_writer")?;
+        let mut writer = Writer { binary, qry: qry.to_path_buf(), top: root.to_path_buf(), path: programs.run_path(), member: None };
+        if !(writer.runs() && writer.joined()) {
+            return Err(format!("no writer runs {}", qry.display()));
+        }
+        member::current_set(writer.member.clone());
+        let folder = qry.parent().map(Path::to_path_buf).unwrap_or_else(|| root.to_path_buf());
+        Ok(Run { folder, writer, process: None, joined: true, read: Vec::new(), left: Vec::new() })
     }
 
     /// 1 where the run was joined, started by another process.
@@ -184,7 +209,16 @@ impl Run {
     /// is there.
     pub fn carried(&self, folder: &Path, files: &[&str], crystal: Option<&Path>) -> Result<(), String> {
         let base = |file: &str| Path::new(file).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        for (_, held) in each(folder) {
+        // the runs of `folder` and the course's, newest first by when each last changed: a pass run alone
+        // after a course carries what the course left
+        let course = self.writer.top.join(crate::course::FOLDER);
+        let mut runs: Vec<(std::time::SystemTime, PathBuf)> = each(folder)
+            .into_iter()
+            .chain(if plain(&course) == plain(folder) { Vec::new() } else { each(&course) })
+            .map(|(_, path)| (std::fs::metadata(&path).and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH), path))
+            .collect();
+        runs.sort_by(|a, b| b.0.cmp(&a.0));
+        for (_, held) in runs {
             let missing: Vec<String> = files.iter().map(|f| base(f)).filter(|name| self.writer.latest(name).is_none()).collect();
             if missing.is_empty() {
                 break;
@@ -248,6 +282,9 @@ impl Run {
     }
 
     fn stopped(&mut self) -> Result<(), String> {
+        // this process is a member of the run no more, before the writer is asked to stop
+        member::current_set(None);
+        self.writer.parted();
         let Some(mut process) = self.process.take() else { return Ok(()) };
         let stopped = self.writer.stop();
         let _ = process.wait();
@@ -336,9 +373,33 @@ mod runs {
             run.writer().qry.clone()
         };
         // the run dropped without `ended`: its writer is stopped in Drop
-        let writer = Writer { binary: tools::built(&root, &OnPath, "qry_writer").unwrap(), qry: qry.clone(), top: root.clone(), path: OnPath.run_path() };
+        let writer = Writer { binary: tools::built(&root, &OnPath, "qry_writer").unwrap(), qry: qry.clone(), top: root.clone(), path: OnPath.run_path(), member: None };
         assert!(!writer.runs());
         assert!(qry.is_file());
+        let _ = std::fs::remove_dir_all(folder.parent().unwrap());
+    }
+
+    #[test]
+    fn a_step_joins_the_run_held_open_and_its_end_leaves_the_writer_running() {
+        if OnPath.program(Role::C).is_err() {
+            return;
+        }
+        let root = root();
+        let folder = root.join("build/query_test/joining/qry");
+        let _ = std::fs::remove_dir_all(folder.parent().unwrap());
+        let held = Run::started(&root, &folder, &OnPath).unwrap();
+        let qry = held.writer().qry.clone();
+        {
+            let step = Run::joining(&root, &qry, &OnPath).unwrap();
+            assert!(step.joined());
+            assert_eq!(plain(&step.writer().qry), plain(&qry));
+            step.writer().hand("step.console", b"a step's line\n", Priority::Ordinary).unwrap();
+        }
+        // the step parted as it was dropped, and the writer it joined still runs and holds its line
+        assert!(held.writer().runs());
+        assert_eq!(held.writer().read("step.console").as_deref(), Some(&b"a step's line\n"[..]));
+        drop(held);
+        assert!(Run::joining(&root, &qry, &OnPath).is_err(), "no step joins a run whose writer has stopped");
         let _ = std::fs::remove_dir_all(folder.parent().unwrap());
     }
 
@@ -353,16 +414,16 @@ mod runs {
         let folder = base.join("qry");
         {
             let run = Run::started(&root, &folder, &OnPath).unwrap();
-            run.writer().hand("forms.txt", b"from the run before\n", Priority::Ordinary).unwrap();
+            run.writer().hand("carried_check_forms.txt", b"from the run before\n", Priority::Ordinary).unwrap();
             run.ended(Leave::All, &mut crate::leaves::Terminal, &mut |_| {}).unwrap();
         }
-        std::fs::write(base.join("faulted.txt"), b"from the disk\n").unwrap();
+        std::fs::write(base.join("carried_check_faulted.txt"), b"from the disk\n").unwrap();
         let run = Run::started(&root, &folder, &OnPath).unwrap();
-        let files: Vec<String> = ["forms.txt", "faulted.txt", "nowhere.txt"].iter().map(|f| base.join(f).to_string_lossy().into_owned()).collect();
+        let files: Vec<String> = ["carried_check_forms.txt", "carried_check_faulted.txt", "carried_check_nowhere.txt"].iter().map(|f| base.join(f).to_string_lossy().into_owned()).collect();
         run.carried(&folder, &files.iter().map(String::as_str).collect::<Vec<_>>(), None).unwrap();
-        assert_eq!(run.writer().latest("forms.txt").unwrap(), b"from the run before\n");
-        assert_eq!(run.writer().latest("faulted.txt").unwrap(), b"from the disk\n");
-        assert!(run.writer().latest("nowhere.txt").is_none());
+        assert_eq!(&*run.writer().latest("carried_check_forms.txt").unwrap(), b"from the run before\n");
+        assert_eq!(&*run.writer().latest("carried_check_faulted.txt").unwrap(), b"from the disk\n");
+        assert!(run.writer().latest("carried_check_nowhere.txt").is_none());
         run.ended(Leave::All, &mut crate::leaves::Terminal, &mut |_| {}).unwrap();
         let _ = std::fs::remove_dir_all(&base);
     }
@@ -380,7 +441,7 @@ mod runs {
         std::fs::write(&file, b"forms\n").unwrap();
         let mut run = Run::started(&root, &base.join("qry"), &OnPath).unwrap();
         run.read(&[file.clone(), base.join("absent.khw")]).unwrap();
-        assert_eq!(run.writer().latest("build/query_test/read/sm_86.khw").unwrap(), b"forms\n");
+        assert_eq!(&*run.writer().latest("build/query_test/read/sm_86.khw").unwrap(), b"forms\n");
         assert_eq!(run.leaves(), [file.clone()]);
         run.left(&[file.clone(), base.join("left.txt")]);
         assert_eq!(run.leaves(), [file.clone(), base.join("left.txt")]);

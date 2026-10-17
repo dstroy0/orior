@@ -73,6 +73,13 @@ said="$(bash "$KDECODE" --table texts "$RUN" | grep -cF ' a text the check numbe
 [ "$said" -eq 1 ]
 check_that $? "texts: a text the rows check numbers twice stands in the table once, decoded to its bytes"
 
+# blob: every blob of a name printed whole after a line of its sequence, name and size, and the latest alone
+blobs="$(bash "$KDECODE" --blob texts "$RUN")"
+heads="$(lines "$blobs" | grep -c '^[0-9][0-9]* texts [0-9][0-9]*$')"
+latest="$(bash "$KDECODE" --latest --blob texts "$RUN" | grep -c '^[0-9][0-9]* texts [0-9][0-9]*$')"
+[ "$heads" -ge 1 ] && [ "$latest" -eq 1 ] && lines "$blobs" | grep -qF 'a text the check numbers twice'
+check_that $? "blob: the texts blobs are printed whole, each after its head line, and --latest prints the last alone"
+
 # asks
 asks="$(bash "$KDECODE" --table asks "$RUN")"
 head_row="$(lines "$asks" | sed -n 1p)"

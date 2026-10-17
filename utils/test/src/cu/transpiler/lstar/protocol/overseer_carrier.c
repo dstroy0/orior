@@ -12,7 +12,7 @@
 //
 //     overseer_carrier refuse|hang [--held <name>] <code> <registers> <cases> <answers> <slot>
 //     overseer_carrier pop ... --list <list>
-//     overseer_carrier <list> cross|unread|silent|registers|illegal <held> [<holds>]
+//     overseer_carrier <list> cross|unread|silent|registers|illegal <held> [<holds> [<read>]]
 //
 // Exit 0 where it answered, popped, crossed or hung out its time, 1 where the answer could not be handed, 2 where the
 // words are none of the above or the cross did not read
@@ -99,7 +99,9 @@ int main(int count, char **words)
     {
         return 0;
     }
-    if (((count == 4) || (count == 5)) &&
+    // the cross's words: the list, the mode, the held list, and after them the holds and the read list the airlock
+    // names, which this cross passes over
+    if ((count >= 4) && (count <= 6) &&
         ((strcmp(words[2], "cross") == 0) || (strcmp(words[2], "unread") == 0) || (strcmp(words[2], "silent") == 0) ||
          (strcmp(words[2], "registers") == 0) || (strcmp(words[2], "illegal") == 0)))
     {
@@ -110,8 +112,8 @@ int main(int count, char **words)
         QryBuffer *const run = qry_run();
         if ((strcmp(words[2], "registers") == 0) || (strcmp(words[2], "illegal") == 0))
         {
-            return ((run == NULL) || (count != 5)) ? 2
-                                                   : overseer_carrier_held(run, words[2], words[1], words[3], words[4]);
+            return ((run == NULL) || (count < 5)) ? 2
+                                                  : overseer_carrier_held(run, words[2], words[1], words[3], words[4]);
         }
         if ((strcmp(words[2], "cross") == 0) &&
             ((run == NULL) || (qry_hand(run, words[3], "", 0ull, QRY_ORDINARY) == 0ull)))

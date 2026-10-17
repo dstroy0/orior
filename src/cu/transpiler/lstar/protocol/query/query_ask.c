@@ -25,12 +25,17 @@ static unsigned int query_held(const QueryAsk *asked)
         {
             then = host_read(asked->address);
         }
-        const unsigned int step = then - first;
-        return ((step != 0u) && (step < 0x80000000u)) ? 1u : 0u;
+        return query_advanced(first, then);
     }
     default:
         return 0u;
     }
+}
+
+unsigned int query_advanced(unsigned int first, unsigned int then)
+{
+    const unsigned int step = then - first;
+    return ((step != 0u) && (step < 0x80000000u)) ? 1u : 0u;
 }
 
 unsigned int query_ask(QueryAsk *asked)

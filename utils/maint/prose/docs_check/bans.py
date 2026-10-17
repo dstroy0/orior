@@ -8,6 +8,7 @@
 from .bans_detected import DETECTED
 from .grammar import GRAMMAR
 from .bans_outright import OUTRIGHT
+from .bans_words import WORDS
 from .bans_probe import PROBE
 from .bans_register import REGISTER
 from .bans_shapes import SHAPES
@@ -21,7 +22,7 @@ from .locale import LOCALE
 # the order a hit is reported through: where two patterns overlap a site, whichever group BANNED
 # reaches first names it. Reordering these changes which pattern a finding is attributed to. GRAMMAR
 # comes last, and a site an older group already names keeps that name.
-BANNED = OUTRIGHT + LOCALE + REGISTER + SHAPES + PROBE + DETECTED + GRAMMAR
+BANNED = OUTRIGHT + WORDS + LOCALE + REGISTER + SHAPES + PROBE + DETECTED + GRAMMAR
 
 
 

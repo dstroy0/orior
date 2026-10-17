@@ -44,7 +44,7 @@ async function answer(folder, trusted) {
 // Asks the reader whether the tree, as `told` has it, may run its own code.
 export function askTrust(told = state.told) {
   if (!told?.code.length) {
-    say("This tree holds no code its tools run as they read it: there is nothing to trust");
+    say("This tree has no build script of its own: there is nothing to trust");
     return;
   }
   const name = nameOf(told.tree);
@@ -62,14 +62,14 @@ export function askTrust(told = state.told) {
   buttons.push(hold);
   const node = document.getElementById("trust-ask");
   node.replaceChildren(
-    element("p", { className: "rights-said", textContent: `${name} holds code its tools run as they read it: ${listOf(told.code)}. Until it is trusted, orior holds that code back.` }),
+    element("p", { className: "rights-said", textContent: `${name} has build scripts of its own, ${listOf(told.code)}, which run when the tree is built. orior runs them only once you trust the tree.` }),
     element("div", { className: "rights-buttons" }, ...buttons),
   );
   node.hidden = false;
 }
 
-// Reads what is kept for the tree open, shows on the status bar whether its code is held back, and
-// asks where it holds code of its own and no answer is kept.
+// Reads what is kept for the tree open, shows on the status bar whether its build scripts are held
+// back, and asks where it has scripts of its own and no answer is kept.
 export async function readTrust() {
   const told = await invoke("trust_read").catch(() => null);
   state.told = told;

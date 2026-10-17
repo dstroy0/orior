@@ -19,4 +19,6 @@ rule	cubin_safe	launch_timeout	0x9	launch_timeout	-	a launch the driver timed ou
 rule	cubin_safe	launch_fault	0xa	launch_fault	-	a launch that faulted the part, its context left corrupt
 rule	cubin_safe	register	0xb	register	-	a register the kernel did not allot
 rule	cubin_safe	held	0xc	held	-	an encoding the vendor held off the part
+rule	cubin_safe	constant	0xd	constant	-	a read of the constant bank past the bank, or of a bank the container has none of
+rule	cubin_safe	illegal	0xe	illegal	-	an encoding the vendor's instruction set names illegal by its class's conditions, a register out of range or misaligned
 any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (QryWho, qry_buffer.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, verdicts, and its key the blob's sequence in the run

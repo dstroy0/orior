@@ -270,11 +270,25 @@ pub fn keep_run(base: &Path) -> i32 {
         Err(_) => return 2,
     };
     let _ = std::fs::write(kept_file(base, "pid"), std::process::id().to_string());
+    // the blobs the panel only counts since the last thing written, written as one count before the next
+    let others = Arc::new(std::sync::atomic::AtomicU64::new(0));
     let sink: runner::Sink = Arc::new(move |said| {
         let line = match said {
             runner::Said::Line(mut line) => {
                 line.run = run;
                 json!({"line": line})
+            }
+            runner::Said::Blob(mut blob) => {
+                if !blob.panel_reads() {
+                    others.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    return;
+                }
+                blob.run = run;
+                json!({"blob": blob})
+            }
+            runner::Said::Start(mut start) => {
+                start.run = run;
+                json!({"start": start})
             }
             runner::Said::End(mut end) => {
                 end.run = run;
@@ -282,6 +296,10 @@ pub fn keep_run(base: &Path) -> i32 {
             }
         };
         if let Ok(mut file) = said_file.lock() {
+            let counted = others.swap(0, std::sync::atomic::Ordering::Relaxed);
+            if counted != 0 {
+                let _ = writeln!(file, "{}", json!({"others": {"run": run, "others": counted}}));
+            }
             let _ = writeln!(file, "{line}");
             let _ = file.flush();
         }
@@ -560,9 +578,58 @@ impl Server {
         let root = self.root()?;
         let found = catalog::read(&root).into_iter().find(|j| j.id == job).ok_or_else(|| format!("no job {job}"))?;
         let emit = self.emitting();
+        // the lines said are gathered and go to the page as one event every fifty milliseconds, so that a run saying
+        // thousands a second leaves the page's event queue open to every other event; the end goes after the last of
+        // them
+        let pending: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
+        let alive = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let flush = {
+            let pending = pending.clone();
+            let emit = emit.clone();
+            Arc::new(move || {
+                let taken: Vec<Value> = pending.lock().map(|mut held| std::mem::take(&mut *held)).unwrap_or_default();
+                if !taken.is_empty() {
+                    emit("run-lines", Value::Array(taken));
+                }
+            })
+        };
+        {
+            let flush = flush.clone();
+            let alive = alive.clone();
+            std::thread::spawn(move || {
+                while alive.load(std::sync::atomic::Ordering::Relaxed) {
+                    std::thread::sleep(Duration::from_millis(50));
+                    flush();
+                }
+            });
+        }
         let sink: runner::Sink = Arc::new(move |said| match said {
-            runner::Said::Line(line) => emit("run-line", serde_json::to_value(line).unwrap_or(Value::Null)),
-            runner::Said::End(end) => emit("run-end", serde_json::to_value(end).unwrap_or(Value::Null)),
+            // the start goes before any line, so that the page knows the run as its first line comes
+            runner::Said::Start(start) => emit("run-start", serde_json::to_value(start).unwrap_or(Value::Null)),
+            runner::Said::Line(line) => {
+                if let Ok(mut held) = pending.lock() {
+                    held.push(serde_json::to_value(line).unwrap_or(Value::Null));
+                }
+            }
+            // a blob the run's writer placed goes with the lines, in the order said, the page knowing it by its sequence;
+            // one the panel only counts adds to a count of such blobs since the last thing said, `{run, others}`, so
+            // that a pass handing thousands of blobs a second hands the page a count and not an event each
+            runner::Said::Blob(blob) => {
+                if let Ok(mut held) = pending.lock() {
+                    if blob.panel_reads() {
+                        held.push(serde_json::to_value(blob).unwrap_or(Value::Null));
+                    } else if let Some(last) = held.last_mut().filter(|last| last.get("others").is_some() && last["run"] == blob.run) {
+                        last["others"] = json!(last["others"].as_u64().unwrap_or(0) + 1);
+                    } else {
+                        held.push(json!({"run": blob.run, "others": 1}));
+                    }
+                }
+            }
+            runner::Said::End(end) => {
+                alive.store(false, std::sync::atomic::Ordering::Relaxed);
+                flush();
+                emit("run-end", serde_json::to_value(end).unwrap_or(Value::Null));
+            }
         });
         self.runs.start(sink, root, found, values).map(|(run, _)| run)
     }
@@ -694,8 +761,9 @@ impl Server {
         Ok(run)
     }
 
-    /// Tells each line the kept run `base` said, from its first, as run-line, and its end as run-end,
-    /// as they come. A run whose process is gone with no end said ends as stopped.
+    /// Tells each line the kept run `base` said, from its first, and each blob its writer placed, among its
+    /// lines as run-lines, and its end as run-end, as they come. A run whose process is gone with no end said
+    /// ends as stopped.
     fn follow(&self, base: PathBuf) {
         let emit = self.emitting();
         std::thread::spawn(move || {
@@ -715,16 +783,28 @@ impl Server {
                     at += bytes.len() as u64;
                     held.push_str(&String::from_utf8_lossy(&bytes));
                     quiet = 0;
-                    while let Some(cut) = held.find('\n') {
+                    // the lines of one reading go to the page as one event, so that a run saying thousands a second
+                    // leaves the page's event queue open to every other event
+                    let mut lines: Vec<Value> = Vec::new();
+                    let mut ended: Option<Value> = None;
+                    while ended.is_none() {
+                        let Some(cut) = held.find('\n') else { break };
                         let line: String = held.drain(..=cut).collect();
                         let Ok(line) = serde_json::from_str::<Value>(&line) else { continue };
                         if let Some(end) = line.get("end") {
-                            emit("run-end", end.clone());
-                            return;
+                            ended = Some(end.clone());
+                        } else if let Some(start) = line.get("start") {
+                            emit("run-start", start.clone());
+                        } else if let Some(one) = line.get("line").or_else(|| line.get("blob")).or_else(|| line.get("others")) {
+                            lines.push(one.clone());
                         }
-                        if let Some(one) = line.get("line") {
-                            emit("run-line", one.clone());
-                        }
+                    }
+                    if !lines.is_empty() {
+                        emit("run-lines", Value::Array(lines));
+                    }
+                    if let Some(end) = ended {
+                        emit("run-end", end);
+                        return;
                     }
                     continue;
                 }

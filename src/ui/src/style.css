@@ -9797,3 +9797,176 @@ textarea.report-field {
   animation-play-state: paused !important;
   transition: none !important;
 }
+
+/* A protocol run's line in place of the fuse box and the ruler: the pass's course as a rail of nodes
+   the fuse runs through, a dot on the rail for each with its name and its count beneath. The fire
+   walks the rail from node to node as the run reaches them. A node reached is filled and lit, the one
+   under way ringed in fire, one ahead a hollow ring of ash. The ends stand inside the box, their names
+   set in from the edge. Pressing a node shows what was placed there in place of the console. */
+.console .protocol-line {
+  position: relative;
+  flex: none;
+  height: 120px;
+  padding: 0 48px;
+}
+
+/* The fuse's line lies at the reach plus seven tenths of the height inside it, which the height below puts at the
+   circles' middle, and its reach on each side meets the nodes' inset, so the fire crosses each circle's center. */
+.console .protocol-line .fuse {
+  position: absolute;
+  left: 24px;
+  top: 0;
+  width: calc(100% - 48px);
+  height: 99px;
+  margin: 0;
+  z-index: 1;
+}
+
+.console .protocol-nodes {
+  position: absolute;
+  left: 48px;
+  right: 48px;
+  top: 0;
+  height: 120px;
+  z-index: 2;
+}
+
+.console .protocol-node {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  font: 500 11px/1.15 var(--head);
+  letter-spacing: 0.01em;
+}
+
+.console .protocol-node.first {
+  transform: translate(0, -50%);
+}
+
+.console .protocol-node.last {
+  transform: translate(-100%, -50%);
+}
+
+.console .protocol-dot {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--fuse-ash);
+  background: var(--well);
+  box-sizing: border-box;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.console .protocol-node.reached {
+  color: var(--fg);
+}
+
+.console .protocol-node.reached .protocol-dot {
+  border-color: var(--fuse-burn);
+  box-shadow: 0 0 8px var(--fuse-burn);
+}
+
+.console .protocol-node.current {
+  color: var(--fg);
+}
+
+.console .protocol-node.current .protocol-dot {
+  border-color: var(--fuse-fire);
+  box-shadow: 0 0 14px var(--fuse-fire);
+  animation: protocol-breath 1.6s ease-in-out infinite;
+}
+
+.console .protocol-node.failed {
+  color: var(--status-report);
+}
+
+.console .protocol-node.failed .protocol-dot {
+  border-color: var(--status-report);
+  box-shadow: 0 0 10px var(--status-report);
+}
+
+/* The one line said under the line: the step and its round, the time gone, and the errors where there are any. */
+.console .protocol-status {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0 0.6rem;
+  font: 12px var(--head);
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.console .protocol-status .warn {
+  color: var(--status-report);
+}
+
+/* The overview of a protocol run: the line across the middle of the box. */
+.console .protocol-overview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 1rem;
+}
+
+.console .protocol-overview {
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0.6rem 0.6rem;
+}
+
+/* The views of a protocol run as tabs under the console head: the overview and the console. */
+.console .console-tabs {
+  min-height: 1.9rem;
+  background: none;
+  padding: 0 0.3rem;
+}
+
+.console .console-tabs .tab {
+  padding: 0 0.7rem;
+  gap: 0.4rem;
+  border-right: 0;
+  font: 500 12px var(--head);
+}
+
+.console .console-tabs .tab .count {
+  font: 11px var(--code);
+  color: var(--fg-3);
+}
+
+.console .console-tabs .tab[aria-selected="true"] .count {
+  color: var(--fg-2);
+}
+
+.console .protocol-said {
+  position: absolute;
+  right: 0;
+  top: -30px;
+  font: 12px var(--head);
+  color: var(--status-report);
+}
+
+@keyframes protocol-breath {
+  0%,
+  100% {
+    box-shadow: 0 0 6px var(--fuse-fire);
+  }
+  50% {
+    box-shadow: 0 0 14px var(--fuse-fire);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console .protocol-node.current .protocol-dot {
+    animation: none;
+  }
+}

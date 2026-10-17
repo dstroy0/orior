@@ -77,7 +77,7 @@ fn gsm(context: &mut Context) -> Result<i32, String> {
     let mut run = context.started("build/engine/gsm/qry")?;
     run.read(&[files.machine.clone(), table.join("sm_86.gsm"), files.layout.clone(), files.mnemonics.clone()])?;
     let words = ["sm_86".to_string(), text(&files.machine), text(&files.layout), text(&files.mnemonics), text(&writer)];
-    let code = context.said(&run, &gsm_write, &words.iter().map(String::as_str).collect::<Vec<_>>())?;
+    let code = context.teed(&run, "gsm_write", &gsm_write, &words.iter().map(String::as_str).collect::<Vec<_>>())?;
     context.ended(run)?;
     Ok(code)
 }

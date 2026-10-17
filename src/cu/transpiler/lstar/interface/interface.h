@@ -82,6 +82,24 @@ extern "C"
     // error raised in module ENGINE_MODULE_INTERFACE
     long interface_probe_run(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error);
 
+    // The launch queue, shared by every process on the host that starts a child through the interface: at most
+    // INTERFACE_LAUNCHES_AT_ONCE children run at once, and INTERFACE_LAUNCH_SPACING_MILLISECONDS pass between one
+    // start and the next. interface_probe_run takes a place before it starts a probe, says the start is made once it
+    // is, which holds the next start off for the spacing, and gives the place back when the probe has ended. A
+    // program that starts a child of its own, the compilers the query crate starts, paces itself by the same two
+    // numbers
+#define INTERFACE_LAUNCHES_AT_ONCE 4u
+#define INTERFACE_LAUNCH_SPACING_MILLISECONDS 50u
+
+    // a place in the queue taken, and the start under way: waits until both are free
+    void interface_launch_taken(void);
+
+    // the start made: the spacing passes, and the next start may go
+    void interface_launch_started(void);
+
+    // the place given back, the child having ended or never started
+    void interface_launch_given(void);
+
     // the ending's name, and the fault's
     const char *interface_ending_name(InterfaceEnding ending);
 

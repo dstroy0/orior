@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// line.c: the line: a gate hold on an unknown operation key read, the conference a fault or refusal calls, the line a panic opens ruled on and closed, the halt, and what the teacher said
+// line.c: the line: a gate hold on an unknown operation key read, the conference a fault or refusal calls, the line a
+// panic opens ruled on and closed, the halt, and what the teacher said
 #include "run_channel_internal.h"
 
 int run_channel_key_held(const char *refused)
 {
     return strncmp(refused, RUN_GATE_KEY_RULE, sizeof(RUN_GATE_KEY_RULE) - 1u) == 0;
+}
+
+int run_channel_vendor_held(const char *refused)
+{
+    return strncmp(refused, RUN_GATE_VENDOR_RULE, sizeof(RUN_GATE_VENDOR_RULE) - 1u) == 0;
 }
 
 RunChannel s_channel;
@@ -17,11 +23,19 @@ char s_cases_text[RUN_CASES_TEXT];
 // the panic the teacher has handed its account of: it speaks once for each
 static unsigned long long s_panic_answered = 0ull;
 
+// the sequence of the panic whose ruling stopped the run, 0 while no panic has been ruled on
+static unsigned long long s_stopped_on = 0ull;
+
+int run_channel_panic_ruled(void)
+{
+    return s_stopped_on != 0ull;
+}
+
 // The conference a question the part refused calls (QRY_CONFERENCE_CALL, overseer.h): the teacher's account of it, the
 // question as it was put, how it came back and whether a panic is on the line, then every account the carrier said
 // after the refusal in its answer, `said` of `said_size` bytes, as the carrier said it
 void run_channel_conference_called(const RunQuestion *asked, const char *how, const unsigned char *said,
-                                          unsigned long long said_size)
+                                   unsigned long long said_size)
 {
     KqrIdentity numbered;
     char identity[96];
@@ -69,9 +83,11 @@ unsigned long long run_channel_on_line(void)
 
 // The conference a refusal calls, held at once where the refusal put a panic on the line (overseer_convened): where
 // every cause the parties read is the question's own, its instruction, an address it reached or a register it named,
-// whichever clause each names, the line closes, R holding the question off the part for good, and the run goes on
-// in a fresh carrier; a launch that did not return read by any party, or no cause read at all, leaves the line open,
-// and the run is halted. The ruling is traced
+// whichever clause each names, the line closes, R holding the question off the part for good; a launch that did not
+// return read by any party, or no cause read at all, leaves the line open. A clean refusal, the carrier ended clean
+// and the cause ruled the question's own instruction, an encoding the part refused as P9 reads it, stops nothing: the
+// round goes on past it. Every other ruling stops the run: no question is carried after its panic
+// (run_channel_panic_ruled). The ruling is traced
 void run_channel_line_ruled(const RunQuestion *asked)
 {
     const unsigned long long panic = run_channel_on_line();
@@ -85,30 +101,54 @@ void run_channel_line_ruled(const RunQuestion *asked)
     kqr_identity_text(&numbered, identity, sizeof(identity));
     OverseerRuling ruling;
     char said[OVERSEER_RULING_LONGEST + 128u];
-    if (!overseer_convened(s_channel.buffer, identity, 0, &ruling))
+    const int heard = overseer_convened(s_channel.buffer, identity, 0, &ruling);
+    const int clean_refusal = heard && ruling.own && (ruling.cause == (unsigned int)OVERSEER_CAUSE_INSTRUCTION) &&
+                              (s_channel.carrier_clean != 0);
+    if (!clean_refusal)
     {
-        snprintf(said, sizeof(said), "the line stays open: the conference heard no account");
+        s_stopped_on = panic;
+    }
+    if (!heard)
+    {
+        snprintf(said, sizeof(said), "the line stays open, and the run stops: the conference heard no account");
+    }
+    else if (clean_refusal)
+    {
+        qry_line_closed(s_channel.buffer, panic);
+        snprintf(said, sizeof(said), "the line closed on the ruling, a clean refusal, and the round goes on: %s",
+                 ruling.said);
     }
     else if (ruling.own)
     {
         qry_line_closed(s_channel.buffer, panic);
-        snprintf(said, sizeof(said), "the line closed on the ruling: %s", ruling.said);
+        snprintf(said, sizeof(said), "the line closed on the ruling, and the run stops: %s", ruling.said);
     }
     else
     {
-        snprintf(said, sizeof(said), "the line stays open on the ruling: %s", ruling.said);
+        snprintf(said, sizeof(said), "the line stays open on the ruling, and the run stops: %s", ruling.said);
     }
     run_channel_check_traced(asked, said);
 }
 
-// the questions of `asked` from `first` to `count` answered as held by the line: no question is put after a panic
+// the questions of `asked` from `first` to `count` answered as held by the line: no question is put after a panic,
+// while the line is open and once its panic has been ruled on
 void run_channel_halted(RunQuestion *const *asked, unsigned int first, unsigned int count)
 {
+    const unsigned long long on_line = run_channel_on_line();
     for (unsigned int at = first; at < count; at += 1u)
     {
         asked[at]->outcome = RUN_NO_CHANNEL;
-        snprintf(asked[at]->refused, sizeof(asked[at]->refused),
-                 "the run is halted: a panic is on the line at sequence %llu", run_channel_on_line());
+        if (s_stopped_on != 0ull)
+        {
+            snprintf(asked[at]->refused, sizeof(asked[at]->refused),
+                     "the run stopped: the panic at sequence %llu was ruled on, and no question is carried after it",
+                     s_stopped_on);
+        }
+        else
+        {
+            snprintf(asked[at]->refused, sizeof(asked[at]->refused),
+                     "the run is halted: a panic is on the line at sequence %llu", on_line);
+        }
     }
 }
 
@@ -116,7 +156,7 @@ void run_channel_halted(RunQuestion *const *asked, unsigned int first, unsigned 
 // carrier, its count of questions and its sequence, how the carrier ended, how many it answered before it, the line of
 // the question it was carrying, and that no question is put after this
 void run_channel_teacher_said(unsigned int questions, unsigned long long round, const InterfaceAnswer *answer,
-                                     unsigned int answered, const char *carrying)
+                              unsigned int answered, const char *carrying)
 {
     const unsigned long long panic = run_channel_on_line();
     if ((panic == 0ull) || (panic == s_panic_answered))

@@ -62,8 +62,8 @@
 //
 // After each launch the part's own fault telemetry is read, the Xid critical errors the driver's management layer
 // stamps and, where the system keeps a log of them, every error the display driver writes to the System log, each Xid
-// with its text (cubin_run_telemetry_open, cubin_run_telemetry_faulted), under cubin_safe's rule 7. A launch that makes the
-// part stamp one, or one the driver names a context-corrupting fault itself, has faulted the part: it is answered
+// with its text (cubin_run_telemetry_open, cubin_run_telemetry_faulted), under cubin_safe's rule 7. A launch that makes
+// the part stamp one, or one the driver names a context-corrupting fault itself, has faulted the part: it is answered
 // `refused`, and nothing is launched after it in the process. This catches an out-of-range register, which faults in
 // microseconds and so never trips rule 6's bound, before its fault storm reaches the system's watchdog.
 //
@@ -190,6 +190,10 @@ int main(int count, char **words)
     }
     // the gate reads every instruction of every question against the forms, and the forms' places are found once
     sass_encoding_places_hold(&s_machine);
+    // the vendor's instruction set for the part, where the tables step has pulled it, for the gate's rule 13
+    cubin_safe_tables_read(s_machine.part);
+    // the clock the part named beside the machine file, where it names one and the listener answers
+    cubin_run_clock_open(words[1]);
     const CubinRunShape unshaped = {CUBIN_RUN_THREADS, 1u};
     if (!listed)
     {

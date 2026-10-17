@@ -94,6 +94,8 @@ typedef struct
     unsigned long long dumped_first;
     unsigned long long dumped_last;
     unsigned long long dumped_all;
+    // the blobs the writer found in a ring whose bytes did not hold to the CRC their member took, and left there
+    unsigned long long corrupt;
     unsigned long long index_full;
     unsigned long long writer_process;
     _Atomic unsigned long long spans;
@@ -132,13 +134,16 @@ typedef struct
 } QryMember;
 
 // A blob in a member's ring: its whole bytes from its head through its bytes, a count of eight; the time it was
-// handed; its bytes' count; its name's length; and its marks. Its name follows, then its bytes. Where a blob would not
-// fit before the ring's end, the stretch it leaves there is one whole word, its count, and no blob
+// handed; its bytes' count; the CRC-64/XZ of its bytes, taken by the member as it handed them, which the writer holds
+// the bytes to as it moves them and the row carries; its name's length; and its marks. Its name follows, then its
+// bytes. Where a blob would not fit before the ring's end, the stretch it leaves there is one whole word, its count,
+// and no blob
 typedef struct
 {
     unsigned long long whole;
     unsigned long long nanoseconds;
     unsigned long long size;
+    unsigned long long crc;
     unsigned int name_length;
     unsigned int marks;
 } QryRingBlob;
@@ -148,7 +153,7 @@ typedef struct
 
 _Static_assert(sizeof(QryMember) == 64u, "QryMember must be 64 bytes, a member's head on a line of its own");
 
-_Static_assert(sizeof(QryRingBlob) == 32u, "QryRingBlob must be the 32 bytes a ring's blob opens with");
+_Static_assert(sizeof(QryRingBlob) == 40u, "QryRingBlob must be the 40 bytes a ring's blob opens with");
 
 _Static_assert((QRY_MEMBERS != 0u) && (QRY_MEMBER_BYTES >= 65536ull) &&
                    ((QRY_MEMBER_BYTES & (QRY_MEMBER_BYTES - 1ull)) == 0ull) && ((QRY_MEMBER_BYTES % 65536ull) == 0ull),
@@ -183,6 +188,8 @@ struct QryBuffer
     atomic_flag adding;
     int last_ringed;
     unsigned long long last_placed;
+    // where each blob the writer places is said as it writes the run, its output; NULL in every other process
+    FILE *saying;
 #if defined(_WIN32)
     HANDLE section;
     HANDLE lock;
@@ -309,6 +316,7 @@ unsigned long long qry_milliseconds(void);
 void qry_sleep_millisecond(void);
 int qry_name_taken(const char *name, size_t *length);
 void qry_names(const char *path, char *memory, char *lock, char *wake, size_t room);
+
 void qry_lock(QryBuffer *buffer);
 void qry_unlock(QryBuffer *buffer);
 void qry_wake(QryBuffer *buffer);
@@ -319,11 +327,12 @@ int qry_rows_committed(QryBuffer *buffer, unsigned long long rows);
 int qry_blob_read(const unsigned char *data, unsigned long long end, unsigned long long at, QryBlob *blob);
 unsigned long long qry_aligned(unsigned long long count);
 unsigned long long qry_index_find(QryBuffer *buffer, const char *name, size_t length);
-unsigned long long qry_appended(QryBuffer *buffer, const char *name, size_t length, const void *bytes, unsigned long long size, unsigned int priority, unsigned int marks, unsigned long long room, unsigned long long handed_at, int *placed);
+unsigned long long qry_appended(QryBuffer *buffer, const char *name, size_t length, const void *bytes, unsigned long long size, unsigned long long crc, unsigned int priority, unsigned int marks, unsigned long long room, unsigned long long handed_at, int *placed);
 void qry_dumped_said(QryBuffer *buffer);
 int qry_critical_waited(QryBuffer *buffer, unsigned long long sequence);
 int qry_file_placed(const char *name, size_t length, char *path, size_t room);
-unsigned long long qry_placed(QryBuffer *buffer, const char *name, size_t length, const void *bytes, unsigned long long size, unsigned int priority, unsigned int marks, unsigned long long handed_at, int *placed);
+unsigned long long qry_placed(QryBuffer *buffer, const char *name, size_t length, const void *bytes, unsigned long long size, unsigned long long crc, unsigned int priority, unsigned int marks, unsigned long long handed_at, int *placed);
+void qry_blob_said(QryBuffer *buffer, unsigned long long sequence, unsigned long long nanoseconds, unsigned int priority, unsigned int member, const char *name, size_t length, unsigned long long size);
 void qry_held_kept(QryBuffer *buffer, int kept);
 int qry_members_moved(QryBuffer *buffer);
 int qry_members_empty(QryBuffer *buffer);

@@ -1185,7 +1185,10 @@ fn open(launch: Launch) {
             let handle = app.handle().clone();
             let server = app.state::<App>().server.clone();
             server.tell_to(Arc::new(move |event, body| {
-                let _ = handle.emit(event, body);
+                // an event the page could not be told is said on the window's error stream, with its size
+                if let Err(error) = handle.emit(event, &body) {
+                    eprintln!("the page could not be told {event} of {} bytes: {error}", body.to_string().len());
+                }
             }));
             // The door of the comms layer is open from the start, for every process the container
             // starts to join.

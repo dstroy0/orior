@@ -81,9 +81,9 @@ unsigned int khw_kernel_forms_kept(void)
     return kept;
 }
 
-// the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place,
-// or two, its first bit and its last, where the line holds no place, every run then holding none. 1, or 0 where the
-// words are neither
+// the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place
+// with its kind's letter after it, a register where none; or two, its first bit and its last, where the line holds no
+// place, every run then holding none. 1, or 0 where the words are neither
 static int khw_runs_read(KhwForm *held, const char *text)
 {
     unsigned int words = 0u;
@@ -105,6 +105,7 @@ static int khw_runs_read(KhwForm *held, const char *text)
         int step = 0;
         char place[16];
         held->place[run] = SASS_RUN_NO_PLACE;
+        held->kind[run] = KHW_KIND_REGISTER;
         if (each == 2u)
         {
             if (sscanf(rest, "%u %u %n", &held->first[run], &held->last[run], &step) != 2)
@@ -118,8 +119,14 @@ static int khw_runs_read(KhwForm *held, const char *text)
             {
                 return 0;
             }
-            held->place[run] = (strcmp(place, SASS_RUN_NO_PLACE_TEXT) == 0) ? SASS_RUN_NO_PLACE
-                                                                             : (unsigned int)strtoul(place, NULL, 10);
+            // the none mark, with its kind's letter after it where the run is no register's, or the place with its
+            // letter after it; the letter's place among the four is its kind, and no letter is a register's
+            char *end = NULL;
+            const int none = (strncmp(place, SASS_RUN_NO_PLACE_TEXT, strlen(SASS_RUN_NO_PLACE_TEXT)) == 0);
+            held->place[run] = none ? SASS_RUN_NO_PLACE : (unsigned int)strtoul(place, &end, 10);
+            end = none ? (place + strlen(SASS_RUN_NO_PLACE_TEXT)) : end;
+            const char *const letter = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_LETTERS, *end) : NULL;
+            held->kind[run] = (letter != NULL) ? (unsigned int)(letter - KHW_KIND_LETTERS) : KHW_KIND_REGISTER;
         }
         rest += step;
     }
@@ -167,6 +174,14 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
         if ((held.runs > SASS_MACHINE_RUNS) || !khw_runs_read(&held, line + at))
         {
             continue;
+        }
+        // a frame relation carries its reading after a second dot, `frame.parameter.10`: the relation is named without
+        // it and the reading kept apart
+        char *const reading = (strncmp(held.relation, "frame.", 6u) == 0) ? strchr(held.relation + 6, '.') : NULL;
+        if (reading != NULL)
+        {
+            held.reading = strtoull(reading + 1, NULL, 16);
+            *reading = '\0';
         }
         form[read] = held;
         read += 1u;

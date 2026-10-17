@@ -1,0 +1,37 @@
+# The frame forms, each the schema's form a frame relation's form is written as (The frame forms asked, Open 6.4):
+# the relation as the vendor's writer hands it back, the form of the schema's ruleset it is written as, and the place
+# of the relation's tuple each of that form's parameters takes, in the parameters' order. A relation two rows map,
+# exit, is written as the row whose places are as many as the form's text holds: return where the text holds no
+# guard, exit_if where it does. The ladder's predicate relations are written the same way, the schema's test words,
+# a form that reads the words signed under its relation with `.signed` after it; the answer's place is the
+# predicate the test writes, `where`, and the words' places are `left` and `right`. A relation's mirror row writes the
+# test of the other order from its form, its words' places changed over: `a <= b` is `b >= a`, and `a < b` is `b > a`.
+# A test two rows write is one line, from the first of its rows a form is answered for.
+relation	form	places
+ladder.same	test_word_eq	2 0 1
+ladder.apart	test_word_ne	2 0 1
+ladder.less	test_word_lt	2 0 1
+ladder.less.signed	test_signed_word_lt	2 0 1
+ladder.at_most	test_word_le	2 0 1
+ladder.at_most.signed	test_signed_word_le	2 0 1
+ladder.more	test_word_gt	2 0 1
+ladder.more.signed	test_signed_word_gt	2 0 1
+ladder.at_least	test_word_ge	2 0 1
+ladder.at_least.signed	test_signed_word_ge	2 0 1
+ladder.more	test_word_lt	2 1 0
+ladder.more.signed	test_signed_word_lt	2 1 0
+ladder.at_least	test_word_le	2 1 0
+ladder.at_least.signed	test_signed_word_le	2 1 0
+ladder.less	test_word_gt	2 1 0
+ladder.less.signed	test_signed_word_gt	2 1 0
+ladder.at_most	test_word_ge	2 1 0
+ladder.at_most.signed	test_signed_word_ge	2 1 0
+frame.lane	thread_idx_x	0
+frame.block	block_idx_x	0
+frame.dim	block_dim_x	0
+frame.parameter	parameter_load_word	1 0
+frame.number	word_set	1 0
+frame.load	global_load_constant_word	2 0 1
+frame.store	record_store_word	0 1
+frame.exit	return
+frame.exit	exit_if	0

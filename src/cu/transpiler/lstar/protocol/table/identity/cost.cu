@@ -77,6 +77,24 @@ static int operator_link(const Ruleset *sass, Carriers &carriers, unsigned long 
     return 0;
 }
 
+// `placed` with each place `{n}` filled as the relation's tuple stands: `{0}` the first word, `{1}` the second and `{2}` the
+// answer, the register written `to`
+static std::string placed_filled(const std::string &placed, const std::string &to, const std::string &left,
+                                 const std::string &right)
+{
+    std::string text = placed;
+    const std::pair<const char *, const std::string *> places[3] = {{"{0}", &left}, {"{1}", &right}, {"{2}", &to}};
+    for (const auto &place : places)
+    {
+        for (size_t at = text.find(place.first); at != std::string::npos; at = text.find(place.first, at))
+        {
+            text.replace(at, 3u, *place.second);
+            at += place.second->size();
+        }
+    }
+    return text;
+}
+
 // The arrangements of a part's .kdm costed on the part (P6, the rank). An operator's arrangements are put at one link
 // of a carrier of ours that holds the word they produce (word_web.h): the first link, in the order the pair puts
 // links, whose result a later link reads, that carries the cases, and whose operands and result are registers. The
@@ -92,9 +110,17 @@ static int operator_link(const Ruleset *sass, Carriers &carriers, unsigned long 
 // asked, and a question the record holds is never put again. An arrangement the part answers apart or refuses keeps
 // no cost. Its cost is the least difference any case read, less the least its link's clock read alone, over
 // COST_REPEATS, in the part's clock count: written in its row of the .kdm with 1 run, the one reading.
-// the run's blob cost.txt holds every arrangement with its link and what came of it
+// the run's blob cost.txt holds every arrangement with its link and what came of it.
+// The machine file's forms are costed the same way where `forms` names the blob the vendor's writer placed them in
+// (khw_machine_write, krs): a line `<relation> <signed> <low> <high> <text>`, the text with each operand of the
+// relation's tuple as its place. A form with the three places of a two-word relation is written at the first link any
+// operator's arrangements are put at, COST_REPEATS times over its own result between the clock reads, and asked its
+// clock alone; no host holds it, since the protocol classified it. Its cost is the least difference any case read less
+// the link's clock read alone, and its spread the most difference less the least, both in the part's clock count over
+// COST_REPEATS: written as the part's .ksc keeps a cost, `run answers <least> cost <low> <high> <spread>`, every cost
+// row the file held before let go, since one reading stands for every form
 int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                         const char *kdm, const char *machine_path, const char *const *carrier)
+                         const char *kdm, const char *machine_path, const char *forms, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
     const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
@@ -112,6 +138,49 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     std::vector<CostRow> rows;
     std::map<std::string, std::vector<size_t>> operators;
     kdm_rows_read(kdm, &lines, &rows, &operators);
+    // the machine file's forms a cost is asked of, as the vendor's writer placed them
+    struct CostForm
+    {
+        std::string relation;
+        unsigned long long low;
+        unsigned long long high;
+        std::string placed;
+        unsigned long long least;
+        unsigned long long most;
+        std::string verdict;
+    };
+    std::vector<CostForm> costed_forms;
+    if (forms != NULL)
+    {
+        unsigned char *bytes = NULL;
+        unsigned long long size = 0ull;
+        unsigned long long at = 0ull;
+        if (qry_file_read(qry_run(), forms, &bytes, &size))
+        {
+            char line[1024];
+            while (qry_line_next(bytes, size, &at, line, sizeof(line)))
+            {
+                CostForm form = {std::string(), 0ull, 0ull, std::string(), ULLONG_MAX, 0ull, std::string()};
+                char relation[64];
+                int signed_read = 0;
+                int placed_at = 0;
+                if (sscanf(line, "%63s %d %llx %llx %n", relation, &signed_read, &form.low, &form.high, &placed_at) < 4)
+                {
+                    continue;
+                }
+                form.relation = relation;
+                form.placed = line + placed_at;
+                form.placed.erase(form.placed.find_last_not_of("\r\n") + 1u);
+                const int two_words = (form.placed.find("{0}") != std::string::npos) &&
+                                      (form.placed.find("{1}") != std::string::npos) &&
+                                      (form.placed.find("{2}") != std::string::npos) &&
+                                      (form.placed.find("{3}") == std::string::npos);
+                form.verdict = two_words ? std::string() : std::string("no two-word places");
+                costed_forms.push_back(form);
+            }
+            free(bytes);
+        }
+    }
     if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
@@ -143,10 +212,16 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         size_t row;
         int held_to_host;
         std::string chain;
+        // the machine file's form the question reads the clock over, -1 where it is an arrangement's or a link's own
+        long form;
     };
     std::vector<Planned> planned;
     std::vector<unsigned long long> clock_least;
     std::map<size_t, size_t> row_link;
+    // the link the machine file's forms are put at: the first any operator's arrangements are, and its clock alone
+    OperatorLink forms_link;
+    int forms_linked = 0;
+    size_t forms_clock_at = 0u;
     const auto own_left = [&rows](const std::vector<size_t> &own, const std::string &verdict) {
         for (const size_t at : own)
         {
@@ -197,7 +272,13 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         const std::string past = chain.second.substr((size_t)(found.position(0) + found.length(0)));
         const size_t clock_at = clock_least.size();
         clock_least.push_back(ULLONG_MAX);
-        planned.push_back(Planned{assembled(clock_cut), mark, rows.size() + clock_at, 0, chain.first});
+        planned.push_back(Planned{assembled(clock_cut), mark, rows.size() + clock_at, 0, chain.first, -1});
+        if (!forms_linked)
+        {
+            forms_link = operator_at;
+            forms_clock_at = clock_at;
+            forms_linked = 1;
+        }
         // each arrangement written at the link, and its clock read over it written COST_REPEATS times, each time
         // reading the last time's result as its first operand
         for (const size_t at : own)
@@ -235,10 +316,50 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
                 row.verdict = "unassembled";
                 continue;
             }
-            planned.push_back(Planned{code, mark, at, 1, chain.first});
-            planned.push_back(Planned{clocked, mark, at, 0, chain.first});
+            planned.push_back(Planned{code, mark, at, 1, chain.first, -1});
+            planned.push_back(Planned{clocked, mark, at, 0, chain.first, -1});
             row_link[at] = clock_at;
         }
+    }
+    // each form of the machine file written at the forms' link, its clock read over it written COST_REPEATS times,
+    // each time reading the last time's result as its first operand
+    for (size_t at = 0u; at < costed_forms.size(); at += 1u)
+    {
+        CostForm &form = costed_forms[at];
+        if (!form.verdict.empty())
+        {
+            continue;
+        }
+        if (!forms_linked)
+        {
+            form.verdict = "no_link";
+            continue;
+        }
+        const auto &chain = *forms_link.link.chain;
+        const auto &flow = carriers.flows[chain.first];
+        const std::string start = "R" + std::to_string(forms_link.base + 1u);
+        const std::string end = "R" + std::to_string(forms_link.base + 2u);
+        const std::string last = "R" + std::to_string(forms_link.base + 3u);
+        const unsigned int mark = forms_link.base + 4u + PRECEPT_NODES;
+        std::string block = "\tCS2R.32 \t" + start + ", SR_CLOCKLO;\n";
+        for (unsigned int again = 0u; again < COST_REPEATS; again += 1u)
+        {
+            block += "\t" +
+                     placed_filled(form.placed, last, (again == 0u) ? forms_link.operands[0] : last,
+                                   forms_link.operands[1]) +
+                     ";\n";
+        }
+        block += "\tCS2R.32 \t" + end + ", SR_CLOCKLO;\n" +
+                 arrangement_written(sass, {{PRECEPT_SUB, PRECEPT_LEFT, PRECEPT_RIGHT}}, {end, start}, "", end,
+                                     forms_link.base + 4u);
+        std::vector<unsigned char> clocked = assembled(carrier_cut_at_read(
+            flow.first, flow.second, chain.second, forms_link.link_at, forms_link.form_lines, end, block));
+        if (clocked.empty())
+        {
+            form.verdict = "unassembled";
+            continue;
+        }
+        planned.push_back(Planned{clocked, mark, 0u, 0, chain.first, (long)at});
     }
     // every question in one round, in an order drawn from the seed
     std::seed_seq order_seed{(unsigned int)seed};
@@ -251,6 +372,14 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         round.push_back(each.code);
         mark = std::max(mark, each.mark);
     }
+    // the plan handed as the teacher hands one, for the panel: the questions of the one round
+    char plan[64];
+    const int plan_length = snprintf(plan, sizeof(plan), "cost %zu\n", round.size());
+    if ((plan_length > 0) && (qry_run() != NULL))
+    {
+        qry_hand(qry_run(), "plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
+    }
+    printf("  plan: cost %zu\n", round.size());
     printf("  %zu questions written, put in one round\n", round.size());
     std::vector<RunQuestion> asked;
     cuts_asked(round, std::vector<int>(round.size(), 0), std::vector<unsigned int>(round.size(), RUN_SLOT_NONE),
@@ -260,6 +389,22 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     {
         const Planned &each = planned[at];
         const RunQuestion &answer = asked[at];
+        if (each.form >= 0)
+        {
+            CostForm &form = costed_forms[(size_t)each.form];
+            if (answer.outcome != RUN_ANSWERED)
+            {
+                form.verdict = std::string("refused ") + answer.refused;
+                continue;
+            }
+            for (unsigned int place = 0u; place < question->cases; place += 1u)
+            {
+                const unsigned long long read = answer.answered[place] & 0xffffffffull;
+                form.least = std::min(form.least, read);
+                form.most = std::max(form.most, read);
+            }
+            continue;
+        }
         if (each.held_to_host)
         {
             CostRow &row = rows[each.row];
@@ -320,6 +465,31 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
                   row.least, COST_REPEATS, clock, row.fields[3].c_str());
         costed += 1u;
     }
+    // each form's cost and spread in the part's clock count, every cost row the .ksc held let go for them
+    unsigned int forms_costed = 0u;
+    std::vector<std::string> cost_rows;
+    const unsigned long long clock_alone = forms_linked ? clock_least[forms_clock_at] : ULLONG_MAX;
+    for (CostForm &form : costed_forms)
+    {
+        if (!form.verdict.empty() || (form.least == ULLONG_MAX) || (clock_alone == ULLONG_MAX))
+        {
+            run_print(&table, "  %s: %s\n", form.placed.c_str(), form.verdict.empty() ? "untimed" : form.verdict.c_str());
+            continue;
+        }
+        const unsigned long long least = (form.least > clock_alone) ? (form.least - clock_alone) : 0ull;
+        const unsigned long long spread = form.most - form.least;
+        char row[192];
+        snprintf(row, sizeof(row), "run answers %016llx cost %016llx %016llx %016llx", least, form.low, form.high,
+                 spread);
+        cost_rows.push_back(row);
+        run_print(&table, "  %s: %llu clocks over %u, the clock alone %llu, the spread %llu\n", form.placed.c_str(),
+                  form.least, COST_REPEATS, clock_alone, spread);
+        forms_costed += 1u;
+    }
+    if (!cost_rows.empty() && !ksc_answers_write(ksc, "cost", cost_rows))
+    {
+        printf("klq_identity cost: the forms' costs could not be written to %s\n", ksc);
+    }
     if (!run_closed(&table))
     {
         printf("klq_identity cost: %s/cost.txt could not be written\n", folder.c_str());
@@ -354,8 +524,9 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         printf("klq_identity cost: %s could not be written\n", kdm);
         return 1;
     }
-    printf("klq_identity cost: %zu arrangements, %u costed over %llu asks and written to %s", rows.size(), costed, asks,
-           kdm);
+    printf("klq_identity cost: %zu arrangements, %u costed over %llu asks and written to %s; %zu forms, %u costed in "
+           "the part's clock and written to %s",
+           rows.size(), costed, asks, kdm, costed_forms.size(), forms_costed, ksc);
     for (const auto &each : left)
     {
         printf(", %u %s", each.second, each.first.c_str());

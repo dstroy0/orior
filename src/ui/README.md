@@ -23,6 +23,16 @@ The app reads all of it from the tree each time:
 
 A job's description is the opening comment or docstring of its own file.
 
+## The protocol panel
+
+The protocol is one job, the course, which runs the passes in order and is the Protocol menu's one entry, the Protocol button of the strip and the one job the Run view lists under protocol; its other commands, a query, a learn pass, a cross, a write or the pairs, are the command line's. A protocol job launched either way shows its run as it goes in the protocol panel, in place of a console tee. The panel takes the run as its writer says it (the table's run section): the writer says each blob it places on its own output, which a job the window starts hands it, and the runner takes each such line as a blob of the run, in the order the writer placed them: each blob's sequence, time, priority, member, size and name. The panel is the run's telemetry, for an engineer tuning the protocol.
+
+The panel keeps the job's option fields at the top as the run started with them. Under them the console box holds the run as tabs: the overview and the console. The overview is the run's line: a circle for each step holding its name, the fuse between them burnt behind the step under way and afire at it, part way to the next by how far the step's own pass has come, taken from the blobs the writer says as each round's questions and answers are placed, and a step the course stopped at in the error's color. The course's steps are read off its console lines, `course: <n> steps: ...` before the first and `course: step <k> of <n>: <name>` at each; a pass run alone shows its own steps, Tools, Run, Carried in, Plan, its rounds, Written and Leave. Under the line one line of words says the step and its round, the answers of the questions, the time gone, and the questions withheld, refused and faulted and the panics where there are any, counted off the console and the run's buffer.
+
+A run whose writer says no blob leaves the panel to the console.
+
+Checks: the app's harness holding that the line's nodes are reached from a recorded run's blobs, that a plan of many rounds is one stretch, and that a plan read late counts the earlier rounds as rounds; and `orior protocol learn dry 1 --leave none` as the end-to-end run with nothing launched.
+
 ## Precepts
 
 1. Never cause the user friction: a snappy response, and the user does what they need to while we background our processes.
@@ -43,9 +53,11 @@ A job's description is the opening comment or docstring of its own file.
 cargo run --manifest-path src/ui/test/Cargo.toml -- [--only TEXT] [--monitor N]
 ```
 
-The harness starts the servers the tests reach, each a Docker container of its own on this
-machine's loopback: PostgreSQL, MySQL, MariaDB, CUPS with three printers, and an ssh server for
-tunnels. Without Docker the tests that reach them do not run, and the report names them. It runs
+The harness starts the servers the run's tests reach, read from the tests' text, each a Docker
+container of its own on this machine's loopback: PostgreSQL, MySQL, MariaDB, CUPS with three
+printers, and an ssh server for tunnels. A server no test of the run reaches is not started, and
+the ones started are taken away as the run ends. Without Docker the tests that reach them do not
+run, and the report names them. It runs
 each crate's tests, then the command line's crate's tests again in Debian, Ubuntu, Fedora, Alpine
 and Arch Linux and in Debian on aarch64, each a Docker image of `test/systems/`; `--no-systems`
 leaves those out. A Mac's system and Windows on Arm run only on machines of their own, and the
@@ -71,20 +83,24 @@ app, beside CodeQL and SonarQube Cloud.
 It needs Rust 1.77 or later to build. Every line of the page is in `src/`, written for this tree,
 and the window loads those files as they are. None of the page comes from outside the tree.
 
+Every cargo build of the tree runs from the top of the tree and lands in `build/cargo`, the
+window's with it: nothing is built from inside `src/ui/src-tauri`, and no `target` folder is made
+there.
+
 ```
-cd src/ui/src-tauri
-cargo run
+cargo run --release --manifest-path src/ui/src-tauri/Cargo.toml
 ```
 
-The installers come from the Tauri command, which cargo installs once:
+The program is `build/cargo/release/orior`. The installers come from the Tauri command, which cargo
+installs once and which finds `src-tauri` under the folder it is run in:
 
 ```
 cargo install tauri-cli --version "^2" --locked
-cd src/ui/src-tauri
+cd src/ui
 cargo tauri build
 ```
 
-They land under `src-tauri/target/release/bundle/`, for the platform the build runs on. Each
+They land under `build/cargo/release/bundle/`, for the platform the build runs on. Each
 published release carries them for Windows, macOS and Linux, built by `.github/workflows/app.yml`.
 Without a clone, `cargo install --git https://github.com/dstroy0/orior orior-ui --locked` builds and
 installs the program `orior`. A plain cargo build puts the page inside the program, as the installers

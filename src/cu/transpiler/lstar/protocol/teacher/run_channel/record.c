@@ -34,8 +34,8 @@ KqrRecord s_record;
 char s_record_path[1024];
 
 // 1 where R holds an answer to the untimed question `asked`, which is then answered from it: answers with the
-// word of every case, and illegal or censored as held off the part, as R keeps them. An ask that timed out is no
-// answer
+// word of every case, illegal as held off the part, and censored as held where the vendor's reader held it, as R
+// keeps them. An ask that timed out is no answer
 int run_channel_recorded(RunQuestion *asked)
 {
     static KqrAsk s_held;
@@ -45,10 +45,11 @@ int run_channel_recorded(RunQuestion *asked)
         return 0;
     }
     run_channel_identity(asked, &identity);
-    // an ask the gate held for an unknown key is open as a timed-out one is: the part never saw it, and a conference
-    // may admit it
+    // an ask the gate held under a rule of its own is open as a timed-out one is: the part never saw it, the gate
+    // reads it again as its rules stand, and one held for an unknown key a conference may admit. The vendor's verdict
+    // on an encoding stands, and an ask it held stays held
     if (!kqr_find(&s_record, &identity, &s_held) || (s_held.answer == KQR_TIMED_OUT) ||
-        ((s_held.answer == KQR_CENSORED) && run_channel_key_held(s_held.refusal)))
+        ((s_held.answer == KQR_CENSORED) && !run_channel_vendor_held(s_held.refusal)))
     {
         return 0;
     }

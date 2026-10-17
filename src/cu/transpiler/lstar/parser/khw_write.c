@@ -28,8 +28,8 @@
 //                  (P9), and the runs of adjacent bits whose turning changes the answer kept. A run set to the number
 //                  of each of the two registers the kernel left a case word in answers two different words where it
 //                  carries a register, and one word where it does not: an operand's run answers two words and a
-//                  modifier's run one. The run whose setting leaves the answer at the case's second word is where the form
-//                  writes its result. A run that answers the relation at one register and the relation over that
+//                  modifier's run one. The run whose setting leaves the answer at the case's second word is where the
+//                  form writes its result. A run that answers the relation at one register and the relation over that
 //                  register's word twice at the other reads that word. Each run keeps its place in the relation's
 //                  tuple, the words in their order and then the answer, as 1,1 -> 2 holds them, and a run neither
 //                  test reads keeps none.
@@ -70,8 +70,9 @@ int main(int count, char **word)
     // emitted for the vendor's disassembler, and the blob of the run's buffer holding the forms a prior run learned to
     // seed them from, in place of the learn loop (khw_enumerate). The split's passes over the working set: [--discover]
     // widens it a round and keeps what it finds with its fields unasked; [--turns] asks the turns of what a discover
-    // left; [--registers] asks the register-runs the turns found; [--costs] times every classified form (P6) and keeps
-    // its least and spread in the part's .ksc. A cross-check reads each round's questions before it is carried
+    // left; [--registers] asks the register-runs the turns found; [--costs] times every form the machine file names on
+    // the timer register (P6) and keeps its cost and spread in the part's .ksc. A cross-check reads each round's
+    // questions before it is carried
     // (run_channel.h), and no form's turns or register-runs reach the part before the vendor has read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
@@ -205,17 +206,25 @@ int main(int count, char **word)
             return 1;
         }
         s_slot = slot;
-        s_names = khw_forms_read(KHW_WORK_NAME);
+        // the working set read holds one form for each answer: a form an older one stands for is let go
+        // (khw_form_stands_for), so that the turns of a form's bits outside its operands do not fill the set
+        const unsigned int read = khw_forms_read(KHW_WORK_NAME);
+        s_names = khw_forms_folded(s_named, read);
+        if (read != s_names)
+        {
+            printf("  the working set: %u forms read, %u let go, each an encoding of a form the set holds\n", read,
+                   read - s_names);
+        }
         if (discover != 0)
         {
             unsigned int seeded = 0u;
+            const unsigned long long slot_low = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 0u);
+            const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
             if (s_names == 0u)
             {
                 // the working set empty: the kernel's own slot form seeded as a discovered form, its relation asked but
                 // its fields left for the turns and register passes to ask once a cross has read them, as of any form.
                 // The relation is the real instruction the part already ran, safe to ask without a cross
-                const unsigned long long slot_low = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 0u);
-                const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
                 KhwAnswered held;
                 memset(&held, 0, sizeof(held));
                 if (khw_relation_asked(slot_low, slot_high, &held))
@@ -232,6 +241,22 @@ int main(int count, char **word)
             {
                 seeded += khw_seeds_asked(seeds);
             }
+            // the frame round, where a classified form holds the slot's registers: the slot's own form, classified by
+            // a register pass before this discover
+            const KhwAnswered *slot_form = NULL;
+            for (unsigned int at = 0u; at < s_names; at += 1u)
+            {
+                const KhwAnswered *const held = &s_named[at];
+                if ((held->phase == KHW_PHASE_CLASSIFIED) && (held->runs != 0u) && (held->low == slot_low) &&
+                    (held->high == slot_high))
+                {
+                    slot_form = held;
+                }
+            }
+            const unsigned int framed = (slot_form != NULL) ? khw_frame_round(slot_form, 1) : 0u;
+            printf("  the frame round: %s%u place(s) answered a frame relation\n",
+                   (slot_form == NULL) ? "the slot's form is not yet classified, " : "", framed);
+            khw_plan_handed("discover", (unsigned long long)KHW_FORMS);
             const unsigned int found = khw_widened(0u, 1);
             run_channel_close();
             if (!khw_forms_work_written())
@@ -249,7 +274,14 @@ int main(int count, char **word)
             // after: a discover set its relation and the order its words read, which the turns need and read back
             // from the working set
             static KhwAnswered *s_forms[KHW_FORMS];
-            const unsigned int count = khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms);
+            const unsigned int count =
+                khw_comparisons_void(s_forms, khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms));
+            unsigned long long stages = 0ull;
+            for (unsigned int at = 0u; at < count; at += 1u)
+            {
+                stages += (unsigned long long)khw_turning_cases(s_forms[at]);
+            }
+            khw_plan_handed("turns", stages * ((unsigned long long)KHW_TURNS + 1ull));
             const unsigned int asked = khw_fields_turns(s_forms, count);
             run_channel_close();
             if (!khw_forms_work_written())
@@ -261,20 +293,46 @@ int main(int count, char **word)
         }
         if (costs != 0)
         {
-            // every classified form timed at the slot, its least and spread kept in the part's .ksc beside the machine
-            // file, where the stall and the last register are kept
+            // every form the machine file names timed on the timer register, its cost and spread kept in the
+            // part's .ksc beside the machine file. A costs question writes a form many times over from the slot, and
+            // the gate holds a second instruction no form holds: so the gate's file is written again before asking,
+            // the kernel's places and the forms the part answered for together (the vendor's writer, `costs`). After,
+            // the machine file is laid out by the vendor once more from the forms the part answered for, as the
+            // registers pass leaves it
             char ksc_path[1024];
             snprintf(ksc_path, sizeof(ksc_path), "%.*s.ksc", (int)stem, s_path);
+            if (!khw_answers_written() || !khw_vendor_run("costs", KHW_FORMS_NAME))
+            {
+                run_channel_close();
+                return 1;
+            }
             const unsigned int timed = khw_costs_asked(ksc_path);
             run_channel_close();
-            printf("  costs: %u form(s) timed over %u launches each, %llu asks; kept in %s\n", timed, KHW_LAUNCHES,
-                   s_asks, ksc_path);
+            if (!khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
+            {
+                return 1;
+            }
+            printf("  costs: %u form(s) timed over %u copies and %u launches each on the timer register, %llu "
+                   "asks; kept in %s\n",
+                   timed, KHW_COST_COPIES, KHW_LAUNCHES, s_asks, ksc_path);
             return 0;
         }
         // every turned form's register-runs asked at once, in shared rounds, its operand runs kept and its phase
         // classified; what the part has answered for whole then laid out by the vendor
         static KhwAnswered *s_forms[KHW_FORMS];
-        const unsigned int count = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
+        const unsigned int turned = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
+        // a classified form two of whose runs carry one place is asked again, over a turning case that reads apart
+        const unsigned int count = khw_forms_placed_twice(s_forms, turned);
+        if (count != turned)
+        {
+            printf("  registers: %u classified form(s) with a place held twice asked again\n", count - turned);
+        }
+        unsigned long long settings = 0ull;
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            settings += (unsigned long long)s_forms[at]->runs * KHW_SETTINGS * KHW_STAGES;
+        }
+        khw_plan_handed("registers", settings);
         const unsigned int asked = khw_fields_registers(s_forms, count);
         run_channel_close();
         if (!khw_forms_work_written() || !khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
@@ -290,9 +348,22 @@ int main(int count, char **word)
     unsigned long long nanoseconds = 0ull;
     unsigned int slot = 0u;
     const int related = khw_first_round(&kernel, &slot, &nanoseconds);
-    printf("  the first round: the kernel's relation and %llu places asked for the slot, %llu asks\n", s_asks - 1ull,
-           s_asks);
-    if (!related)
+    if (s_kernel_slot < s_kernel_places)
+    {
+        printf(
+            "  the first round: the kernel's relation asked, the slot the part's answer in its .ksc, place %u of the "
+            "kept places, %llu asks\n",
+            slot, s_asks);
+    }
+    else
+    {
+        printf("  the first round: the kernel's relation and %llu places asked for the slot, %llu asks\n",
+               s_asks - 1ull, s_asks);
+    }
+    // a dry channel carries every question by nothing: the kernel answers no relation, and the pass goes on with the
+    // slot the .ksc names, every round put through the airlock as on a live channel and nothing launched
+    const int dry = !related && (strncmp(s_pool[0].refused, "dry:", 4u) == 0);
+    if (!related && !dry)
     {
         printf("  khw_write: the kernel the system accepted answered no relation of the ladder (%s), and "
                "nothing was asked after it\n",
@@ -300,9 +371,20 @@ int main(int count, char **word)
         run_channel_close();
         return 1;
     }
-    printf("  the kernel: ladder.%s, its words read %s, %u candidates surviving, %llu ns a launch over %u launches\n",
-           s_anchor_text[kernel.anchor], (kernel.swapped != 0) ? "swapped" : "in order", kernel.survivors,
-           nanoseconds / KHW_LAUNCHES, KHW_LAUNCHES);
+    if (dry)
+    {
+        printf("  the kernel: dry, carried by nothing; the slot the .ksc names, and every round put through the "
+               "airlock with nothing launched\n");
+    }
+    else
+    {
+        printf("  the kernel: ladder.%s, its words read %s, %u candidates surviving, %llu a launch over %u launches "
+               "on the %s\n",
+               s_anchor_text[kernel.anchor], (kernel.swapped != 0) ? "swapped" : "in order", kernel.survivors,
+               nanoseconds / KHW_LAUNCHES, KHW_LAUNCHES,
+               (s_question.clock_address != 0u) ? "timer register, read through the BAR0 driver"
+                                                : "driver's event timer");
+    }
     s_slot = slot;
     if (s_slot == s_kernel_places)
     {
@@ -315,6 +397,9 @@ int main(int count, char **word)
     const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
     printf("  the forms the part answers for:\n");
     khw_form_asked(slot_low, slot_high);
+    // the frame round on the slot's own classified form, each place of the kernel asked what it answers at the slot
+    const unsigned int framed = (s_names != 0u) ? khw_frame_round(&s_named[0], 0) : 0u;
+    printf("  the frame round: %u place(s) answered a frame relation, %llu asks\n", framed, s_asks);
     unsigned int from = 0u;
     for (unsigned int round = 0u; round < rounds; round += 1u)
     {

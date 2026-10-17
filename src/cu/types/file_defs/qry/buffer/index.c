@@ -92,12 +92,14 @@ static int qry_index_set(QryBuffer *buffer, const char *name, size_t length, uns
 }
 
 // One blob framed and put at the tail under the lock, its sequence the next, its head bearing `marks` (qry.h) and the
-// time it was handed, `handed_at`, or now where that is 0. It takes room up to `room` bytes of the buffer. A panic's or
-// a critical blob's place is kept for the writer and its sequence made the latest handed before the tail passes it,
-// and a panic opens the line where none has. Its sequence, with `placed` 1 where it went in, or 0 where it did not fit
+// time it was handed, `handed_at`, or now where that is 0, and its row bearing `crc`, the CRC-64/XZ of its bytes the
+// member took as it handed them. It takes room up to `room` bytes of the buffer. A panic's or a critical blob's place
+// is kept for the writer and its sequence made the latest handed before the tail passes it, and a panic opens the line
+// where none has. Its sequence, with `placed` 1 where it went in, or 0 where it did not fit
 unsigned long long qry_appended(QryBuffer *buffer, const char *name, size_t length, const void *bytes,
-                                       unsigned long long size, unsigned int priority, unsigned int marks,
-                                       unsigned long long room, unsigned long long handed_at, int *placed)
+                                       unsigned long long size, unsigned long long crc, unsigned int priority,
+                                       unsigned int marks, unsigned long long room, unsigned long long handed_at,
+                                       int *placed)
 {
     QryHead *const head = buffer->head;
     head->sequence += 1ull;
@@ -152,9 +154,8 @@ unsigned long long qry_appended(QryBuffer *buffer, const char *name, size_t leng
     if (rowed)
     {
         // a name and a priority are each far below what an unsigned int counts
-        // its CRC is the dump's to take, off the hand's way
         buffer->row[rows] = (QryRow){
-            qry_hash(name, length), sequence, handed_at, 0ull, tail + sizeof(QryFrameHead), tail + bytes_at, size,
+            qry_hash(name, length), sequence, handed_at, crc, tail + sizeof(QryFrameHead), tail + bytes_at, size,
             (unsigned int)length,   priority};
     }
     head->table_full = rowed ? head->table_full : 1ull;
@@ -183,8 +184,10 @@ void qry_dumped_said(QryBuffer *buffer)
     const int length = snprintf(said, sizeof(said), "%llu blobs, %llu bytes, sequences %llu to %llu\n",
                                 head->dumped_blobs, head->dumped_bytes, head->dumped_first, head->dumped_last);
     int placed = 0;
-    qry_appended(buffer, QRY_DUMPED, strlen(QRY_DUMPED), said, (unsigned long long)length, QRY_CRITICAL, 0u,
-                 head->capacity, 0ull, &placed);
+    // the length is positive here, and counts the bytes said
+    qry_appended(buffer, QRY_DUMPED, strlen(QRY_DUMPED), said, (unsigned long long)length,
+                 qry_crc((const unsigned char *)said, (unsigned long long)length), QRY_CRITICAL, 0u, head->capacity,
+                 0ull, &placed);
     if (placed)
     {
         head->dumped_blobs = 0ull;

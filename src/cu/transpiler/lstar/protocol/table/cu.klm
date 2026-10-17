@@ -64,6 +64,8 @@ key word_mul word_mul
 key word_mul_add word_mul_add
 key word_div word_div
 key word_rem word_rem
+key signed_word_div signed_word_div
+key signed_word_rem signed_word_rem
 key word_select word_select
 key word_mul_low word_mul_low
 key word_mul_high word_mul_high

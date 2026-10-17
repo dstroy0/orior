@@ -79,4 +79,8 @@ typedef struct
 // `asked` put to its address. The bit, which is also written into `asked`
 unsigned int query_ask(QueryAsk *asked);
 
+// 1 where a word read `then` after `first` has advanced: the difference taken in the word's own width is a forward
+// step where it sits in the lower half of the word, and a counter that wraps between the reads still reads forward
+unsigned int query_advanced(unsigned int first, unsigned int then);
+
 #endif

@@ -156,7 +156,7 @@ static int qry_member_added(QryBuffer *buffer, unsigned int own, const char *nam
     // the stretch left marked as no blob: its count, and where it holds a blob's head, a head with no name
     if (left >= sizeof(QryRingBlob))
     {
-        const QryRingBlob none = {left, 0ull, 0ull, 0u, 0u};
+        const QryRingBlob none = {left, 0ull, 0ull, 0ull, 0u, 0u};
         memcpy(ring + place, &none, sizeof(none));
     }
     else if (left != 0ull)
@@ -165,8 +165,9 @@ static int qry_member_added(QryBuffer *buffer, unsigned int own, const char *nam
     }
     unsigned char *const at = ring + ((tail + left) & (QRY_MEMBER_BYTES - 1ull));
     // a name is at most QRY_NAME_LONGEST bytes, which an unsigned int counts, and a blob that fits a ring is counted by
-    // a size_t
-    const QryRingBlob opened = {whole, qry_nanoseconds(), size, (unsigned int)length, marks};
+    // a size_t. The CRC is taken here, by the member, over the bytes as it hands them
+    const QryRingBlob opened = {whole, qry_nanoseconds(), size, qry_crc((const unsigned char *)bytes, size),
+                                (unsigned int)length, marks};
     memcpy(at, &opened, sizeof(opened));
     memcpy(at + sizeof(opened), name, length);
     if (size != 0ull)
@@ -225,12 +226,26 @@ int qry_members_moved(QryBuffer *buffer)
                 at += opened.whole;
                 continue;
             }
+            // the bytes held to the CRC the member took as it handed them: a blob that does not hold is left in the
+            // ring, counted, and never enters the run
+            if (qry_crc(opened_at + sizeof(opened) + opened.name_length, opened.size) != opened.crc)
+            {
+                buffer->head->corrupt += 1ull;
+                at += opened.whole;
+                atomic_store(&member->head, at);
+                continue;
+            }
             int placed = 0;
             const unsigned long long sequence =
                 qry_placed(buffer, (const char *)(opened_at + sizeof(opened)), (size_t)opened.name_length,
-                           opened_at + sizeof(opened) + opened.name_length, opened.size, QRY_ORDINARY, opened.marks,
-                           opened.nanoseconds, &placed);
+                           opened_at + sizeof(opened) + opened.name_length, opened.size, opened.crc, QRY_ORDINARY,
+                           opened.marks, opened.nanoseconds, &placed);
             last = placed ? sequence : last;
+            if (placed)
+            {
+                qry_blob_said(buffer, sequence, opened.nanoseconds, QRY_ORDINARY, place,
+                              (const char *)(opened_at + sizeof(opened)), (size_t)opened.name_length, opened.size);
+            }
             at += opened.whole;
             // the ring's room given back blob by blob, for a member waiting on it to go on
             if (last != 0ull)
@@ -370,12 +385,21 @@ unsigned long long qry_handed(QryBuffer *buffer, const char *name, const void *b
         qry_moved(buffer);
     }
     QryHead *const head = buffer->head;
+    // the CRC taken by the hander, before the lock: a panic's or a critical blob's bytes held to it on every read
+    const unsigned long long crc = qry_crc((const unsigned char *)bytes, size);
     qry_lock(buffer);
     const unsigned long long written = atomic_load(&head->written);
     const unsigned long long before = atomic_load(&head->tail) - written;
     int placed = 0;
-    const unsigned long long sequence = qry_placed(buffer, name, length, bytes, size, priority, marks, 0ull, &placed);
+    const unsigned long long sequence =
+        qry_placed(buffer, name, length, bytes, size, crc, priority, marks, 0ull, &placed);
     const unsigned long long after = atomic_load(&head->tail) - written;
+    // an ordinary blob the writer's own process hands goes in here, past every ring, and is said now; a panic or a
+    // critical blob is said as the writer writes it first
+    if (placed && (priority == QRY_ORDINARY))
+    {
+        qry_blob_said(buffer, sequence, qry_nanoseconds(), priority, QRY_MEMBERS, name, length, size);
+    }
     qry_unlock(buffer);
     if (placed)
     {

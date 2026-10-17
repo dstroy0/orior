@@ -54,17 +54,26 @@ extern "C"
     int ksc_row_read(const char *line, const char *channel, KscRow *row);
 
     // Every row of `channel` whose question begins with the words `asked` let go, whatever came back, and `rows`,
-    // `count` of them, put by `who` after the last row of the channel the file keeps, or after its last line where it
-    // keeps none (ktext_lines_put_by); each count of the channel, `count <channel> <answer> <number>`, taken again over
-    // the rows it then holds; and every who line left over no line let go. 1, or 0 where there was no memory for the
-    // rows, the file as it was
+    // `count` of them, put by `who` where the first row of the question stood, so that a row put again keeps its
+    // place; where the file holds none of the question, after the last row of the channel it keeps, or after its last
+    // line where it keeps none of the channel (ktext_lines_put_by). Each count of the channel,
+    // `count <channel> <answer> <number>`, is taken again over the rows it then holds, and every who line left over
+    // no line is let go. 1, or 0 where there was no memory for the rows, the file as it was
     int ksc_rows_replaced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
                              unsigned int count, QryWho who);
+
+    // As ksc_rows_replaced_by, and every row let go that no row put gives again kept in `removed`, a file of the
+    // caller's (ktext_free), each as the file held it and in its order, for the part's .krf to keep (krf.h); NULL keeps
+    // none. 1, or 0 where there was no memory for the rows, the file as it was
+    int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
+                                    unsigned int count, QryWho who, KtextFile *removed);
 
 // each, the who the code that calls it
 #define ksc_write(file_, path_) ksc_write_by((file_), (path_), QRY_WHO_HERE)
 #define ksc_rows_replaced(file_, channel_, asked_, rows_, count_)                                                      \
     ksc_rows_replaced_by((file_), (channel_), (asked_), (rows_), (count_), QRY_WHO_HERE)
+#define ksc_rows_replaced_traced(file_, channel_, asked_, rows_, count_, removed_)                                     \
+    ksc_rows_replaced_traced_by((file_), (channel_), (asked_), (rows_), (count_), QRY_WHO_HERE, (removed_))
 
 #ifdef __cplusplus
 }

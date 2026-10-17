@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// forms.c: the forms: the vendor's run, the forms, costs and givens read, a form's cost and given, and the forms of a word ranked
+// forms.c: the forms: the vendor's run, the forms, costs and givens read, a form's cost and given, and the forms of a
+// word ranked
 #include "krs_write_internal.h"
 
 // each form's cost as the part's .ksc keeps it: its encoding, its least launch m and its spread s
@@ -19,6 +20,8 @@ static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 
 KrsForm s_form[KRS_FORMS];
 unsigned int s_forms;
+KrsFrameForm s_frame_form[KRS_FRAME_FORMS];
+unsigned int s_frame_forms;
 static KrsCost s_cost[KRS_FORMS];
 static unsigned int s_costs;
 
@@ -54,19 +57,21 @@ int krs_vendor_run(char *const *word)
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
-        printf("  krs_write: the vendor's writer did not end clean (%s, code %llx)\n", interface_ending_name(answer.ending),
-               answer.code);
+        printf("  krs_write: the vendor's writer did not end clean (%s, code %llx)\n",
+               interface_ending_name(answer.ending), answer.code);
         return 0;
     }
     return 1;
 }
 
-// the forms the vendor's writer handed back, the `size` bytes at `bytes`, read into s_form. A line whose relation is
-// none the ladder holds is left out. The count read
+// the forms the vendor's writer handed back, the `size` bytes at `bytes`, read into s_form, and those answering a frame
+// relation into s_frame_form. A line whose relation is none the ladder holds and no frame relation is left out. The
+// count read into s_form
 unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
 {
     char line[KRS_LINE + 300u];
     s_forms = 0u;
+    s_frame_forms = 0u;
     unsigned long long next = 0ull;
     while ((next < size) && (s_forms < KRS_FORMS))
     {
@@ -90,6 +95,21 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
         for (unsigned int each = 0u; each < (unsigned int)LADDER_ANCHOR_COUNT; each += 1u)
         {
             anchor = (strcmp(s_anchor_text[each], name) == 0) ? each : anchor;
+        }
+        // a frame relation's form, and a predicate relation's, is written as the schema's form the table beside this
+        // writer maps it to, a predicate relation read signed under its relation with `.signed` after it
+        const int predicate = (anchor != (unsigned int)LADDER_ANCHOR_COUNT) && ladder_predicate(anchor);
+        if ((strncmp(relation, KRS_READS_FRAME, strlen(KRS_READS_FRAME)) == 0) || predicate)
+        {
+            if ((s_frame_forms < KRS_FRAME_FORMS) && (strlen(line + at) < KRS_FRAME_TEXT))
+            {
+                KrsFrameForm *const held = &s_frame_form[s_frame_forms];
+                snprintf(held->relation, sizeof(held->relation), "%.*s%s", (int)(sizeof(held->relation) - 9u), relation,
+                         (predicate && (signed_read != 0)) ? ".signed" : "");
+                snprintf(held->text, sizeof(held->text), "%s", line + at);
+                s_frame_forms += 1u;
+            }
+            continue;
         }
         if ((anchor == (unsigned int)LADDER_ANCHOR_COUNT) || (strlen(line + at) >= KRS_LINE))
         {
@@ -182,9 +202,43 @@ const char *krs_given_of(const char *name)
     return NULL;
 }
 
+unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writers)
+{
+    unsigned int found = writers;
+    unsigned int fewest = 0u;
+    for (unsigned int at = 0u; at < writers; at += 1u)
+    {
+        const KrsForm *const form = &s_form[writer[at]];
+        // a form whose text leaves a place of its relation's tuple unwritten carries no word there and writes none
+        const unsigned int words = s_ladder_words[form->anchor];
+        int carries = 1;
+        for (unsigned int place = 0u; place <= words; place += 1u)
+        {
+            char held[8];
+            snprintf(held, sizeof(held), "{%u}", place);
+            carries = carries && (strstr(form->text, held) != NULL);
+        }
+        if (!carries)
+        {
+            continue;
+        }
+        unsigned int operands = (strchr(form->text, ' ') != NULL) ? 1u : 0u;
+        for (const char *walk = form->text; *walk != '\0'; walk += 1)
+        {
+            operands += (*walk == ',') ? 1u : 0u;
+        }
+        if ((found == writers) || (operands < fewest))
+        {
+            fewest = operands;
+            found = at;
+        }
+    }
+    return (found == writers) ? 0u : found;
+}
+
 // The form P6 gives a word, of the `writers` forms in `writer`: c_1, the form of least m, where the next least m is
-// past it by more than s, the greatest spread of them. Its place in `writer`, or `writers` where a form has no cost kept
-// or the least do not separate, the survivors then one cost
+// past it by more than s, the greatest spread of them. Its place in `writer`, or `writers` where a form has no cost
+// kept or the least do not separate, the survivors then one cost
 unsigned int krs_ranked(const unsigned int *writer, unsigned int writers)
 {
     unsigned int first = writers;

@@ -48,7 +48,7 @@ import { zoomBy } from "./zoom.js";
 import { printText } from "./print.js";
 import { clipText, closeMenu, copyText, menuOpen, showMenu } from "./menu.js";
 import { markdownHtml } from "./markdown.js";
-import { chosenJob, chosenLive, listedJobs, runCommands, showJob, startChosen, stopChosen, subject } from "./run.js";
+import { chosenJob, chosenLive, listedJobs, runCommands, showJob, startChosen, startJobWords, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { dockCommands, float, floatItems, solo, toolWindowsItems } from "./docks.js";
@@ -619,10 +619,18 @@ const COMMANDS = {
   validate: () => editing().validate(),
   list: (args) => searchJobs(args[0]),
   show: (args) => searchJobs(args[0]),
-  query: () => {
-    showView("run");
-    showJob("protocol/query");
-  },
+  // The protocol: its one job, the course, shown and with words from the command line started, the run
+  // in the protocol panel; and its other commands, which the command line says and the menu does not list.
+  course: protocolJob("protocol/course"),
+  tables: protocolJob("protocol/tables"),
+  query: protocolJob("protocol/query"),
+  learn: protocolJob("protocol/learn"),
+  cross: protocolJob("protocol/cross"),
+  write: protocolJob("protocol/write"),
+  pairs: protocolJob("protocol/pairs"),
+  stick: protocolJob("protocol/stick"),
+  kept: protocolJob("protocol/kept"),
+  sweep: protocolJob("protocol/sweep"),
   new: newTerminal,
   toggle: () => toggleTerminal(),
   split: () => splitTerminal(),
@@ -1254,6 +1262,15 @@ function askYes(question, yes) {
 }
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
+// A protocol job's command: the job shown, and started with the words where a command line gave any.
+function protocolJob(id) {
+  return (args = []) => {
+    showView("run");
+    showJob(id);
+    return args.length ? startJobWords(id, args) : undefined;
+  };
+}
+
 export function runCommand(command, args = []) {
   return commandNamed(command)?.(args);
 }
@@ -1310,7 +1327,7 @@ function itemsOf(menu) {
           };
   // An entry to be filled in gives its items as the menu opens.
   const filled = (item) => (item.fill ? (FILLS[item.fill]?.() ?? []) : [shown(item)]);
-  const items = (menu.items ?? []).flatMap(filled);
+  const items = (menu.items ?? []).filter((item) => item === "-" || !item.hidden).flatMap(filled);
   const groups = menu.groups ?? [];
   let jobs;
   if (menu.split) {
@@ -1496,10 +1513,6 @@ async function openReaderMenus() {
 
 // The menus of jobs the tool strip holds in place of the bar, each its title, its icon and its
 // items, where its groups have a job in the tree.
-export function stripMenus() {
-  return state.menus.filter((menu) => menu.strip && jobsIn(menu.groups ?? []).length).map((menu) => ({ title: menu.title, icon: menu.strip, items: () => itemsOf(menu) }));
-}
-
 // Gives each title the first of its letters no title before it has.
 function lettersFor(menus) {
   const taken = new Set();

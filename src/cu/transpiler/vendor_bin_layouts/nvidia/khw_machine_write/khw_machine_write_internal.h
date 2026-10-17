@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// khw_machine_write_internal.h: what the modules of the machine writer share: its includes, the bounds of the pattern, the kernel and the pieces, the pieces, the pattern, the kernel and the machine read, and the functions one module reads from another
+// khw_machine_write_internal.h: what the modules of the machine writer share: its includes, the bounds of the pattern,
+// the kernel and the pieces, the pieces, the pattern, the kernel and the machine read, and the functions one module
+// reads from another
 #ifndef KHW_MACHINE_WRITE_INTERNAL_H
 #define KHW_MACHINE_WRITE_INTERNAL_H
 
 #include "../../../../types/file_defs/qry/qry_buffer.h"
 #include "../cubin_write.h"
 #include "../sass_machine.h"
+#include "../tables/read.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -37,21 +40,33 @@
 
 #define KHW_REGISTER_NONE_TEXT "RZ"
 
-// what the vendor's table calls the reads that put a piece in a name: a relation of the ladder, and the word of the
-// high order language for a word read as an unsigned integer, the kind the ladder's cases hold
-#define KHW_READS_WORD "hol.u<n>_t"
-
 // the qualifiers the answers decide between where the two readings of a case differ
 #define KHW_PIECE_UNSIGNED "U32"
 
 #define KHW_PIECE_SIGNED "S32"
 
-// What the protocol answered of one form, read from the answers file: the relation every case of it answered, whether
-// the answers read a word signed and whether a case of the relation let the part answer so, the encoding, and the
-// runs of bits its operands sit in with each run's place in the relation's tuple
+// what a run's operand is, as the protocol answered it beside its place: a register, a pair of registers an address
+// is read through, a number, or a predicate; and the letter each is written as after the place in the answers
+#define KHW_KIND_REGISTER 0u
+
+#define KHW_KIND_ADDRESS 1u
+
+#define KHW_KIND_IMMEDIATE 2u
+
+#define KHW_KIND_PREDICATE 3u
+// a run of the constant bank's operand: the offset read from the bank, and the bank, where the walks found a run of it
+#define KHW_KIND_CONSTANT 4u
+
+#define KHW_KIND_LETTERS "ranpc"
+
+// What the protocol answered of one form, read from the answers file: the relation every case of it answered, a frame
+// relation's reading, whether the answers read a word signed and whether a case of the relation let the part answer
+// so, the encoding, and the runs of bits its operands sit in with each run's place in the relation's tuple and what
+// its operand is
 typedef struct
 {
     char relation[KHW_READS];
+    unsigned long long reading;
     int signed_read;
     int signedness_asked;
     unsigned long long low;
@@ -60,6 +75,7 @@ typedef struct
     unsigned int first[SASS_MACHINE_RUNS];
     unsigned int last[SASS_MACHINE_RUNS];
     unsigned int place[SASS_MACHINE_RUNS];
+    unsigned int kind[SASS_MACHINE_RUNS];
 } KhwForm;
 
 // What a mode writes for the protocol, gathered in memory before it is given: the bytes, their count and the room
@@ -83,6 +99,13 @@ extern SassMachine s_machine;
 unsigned long long khw_word_read(const unsigned char *instruction, unsigned int byte);
 int khw_pieces_read(const char *path);
 const char *khw_piece_reading(const char *kind, const char *word);
+// the field the part's .ksc names the guard, `first` and `bits`: a predicate run inside it prints as the guard, and
+// one outside it as an operand in its order; with none set, every predicate run is the guard
+void khw_guard_field_set(unsigned int first, unsigned int bits);
+// the vendor's instruction set for the part the machine file at `machine_path` is written for, read once from where
+// the tables pass pulls it; a constant bank's operand is printed by the bank and byte offset its class reads
+void khw_tables_read(const char *machine_path);
+
 void khw_text_composed(const KhwForm *held, char *written, size_t room);
 int khw_form_kept(SassMachine *machine, const KhwForm *held, const char *text);
 int khw_kernel_read(const char *path);

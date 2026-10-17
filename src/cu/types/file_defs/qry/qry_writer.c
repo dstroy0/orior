@@ -162,6 +162,9 @@ int main(int count, char **words)
             QryBuffer *const buffer = qry_open(path);
             if (buffer != NULL)
             {
+                // the buffer's path said here as at the start, for a starter that keeps the writer's own output out of
+                // its console and reads this word's: a reader of the run finds the run by it
+                printf("  qry_writer: the buffer of %s is made\n", path);
                 qry_close(buffer);
                 return 0;
             }

@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // query_trace.cu: the trace's flags read from their table, and a word of them written back by name
 #include "query_trace.h"
+#include "tree_folder.h"
 
 #include <fstream>
 #include <sstream>
 
 std::string query_trace_path(void)
 {
-    const std::string file = __FILE__;
-    const size_t slash = file.find_last_of("/\\");
-    const std::string here = (slash == std::string::npos) ? std::string() : file.substr(0u, slash + 1u);
-    return here + "../klq/query_trace.tsv";
+    return tree_folder_from(__FILE__, 1u, "klq/query_trace.tsv");
 }
 
 int query_trace_read(const std::string &path, QueryTrace *trace, std::string *error)

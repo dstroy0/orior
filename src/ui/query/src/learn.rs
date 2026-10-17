@@ -55,7 +55,7 @@ impl Files {
 /// What a learn's words ask for.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Step {
-    /// discover, turns or registers, with a base source where one is given.
+    /// discover, turns, registers or costs, with a base source where one is given.
     Pass(String, Option<String>),
     /// A discover pass seeded from the listing named.
     Seed(String),
@@ -65,11 +65,14 @@ pub enum Step {
     Dry(u32),
     /// One slot's questions emitted for the cross to read.
     Enumerate(String),
+    /// The clock asked of the bus: the ADVANCES qualifier at each word of a span of the BAR0 registers, the
+    /// span's first byte offset and its count of words, in hex.
+    Clock(String, String),
 }
 
 impl Step {
     pub fn read(words: &[String]) -> Result<Step, String> {
-        let usage = "learn takes discover|turns|registers [--base <cu>], seed <listing.sass>, rounds [<n>], dry [<n>] or enumerate <slot>";
+        let usage = "learn takes discover|turns|registers|costs [--base <cu>], seed <listing.sass>, rounds [<n>], dry [<n>], enumerate <slot> or clock [<from> [<words>]]";
         let (first, rest) = words.split_first().ok_or(usage)?;
         let base = || -> Result<Option<String>, String> {
             match rest {
@@ -80,11 +83,12 @@ impl Step {
         };
         let count = || -> Result<u32, String> { rest.first().map(|n| n.parse::<u32>().map_err(|_| usage.to_string())).transpose().map(|n| n.unwrap_or(1)) };
         match first.as_str() {
-            "discover" | "turns" | "registers" => Ok(Step::Pass(first.clone(), base()?)),
+            "discover" | "turns" | "registers" | "costs" => Ok(Step::Pass(first.clone(), base()?)),
             "seed" => rest.first().map(|listing| Step::Seed(listing.clone())).ok_or(usage.into()),
             "rounds" => Ok(Step::Rounds(count()?)),
             "dry" => Ok(Step::Dry(count()?)),
             "enumerate" => rest.first().map(|slot| Step::Enumerate(slot.clone())).ok_or(usage.into()),
+            "clock" => Ok(Step::Clock(rest.first().cloned().unwrap_or_else(|| CLOCK_FROM.into()), rest.get(1).cloned().unwrap_or_else(|| CLOCK_WORDS.into()))),
             _ => Err(usage.into()),
         }
     }
@@ -161,7 +165,7 @@ fn as_words(words: &[String]) -> Vec<&str> {
 
 /// The gate's verdicts counted off the dry record, a line a verdict.
 fn verdicts_said(context: &mut Context, run: &Run) {
-    let dry = run.writer().read("dry.txt").unwrap_or_default();
+    let Some(dry) = run.writer().read("dry.txt") else { return };
     let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
     for line in String::from_utf8_lossy(&dry).lines() {
         if let Some(at) = line.find("the gate: ") {
@@ -174,6 +178,19 @@ fn verdicts_said(context: &mut Context, run: &Run) {
     }
 }
 
+/// The span of the BAR0 registers the clock is asked in where none is given: the first byte offset and the
+/// count of words, in hex. The part's answer is which word of it advances; the span is only where the asking starts.
+pub const CLOCK_FROM: &str = "9000";
+pub const CLOCK_WORDS: &str = "400";
+
+/// The BAR0 driver's service, which maps the part's BAR0 registers read-only (the scaffolding's README).
+const LISTENER: &str = "GpuBar0";
+
+/// 1 where the BAR0 driver's service runs, read from the service controller.
+fn bar0_driver_runs() -> bool {
+    std::process::Command::new("sc.exe").args(["query", LISTENER]).output().map(|out| String::from_utf8_lossy(&out.stdout).contains("RUNNING")).unwrap_or(false)
+}
+
 pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let step = Step::read(words)?;
     let files = Files::of(context.root, "sm_86");
@@ -183,6 +200,21 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
     let work = context.at(WORK);
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     match step {
+        Step::Clock(from, count) => {
+            // the timer register, found by asking through the BAR0 driver, the first register of the span that advances kept in
+            // the part's .ksc; where the BAR0 driver's service is not started the install is said, elevated, and
+            // nothing is asked
+            if !bar0_driver_runs() {
+                let script = context.root.join("src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/install_bar0.ps1");
+                return Err(format!("the BAR0 driver's service {LISTENER} is not running: in an elevated shell, pwsh -File {} -Sign (the machine in test-signing mode)", text(&script)));
+            }
+            let clock = context.tool("bus_clock")?;
+            let mut run = context.started(FOLDER)?;
+            run.read(&[files.costs.clone()])?;
+            let code = context.teed(&run, "bus_clock", &clock, &[&text(&files.costs), &from, &count, "10"])?;
+            context.ended(run)?;
+            Ok(code)
+        }
         Step::Pass(..) | Step::Seed(..) => {
             let cross = context.tool("measuring_stick_query")?;
             let nvdisasm = nvdisasm(context)?;
@@ -201,7 +233,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             words.push(step_word);
             if let Step::Seed(listing) = &step {
                 let seeds = context.tool("sass_listing_seeds")?;
-                if context.handed(&run, "seeds.txt", &seeds, &[listing])? != 0 {
+                if context.handed(&run, "seeds.txt", &seeds, &[listing, "--modifiers"])? != 0 {
                     return Err("the seeds were not handed".into());
                 }
                 words.extend(["--seeds".into(), "seeds.txt".into()]);
@@ -224,27 +256,40 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
             let mut words = teacher_words(&files.machine, &files, &writer);
             words.extend([rounds.to_string(), "--".into()]);
             words.extend(carrier_words(&carrier, &cross, &nvdisasm, &files.machine, &files.layout, false));
-            let code = context.said(&run, &teacher, &as_words(&words))?;
+            let code = context.teed(&run, "khw_write", &teacher, &as_words(&words))?;
             context.ended(run)?;
             Ok(code)
         }
         Step::Dry(rounds) => {
-            // the dry machine file and the costs and record beside it, under the working folder, not the tree's
+            // the dry machine file, the costs and the record beside it under the working folder, each the tree's
+            // copied there so that the dry pass leaves the tree's as they are: the slot the pass puts its rounds at is
+            // the part's answer kept in the costs, the vendor's writer reads them beside the machine file, and every
+            // ask is answered from the record, the part taken out. The rounds go through the airlock as a live pass's
+            // do, the cross reading each against the vendor's disassembler
             let machine = work.join("sm_86.khw");
+            let costs = work.join("sm_86.ksc");
+            let record = work.join("sm_86.kqr");
+            for (from, to) in [(&files.machine, &machine), (&files.costs, &costs), (&files.record, &record)] {
+                std::fs::copy(from, to).map_err(|error| format!("{} could not be copied under {}: {error}", from.display(), work.display()))?;
+            }
+            let cross = context.tool("measuring_stick_query")?;
+            let nvdisasm = nvdisasm(context)?;
             let mut run = context.started(FOLDER)?;
             carried(context, &run, false)?;
-            run.read(&[machine.clone(), work.join("sm_86.ksc"), work.join("sm_86.kqr"), files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
+            run.read(&[machine.clone(), costs, record, files.layout.clone(), files.mnemonics.clone(), files.fields.clone()])?;
             let mut words = teacher_words(&machine, &files, &writer);
             words.extend([rounds.to_string(), "--".into(), "dry".into()]);
-            if context.said(&run, &teacher, &as_words(&words))? != 0 {
+            words.extend(carrier_words(&carrier, &cross, &nvdisasm, &machine, &files.layout, false));
+            if context.teed(&run, "khw_write", &teacher, &as_words(&words))? != 0 {
                 return Err("the protocol did not run dry".into());
             }
             let questions = lines(&run, "questions.txt");
             if questions == 0 {
                 return Err("the protocol put no question".into());
             }
+            // the gate reads the list against the tree's machine file, whose forms stand whatever the dry pass wrote
             context.say(&format!("  the protocol put {questions} questions; each held to cubin_safe with the part taken out:"));
-            if context.said(&run, &carrier, &["--dry", &text(&machine), &text(&files.layout), "--list", "questions.txt"])? != 0 {
+            if context.teed(&run, "cubin_run", &carrier, &["--dry", &text(&files.machine), &text(&files.layout), "--list", "questions.txt"])? != 0 {
                 return Err("the carrier did not read the list".into());
             }
             verdicts_said(context, &run);
@@ -265,7 +310,7 @@ pub fn run(context: &mut Context, words: &[String]) -> Result<i32, String> {
                 context.say(&format!("  seeding from the {seeded} forms in {forms}"));
             }
             words.extend(["--".into(), "dry".into()]);
-            if context.said(&run, &teacher, &as_words(&words))? != 0 {
+            if context.teed(&run, "khw_write", &teacher, &as_words(&words))? != 0 {
                 return Err("the enumerate did not run".into());
             }
             let questions = lines(&run, "questions.txt");
@@ -306,10 +351,13 @@ mod passes {
         let said = |words: &[&str]| Step::read(&words.iter().map(|w| w.to_string()).collect::<Vec<_>>());
         assert_eq!(said(&["turns"]).unwrap(), Step::Pass("turns".into(), None));
         assert_eq!(said(&["turns", "--base", "a.cu"]).unwrap(), Step::Pass("turns".into(), Some("a.cu".into())));
+        assert_eq!(said(&["costs"]).unwrap(), Step::Pass("costs".into(), None));
         assert_eq!(said(&["seed", "listing.sass"]).unwrap(), Step::Seed("listing.sass".into()));
         assert_eq!(said(&["rounds", "3"]).unwrap(), Step::Rounds(3));
         assert_eq!(said(&["dry"]).unwrap(), Step::Dry(1));
         assert_eq!(said(&["dry", "2"]).unwrap(), Step::Dry(2));
+        assert_eq!(said(&["clock"]).unwrap(), Step::Clock(CLOCK_FROM.into(), CLOCK_WORDS.into()));
+        assert_eq!(said(&["clock", "0", "4000"]).unwrap(), Step::Clock("0".into(), "4000".into()));
         assert_eq!(said(&["enumerate", "loop_back_if"]).unwrap(), Step::Enumerate("loop_back_if".into()));
         assert!(said(&["enumerate"]).is_err());
         assert!(said(&["seed"]).is_err());

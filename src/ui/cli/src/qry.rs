@@ -55,10 +55,29 @@ const HEAD_BYTES: u64 = 65536;
 
 /// The bytes of the buffer's head as each system lays it out: its words, the lock POSIX gives it, which
 /// differs by system and is none on Windows, and its spans.
-const HEAD_SIZES: [u64; 4] = [32952, 32992, 33000, 33016];
+const HEAD_SIZES: [u64; 4] = [32968, 33008, 33016, 33032];
 
-/// The places of the words of the buffer's head (qry_buffer.c's QryHead), the same on every system: the
-/// lock POSIX keeps in the head stands after them, and the spans after the lock.
+/// The members a run's buffer holds a ring for and the bytes of each ring, and the bytes their heads take,
+/// rounded up to 64 KiB (QRY_MEMBERS, QRY_MEMBER_BYTES and QRY_MEMBERS_BYTES in qry_buffer.h): the
+/// buffer holds the members' heads between its index and its table, and their rings between its table
+/// and its blobs.
+const MEMBERS: u64 = 256;
+const MEMBER_BYTES: u64 = 4 << 20;
+const MEMBERS_BYTES: u64 = (MEMBERS * 64 + 65535) & !65535;
+
+/// Where the table's rows begin and where the blobs begin, in a buffer of `slots` index slots.
+fn rows_at(slots: u64) -> u64 {
+    HEAD_BYTES + slots * 16 + MEMBERS_BYTES
+}
+
+fn data_at(slots: u64) -> u64 {
+    rows_at(slots) + TABLE_ROWS * 64 + MEMBERS * MEMBER_BYTES
+}
+
+/// The places of the words of the buffer's head (QryHead in buffer/qry_buffer_internal.h), the same on
+/// every system: the lock POSIX keeps in the head stands after them, and the spans after the lock. The
+/// words between those read here, `corrupt` after `dumped_all`, `closed` after `panicked` and `stopping`
+/// before `writing`, are the writer's own.
 mod head {
     pub const CAPACITY: u64 = 8;
     pub const SLOTS: u64 = 16;
@@ -70,20 +89,20 @@ mod head {
     pub const DUMPED_FIRST: u64 = 64;
     pub const DUMPED_LAST: u64 = 72;
     pub const DUMPED_ALL: u64 = 80;
-    pub const INDEX_FULL: u64 = 88;
-    pub const WRITER: u64 = 96;
-    pub const SPANS: u64 = 104;
-    pub const TAIL: u64 = 112;
-    pub const WRITTEN: u64 = 120;
-    pub const CRITICAL_HANDED: u64 = 128;
-    pub const CRITICAL_WRITTEN: u64 = 136;
-    pub const PANICKED: u64 = 144;
-    pub const WRITING: u64 = 156;
-    pub const ROWS: u64 = 160;
-    pub const ROWS_COMMITTED: u64 = 168;
-    pub const TABLE_FULL: u64 = 176;
+    pub const INDEX_FULL: u64 = 96;
+    pub const WRITER: u64 = 104;
+    pub const SPANS: u64 = 112;
+    pub const TAIL: u64 = 120;
+    pub const WRITTEN: u64 = 128;
+    pub const CRITICAL_HANDED: u64 = 136;
+    pub const CRITICAL_WRITTEN: u64 = 144;
+    pub const PANICKED: u64 = 152;
+    pub const WRITING: u64 = 172;
+    pub const ROWS: u64 = 176;
+    pub const ROWS_COMMITTED: u64 = 184;
+    pub const TABLE_FULL: u64 = 192;
     #[cfg(target_os = "linux")]
-    pub const LOCK: u64 = 184;
+    pub const LOCK: u64 = 200;
 }
 
 /// The priorities a blob is handed at, as qry_buffer.h numbers them.
@@ -318,7 +337,7 @@ fn read_table(file: &mut File) -> Result<Read, String> {
 
 /// The sizes word of a buffer built with the sizes this reader reads, for a head of `head_bytes`.
 fn sizes_word(head_bytes: u64) -> u64 {
-    let sizes = [BUFFER_BYTES, INDEX_SLOTS, WRITE_BYTES, WRITE_MILLISECONDS, CRITICAL_ROOM, CRITICAL_SPANS, TABLE_ROWS, head_bytes];
+    let sizes = [BUFFER_BYTES, INDEX_SLOTS, WRITE_BYTES, WRITE_MILLISECONDS, CRITICAL_ROOM, CRITICAL_SPANS, TABLE_ROWS, head_bytes, MEMBERS, MEMBER_BYTES];
     hash(&sizes.iter().flat_map(|size| size.to_le_bytes()).collect::<Vec<u8>>())
 }
 
@@ -374,7 +393,7 @@ fn open(path: &Path) -> Option<Mapped> {
             continue;
         }
         let slots = found.word(head::SLOTS);
-        let found = Mapped { view, writer: found.word(head::WRITER), data: HEAD_BYTES + slots * 16 + TABLE_ROWS * 64 };
+        let found = Mapped { view, writer: found.word(head::WRITER), data: data_at(slots) };
         if found.writing() {
             return Some(found);
         }
@@ -407,7 +426,32 @@ pub fn read(path: &Path, from: u64) -> Result<Read, String> {
         }
     }
     drop(all);
-    read_file(path)
+    read_file_from(path, from)
+}
+
+/// A .qry file read going on from `from`, the `next` a read before it gave: a finished run's every blob by
+/// its table, which its end writes once, and a file still being written walked by its tags from `from`, so
+/// that a reader that comes back to it while its writer runs reads only what was added since and never
+/// the whole file again.
+pub fn read_file_from(path: &Path, from: u64) -> Result<Read, String> {
+    let said = |error: std::io::Error| format!("{}: {error}", path.display());
+    let mut file = File::open(path).map_err(said)?;
+    let mut magic = [0u8; 8];
+    let opened = file.read(&mut magic).map_err(said)?;
+    if from == 0 || (opened == 8 && &magic == TABLE_MAGIC) {
+        return read_file(path);
+    }
+    let end = file.seek(SeekFrom::End(0)).map_err(said)?;
+    if from >= end {
+        return Ok(Read { live: false, blobs: Vec::new(), next: from, stepped: 0, table: false, panicked: 0 });
+    }
+    let mut data = Vec::new();
+    file.seek(SeekFrom::Start(from)).map_err(said)?;
+    file.read_to_end(&mut data).map_err(said)?;
+    let (mut blobs, next, stepped) = walked(&data, 0, true);
+    blobs.sort_by_key(|blob| blob.sequence);
+    let panicked = blobs.iter().find(|blob| blob.priority == 0).map_or(0, |blob| blob.sequence);
+    Ok(Read { live: false, blobs, next: from + next as u64, stepped, table: false, panicked })
 }
 
 /// Each blob framed in `data` from its start, its name, its sequence and its bytes, a stretch no whole
@@ -748,8 +792,7 @@ fn join(path: &Path) -> Option<Joined> {
             continue;
         }
         let slots = word(head::SLOTS);
-        let rows_at = HEAD_BYTES + slots * 16;
-        let joined = Joined { view, spans_at: head_bytes - CRITICAL_SPANS * 32, slots, rows_at, data_at: rows_at + TABLE_ROWS * 64, writer: word(head::WRITER), shared };
+        let joined = Joined { view, spans_at: head_bytes - CRITICAL_SPANS * 32, slots, rows_at: rows_at(slots), data_at: data_at(slots), writer: word(head::WRITER), shared };
         if joined.alive() {
             return Some(joined);
         }
@@ -1152,7 +1195,7 @@ mod system {
         fn kill(id: c_int, signal: c_int) -> c_int;
     }
 
-    const VIEW_BYTES: usize = (super::HEAD_BYTES + super::INDEX_SLOTS * 16 + super::TABLE_ROWS * 64 + super::BUFFER_BYTES) as usize;
+    const VIEW_BYTES: usize = (super::data_at(super::INDEX_SLOTS) + super::BUFFER_BYTES) as usize;
 
     /// The buffer of the path hashing to `hashed`, its whole view mapped to be read.
     pub fn map(hashed: u64) -> Option<*const u8> {
@@ -1348,6 +1391,22 @@ mod tests {
     }
 
     #[test]
+    fn a_run_read_again_from_its_file_hands_only_the_blobs_added_since() {
+        let first = framed("log", b"first\n", 1, 2);
+        let path = written("again", &first);
+        let read = read_file_from(&path, 0).unwrap();
+        assert_eq!((read.blobs.len(), read.next), (1, first.len() as u64));
+        let mut more = first.clone();
+        more.extend(framed("log", b"second\n", 2, 2));
+        std::fs::write(&path, &more).unwrap();
+        let again = read_file_from(&path, read.next).unwrap();
+        assert_eq!(again.blobs.iter().map(|blob| blob.sequence).collect::<Vec<_>>(), vec![2], "the blob added since, and not the first again");
+        assert_eq!(again.next, more.len() as u64);
+        let none = read_file_from(&path, again.next).unwrap();
+        assert!(none.blobs.is_empty() && none.next == more.len() as u64, "and nothing where nothing was added");
+    }
+
+    #[test]
     fn a_finished_run_is_read_by_its_table_each_blob_held_to_its_row() {
         let blobs: [(&str, &[u8], u32); 3] = [("questions.txt", b"one\ntwo\n", 2), ("panic", b"hung", 0), ("big", &[7u8; 5000], 2)];
         let mut rows = Vec::new();
@@ -1408,7 +1467,14 @@ mod tests {
                 let out = std::env::temp_dir().join(format!("orior-qry-writer-{}", std::process::id()));
                 std::fs::create_dir_all(&out).ok()?;
                 let binary = out.join(if cfg!(windows) { "qry_writer.exe" } else { "qry_writer" });
-                let built = std::process::Command::new("cc").args(["-std=c11", "-O2", "-o"]).arg(&binary).arg(sources.join("qry_writer.c")).arg(sources.join("qry_buffer.c")).status().ok()?;
+                // The writer's sources as qry_run.sh compiles them: its own file and those of
+                // writer/ and buffer/.
+                let mut compiled = vec![sources.join("qry_writer.c")];
+                for folder in ["writer", "buffer"] {
+                    let entries = std::fs::read_dir(sources.join(folder)).ok()?;
+                    compiled.extend(entries.flatten().map(|entry| entry.path()).filter(|path| path.extension().is_some_and(|ending| ending == "c")));
+                }
+                let built = std::process::Command::new("cc").args(["-std=c11", "-O2", "-o"]).arg(&binary).args(&compiled).status().ok()?;
                 built.success().then_some(binary)
             })
             .clone()

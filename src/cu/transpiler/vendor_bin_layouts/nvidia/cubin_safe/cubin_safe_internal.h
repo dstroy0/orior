@@ -39,6 +39,18 @@
 
 #define CUBIN_SAFE_SCHED_KEPT_HIGH 0x000001ffffffffffull
 
+// the vendor's instruction set rule 13 reads, read by cubin_safe_tables_read (constant.c)
+const struct TablesSetTag *cubin_safe_tables(void);
+
+// 1 where the class the vendor's instruction set reads the encoding `low` and `high` as is named for an operation
+// that transfers control or waits, EXIT apart, whatever name the machine file's form gives it (rules 2 and 3, class.c)
+int cubin_class_control_or_wait(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high);
+
+// 1 where the class the vendor's instruction set reads the encoding `low` and `high` as names it illegal by one of
+// its conditions on the registers, out of range or misaligned for its width: the vendor's own pipe, read before the
+// part, apart from what the part answers (rule 14, class.c)
+int cubin_class_illegal(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high);
+
 
 
 #endif

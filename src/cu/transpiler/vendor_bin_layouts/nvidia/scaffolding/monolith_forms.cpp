@@ -55,7 +55,7 @@ extern "C" const char __ehdr_start = 0;
 #define MONOLITH_FORMS_LOADS 0x4000u
 #define MONOLITH_FORMS_STORES 0x8000u
 
-#define FORM_NAME(name_, text_, parameters_) text_,
+#define FORM_NAME(name_, text_, parameters_, kind_) text_,
 static const char *const s_form_names[OPCODE_COUNT] = {OPCODES(FORM_NAME)};
 #undef FORM_NAME
 #define BANK_NAME(name_, text_) text_,

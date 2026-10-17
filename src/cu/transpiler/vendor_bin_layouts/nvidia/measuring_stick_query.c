@@ -173,8 +173,8 @@ int main(int count, char **words)
     }
     // The readings of the distinct slot encodings, and every frame read whole: a question with no slot by its whole
     // code, a slotted one by the code before its slot, a NOP and the code past it, the code past a slot being the same
-    // in every question of one kernel. The encodings go in as many ranges as the host has processors, and the frames
-    // and the tails beside them: every piece of the cross's work on one pool of reader threads at once
+    // in every question of one kernel. The encodings, the frames and the tails are read together as one accumulated run
+    // at one start of the vendor (msq_accumulated_read), and a piece it stops at is set aside and read alone
     MsqReading *const readings = (MsqReading *)calloc(slot_words.count + 1u, sizeof(MsqReading));
     MsqFrame *const whole_frames = (MsqFrame *)calloc(whole_codes.count + 1u, sizeof(MsqFrame));
     MsqFrame *const piece_frames = (MsqFrame *)calloc(pieces.count + 1u, sizeof(MsqFrame));
@@ -203,45 +203,74 @@ int main(int count, char **words)
         framed[whole_codes.count + piece].bytes = piece_bytes[piece];
         framed[whole_codes.count + piece].size = (unsigned long long)joined_size;
     }
-    // the pool: the encodings' ranges, each frame, and the tails, the registers the code past each slot reads an
-    // address from read from every distinct code past a slot together as one raw run; then a reader thread for each
-    // piece up to the processors, each reading pieces until none is left
-    MsqPool pool;
-    memset(&pool, 0, sizeof(pool));
-    pool.words = &slot_words;
-    pool.readings = readings;
-    pool.frames = framed;
-    pool.frame_read = frame_read;
-    pool.tails = &tails;
-    pool.addressed = addressed;
-    pthread_mutex_init(&pool.lock, NULL);
-    const unsigned int processors = msq_processors();
-    const size_t ranges = (slot_words.count < processors) ? slot_words.count : processors;
-    const size_t range_size = (ranges != 0u) ? ((slot_words.count + ranges - 1u) / ranges) : 0u;
-    for (size_t range = 0u; whole && (range < ranges); range += 1u)
+    // every piece in one accumulated run, read at one start: the distinct slot encodings, then the frames, then the
+    // distinct tails; a piece the vendor stops at set aside, and the run read again without it until it reads clean
+    const size_t piece_count = slot_words.count + frame_count + tails.count;
+    MsqPiece *const run_pieces = (MsqPiece *)calloc(piece_count + 1u, sizeof(MsqPiece));
+    size_t *const aside = (size_t *)calloc(piece_count + 1u, sizeof(size_t));
+    whole = whole && (run_pieces != NULL) && (aside != NULL);
+    size_t placed = 0u;
+    for (size_t word = 0u; whole && (word < slot_words.count); word += 1u)
     {
-        const size_t first = range * range_size;
-        const size_t count = ((first + range_size) <= slot_words.count) ? range_size : (slot_words.count - first);
-        const MsqWork work = {MSQ_WORK_RANGE, first, count};
-        whole = (count == 0u) || msq_pool_put(&pool, work);
+        run_pieces[placed] = (MsqPiece){MSQ_PIECE_WORD, word, slot_words.items[word], 0ull, MSQ_PIECE_READ};
+        placed += 1u;
     }
     for (size_t frame = 0u; whole && (frame < frame_count); frame += 1u)
     {
-        const MsqWork work = {MSQ_WORK_FRAME, frame, 1u};
-        whole = msq_pool_put(&pool, work);
+        run_pieces[placed] = (MsqPiece){MSQ_PIECE_FRAME, frame, framed[frame], 0ull, MSQ_PIECE_READ};
+        placed += 1u;
     }
-    if (whole && (tails.count != 0u))
+    for (size_t tail = 0u; whole && (tail < tails.count); tail += 1u)
     {
-        const MsqWork work = {MSQ_WORK_TAILS, 0u, tails.count};
-        whole = msq_pool_put(&pool, work);
+        run_pieces[placed] = (MsqPiece){MSQ_PIECE_TAIL, tail, tails.items[tail], 0ull, MSQ_PIECE_READ};
+        placed += 1u;
     }
-    const unsigned int threads = (pool.queued < processors) ? (unsigned int)pool.queued : processors;
+    // a piece holding an instruction the vendor's own instruction set reads as no class is one its disassembler stops
+    // at: set aside before the run, to be read alone, so that the run is read clean at one start
+    for (size_t piece = 0u; whole && msq_tables_read() && (piece < piece_count); piece += 1u)
+    {
+        run_pieces[piece].state =
+            msq_vendor_reads(&run_pieces[piece].bytes) ? MSQ_PIECE_READ : MSQ_PIECE_UNREAD;
+    }
+    MsqReader reader;
+    memset(&reader, 0, sizeof(reader));
+    reader.output_room = 8ull << 20u;
+    reader.output = whole ? (char *)malloc((size_t)reader.output_room) : NULL;
+    // the accumulated run's listing, which every reading and frame of it points into until the cross ends
+    MsqListing accumulated;
+    memset(&accumulated, 0, sizeof(accumulated));
+    whole = whole && (reader.output != NULL) && msq_accumulated_read(&reader, run_pieces, piece_count, &accumulated);
+    if (whole)
+    {
+        msq_pieces_cut(&accumulated, run_pieces, piece_count, readings, frame_read, addressed);
+    }
+    size_t aside_count = 0u;
+    for (size_t piece = 0u; whole && (piece < piece_count); piece += 1u)
+    {
+        if (run_pieces[piece].state != MSQ_PIECE_READ)
+        {
+            aside[aside_count] = piece;
+            aside_count += 1u;
+        }
+    }
+    // the pieces set aside, each read alone, on a reader thread for each up to the host's processors
+    MsqPool pool;
+    memset(&pool, 0, sizeof(pool));
+    pool.pieces = run_pieces;
+    pool.aside = aside;
+    pool.aside_count = aside_count;
+    pool.readings = readings;
+    pool.frame_read = frame_read;
+    pool.addressed = addressed;
+    const unsigned int processors = msq_processors();
+    const unsigned int threads = (aside_count < processors) ? (unsigned int)aside_count : processors;
     pthread_t *const started = (pthread_t *)calloc((size_t)threads + 1u, sizeof(pthread_t));
     unsigned int readers = 0u;
     for (unsigned int thread = 0u; whole && (started != NULL) && (thread < threads); thread += 1u)
     {
         if (pthread_create(&started[thread], NULL, msq_pool_worker, &pool) != 0)
         {
+            pool.why = "a reader thread could not be started";
             atomic_store(&pool.failed, 1);
             break;
         }
@@ -252,9 +281,12 @@ int main(int count, char **words)
         pthread_join(started[thread], NULL);
     }
     free(started);
-    pthread_mutex_destroy(&pool.lock);
-    free(pool.queue);
     whole = whole && (started != NULL) && !atomic_load(&pool.failed);
+    const unsigned long long accumulated_calls = reader.calls;
+    free(reader.output);
+    free(reader.raw);
+    free(run_pieces);
+    free(aside);
     for (size_t code = 0u; code < whole_codes.count; code += 1u)
     {
         whole_frames[code] = frame_read[code];
@@ -269,9 +301,8 @@ int main(int count, char **words)
     free(frame_read);
     if (!whole)
     {
-        fprintf(stderr,
-                "measuring_stick_query: the vendor's disassembler %s could not be run, or there was no memory\n",
-                s_nvdisasm);
+        fprintf(stderr, "measuring_stick_query: the vendor's disassembler %s could not be run, or there was no memory: %s\n",
+                s_nvdisasm, (pool.why != NULL) ? pool.why : "the work could not be queued");
         return 2;
     }
     // the questions held, each with why, the held list and the report handed to the run's buffer. A question is held
@@ -405,7 +436,7 @@ int main(int count, char **words)
                           (question->slot < (code_size / 16ull)) && (((question->slot * 16ull) + 16ull) <= code_size);
         msq_hold_said(&kept, question, coded ? (code + (question->slot * 16ull)) : NULL, why, clearing);
     }
-    const unsigned long long readings_count = atomic_load(&pool.calls);
+    const unsigned long long readings_count = accumulated_calls + atomic_load(&pool.calls);
     char head[256];
     const int head_length =
         snprintf(head, sizeof(head), "questions read: %zu in %llu readings; held off the part: %zu\n", question_count,
@@ -432,9 +463,10 @@ int main(int count, char **words)
     }
     printf("  questions read: %zu in %llu readings; the vendor holds %zu off the part\n", question_count,
            readings_count, holds);
-    printf("  the readings: %zu distinct slot encodings in %zu ranges, %zu frames, %zu tails; their streams %.2f s and "
-           "the vendor %.2f s, each summed over the readers\n",
-           slot_words.count, ranges, frame_count, tails.count,
+    printf("  the readings: %zu distinct slot encodings, %zu frames and %zu tails in one accumulated run read at %llu "
+           "starts, %zu set aside and read alone; their streams %.2f s and the vendor %.2f s, each summed over the "
+           "readers\n",
+           slot_words.count, frame_count, tails.count, accumulated_calls, aside_count,
            (double)atomic_load(&s_streamed_nanoseconds) / 1000000000.0,
            (double)atomic_load(&s_vendor_nanoseconds) / 1000000000.0);
     printf("  the held list is %s and the report %s, blobs of %s\n", held_name, report_name, qry_path(s_run));
@@ -453,6 +485,7 @@ int main(int count, char **words)
     free(whole_frames);
     free(piece_frames);
     free(piece_of);
+    msq_listing_free(&accumulated);
     msq_distinct_free(&slot_words);
     msq_distinct_free(&whole_codes);
     msq_distinct_free(&tails);

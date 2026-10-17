@@ -9,10 +9,9 @@
 #include <stdio.h>
 #include <string.h>
 
-// what bounds the memory this takes. Neither is the format's to state: a format says where things are, and these
-// say how much of it this will carry at once
-#define CONTAINER_SECTIONS 64u
-#define CONTAINER_ATTRIBUTE_ROOM 4096u
+// what bounds the sections a container may hold. It is not the format's to state: a format says where things are, and
+// this says how many of them the write will carry at once
+#define CONTAINER_SECTIONS 16384u
 
 // every place this reads or writes, taken out of the layout once
 typedef struct
