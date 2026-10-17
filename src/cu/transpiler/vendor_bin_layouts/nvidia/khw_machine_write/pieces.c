@@ -248,6 +248,53 @@ static unsigned long long khw_constant_bank(const KhwForm *held, unsigned int fi
     return 0ull;
 }
 
+// the vendor's instruction set for the part the machine file is written for, read once: a constant bank's operand is
+// printed by the bank and the byte offset its class reads. Empty where the part's tables are not pulled
+static TablesSet s_tables;
+
+void khw_tables_read(const char *machine_path)
+{
+    // the part is the machine file's name, sm_86.khw the part sm_86, and its tables stand where the tables pass pulls them
+    const char *const forward = strrchr(machine_path, '/');
+    const char *const back = strrchr(machine_path, '\\');
+    const char *const slash = ((back != NULL) && ((forward == NULL) || (back > forward))) ? back : forward;
+    const char *const name = (slash != NULL) ? (slash + 1) : machine_path;
+    const size_t length = strcspn(name, ".");
+    char path[512];
+    snprintf(path, sizeof(path), "build/vendor/nvidia/tables/%.*s_instructions.txt", (int)length, name);
+    unsigned char *text = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_file_read(qry_run(), path, &text, &size))
+    {
+        printf("  khw_machine_write: %s is not pulled, and a constant's offset is printed as its run holds it\n", path);
+        return;
+    }
+    if (!tables_set_read(&s_tables, text, (size_t)size))
+    {
+        printf("  khw_machine_write: %s did not read\n", path);
+    }
+    free(text);
+}
+
+// the bank and the byte offset the constant bank's operand of `held` reads, its first constant run `run`: as the
+// vendor's instruction set reads the encoding where it holds a class for it that reads the bank, and otherwise the
+// runs' values as they stand
+static void khw_constant_read(const KhwForm *held, unsigned int run, unsigned long long *bank,
+                              unsigned long long *offset)
+{
+    const TablesClass *const class_ = (s_tables.count != 0u) ? tables_class_of(&s_tables, held->low, held->high) : NULL;
+    const TablesField *const bank_field =
+        ((class_ != NULL) && (class_->offset[0] != '\0')) ? tables_field_named(class_, class_->bank) : NULL;
+    if (bank_field != NULL)
+    {
+        *bank = tables_field_read(bank_field, held->low, held->high);
+        *offset = tables_class_offset(class_, held->low, held->high);
+        return;
+    }
+    *bank = khw_constant_bank(held, run);
+    *offset = khw_run_read(held->low, held->high, held->first[run], held->last[run]);
+}
+
 // the field of the instruction word the part's .ksc names the guard, as khw_guard_field_set gives it; a predicate run
 // inside it is the guard, printed before the operation, and one outside it an operand in its order
 static unsigned int s_guard_first;
@@ -364,8 +411,15 @@ void khw_text_composed(const KhwForm *held, char *written, size_t room)
         }
         else if (held->kind[run] == KHW_KIND_CONSTANT)
         {
-            at += (size_t)snprintf(&written[at], room - at, "%sc[0x%llx][0x%llx]", between,
-                                   khw_constant_bank(held, run), number);
+            unsigned long long bank = 0ull;
+            unsigned long long offset = 0ull;
+            khw_constant_read(held, run, &bank, &offset);
+            // an offset with a place, a parameter's, is written from the parameters' base and the place among them
+            // its reading names, `c[0x0][0x160+0x10]`, so that the place is filled where the parameters begin
+            ((held->place[run] != SASS_RUN_NO_PLACE) && (offset >= held->reading))
+                ? (at += (size_t)snprintf(&written[at], room - at, "%sc[0x%llx][0x%llx+0x%llx]", between, bank,
+                                          offset - held->reading, held->reading))
+                : (at += (size_t)snprintf(&written[at], room - at, "%sc[0x%llx][0x%llx]", between, bank, offset));
         }
         else if (held->kind[run] == KHW_KIND_IMMEDIATE)
         {

@@ -246,8 +246,8 @@ typedef struct
 
 // The turning case of `held` into `stage`: for a ladder form, the first case of its relation whose readings in the
 // register pass stand apart (khw_turning_words), in the order the form reads its words, so that a changed answer is a
-// changed answer and not a coincidence; for a frame form, the words 3 and 5 over the frame's shape. 1, or 0 where the
-// relation holds no such case
+// changed answer and not a coincidence; for a frame form, the words 3 and 5 over the frame's shape, a parameter's over
+// the frame's every case. 1, or 0 where the relation holds no such case
 static int khw_turning_case(KhwAnswered *held, KhwStaged *stage)
 {
     stage->held = held;
@@ -257,7 +257,8 @@ static int khw_turning_case(KhwAnswered *held, KhwStaged *stage)
     {
         stage->word[0][0] = 3u;
         stage->word[0][1] = 5u;
-        stage->count = FRAME_READ_AT + 1u;
+        // a parameter's answer is the count the launch hands the kernel, which the frame's cases set
+        stage->count = (held->frame == (unsigned int)FRAME_PARAMETER) ? FRAME_CASES : (FRAME_READ_AT + 1u);
         stage->read_at = FRAME_READ_AT;
         return frame_answer(held->frame, FRAME_READ_AT, stage->word[0], held->reading, &stage->expected);
     }
@@ -773,7 +774,8 @@ static int khw_frame_whole(const KhwAnswered *held)
 // their order, each read at the stage's case; an address run is kept as the first stage marked it. The answer where
 // the slot writes nothing is the case's second word, `nothing`, and the relation's answer is `expected`. A run inside
 // the immediate field is a number where the relation is number and the answers are the settings themselves, and the
-// offset where the relation holds a number place and the two settings answer apart. Any other run is the destination
+// offset where the relation holds a number place and the two settings answer apart, a parameter's the constant bank's
+// operand's offset. Any other run is the destination
 // where 0 leaves `nothing` and the register the kernel stores answers the relation, or the guard where the relation is
 // exit or the run lies inside the field the .ksc names the guard, since P0 is false at the slot and PT is every lane,
 // exit's guard a place of its tuple and any other relation's a predicate with none; the register a store keeps where
@@ -818,8 +820,9 @@ static void khw_frame_registers_read(KhwAnswered *held, unsigned int at, const K
             else if (immediate && (held->frame != FRAME_NUMBER) &&
                      (frame_place_number(held->frame) != FRAME_PLACE_NONE) && both && (answer[0] != answer[1]))
             {
+                // a parameter's place is the offset of the constant bank's operand it reads, the operand kept whole
                 place = frame_place_number(held->frame);
-                kind = KHW_KIND_IMMEDIATE;
+                kind = (held->frame == FRAME_PARAMETER) ? KHW_KIND_CONSTANT : KHW_KIND_IMMEDIATE;
             }
             else if (immediate && (held->frame == FRAME_DIM) && both && (answer[0] != answer[1]))
             {

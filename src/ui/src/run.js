@@ -7,7 +7,7 @@
 import { invoke, listen, pick } from "./bridge.js";
 
 import { makeFuse } from "./fuse.js";
-import { courseLine, courseRead, courseStart, panelRead, panelReplanned, panelStart, panelStep, planOf, spanSaid, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "./protocol.js";
+import { courseLine, courseRead, courseStart, panelCounted, panelRead, panelReplanned, panelStart, panelStep, planOf, spanSaid, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "./protocol.js";
 import { makeRuler } from "./ruler.js";
 import { keepLattice } from "./lattice.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
@@ -174,8 +174,9 @@ function viewBody(run) {
 }
 
 function shownOf(run) {
-  // the tools are built by the time the run names its tap, and the run has started once its first blob comes
-  return { pass: run.pass, plan: run.plan, tools: run.qry !== null, started: run.telemetry.firstAt !== null, ended: run.done };
+  // the tools are built by the time the writer names the run's database, and the run has started once its first blob
+  // comes
+  return { pass: run.pass, plan: run.plan, tools: run.tools, started: run.telemetry.firstAt !== null, ended: run.done };
 }
 
 // The protocol jobs, whose runs show in the panel.
@@ -184,7 +185,7 @@ const PROTOCOL = "protocol";
 // A run record as it starts: its console lines and, for a protocol run, the reading of its database, the
 // .qry its writer names and where the next read of it goes on from.
 function runRecord(run, job, lines, steps, clock) {
-  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", qry: null, next: 0, reader: null, readingNow: false, view: OVERVIEW, telemetry: telemetryStart(), reachedAt: {}, course: courseStart() };
+  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", tools: false, view: OVERVIEW, telemetry: telemetryStart(), reachedAt: {}, course: courseStart() };
 }
 
 // A run's start, said before its first line: its record made here, so that every line finds it.
@@ -195,42 +196,12 @@ function onStart({ payload }) {
   }
 }
 
-// A protocol run's blobs read off its database from where the last read stopped: the writer's queue is the one
-// order, and the panel reads it in that order, a tenth of a second at a time while the run goes and once more as it
-// ends. A read that fails, the buffer not there yet, is made again at the next step.
-async function readingStepped(run) {
-  if (!run.qry || run.readingNow) {
-    return;
-  }
-  run.readingNow = true;
-  try {
-    const read = await invoke("qry_read", { path: run.qry, from: run.next });
-    for (const blob of read.blobs) {
-      panelStep(run.reading, blob, { plan: run.plan });
-      telemetryStep(run.telemetry, blob, performance.now() - run.clock);
-    }
-    run.next = read.next;
-    if (read.blobs.length) {
-      panelRedrawn(run);
-    }
-  } catch {
-    // read again at the next step
-  }
-  run.readingNow = false;
-}
-
-function readingStarted(run) {
-  if (run.reader) {
-    return;
-  }
-  run.reader = setInterval(() => {
-    readingStepped(run);
-    if (run.done) {
-      clearInterval(run.reader);
-      run.reader = null;
-      readingStepped(run);
-    }
-  }, 100);
+// A blob the run's writer placed, as the writer said it: taken into the panel's reading in the writer's order, the
+// one order of the run. Nothing is read back off the run; the writer says each blob as it places it.
+function onBlob(run, blob) {
+  panelStep(run.reading, blob, { plan: run.plan });
+  telemetryStep(run.telemetry, blob, performance.now() - run.clock);
+  panelRedrawn(run);
 }
 
 const remembered = (id) => JSON.parse(localStorage.getItem(`orior.values.${id}`) || "{}");
@@ -597,12 +568,10 @@ function planNoted(run, line) {
     const before = run.course.at;
     courseLine(run.course, line.text);
     if (run.course.at !== before) {
+      // the step to come is a member of the course's one run, and the writer's blobs go on into a reading of its own
       run.reading = panelStart();
       run.plan = null;
       run.pass = run.course.steps[run.course.at - 1] ?? "";
-      // the step to come starts a run of its own, whose database its writer names
-      run.qry = null;
-      run.next = 0;
     }
     panelRedrawn(run);
     return;
@@ -623,12 +592,9 @@ function planNoted(run, line) {
     run.pass = at >= 0 && words[at + 1] ? words[at + 1] : words[words.indexOf("protocol") + 1] ?? "";
     panelRedrawn(run);
   }
-  // the writer naming the run's database: the panel reads the run from there, from its first blob on
-  const made = /^\s*qry_writer: the buffer of (.+) is made\s*$/.exec(line.text);
-  if (made) {
-    run.qry = made[1];
-    run.next = 0;
-    readingStarted(run);
+  // the writer naming the run's database: the tools are built, and the writer's blobs come from here on
+  if (/^\s*qry_writer: the buffer of .+ is made\s*$/.test(line.text)) {
+    run.tools = true;
     panelRedrawn(run);
   }
 }
@@ -793,8 +759,27 @@ export async function startRun(openFile) {
   await listen("run-start", onStart);
   await listen("run-line", onLine);
   // the lines a run said between two of the server's readings come as one event, so that a run saying thousands a
-  // second leaves the page's event queue open to every other event, the command line's among them
-  await listen("run-lines", ({ payload }) => payload.forEach((line) => onLine({ payload: line })));
+  // second leaves the page's event queue open to every other event, the command line's among them; a blob the run's
+  // writer placed comes among them in the order said, known by its sequence
+  await listen("run-lines", ({ payload }) =>
+    payload.forEach((said) => {
+      if (said.sequence === undefined && said.others === undefined) {
+        onLine({ payload: said });
+        return;
+      }
+      const run = state.runs.get(said.run);
+      if (!run) {
+        return;
+      }
+      if (said.others !== undefined) {
+        // the blobs the panel only counts, counted by the server in place of an event each
+        panelCounted(run.reading, said.others, { plan: run.plan });
+        panelRedrawn(run);
+        return;
+      }
+      onBlob(run, said);
+    }),
+  );
   await listen("run-end", onEnd);
   document.getElementById("job-filter").addEventListener("input", drawList);
   keepListKeys(document.getElementById("jobs"), document.getElementById("job-filter"));

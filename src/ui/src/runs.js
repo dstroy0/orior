@@ -121,16 +121,6 @@ async function opening(path) {
   return held;
 }
 
-async function readOpen() {
-  const live = [...state.open.entries()].filter(([, held]) => held.live);
-  for (const [path] of live) {
-    await opening(path);
-  }
-  if (live.length) {
-    draw();
-  }
-}
-
 function blobRow(blob) {
   const kind = blob.priority === 0 ? "panic" : blob.priority === 1 ? "critical" : "ordinary";
   return element(
@@ -233,8 +223,8 @@ export function draw() {
   );
 }
 
-// Lists the tree's runs on a beat, more often while one is live or the pane shows, and reads each
-// open live run.
+// Lists the tree's runs on a beat, more often while one is live or the pane shows. A run is read as it is opened;
+// nothing reads it again on the beat.
 export function startRuns() {
   const beat = async () => {
     const often = shown() || state.listing.runs.some((run) => run.live);
@@ -242,7 +232,6 @@ export function startRuns() {
       state.listedAt = performance.now();
       await list();
     }
-    await readOpen();
     window.setTimeout(beat, READ_LIVE);
   };
   window.setTimeout(beat, 0);

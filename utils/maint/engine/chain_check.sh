@@ -14,6 +14,8 @@
 #   who_check        holds a who to what the who table gives, and every write to the who the run records of it
 #   qry_rows_check   holds a row of a table of the run to its who and its columns as handed, and a text of the table
 #                    of texts to its number, handed once
+#   blob_said_check  holds the writer's line for each blob it places to the blob, in the order it places them, a
+#                    panic's before the blobs handed after it
 #   kdecode_check    holds kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
 #                    a who line, the rows let go handed back, and the part's cost rows put again as it was
@@ -98,6 +100,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/constant_check" "$TOP/utils/test/src/cu/t
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/pieces.c" \
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" \
@@ -113,6 +116,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_rows_check" "$TOP/utils/test/src/cu/types/file_defs/qry/qry_rows_check.c" \
     "${FILE_DEFS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -pthread -o "$OUT/blob_said_check" \
+    "$TOP/utils/test/src/cu/types/file_defs/qry/blob_said_check.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/file_defs/ksc/ksc_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/krf_check" "$TOP/utils/test/src/cu/types/file_defs/krf/krf_check.c" \
@@ -209,6 +214,7 @@ fi
         "$OUT/ksc_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.ksc" &&
         "$OUT/kdm_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kdm"
 ) || exit 1
+"$OUT/blob_said_check" "$OUT" || exit 1
 # the file kdm_check handed its run, in its place once that run has ended: it names the run's .qry, the newest
 newest_run="$(ls -t "$OUT"/kqr_runs/query*.qry | head -1)"
 command -v cygpath > /dev/null && newest_run="$(cygpath -m "$newest_run")"

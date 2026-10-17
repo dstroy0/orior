@@ -131,8 +131,12 @@ int qry_write_until_stopped(QryBuffer *buffer)
     unsigned long long last = qry_milliseconds();
     int stopped = 0;
     int moved = 0;
+    // each blob placed from here on is said on the writer's output as it is placed (qry_blob_said), or where the
+    // process that writes the run set another, and what a pass said goes out at the pass's end
+    buffer->saying = (buffer->saying != NULL) ? buffer->saying : stdout;
     while (!stopped)
     {
+        fflush(buffer->saying);
         // a pass that moved a member's ring is followed by another at once: what a member added while it was taken is
         // taken on its next turn
         const unsigned long long waited = qry_milliseconds() - last;
@@ -182,6 +186,8 @@ int qry_write_until_stopped(QryBuffer *buffer)
                   (atomic_load(&head->critical_written) >= atomic_load(&head->critical_handed)) &&
                   (head->dumped_blobs == 0ull);
     }
+    fflush(buffer->saying);
+    buffer->saying = NULL;
     // the oracle of every table the run holds, once every member has moved its last; then the writer's own account, the
     // run's last blob, written and flushed through to the disk
     const unsigned long long oracles = qry_oracles_added(buffer);

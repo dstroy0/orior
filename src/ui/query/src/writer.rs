@@ -35,6 +35,15 @@ pub struct Writer {
     pub member: Option<Arc<Member>>,
 }
 
+/// The variable a step of a job the window's runner starts finds its run's number in (the CLI's runner.rs).
+pub const RUN_VARIABLE: &str = "ORIOR_RUN";
+
+/// Where the writer says each blob it places: the job's own output where a runner started this process, which
+/// carries the writer's lines to the window as it says them, and nowhere where none did.
+fn said_to() -> Stdio {
+    if std::env::var_os(RUN_VARIABLE).is_some() { Stdio::inherit() } else { Stdio::null() }
+}
+
 /// The output's bytes where the word succeeded, else `what` with what the writer said.
 fn whole(output: std::process::Output, what: &str) -> Result<Freed, String> {
     if output.status.success() {
@@ -66,7 +75,7 @@ impl Writer {
     /// holds no pipe of this process: what it says of itself is its account blob, and `ready` says
     /// whether it started.
     pub fn start(&self) -> Result<Child, String> {
-        self.word(&["start", &self.qry_text()]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| format!("the run's writer did not start: {e}"))
+        self.word(&["start", &self.qry_text()]).stdin(Stdio::null()).stdout(said_to()).stderr(Stdio::null()).spawn().map_err(|e| format!("the run's writer did not start: {e}"))
     }
 
     /// 1 once the writer has made the buffer, waiting up to the writer's own 30 seconds.

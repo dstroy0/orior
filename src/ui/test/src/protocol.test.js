@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { HISTORY_SECONDS, PANIC, RATE_WINDOW_MS, ROUND_MOST, ROUNDS_SHOWN, blobsOfNode, courseLine, courseRead, courseStart, nodesOf, panelOf, panelReplanned, panelStart, panelStep, planOf, roundsOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "../../src/protocol.js";
+import { HISTORY_SECONDS, PANIC, RATE_WINDOW_MS, ROUND_MOST, ROUNDS_SHOWN, blobsOfNode, courseLine, courseRead, courseStart, nodesOf, panelOf, panelCounted, panelReplanned, panelStart, panelStep, planOf, roundsOf, spanSaid, telemetryHistory, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "../../src/protocol.js";
 
 const { test, assert } = window.__harness;
 
@@ -159,6 +159,17 @@ test("the rate is the answers over the last window, and the history counts them 
   assert.equal(history.at(-11), 1);
   assert.equal(history.at(-12), 0);
   assert.equal(telemetryRead(telemetry, { nowMs: 10000, reading }).gone, 10000);
+});
+
+test("blobs the panel only counts add to the node under way and keep no list", () => {
+  const plan = { pass: "turns", questions: 10 * ROUND_MOST };
+  const reading = panelStart();
+  panelCounted(reading, 3, { plan });
+  assert.equal(reading.blobs.get("carried").count, 3);
+  panelStep(reading, blob("questions.txt", 64), { plan });
+  panelCounted(reading, 500, { plan });
+  assert.equal(reading.blobs.get("round1").count, 501);
+  assert.equal(reading.blobs.get("round1").list.length, 1);
 });
 
 test("the time left is the rounds left at the last rounds' spacing", () => {

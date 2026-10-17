@@ -147,9 +147,15 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         // the operand reads as an address where the place is filled
         const int address = (parts.kind[operand] == SASS_OPERAND_ADDRESS) && (text[0] == '[');
         const size_t inner = address ? (1u + strcspn(text + 1, ".+]")) : 0u;
+        // a placed constant whose offset is a base and a term, `c[0x0][0x160+0x10]`, keeps its bank and its base, the
+        // place the term, `c[0x0][0x160+{<place>}]`
+        const char *const term = (parts.kind[operand] == SASS_OPERAND_CONSTANT) ? strrchr(text, '+') : NULL;
         printed = (place == SASS_RUN_NO_PLACE) ? snprintf(written + at, room - at, "%s%s%s", between, mark, text)
                   : address ? snprintf(written + at, room - at, "%s%s[{%u}%s", between, mark, place, text + inner)
-                            : snprintf(written + at, room - at, "%s%s{%u}", between, mark, place);
+                  : (term != NULL)
+                      ? snprintf(written + at, room - at, "%s%s%.*s{%u}]", between, mark, (int)(term - text + 1), text,
+                                 place)
+                      : snprintf(written + at, room - at, "%s%s{%u}", between, mark, place);
         at += (printed > 0) ? (size_t)printed : room;
     }
     return (at < room) ? 1 : 0;

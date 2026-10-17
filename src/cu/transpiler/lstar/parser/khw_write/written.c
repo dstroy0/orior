@@ -142,7 +142,8 @@ const char *khw_relation_named(const KhwAnswered *held, int with_reading, char *
 }
 
 // the forms the part answered for handed to the run's buffer as KHW_FORMS_NAME, one a line, for the vendor's writer to
-// name and lay out: the relation the gate read, whether the answers read a word signed and whether the part was asked,
+// name and lay out: the relation the gate read, a frame relation's with its reading, whether the answers read a word
+// signed and whether the part was asked,
 // the encoding, and each run's first and last bit and its place in the relation's tuple. A form not yet classified, or
 // one with no operand run, names nothing; the vendor lays out none of them. 1, or 0 with the reason printed
 int khw_answers_written(void)
@@ -156,7 +157,7 @@ int khw_answers_written(void)
             continue;
         }
         char relation[64];
-        khw_text_added(&text, "%s %d %d %016llx %016llx %u", khw_relation_named(held, 0, relation, sizeof(relation)),
+        khw_text_added(&text, "%s %d %d %016llx %016llx %u", khw_relation_named(held, 1, relation, sizeof(relation)),
                        held->signed_read, held->signedness_asked, held->low, held->high, held->runs);
         for (unsigned int run = 0u; run < held->runs; run += 1u)
         {

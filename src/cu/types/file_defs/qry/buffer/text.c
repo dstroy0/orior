@@ -229,6 +229,22 @@ unsigned long long qry_streamed(QryBuffer *buffer, const char *name, const void 
 #endif
 }
 
+// The blob the writer placed said where the writer says what it places, its own output, one line, `qry_blob
+// <sequence> <nanoseconds> <priority> <member> <size> <name>`, the member QRY_MEMBERS where the writer's own process
+// handed it: whatever started the writer hears every blob of the run as the writer places it, in the writer's order.
+// Nothing where `buffer` is not the writer's as it writes the run
+void qry_blob_said(QryBuffer *buffer, unsigned long long sequence, unsigned long long nanoseconds,
+                   unsigned int priority, unsigned int member, const char *name, size_t length,
+                   unsigned long long size)
+{
+    if (buffer->saying == NULL)
+    {
+        return;
+    }
+    fprintf(buffer->saying, "qry_blob %llu %llu %u %u %llu %.*s\n", sequence, nanoseconds, priority, member, size,
+            (int)length, name);
+}
+
 // One blob put in at the buffer's tail under the lock, a dump said before it where one waits and it does not fit
 // (qry_dumped_said), and counted as dumped where it is ordinary and does not fit: its sequence, with `placed` 1 where
 // it went in

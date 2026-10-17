@@ -201,6 +201,7 @@ pub const EVERY: &[Tool] = &[
             "src/cu/transpiler/vendor_bin_layouts/container_layout.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c",
             "src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c",
+            "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c",
         ]],
         cxx: &[],
         cxx_tool: &[],

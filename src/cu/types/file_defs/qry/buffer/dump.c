@@ -138,9 +138,15 @@ int qry_firsts_written(QryBuffer *buffer, QryFile *file, QryWriterState *state)
                 whole &= qry_file_added(file, buffer->data + s_taken[place].at, s_taken[place].size, 1);
                 whole &= qry_marked_written(buffer, s_taken[place].at);
                 bytes += s_taken[place].size;
-                // a panic's time from its hand to the disk, its hand's time read off its frame
+                // the blob read off its frame: said, a panic or a critical blob as it is written first, and a panic's
+                // time from its hand to the disk
                 QryBlob blob;
                 const int read = qry_blob_read(buffer->data, *tail_seen, s_taken[place].at, &blob);
+                if (read)
+                {
+                    qry_blob_said(buffer, blob.sequence, blob.nanoseconds, priority, QRY_MEMBERS,
+                                  (const char *)(buffer->data + blob.name_at), (size_t)blob.name_length, blob.size);
+                }
                 if (priority == QRY_PANIC)
                 {
                     const unsigned long long now = qry_nanoseconds();

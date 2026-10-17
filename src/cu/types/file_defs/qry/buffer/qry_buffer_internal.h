@@ -188,6 +188,8 @@ struct QryBuffer
     atomic_flag adding;
     int last_ringed;
     unsigned long long last_placed;
+    // where each blob the writer places is said as it writes the run, its output; NULL in every other process
+    FILE *saying;
 #if defined(_WIN32)
     HANDLE section;
     HANDLE lock;
@@ -330,6 +332,7 @@ void qry_dumped_said(QryBuffer *buffer);
 int qry_critical_waited(QryBuffer *buffer, unsigned long long sequence);
 int qry_file_placed(const char *name, size_t length, char *path, size_t room);
 unsigned long long qry_placed(QryBuffer *buffer, const char *name, size_t length, const void *bytes, unsigned long long size, unsigned long long crc, unsigned int priority, unsigned int marks, unsigned long long handed_at, int *placed);
+void qry_blob_said(QryBuffer *buffer, unsigned long long sequence, unsigned long long nanoseconds, unsigned int priority, unsigned int member, const char *name, size_t length, unsigned long long size);
 void qry_held_kept(QryBuffer *buffer, int kept);
 int qry_members_moved(QryBuffer *buffer);
 int qry_members_empty(QryBuffer *buffer);

@@ -172,6 +172,7 @@ int main(int count, char **word)
     if (!gate)
     {
         forms = khw_answers_read(answers, s_form, SASS_MACHINE_FORMS);
+        khw_tables_read(path);
         for (unsigned int at = 0u; at < forms; at += 1u)
         {
             char text[SASS_MACHINE_TEXT];

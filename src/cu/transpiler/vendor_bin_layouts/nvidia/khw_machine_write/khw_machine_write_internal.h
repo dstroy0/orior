@@ -8,6 +8,7 @@
 #include "../../../../types/file_defs/qry/qry_buffer.h"
 #include "../cubin_write.h"
 #include "../sass_machine.h"
+#include "../tables/read.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -58,12 +59,14 @@
 
 #define KHW_KIND_LETTERS "ranpc"
 
-// What the protocol answered of one form, read from the answers file: the relation every case of it answered, whether
-// the answers read a word signed and whether a case of the relation let the part answer so, the encoding, and the
-// runs of bits its operands sit in with each run's place in the relation's tuple and what its operand is
+// What the protocol answered of one form, read from the answers file: the relation every case of it answered, a frame
+// relation's reading, whether the answers read a word signed and whether a case of the relation let the part answer
+// so, the encoding, and the runs of bits its operands sit in with each run's place in the relation's tuple and what
+// its operand is
 typedef struct
 {
     char relation[KHW_READS];
+    unsigned long long reading;
     int signed_read;
     int signedness_asked;
     unsigned long long low;
@@ -99,6 +102,10 @@ const char *khw_piece_reading(const char *kind, const char *word);
 // the field the part's .ksc names the guard, `first` and `bits`: a predicate run inside it prints as the guard, and
 // one outside it as an operand in its order; with none set, every predicate run is the guard
 void khw_guard_field_set(unsigned int first, unsigned int bits);
+// the vendor's instruction set for the part the machine file at `machine_path` is written for, read once from where
+// the tables pass pulls it; a constant bank's operand is printed by the bank and byte offset its class reads
+void khw_tables_read(const char *machine_path);
+
 void khw_text_composed(const KhwForm *held, char *written, size_t room);
 int khw_form_kept(SassMachine *machine, const KhwForm *held, const char *text);
 int khw_kernel_read(const char *path);

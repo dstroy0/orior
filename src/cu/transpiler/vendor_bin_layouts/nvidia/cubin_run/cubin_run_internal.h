@@ -47,6 +47,10 @@
 
 #define CUBIN_RUN_THREADS 256u
 
+// the place among the launch's parameters the count stands at, in bytes: past the cases' address and the records',
+// the kernel's (in, out, count)
+#define CUBIN_RUN_COUNT_PLACE (2u * (unsigned int)sizeof(CubinRunAddress))
+
 // the most threads one launch gives a case each, and the most cases a question gives: every case is a thread's
 #define CUBIN_RUN_THREADS_MOST (1u << 20u)
 

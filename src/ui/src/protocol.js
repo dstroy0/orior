@@ -110,6 +110,17 @@ function roundsDone(reading, plan) {
   return Boolean(plan) && reading.rounds >= roundsOf(plan) && reading.answered >= reading.asked;
 }
 
+// The reading with `count` more blobs counted that the panel reads nothing of, the ones the writer placed next and
+// the server counts in place of handing each: counted on the node under way, as panelStep would place them, and
+// kept in no list.
+export function panelCounted(reading, count, { plan = null } = {}) {
+  const node = plan && reading.rounds ? `round${reading.rounds}` : reading.rounds ? "rounds" : "carried";
+  const kept = reading.blobs.get(node) ?? { count: 0, list: [] };
+  kept.count += count;
+  reading.blobs.set(node, kept);
+  return reading;
+}
+
 // The reading with one more blob taken, the one the writer placed next. The rounds counted are the
 // rounds put after the plan: a round put before it is the first round's, the kernel's and the slot's.
 export function panelStep(reading, blob, { plan = null } = {}) {

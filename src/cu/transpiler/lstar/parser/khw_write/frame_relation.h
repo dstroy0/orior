@@ -14,7 +14,7 @@ extern "C"
 // the frame relations and their names, in the order the candidates are read: the first survivor is the form's
 #define FRAME_RELATIONS(relation_)                                                                                     \
     relation_(LANE, "lane") relation_(BLOCK, "block") relation_(LOAD, "load") relation_(STORE, "store")                \
-        relation_(EXIT, "exit") relation_(NUMBER, "number") relation_(DIM, "dim")
+        relation_(EXIT, "exit") relation_(NUMBER, "number") relation_(DIM, "dim") relation_(PARAMETER, "parameter")
 
 #define FRAME_NAMED(name_, text_) FRAME_##name_,
 
@@ -39,6 +39,10 @@ extern "C"
 #define FRAME_READ_AT (RUN_THREADS_A_BLOCK + 2u)
 #define FRAME_CASES ((2u * RUN_THREADS_A_BLOCK) + 3u)
 
+// the threads a frame question's launch gives a case each, the count among its parameters: blocks of the carrier's
+// size, as many as give every case a thread
+#define FRAME_LAUNCHED (RUN_THREADS_A_BLOCK * ((FRAME_CASES + RUN_THREADS_A_BLOCK - 1u) / RUN_THREADS_A_BLOCK))
+
 // the place of a tuple a relation does not hold
 #define FRAME_PLACE_NONE 0xffffffffu
 
@@ -48,7 +52,9 @@ extern "C"
     // number, a block's, a word loaded or a number stand in the first with the second 0, as the stores before the
     // slot leave it; a store leaves the case's second word in the first, as the slot found it, and the register's
     // word in the second; an exit leaves the fill word in the first; the block size, `dim`, is the threads a block
-    // on every case, which the launch alone sets. 1, or 0 where the relation is none of the seven
+    // on every case, which the launch alone sets; and a parameter's word, `parameter`, is the count the launch hands
+    // the kernel on every case, its reading the count's place among the parameters. 1, or 0 where the relation is
+    // none of the eight
     static inline int frame_answer(unsigned int relation, unsigned int at, const unsigned int *word,
                                    unsigned long long reading, unsigned long long *answered)
     {
@@ -75,18 +81,22 @@ extern "C"
         case FRAME_DIM:
             *answered = RUN_THREADS_A_BLOCK;
             return 1;
+        case FRAME_PARAMETER:
+            *answered = FRAME_LAUNCHED;
+            return 1;
         default:
             return 0;
         }
     }
 
     // each relation's tuple places: the destination, last where the relation writes a register; the address a load
-    // reads through; the number, a number's value or a load's or a store's offset; the register a store keeps; and
-    // the guard an exit reads. FRAME_PLACE_NONE where the relation holds none
+    // reads through; the number, a number's value, a load's or a store's offset, or a parameter's place among the
+    // parameters; the register a store keeps; and the guard an exit reads. FRAME_PLACE_NONE where the relation holds
+    // none
     static inline unsigned int frame_place_destination(unsigned int relation)
     {
         return ((relation == FRAME_LANE) || (relation == FRAME_BLOCK) || (relation == FRAME_DIM)) ? 0u
-               : (relation == FRAME_NUMBER)                                                       ? 1u
+               : ((relation == FRAME_NUMBER) || (relation == FRAME_PARAMETER))                    ? 1u
                : (relation == FRAME_LOAD)                                                         ? 2u
                                                                                                   : FRAME_PLACE_NONE;
     }
@@ -98,9 +108,9 @@ extern "C"
 
     static inline unsigned int frame_place_number(unsigned int relation)
     {
-        return ((relation == FRAME_NUMBER) || (relation == FRAME_STORE)) ? 0u
-               : (relation == FRAME_LOAD)                                ? 1u
-                                                                         : FRAME_PLACE_NONE;
+        return ((relation == FRAME_NUMBER) || (relation == FRAME_STORE) || (relation == FRAME_PARAMETER)) ? 0u
+               : (relation == FRAME_LOAD)                                                                 ? 1u
+                                                                                                          : FRAME_PLACE_NONE;
     }
 
     static inline unsigned int frame_place_register(unsigned int relation)

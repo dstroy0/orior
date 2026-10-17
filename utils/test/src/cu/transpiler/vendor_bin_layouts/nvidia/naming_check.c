@@ -119,6 +119,16 @@ int main(int count, char **words)
     hand_form(&banked, "frame.dim", 0x0040000000017a02ull | (0x28ull << 38u), 0x000fe40000000f00ull, dim_runs, 3u);
     check_text(&banked, "MOV R1, c[0x1][0x28]", "the bank and the offset read from the encoding's bits");
 
+    // a parameter's word read from the constant bank: its offset run a place, printed from the parameters' base and
+    // the place among them its reading names
+    const HandRun parameter_runs[2] = {{16u, 23u, 1u, KHW_KIND_REGISTER}, {38u, 53u, 0u, KHW_KIND_CONSTANT}};
+    KhwForm parameter;
+    hand_form(&parameter, "frame.parameter", 0x0000000000017a02ull | (0x170ull << 38u), 0x000fe40000000f00ull,
+              parameter_runs, 2u);
+    parameter.reading = 0x10ull;
+    check_text(&parameter, "MOV R1, c[0x0][0x160+0x10]",
+               "a parameter form prints its offset as the parameters' base and its place among them");
+
     // a test: the predicate it writes in the field at 81 is an operand, the answer's place, and the predicates it
     // reads at 84 and 87, PT, are operands with no place; the relation read unsigned carries U32 and signed nothing
     khw_guard_field_set(12u, 3u);
@@ -158,6 +168,12 @@ int main(int count, char **words)
     check_that((kept_take->operands == 3u) && (kept_take->mark[2] == SASS_MARK_NEGATE) &&
                    (kept_take->mark[1] == SASS_MARK_NONE),
                "its third operand carries the negate mark and its second none");
+    khw_text_composed(&parameter, text, sizeof(text));
+    check_that(khw_form_kept(&s_test_machine, &parameter, text), "the parameter form is kept");
+    char placed[SASS_MACHINE_TEXT];
+    check_that(sass_text_placed(&s_test_machine.form[2], placed, sizeof(placed)) &&
+                   (strcmp(placed, "MOV {1}, c[0x0][0x160+{0}]") == 0),
+               "and its placed text fills the place past the parameters' base");
     printf("naming_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

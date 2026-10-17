@@ -241,6 +241,11 @@ int qry_members_moved(QryBuffer *buffer)
                            opened_at + sizeof(opened) + opened.name_length, opened.size, opened.crc, QRY_ORDINARY,
                            opened.marks, opened.nanoseconds, &placed);
             last = placed ? sequence : last;
+            if (placed)
+            {
+                qry_blob_said(buffer, sequence, opened.nanoseconds, QRY_ORDINARY, place,
+                              (const char *)(opened_at + sizeof(opened)), (size_t)opened.name_length, opened.size);
+            }
             at += opened.whole;
             // the ring's room given back blob by blob, for a member waiting on it to go on
             if (last != 0ull)
@@ -389,6 +394,12 @@ unsigned long long qry_handed(QryBuffer *buffer, const char *name, const void *b
     const unsigned long long sequence =
         qry_placed(buffer, name, length, bytes, size, crc, priority, marks, 0ull, &placed);
     const unsigned long long after = atomic_load(&head->tail) - written;
+    // an ordinary blob the writer's own process hands goes in here, past every ring, and is said now; a panic or a
+    // critical blob is said as the writer writes it first
+    if (placed && (priority == QRY_ORDINARY))
+    {
+        qry_blob_said(buffer, sequence, qry_nanoseconds(), priority, QRY_MEMBERS, name, length, size);
+    }
     qry_unlock(buffer);
     if (placed)
     {

@@ -175,6 +175,14 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
         {
             continue;
         }
+        // a frame relation carries its reading after a second dot, `frame.parameter.10`: the relation is named without
+        // it and the reading kept apart
+        char *const reading = (strncmp(held.relation, "frame.", 6u) == 0) ? strchr(held.relation + 6, '.') : NULL;
+        if (reading != NULL)
+        {
+            held.reading = strtoull(reading + 1, NULL, 16);
+            *reading = '\0';
+        }
         form[read] = held;
         read += 1u;
     }

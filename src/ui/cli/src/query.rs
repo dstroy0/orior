@@ -10,6 +10,7 @@
 //! .khw, its record, .kqr, and its costs, .ksc. The crate reads them the same way.
 
 use std::ffi::OsString;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 use orior_query::commands::{self, Word};
@@ -93,10 +94,15 @@ pub fn jobs(root: &Path, jobs: &mut Vec<Job>) {
     }
 }
 
-/// `orior protocol <command> <words>` run here: the lines to the terminal, the code the exit.
+/// `orior protocol <command> <words>` run here: the lines to the terminal, the code the exit. A terminal
+/// or pipe that closes takes no more lines, and the command goes on to its end.
 pub fn protocol(root: &Path, words: &[String]) -> i32 {
     toolchains::set_tree(root);
-    match commands::run(root, &Toolchains, words, &mut |line| println!("{line}")) {
+    let mut out = std::io::stdout();
+    let mut said = |line: &str| {
+        let _ = writeln!(out, "{line}");
+    };
+    match commands::run(root, &Toolchains, words, &mut said) {
         Ok(code) => code,
         Err(said) => {
             eprintln!("{said}");
@@ -136,7 +142,7 @@ mod face {
         let mut found = Vec::new();
         jobs(&root, &mut found);
         let ids: Vec<&str> = found.iter().map(|job| job.id.as_str()).collect();
-        assert_eq!(ids, ["protocol/course", "protocol/tables", "protocol/query", "protocol/learn", "protocol/cross", "protocol/write", "protocol/pairs", "protocol/stick", "protocol/kept", "protocol/sweep"]);
+        assert_eq!(ids, ["protocol/course", "protocol/tables", "protocol/decode", "protocol/query", "protocol/learn", "protocol/cross", "protocol/write", "protocol/pairs", "protocol/stick", "protocol/kept", "protocol/sweep"]);
         assert!(found.iter().all(|job| job.group == "protocol" && matches!(job.steps[0].program, Program::Orior)));
         let course = &found[0];
         assert_eq!(course.title, "protocol");
@@ -145,7 +151,7 @@ mod face {
         assert!(whole[0].ends_with("protocol course --leave all"), "{}", whole[0]);
         let from = runner::shown(&root, course, &given(&["from=costs", "leave=none"])).unwrap();
         assert!(from[0].ends_with("protocol course --from costs --leave none"), "{}", from[0]);
-        let query = &found[2];
+        let query = &found[3];
         assert_eq!(query.params[0].choices, ["cu", "sass"], "c has a ruleset and no map, so it is no language yet");
         assert_eq!(query.params[2].choices, ["sm_86"]);
         assert!(!query.params[2].required);

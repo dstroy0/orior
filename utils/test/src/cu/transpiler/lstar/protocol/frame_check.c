@@ -243,8 +243,8 @@ int main(int count, char **words)
 
     // the frame forms: the table's rows, eight frame relations', ten the ladder's predicate relations' and eight their
     // mirrors', and a form's line as the schema's form through a ruleset naming the eight
-    check_that(krs_frame_read(NULL) == 26u, "the table of frame forms beside its source holds twenty-six rows, the "
-                                            "frame's eight, the tests' ten and their mirrors' eight");
+    check_that(krs_frame_read(NULL) == 27u, "the table of frame forms beside its source holds twenty-seven rows, the "
+                                            "frame's nine, the tests' ten and their mirrors' eight");
     char named[1024];
     snprintf(named, sizeof(named), "%s/frame_check_named.krs", words[1]);
     const char *const naming =
@@ -255,9 +255,9 @@ int main(int count, char **words)
         "= "
         "blockIdx.x;\\n\nform exit_if where =     if ({where})\\n    {\\n        return;\\n    }\\n\nform block_dim_x "
         "to =     "
-        "{to} = blockDim.x;\\n\n";
+        "{to} = blockDim.x;\\n\nerr parameter_load_word to offset\n";
     check_that(qry_filed(qry_run(), named, naming, strlen(naming)) != 0ull,
-               "a ruleset naming the schema's eight forms is written");
+               "a ruleset naming the schema's nine forms is written");
     const KrsFrameForm lane = {"frame.lane", "S2R {0}"};
     char line[1024];
     check_that(krs_frame_named(&lane, named, line, sizeof(line)) &&
@@ -283,6 +283,11 @@ int main(int count, char **words)
     const KrsFrameForm plain = {"frame.exit", "EXIT"};
     check_that(krs_frame_named(&plain, named, line, sizeof(line)) && (strcmp(line, "form return = EXIT\\n\n") == 0),
                "and an exit with no guard is named return");
+    const KrsFrameForm parameter = {"frame.parameter", "MOV {1}, c[0x0][0x160+{0}]"};
+    check_that(krs_frame_named(&parameter, named, line, sizeof(line)) &&
+                   (strcmp(line, "form parameter_load_word to offset = MOV {to}, c[0x0][0x160+{offset}]\\n\n") == 0),
+               "a parameter form is named parameter_load_word, its destination as to and its place among the "
+               "parameters as offset");
     const KrsFrameForm stray = {"frame.load", "LD {2}, [{0}.64], {3}"};
     check_that(!krs_frame_named(&stray, named, line, sizeof(line)),
                "a text holding a place no parameter takes is not named");

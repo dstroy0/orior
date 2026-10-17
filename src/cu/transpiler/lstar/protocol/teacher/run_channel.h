@@ -45,6 +45,10 @@ extern "C"
 #define RUN_UNWRITTEN_WORD 0xffffffffu
 #define RUN_THREADS_A_BLOCK 256u
 
+// the place among the launch's parameters the count stands at, in bytes, the carrier's own (cubin_run_internal.h):
+// the frame's asks read the count as a parameter's word, the threads the launch gives a case each
+#define RUN_COUNT_PLACE 16u
+
 // the gate's hold under rule 3 of the airlock, an operation key unknown, as the carrier answers it: `skipped` and the
 // rule's number (cubin_safe.h, CUBIN_SAFE_KEY). An ask held so is open in R, as a timed-out one is: the part never saw
 // it, and a conference may admit it (overseer.h)

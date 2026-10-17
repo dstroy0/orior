@@ -261,8 +261,8 @@ fn run_job_telling(root: PathBuf, job: Job, words: &[String], window: Option<cra
     told.tell(serde_json::json!({"state": "started", "job": job.id, "title": job.title, "root": root.display().to_string(), "words": words}));
     let telling = told.clone();
     let sink: Sink = Arc::new(move |said| match said {
-        // a blob off the run's tap is the panel's, and the command line shows the console alone
-        Said::Start(_) => {}
+        // a blob the run's writer placed is the panel's, and the command line shows the console alone
+        Said::Start(_) | Said::Blob(_) => {}
         Said::Line(line) => {
             telling.tell(serde_json::json!({"line": line.text, "stream": line.stream, "ms": line.ms}));
             match line.stream {

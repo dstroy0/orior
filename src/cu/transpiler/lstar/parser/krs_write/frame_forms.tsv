@@ -29,6 +29,7 @@ ladder.at_most.signed	test_signed_word_ge	2 1 0
 frame.lane	thread_idx_x	0
 frame.block	block_idx_x	0
 frame.dim	block_dim_x	0
+frame.parameter	parameter_load_word	1 0
 frame.number	word_set	1 0
 frame.load	global_load_constant_word	2 0 1
 frame.store	record_store_word	0 1
