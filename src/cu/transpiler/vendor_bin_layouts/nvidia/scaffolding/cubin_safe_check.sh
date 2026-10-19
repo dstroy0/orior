@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds cubin_safe_check and holds cubin_safe to one case a rule against the part's machine file, then reads every
 # cubin named on the host. Nothing goes to a device.
@@ -8,9 +9,9 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 CUB="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
-KRS="$TOP/src/cu/types/file_defs/readers"
+KRS="$TOP/src/cu/includes/parsers"
 OUT="$TOP/build/cubin_safe"
 mkdir -p "$OUT"
 

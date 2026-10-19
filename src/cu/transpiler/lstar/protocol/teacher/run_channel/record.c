@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record.c: the record: a question's identity, the record's answer to it, a question kept in the record, the registers past, the record written, a line of the list, and the round handed
 #include "run_channel_internal.h"
@@ -56,7 +57,7 @@ int run_channel_recorded(RunQuestion *asked)
     const int answers = (s_held.answer == KQR_ANSWERS);
     const int held_off = (s_held.answer == KQR_ILLEGAL) || (s_held.answer == KQR_CENSORED);
     asked->outcome = answers ? (unsigned int)RUN_ANSWERED : held_off ? (unsigned int)RUN_HELD : (unsigned int)RUN_NOTHING;
-    snprintf(asked->refused, sizeof(asked->refused), "%s", s_held.refusal);
+    run_channel_refused(asked, s_held.refusal);
     for (unsigned int place = 0u; answers && (place < asked->cases) && (place < s_held.words); place += 1u)
     {
         asked->answered[place] = s_held.word[place];
@@ -105,14 +106,18 @@ void run_channel_kept(const RunQuestion *asked)
         s_sample.launched = (asked->most != 0ull) ? 1 : 0;
         s_sample.least = asked->least;
         s_sample.most = asked->most;
-        snprintf(s_sample.refusal, sizeof(s_sample.refusal), "%s", asked->refused);
+        ScripturaLine refusal = {s_sample.refusal, sizeof(s_sample.refusal), 0ull};
+        scriptura_text_most(&refusal, asked->refused, sizeof(s_sample.refusal) - 1u);
+        scriptura_closed(&refusal);
         kqr_sample(&s_record, &s_sample);
         return;
     }
     memset(&s_kept, 0, sizeof(s_kept));
     s_kept.identity = identity;
     s_kept.answer = answer;
-    snprintf(s_kept.refusal, sizeof(s_kept.refusal), "%s", asked->refused);
+    ScripturaLine refusal = {s_kept.refusal, sizeof(s_kept.refusal), 0ull};
+    scriptura_text_most(&refusal, asked->refused, sizeof(s_kept.refusal) - 1u);
+    scriptura_closed(&refusal);
     for (unsigned int place = 0u; (asked->outcome == RUN_ANSWERED) && (place < asked->cases) && (place < KQR_WORDS);
          place += 1u)
     {
@@ -148,12 +153,20 @@ int run_channel_record(const char *path, const char *member, const char *mode)
     s_record_path[0] = '\0';
     if (!kqr_read(&s_record, path, member, error, sizeof(error)))
     {
-        printf("  record: %s\n", error);
+        char said[sizeof(error) + 16u];
+        ScripturaLine line = {said, sizeof(said), 0ull};
+        scriptura_text(&line, "record: ");
+        scriptura_text(&line, error);
+        scriptura_character(&line, '\n');
+        scriptura_closed(&line);
+        run_channel_said(said);
         return 0;
     }
-    snprintf(s_record_path, sizeof(s_record_path), "%s", path);
+    ScripturaLine record_path = {s_record_path, sizeof(s_record_path), 0ull};
+    scriptura_text(&record_path, path);
+    scriptura_closed(&record_path);
     // R a view of the run's table of asks, written as its rows put it together; with no run it is written as held
-    kqr_tabled(&s_record, qry_run(), path);
+    kqr_tabled(&s_record, qry_member_run(), path);
     kqr_mark(&s_record, KQR_CYCLE_RECORD, mode);
     return 1;
 }
@@ -165,28 +178,31 @@ void run_channel_list_line(unsigned int place, char *line)
     size_t at = 0u;
     for (unsigned int seen = 0u; (seen < place) && (at < s_channel.list_size); seen += 1u)
     {
-        const char *const end = (const char *)memchr(s_channel.list + at, '\n', s_channel.list_size - at);
-        at = (end != NULL) ? ((size_t)(end - s_channel.list) + 1u) : s_channel.list_size;
+        const char *const end = (const char *)memchr(s_channel_list + at, '\n', s_channel.list_size - at);
+        at = (end != NULL) ? ((size_t)(end - s_channel_list) + 1u) : s_channel.list_size;
     }
     const char *const end =
-        (at < s_channel.list_size) ? (const char *)memchr(s_channel.list + at, '\n', s_channel.list_size - at) : NULL;
+        (at < s_channel.list_size) ? (const char *)memchr(s_channel_list + at, '\n', s_channel.list_size - at) : NULL;
     size_t length = (at >= s_channel.list_size) ? 0u
-                    : (end != NULL)             ? ((size_t)(end - (s_channel.list + at)) + 1u)
+                    : (end != NULL)             ? ((size_t)(end - (s_channel_list + at)) + 1u)
                                                 : (s_channel.list_size - at);
     length = (length < (RUN_LINE_LONGEST - 1u)) ? length : (RUN_LINE_LONGEST - 1u);
     if (length != 0u)
     {
-        memcpy(line, s_channel.list + at, length);
+        memcpy(line, s_channel_list + at, length);
     }
     line[length] = '\0';
 }
 
-// The round about to be carried, the channel's list, handed critical as questions.txt: on disk before the carrier
-// starts; a launch that faults the part leaves the record of what the carrier was handed. Its sequence, or 0 where
-// it could not be put on disk, and then the round is not carried
+// The round about to be carried, the channel's list, appended critical as questions.txt: on disk before the carrier
+// starts; a launch that faults the part leaves the record of what the carrier was handed. The place the run's
+// schedule then holds, every answer of the round standing at it or past it, or 0 where the list could not be put
+// on disk, and then the round is not carried
 unsigned long long run_channel_round_handed(void)
 {
-    return qry_hand(s_channel.buffer, "questions.txt", s_channel.list, s_channel.list_size, QRY_CRITICAL);
+    return qry_member_append("questions.txt", s_channel_list, s_channel.list_size, QRY_CRITICAL)
+               ? qry_member_settled()
+               : 0ull;
 }
 
 char s_airlock_output[RUN_CARRIER_OUTPUT];

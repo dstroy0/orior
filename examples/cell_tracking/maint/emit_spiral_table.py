@@ -1,4 +1,5 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational")
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 import os
 import sys
 
@@ -35,7 +36,7 @@ def main():
         ranked = sorted(range(len(members)), key=lambda at: ((at + 1) * turn) % scale)
         ordered.extend(members[at] for at in ranked)
 
-    print("/* cell_tracking - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>")
+    print("/* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>")
     print(" * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational")
     print(" */")
     print("/**")

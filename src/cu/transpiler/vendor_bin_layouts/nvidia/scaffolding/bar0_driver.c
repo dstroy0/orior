@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bar0_driver.c: a read-only kernel driver that maps the GPU's BAR0 register aperture and hands its 32-bit registers
 // back to the userspace reader by IOCTL (mmio.h, mmio_read.c). It is the kernel half of the most direct listen the run

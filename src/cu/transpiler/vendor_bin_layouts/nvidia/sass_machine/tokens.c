@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tokens.c: the tokens of an instruction's text: spaces, a token taken, digits, the high half, an operand's kind and the operand taken, an instruction read, and two forms the same
 #include "sass_machine_internal.h"

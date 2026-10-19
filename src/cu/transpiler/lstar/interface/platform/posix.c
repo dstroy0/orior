@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // posix.c: the probe on POSIX: the rule a signal names, the pause, the pipe read, and the probe forked in a
 // process group of its own and run to its end or its limit
@@ -270,3 +271,24 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     return 0L;
 }
 #endif
+
+long interface_output_file_read(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
+{
+    const int file = open(probe->output_path, O_RDONLY | O_CLOEXEC);
+    if (!INTERFACE_CHECK(file >= 0, probe->output_path, error, ENGINE_ERROR_RESOURCE))
+    {
+        return -1L;
+    }
+    char piece[INTERFACE_READ_BYTES];
+    unsigned long long total = 0ull;
+    ssize_t got = read(file, piece, sizeof(piece));
+    while (got > 0)
+    {
+        // a read that gave bytes gave a positive count
+        interface_output_kept(answer, &total, piece, (unsigned long long)got);
+        got = read(file, piece, sizeof(piece));
+    }
+    close(file);
+    interface_output_ended(answer, total);
+    return INTERFACE_CHECK(got == 0, probe->output_path, error, ENGINE_ERROR_RESOURCE) ? 0L : -1L;
+}

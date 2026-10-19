@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds and runs sass_lane_needs: which forms a real lane asks sass.krs for, and which of those it leaves empty.
 # No device and no CUDA toolchain; the record programs are the host oracle's own
@@ -7,17 +8,17 @@
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
+CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
 KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
-NO_ROUNDING="$TOP/src/cu/types/integers"
+NO_ROUNDING="$TOP/src/cu/includes/types/integers"
 SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
 CUBIN="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 OUT="$TOP/build/sass_lane_needs"
@@ -28,7 +29,7 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc" -I "$CYCL
 OBJECTS=()
 for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
     object="$OUT/$(basename "$source").o"
-    cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/src/cu/types/file_defs/readers" -c "$source" -o "$object" || exit 1
+    cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/src/cu/includes/parsers" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
 # cycle.c is the host oracle that runs a lane, which nothing here does: only the encoder and the layout are wanted,
@@ -40,7 +41,7 @@ for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,
 done
 # the assembly printer and the device's code generator run on the record machine and call the host oracle, the
 # cycle.c left out above; nothing here writes a lane, it only decides one
-for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu \
+for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu \
     "$CUBIN/sass_target.cu" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_lane_needs.cpp"; do
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;

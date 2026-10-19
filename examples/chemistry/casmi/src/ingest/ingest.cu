@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ingest.cu: casmi_driver --ingest. The parquet file is a source of the engine's ingest, and its members are its
 // samples: the footer, then every leaf of every row group, as engine_source_samples lists them. engine_ingest_set seals

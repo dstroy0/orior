@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // What the engine_*.cu pieces share: its includes, types and the functions one piece calls in another
 #ifndef ENGINE_INTERNAL_H
@@ -5,7 +6,7 @@
 
 #include "engine.h"
 
-#include "parser/krep.h"
+#include "../includes/file_defs/krep/krep.h"
 #include "../includes/codecs/blosc/blosc.h"
 #include "../includes/formats/cfg_json/cfg_json.h"
 #include "codegen_device.h"

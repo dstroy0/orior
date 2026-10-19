@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // driver.c: the driver opened by name with every entry point taken, and the part's fault telemetry: the management library and the system's event log opened, drained before a launch and read after it for a fault
 #include "cubin_run_internal.h"

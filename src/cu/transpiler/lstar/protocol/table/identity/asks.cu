@@ -1,8 +1,9 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // asks.cu: the asks: the trace and the log of the thread that carries them, each question's identity, and a round answered from the record or carried
 #include "identity_internal.h"
 
-// The trace of every ask, in the query's .qry unless QRY_TRACE is 0 (qry_buffer.h): the ask's number, the code's size,
+// The trace of every ask, in the query's .qry (qry_member.h): the ask's number, the code's size,
 // the registers, the shape and the launches it is put with and its count of cases, then what came back: alike, apart
 // with the first case apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
 thread_local AskLog *s_ask_trace = NULL;
@@ -12,7 +13,7 @@ thread_local AskLog *s_ask_trace = NULL;
 // the cases, `=` alike, `x` apart and `-` where the host gives no bracket, or `recorded` or `refused` where the part
 // answered it nothing here. A mode writes what it put after the ask, and every choice a pair's put makes at a link as
 // `choice <flags> <link>`, the flags of the trace's table ORed into one word, `-` for the link where the choice is the
-// put's own (src/cu/types/file_defs/klq/query_trace.tsv). NULL where nothing is traced. The trace and the log of the
+// put's own (src/cu/includes/file_defs/klq/query_trace.tsv). NULL where nothing is traced. The trace and the log of the
 // thread that carries the asks are the two below; a pair put in a thread of its own writes its trace and its log into
 // logs of its own, each handed whole once the pair is put, so that every put stands in one piece
 thread_local AskLog *s_ask_log = NULL;
@@ -46,15 +47,15 @@ __attribute__((format(gnu_printf, 2, 3))) void ask_written(AskLog *log, const ch
     va_end(values);
 }
 
-// the run's buffer the trace and the log are handed to, NULL while nothing is traced
-QryBuffer *s_ask_run = NULL;
+// the run the trace and the log are handed to, NULL while nothing is traced
+QryShared *s_ask_run = NULL;
 
-// `log`'s bytes handed to the run's buffer as an ordinary blob of its name, and let go
+// `log`'s bytes handed to the run as an ordinary blob of its name, and let go
 void ask_handed(AskLog *log)
 {
     if ((s_ask_run != NULL) && !log->bytes.empty())
     {
-        qry_hand(s_ask_run, log->name, log->bytes.data(), log->bytes.size(), QRY_ORDINARY);
+        qry_member_append(log->name, log->bytes.data(), log->bytes.size(), QRY_ORDINARY);
     }
     log->bytes.clear();
 }
@@ -66,15 +67,15 @@ static void ask_files_closed(void)
     ask_handed(&s_log_whole);
 }
 
-// the trace and the log of the thread that carries the asks opened into the run's buffer, the .qry QRY names
-// (qry_buffer.h), as every path's trace is unless QRY_TRACE is 0, and handed the rest as the run ends
+// the trace and the log of the thread that carries the asks opened into the run, the .qry QRY names
+// (qry_member.h), as every path's trace is, and handed the rest as the run ends
 void ask_files_opened(void)
 {
-    if (!qry_traced("klq_identity", QRY_ORDINARY) || (s_ask_run != NULL))
+    if (s_ask_run != NULL)
     {
         return;
     }
-    s_ask_run = qry_run();
+    s_ask_run = qry_member_run();
     if (s_ask_run == NULL)
     {
         printf("klq_identity: no query writer runs to take the trace: %s names no .qry a writer holds open\n",
@@ -86,7 +87,7 @@ void ask_files_opened(void)
     atexit(ask_files_closed);
 }
 
-// `log` handed to the run's buffer where every ask is to reach it as it is written: on the thread that carries the
+// `log` handed to the run where every ask is to reach it as it is written: on the thread that carries the
 // asks, and not from a pair's own logs, which are handed whole once the pair is put
 void ask_flushed(AskLog *log)
 {

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // clock.c: the timer register, read through the BAR0 driver around a launch. The part's .ksc beside the machine file keeps
 // the word of its BAR0 registers that advances, `run answers <offset> clock address` (bus_clock.c), and the carrier
@@ -6,7 +7,7 @@
 // the BAR0 driver is not reached, the launches are timed on the driver's event timer as before, and the answer says
 // which clock timed them
 #include "cubin_run_internal.h"
-#include "../../../../types/file_defs/ksc/ksc.h"
+#include "../../../../includes/file_defs/ksc/ksc.h"
 
 #if defined(_WIN32)
 #include "../scaffolding/mmio_read.h"

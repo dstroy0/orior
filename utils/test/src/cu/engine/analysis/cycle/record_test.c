@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The record machine's host oracle on any part (engine_table.md item 11(f) 6, a second target). Programs over every
@@ -9,9 +10,9 @@
 // program with its registers reused writes the records the unreused one does, and that a zero divisor and an inexact
 // division error on the run.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/cu/types/integers/exact_integer.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../../../../../src/cu/includes/types/integers/exact_integer.h"
 
 #include <stdio.h>
 #include <stdlib.h>

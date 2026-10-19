@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # the checkers of cell_tracking/src/check, each one C file read apart from the program: points_check (S0 and S1's
 # .readings and .points) and output_check (S11's nodes file and submission against the .points and .links). Host work

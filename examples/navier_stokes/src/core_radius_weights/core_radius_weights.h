@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // core_radius_weights.h: the axis core's orders held as exact Chebyshev weights in xi = eta / a, the rule that
 // carries them from order to order, and the carry of their magnitudes on the device

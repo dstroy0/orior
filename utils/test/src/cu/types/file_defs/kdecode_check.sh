@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # kdecode_check.sh: kdecode's select over a run's tables (kdecode.c) held to what the run holds, on the run the checks
 # of R, the who and the rows wrote (chain_check.sh):
@@ -20,7 +21,7 @@
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
-KDECODE="$TOP/src/cu/types/file_defs/kdecode.sh"
+KDECODE="$TOP/src/cu/transpiler/lstar/protocol/kdecode/kdecode.sh"
 RUN="$1"
 checks=0
 failed=0

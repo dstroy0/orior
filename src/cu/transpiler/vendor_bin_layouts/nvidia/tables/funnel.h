@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // funnel.h: the vendor's tables read off a capture of its disassembler: the records, the instruction set unpacked
 // from its archive, and the latencies gathered from the copies out of their buffer

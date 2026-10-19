@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // The CRC-32 of zip (reflected, polynomial 0xEDB88320) by eight bytes at a time. Row 0 is the one-byte table;
 // row k is the CRC of a byte followed by k zero bytes: row[k][v] = (row[k - 1][v] >> 8) ^ row[0][row[k - 1][v] & 0xFF].

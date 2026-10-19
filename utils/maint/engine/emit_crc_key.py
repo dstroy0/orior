@@ -1,3 +1,4 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """Emits the CRC-64/XZ key, after checking it: crc_key.h holds the byte table and CRC_KEY_ADVANCE, whose operators
 come from crc_key_advance_low.h (across 2^0 to 2^23 zero bytes) and crc_key_advance_high.h (2^24 to 2^47)."""

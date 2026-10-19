@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // eta_function.h: a function of eta held exactly as a polynomial over a power of M = whole - 2 part eta^2, h = part /
 // whole, so that M / whole = L = 1 - 2 h eta^2

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds the interface (compiler/interface) and its probe, then runs the interface test: each probe in a probe process, each ending
 # held to the host's rules. The probe is built with no optimization, so each question reaches the part as written

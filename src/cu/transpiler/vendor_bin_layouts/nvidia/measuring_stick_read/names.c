@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // names.c: the names: a name held, copied and numbered, a kernel named, a line read and spaced, a guard and a form's guard, and the operation of a line
 #include "stick_internal.h"
@@ -12,7 +13,7 @@ StickKernel *s_kernel;
 unsigned int s_kernels;
 StickEngine *s_engine;
 unsigned int s_engines;
-KtextFile s_file;
+KfileLines s_file;
 
 // `pointer`, or the run ended where the system gave no memory
 void *stick_held(void *pointer)
@@ -84,7 +85,7 @@ unsigned int stick_named(const char *text, size_t length)
 // the file at `path` read into s_file as the run holds it
 void stick_read(const char *path)
 {
-    if (!ktext_read(&s_file, path))
+    if (!kfile_lines_read(&s_file, path))
     {
         fputs("measuring_stick_read: the system gave no memory\n", stderr);
         exit(2);

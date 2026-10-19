@@ -1,6 +1,9 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // carriers.cu: the carriers of the pairs: their links, scratch and marks, and each pair's categories, lines beneath it and verdict row
 #include "identity_internal.h"
+#include "../../table_text.h"
+#include "../../../../../includes/parsers/who.h"
 
 // the carriers of the chains in `engine` the host computes, by `host`, into `carriers`
 void carriers_read(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
@@ -29,18 +32,20 @@ void carriers_read(const char *engine, const std::map<std::string, std::vector<s
     }
 }
 
-// the scratch a form written into a chain takes, registers past the `held` the chain names, an even one first so
-// that a wide's pair is aligned, the next each time the writing asks; a predicate P5, which no chain of ours names
-std::function<std::string(const std::string &)> scratch_past(unsigned int held, unsigned int *taken)
+// the scratch a form written into a chain takes, each register as `sass` writes its bank: registers past the `held`
+// the chain names, an even one first so that a wide's pair is aligned, the next each time the writing asks; predicate
+// 5, which no chain of ours names
+std::function<std::string(const std::string &)> scratch_past(const Ruleset *sass, unsigned int held,
+                                                             unsigned int *taken)
 {
-    return [held, taken](const std::string &bank) {
+    return [sass, held, taken](const std::string &bank) {
         if (bank == "predicate")
         {
-            return std::string("P5");
+            return ruleset_register(sass, bank, 5u);
         }
         const unsigned int first = ((held + 1u) & ~1u) + *taken;
         *taken += (bank == "wide") ? 2u : 1u;
-        return "R" + std::to_string(first);
+        return ruleset_register(sass, bank, first);
     };
 }
 
@@ -197,8 +202,8 @@ std::string pair_categories(const Ruleset *sass, const std::string &first, const
     const std::string second_text = marked(sass, second, &second_names);
     std::map<char, std::string> bound;
     std::map<char, std::string> fixed;
-    const int structural = (form_unified(first_text, second_text, &bound, &fixed) && !fixed.empty()) ||
-                           (form_unified(second_text, first_text, &bound, &fixed) && !fixed.empty());
+    const int structural = (form_unified(sass, first_text, second_text, &bound, &fixed) && !fixed.empty()) ||
+                           (form_unified(sass, second_text, first_text, &bound, &fixed) && !fixed.empty());
     const int launched =
         !first_text.empty() && !second_text.empty() && form_launched(first_text) && form_launched(second_text);
     const std::vector<std::string> first_tokens = form_tokens(first_text);
@@ -294,17 +299,18 @@ thread_local int t_other_way = 0;
 void pair_row_handed(const std::string &first, const std::string &second, int read, unsigned long long reads,
                             const std::string &verdict)
 {
-    QryBuffer *const run = qry_run();
+    QryShared *const run = qry_member_run();
     const int closed = (verdict.rfind("closed ", 0u) == 0u);
     const int open = (verdict.rfind("open ", 0u) == 0u);
     const std::string closing = closed ? verdict.substr(7u) : std::string();
-    const unsigned long long row[8] = {qry_row_text(run, first.c_str(), first.size()),
-                                       qry_row_text(run, second.c_str(), second.size()),
+    unsigned long long row[2u + 8] = {0ull, 0ull, table_text(first.c_str(), first.size()),
+                                       table_text(second.c_str(), second.size()),
                                        closed ? 1ull : 0ull,
                                        open ? strtoull(verdict.c_str() + 5, NULL, 10) : 0ull,
-                                       qry_row_text(run, closing.c_str(), closing.size()),
+                                       table_text(closing.c_str(), closing.size()),
                                        read ? 1ull : 0ull,
                                        read ? reads : 0ull,
-                                       qry_row_text(run, verdict.c_str(), verdict.size())};
-    qry_row_handed(run, "pairs", row, 8u);
+                                       table_text(verdict.c_str(), verdict.size())};
+    who_words(WHO_HERE, row);
+    qry_member_append("pairs", row, sizeof(row), QRY_ORDINARY);
 }

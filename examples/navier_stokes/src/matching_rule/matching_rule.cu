@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // matching_rule.cu: the exterior, its tails and the parts of the six matching functions of Duraiswami's matched core
 // as identities among held functions (jet_rule.h)

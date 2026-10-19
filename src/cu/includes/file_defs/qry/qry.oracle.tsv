@@ -1,0 +1,9 @@
+where	who	kind	form	gloss
+record 0	qry_writer	time	1 word	the time on the one clock as the record was appended
+record 1	qry_writer	blob_length	1 word	the blob's bytes
+record 2	qry_writer	name_length	4 bytes	the name's bytes, 1 to QRY_NAME_LONGEST
+record 3	qry_writer	priority	4 bytes	QRY_PANIC 0, QRY_CRITICAL 1, QRY_ORDINARY 2
+record 4	qry_writer	name	name_length bytes	the record's name, no space and no line's end
+record 5	qry_writer	blob	blob_length bytes	the blob, its structure known to the module that appends it and the one that reads it
+record 6	qry_writer	fill	to a whole word	zeros
+record 7	qry_writer	crc	1 word	the CRC-64/XZ of every byte of the record before it

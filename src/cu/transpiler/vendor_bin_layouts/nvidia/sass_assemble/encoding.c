@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // encoding.c: the encoding read: bits read, signed values, the open bits, a form relocated and landed, a name within, a holder named, the places an encoding holds, an encoding's form, an operand read, the encoding read, and the loop walked
 #include "sass_assemble_internal.h"

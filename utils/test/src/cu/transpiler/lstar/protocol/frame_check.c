@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame_check.c: the frame's asks held to what reads them (The frame asked, Open 6.3)
 //
@@ -16,14 +17,15 @@
 //     frame_check <folder>
 //
 // It runs in a query run (qry_run.sh), under the top of the tree QRY_TOP names, the folder within it.
-#include "../../../../../../../src/cu/transpiler/lstar/parser/krs_write/fixed.h"
-#include "../../../../../../../src/cu/transpiler/lstar/parser/krs_write/frame.h"
-#include "../../../../../../../src/cu/transpiler/lstar/parser/krs_write/head.h"
+#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "../../../../../../../src/cu/includes/file_defs/khw/khw_machine_write/opening.h"
+#include "../../../../../../../src/cu/includes/file_defs/krf/krf.h"
+#include "../../../../../../../src/cu/includes/file_defs/krs/krs_write/fixed.h"
+#include "../../../../../../../src/cu/includes/file_defs/krs/krs_write/frame.h"
+#include "../../../../../../../src/cu/includes/file_defs/krs/krs_write/head.h"
+#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/fixed_read.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/frame_walk.h"
-#include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/opening.h"
-#include "../../../../../../../src/cu/types/file_defs/krf/krf.h"
-#include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,30 +79,32 @@ int main(int count, char **words)
     char path[1024];
     snprintf(path, sizeof(path), "%s/frame_check_both.ksc", words[1]);
     const char *const both = "ksc part\nrun answers 00000001 container returned\nrun answers 00000001 opening least\n";
-    check_that(qry_filed(qry_run(), path, both, strlen(both)) != 0ull, "a .ksc with both rows is written");
-    QryText head = {NULL, 0ull, 0ull, 0};
+    check_that(qry_member_filed(path, both, strlen(both)) != 0ull, "a .ksc with both rows is written");
+    static char s_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine head = {s_head_bytes, sizeof(s_head_bytes), 0ull};
     char missing[128];
     check_that(krs_head_written(&head, path, missing, sizeof(missing)) == 2u, "both head lines come from both rows");
-    check_that((head.bytes != NULL) && (strcmp(head.bytes, "toolchain cubin_write\nheader container\n") == 0),
+    check_that((head.out != NULL) && (strcmp(head.out, "toolchain cubin_write\nheader container\n") == 0),
                "as toolchain cubin_write then header container");
     check_that(missing[0] == '\0', "and nothing is missing");
-    free(head.bytes);
+    free(head.out);
     snprintf(path, sizeof(path), "%s/frame_check_one.ksc", words[1]);
     const char *const one = "ksc part\nrun answers 00000001 container returned\n";
-    check_that(qry_filed(qry_run(), path, one, strlen(one)) != 0ull,
-               "a .ksc with the container's row alone is written");
-    QryText one_head = {NULL, 0ull, 0ull, 0};
+    check_that(qry_member_filed(path, one, strlen(one)) != 0ull, "a .ksc with the container's row alone is written");
+    static char s_one_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine one_head = {s_one_head_bytes, sizeof(s_one_head_bytes), 0ull};
     check_that(krs_head_written(&one_head, path, missing, sizeof(missing)) == 1u, "one line comes from one row");
-    check_that((one_head.bytes != NULL) && (strcmp(one_head.bytes, "toolchain cubin_write\n") == 0), "the toolchain's");
+    check_that((one_head.out != NULL) && (strcmp(one_head.out, "toolchain cubin_write\n") == 0), "the toolchain's");
     check_that(strcmp(missing, "header") == 0, "and the header is named missing");
-    free(one_head.bytes);
+    free(one_head.out);
     snprintf(path, sizeof(path), "%s/frame_check_none.ksc", words[1]);
     const char *const none_text = "ksc part\n";
-    check_that(qry_filed(qry_run(), path, none_text, strlen(none_text)) != 0ull, "a .ksc with no row is written");
-    QryText none_head = {NULL, 0ull, 0ull, 0};
+    check_that(qry_member_filed(path, none_text, strlen(none_text)) != 0ull, "a .ksc with no row is written");
+    static char s_none_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine none_head = {s_none_head_bytes, sizeof(s_none_head_bytes), 0ull};
     check_that(krs_head_written(&none_head, path, missing, sizeof(missing)) == 0u, "no line comes from no row");
     check_that(strcmp(missing, "toolchain, header") == 0, "and both are named missing");
-    free(none_head.bytes);
+    free(none_head.out);
 
     // the place the least opening begins at, read from the same three files
     snprintf(path, sizeof(path), "%s/frame_check_both.ksc", words[1]);
@@ -113,7 +117,7 @@ int main(int count, char **words)
     // the slot's place, read from the .ksc's row where one stands
     snprintf(path, sizeof(path), "%s/frame_check_slot.ksc", words[1]);
     const char *const slot_row = "ksc part\nrun answers 00000001 opening least\nrun answers 00000010 slot place\n";
-    check_that(qry_filed(qry_run(), path, slot_row, strlen(slot_row)) != 0ull, "a .ksc with the slot's row is written");
+    check_that(qry_member_filed(path, slot_row, strlen(slot_row)) != 0ull, "a .ksc with the slot's row is written");
     check_that(khw_slot_read(path) == 16u, "the slot's place is the row's word");
     snprintf(path, sizeof(path), "%s/frame_check_both.ksc", words[1]);
     check_that(khw_slot_read(path) == KHW_SLOT_NONE, "and none where the .ksc holds no such row");
@@ -179,33 +183,36 @@ int main(int count, char **words)
     snprintf(path, sizeof(path), "%s/frame_check_fixed.ksc", words[1]);
     const char *const four = "ksc part\nfield rd 16 8\nrun answers 000000ff fixed zero\nrun answers 00000000 fixed "
                              "lane_number\nrun answers 00000004 fixed record\nrun answers 00000002 fixed index\n";
-    check_that(qry_filed(qry_run(), path, four, strlen(four)) != 0ull, "a .ksc with the four fixed rows is written");
-    QryText fixed_head = {NULL, 0ull, 0ull, 0};
+    check_that(qry_member_filed(path, four, strlen(four)) != 0ull, "a .ksc with the four fixed rows is written");
+    static char s_fixed_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine fixed_head = {s_fixed_head_bytes, sizeof(s_fixed_head_bytes), 0ull};
     check_that(krs_fixed_written(&fixed_head, path, NULL, missing, sizeof(missing)) == 4u,
                "four fixed lines come from four rows");
-    check_that((fixed_head.bytes != NULL) &&
-                   (strcmp(fixed_head.bytes,
+    check_that((fixed_head.out != NULL) &&
+                   (strcmp(fixed_head.out,
                            "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed index = R2\n") == 0),
                "zero as RZ, the field's top, then lane_number, record and index as R<n>");
     check_that(missing[0] == '\0', "and nothing is missing");
-    free(fixed_head.bytes);
+    free(fixed_head.out);
     snprintf(path, sizeof(path), "%s/frame_check_fixed_one.ksc", words[1]);
     const char *const one_fixed = "ksc part\nrun answers 00000009 fixed zero\n";
-    check_that(qry_filed(qry_run(), path, one_fixed, strlen(one_fixed)) != 0ull,
+    check_that(qry_member_filed(path, one_fixed, strlen(one_fixed)) != 0ull,
                "a .ksc with the zero row alone and no field row is written");
-    QryText one_fixed_head = {NULL, 0ull, 0ull, 0};
+    static char s_one_fixed_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine one_fixed_head = {s_one_fixed_head_bytes, sizeof(s_one_fixed_head_bytes), 0ull};
     check_that(krs_fixed_written(&one_fixed_head, path, NULL, missing, sizeof(missing)) == 1u,
                "one fixed line comes from one row");
-    check_that((one_fixed_head.bytes != NULL) && (strcmp(one_fixed_head.bytes, "fixed zero = R9\n") == 0),
+    check_that((one_fixed_head.out != NULL) && (strcmp(one_fixed_head.out, "fixed zero = R9\n") == 0),
                "as R9 where no field row says the top");
     check_that(strcmp(missing, "lane_number, record, index") == 0, "and the other three are named missing");
-    free(one_fixed_head.bytes);
+    free(one_fixed_head.out);
     snprintf(path, sizeof(path), "%s/frame_check_none.ksc", words[1]);
-    QryText none_fixed_head = {NULL, 0ull, 0ull, 0};
+    static char s_none_fixed_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine none_fixed_head = {s_none_fixed_head_bytes, sizeof(s_none_fixed_head_bytes), 0ull};
     check_that(krs_fixed_written(&none_fixed_head, path, NULL, missing, sizeof(missing)) == 0u,
                "no fixed line comes from no row");
     check_that(strcmp(missing, "zero, lane_number, record, index") == 0, "and all four are named missing");
-    free(none_fixed_head.bytes);
+    free(none_fixed_head.out);
 
     // the lines the ruleset gave before are kept where no row replaces them, the asked four in their order and the
     // rest as given
@@ -213,26 +220,27 @@ int main(int count, char **words)
     snprintf(ruleset_path, sizeof(ruleset_path), "%s/frame_check_fixed.krs", words[1]);
     const char *const given = "krs 1\nruleset sass\nfixed zero = RZ\nfixed lane_number = R0\nfixed record = R1\nfixed "
                               "body = R3\nfixed carry = R12\n";
-    check_that(qry_filed(qry_run(), ruleset_path, given, strlen(given)) != 0ull,
+    check_that(qry_member_filed(ruleset_path, given, strlen(given)) != 0ull,
                "a ruleset with five fixed lines given before is written");
     snprintf(path, sizeof(path), "%s/frame_check_fixed_record.ksc", words[1]);
     const char *const record_row = "ksc part\nfield rd 16 8\nrun answers 00000004 fixed record\n";
-    check_that(qry_filed(qry_run(), path, record_row, strlen(record_row)) != 0ull,
+    check_that(qry_member_filed(path, record_row, strlen(record_row)) != 0ull,
                "and a .ksc with the record's row alone");
     char removals[1024];
     snprintf(removals, sizeof(removals), "%s/frame_check_fixed_record.krf", words[1]);
     const char *const fresh = "krf frame_check_fixed_record\n";
-    check_that(qry_filed(qry_run(), removals, fresh, strlen(fresh)) != 0ull, "and the .krf beside it, its head alone");
-    QryText kept_head = {NULL, 0ull, 0ull, 0};
+    check_that(qry_member_filed(removals, fresh, strlen(fresh)) != 0ull, "and the .krf beside it, its head alone");
+    static char s_kept_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine kept_head = {s_kept_head_bytes, sizeof(s_kept_head_bytes), 0ull};
     check_that(krs_fixed_written(&kept_head, path, ruleset_path, missing, sizeof(missing)) == 5u,
                "five fixed lines come from one row and four given lines");
-    check_that((kept_head.bytes != NULL) &&
-                   (strcmp(kept_head.bytes, "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed body = "
-                                            "R3\nfixed carry = R12\n") == 0),
+    check_that((kept_head.out != NULL) &&
+                   (strcmp(kept_head.out, "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed body = "
+                                          "R3\nfixed carry = R12\n") == 0),
                "the asked four in their order, the row's line where a row stands and the given where none, then the "
                "rest as given");
     check_that(strcmp(missing, "index") == 0, "and the one with neither is named missing");
-    free(kept_head.bytes);
+    free(kept_head.out);
     static KrfFile s_removed;
     static KrfRow s_removal;
     check_that(krf_read(&s_removed, removals) && (s_removed.lines == 3u) &&
@@ -256,7 +264,7 @@ int main(int count, char **words)
         "blockIdx.x;\\n\nform exit_if where =     if ({where})\\n    {\\n        return;\\n    }\\n\nform block_dim_x "
         "to =     "
         "{to} = blockDim.x;\\n\nerr parameter_load_word to offset\n";
-    check_that(qry_filed(qry_run(), named, naming, strlen(naming)) != 0ull,
+    check_that(qry_member_filed(named, naming, strlen(naming)) != 0ull,
                "a ruleset naming the schema's nine forms is written");
     const KrsFrameForm lane = {"frame.lane", "S2R {0}"};
     char line[1024];
@@ -299,25 +307,26 @@ int main(int count, char **words)
     snprintf(ruleset_path, sizeof(ruleset_path), "%s/frame_check_frame.krs", words[1]);
     const char *const frame_given =
         "krs 1\nform thread_idx_x to = S2R {to}, SR_TID.X\\n\nform block_idx_x to = S2R {to}, SR_CTAID.X\\n\n";
-    check_that(qry_filed(qry_run(), ruleset_path, frame_given, strlen(frame_given)) != 0ull,
+    check_that(qry_member_filed(ruleset_path, frame_given, strlen(frame_given)) != 0ull,
                "a part's ruleset with two frame lines given before is written");
     snprintf(path, sizeof(path), "%s/frame_check_frame.ksc", words[1]);
     snprintf(removals, sizeof(removals), "%s/frame_check_frame.krf", words[1]);
     const char *const frame_fresh = "krf frame_check_frame\n";
-    check_that(qry_filed(qry_run(), removals, frame_fresh, strlen(frame_fresh)) != 0ull,
+    check_that(qry_member_filed(removals, frame_fresh, strlen(frame_fresh)) != 0ull,
                "and the .krf beside its .ksc, its head alone");
     const KrsFrameForm handed[4] = {load, {"frame.load", "LD {2}, [{0}.64], {1}"}, lane, guarded};
-    QryText frame_forms = {NULL, 0ull, 0ull, 0};
+    static char s_frame_forms_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine frame_forms = {s_frame_forms_bytes, sizeof(s_frame_forms_bytes), 0ull};
     check_that(krs_frame_written(&frame_forms, handed, 4u, named, ruleset_path, path) == 5u,
                "five lines come from two loads of one text, a lane, a guarded exit and the block's given line");
-    check_that((frame_forms.bytes != NULL) &&
-                   (strcmp(frame_forms.bytes, "form thread_idx_x to = S2R {to}\\n\nform block_idx_x to = S2R {to}, "
-                                              "SR_CTAID.X\\n\nform global_load_constant_word to address offset = LD "
-                                              "{to}, [{address}.64], {offset}\\n\nform return = EXIT\\n\nform exit_if "
-                                              "where = @{where} EXIT\\n\n") == 0),
+    check_that((frame_forms.out != NULL) &&
+                   (strcmp(frame_forms.out, "form thread_idx_x to = S2R {to}\\n\nform block_idx_x to = S2R {to}, "
+                                            "SR_CTAID.X\\n\nform global_load_constant_word to address offset = LD "
+                                            "{to}, [{address}.64], {offset}\\n\nform return = EXIT\\n\nform exit_if "
+                                            "where = @{where} EXIT\\n\n") == 0),
                "in the table's order: the lane's line, the block's given line, one load line, and return then exit_if "
                "from the one guarded exit");
-    free(frame_forms.bytes);
+    free(frame_forms.out);
     static KrfFile s_frame_removed;
     check_that(krf_read(&s_frame_removed, removals) && (s_frame_removed.lines == 3u) &&
                    krf_row_read(s_frame_removed.line[2], &s_removal) && (strcmp(s_removal.type, "krs") == 0) &&
@@ -331,28 +340,30 @@ int main(int count, char **words)
     snprintf(named, sizeof(named), "%s/frame_check_tests.krs", words[1]);
     const char *const tests = "krs 1\nruleset cu\nform test_word_le where left right = {where} = ({left} <= "
                               "{right});\\n\nform test_word_ge where left right = {where} = ({left} >= {right});\\n\n";
-    check_that(qry_filed(qry_run(), named, tests, strlen(tests)) != 0ull,
+    check_that(qry_member_filed(named, tests, strlen(tests)) != 0ull,
                "a ruleset naming the two tests of at most and at least is written");
     const KrsFrameForm at_most = {"ladder.at_most", "ISETP.LE.U32.AND {2}, PT, {0}, {1}, PT"};
-    QryText mirrored = {NULL, 0ull, 0ull, 0};
+    static char s_mirrored_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine mirrored = {s_mirrored_bytes, sizeof(s_mirrored_bytes), 0ull};
     check_that(krs_frame_written(&mirrored, &at_most, 1u, named, NULL, path) == 2u,
                "two lines come from one at-most form");
-    check_that((mirrored.bytes != NULL) &&
-                   (strcmp(mirrored.bytes, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
-                                           "{right}, PT\\n\nform test_word_ge where left right = ISETP.LE.U32.AND "
-                                           "{where}, PT, {right}, {left}, PT\\n\n") == 0),
+    check_that((mirrored.out != NULL) &&
+                   (strcmp(mirrored.out, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
+                                         "{right}, PT\\n\nform test_word_ge where left right = ISETP.LE.U32.AND "
+                                         "{where}, PT, {right}, {left}, PT\\n\n") == 0),
                "its own test, and the greater-or-equal test with left and right changed over");
-    free(mirrored.bytes);
+    free(mirrored.out);
     const KrsFrameForm both_tests[2] = {at_most, {"ladder.at_least", "ISETP.GE.U32.AND {2}, PT, {0}, {1}, PT"}};
-    QryText own = {NULL, 0ull, 0ull, 0};
+    static char s_own_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine own = {s_own_bytes, sizeof(s_own_bytes), 0ull};
     check_that(krs_frame_written(&own, both_tests, 2u, named, NULL, path) == 2u,
                "an at-most and an at-least form write two lines, each test once");
-    check_that((own.bytes != NULL) &&
-                   (strcmp(own.bytes, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
-                                      "{right}, PT\\n\nform test_word_ge where left right = ISETP.GE.U32.AND {where}, "
-                                      "PT, {left}, {right}, PT\\n\n") == 0),
+    check_that((own.out != NULL) &&
+                   (strcmp(own.out, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
+                                    "{right}, PT\\n\nform test_word_ge where left right = ISETP.GE.U32.AND {where}, "
+                                    "PT, {left}, {right}, PT\\n\n") == 0),
                "each from its own relation's form");
-    free(own.bytes);
+    free(own.out);
     printf("frame_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

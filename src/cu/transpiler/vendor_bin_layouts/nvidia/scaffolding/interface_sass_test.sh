@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds the interface (compiler/interface), its PTX probe and its SASS probe, then runs the SASS probe: the PTX probe assembles
 # each membership question's kernel, written from ptx.krs, into a cubin; nvdisasm lists each, which gives each form's
@@ -10,11 +11,11 @@ set -u
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_CU="$TEST"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
+CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
 CUBIN="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp interface_sass_test
@@ -79,7 +80,7 @@ nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}"
 # the probe reads rulesets and writes forms; the code generator's assembly printer (asm_printer_*.cu) and the code
 # generator on the device (codegen*.cu) run on the record machine, which the probe does not link
 CODEGEN_SOURCES=()
-for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu; do
+for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) ;;
         *) CODEGEN_SOURCES+=("$source") ;;
@@ -89,7 +90,7 @@ nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -
     "$TEST_CU"/interface_ptx_probe_{questions,main}.cu \
     "${CODEGEN_SOURCES[@]}" -lnvrtc -lnvJitLink
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }
-source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
 qry_writer_built "$OUT"
 run_started "$OUT/qry"
 

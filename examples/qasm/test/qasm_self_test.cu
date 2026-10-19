@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // The self run against the dense port: every circuit's lanes on the host, from each basis state and from general
 // states, each lane equal to the dense port's run from the same start amplitude for amplitude; then the same programs

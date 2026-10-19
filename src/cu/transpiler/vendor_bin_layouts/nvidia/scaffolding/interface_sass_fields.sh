@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Finds a form's fields on the part, not by reading a disassembler (interface_sass_probe_fields.c). For each
 # instruction a ruleset uses, each of its operation bits is turned over one at a time, run on the part through
@@ -20,10 +21,10 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 CUB="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INT="$TOP/src/cu/transpiler/lstar/interface"
-KRS="$TOP/src/cu/types/file_defs/readers"
+KRS="$TOP/src/cu/includes/parsers"
 OUT="$TOP/build/fields"
 CUDA="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
 case "$(uname -s)" in

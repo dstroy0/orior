@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Every form of the machine file turned over a bit at a time, and every operation that comes back. This is what
 # sass_machine_widen adds to the machine file, asked here with nothing but nvdisasm, so the answer is in hand without

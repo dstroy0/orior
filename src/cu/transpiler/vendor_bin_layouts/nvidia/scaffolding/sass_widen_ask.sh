@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # One form of the machine file turned over a bit at a time and decoded, printed as the operation each turned bit
 # gives. This is sass_machine_widen asked by hand, with nothing but nvdisasm: it says whether the definitions sass.krs

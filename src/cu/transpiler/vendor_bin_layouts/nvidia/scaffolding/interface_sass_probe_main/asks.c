@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // asks.c: the asks: two containers the same, the lane written, the compiles counted, the questions read and compiled, the loop and the asks run
 #include "probe_main_internal.h"

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // The part's instructions as the cell's probes read them back, and one instruction's text in its parts
 #ifndef SASS_MACHINE_H
@@ -15,7 +16,7 @@
 // form's fields. Matching an operand to a field by the value the base happens to hold there is not enough, because a
 // field the operation does not use holds 0 and a register or predicate numbered 0 matches it.
 //
-// A part's own file is <part>.khw beside its rulesets (src/cu/types/file_defs/khw). Its first line is `forms 2`, then
+// A part's own file is <part>.khw beside its rulesets (src/cu/includes/file_defs/khw). Its first line is `forms 2`, then
 // `part <name>`, then a line a form:
 //
 //     form <operation> <kind><mark>,... <low> <high> <operand>:<first>-<last>:<place>;... <relation> <signed>
@@ -214,6 +215,13 @@ unsigned int sass_operation_schedule(const SassMachine *machine, const char *ope
 // runs the caller fills. 1, or 0 where the machine is full, counted in machine->refused
 int sass_machine_take(SassMachine *machine, const char *text, unsigned long long low, unsigned long long high,
                       SassForm **kept);
+
+// an instruction the part answered `relation` for kept in `machine` as a form: the form of its shape that answers no
+// relation yet or answers `relation`, or a form of its own where every form of its shape answers another relation,
+// since two relations of one shape are two forms of the protocol. The form through `kept`, whose runs the caller
+// fills. 1, or 0 where the machine is full, counted in machine->refused
+int sass_machine_take_related(SassMachine *machine, const char *text, unsigned long long low, unsigned long long high,
+                              const char *relation, SassForm **kept);
 
 // the form of `parts`, or NULL where the machine holds none
 const SassForm *sass_machine_form(const SassMachine *machine, const SassInstructionParts *parts);

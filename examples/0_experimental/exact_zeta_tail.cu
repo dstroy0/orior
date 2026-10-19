@@ -24,7 +24,7 @@
 // gives the device's records word for word, else "host 0".
 
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../src/cu/types/integers/exact_integer.h"
+#include "../../src/cu/includes/types/integers/exact_integer.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../src/cu/engine/runtime/scriptura/scriptura.h"

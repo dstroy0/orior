@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_run.c: a question carried to the part: its code put in the container the system accepted, held to
 // cubin_safe on the host, and run over its cases, a thread a case. This is the run channel's carrier for a part behind
@@ -12,8 +13,8 @@
 //     [<launches>]
 //     cubin_run --dry <machine file> <layout> ...          either of the above, with the part taken out
 //
-// The carrier runs only where a run's writer runs, the .qry QRY names (qry_buffer.h): every input named, the code, the
-// cases, the list and the held list, is the latest blob of that name in the run's buffer, and every answer, dry record
+// The carrier runs only where a run's writer runs, the .qry QRY names (qry_member.h): every input named, the code, the
+// cases, the list and the held list, is the latest blob of that name in the run, and every answer, dry record
 // and container is handed to it, a refusal critical and on disk before the carrier goes on: the carrier writes no
 // file. Where none runs it carries nothing and exits 2, since the record of what the part was handed and of any fault
 // would have nowhere to go.
@@ -80,19 +81,20 @@
 //
 // Each question the gate reads is a row of the run's table of verdicts, put past every rule or held, and each launch a
 // row of its table of launches, each keyed to its ask, the sequence of the question's code's blob in the run
-// (verdicts.oracle.tsv, launches.oracle.tsv, qry_buffer.h).
+// (verdicts.oracle.tsv, launches.oracle.tsv, qry_member.h).
 //
 // The driver is reached by name and by its own entry points, and nothing of its vendor's toolchain is compiled
 // against. Exit 0 where a line was written, 2 where no run's writer runs, or the inputs, the machine or the driver were
 // not reached.
 #include "cubin_run/cubin_run_internal.h"
+#include "../../../includes/parsers/line_read.h"
 
 int main(int count, char **words)
 {
-    // the run's buffer: every input after is read from it and every answer handed to it. A live run's record of what
+    // the run: every input after is read from it and every answer handed to it. A live run's record of what
     // the part was handed and of any fault it gives back is critical, no setting turns it off, and with no writer it
     // has nowhere to go: nothing is carried
-    s_run = qry_run();
+    s_run = qry_member_run();
     if (s_run == NULL)
     {
         fprintf(stderr, "cubin_run: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
@@ -134,7 +136,7 @@ int main(int count, char **words)
                 fprintf(stderr, "--lessons names no file\n");
                 return 2;
             }
-            if (qry_latest(s_run, words[2], &lessons, &lessons_size, NULL) &&
+            if (qry_member_blob(words[2], &lessons, &lessons_size, NULL) &&
                 !cubin_safe_admitted_read((const char *)lessons, lessons_size))
             {
                 fprintf(stderr, "the lessons %s did not read\n", words[2]);
@@ -230,11 +232,15 @@ int main(int count, char **words)
         unsigned int registers = 0u;
         unsigned int slot = 0u;
         unsigned int launches = 0u;
-        if (sscanf(line, "%1023s %u %1023s %1023s %u %u", code_path, &registers, cases_path, answers_path, &slot,
-                   &launches) < 5)
+        const char *at = line;
+        if (!line_word(&at, code_path, sizeof(code_path)) || !line_unsigned(&at, &registers) ||
+            !line_word(&at, cases_path, sizeof(cases_path)) || !line_word(&at, answers_path, sizeof(answers_path)) ||
+            !line_unsigned(&at, &slot))
         {
             continue;
         }
+        // the launches follow where the list names them
+        line_unsigned(&at, &launches);
         carried = cubin_run_question(kernel, pattern_size, code_path, registers, cases_path, answers_path, slot,
                                      launches, unshaped, 0);
         questions += 1u;

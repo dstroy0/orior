@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame_relation_check.c: the frame relations held to what the teacher reads of them (frame_relation.h)
 //
@@ -8,7 +9,7 @@
 //   carrier    the words the channel names for the carrier's fill and its block are the carrier's own
 //
 //     frame_relation_check
-#include "../../../../../../../src/cu/transpiler/lstar/parser/khw_write/frame_relation.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/frame_relation.h"
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/cubin_run_internal.h"
 
 #include <stdio.h>

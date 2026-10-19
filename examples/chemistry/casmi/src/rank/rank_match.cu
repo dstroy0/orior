@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rank_match.cu: the match kept on the device. A chunk's lanes, each a query peak against a reference peak, have their
 // index built on the device, the match program run over them, the lanes whose kept output is 1 counted and ordered

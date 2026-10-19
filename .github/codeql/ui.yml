@@ -1,7 +1,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# What CodeQL reads of the app: src/ui, less what is built there and the test runs' records.
+# What CodeQL reads of the app: ui, less what is built there and the test runs' records.
 
 name: orior app
 
@@ -9,9 +9,9 @@ queries:
   - uses: security-and-quality
 
 paths:
-  - src/ui
+  - ui
 
 paths-ignore:
-  - src/ui/**/target
-  - src/ui/test/runs
-  - src/ui/test/fixtures
+  - ui/**/target
+  - ui/test/runs
+  - ui/test/fixtures

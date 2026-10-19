@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // decay_integral.h: int_0^b s^k e^(-n/s) ds as two terms, e^(-n/b) and E1(n/b), each times an exact rational
 #ifndef DECAY_INTEGRAL_H

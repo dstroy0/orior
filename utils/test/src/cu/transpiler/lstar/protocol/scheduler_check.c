@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // scheduler_check.c: a round held to P13 on the run channel's dry carrier, which writes each question it is handed in
 // the order it is handed them and answers none
@@ -12,15 +13,11 @@
 //
 //     scheduler_check <folder>
 //
-// The dry channel hands every question to the run's buffer (qry_buffer.h); the check makes that buffer itself in
-// <folder>, with no writer process, as a dry channel hands nothing critical, and reads the round back from it
-#if !defined(_WIN32)
-// setenv is POSIX, outside strict C11
-#define _POSIX_C_SOURCE 200809L
-#endif
+// The dry channel appends every question to the run (qry_member.h); the check runs in a run of its own, QRY naming
+// it, and reads the round back from it
+#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/scheduler.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel/run_channel_internal.h"
-#include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,16 +45,9 @@ int main(int count, char **words)
         printf("scheduler_check <folder>\n");
         return 2;
     }
-    // the run's buffer, made here, named to the channel as a run names it
-    char path[1024];
-    snprintf(path, sizeof(path), "%s/scheduler_check.qry", words[1]);
-    QryBuffer *const run = qry_create(path);
-    check_that(run != NULL, "the run's buffer is made");
-#if defined(_WIN32)
-    _putenv_s(QRY_ENVIRONMENT, path);
-#else
-    setenv(QRY_ENVIRONMENT, path, 1);
-#endif
+    // the run the check runs in
+    (void)words;
+    check_that(qry_member_run() != NULL, "the check runs in a run");
     // the airlock lets a round through a channel whose carrier reads a held list alone (run_channel_checked): the dry
     // carrier reads none, and the list is named so that the round passes the airlock as a live one does
     const char *const carrier[] = {"dry", "--held", "held.txt", NULL};
@@ -94,12 +84,12 @@ int main(int count, char **words)
     }
     check_that(held == CHECK_QUESTIONS, "every question of the round is put, and reads held");
 
-    // the order the dry channel handed them in, read back off each question's code in the run's buffer
+    // the order the dry channel handed them in, read back off each question's code in the run
     unsigned int written[CHECK_QUESTIONS];
     unsigned int written_count = 0u;
     const unsigned char *list = NULL;
     unsigned long long list_size = 0ull;
-    const int listed = qry_latest(run, "questions.txt", &list, &list_size, NULL);
+    const int listed = qry_member_blob("questions.txt", &list, &list_size, NULL);
     check_that(listed, "the dry channel handed its list to the run's buffer");
     unsigned long long at_line = 0ull;
     while (listed && (at_line < list_size) && (written_count < CHECK_QUESTIONS))
@@ -116,7 +106,7 @@ int main(int count, char **words)
         char code_name[256];
         const unsigned char *code = NULL;
         unsigned long long code_size = 0ull;
-        if ((sscanf(line, "%255s", code_name) == 1) && qry_latest(run, code_name, &code, &code_size, NULL) &&
+        if ((sscanf(line, "%255s", code_name) == 1) && qry_member_blob(code_name, &code, &code_size, NULL) &&
             (code_size >= 2ull))
         {
             written[written_count] = (unsigned int)code[0] | ((unsigned int)code[1] << 8u);
@@ -147,8 +137,8 @@ int main(int count, char **words)
     check_that(!run_channel_panic_ruled(), "the run is not stopped before a panic");
     // a clean refusal: the carrier ended clean, and every account the conference hears reads the cause as the
     // question's own instruction; the line closes and the run goes on
-    qry_hand(run, "panic.txt", (const unsigned char *)"refused", 7ull, QRY_PANIC);
-    check_that(qry_panicked(run) != 0ull, "a refusal's panic opens the line");
+    qry_member_append("panic.txt", (const unsigned char *)"refused", 7ull, QRY_PANIC);
+    check_that(qry_member_panicked() != 0ull, "a refusal's panic opens the line");
     KqrIdentity numbered;
     char identity[96];
     char conference[160];
@@ -160,14 +150,14 @@ int main(int count, char **words)
         *space = '_';
     }
     const char *const account = "carrier: the part refused the launch as an illegal instruction; cause instruction\n";
-    qry_hand(run, conference, (const unsigned char *)account, strlen(account), QRY_PANIC);
+    qry_member_append(conference, (const unsigned char *)account, strlen(account), QRY_PANIC);
     s_channel.carrier_clean = 1;
     run_channel_line_ruled(question[0]);
-    check_that(!run_channel_panic_ruled() && (qry_panicked(run) == 0ull),
+    check_that(!run_channel_panic_ruled() && (qry_member_panicked() == 0ull),
                "a clean refusal ruled the instruction's own closes the line and stops nothing");
     // a panic no conference heard an account of, on a question of its own: the line stays open and the run stops
-    qry_hand(run, "panic.txt", (const unsigned char *)"faulted", 7ull, QRY_PANIC);
-    check_that(qry_panicked(run) != 0ull, "a panic opens the line");
+    qry_member_append("panic.txt", (const unsigned char *)"faulted", 7ull, QRY_PANIC);
+    check_that(qry_member_panicked() != 0ull, "a panic opens the line");
     s_channel.carrier_clean = 0;
     run_channel_line_ruled(question[1]);
     check_that(run_channel_panic_ruled(), "a ruling on a panic stops the run");
@@ -180,7 +170,6 @@ int main(int count, char **words)
     }
     check_that((after == 0u) && (stopped == CHECK_QUESTIONS),
                "every question after the stop is held with the stop's reason");
-    qry_close(run);
     free(pool);
     printf("scheduler_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;

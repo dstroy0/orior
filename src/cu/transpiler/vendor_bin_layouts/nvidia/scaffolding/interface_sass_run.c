@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_run.c: a list of cubins run on the part in one process, one answer a cubin. Nothing is compiled here:
 // the driver is handed each cubin as it was written and asked for its kernel.
@@ -21,8 +22,9 @@
 // refusal adds `<number> refused <error>` and ends the process with exit 3, and the caller starts it again past that
 // line. A pause after each launch keeps a run of launches from flooding the part and taking the display down with it.
 // Exit 0 where every line ran, 2 where the list or the device was not reached.
-#include "../../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../cubin_safe.h"
+#include "../../../../includes/parsers/line_read.h"
 
 #include <cuda.h>
 #include <windows.h>
@@ -53,22 +55,29 @@ static unsigned int s_answers[SASS_RUN_THREADS][SASS_RUN_OUT_WORDS];
 static int sass_run_cases(const char *path)
 {
     // the cases as the run holds them, a descent's written through the run's writer, or the disk where it holds none
-    unsigned char *bytes = NULL;
+    const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     unsigned long long at = 0ull;
-    if (!qry_file_read(qry_run(), path, &bytes, &size))
+    if (!qry_member_file_blob(path, &bytes, &size))
     {
         return 0;
     }
     char line[SASS_RUN_LINE];
     unsigned int count = 0u;
     int fits = 1;
-    while (fits && qry_line_next(bytes, size, &at, line, sizeof(line)))
+    while (fits && line_read(bytes, size, &at, line, sizeof(line)))
     {
         unsigned int words[SASS_RUN_IN_WORDS] = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-        const int read = sscanf(line, "%x %x %x %x %x %x %x %x", &words[0], &words[1], &words[2], &words[3], &words[4],
-                                &words[5], &words[6], &words[7]);
-        if (read <= 0)
+        const char *at_word = line;
+        unsigned int read = 0u;
+        unsigned long long word = 0ull;
+        while ((read < SASS_RUN_IN_WORDS) && line_number(&at_word, 1, &word) && (word <= 0xffffffffull))
+        {
+            // the test above holds the word inside 32 bits
+            words[read] = (unsigned int)word;
+            read += 1u;
+        }
+        if (read == 0u)
         {
             continue;
         }
@@ -79,7 +88,6 @@ static int sass_run_cases(const char *path)
             count += 1u;
         }
     }
-    free(bytes);
     s_case_count = count;
     return fits && (count != 0u);
 }
@@ -178,7 +186,8 @@ int main(int count, char **words)
     {
         char path[SASS_RUN_LINE];
         char kernel[SASS_RUN_LINE];
-        if ((number < first) || (sscanf(line, "%1023s %1023s", path, kernel) != 2))
+        const char *read = line;
+        if ((number < first) || !line_word(&read, path, sizeof(path)) || !line_word(&read, kernel, sizeof(kernel)))
         {
             number += 1ul;
             continue;

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // arrangements.cu: the arrangements of primitives that produce each operator, read from the .kdm and written as a chain of ours
 #include "identity_internal.h"
@@ -116,9 +117,9 @@ const Word *word_produced(const std::vector<PreceptNode> &nodes)
 }
 
 // The arrangement `nodes` written through `sass` node by node, each node in the form of the web's word that is its
-// precept alone (word_web.h): a leaf the operand of `operands` at its place, RZ for a word of zeroes and `ones` for a
-// word of ones, every node but the root written to a register of its own numbered from `next` on, and the root to
-// `to`. Empty where a precept has no such word or the ruleset writes none of it
+// precept alone (word_web.h): a leaf the operand of `operands` at its place, the fixed zero for a word of zeroes and
+// `ones` for a word of ones, every node but the root written to a register of its own numbered from `next` on, and
+// the root to `to`. Empty where a precept has no such word or the ruleset writes none of it
 std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNode> &nodes,
                                        const std::vector<std::string> &operands, const std::string &ones,
                                        const std::string &to, unsigned int next)
@@ -134,7 +135,7 @@ std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNo
         {
             return std::string();
         }
-        held.push_back(((at + 1u) == nodes.size()) ? to : ("R" + std::to_string(next + at)));
+        held.push_back(((at + 1u) == nodes.size()) ? to : ruleset_register(sass, "file", next + at));
         std::vector<std::string> arguments = {held[at]};
         const unsigned char child[2] = {nodes[at].left, nodes[at].right};
         for (unsigned int which = 0u; which < word->reads; which += 1u)
@@ -146,7 +147,7 @@ std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNo
             {
                 return std::string();
             }
-            arguments.push_back((leaf == PRECEPT_ZERO)   ? std::string("RZ")
+            arguments.push_back((leaf == PRECEPT_ZERO)   ? ruleset_physreg(sass, "zero")
                                 : (leaf == PRECEPT_ONES) ? ones
                                 : (leaf >= PRECEPT_ARG)  ? operands[place]
                                                          : held[leaf]);

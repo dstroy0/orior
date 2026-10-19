@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // anchor_raster_reduce_test.c: the host raster and volume reduce a 0 byte the way the device's identity seed does
 #include "anchor_raster.h"

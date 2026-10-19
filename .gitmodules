@@ -1,0 +1,8 @@
+[submodule "src/cu/includes/mmgr"]
+	path = src/cu/includes/mmgr
+	url = https://github.com/dstroy0/MMgr.git
+	branch = main
+[submodule "src/cu/includes/embedded_types"]
+	path = src/cu/includes/embedded_types
+	url = https://github.com/dstroy0/embedded_types.git
+	branch = main

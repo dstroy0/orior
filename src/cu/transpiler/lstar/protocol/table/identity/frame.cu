@@ -1,51 +1,31 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame.cu: the frame asked of the part: the container the vendor's writer makes loaded and returned from, and the
 // least opening a kernel runs with (The frame asked, Open 6.3)
 #include "frame_walk.h"
 #include "identity_internal.h"
 
-// the kernel the system accepted, as the vendor's writer hands it to the run in its kernel mode: `kernel <places>
-// <registers> <from>` then one line a place, low word then high. Every place is read, whatever place the writer
-// names: the frame's asks and the fixed registers' start from the whole kernel. 1, or 0 with the reason printed under
-// the mode's name `mode`
-int frame_kernel_read(const char *mode, std::vector<unsigned char> *code, unsigned int *registers)
+// the kernel the system accepted, as the vendor's writer appends it to the run in its kernel mode (kernel_blob.h): the
+// latest blob of KERNEL_BLOB_NAME read where the run holds it, every place of it whatever place the writer names,
+// into `code`, `places` of them, and the registers a thread of it holds into `registers`. The frame's asks and the
+// fixed registers' start from the whole kernel. 1, or 0 where the run holds no kernel this reads
+int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned int *registers)
 {
-    const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    if ((qry_run() == NULL) || !qry_latest(qry_run(), "kernel.txt", &bytes, &size, NULL))
+    const unsigned char *kernel = NULL;
+    unsigned long long kernel_size = 0ull;
+    KernelBlobHead head;
+    if (!qry_member_blob(KERNEL_BLOB_NAME, &kernel, &kernel_size, NULL) || (kernel_size < sizeof(head)))
     {
-        printf("klq_identity %s: the run holds no kernel.txt; the vendor's writer hands it in its kernel mode\n", mode);
         return 0;
     }
-    std::istringstream lines(std::string((const char *)bytes, (size_t)size));
-    std::string line;
-    unsigned int places = 0u;
-    unsigned int from = 0u;
-    if (!std::getline(lines, line) || (sscanf(line.c_str(), "kernel %u %u %u", &places, registers, &from) < 2) ||
-        (places == 0u))
+    memcpy(&head, kernel, sizeof(head));
+    if ((head.places == 0u) || ((kernel_size - sizeof(head)) < (16ull * head.places)))
     {
-        printf("klq_identity %s: kernel.txt holds no kernel this reads\n", mode);
         return 0;
     }
-    code->clear();
-    for (unsigned int place = 0u; place < places; place += 1u)
-    {
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
-        if (!std::getline(lines, line) || (sscanf(line.c_str(), "%llx %llx", &low, &high) != 2))
-        {
-            printf("klq_identity %s: kernel.txt holds %u places, fewer than its head says\n", mode, place);
-            return 0;
-        }
-        for (unsigned int byte = 0u; byte < 8u; byte += 1u)
-        {
-            code->push_back((unsigned char)((low >> (8u * byte)) & 0xffull));
-        }
-        for (unsigned int byte = 0u; byte < 8u; byte += 1u)
-        {
-            code->push_back((unsigned char)((high >> (8u * byte)) & 0xffull));
-        }
-    }
+    *code = kernel + sizeof(head);
+    *places = head.places;
+    *registers = head.registers;
     return 1;
 }
 
@@ -86,13 +66,14 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
 {
     (void)engine;
     (void)answers;
-    std::vector<unsigned char> kernel;
+    const unsigned char *code = NULL;
+    unsigned int places = 0u;
     unsigned int registers = 0u;
-    if (!frame_kernel_read("frame", &kernel, &registers))
+    if (!frame_kernel_read(&code, &places, &registers))
     {
         return 1;
     }
-    const unsigned int places = (unsigned int)(kernel.size() / 16u);
+    std::vector<unsigned char> kernel(code, code + (16u * (size_t)places));
     if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_main.c: each form's operations, each operation's fields, and main. The first argument is
 // interface_ptx_probe's path, the second a folder for the cubins, listings and decodings. Exit 0 where every cubin was

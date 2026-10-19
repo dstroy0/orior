@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds the interface (compiler/interface) and its PTX probe, which writes its kernels from ptx.krs through the code generator's
 # ruleset reader (compiler/codegen), then runs the interface's PTX test: the membership queries and the illegal operations,
@@ -11,7 +12,7 @@ TOP="$(cd "$TEST/../../../../../.." && pwd)"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
+CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp interface_ptx_test
 
@@ -69,7 +70,7 @@ nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}"
 # the probe reads rulesets and writes forms; the code generator's assembly printer (asm_printer_*.cu) and the code
 # generator on the device (codegen*.cu) run on the record machine, which the probe does not link
 CODEGEN_SOURCES=()
-for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu; do
+for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) ;;
         *) CODEGEN_SOURCES+=("$source") ;;

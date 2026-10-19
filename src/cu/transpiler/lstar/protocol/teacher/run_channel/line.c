@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // line.c: the line: a gate hold on an unknown operation key read, the conference a fault or refusal calls, the line a
 // panic opens ruled on and closed, the halt, and what the teacher said
@@ -17,8 +18,52 @@ RunChannel s_channel;
 unsigned int s_registers_past = RUN_REGISTERS_UNANSWERED;
 char s_answer_line[RUN_ANSWER_LONGEST];
 char s_carrier_output[RUN_CARRIER_OUTPUT];
+char s_channel_list[RUN_LIST_ROOM];
 char s_carrier_said[RUN_CARRIER_ENDING + RUN_CARRIER_OUTPUT];
 char s_cases_text[RUN_CASES_TEXT];
+
+// `said` handed to the run's trace: where there is no run, it is said to none
+void run_channel_said(const char *said)
+{
+    qry_member_append("trace", said, strlen(said), QRY_ORDINARY);
+}
+
+// `said` written as the refusal of `asked`, cut at the room the refusal holds
+void run_channel_refused(RunQuestion *asked, const char *said)
+{
+    ScripturaLine refused = {asked->refused, sizeof(asked->refused), 0ull};
+    scriptura_text_most(&refused, said, sizeof(asked->refused) - 1u);
+    scriptura_closed(&refused);
+}
+
+// `the carrier <its first word> was not started`, the word cut at 96 bytes, written as the refusal of `asked`
+void run_channel_started_refused(RunQuestion *asked)
+{
+    ScripturaLine refused = {asked->refused, sizeof(asked->refused), 0ull};
+    scriptura_text(&refused, "the carrier ");
+    scriptura_text_most(&refused, s_channel.word[0], 96ull);
+    scriptura_text(&refused, " was not started");
+    scriptura_closed(&refused);
+}
+
+// how the carrier ended and its code, `the carrier <ending>, code <hex>`, written as the refusal of `asked`
+void run_channel_ending_refused(RunQuestion *asked, const InterfaceAnswer *answer)
+{
+    ScripturaLine refused = {asked->refused, sizeof(asked->refused), 0ull};
+    scriptura_text(&refused, "the carrier ");
+    scriptura_text(&refused, interface_ending_name(answer->ending));
+    scriptura_text(&refused, ", code ");
+    scriptura_hex(&refused, answer->code, 0u);
+    scriptura_closed(&refused);
+}
+
+// `count` in decimal written into `text`, which holds `room`
+void run_channel_counted(char *text, size_t room, unsigned long long count)
+{
+    ScripturaLine counted = {text, room, 0ull};
+    scriptura_decimal(&counted, count, 0u);
+    scriptura_closed(&counted);
+}
 
 // the panic the teacher has handed its account of: it speaks once for each
 static unsigned long long s_panic_answered = 0ull;
@@ -40,45 +85,52 @@ void run_channel_conference_called(const RunQuestion *asked, const char *how, co
     KqrIdentity numbered;
     char identity[96];
     char name[160];
-    char account[512];
     run_channel_identity(asked, &numbered);
     kqr_identity_text(&numbered, identity, sizeof(identity));
-    snprintf(name, sizeof(name), "%s_%s", QRY_CONFERENCE_CALL, identity);
+    ScripturaLine name_line = {name, sizeof(name), 0ull};
+    scriptura_text(&name_line, QRY_CONFERENCE_CALL);
+    scriptura_character(&name_line, '_');
+    scriptura_text(&name_line, identity);
+    scriptura_closed(&name_line);
     // a blob's name takes no space: each space of the identity an underscore
     for (char *space = strchr(name, ' '); space != NULL; space = strchr(space, ' '))
     {
         *space = '_';
     }
-    const unsigned long long panic = qry_panicked(s_channel.buffer);
-    const int length =
-        snprintf(account, sizeof(account),
-                 "teacher: the question of %llu bytes of code, %u registers, %u threads in %u blocks, %u "
-                 "launches, over %u cases, %s; %s\n",
-                 asked->code_size, asked->registers, asked->threads, asked->blocks, asked->launches, asked->cases, how,
-                 (panic != 0ull) ? "a panic is on the line" : "the line is quiet");
-    // the account fits its room, and its length is not negative
-    const size_t kept = (length < 0)                         ? 0u
-                        : ((size_t)length < sizeof(account)) ? (size_t)length
-                                                             : (sizeof(account) - 1u);
-    unsigned char *const whole = (unsigned char *)malloc(kept + (size_t)said_size);
-    if (whole == NULL)
-    {
-        return;
-    }
-    memcpy(whole, account, kept);
+    const unsigned long long panic = qry_member_panicked();
+    // the account and what the carrier said after it, a record at most half a ring, what the carrier said cut to it
+    static char s_conference[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine whole = {s_conference, sizeof(s_conference), 0ull};
+    scriptura_text(&whole, "teacher: the question of ");
+    scriptura_decimal(&whole, asked->code_size, 0u);
+    scriptura_text(&whole, " bytes of code, ");
+    scriptura_decimal(&whole, asked->registers, 0u);
+    scriptura_text(&whole, " registers, ");
+    scriptura_decimal(&whole, asked->threads, 0u);
+    scriptura_text(&whole, " threads in ");
+    scriptura_decimal(&whole, asked->blocks, 0u);
+    scriptura_text(&whole, " blocks, ");
+    scriptura_decimal(&whole, asked->launches, 0u);
+    scriptura_text(&whole, " launches, over ");
+    scriptura_decimal(&whole, asked->cases, 0u);
+    scriptura_text(&whole, " cases, ");
+    scriptura_text_most(&whole, how, 256ull);
+    scriptura_text(&whole, "; ");
+    scriptura_text(&whole, (panic != 0ull) ? "a panic is on the line" : "the line is quiet");
+    scriptura_character(&whole, '\n');
     if (said_size != 0ull)
     {
-        memcpy(whole + kept, said, (size_t)said_size);
+        const unsigned long long room = scriptura_fits(&whole) ? (whole.capacity - whole.at - 1ull) : 0ull;
+        scriptura_counted(&whole, (const char *)said, (said_size < room) ? said_size : room);
     }
-    qry_hand(s_channel.buffer, name, whole, (unsigned long long)kept + said_size, QRY_ORDINARY);
-    free(whole);
+    qry_member_append(name, whole.out, whole.at, QRY_ORDINARY);
 }
 
 // The sequence of the panic on the line, or 0 while it is quiet: once a panic opens it the run is halted, and the
-// teacher puts no question until a conference's ruling closes it (qry_buffer.h, run_channel_line_ruled)
+// teacher puts no question until a conference's ruling closes it (qry_member.h, run_channel_line_ruled)
 unsigned long long run_channel_on_line(void)
 {
-    return qry_panicked(s_channel.buffer);
+    return qry_member_panicked();
 }
 
 // The conference a refusal calls, held at once where the refusal put a panic on the line (overseer_convened): where
@@ -101,6 +153,7 @@ void run_channel_line_ruled(const RunQuestion *asked)
     kqr_identity_text(&numbered, identity, sizeof(identity));
     OverseerRuling ruling;
     char said[OVERSEER_RULING_LONGEST + 128u];
+    ScripturaLine said_line = {said, sizeof(said), 0ull};
     const int heard = overseer_convened(s_channel.buffer, identity, 0, &ruling);
     const int clean_refusal = heard && ruling.own && (ruling.cause == (unsigned int)OVERSEER_CAUSE_INSTRUCTION) &&
                               (s_channel.carrier_clean != 0);
@@ -110,23 +163,26 @@ void run_channel_line_ruled(const RunQuestion *asked)
     }
     if (!heard)
     {
-        snprintf(said, sizeof(said), "the line stays open, and the run stops: the conference heard no account");
+        scriptura_text(&said_line, "the line stays open, and the run stops: the conference heard no account");
     }
     else if (clean_refusal)
     {
-        qry_line_closed(s_channel.buffer, panic);
-        snprintf(said, sizeof(said), "the line closed on the ruling, a clean refusal, and the round goes on: %s",
-                 ruling.said);
+        qry_member_line_closed(panic);
+        scriptura_text(&said_line, "the line closed on the ruling, a clean refusal, and the round goes on: ");
+        scriptura_text(&said_line, ruling.said);
     }
     else if (ruling.own)
     {
-        qry_line_closed(s_channel.buffer, panic);
-        snprintf(said, sizeof(said), "the line closed on the ruling, and the run stops: %s", ruling.said);
+        qry_member_line_closed(panic);
+        scriptura_text(&said_line, "the line closed on the ruling, and the run stops: ");
+        scriptura_text(&said_line, ruling.said);
     }
     else
     {
-        snprintf(said, sizeof(said), "the line stays open on the ruling, and the run stops: %s", ruling.said);
+        scriptura_text(&said_line, "the line stays open on the ruling, and the run stops: ");
+        scriptura_text(&said_line, ruling.said);
     }
+    scriptura_closed(&said_line);
     run_channel_check_traced(asked, said);
 }
 
@@ -138,17 +194,19 @@ void run_channel_halted(RunQuestion *const *asked, unsigned int first, unsigned 
     for (unsigned int at = first; at < count; at += 1u)
     {
         asked[at]->outcome = RUN_NO_CHANNEL;
+        ScripturaLine refused = {asked[at]->refused, sizeof(asked[at]->refused), 0ull};
         if (s_stopped_on != 0ull)
         {
-            snprintf(asked[at]->refused, sizeof(asked[at]->refused),
-                     "the run stopped: the panic at sequence %llu was ruled on, and no question is carried after it",
-                     s_stopped_on);
+            scriptura_text(&refused, "the run stopped: the panic at sequence ");
+            scriptura_decimal(&refused, s_stopped_on, 0u);
+            scriptura_text(&refused, " was ruled on, and no question is carried after it");
         }
         else
         {
-            snprintf(asked[at]->refused, sizeof(asked[at]->refused),
-                     "the run is halted: a panic is on the line at sequence %llu", on_line);
+            scriptura_text(&refused, "the run is halted: a panic is on the line at sequence ");
+            scriptura_decimal(&refused, on_line, 0u);
         }
+        scriptura_closed(&refused);
     }
 }
 
@@ -164,14 +222,27 @@ void run_channel_teacher_said(unsigned int questions, unsigned long long round, 
         return;
     }
     s_panic_answered = panic;
-    char said[RUN_CARRIER_ENDING + RUN_LINE_LONGEST + 96u];
-    const int length =
-        snprintf(said, sizeof(said),
-                 "teacher: the round questions.txt of %u questions, handed at sequence %llu; the carrier "
-                 "%s, code %llx; %u answered before it ended; the question it was carrying: %s%sno "
-                 "question is put until a conference rules\n",
-                 questions, round, interface_ending_name(answer->ending), answer->code, answered, carrying,
-                 ((carrying[0] != '\0') && (carrying[strlen(carrying) - 1u] == '\n')) ? "" : "\n");
-    // the account fits its room, and its length is not negative
-    qry_hand(s_channel.buffer, QRY_PANIC_CALL, said, (unsigned long long)((length > 0) ? length : 0), QRY_PANIC);
+    char said[RUN_CARRIER_ENDING + RUN_LINE_LONGEST + 256u];
+    ScripturaLine line = {said, sizeof(said), 0ull};
+    scriptura_text(&line, "teacher: the round questions.txt of ");
+    scriptura_decimal(&line, questions, 0u);
+    scriptura_text(&line, " questions, handed at sequence ");
+    scriptura_decimal(&line, round, 0u);
+    scriptura_text(&line, "; the carrier ");
+    scriptura_text(&line, interface_ending_name(answer->ending));
+    scriptura_text(&line, ", code ");
+    scriptura_hex(&line, answer->code, 0u);
+    scriptura_text(&line, "; ");
+    scriptura_decimal(&line, answered, 0u);
+    scriptura_text(&line, " answered before it ended; the question it was carrying: ");
+    scriptura_text_most(&line, carrying, RUN_LINE_LONGEST);
+    if ((carrying[0] == '\0') || (carrying[strlen(carrying) - 1u] != '\n'))
+    {
+        scriptura_character(&line, '\n');
+    }
+    scriptura_text(&line, "no question is put until a conference rules\n");
+    if (scriptura_fits(&line))
+    {
+        qry_member_append(QRY_PANIC_CALL, said, line.at, QRY_PANIC);
+    }
 }

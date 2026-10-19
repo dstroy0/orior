@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 set -u
 
@@ -8,11 +9,11 @@ MODULE="$TOP/src/cu/engine/analysis/period"
 DEVICE_POOL="$TOP/src/cu/engine/runtime/device_pool"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CODEGEN="$TOP/src/cu/engine/rmc"
-LSTAR_PARSER="$TOP/src/cu/types/file_defs/readers"
+LSTAR_PARSER="$TOP/src/cu/includes/parsers"
 KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
-NO_ROUNDING="$TOP/src/cu/types/integers"
-EXACT_RECORD="$TOP/src/cu/types/integers/exact_record"
+NO_ROUNDING="$TOP/src/cu/includes/types/integers"
+EXACT_RECORD="$TOP/src/cu/includes/types/integers/exact_record"
 SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 source "$TOP/utils/maint/engine/tessera_build.sh"

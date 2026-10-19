@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_run_internal.h: what the modules of the carrier share: its includes, the bounds of a container, a launch and a question, the driver, the telemetry, the events and the shape of a launch, the state the carrier holds through a round, and the functions one module reads from another
 #ifndef CUBIN_RUN_INTERNAL_H
@@ -7,11 +8,12 @@
 // clock_gettime and the monotonic clock are POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
 #endif
-#include "../../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../cubin_safe.h"
 #include "../cubin_write.h"
 #include "../sass_assemble.h"
 #include "../sass_machine.h"
+#include "../../../../engine/runtime/scriptura/scriptura.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -123,7 +125,7 @@ typedef struct
     CubinRunStatus (*release)(CubinRunAddress);
 } CubinRunDriver;
 
-// the lines of a channel input: its blob in the run's buffer, read in place
+// the lines of a channel input: its blob in the run, read in place
 typedef struct
 {
     const unsigned char *bytes;
@@ -131,15 +133,8 @@ typedef struct
     unsigned long long at;
 } CubinRunLines;
 
-// What the carrier says, gathered and given whole once it is said (cubin_run_said): grown as it is written, since an
-// answer holds a word of every case. A question's answer and its dry record are each gathered in one of their own
-typedef struct
-{
-    char *text;
-    size_t size;
-    size_t room;
-} CubinRunSaying;
-
+// What the carrier says, gathered in a line of its own and given whole once it is said (cubin_run_said): a
+// question's answer, its dry record and its call each have one
 // the event type the Xid critical errors are registered and read under, and the event a wait fills: the part's handle,
 // the type stamped and its datum, with room past them for the fields a newer management layer adds; an older one's
 // shorter event is read into that same space
@@ -183,10 +178,10 @@ extern unsigned int s_exits[CUBIN_RUN_EXITS];
 extern unsigned int s_cases[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_IN_WORDS];
 extern unsigned int s_case_count;
 extern unsigned int s_answers[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_OUT_WORDS];
-extern QryBuffer *s_run;
-extern CubinRunSaying s_answer_said;
-extern CubinRunSaying s_dry_said;
-extern CubinRunSaying s_call_said;
+extern QryShared *s_run;
+extern ScripturaLine s_answer_said;
+extern ScripturaLine s_dry_said;
+extern ScripturaLine s_call_said;
 extern int s_telemetry_ready;
 extern int s_events_ready;
 extern unsigned long long s_xid_data[CUBIN_RUN_XID_KEPT];
@@ -238,8 +233,7 @@ int cubin_run_lines_open(CubinRunLines *lines, const char *name);
 int cubin_run_line(CubinRunLines *lines, char *line, size_t room);
 void cubin_run_lines_close(CubinRunLines *lines);
 int cubin_run_cases(const char *name);
-int cubin_run_say(CubinRunSaying *saying, const char *format, ...);
-int cubin_run_said(CubinRunSaying *saying, const char *name, unsigned int priority, int carried);
+int cubin_run_said(ScripturaLine *saying, const char *name, unsigned int priority, int carried);
 void *cubin_run_entry(void *library, const char *name);
 int cubin_run_driver(CubinRunDriver *driver);
 int cubin_run_telemetry_open(void);
@@ -248,7 +242,7 @@ int cubin_run_telemetry_faulted(CubinRunStatus status);
 CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel, const CubinRunShape *shape, unsigned int launches, unsigned long long *nanoseconds);
 void cubin_run_container_out(const char *answers_path, const unsigned char *container, unsigned long long size);
 void cubin_run_dry_written(unsigned long long code_size, unsigned int registers, unsigned int launches, const CubinRunShape *shape, unsigned int verdict, unsigned long long at);
-void cubin_run_refusal_said(CubinRunSaying *answers, int panicked, const char *code_path, unsigned long long code_size, unsigned int registers, unsigned int slot, unsigned int launches, const CubinRunShape *shape, const char *status_name, CubinRunStatus status, unsigned int verdict, unsigned long long at);
+void cubin_run_refusal_said(ScripturaLine *answers, int panicked, const char *code_path, unsigned long long code_size, unsigned int registers, unsigned int slot, unsigned int launches, const CubinRunShape *shape, const char *status_name, CubinRunStatus status, unsigned int verdict, unsigned long long at);
 int cubin_run_question(const char *kernel, unsigned long long pattern_size, const char *code_path, unsigned int registers, const char *cases_path, const char *answers_path, unsigned int slot, unsigned int launches, CubinRunShape shape, int shaped);
 int cubin_run_verdict_load(const char *name);
 

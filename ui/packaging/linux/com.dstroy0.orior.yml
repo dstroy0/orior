@@ -1,0 +1,43 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#
+# orior's Flatpak, as Flathub builds it: the window and the command line built from the tree with the
+# crates cargo_sources.py lists in cargo-sources.json, offline. orior reaches the machine's own
+# compilers, SDKs and tools, and runs the terminal's shell, on the machine through flatpak-spawn
+# --host, which org.freedesktop.Flatpak answers (cli/src/machine/host.c).
+
+app-id: com.dstroy0.orior
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: orior
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --filesystem=home
+  - --talk-name=org.freedesktop.Flatpak
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/orior/cargo
+    CARGO_NET_OFFLINE: 'true'
+modules:
+  - name: orior
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --offline --manifest-path gui/src-tauri/Cargo.toml
+      - bash cli/build.sh
+      - install -Dm755 gui/src-tauri/target/release/orior /app/bin/orior
+      - install -Dm755 ../../build/cli/$(uname -m)-unknown-linux-gnu/orior-cli /app/bin/orior-cli
+      - install -Dm644 packaging/linux/com.dstroy0.orior.desktop /app/share/applications/com.dstroy0.orior.desktop
+      - install -Dm644 packaging/linux/com.dstroy0.orior.metainfo.xml /app/share/metainfo/com.dstroy0.orior.metainfo.xml
+      - install -Dm644 gui/src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/com.dstroy0.orior.png
+    sources:
+      - type: dir
+        path: ../..
+      - cargo-sources.json

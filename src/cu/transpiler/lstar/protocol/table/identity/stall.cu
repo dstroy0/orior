@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // stall.cu: the stall walk: the soonest a result is read, asked of the part link by link
 #include "identity_internal.h"
@@ -11,7 +12,7 @@
 // where it is refused at 1. An instruction that sets a write barrier is read behind the barrier and not behind its
 // stall, and is not asked. A load's address is written in every chain of ours by IMAD.WIDE.U32, and each probe of a
 // pair whose reader loads through the pair the multiply writes is written again with the address written last by each
-// other word sass.krs writes a pair with: wide_add, the base read from the constant bank by wide_pack and the offset
+// other word the ruleset writes a pair with: wide_add, the base read from the constant bank by wide_pack and the offset
 // by wide_mul_word, added; and wide_pack, the multiply's pair moved into the address's. Each is asked at every stall of
 // the word's last link, the one the load reads after, every other stall the longest, in the same round. Each pair
 // that no chain of ours holds and an arrangement of the .kdm beside the machine file does is probed in that
@@ -156,9 +157,8 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
         }
     }
     // the load's address written last by the other words that write a pair, every stall of the last link, in the round
-    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
-    static SassMachine s_machine;
-    const int writable = (sass != NULL) && (sass_machine_read(&s_machine, machine_path) != 0);
+    const Ruleset *const sass = identity_ruleset();
+    const int writable = (sass != NULL);
     const auto none_named = [](const std::string &) { return std::string(); };
     const std::regex wide_written("^\\s*IMAD\\.WIDE\\.U32\\s+(R[0-9]+),\\s*(R[0-9]+),\\s*(R[0-9]+),\\s*"
                                   "c\\[0x0\\]\\[(0x[0-9a-fA-F]+)\\+([0-9]+)\\];?\\s*$");
@@ -202,8 +202,8 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
                 continue;
             }
             const unsigned int base = (chain_registers(engine, probe.number) + 1u) & ~1u;
-            const std::string held = "R" + std::to_string(base);
-            const std::string offset = "R" + std::to_string(base + 2u);
+            const std::string held = ruleset_register(sass, "file", base);
+            const std::string offset = ruleset_register(sass, "file", base + 2u);
             const std::string low = "c[0x0][" + found[4].str() + "+" + found[5].str() + "]";
             const std::string high =
                 "c[0x0][" + found[4].str() + "+" + std::to_string(std::stoul(found[5].str()) + 4u) + "]";
@@ -228,11 +228,11 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
             }
             for (const std::string &way : {by_add, by_pack})
             {
-                std::vector<unsigned char> code(16u * 4096u);
-                const unsigned int written_count = sass_assemble_lines(&s_machine, (before + way).c_str(),
-                                                                       SASS_CONTROL_SAFE, code.data(), code.size());
-                const unsigned int count = sass_assemble_lines(&s_machine, (before + way + after).c_str(),
-                                                               SASS_CONTROL_SAFE, code.data(), code.size());
+                const std::vector<std::vector<unsigned char>> ways_code =
+                    vendor_assembled(machine_path, std::vector<std::string>{before + way, before + way + after});
+                const unsigned int written_count = (unsigned int)(ways_code[0].size() / 16u);
+                std::vector<unsigned char> code = ways_code[1];
+                const unsigned int count = (unsigned int)(code.size() / 16u);
                 const std::vector<std::string> way_lines = carrier_pieces(way, '\n');
                 std::smatch last;
                 if ((written_count == 0u) || (count == 0u) || way_lines.empty() ||
@@ -240,7 +240,6 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
                 {
                     continue;
                 }
-                code.resize(16u * count);
                 for (size_t index = 0u; index < count; index += 1u)
                 {
                     stall_bits_write(&code, index, stall, longest);
@@ -269,7 +268,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
         const std::string stem = ((typed != std::string::npos) && (typed + 4u == machine_file.size()))
                                      ? machine_file.substr(0u, typed)
                                      : machine_file;
-        arrangement_probes(engine, host, stem + ".kdm", sass, &s_machine, stall, longest,
+        arrangement_probes(engine, host, stem + ".kdm", sass, machine_path, stall, longest,
                            held_pairs, most, &stall_asks, &stall_codes);
     }
     // the one round, and what came back at every stall of each pair

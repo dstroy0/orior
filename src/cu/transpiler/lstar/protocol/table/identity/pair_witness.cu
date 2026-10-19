@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair_witness.cu: the lower witness: a pair whose puts asked nothing put at the links of a third form, both
 // forms standing in there and the part's two answers held against each other
@@ -26,8 +27,8 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
     std::map<char, std::string> first_bound;
     std::map<char, std::string> second_bound;
     std::map<char, std::string> fixed;
-    const int first_unified = form_unified(first_text, second_text, &first_bound, &fixed);
-    const int second_unified = form_unified(second_text, first_text, &second_bound, &fixed);
+    const int first_unified = form_unified(sass, first_text, second_text, &first_bound, &fixed);
+    const int second_unified = form_unified(sass, second_text, first_text, &second_bound, &fixed);
     // the arguments of a form of parameters `names`: each its operand of the third form's link where `given`
     // names it, or else what the other form writes in its place, the operand `given` names of the other's
     // parameter there or the literal it writes. 1 where every parameter has an argument
@@ -152,10 +153,10 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             unsigned int first_scratch = 0u;
             unsigned int second_scratch = 0u;
             if ((ruleset_opcode(sass, first, first_arguments,
-                                scratch_past(carriers.magnitudes[chain.first].first, &first_scratch),
+                                scratch_past(sass, carriers.magnitudes[chain.first].first, &first_scratch),
                                 first_standing) == 0) ||
                 (ruleset_opcode(sass, second, second_arguments,
-                                scratch_past(carriers.magnitudes[chain.first].first, &second_scratch),
+                                scratch_past(sass, carriers.magnitudes[chain.first].first, &second_scratch),
                                 second_standing) == 0))
             {
                 lower("unwritable");
@@ -170,15 +171,9 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             const std::string before = chain.second.substr(0u, (size_t)found.position(0));
             const std::string rest = chain.second.substr((size_t)(found.position(0) + found.length(0)));
             const std::string standings[2] = {before + first_standing + rest, before + second_standing + rest};
-            std::vector<std::vector<unsigned char>> codes(2u, std::vector<unsigned char>(16u * 4096u));
-            int assembled = 1;
-            for (unsigned int side = 0u; side < 2u; side += 1u)
-            {
-                const unsigned int count = sass_assemble_lines(
-                    machine, standings[side].c_str(), SASS_CONTROL_SAFE, codes[side].data(), codes[side].size());
-                codes[side].resize(16u * count);
-                assembled &= (count != 0u) ? 1 : 0;
-            }
+            std::vector<std::vector<unsigned char>> codes =
+                vendor_assembled(machine, std::vector<std::string>(standings, standings + 2));
+            const int assembled = !codes[0].empty() && !codes[1].empty();
             if (!assembled)
             {
                 lower("unassembled");

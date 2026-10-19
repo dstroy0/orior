@@ -1,5 +1,6 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../src/cu/types/integers/exact_integer.h"
+#include "../../src/cu/includes/types/integers/exact_integer.h"
 
 #include <stdio.h>
 #include <string.h>

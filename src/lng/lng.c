@@ -1,8 +1,11 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lng.c: the three language tables read, and each held against the tree and against the others (lng.h)
 #include "lng.h"
 
-#include "../cu/types/file_defs/klang.h"
+#include "../cu/includes/file_defs/klang/klang.h"
+#include "../cu/includes/parsers/who.h"
+#include "verba_scribo/verba_scribo.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -849,28 +852,29 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
 // Each line of `file` cut by the blocks of the ruleset's language (klang.h): what of the line stands inside a block's
 // text kept after `inside`, and what stands outside every block, its opener and its closer among the block, kept after
 // `outside`, a text each for every line, "" where the line holds none
-static void lng_block_parts(const KtextFile *file, LngList *inside, LngList *outside)
+static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *outside)
 {
     // the lines joined, each ended by a newline, and where each starts
-    QryText text = {NULL, 0ull, 0ull, 0};
+    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    size_t length = 0u;
     size_t *const starts = (size_t *)lng_held(calloc((size_t)file->lines + 1u, sizeof(size_t)));
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
-        // a line's start is the bytes joined before it, which a size_t counts
-        starts[at] = (size_t)text.size;
-        qry_text_printed(&text, "%s\n", file->line[at]);
+        starts[at] = length;
+        length = verba_textus.put(
+            &(VerbaTextusCfg){.out = s_text_bytes, .cap = sizeof(s_text_bytes), .at = length, .text = file->line[at]});
+        length = verba_littera.ch(
+            &(VerbaLitteraCfg){.out = s_text_bytes, .cap = sizeof(s_text_bytes), .at = length, .ch = '\n'});
     }
-    if (text.failed)
+    if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_text_bytes), .at = length}))
     {
         lng_held(NULL);
     }
-    // the joined lines are at most what a size_t counts
-    const size_t length = (size_t)text.size;
     KlangBlock *block = NULL;
     unsigned int blocks = 0u;
     size_t from = 0u;
     KlangBlock found;
-    while ((text.bytes != NULL) && klang_block_find(text.bytes, length, from, "krs", &found))
+    while (klang_block_find(s_text_bytes, length, from, "krs", &found))
     {
         block = (KlangBlock *)lng_held(realloc(block, ((size_t)blocks + 1u) * sizeof(KlangBlock)));
         block[blocks] = found;
@@ -881,8 +885,10 @@ static void lng_block_parts(const KtextFile *file, LngList *inside, LngList *out
     {
         const size_t start = starts[at];
         const size_t end = start + strlen(file->line[at]);
-        QryText in = {NULL, 0ull, 0ull, 0};
-        QryText out = {NULL, 0ull, 0ull, 0};
+        static char s_in_bytes[QRY_WRITER_RING_BYTES / 2ull];
+        size_t in = 0u;
+        static char s_out_bytes[QRY_WRITER_RING_BYTES / 2ull];
+        size_t out = 0u;
         size_t cursor = start;
         for (unsigned int one = 0u; one < blocks; one += 1u)
         {
@@ -890,7 +896,11 @@ static void lng_block_parts(const KtextFile *file, LngList *inside, LngList *out
             const size_t high = (block[one].text_end < end) ? block[one].text_end : end;
             if (low < high)
             {
-                qry_text_added(&in, &text.bytes[low], (unsigned long long)(high - low));
+                in = verba_textus.put_n(&(VerbaTextusCfg){.out = s_in_bytes,
+                                                          .cap = sizeof(s_in_bytes),
+                                                          .at = in,
+                                                          .text = &s_text_bytes[low],
+                                                          .text_len = high - low});
             }
             if ((block[one].closed <= cursor) || (block[one].opened >= end))
             {
@@ -898,30 +908,35 @@ static void lng_block_parts(const KtextFile *file, LngList *inside, LngList *out
             }
             if (block[one].opened > cursor)
             {
-                qry_text_added(&out, &text.bytes[cursor], (unsigned long long)(block[one].opened - cursor));
+                out = verba_textus.put_n(&(VerbaTextusCfg){.out = s_out_bytes,
+                                                           .cap = sizeof(s_out_bytes),
+                                                           .at = out,
+                                                           .text = &s_text_bytes[cursor],
+                                                           .text_len = block[one].opened - cursor});
             }
             cursor = (block[one].closed < end) ? block[one].closed : end;
         }
         if (cursor < end)
         {
-            qry_text_added(&out, &text.bytes[cursor], (unsigned long long)(end - cursor));
+            out = verba_textus.put_n(&(VerbaTextusCfg){.out = s_out_bytes,
+                                                       .cap = sizeof(s_out_bytes),
+                                                       .at = out,
+                                                       .text = &s_text_bytes[cursor],
+                                                       .text_len = end - cursor});
         }
-        if (in.failed || out.failed)
+        if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_in_bytes), .at = in}) ||
+            !verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_out_bytes), .at = out}))
         {
             lng_held(NULL);
         }
-        // a part of a line is at most what a size_t counts
-        lng_list_insert(inside, inside->count, (in.bytes != NULL) ? in.bytes : "", (size_t)in.size);
-        lng_list_insert(outside, outside->count, (out.bytes != NULL) ? out.bytes : "", (size_t)out.size);
-        qry_text_freed(&in);
-        qry_text_freed(&out);
+        lng_list_insert(inside, inside->count, s_in_bytes, in);
+        lng_list_insert(outside, outside->count, s_out_bytes, out);
     }
     free(block);
     free(starts);
-    qry_text_freed(&text);
 }
 
-void lng_ruleset_lines(const KtextFile *file, LngList *kept)
+void lng_ruleset_lines(const KfileLines *file, LngList *kept)
 {
     LngList outside = {NULL, 0u, 0u};
     lng_block_parts(file, kept, &outside);
@@ -954,7 +969,7 @@ static void lng_folds(const char *line, LngList *folds, LngList *puts)
     }
 }
 
-void lng_ksc_words(const char *path, const KtextFile *file, LngMap *used)
+void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used)
 {
     LngList inside = {NULL, 0u, 0u};
     LngList outside = {NULL, 0u, 0u};
@@ -962,9 +977,9 @@ void lng_ksc_words(const char *path, const KtextFile *file, LngMap *used)
     for (unsigned int at = 0u; at < outside.count; at += 1u)
     {
         const char *const line = outside.text[at];
-        QryWho who;
+        Who who;
         int held = 0;
-        if ((line[0] == '\0') || (line[0] == '#') || ktext_who_line(line, &who, &held))
+        if ((line[0] == '\0') || (line[0] == '#') || kfile_lines_who_line(line, &who, &held))
         {
             continue;
         }

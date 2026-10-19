@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Every form a ruleset left blank turned into the nop or the err it meant, once, when the reader stopped taking a
 # blank form. A form named on the err list becomes `err <name> <parameters>` and every other blank one becomes

@@ -1,8 +1,9 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bus_enum_check.c: the classify ask and the width ask over memory the test owns, the enumeration region found in a
 // run of kinds, and the classify walk driven over a span of addresses in probes the interface can lose.
 //
-//     bus_enum_check <classify_walk> <output file>
+//     bus_enum_check <classify_walk>, run inside a run whose records the walk hands its lines to
 //
 // The region finder is put runs of kinds a walk would have read. Given the classify_walk program the walk runs too,
 // over low addresses nothing maps, where every address ends its probe and the region is none.
@@ -49,11 +50,8 @@ int main(int count_of_words, char **words)
     }
 
     // a clean region: records at samples 2, 6, 10, every four samples apart
-    const unsigned int clean[14] = {
-        HOST_HOLDS, HOST_HOLDS,
-        HOST_FIXED, HOST_LIVE, HOST_HOLDS, HOST_HOLDS,
-        HOST_FIXED, HOST_LIVE, HOST_HOLDS, HOST_HOLDS,
-        HOST_FIXED, HOST_LIVE, HOST_HOLDS, HOST_HOLDS};
+    const unsigned int clean[14] = {HOST_HOLDS, HOST_HOLDS, HOST_FIXED, HOST_LIVE,  HOST_HOLDS, HOST_HOLDS, HOST_FIXED,
+                                    HOST_LIVE,  HOST_HOLDS, HOST_HOLDS, HOST_FIXED, HOST_LIVE,  HOST_HOLDS, HOST_HOLDS};
     unsigned long long base = 0ull;
     unsigned long long stride = 0ull;
     unsigned long long records = 0ull;
@@ -62,12 +60,9 @@ int main(int count_of_words, char **words)
                "the region begins at sample 2, strides by 4, and holds 3 records");
 
     // an empty slot at sample 10: records at 2, 6, 14; the gaps 4 and 8 keep the stride at 4
-    const unsigned int gapped[18] = {
-        HOST_HOLDS,   HOST_HOLDS,
-        HOST_FIXED,   HOST_LIVE,    HOST_HOLDS, HOST_HOLDS,
-        HOST_FIXED,   HOST_LIVE,    HOST_HOLDS, HOST_HOLDS,
-        HOST_NOTHING, HOST_NOTHING, HOST_HOLDS, HOST_HOLDS,
-        HOST_FIXED,   HOST_LIVE,    HOST_HOLDS, HOST_HOLDS};
+    const unsigned int gapped[18] = {HOST_HOLDS, HOST_HOLDS, HOST_FIXED, HOST_LIVE,  HOST_HOLDS,   HOST_HOLDS,
+                                     HOST_FIXED, HOST_LIVE,  HOST_HOLDS, HOST_HOLDS, HOST_NOTHING, HOST_NOTHING,
+                                     HOST_HOLDS, HOST_HOLDS, HOST_FIXED, HOST_LIVE,  HOST_HOLDS,   HOST_HOLDS};
     check_that(find(gapped, 18ull, &base, &stride, &records) == 1, "a region with an empty slot is found");
     check_that((base == 2ull) && (stride == 4ull) && (records == 3ull),
                "an empty slot leaves the stride at 4 over its three present records");
@@ -86,28 +81,20 @@ int main(int count_of_words, char **words)
     check_that(find(alone, 4ull, &base, &stride, &records) == 0, "one record alone is no region");
 
     // the records read out of a region: each FIXED identifier, and each LIVE sizing register's width from its mask
-    const unsigned int list_values[14] = {
-        0u, 0u,
-        0x0000aa01u, 0xfffff000u, 0u, 0u,
-        0x0000aa02u, 0xffff0000u, 0u, 0u,
-        0x0000aa03u, 0xffffff00u, 0u, 0u};
+    const unsigned int list_values[14] = {0u,          0u, 0x0000aa01u, 0xfffff000u, 0u,          0u, 0x0000aa02u,
+                                          0xffff0000u, 0u, 0u,          0x0000aa03u, 0xffffff00u, 0u, 0u};
     BusRecord out[4] = {{0}, {0}, {0}, {0}};
     const unsigned long long listed = bus_enum_list(clean, list_values, 14ull, out, 4ull);
     check_that(listed == 3ull, "three records are read out of the region");
     check_that((out[0].sample == 2ull) && (out[0].identifier == 0x0000aa01u) && (out[0].width == 12u),
                "the first record's identifier and its sizing register's width of 12 are read");
-    check_that((out[1].identifier == 0x0000aa02u) && (out[1].width == 16u),
-               "the second record names width 16");
-    check_that((out[2].identifier == 0x0000aa03u) && (out[2].width == 8u),
-               "the third record names width 8");
+    check_that((out[1].identifier == 0x0000aa02u) && (out[1].width == 16u), "the second record names width 16");
+    check_that((out[2].identifier == 0x0000aa03u) && (out[2].width == 8u), "the third record names width 8");
 
     // an empty slot is passed over: records at 2, 6, 14 read out as three, the slot at 10 left out
-    const unsigned int gap_values[18] = {
-        0u, 0u,
-        0x0000bb01u, 0xfffff000u, 0u, 0u,
-        0x0000bb02u, 0xffff0000u, 0u, 0u,
-        0u, 0u, 0u, 0u,
-        0x0000bb03u, 0xfff00000u, 0u, 0u};
+    const unsigned int gap_values[18] = {0u,          0u,          0x0000bb01u, 0xfffff000u, 0u, 0u,
+                                         0x0000bb02u, 0xffff0000u, 0u,          0u,          0u, 0u,
+                                         0u,          0u,          0x0000bb03u, 0xfff00000u, 0u, 0u};
     BusRecord gap_out[4] = {{0}, {0}, {0}, {0}};
     const unsigned long long gap_listed = bus_enum_list(gapped, gap_values, 18ull, gap_out, 4ull);
     check_that(gap_listed == 3ull, "a region with an empty slot reads out its three present records");
@@ -123,12 +110,11 @@ int main(int count_of_words, char **words)
     check_that(bus_enum_list(flat, flat, 6ull, none_out, 1ull) == 0ull, "flat memory reads out no records");
 
     // the classify walk driven over low addresses nothing maps: each ends its probe and reads as nothing
-    if (count_of_words == 3)
+    if (count_of_words == 2)
     {
         static unsigned int kinds[4] = {0u, 0u, 0u, 0u};
         QueryWalk walk = {0};
         walk.program = words[1];
-        walk.output_path = words[2];
         walk.from = 0ull;
         walk.count = 4ull;
         walk.stride = 0x1000ull;

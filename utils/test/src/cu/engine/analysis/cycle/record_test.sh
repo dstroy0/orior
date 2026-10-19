@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The record machine's host oracle, built with no CUDA toolchain where there is none: keymath and key_schedule are
 # host code in .cu files, compiled as C++; cycle.c, the exact integer's pieces and scriptura as C. On Windows nvcc
@@ -13,7 +14,7 @@ KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
-NO_ROUNDING="$TOP/src/cu/types/integers"
+NO_ROUNDING="$TOP/src/cu/includes/types/integers"
 SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp record_test

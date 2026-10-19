@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // windows.c: the probe on Windows: the rule a fault names, the command line, the program found, the pipe drained
 // by a thread, and the probe started in a job of its own and run to its end or its limit
@@ -41,17 +42,19 @@ static InterfaceFault interface_fault_of(unsigned long long code)
     }
 }
 
-// the command's words as one command line, the program first, each quoted as the C runtime splits them back (as
-// tessera_run_windows.c writes a job's)
-static char *interface_command_line(const char *program, char *const *words)
+// the longest command line a process is started with, its zero counted
+#define INTERFACE_COMMAND_LONGEST 32768u
+
+// the command's words as one command line into `line`, which holds `room`, the program first, each quoted as the C
+// runtime splits them back (as tessera_run_windows.c writes a job's): `line`, or NULL where it does not fit
+static char *interface_command_line(const char *program, char *const *words, char *line, size_t room)
 {
     size_t capacity = 1u + (2u * strlen(program)) + 3u;
     for (size_t at = 1u; words[at] != NULL; at += 1u)
     {
         capacity += (2u * strlen(words[at])) + 3u;
     }
-    char *const line = (char *)malloc(capacity);
-    if (line == NULL)
+    if (capacity > room)
     {
         return NULL;
     }
@@ -103,7 +106,10 @@ static char *interface_command_line(const char *program, char *const *words)
 // a program named with no folder, found along PATH; the program as named where PATH does not hold it
 static const char *interface_program_found(const char *program, char *found, size_t capacity)
 {
-    const char *const path = getenv("PATH");
+    // the system's PATH, read through its own call, at most what an environment variable holds
+    static char s_path[32768];
+    const DWORD length_path = GetEnvironmentVariableA("PATH", s_path, (DWORD)sizeof(s_path));
+    const char *const path = ((length_path != 0u) && (length_path < sizeof(s_path))) ? s_path : NULL;
     if ((strpbrk(program, "\\/:") != NULL) || (path == NULL))
     {
         return program;
@@ -238,7 +244,9 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     const HANDLE input = CreateFileA("NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherited, OPEN_EXISTING,
                                      FILE_ATTRIBUTE_NORMAL, NULL);
     char found[ENGINE_PATH_CAPACITY];
-    char *const line = interface_command_line(interface_program_found(probe->command[0], found, sizeof(found)), probe->command);
+    char command_line[INTERFACE_COMMAND_LONGEST];
+    char *const line = interface_command_line(interface_program_found(probe->command[0], found, sizeof(found)),
+                                              probe->command, command_line, sizeof(command_line));
     const HANDLE job = CreateJobObjectA(NULL, NULL);
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
     memset(&limits, 0, sizeof(limits));
@@ -263,7 +271,6 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     const DWORD start_error = made ? 0u : GetLastError();
     SetErrorMode(mode);
     interface_launch_started();
-    free(line);
     CloseHandle(output);
     if (input != INVALID_HANDLE_VALUE)
     {
@@ -350,3 +357,25 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     return 0L;
 }
 #endif
+
+long interface_output_file_read(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
+{
+    const HANDLE file = CreateFileA(probe->output_path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (!INTERFACE_CHECK(file != INVALID_HANDLE_VALUE, probe->output_path, error, ENGINE_ERROR_RESOURCE))
+    {
+        return -1L;
+    }
+    char piece[INTERFACE_READ_BYTES];
+    unsigned long long total = 0ull;
+    DWORD got = 0u;
+    BOOL complete = ReadFile(file, piece, sizeof(piece), &got, NULL);
+    while (complete && (got != 0u))
+    {
+        interface_output_kept(answer, &total, piece, got);
+        complete = ReadFile(file, piece, sizeof(piece), &got, NULL);
+    }
+    CloseHandle(file);
+    interface_output_ended(answer, total);
+    return INTERFACE_CHECK(complete != 0, probe->output_path, error, ENGINE_ERROR_RESOURCE) ? 0L : -1L;
+}

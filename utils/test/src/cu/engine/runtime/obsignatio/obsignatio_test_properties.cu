@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_properties.cu: every length, bit flips, determinism, errors and the seal
 #include "obsignatio_test_internal.h"

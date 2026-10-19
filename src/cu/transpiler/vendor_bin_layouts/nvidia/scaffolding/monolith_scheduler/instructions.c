@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // instructions.c: the instructions: a word and a field, an operation, predicates alone, control, what an instruction reads and whether a register, and an instruction read whole
 #include "scheduler_internal.h"

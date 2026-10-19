@@ -1,6 +1,7 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// run_channel_internal.h: what the modules of the run channel share. Each question is handed to the run's buffer as
-// blobs of its .qry (qry_buffer.h) and carried by the carrier in a process of its own, or many in one, and the blob the
+// run_channel_internal.h: what the modules of the run channel share. Each question is handed to the run as
+// blobs of its .qry (qry_member.h) and carried by the carrier in a process of its own, or many in one, and the blob the
 // carrier handed for each is read back as that question's answer; the round a carrier is about to carry is handed
 // critical, on disk before the carrier starts, and a round whose record cannot be put on disk is never carried. Here
 // are its includes, the bounds of a line, a list and an answer, the channel's state, the record, and the functions one
@@ -10,13 +11,13 @@
 
 #include "../run_channel.h"
 
-#include "../../../../../types/file_defs/kqr/kqr.h"
-#include "../../../../../types/file_defs/ksc/ksc.h"
-#include "../../../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../../../includes/file_defs/kqr/kqr_record.h"
+#include "../../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../interface/interface.h"
 #include "../../overseer/overseer.h"
+#include "../../../../../engine/runtime/scriptura/scriptura.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,6 +39,9 @@
 #define RUN_CARRIER_OUTPUT (1u << 20u)
 
 #define RUN_CARRIER_ENDING 192u
+
+// the room the teacher's trace is gathered in before it is handed to the run
+#define RUN_TRACE_ROOM (1u << 20u)
 
 // a question's cases as the carrier reads them: a case a line, its eight words in hex, each at most eight digits
 #define RUN_CASES_TEXT (RUN_CASES_MOST * ((RUN_IN_WORDS * 9u) + 1u))
@@ -86,14 +90,14 @@ typedef struct
     // 1 where the carrier whose answers are being read ended clean, exited with code 0: a refusal it wrote is the
     // part's own word, read where a conference rules on it (run_channel_line_ruled)
     int carrier_clean;
-    // the run's buffer every blob of the channel is handed to
-    QryBuffer *buffer;
-    // the list of a round: the dry run's every question, handed whole once the channel closes, or a carried round's,
-    // handed before its carrier starts
-    char *list;
+    // the run every blob of the channel is handed to
+    QryShared *buffer;
+    // the bytes of the list of a round in s_channel_list
     size_t list_size;
-    size_t list_room;
 } RunChannel;
+
+// the room of the list of a round, a record at most half a ring
+#define RUN_LIST_ROOM (QRY_WRITER_RING_BYTES / 2ull)
 
 // how many registers past the highest its code names a container declares, as the part answered it, and the mark of
 // no answer: no hold of a register past a kernel's count is then cleared
@@ -102,10 +106,16 @@ typedef struct
 // the most registers a kernel allots a thread, R254 the highest a field names short of RZ
 #define RUN_REGISTERS_MOST 255ull
 
+// the most questions run_channel_ask_many asks together, the rest asked after them
+#define RUN_ASKED_MOST 65536u
+
 extern RunChannel s_channel;
 extern unsigned int s_registers_past;
 extern char s_answer_line[RUN_ANSWER_LONGEST];
 extern char s_carrier_output[RUN_CARRIER_OUTPUT];
+// the list of a round: the dry run's every question, handed whole once the channel closes, or a carried round's,
+// handed before its carrier starts
+extern char s_channel_list[RUN_LIST_ROOM];
 extern char s_carrier_said[RUN_CARRIER_ENDING + RUN_CARRIER_OUTPUT];
 extern char s_cases_text[RUN_CASES_TEXT];
 extern KqrRecord s_record;
@@ -130,6 +140,13 @@ void run_channel_list_line(unsigned int place, char *line);
 unsigned long long run_channel_round_handed(void);
 int run_channel_airlocked(unsigned int questions, char *refused, size_t room);
 void run_channel_named(unsigned int at, int alone, char *code_name, char *cases_name, char *answers_name);
+void run_channel_said(const char *said);
+void run_channel_refused(RunQuestion *asked, const char *said);
+void run_channel_started_refused(RunQuestion *asked);
+void run_channel_ending_refused(RunQuestion *asked, const InterfaceAnswer *answer);
+void run_channel_counted(char *text, size_t room, unsigned long long count);
+size_t run_channel_list_line_written(char *line, size_t room, const char *code_name, const char *cases_name,
+                                     const char *answers_name, const RunQuestion *asked);
 int run_channel_relisted(RunQuestion *const *asked, unsigned int first, unsigned int count, int alone);
 void run_channel_check_traced(const RunQuestion *asked, const char *said);
 unsigned int run_channel_raised(RunQuestion *const *asked, unsigned int first, unsigned int count, int alone);

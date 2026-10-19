@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // asm_printer_program.cu: the ruleset flattened for the core's build, its memory, and what the build laid out kept
 #include "asm_printer_internal.h"

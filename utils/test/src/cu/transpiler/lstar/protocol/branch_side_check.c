@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // branch_side_check.c: whether the side a branch is asked from leaves a mark on its reading, put to the host
 //
@@ -73,7 +74,8 @@ static void check_branch(QueryAsk *link, unsigned int side, unsigned long long e
 #define CHECK_CLOCK_TURNS (1ull << 26)
 
 // `link` put through the known order on `clock`, one pass of `repeat` puts, solved exactly
-static void check_solve(const QueryAsk *link, unsigned long long clock, unsigned long long repeat, CheckReading *reading)
+static void check_solve(const QueryAsk *link, unsigned long long clock, unsigned long long repeat,
+                        CheckReading *reading)
 {
     static QueryCost s_cost[CHECK_LINKS];
     QueryOrder order = {0};
@@ -180,7 +182,8 @@ int main(void)
     }
     const int marked = (query_descent_leans(first_dearer, CHECK_TRIALS_MOST) != 0) ||
                        (query_descent_leans(CHECK_TRIALS_MOST - first_dearer, CHECK_TRIALS_MOST) != 0);
-    printf("  branches doing the same work, %u trials, the side asked first changing every trial:\n", CHECK_TRIALS_MOST);
+    printf("  branches doing the same work, %u trials, the side asked first changing every trial:\n",
+           CHECK_TRIALS_MOST);
     printf("    the branch asked first reads dearer in %u, the other in %u\n", first_dearer,
            CHECK_TRIALS_MOST - first_dearer);
     printf("    the branch asked first reads dearer, link by link:");

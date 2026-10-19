@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds and runs the things that work off the ladder's relations and the query protocol's ask, none of which needs
 # a device, a toolchain or a machine file:
@@ -14,8 +15,6 @@
 #   who_check        holds a who to what the who table gives, and every write to the who the run records of it
 #   qry_rows_check   holds a row of a table of the run to its who and its columns as handed, and a text of the table
 #                    of texts to its number, handed once
-#   blob_said_check  holds the writer's line for each blob it places to the blob, in the order it places them, a
-#                    panic's before the blobs handed after it
 #   kdecode_check    holds kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
 #                    a who line, the rows let go handed back, and the part's cost rows put again as it was
@@ -61,11 +60,11 @@
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 OUT="$TOP/build/engine"
 mkdir -p "$OUT"
 
-for one in "$TOP/src/cu/transpiler/lstar/parser/kdm_write.c" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/chain_check.c"; do
+for one in "$TOP/src/cu/includes/file_defs/kdm/kdm_write.c" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/chain_check.c"; do
     name="$(basename "$one" .c)"
     cc -std=c11 -O2 -Wall -Wextra -o "$OUT/$name" "$one" \
         "$TOP/src/cu/transpiler/lstar/protocol/gate/chain_build.c" "${FILE_DEFS[@]}" || exit 1
@@ -73,7 +72,7 @@ done
 
 # the descent is orior's own, and orior reads exact integers
 SIFT="$TOP/src/cu/engine/nbody/orior"
-EXACT="$TOP/src/cu/types/integers"
+EXACT="$TOP/src/cu/includes/types/integers"
 cc -std=c11 -O2 -Wall -Wextra -I"$SIFT" -I"$EXACT" -o "$OUT/gate_descent" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/gate_descent.c" "$TOP/src/cu/transpiler/lstar/protocol/gate/chain_build.c" \
     "$SIFT/orior_core.c" "$SIFT/orior_field.c" "$SIFT/orior_steer.c" \
@@ -89,9 +88,9 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/answer_read_check" "$TOP/utils/test/src/c
     "$TOP/src/cu/transpiler/lstar/protocol/query/answer_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/turning_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/turning_check.c" \
-    "$TOP/src/cu/transpiler/lstar/parser/khw_write/turning.c" || exit 1
+    "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/turning.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/standing_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/standing_check.c" \
-    "$TOP/src/cu/transpiler/lstar/parser/khw_write/standing.c" || exit 1
+    "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/standing.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_funnel_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_funnel_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_read_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_read_check.c" \
@@ -99,8 +98,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_read_check" "$TOP/utils/test/src/c
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/constant_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/constant_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/pieces.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" \
+    "$TOP/src/cu/includes/file_defs/khw/khw_machine_write/pieces.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" \
@@ -116,18 +114,16 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_rows_check" "$TOP/utils/test/src/cu/types/file_defs/qry/qry_rows_check.c" \
     "${FILE_DEFS[@]}" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -pthread -o "$OUT/blob_said_check" \
-    "$TOP/utils/test/src/cu/types/file_defs/qry/blob_said_check.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/file_defs/ksc/ksc_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/krf_check" "$TOP/utils/test/src/cu/types/file_defs/krf/krf_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/frame_check.c" \
-    "$TOP/src/cu/transpiler/lstar/parser/krs_write/head.c" \
-    "$TOP/src/cu/transpiler/lstar/parser/krs_write/fixed.c" \
-    "$TOP/src/cu/transpiler/lstar/parser/krs_write/frame.c" \
-    "$TOP/src/cu/transpiler/lstar/parser/krs_write/words.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/khw_machine_write/opening.c" \
+    "$TOP/src/cu/includes/file_defs/krs/krs_write/head.c" \
+    "$TOP/src/cu/includes/file_defs/krs/krs_write/fixed.c" \
+    "$TOP/src/cu/includes/file_defs/krs/krs_write/frame.c" \
+    "$TOP/src/cu/includes/file_defs/krs/krs_write/words.c" \
+    "$TOP/src/cu/includes/file_defs/khw/khw_machine_write/opening.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kdm_check" "$TOP/utils/test/src/cu/types/file_defs/kdm/kdm_check.c" \
     "${FILE_DEFS[@]}" || exit 1
@@ -146,10 +142,11 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_carrier" "$TOP/utils/test/src/cu
 # the walk runs as its own program, in a child the cell can lose
 BOOT="$TOP/src/cu/transpiler/lstar/protocol"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_walk" "$BOOT/query/query_walk.c" "$BOOT/query/query_ask.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_walk" "$BOOT/query/query_walk.c" "$BOOT/query/query_ask.c" \
+    "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/query_interface_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_interface_check.c" "$BOOT/query/query_interface.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
-    "$INTERFACE/interface_names.c" || exit 1
+    "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -pthread -I"$TOP/src/cu/engine" -o "$OUT/launch_queue_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/interface/launch_queue_check.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
     "$INTERFACE/interface_names.c" || exit 1
@@ -163,10 +160,10 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/branch_side_check" "$TOP/utils/test/src/c
     "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/gnascor_trace" "$TOP/utils/maint/engine/gnascor_trace.c" "$BOOT/query/query_ask.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/host_entry_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/host_entry_check.c" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/classify_walk" "$BOOT/query/classify_walk.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/classify_walk" "$BOOT/query/classify_walk.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/bus_enum_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/bus_enum_check.c" "$BOOT/query/bus_enum.c" "$BOOT/query/bus_enum_walk.c" "$BOOT/query/query_interface.c" \
-    "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" || exit 1
+    "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" || exit 1
 WALK="$OUT/query_walk"
 if [ -f "$WALK.exe" ]; then
     WALK="$WALK.exe"
@@ -179,10 +176,9 @@ fi
 cd "$TOP" || exit 1
 # the .kdm written in a query run of its own, build/engine/kdm/qry (qry_run.sh), whose writer writes it in its place
 if [ "$#" -gt 0 ]; then
-    source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+    source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
     qry_writer_built "$OUT"
     run_started "$OUT/kdm/qry"
-    run_read "$2"
     "$OUT/kdm_write" "$@"
     exit "$?"
 fi
@@ -202,7 +198,7 @@ fi
 # R's check, the who's and the rows' in a run of their own, whose writer writes the records and the file they are held
 # to, ended with the subshell
 (
-    source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+    source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
     qry_writer_built "$OUT"
     unset QRY
     run_started "$OUT/kqr_runs"
@@ -214,7 +210,6 @@ fi
         "$OUT/ksc_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.ksc" &&
         "$OUT/kdm_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kdm"
 ) || exit 1
-"$OUT/blob_said_check" "$OUT" || exit 1
 # the file kdm_check handed its run, in its place once that run has ended: it names the run's .qry, the newest
 newest_run="$(ls -t "$OUT"/kqr_runs/query*.qry | head -1)"
 command -v cygpath > /dev/null && newest_run="$(cygpath -m "$newest_run")"
@@ -227,23 +222,36 @@ fi
 # kdecode's select over the tables of that run, read once it has ended
 bash "$TOP/utils/test/src/cu/types/file_defs/kdecode_check.sh" "$newest_run" || exit 1
 "$OUT/survivors_check" || exit 1
-mkdir -p "$OUT/scheduler_check.dry"
-"$OUT/scheduler_check" "$OUT/scheduler_check.dry" || exit 1
+# the scheduler's check in a run of its own, ended with the subshell
+(
+    source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
+    qry_writer_built "$OUT"
+    unset QRY
+    run_started "$OUT/scheduler_runs"
+    "$OUT/scheduler_check" "$OUT/scheduler_check.dry"
+) || exit 1
 # the overseer's check in a run of its own, whose writer takes the round the teacher hands critical, ended with the
 # subshell
 (
     OVERSEER_CARRIER="$OUT/overseer_carrier"
     [ -f "$OVERSEER_CARRIER.exe" ] && OVERSEER_CARRIER="$OVERSEER_CARRIER.exe"
     command -v cygpath > /dev/null && OVERSEER_CARRIER="$(cygpath -m "$OVERSEER_CARRIER")"
-    source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+    source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
     qry_writer_built "$OUT"
     unset QRY
     run_started "$OUT/overseer_runs"
     "$OUT/overseer_check" "$OVERSEER_CARRIER"
 ) || exit 1
 "$OUT/host_entry_check" || exit 1
-"$OUT/bus_enum_check" "$CLASSIFY" "$OUT/classify_walk.out" || exit 1
-"$OUT/query_interface_check" "$WALK" "$OUT/query_walk.out" || exit 1
+# the two walks in a run of their own, whose records each walk hands its lines in, ended with the subshell
+(
+    source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
+    qry_writer_built "$OUT"
+    unset QRY
+    run_started "$OUT/walk_runs"
+    "$OUT/bus_enum_check" "$CLASSIFY" || exit 1
+    "$OUT/query_interface_check" "$WALK" || exit 1
+) || exit 1
 "$OUT/launch_queue_check" || exit 1
 "$OUT/query_order_check" || exit 1
 "$OUT/stem_group_check" || exit 1

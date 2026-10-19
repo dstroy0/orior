@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // launch_queue_check.c: the interface's launch queue held: every child process of the tree starts through it, at most
 // INTERFACE_LAUNCHES_AT_ONCE at a time and INTERFACE_LAUNCH_SPACING_MILLISECONDS apart
@@ -120,7 +121,8 @@ static void check_round(const char *round)
         least_gap = (gap < least_gap) ? gap : least_gap;
     }
     // the clock reads a start a few milliseconds early or late, within a tenth of the spacing
-    const unsigned long long allowed = INTERFACE_LAUNCH_SPACING_MILLISECONDS - (INTERFACE_LAUNCH_SPACING_MILLISECONDS / 10u);
+    const unsigned long long allowed =
+        INTERFACE_LAUNCH_SPACING_MILLISECONDS - (INTERFACE_LAUNCH_SPACING_MILLISECONDS / 10u);
     snprintf(what, sizeof(what), "%s: each start follows the one before by %u ms at least (the least gap %llu ms)",
              round, INTERFACE_LAUNCH_SPACING_MILLISECONDS, least_gap);
     check_that(least_gap >= allowed, what);

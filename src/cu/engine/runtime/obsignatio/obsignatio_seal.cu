@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_seal.cu: levels, bits, the seal and the lanes
 #include "obsignatio_internal.h"
@@ -226,43 +227,9 @@ extern "C" long obsignatio_bits(const ObsignatioBitsRequest *request)
 }
 #endif
 
-#define OBSIGNATIO_CONTEXT_PREFIX "obsignatio aeterna 2026-09-23 "
-
 extern "C" const char *obsignatio_level_context(ObsignatioLevel level)
 {
-    switch (level)
-    {
-    case OBSIGNATIO_LEVEL_ROW:
-        return OBSIGNATIO_CONTEXT_PREFIX "row";
-    case OBSIGNATIO_LEVEL_PLANE:
-        return OBSIGNATIO_CONTEXT_PREFIX "plane";
-    case OBSIGNATIO_LEVEL_VOLUME:
-        return OBSIGNATIO_CONTEXT_PREFIX "volume";
-    case OBSIGNATIO_LEVEL_LANES:
-        return OBSIGNATIO_CONTEXT_PREFIX "lanes";
-    case OBSIGNATIO_LEVEL_CHUNK:
-        return OBSIGNATIO_CONTEXT_PREFIX "chunk";
-    case OBSIGNATIO_LEVEL_STREAM:
-        return OBSIGNATIO_CONTEXT_PREFIX "stream";
-    case OBSIGNATIO_LEVEL_SIDE:
-        return OBSIGNATIO_CONTEXT_PREFIX "side";
-    case OBSIGNATIO_LEVEL_MEMBERS:
-        return OBSIGNATIO_CONTEXT_PREFIX "members";
-    case OBSIGNATIO_LEVEL_SAMPLE:
-        return OBSIGNATIO_CONTEXT_PREFIX "sample";
-    case OBSIGNATIO_LEVEL_SET:
-        return OBSIGNATIO_CONTEXT_PREFIX "set";
-    case OBSIGNATIO_LEVEL_FILE:
-        return OBSIGNATIO_CONTEXT_PREFIX "file";
-    case OBSIGNATIO_LEVEL_UNIVERSAL:
-        return OBSIGNATIO_CONTEXT_PREFIX "universal";
-    case OBSIGNATIO_LEVEL_SIDE_STORED:
-        return OBSIGNATIO_CONTEXT_PREFIX "side stored";
-    case OBSIGNATIO_LEVEL_SIDE_INFLATED:
-        return OBSIGNATIO_CONTEXT_PREFIX "side inflated";
-    default:
-        return NULL;
-    }
+    return obsignatio_context_of(level);
 }
 
 extern "C" long obsignatio_level_key(ObsignatioLevel level, unsigned char *key, EngineError *error)

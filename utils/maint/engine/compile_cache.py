@@ -1,3 +1,4 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """The build's compile cache: each source nvcc is given is compiled once to an object, and a later build of the same
 tree with the same flags links that object instead of compiling it again.

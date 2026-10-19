@@ -63,18 +63,18 @@ EXACT_DIGITS=$(( (EXACT_LIMBS * 32 * 1000 - 1) / 3322 ))
 [ "$EXACT_DIGITS" -gt 1024 ] && EXACT_DIGITS=1024
 EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_EXACT_DIGITS=${EXACT_DIGITS}u")
 
-MODULES=(cu/includes/formats/stack cu/engine/parser cu/engine/analysis/compression cu/engine/analysis/tower
+MODULES=(cu/includes/formats/stack cu/includes/file_defs/krep cu/engine/analysis/compression cu/engine/analysis/tower
          cu/engine/runtime/device_pool cu/engine/analysis/entropy_history cu/engine/analysis/noise_detector
          cu/engine/runtime/schedule cu/engine/analysis/keymath cu/engine/analysis/key_schedule
-         cu/engine/analysis/cycle cu/engine/rmc cu/types/file_defs/readers cu/engine/runtime/radix_keys
+         cu/engine/analysis/cycle cu/engine/rmc cu/includes/parsers cu/includes/file_defs/klq cu/engine/runtime/radix_keys
          cu/engine/analysis/unit_sweep cu/engine/runtime/obsignatio cu/engine/analysis/residual
          cu/engine/nbody/max_tree cu/engine/nbody/flatten cu/engine/analysis/golden_bands
          cu/engine/analysis/residual_survey cu/engine/nbody/grow cu/engine/analysis/shift_agreement
          cu/engine/nbody/climb_machine cu/engine/nbody/body_overlap cu/engine/nbody/fingerprint
          cu/engine/nbody/print_pair cu/engine/nbody/velocity cu/engine/nbody/division cu/engine/nbody/marginal
          cu/engine/nbody/contact_side cu/engine/nbody/box_history cu/engine/nbody/heaviest_matching
-         cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura
-         cu/engine/analysis/period cu/types/integers/exact_record)
+         cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura
+         cu/engine/analysis/period cu/includes/types/integers/exact_record)
 INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate
         cu/includes/codecs/deflate cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc
         cu/includes/formats/tiff cu/includes/formats/hdf5 cu/includes/codecs/zip cu/includes/formats/dicom
@@ -97,8 +97,8 @@ OBJECTS=()
 SCRIPTURA_OBJECTS=()
 for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement cu/engine/nbody/max_tree \
                 cu/engine/analysis/cycle cu/engine/nbody/heaviest_matching cu/engine/nbody/marginal \
-                cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
-                cu/types/integers/exact_record "${INGEST[@]}"; do
+                cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
+                cu/includes/types/integers/exact_record "${INGEST[@]}"; do
     for source in "$(build_path "$portable")"/*.c; do
         object="$OUT/$(basename "$source" .c)_knee.$EXTENSION"
         rm -f "$object"

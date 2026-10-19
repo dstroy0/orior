@@ -1,8 +1,10 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_write.c: a cubin written by the one emitter, from the layout of the ELF a CUDA toolchain writes
 #include "cubin_write.h"
 
 #include "../container_write.h"
+#include "../../../includes/parsers/line_read.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -89,7 +91,8 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
     while (fits && (fgets(line, sizeof(line), file) != NULL))
     {
         char name[256];
-        if (sscanf(line, "container kernel %255s", name) == 1)
+        const char *read = line;
+        if (line_letters(&read, "container ") && line_letters(&read, "kernel ") && line_word(&read, name, sizeof(name)))
         {
             snprintf(kernel, kernel_room, "%s", name);
             continue;

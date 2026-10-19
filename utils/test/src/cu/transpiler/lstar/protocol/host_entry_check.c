@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // host_entry_check.c: the kind an address shows and the width a sizing register names, read from the two words put
 // and the word given back, with no bus. The reads and writes themselves are held elsewhere (query_interface_check.c);

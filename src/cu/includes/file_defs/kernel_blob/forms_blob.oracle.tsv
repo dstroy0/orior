@@ -1,0 +1,6 @@
+where	who	kind	form	gloss
+row 0	khw_machine_write	low	1 word	the form's encoding, its low word
+row 1	khw_machine_write	high	1 word	the form's encoding, its high word
+row 2	khw_machine_write	signed_read	4 bytes	1 where the form's relation was read signed, else 0
+row 3	khw_machine_write	relation	60 bytes	the relation the form answered, ended by a NUL
+row 4	khw_machine_write	text	176 bytes	the form's text as the writer places its operands, ended by a NUL

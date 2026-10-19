@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // What the record_tower_test_*.cu pieces share: its includes, types and the functions one piece calls in another
 #ifndef RECORD_TOWER_TEST_INTERNAL_H
@@ -22,8 +23,8 @@
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "sim.h"
 #include "../../../../../../../src/cu/engine/analysis/tower/tower.h"
+#include "sim.h"
 
 #include <algorithm>
 #include <vector>

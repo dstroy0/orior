@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_forms.h: every form the code generator writes, as C sees it: its name here, its name in a .krs file, how
 // many parameters it takes, and its kind. Included by machine_ir_types.h, and by the writers of a part's ruleset,

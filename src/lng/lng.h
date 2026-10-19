@@ -1,7 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lng.h: the three language tables held against the tree and against each other (lng_check.c). A table is a tsv read
 // whole, its head and its rows; a list is texts in order, and a set is a list in order with none twice. Every file is
-// read as the run holds it, each line without its end (ktext.h), and the text of a block of the ruleset's language,
+// read as the run holds it, each line without its end (kfile_lines.h), and the text of a block of the ruleset's language,
 // `__krs__(` to `)__krs__` (klang.h), is read in that language.
 //
 // The tables are the oracle. A word the tree uses that no table holds is a defect, and so is a table that contradicts
@@ -13,7 +14,7 @@
 #ifndef LNG_H
 #define LNG_H
 
-#include "../cu/types/file_defs/ktext.h"
+#include "../cu/includes/file_defs/kfile_lines/kfile_lines.h"
 
 #include <stddef.h>
 
@@ -118,12 +119,12 @@ extern "C"
     // The lines of a .kdm or a .ksc a ruleset reads, kept after `kept`, a text for each line `file` holds: the text of
     // each of its blocks of the ruleset's language a line holds, a block inside a block of the same language counted;
     // "" for every other line so each keeps its number
-    void lng_ruleset_lines(const KtextFile *file, LngList *kept);
+    void lng_ruleset_lines(const KfileLines *file, LngList *kept);
 
     // Every word a ksc at `path`, `file`, uses, put in `used` where it holds none: the record a line opens with, the
     // channel and class names, and the folds a compile line records with the parameter each is put for. A who line
     // and the lines of a block of the ruleset's language, its own two among them, are not the ksc's
-    void lng_ksc_words(const char *path, const KtextFile *file, LngMap *used);
+    void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used);
 
     // The words gnascor's word map, `text`, lists, by the kind it lists them under, into the sets `thing`, `doing` and
     // `gluing`

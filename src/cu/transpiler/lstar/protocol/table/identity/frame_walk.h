@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame_walk.h: the halving walk over a number a relation holds at on one side of a bound and not past it, in C, for
 // the frame's asks and the check that holds them (P11 Step 9)

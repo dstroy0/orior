@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // casmi_driver: the CASMI library and its ranking on the engine, each part one job on the device's tessera daemon.
 // --ingest seals every member of a parquet file as a crystal of a set through the engine's ingest (src/ingest);

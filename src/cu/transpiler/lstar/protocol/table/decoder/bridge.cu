@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bridge.cu: the bridge read from the run, each pair's concept folded, each pair closed with what it is read
 // into written beneath it, the bridge handed back to the run's writer, and the decoding printed
@@ -14,16 +15,15 @@ static int set_line(const std::string &entry)
 int Decoding::bridge_read(const char *klq)
 {
     std::string line;
-    unsigned char *bridge_bytes = NULL;
+    const unsigned char *bridge_bytes = NULL;
     unsigned long long bridge_size = 0ull;
-    if (!qry_file_read(qry_run(), klq, &bridge_bytes, &bridge_size))
+    if (!qry_member_file_blob(klq, &bridge_bytes, &bridge_size))
     {
         printf("klq_decoder: %s could not be read\n", klq);
         return 1;
     }
     // a file read whole is at most what a size_t counts
     std::istringstream held_bridge(std::string((const char *)bridge_bytes, (size_t)bridge_size));
-    free(bridge_bytes);
     while (std::getline(held_bridge, line))
     {
         bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
@@ -226,13 +226,13 @@ void Decoding::bridge_folded()
 
 int Decoding::bridge_handed(const char *klq)
 {
-    // the bridge handed to the run's writer, which writes it in the file's place (qry_filed)
+    // the bridge handed to the run's writer, which writes it in the file's place (qry_member_filed)
     std::string bridge_text;
     for (const std::string &kept : written)
     {
         bridge_text += kept + "\n";
     }
-    if (qry_filed(qry_run(), klq, bridge_text.data(), bridge_text.size()) == 0ull)
+    if (!qry_member_filed(klq, bridge_text.data(), bridge_text.size()))
     {
         printf("klq_decoder: %s could not be written through the run's writer\n", klq);
         return 1;

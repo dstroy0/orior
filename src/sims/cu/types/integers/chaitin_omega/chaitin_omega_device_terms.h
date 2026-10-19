@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_device_terms.h: terms reduced on the device (included by chaitin_omega_internal.h)
 #ifndef CHAITIN_OMEGA_DEVICE_TERMS_H

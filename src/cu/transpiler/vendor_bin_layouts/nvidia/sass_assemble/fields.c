@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fields.c: the fields: bits written, a register's, a constant's, an address's and an operand's value, the fields of a kind and the field at a place, the places of an instruction found, the high word written, and the control word made safe
 #include "sass_assemble_internal.h"

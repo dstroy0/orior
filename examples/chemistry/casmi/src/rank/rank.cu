@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rank.cu: casmi_driver --rank. Each query molecule's train structures, ranked by their reference spectra against the
 // molecule's own, read from the parquet files themselves. Every double is its 64 stored bits, m 2^(E - 1075) exactly:

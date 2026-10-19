@@ -1,8 +1,10 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// The interface test (engine_table.md item 11(f) 3). The interface runs interface_probe, one question a process, and each check holds
-// how the probe ended to what the host's rules say it must: an exit and its status, the output it wrote, a fault and
-// the rule it names, a probe past its limit, and a program that never started. After every death the interface asks again
-// from a fresh process. The first argument is interface_probe's path, the second a folder for the probes' output
+// The interface test (engine_table.md item 11(f) 3). The interface runs interface_probe, one question a process, and
+// each check holds how the probe ended to what the host's rules say it must: an exit and its status, the output it
+// wrote, a fault and the rule it names, a probe past its limit, and a program that never started. After every death the
+// interface asks again from a fresh process. The first argument is interface_probe's path, the second a folder for the
+// probes' output
 #include "../../../../../../../src/cu/transpiler/lstar/interface/interface.h"
 
 #include <stdio.h>
@@ -64,7 +66,7 @@ static void interface_test_check(InterfaceTest *test, int passed, const char *wh
 
 // one probe run to its end, its answer printed whole; 0 where the interface itself failed
 static int interface_test_ask(InterfaceTest *test, const char *name, char *const *command, unsigned long long limit,
-                         InterfaceAnswer *answer, char *output, unsigned long long capacity)
+                              InterfaceAnswer *answer, char *output, unsigned long long capacity)
 {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.out", test->folder, name);
@@ -88,30 +90,32 @@ static int interface_test_ask(InterfaceTest *test, const char *name, char *const
 }
 
 // a question whose answer is a fault: on Windows the NTSTATUS given, on POSIX the signal given, and the rule both name
-static void interface_test_fault(InterfaceTest *test, const char *question, unsigned long long windows_code, int posix_signal,
-                            InterfaceFault fault)
+static void interface_test_fault(InterfaceTest *test, const char *question, unsigned long long windows_code,
+                                 int posix_signal, InterfaceFault fault)
 {
     char *const command[] = {(char *)test->probe, (char *)question, NULL};
     InterfaceAnswer answer;
     char output[INTERFACE_TEST_CAPACITY];
     char what[256];
-    const int asked = interface_test_ask(test, question, command, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
+    const int asked =
+        interface_test_ask(test, question, command, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
 #if INTERFACE_TEST_WINDOWS
     (void)posix_signal;
-    snprintf(what, sizeof(what), "%s faults with 0x%llx, the rule %s", question, windows_code, interface_fault_name(fault));
+    snprintf(what, sizeof(what), "%s faults with 0x%llx, the rule %s", question, windows_code,
+             interface_fault_name(fault));
     interface_test_check(test,
-                    asked && (answer.ending == INTERFACE_ENDING_FAULTED) && (answer.code == windows_code) &&
-                        (answer.fault == fault),
-                    what);
+                         asked && (answer.ending == INTERFACE_ENDING_FAULTED) && (answer.code == windows_code) &&
+                             (answer.fault == fault),
+                         what);
 #else
     (void)windows_code;
     snprintf(what, sizeof(what), "%s is ended by signal %d, the rule %s", question, posix_signal,
              interface_fault_name(fault));
     // a signal's number is positive
     interface_test_check(test,
-                    asked && (answer.ending == INTERFACE_ENDING_SIGNALED) &&
-                        (answer.code == (unsigned long long)posix_signal) && (answer.fault == fault),
-                    what);
+                         asked && (answer.ending == INTERFACE_ENDING_SIGNALED) &&
+                             (answer.code == (unsigned long long)posix_signal) && (answer.fault == fault),
+                         what);
 #endif
 }
 
@@ -122,12 +126,14 @@ static void interface_test_answered(InterfaceTest *test, const char *question, c
     InterfaceAnswer answer;
     char output[INTERFACE_TEST_CAPACITY];
     char what[256];
-    const int asked = interface_test_ask(test, question, command, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
+    const int asked =
+        interface_test_ask(test, question, command, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
     snprintf(what, sizeof(what), "%s is answered, not faulted: the quotient %.*s", question,
              (int)(strlen(printed) - 1u), printed);
-    interface_test_check(
-        test, asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) && (strcmp(output, printed) == 0),
-        what);
+    interface_test_check(test,
+                         asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
+                             (strcmp(output, printed) == 0),
+                         what);
 }
 
 // the interface asks again from a fresh process, and the answer is the plain exit
@@ -155,13 +161,14 @@ int main(int count, char **arguments)
     char *const exit_zero[] = {(char *)test.probe, "exit", "0", NULL};
     int asked = interface_test_ask(&test, "exit_0", exit_zero, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
     interface_test_check(&test,
-                    asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
-                        (answer.fault == INTERFACE_FAULT_NONE) && (answer.output_bytes == 0ull),
-                    "exit 0 exits 0 with no output");
+                         asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
+                             (answer.fault == INTERFACE_FAULT_NONE) && (answer.output_bytes == 0ull),
+                         "exit 0 exits 0 with no output");
 
     char *const exit_three[] = {(char *)test.probe, "exit", "3", NULL};
     asked = interface_test_ask(&test, "exit_3", exit_three, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
-    interface_test_check(&test, asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 3ull), "exit 3 exits 3");
+    interface_test_check(&test, asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 3ull),
+                         "exit 3 exits 3");
 
     // the output and the errors land in one file, in the order written
     char *const write_words[] = {(char *)test.probe, "write", "a word with spaces", NULL};
@@ -174,20 +181,22 @@ int main(int count, char **arguments)
         (answer.output_bytes == written_length) || (INTERFACE_TEST_WINDOWS && (answer.output_bytes == written_windows));
     const int text_ok =
         (strstr(output, "out: a word with spaces") == output) && (strstr(output, "err: a word with spaces") != NULL);
-    interface_test_check(&test,
-                    asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) && length_ok && text_ok,
-                    "write gives its output then its errors, one word with spaces kept whole");
+    interface_test_check(
+        &test, asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) && length_ok && text_ok,
+        "write gives its output then its errors, one word with spaces kept whole");
 
     // a capacity smaller than the output keeps what fits and counts it all
     char small[8];
     asked = interface_test_ask(&test, "write_small", write_words, INTERFACE_TEST_LIMIT, &answer, small, sizeof(small));
     interface_test_check(&test, asked && (strcmp(small, "out: a ") == 0) && length_ok,
-                    "a capacity of 8 keeps 7 bytes and a zero, and counts the whole output");
+                         "a capacity of 8 keeps 7 bytes and a zero, and counts the whole output");
 
 #if INTERFACE_TEST_DIVISION_FAULTS
-    interface_test_fault(&test, "divide_by_zero", 0xC0000094ull, INTERFACE_TEST_SIGNAL(SIGFPE), INTERFACE_FAULT_ARITHMETIC);
+    interface_test_fault(&test, "divide_by_zero", 0xC0000094ull, INTERFACE_TEST_SIGNAL(SIGFPE),
+                         INTERFACE_FAULT_ARITHMETIC);
     interface_test_fresh(&test, "a division by zero");
-    interface_test_fault(&test, "divide_overflow", 0xC0000095ull, INTERFACE_TEST_SIGNAL(SIGFPE), INTERFACE_FAULT_ARITHMETIC);
+    interface_test_fault(&test, "divide_overflow", 0xC0000095ull, INTERFACE_TEST_SIGNAL(SIGFPE),
+                         INTERFACE_FAULT_ARITHMETIC);
 #else
     interface_test_answered(&test, "divide_by_zero", INTERFACE_TEST_ZERO_QUOTIENT);
     interface_test_fresh(&test, "a division by zero");
@@ -195,27 +204,28 @@ int main(int count, char **arguments)
 #endif
     interface_test_fault(&test, "read_address", 0xC0000005ull, INTERFACE_TEST_SIGNAL(SIGSEGV), INTERFACE_FAULT_ADDRESS);
     interface_test_fresh(&test, "a read of an address out of range");
-    interface_test_fault(&test, "illegal_instruction", 0xC000001Dull, INTERFACE_TEST_SIGNAL(SIGILL), INTERFACE_FAULT_INSTRUCTION);
+    interface_test_fault(&test, "illegal_instruction", 0xC000001Dull, INTERFACE_TEST_SIGNAL(SIGILL),
+                         INTERFACE_FAULT_INSTRUCTION);
     interface_test_fault(&test, "breakpoint", 0x80000003ull, INTERFACE_TEST_SIGNAL(SIGTRAP), INTERFACE_FAULT_TRAP);
     // Windows tells a stack run past its end apart; POSIX delivers it as SIGSEGV, an address
     interface_test_fault(&test, "stack", 0xC00000FDull, INTERFACE_TEST_SIGNAL(SIGSEGV),
-                    INTERFACE_TEST_WINDOWS ? INTERFACE_FAULT_STACK : INTERFACE_FAULT_ADDRESS);
+                         INTERFACE_TEST_WINDOWS ? INTERFACE_FAULT_STACK : INTERFACE_FAULT_ADDRESS);
     interface_test_fault(&test, "abort", 0xC0000409ull, INTERFACE_TEST_SIGNAL(SIGABRT), INTERFACE_FAULT_ABORT);
     interface_test_fresh(&test, "an abort");
 
     char *const hang[] = {(char *)test.probe, "hang", NULL};
     asked = interface_test_ask(&test, "hang", hang, INTERFACE_TEST_HANG_LIMIT, &answer, output, sizeof(output));
     interface_test_check(&test,
-                    asked && (answer.ending == INTERFACE_ENDING_OUT_OF_TIME) &&
-                        (answer.microseconds >= INTERFACE_TEST_HANG_LIMIT) &&
-                        (answer.microseconds < (INTERFACE_TEST_HANG_LIMIT + INTERFACE_TEST_HANG_SLACK)),
-                    "a probe that hangs is ended once its 0.5 s limit runs out, and reaped within 5 s of it");
+                         asked && (answer.ending == INTERFACE_ENDING_OUT_OF_TIME) &&
+                             (answer.microseconds >= INTERFACE_TEST_HANG_LIMIT) &&
+                             (answer.microseconds < (INTERFACE_TEST_HANG_LIMIT + INTERFACE_TEST_HANG_SLACK)),
+                         "a probe that hangs is ended once its 0.5 s limit runs out, and reaped within 5 s of it");
     interface_test_fresh(&test, "a probe ended for its time");
 
     char *const absent[] = {"interface_probe_no_such_program", NULL};
     asked = interface_test_ask(&test, "absent", absent, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
     interface_test_check(&test, asked && (answer.ending == INTERFACE_ENDING_NOT_STARTED),
-                    "a program that is not there is not started");
+                         "a program that is not there is not started");
 
     // the same questions with the output coming back through a pipe and no file made: kept and counted as a file's
     // is, and read as it is written; a probe that writes more than a pipe holds is never held by it

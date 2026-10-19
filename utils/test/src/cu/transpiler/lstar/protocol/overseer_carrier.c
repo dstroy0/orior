@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // overseer_carrier.c: a carrier for overseer_check that reaches no part, and the airlock's pop and cross beside it.
 // Given `refuse`, it hands the question it is handed the answer the carrier hands where the part refused a question
@@ -20,7 +21,7 @@
 // nanosleep is POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
 #endif
-#include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
+#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -48,12 +49,13 @@ static const char s_refused[] =
 // The holds of the cross `mode`, `registers` or `illegal`, over the list `list_name` of `run`, handed as `holds_name`,
 // and an empty held list as `held_name`: 1 where it held any, 0 where it held none, 2 where the list or a blob was not
 // had
-static int overseer_carrier_held(QryBuffer *run, const char *mode, const char *list_name, const char *held_name,
+static int overseer_carrier_held(QryShared *run, const char *mode, const char *list_name, const char *held_name,
                                  const char *holds_name)
 {
     const unsigned char *list = NULL;
     unsigned long long size = 0ull;
-    if (!qry_latest(run, list_name, &list, &size, NULL) || (qry_hand(run, held_name, "", 0ull, QRY_ORDINARY) == 0ull))
+    if (!qry_member_blob(list_name, &list, &size, NULL) ||
+        (qry_member_append(held_name, "", 0ull, QRY_ORDINARY) == 0ull))
     {
         return 2;
     }
@@ -86,7 +88,7 @@ static int overseer_carrier_held(QryBuffer *run, const char *mode, const char *l
         // a hold's line fits what is left of the holds, and its length is not negative
         length += ((written > 0) && ((size_t)written < (sizeof(holds) - length))) ? (size_t)written : 0u;
     }
-    if (qry_hand(run, holds_name, holds, (unsigned long long)length, QRY_ORDINARY) == 0ull)
+    if (qry_member_append(holds_name, holds, (unsigned long long)length, QRY_ORDINARY) == 0ull)
     {
         return 2;
     }
@@ -109,14 +111,14 @@ int main(int count, char **words)
         {
             return 2;
         }
-        QryBuffer *const run = qry_run();
+        QryShared *const run = qry_member_run();
         if ((strcmp(words[2], "registers") == 0) || (strcmp(words[2], "illegal") == 0))
         {
             return ((run == NULL) || (count < 5)) ? 2
                                                   : overseer_carrier_held(run, words[2], words[1], words[3], words[4]);
         }
         if ((strcmp(words[2], "cross") == 0) &&
-            ((run == NULL) || (qry_hand(run, words[3], "", 0ull, QRY_ORDINARY) == 0ull)))
+            ((run == NULL) || (qry_member_append(words[3], "", 0ull, QRY_ORDINARY) == 0ull)))
         {
             return 2;
         }
@@ -139,8 +141,8 @@ int main(int count, char **words)
 #endif
         return 0;
     }
-    QryBuffer *const run = qry_run();
-    if ((run == NULL) || (qry_hand(run, words[first + 3], s_refused, sizeof(s_refused) - 1u, QRY_ORDINARY) == 0ull))
+    QryShared *const run = qry_member_run();
+    if ((run == NULL) || (qry_member_append(words[first + 3], s_refused, sizeof(s_refused) - 1u, QRY_ORDINARY) == 0ull))
     {
         fprintf(stderr, "overseer_carrier: the answer could not be handed to the run\n");
         return 1;

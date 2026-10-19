@@ -71,7 +71,7 @@ The easiest way in is [the app](#the-app): one window that lists every job the t
    The installers carry no certificate's signature. Windows warns before the first run, where More info, Run anyway starts it; on macOS, a right click on the app and Open starts it the first time.
 2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. The next clone starts in the same folder. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
 
-   ![Clone Repository with orior's address, the folder to clone into, beside the open tree or somewhere else, and the fuse burnt part way while git receives the objects](src/ui/docs/img/clone.png)
+   ![Clone Repository with orior's address, the folder to clone into, beside the open tree or somewhere else, and the fuse burnt part way while git receives the objects](ui/docs/img/clone.png)
 3. **Run a job.** The Run view, from the chart icon at the foot of the tool strip, lists every job. Choose one, set its values and press F5.
 
 File, Clone Repository does the same at any time, and asks whether the clone goes beside the open tree or in another folder. `orior file clone` does it from a terminal.
@@ -97,7 +97,7 @@ On Windows PowerShell the engine builds with `utils/maint/engine/build_engine.ps
 [Quick start](#quick-start) installs it and clones the tree from it. In a clone, it also runs with no install, given Rust 1.77 or later:
 
 ```sh
-cd src/ui/src-tauri
+cd ui/gui/src-tauri
 cargo run                       # build it and open the window
 cargo run -- run list           # the same program given words
 ```
@@ -108,11 +108,11 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 | --- | --- |
 | Create | File (Ctrl+N) and Folder, each named by its path from the tree's top, the open file's folder to start with; and Repository, which asks whether git makes it here in the open tree or in a folder chosen |
 | Open | File (Ctrl+O), a file of the tree from the system's picker; Folder, another tree; and Repository, an address that is cloned into orior's own folder and opened, or opened as it is where it was cloned before |
-| Clone Repository | an address and the folder its clone goes in: beside the open tree, or somewhere else | [The app's own page](src/ui/README.md) covers the installers, what each platform needs, and where the window reads each job from.
+| Clone Repository | an address and the folder its clone goes in: beside the open tree, or somewhere else | [The app's own page](ui/README.md) covers the installers, what each platform needs, and where the window reads each job from.
 
 ### The window
 
-![The Edit view with a coherence file open, the bridge beside it and the terminal under it, each part numbered as in the table](src/ui/docs/img/window.png)
+![The Edit view with a coherence file open, the bridge beside it and the terminal under it, each part numbered as in the table](ui/docs/img/window.png)
 
 | | part | what it holds |
 | --- | --- | --- |
@@ -132,7 +132,7 @@ The panes at the sides collapse toward their edge a moment after the pointer lea
 2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
 3. Set its values and press F5 to start it. Shift+F5 stops it.
 
-![A test job a minute and more into its run, its output above the fuse and the time ruler, the pointer reading 34.09 s off the ruler](src/ui/docs/img/run.png)
+![A test job a minute and more into its run, its output above the fuse and the time ruler, the pointer reading 34.09 s off the ruler](ui/docs/img/run.png)
 
 The output streams as it comes. The fuse along its foot burns on the time ruler under it, its head at the run's latest moment, and it flashes when the run ends well and sputters dark when it fails or is stopped. The ruler marks where each step started and where the output came, red where it went to stderr. The wheel over either one, or + and - with the ruler holding the keys, zooms the time down to a few milliseconds across; a drag or Left and Right moves it, and 0 or a double click fits the whole run again. A page a viewer writes opens in a window of its own.
 
@@ -181,7 +181,7 @@ Run, Debug File (Shift+F9) runs the file in the editor under its language's debu
 
 lldb-dap from the LLVM release loads Python 3.11's library, and orior gives it the folder Python 3.11 installs to; File, Toolchains says what is missing where it does not start. debugpy goes into the Python orior uses with `python -m pip install debugpy`.
 
-![A C file with factor not declared: a red wave under it, and the hover saying what clangd found](src/ui/docs/img/clangd.png)
+![A C file with factor not declared: a red wave under it, and the hover saying what clangd found](ui/docs/img/clangd.png)
 
 clangd reads the flags each file is compiled with from `build/compile_commands.json`, which `python -I utils/maint/engine/clangd_database.py` writes; run it once after a clone and again after a file is added or moved.
 
@@ -204,7 +204,7 @@ Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save 
 
 ### Find your way
 
-![Go to File with fuse typed, fuse.js first and the letters each name matched marked](src/ui/docs/img/go_to_file.png)
+![Go to File with fuse typed, fuse.js first and the letters each name matched marked](ui/docs/img/go_to_file.png)
 
 | to go to | press |
 | --- | --- |
@@ -225,7 +225,7 @@ Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save 
 
 Ctrl+F finds in the file and Ctrl+H replaces, with F3 and Shift+F3 for the next and the previous match. Ctrl+Shift+F opens Find in Files, the explorer's Search pane: case, whole words and regular expressions each turn on beside the field, each file's row holds its count, and a line's row opens the file at the match. `orior edit search <text>` searches the tree from the command line.
 
-![The Search pane with makeRuler found four times in three files, beside the file it opened](src/ui/docs/img/find_in_files.png)
+![The Search pane with makeRuler found four times in three files, beside the file it opened](ui/docs/img/find_in_files.png)
 
 ### Version control
 
@@ -233,7 +233,7 @@ The tree colors each file's name by how it differs from the last commit, with gi
 
 In the editor, the gutter marks each line added or changed since the last commit, and each place lines were taken out. A click on a mark shows the change under it: the lines the commit had and the lines there now. Revert puts the commit's lines back as one edit, which Ctrl+Z takes back. Alt+F5 and Shift+Alt+F5 step to the next and the previous change. The strip down the minimap's right edge marks the whole file at once, the changes in one lane and find's matches and the cursors in the other, and a click on it goes there.
 
-![A changed line open under its gutter mark: the line the last commit had, the line there now, and Revert](src/ui/docs/img/change.png)
+![A changed line open under its gutter mark: the line the last commit had, the line there now, and Revert](ui/docs/img/change.png)
 
 The Timeline pane lists the commits that touched the open file. Open shows the file as a commit left it, read only, in a tab of its own.
 
@@ -247,7 +247,7 @@ File, Preferences (Ctrl+,) holds the zoom, every setting the menus turn on and o
 
 To make a theme of your own, choose Light or Dark under Color Theme and press New. Each color of the palette is then yours to change, from the editor's and the menu bar's to the eye's, the fuse's and the lattice's; Search narrows the list, and ↺ puts one color back. Export copies the theme to the clipboard, and Import reads one from it. Themes are kept between runs and the one chosen shows from the first frame.
 
-![Preferences: the settings, the color theme and its palette](src/ui/docs/img/preferences.png)
+![Preferences: the settings, the color theme and its palette](ui/docs/img/preferences.png)
 
 File, User Stylesheet opens `user.css` in orior's own folder, making it first where it is not there. Any rule of CSS in it lays over the app's own, and every color and font above is a variable named as Preferences lists it: `:root[data-scheme] { --fuse-fire: #ff7a1a; }` sets the fuse's flame in both schemes. The window reads the file again each time it comes back to the front.
 
@@ -257,7 +257,7 @@ orior's own folder is `%APPDATA%\orior` on Windows and `~/.config/orior` elsewhe
 
 Each language the editor colors is a plugin. orior comes with plugins for MATLAB, Octave, R, Python, C, C++ and CUDA, Rust, JavaScript, Lean, VHDL, SHARC assembly, LTspice, ngspice, TeX, Markdown, HTML and XML, CSS, JSON, TOML, YAML, the shells and plain text. A plugin is a folder with a `plugin.json` that names the extensions it opens, its comments, brackets and quotes, a grammar, and the words and snippets it completes. File, Plugins lists every plugin with what it opens, turns each on or off, and shows what is wrong with one that does not read. Your own plugins go in `plugins` in orior's own folder; Open Plugins Folder opens it, and Reload reads them again. One of yours with the id of one that comes with orior is used in its place. Where two plugins name one extension, as MATLAB and Octave both name `.m`, yours comes first, then the first by id; the list strikes out an extension another plugin opens, and turning that plugin off hands it on.
 
-![File, Plugins: each plugin with its extensions, Octave's .m struck out where MATLAB opens it](src/ui/docs/img/plugins.png)
+![File, Plugins: each plugin with its extensions, Octave's .m struck out where MATLAB opens it](ui/docs/img/plugins.png)
 
 File, New Language Plugin asks for a name, the extensions, the comments, the keywords, the types, the constants and the quotes, or starts from a plugin there already. A sample on the right shows how the plugin colors code as you type, over the `plugin.json` it will write. Create writes it to your plugins folder, with a sample file beside it, and the editor opens those extensions in it at once.
 
@@ -267,7 +267,7 @@ A plugin whose `kind` is `tool` adds a check to languages it names, in place of 
 
 orior installs no compiler or language of its own. File, Toolchains lists each one the tree and the app use, from Git, Bash and Python through CUDA, MSVC, GCC, LLVM, Rust, Node.js, Ruby, R, MATLAB, Octave, Lean, TeX, ngspice, LTspice, GHDL and CrossCore Embedded Studio to the formatters Black, clang-format and Prettier, with what each is for, where orior found it and the version it says.
 
-![File, Toolchains: Git, Bash, Python, PowerShell and the GitHub CLI, then the C, C++ and CUDA compilers, each found on PATH with its version and its folder](src/ui/docs/img/toolchains.png)
+![File, Toolchains: Git, Bash, Python, PowerShell and the GitHub CLI, then the C, C++ and CUDA compilers, each found on PATH with its version and its folder](ui/docs/img/toolchains.png)
 
 | shown | means | what you can do |
 | --- | --- | --- |

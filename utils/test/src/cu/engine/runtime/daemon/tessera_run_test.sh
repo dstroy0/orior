@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # tessera_run against the host's daemon: the command's exit code handed on, the processors and the priority set on it,
 # its processors measured, a job that does not fit waiting for the one before it, two that fit running at once, the

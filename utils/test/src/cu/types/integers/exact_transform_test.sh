@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds and runs the ladder test at three widths: the default 128 limbs, 4096 limbs on the stack, and 4194304 bits,
 # past any stack, from the heap. Extra arguments are passed to nvcc as defines (for example -DANCHOR_EXACT_TRANSFORM_LIMBS=512u).
@@ -35,9 +36,9 @@ for WIDTH in ${EXACT_TEST_WIDTHS:-"-DANCHOR_EXACT_LIMBS=128u" "-DANCHOR_EXACT_LI
     NAME="$(echo "$WIDTH" | tr -cd '0-9')"
     BINARY="$OUT/exact_transform_test_$NAME$SUFFIX"
     rm -f "$BINARY"
-    nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "$WIDTH" "$@" -I "$TOP/src/cu/types/integers" -o "$BINARY" \
+    nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "$WIDTH" "$@" -I "$TOP/src/cu/includes/types/integers" -o "$BINARY" \
         "$TEST/exact_transform_test.cu" \
-        "$TOP/src/cu/types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+        "$TOP/src/cu/includes/types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
         > "$OUT/build_$NAME.log" 2>&1
     [ -f "$BINARY" ] || { echo "  build failed at $WIDTH:"; cat "$OUT/build_$NAME.log"; exit 1; }
     "$BINARY"

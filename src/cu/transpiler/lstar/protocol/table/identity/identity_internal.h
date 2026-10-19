@@ -1,12 +1,15 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // identity_internal.h: what the modules of klq_identity share: its includes, every define and struct, the const tables, and the state and functions one module reads from another
 #ifndef IDENTITY_INTERNAL_H
 #define IDENTITY_INTERNAL_H
 
-#include "../../../../../types/file_defs/kdm/kdm.h"
-#include "../../../../../types/file_defs/kqr/kqr.h"
-#include "../../../../../types/file_defs/krf/krf.h"
-#include "../../../../../types/file_defs/ksc/ksc.h"
+#include "../../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../../includes/file_defs/kernel_blob/forms_blob.h"
+#include "../../../../../includes/file_defs/kernel_blob/kernel_blob.h"
+#include "../../../../../includes/file_defs/kqr/kqr_record.h"
+#include "../../../../../includes/file_defs/krf/krf.h"
+#include "../../../../../includes/file_defs/ksc/ksc.h"
 #include "../../../interface/interface.h"
 #include "../../overseer/overseer.h"
 #include "../../teacher/run_channel.h"
@@ -14,14 +17,10 @@
 #include "code_generator.h"
 #include "concept_product.h"
 #include "precepts.h"
-#include "qry_buffer.h"
-#include "query_trace.h"
+#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../includes/file_defs/klq/query_trace.h"
 #include "target_internal.h"
 #include "word_web.h"
-extern "C"
-{
-#include "../../../../vendor_bin_layouts/nvidia/sass_assemble.h"
-}
 
 #include <ctype.h>
 #include <limits.h>
@@ -50,6 +49,8 @@ extern "C"
 #include <tuple>
 #include <unordered_map>
 #include <vector>
+#include "../../../../../includes/parsers/who.h"
+#include "identity_settings.h"
 
 // the values each operand is put through: zero, the small numbers, and the edges of every width
 static const unsigned long long s_values[] = {
@@ -65,12 +66,15 @@ static const unsigned long long s_values[] = {
 
 #define IDENTITY_CASES (IDENTITY_VALUES * IDENTITY_VALUES * IDENTITY_THIRDS)
 
-// the blob of the run's buffer the host's answers are handed as, host_questions' output, one chain a line
+// the blob of the run the host's answers are handed as, host_questions' output, one chain a line
 #define IDENTITY_HOST_ANSWERS "host_answers.txt"
+
+// the environment's variable naming the vendor's writer and its words but the machine file and a mode's, apart by
+// tabs: the program, the part, the layout and the vendor's table, which the query crate sets
 
 // What a mode writes, held in memory until it is handed to the run's writer whole, the only thing that writes a file:
 // where it goes, and its bytes so far. `filed` 1 where it is a current file of the tree, which the writer writes in its
-// place (qry_filed), and 0 where it is a table of the run's own, a blob of the run named by the path's own name
+// place (qry_member_filed), and 0 where it is a table of the run's own, a blob of the run named by the path's own name
 struct RunWritten
 {
     std::string path;
@@ -192,10 +196,10 @@ struct AskRecorded
 };
 
 // ksc_answers_written, the who the code that calls it
-#define ksc_answers_write(ksc_, asked_, rows_) ksc_answers_written((ksc_), (asked_), (rows_), QRY_WHO_HERE)
+#define ksc_answers_write(ksc_, asked_, rows_) ksc_answers_written((ksc_), (asked_), (rows_), WHO_HERE)
 
-// A log the query writes, held in memory until it is handed whole to the run's buffer as a blob of its .qry
-// (qry_buffer.h): the name its blobs are written under and the bytes not yet handed
+// A log the query writes, held in memory until it is handed whole to the run as a blob of its .qry
+// (qry_member.h): the name its blobs are written under and the bytes not yet handed
 struct AskLog
 {
     const char *name;
@@ -233,6 +237,37 @@ struct StallAsk
 };
 
 struct Ruleset;
+
+// the ruleset the identity writes forms in, the latest IDENTITY_RULESET of the run, as its code generator reads it;
+// NULL where the run names none or it is not read
+static inline const Ruleset *identity_ruleset(void)
+{
+    static char s_path[IDENTITY_PATH_LONGEST];
+    const unsigned char *named = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_member_blob(IDENTITY_RULESET, &named, &size, NULL) || (size == 0ull) || (size >= sizeof(s_path)))
+    {
+        return NULL;
+    }
+    // a path below IDENTITY_PATH_LONGEST bytes, which a size_t counts
+    memcpy(s_path, named, (size_t)size);
+    s_path[size] = '\0';
+    return code_generator(s_path).ruleset(1);
+}
+
+// the seed the order of a magnitude's links is drawn from, the latest IDENTITY_SEED of the run; 1 where it names none
+static inline unsigned long identity_seed(void)
+{
+    const unsigned char *held = NULL;
+    unsigned long long size = 0ull;
+    unsigned long long seed = 1ull;
+    if (qry_member_blob(IDENTITY_SEED, &held, &size, NULL) && (size == sizeof(seed)))
+    {
+        memcpy(&seed, held, sizeof(seed));
+    }
+    // a seed the crate gives fits the generator's word
+    return (unsigned long)seed;
+}
 
 struct RegisterProbe
 {
@@ -318,7 +353,7 @@ extern AskLog s_trace_whole;
 extern AskLog s_log_whole;
 extern thread_local int t_pair;
 extern thread_local int t_dangerous;
-extern QryBuffer *s_ask_run;
+extern QryShared *s_ask_run;
 extern thread_local unsigned int s_apart_at;
 extern std::mutex s_turn_lock;
 extern std::condition_variable s_turn_changed;
@@ -366,7 +401,7 @@ std::map<std::string, StallField> stall_fields(const char *ksc);
 unsigned int whole_cases(RunQuestion *question, const std::set<unsigned long long> &qualifiers, unsigned int run);
 void stall_cases(RunQuestion *question, std::vector<unsigned int> *places);
 unsigned long long record_hash(const void *bytes, size_t size, unsigned long long hash);
-int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows, QryWho who);
+int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows, Who who);
 void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous, const std::vector<unsigned int> &slots, const RunQuestion *question, unsigned long long *asks, unsigned int mark, std::vector<RunQuestion> *asked);
 void record_close(void);
 void record_open(const char *ksc, const char *mode);
@@ -383,13 +418,13 @@ int stall_alike(const std::vector<unsigned char> &code, const std::vector<std::s
 std::map<std::string, std::vector<std::string>> host_answers_read(const char *answers);
 int chain_code_read(const char *engine, const std::string &number, std::vector<unsigned char> *code, std::vector<Link> *links);
 unsigned int chain_registers(const char *engine, const std::string &number);
-int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows, QryWho who);
-void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host, const std::string &kdm, const Ruleset *sass, const SassMachine *machine, const StallField &stall, unsigned long long longest, const std::set<std::pair<std::string, std::string>> &held, size_t most, std::vector<StallAsk> *asks, std::vector<std::vector<unsigned char>> *codes);
+int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows, Who who);
+void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host, const std::string &kdm, const Ruleset *sass, const char *machine_path, const StallField &stall, unsigned long long longest, const std::set<std::pair<std::string, std::string>> &held, size_t most, std::vector<StallAsk> *asks, std::vector<std::vector<unsigned char>> *codes);
 int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *machine_path, const char *const *carrier);
 long long walk_step(const std::function<int(long long)> &holds, long long from, long long step, long long end);
 long long walk_halved(const std::function<int(long long)> &holds, long long truthy, long long falsy);
 int identity_frame(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
-int frame_kernel_read(const char *mode, std::vector<unsigned char> *code, unsigned int *registers);
+int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned int *registers);
 int question_read(const std::vector<unsigned char> &code, RunQuestion *question, unsigned long long *asks);
 int identity_fixed(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
 int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
@@ -403,7 +438,7 @@ int vector_alike(const std::vector<unsigned char> &code, const std::vector<std::
 std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long cases_defined, const std::string &text, long link_at, long form_lines, const std::string &read, const std::string &standing = std::string(), int wide = 0);
 std::string read_shape(const std::vector<CarrierLink> &links, const std::vector<std::string> &lines, long cases_defined, const std::string &form_text, long at);
 std::vector<std::string> form_tokens(const std::string &text);
-int form_unified(const std::string &to_text, const std::string &from_text, std::map<char, std::string> *bound, std::map<char, std::string> *fixed);
+int form_unified(const Ruleset *sass, const std::string &to_text, const std::string &from_text, std::map<char, std::string> *bound, std::map<char, std::string> *fixed);
 int form_launched(const std::string &text);
 std::set<std::string> form_conditions(const std::string &text);
 int form_controls(const std::string &text);
@@ -416,7 +451,7 @@ int form_const_loaded(const std::string &first, const std::string &second);
 int form_switches(const std::string &text);
 int form_ranged(const std::string &text);
 void carriers_read(const char *engine, const std::map<std::string, std::vector<std::string>> &host, Carriers *carriers);
-std::function<std::string(const std::string &)> scratch_past(unsigned int held, unsigned int *taken);
+std::function<std::string(const std::string &)> scratch_past(const Ruleset *sass, unsigned int held, unsigned int *taken);
 std::string marked(const Ruleset *sass, const std::string &form, std::vector<std::string> *names);
 std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const std::string &text, std::map<char, unsigned int> *group, const std::string &drawn_for);
 void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous, const std::vector<unsigned int> &slots, const RunQuestion *question, unsigned long long *asks, unsigned int mark, std::vector<RunQuestion> *asked);
@@ -429,6 +464,10 @@ const Word *word_produced(const std::vector<PreceptNode> &nodes);
 std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNode> &nodes, const std::vector<std::string> &operands, const std::string &ones, const std::string &to, unsigned int next);
 void kdm_rows_read(const char *kdm, std::vector<std::string> *lines, std::vector<CostRow> *rows, std::map<std::string, std::vector<size_t>> *operators);
 int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *kdm, const char *machine_path, const char *forms, const char *const *carrier);
-void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host, const std::string &kdm, const Ruleset *sass, const SassMachine *machine, const StallField &stall, unsigned long long longest, const std::set<std::pair<std::string, std::string>> &held, size_t most, std::vector<StallAsk> *asks, std::vector<std::vector<unsigned char>> *codes);
+
+// `texts` put into code by the vendor's writer against the machine file at `machine` (assembled.cu): each text's code,
+// empty where a line of it did not assemble or the writer did not run
+std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, const std::vector<std::string> &texts);
+std::vector<unsigned char> vendor_assembled(const char *machine, const std::string &text);
 
 #endif

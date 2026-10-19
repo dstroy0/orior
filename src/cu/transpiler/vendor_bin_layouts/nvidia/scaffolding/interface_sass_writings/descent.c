@@ -1,6 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // descent.c: the descent: the gate's descent read, the fill and the flat form, and the ruleset read
 #include "writings_internal.h"
+#include "../../../../../includes/parsers/line_read.h"
 
 // The arrangements a descent ran over, written by `chains` into each `into` with its verdict, read back against the
 // cases the descent placed for that relation, each `cases` file a case a line as the two words and the word the
@@ -37,10 +39,10 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         unsigned int placed[WRITINGS_CASES][3];
         unsigned int placed_count = 0u;
         // the descent's cases as the run holds them, the descent's run having written them through its writer
-        unsigned char *cases = NULL;
+        const unsigned char *cases = NULL;
         unsigned long long cases_size = 0ull;
         unsigned long long cases_at = 0ull;
-        const int cases_read = qry_file_read(qry_run(), cases_path, &cases, &cases_size);
+        const int cases_read = qry_member_file_blob(cases_path, &cases, &cases_size);
         snprintf(path, sizeof(path), "%s/chains.txt", into);
         FILE *const chains = fopen(path, "rb");
         snprintf(path, sizeof(path), "%s/answers.txt", into);
@@ -48,26 +50,36 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         if (!cases_read || (chains == NULL) || (answers == NULL))
         {
             fprintf(stderr, "the cases %s or the chains in %s did not read\n", cases_path, into);
-            free(cases);
             fclose(out);
             return 2;
         }
-        while ((placed_count < WRITINGS_CASES) && qry_line_next(cases, cases_size, &cases_at, line, sizeof(line)))
+        while ((placed_count < WRITINGS_CASES) && line_read(cases, cases_size, &cases_at, line, sizeof(line)))
         {
-            if (sscanf(line, "%x %x %x", &placed[placed_count][0], &placed[placed_count][1],
-                       &placed[placed_count][2]) == 3)
+            const char *read = line;
+            unsigned long long word[3] = {0ull, 0ull, 0ull};
+            if (line_number(&read, 1, &word[0]) && line_number(&read, 1, &word[1]) && line_number(&read, 1, &word[2]) &&
+                (word[0] <= 0xffffffffull) && (word[1] <= 0xffffffffull) && (word[2] <= 0xffffffffull))
             {
+                // the test above holds each word inside 32 bits
+                placed[placed_count][0] = (unsigned int)word[0];
+                placed[placed_count][1] = (unsigned int)word[1];
+                placed[placed_count][2] = (unsigned int)word[2];
                 placed_count += 1u;
             }
         }
-        free(cases);
         char relation[32] = "";
         unsigned int count = 0u;
         while ((count < WRITINGS_CHAINS_MOST) && (fgets(line, sizeof(line), chains) != NULL))
         {
             unsigned int number = 0u;
-            if (sscanf(line, "%u\t%31[^\t]\t%511[^\t]\t%15s", &number, relation, s_chain[count],
-                       s_verdict[count]) == 4)
+            const char *read = line;
+            int whole = line_unsigned(&read, &number) && (*read == '\t');
+            read += whole ? 1 : 0;
+            whole = whole && line_until(&read, '\t', relation, sizeof(relation)) && (*read == '\t');
+            read += whole ? 1 : 0;
+            whole = whole && line_until(&read, '\t', s_chain[count], sizeof(s_chain[count])) && (*read == '\t');
+            read += whole ? 1 : 0;
+            if (whole && line_word(&read, s_verdict[count], sizeof(s_verdict[count])))
             {
                 count += 1u;
             }
@@ -179,25 +191,23 @@ static void writings_flat(const char *text, char *out, size_t room)
 // holds, 1 where one does not, 2 where nothing could be read
 int writings_krs_read(const char *folder, const char *ruleset, const char *record)
 {
-    // the ruleset as the run holds it, or the disk where the run holds none (qry_file_read)
-    unsigned char *rules = NULL;
+    // the ruleset as the run holds it, or the disk where the run holds none (qry_member_file)
+    const unsigned char *rules = NULL;
     unsigned long long rules_size = 0ull;
     unsigned long long rules_at = 0ull;
-    const int rules_read = writings_load(folder) && qry_file_read(qry_run(), ruleset, &rules, &rules_size);
+    const int rules_read = writings_load(folder) && qry_member_file_blob(ruleset, &rules, &rules_size);
     FILE *const out = rules_read ? fopen(record, "wb") : NULL;
     if (out == NULL)
     {
         fprintf(stderr, "the search in %s, the ruleset %s or the record %s was not reached\n", folder, ruleset, record);
-        free(rules);
         return 2;
     }
     static char s_rule[512][WRITINGS_LINE];
     unsigned int rule_count = 0u;
-    while ((rule_count < 512u) && qry_line_next(rules, rules_size, &rules_at, s_rule[rule_count], sizeof(s_rule[0])))
+    while ((rule_count < 512u) && line_read(rules, rules_size, &rules_at, s_rule[rule_count], sizeof(s_rule[0])))
     {
         rule_count += (strncmp(s_rule[rule_count], "form ", 5u) == 0) ? 1u : 0u;
     }
-    free(rules);
     fprintf(out, "# A ruleset's forms held to the part's writings\n\n");
     fprintf(out, "Written by `interface_sass_writings.sh` whole on every run. Each word of the word web that is one "
                  "precept over its operands is looked up in `%s`, its form written with its result and operands where "

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #ifndef OVERSEER_H
 #define OVERSEER_H
@@ -7,7 +8,7 @@
 // The teacher answers what the part answers: a minimally adequate teacher. A question the part refuses or faults on is
 // censored by its identity, and the learner goes on as though nothing had been learned of it. The overseer makes the
 // teacher more. A question the part refused, or a launch that faulted the part or hung, calls a
-// conference: every party with an account of the question hands it to the run (qry_buffer.h, QRY_CONFERENCE_CALL),
+// conference: every party with an account of the question hands it to the run (qry_member.h, QRY_CONFERENCE_CALL),
 // and the overseer reads them all. A question that answers, alike, apart or gray, calls none, and the learner learns as
 // it would.
 //
@@ -49,7 +50,7 @@
 //
 // The ruling is handed to the conference as the overseer's own account. Every account the overseer hears, every
 // conference it holds and every lesson it teaches is a row of the run's tables of accounts, conferences and lessons
-// (accounts.oracle.tsv, conferences.oracle.tsv, lessons.oracle.tsv, qry_buffer.h), each naming its conference by the
+// (accounts.oracle.tsv, conferences.oracle.tsv, lessons.oracle.tsv, qry_member.h), each naming its conference by the
 // number of the question's identity in the table of texts. The overseer is called from one thread at a time.
 //
 // A second kind of conference is called by a hold and not a crash: the gate holds a question whose operation key no
@@ -65,7 +66,7 @@
 // admits past rule 3 (cubin_run --lessons), and an ask the gate held under the rule is asked again, since the part
 // never saw it.
 
-#include "../../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../../includes/file_defs/qry/writer/qry_member.h"
 
 #include <stddef.h>
 
@@ -143,20 +144,20 @@ extern "C"
 
     // `expert`'s account `text` handed to the conference of the question `identity` in the run `run`: 1, or 0 where it
     // was not handed
-    int overseer_account(QryBuffer *run, const char *identity, const char *expert, const char *text);
+    int overseer_account(QryShared *run, const char *identity, const char *expert, const char *text);
 
     // The conference of the question `identity` held: every account handed to it read, with the panic call's where a
     // panic is on the line, and the ruling by consensus into `ruling`, handed to the conference as the overseer's
     // account. `other_way_put` is 1 where the learner has put the pair the other way round already. 1 where any account
     // was heard, 0 where none was
-    int overseer_convened(QryBuffer *run, const char *identity, int other_way_put, OverseerRuling *ruling);
+    int overseer_convened(QryShared *run, const char *identity, int other_way_put, OverseerRuling *ruling);
 
     // The conference of the question `identity` the gate held for an unknown operation key, held: every account
     // handed to it read and its vote counted, and the ruling into `ruling`, handed to the conference as the overseer's
     // account: admitted, guidance OVERSEER_PUT, where one party at least admits and none holds, and a lesson of the
     // cause admitted taught for `encoding`, the slot's two words in hex `<low> <high>`, at every carrier; hands off
     // otherwise. 1 where it was admitted, 0 where it was not or no account was heard
-    int overseer_admission(QryBuffer *run, const char *identity, const char *encoding, OverseerRuling *ruling);
+    int overseer_admission(QryShared *run, const char *identity, const char *encoding, OverseerRuling *ruling);
 
     // 1 where a lesson admits the slot encoding `low` and `high` past the gate's rule 3, by its two words as a lesson
     // of the cause admitted writes them; 0 where none does
@@ -167,11 +168,11 @@ extern "C"
     int overseer_holds(const char *standing, const char *carrier, char *why, size_t room);
 
     // the lessons a run carried in, the latest blob OVERSEER_LESSONS of `run`, read: their count
-    unsigned int overseer_lessons_read(QryBuffer *run);
+    unsigned int overseer_lessons_read(QryShared *run);
 
     // every lesson held handed to `run` whole as OVERSEER_LESSONS: 1, where it was handed or none is held, or 0 where
     // it was not handed
-    int overseer_lessons_handed(QryBuffer *run);
+    int overseer_lessons_handed(QryShared *run);
 
     // a stand-in as written with its lines joined by a space, into `joined`, which holds OVERSEER_STANDING_LONGEST
     void overseer_standing_joined(const char *standing, char *joined);

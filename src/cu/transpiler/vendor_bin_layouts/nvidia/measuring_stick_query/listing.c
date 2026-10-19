@@ -1,7 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // listing.c: the vendor's listing: the disassembler run over a container and its output read, the listing cut into lines, each line's guard, word and body, the line at an address, and the address the vendor stopped at
 #include "msq_internal.h"
-QryBuffer *s_run = NULL;
+QryShared *s_run = NULL;
 const char *s_nvdisasm = NULL;
 const char *s_architecture = NULL;
 
@@ -69,7 +70,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     char stream_path[1400];
     snprintf(stream_name, sizeof(stream_name), "msq_stream_%u", reader->stream);
     const unsigned long long streamed_began = msq_now();
-    const int streamed = joined && (qry_streamed(s_run, stream_name, reader->raw, (unsigned long long)reader->raw_size,
+    const int streamed = joined && (qry_member_streamed(stream_name, reader->raw, (unsigned long long)reader->raw_size,
                                                  stream_path, sizeof(stream_path)) != 0ull);
     atomic_fetch_add(&s_streamed_nanoseconds, msq_now() - streamed_began);
     if (!streamed)
@@ -109,12 +110,12 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     atomic_fetch_add(&s_vendor_nanoseconds, msq_now() - vendor_began);
     reader->output_size =
         (answer.output_bytes < reader->output_room) ? answer.output_bytes : (reader->output_room - 1ull);
-    // what the vendor printed of the run, the cross's trace (qry_buffer.h, QRY_TRACE)
-    if (qry_traced("measuring_stick_query", QRY_ORDINARY))
+    // what the vendor printed of the run, the cross's trace (qry_member.h)
+    if (qry_member_run() != NULL)
     {
         char name[64];
         snprintf(name, sizeof(name), "run_%u_%llu", reader->ident, reader->calls);
-        qry_hand(s_run, name, reader->output, reader->output_size, QRY_ORDINARY);
+        qry_member_append(name, reader->output, reader->output_size, QRY_ORDINARY);
     }
     return ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull)) ? 0 : 1;
 }

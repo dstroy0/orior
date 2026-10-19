@@ -21,10 +21,7 @@ Each kernel the engine does not answer, by the question it puts.
 
 | question | kernels | first kernel |
 |---|---|---|
-| sass.krs writes no parameter_load_word | 669 | 0000 |
-| a value of type float | 178 | 0008 |
-| a value of type double | 168 | 0009 |
-| a value of type long | 1 | 0539 |
+| a name nothing here types: blockDim.x | 1016 | 0000 |
 
 ## By category
 

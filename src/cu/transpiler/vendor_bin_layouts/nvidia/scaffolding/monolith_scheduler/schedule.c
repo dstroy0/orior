@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schedule.c: the schedule: what is waited on, the same operation, what stands behind later or earlier, an instruction followed, the container read, the stalls, the operations by count, and the record written
 #include "scheduler_internal.h"

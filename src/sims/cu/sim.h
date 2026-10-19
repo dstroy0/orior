@@ -1,10 +1,11 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #ifndef SIM_H
 #define SIM_H
 
 #include "../../cu/engine/engine_config.h"
 
-#include "../../cu/types/integers/exact_integer.h"
+#include "../../cu/includes/types/integers/exact_integer.h"
 #include "../../cu/engine/runtime/scriptura/scriptura.h"
 
 #include <cuda_runtime.h>

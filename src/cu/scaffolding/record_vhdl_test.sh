@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The record machine's lane as VHDL held to the host oracle, where GHDL is on the path: the code generator, keymath and
 # key_schedule and krep are host code in .cu files and the test C++, compiled as C++; cycle.c, the exact integer's
@@ -12,14 +13,14 @@ CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
+CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
 KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
-KREP="$TOP/src/cu/engine/parser"
-KREP_CU="$TOP/src/cu/engine/parser"
-NO_ROUNDING="$TOP/src/cu/types/integers"
+KREP="$TOP/src/cu/includes/file_defs/krep"
+KREP_CU="$TOP/src/cu/includes/file_defs/krep"
+NO_ROUNDING="$TOP/src/cu/includes/types/integers"
 SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp record_vhdl_test
@@ -38,7 +39,7 @@ for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu "$KREP_CU"/krep_{io,sections}.cu \
+for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu "$KREP_CU"/krep_{io,sections}.cu \
               "$TEST/record_vhdl_test.cpp"; do
     object="$OUT/$(basename "$source")_vhdl.o"
     rm -f "$object"

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #ifndef CHAIN_BUILD_H
 #define CHAIN_BUILD_H
@@ -60,7 +61,8 @@ unsigned int chain_build_cases(ChainSet *set, const LadderQuestion *cases, unsig
 // different order each time is a preference
 void chain_shuffle(ChainSet *set, unsigned int seed);
 
-// `chain` written into `text`, which holds `room`, as the operator applied to its operands. The count written
+// `chain` written into `text`, which holds `room`, as the operator applied to its operands. The count written, and 0
+// with the text empty where it does not fit
 unsigned int chain_text(const Chain *chain, char *text, unsigned int room);
 
 #endif

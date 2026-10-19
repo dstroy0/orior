@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bus_clock.c: the timer register, found by asking. The ADVANCES qualifier put at each word of a span of the part's register
 // aperture, read through the BAR0 driver (scaffolding/mmio_read.h, the BAR0 driver), and the first register that advances
@@ -12,10 +13,11 @@
 // handed first, `clock <words>`. The first register that advances is written to the .ksc as `run answers <offset> clock
 // bus`, in place of the row before it, and the row let go kept in the .krf beside it. Exit 0 where a clock was
 // found, 1 where none was in the span, 2 where the BAR0 driver was not reached or the words are not these.
-#include "../../../types/file_defs/krf/krf.h"
-#include "../../../types/file_defs/ksc/ksc.h"
-#include "../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../includes/file_defs/krf/krf.h"
+#include "../../../includes/file_defs/ksc/ksc.h"
+#include "../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../lstar/protocol/query/query_ask.h"
+#include "../../../includes/parsers/who.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,9 +36,9 @@ static int bus_clock_kept(const char *ksc, unsigned int offset)
     char row[96];
     snprintf(row, sizeof(row), "run answers %08x clock address", offset);
     KscFile file = {0};
-    KtextFile removed = {0};
+    KfileLines removed = {0};
     const char *const rows[1] = {row};
-    const QryWho who = QRY_WHO_HERE;
+    const Who who = WHO_HERE;
     const int written = ksc_read(&file, ksc) &&
                         ksc_rows_replaced_traced_by(&file, "run", "clock", rows, 1u, who, &removed) &&
                         ksc_write_by(&file, ksc, who);
@@ -50,7 +52,7 @@ static int bus_clock_kept(const char *ksc, unsigned int offset)
             printf("  bus_clock: the clock row let go from %s could not be kept in %s\n", ksc, krf);
         }
     }
-    ktext_free(&removed);
+    kfile_lines_free(&removed);
     return written;
 }
 
@@ -85,12 +87,12 @@ int main(int count, char **words)
         mmio_close(device);
         return 2;
     }
-    QryBuffer *const run = qry_run();
+    QryShared *const run = qry_member_run();
     char plan[64];
     const int plan_length = snprintf(plan, sizeof(plan), "clock %llu\n", asked);
     if ((plan_length > 0) && (run != NULL))
     {
-        qry_hand(run, "plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
+        qry_member_append("plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
     }
     printf("  plan: clock %llu\n", asked);
     unsigned long long held = 0ull;
@@ -129,7 +131,7 @@ int main(int count, char **words)
     mmio_close(device);
     if (run != NULL)
     {
-        qry_hand(run, "clock.txt", s_lines, held, QRY_ORDINARY);
+        qry_member_append("clock.txt", s_lines, held, QRY_ORDINARY);
     }
     if (!found)
     {

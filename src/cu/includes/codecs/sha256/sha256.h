@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sha256.h: SHA-256 as FIPS 180-4 states it (section 6.2), over a message of whole bytes or of any count of bits
 #ifndef SHA256_H

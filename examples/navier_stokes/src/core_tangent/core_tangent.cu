@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // core_tangent.cu: the axis core's tangent along the pressure datum in the direction e^(mu eta), every order exactly e^(mu
 // eta) times a polynomial in mu whose coefficients are exact Chebyshev weights in xi = eta / a

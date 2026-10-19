@@ -1,38 +1,15 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // read.c: the vendor's instruction set read: each CLASS with its opcode, its fields by name and its constant-bank
 // operand
 #include "read.h"
 
+#include "../../../../includes/parsers/line_read.h"
+
 #include <stdio.h>
 
 #include <stdlib.h>
 #include <string.h>
-
-// the line at `*at` of `text`, `size` long, copied into `line` without its end, `*at` moved past it: 1, or 0 at
-// the end of the text; a line longer than `room` is cut to it
-static int tables_line_read(const unsigned char *text, size_t size, size_t *at, char *line, size_t room)
-{
-    if (*at >= size)
-    {
-        return 0;
-    }
-    size_t length = 0u;
-    while ((*at < size) && (text[*at] != '\n'))
-    {
-        if (length + 1u < room)
-        {
-            line[length] = (char)text[*at];
-            length += 1u;
-        }
-        *at += 1u;
-    }
-    line[length] = '\0';
-    if (*at < size)
-    {
-        *at += 1u;
-    }
-    return 1;
-}
 
 static const char *tables_past_spaces(const char *at)
 {
@@ -402,7 +379,7 @@ static void tables_constant_read(const char *line, TablesClass *class_)
 int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
 {
     char line[1024];
-    size_t at = 0u;
+    unsigned long long at = 0ull;
     TablesClass *class_ = NULL;
     enum
     {
@@ -415,7 +392,7 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
     // within CONDITIONS, whether the conditions read are under a kind on the registers, OOR_REG_ERROR or
     // MISALIGNED_REG_ERROR
     int register_kind = 0;
-    while (tables_line_read(text, size, &at, line, sizeof(line)))
+    while (line_read(text, size, &at, line, sizeof(line)))
     {
         char name[TABLES_NAME + 16u];
         if (tables_class_head(line, name, sizeof(name)))

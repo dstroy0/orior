@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // carried.c: the round carried: one question or many handed critical, carried by the carrier and answered
 #include "run_channel_internal.h"
@@ -41,7 +42,7 @@ int run_channel_carried(RunQuestion *asked)
     if (!s_channel.open)
     {
         asked->outcome = RUN_NO_CHANNEL;
-        snprintf(asked->refused, sizeof(asked->refused), "the channel is not open");
+        run_channel_refused(asked, "the channel is not open");
         return 0;
     }
     if (run_channel_on_line() != 0ull)
@@ -59,14 +60,14 @@ int run_channel_carried(RunQuestion *asked)
     char threads[16];
     char blocks[16];
     char line[RUN_LINE_LONGEST];
-    snprintf(slot, sizeof(slot), "%u", asked->slot);
-    snprintf(launches, sizeof(launches), "%u", asked->launches);
-    snprintf(threads, sizeof(threads), "%u", asked->threads);
-    snprintf(blocks, sizeof(blocks), "%u", asked->blocks);
+    run_channel_counted(slot, sizeof(slot), asked->slot);
+    run_channel_counted(launches, sizeof(launches), asked->launches);
+    run_channel_counted(threads, sizeof(threads), asked->threads);
+    run_channel_counted(blocks, sizeof(blocks), asked->blocks);
     if (!run_channel_write(asked, code_name, cases_name))
     {
         asked->outcome = RUN_NO_CHANNEL;
-        snprintf(asked->refused, sizeof(asked->refused), "the question could not be handed to the run's buffer");
+        run_channel_refused(asked, "the question could not be handed to the run");
         return 0;
     }
     // the round, this one question, checked before the part and fixed where a count of registers fixes it, then its
@@ -83,12 +84,12 @@ int run_channel_carried(RunQuestion *asked)
     }
     // the count of registers the check left the question, which the carrier is handed
     run_channel_list_line(0u, line);
-    snprintf(registers, sizeof(registers), "%u", asked->registers);
+    run_channel_counted(registers, sizeof(registers), asked->registers);
     const unsigned long long after = listed ? run_channel_round_handed() : 0ull;
     if (after == 0ull)
     {
         asked->outcome = RUN_NO_CHANNEL;
-        snprintf(asked->refused, sizeof(asked->refused), "the round could not be put on disk, and it is not carried");
+        run_channel_refused(asked, "the round could not be put on disk, and it is not carried");
         return 0;
     }
     // the interface's command is a list of words it does not write to; the cast only meets its declared type
@@ -126,18 +127,18 @@ int run_channel_carried(RunQuestion *asked)
     answer.output_capacity = sizeof(s_carrier_output);
     EngineError error = {0};
     // what this process handed moved into the run before the carrier reads it, and what it handed once it ends
-    qry_moved(s_channel.buffer);
+    qry_member_settled();
     const unsigned long long carrier_began = run_channel_now();
     const long ran = interface_probe_run(&probe, &answer, &error);
     s_channel.carried_nanoseconds += run_channel_now() - carrier_began;
-    qry_settled(s_channel.buffer);
+    qry_member_rings_settled();
     run_channel_output_handed(&answer);
     // a panic on the line, the carrier's or its ending's: the teacher's account handed
     run_channel_teacher_said(1u, after, &answer, 0u, line);
     if ((ran != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
     {
         asked->outcome = RUN_NO_CHANNEL;
-        snprintf(asked->refused, sizeof(asked->refused), "the carrier %.96s was not started", s_channel.word[0]);
+        run_channel_started_refused(asked);
         return 0;
     }
     if ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
@@ -146,8 +147,7 @@ int run_channel_carried(RunQuestion *asked)
         // ended, or a panic is on the line, it ended carrying this question, which calls a conference
         asked->outcome =
             (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL : (unsigned int)RUN_NOTHING;
-        snprintf(asked->refused, sizeof(asked->refused), "the carrier %s, code %llx",
-                 interface_ending_name(answer.ending), answer.code);
+        run_channel_ending_refused(asked, &answer);
         if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ull))
         {
             run_channel_conference_called(asked, asked->refused, NULL, 0ull);
@@ -159,19 +159,16 @@ int run_channel_carried(RunQuestion *asked)
     return asked->outcome == RUN_ANSWERED;
 }
 
-unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
+// The questions of `asked`, `count` of them and at most RUN_ASKED_MOST, asked as run_channel_ask_many asks them
+static unsigned int run_channel_ask_some(RunQuestion *const *asked, unsigned int count)
 {
     // the questions R answers taken first, and only the rest carried, each kept in R once it comes back
-    RunQuestion **const left = (RunQuestion **)malloc((size_t)(count + 1u) * sizeof(RunQuestion *));
-    if (left == NULL)
-    {
-        return run_channel_carried_many(asked, count);
-    }
+    static RunQuestion *s_left[RUN_ASKED_MOST];
+    RunQuestion **const left = s_left;
     // a stopped run carries nothing and answers nothing from R: every question is held with the stop's reason
     if (run_channel_panic_ruled())
     {
         run_channel_halted(asked, 0u, count);
-        free(left);
         return 0u;
     }
     unsigned int recorded = 0u;
@@ -195,8 +192,18 @@ unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
         run_channel_kept(left[at]);
     }
     run_channel_traced(left, lefts, s_channel.dry ? "written dry" : "carried");
-    free(left);
     return recorded + carried;
+}
+
+unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
+{
+    unsigned int answered = 0u;
+    for (unsigned int first = 0u; first < count; first += RUN_ASKED_MOST)
+    {
+        const unsigned int some = ((count - first) < RUN_ASKED_MOST) ? (count - first) : RUN_ASKED_MOST;
+        answered += run_channel_ask_some(asked + first, some);
+    }
+    return answered;
 }
 
 // the questions of `asked` carried as run_channel_ask_many carries them, R aside
@@ -208,7 +215,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             asked[at]->outcome = RUN_NO_CHANNEL;
-            snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the channel is not open");
+            run_channel_refused(asked[at], "the channel is not open");
         }
         return 0u;
     }
@@ -250,7 +257,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
                 for (unsigned int at = first; at < count; at += 1u)
                 {
                     asked[at]->outcome = RUN_NO_CHANNEL;
-                    snprintf(asked[at]->refused, sizeof(asked[at]->refused), "%s", refused);
+                    run_channel_refused(asked[at], refused);
                 }
                 return answered;
             }
@@ -262,7 +269,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
             for (unsigned int at = first; at < count; at += 1u)
             {
                 asked[at]->outcome = RUN_HELD;
-                snprintf(asked[at]->refused, sizeof(asked[at]->refused), "dry: written, carried by nothing");
+                run_channel_refused(asked[at], "dry: written, carried by nothing");
             }
             s_channel.dry_written += count - first;
             return answered;
@@ -274,8 +281,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
             for (unsigned int at = first; at < count; at += 1u)
             {
                 asked[at]->outcome = RUN_NO_CHANNEL;
-                snprintf(asked[at]->refused, sizeof(asked[at]->refused),
-                         "the round could not be put on disk, and it is not carried");
+                run_channel_refused(asked[at], "the round could not be put on disk, and it is not carried");
             }
             return answered;
         }
@@ -297,19 +303,18 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
         answer.output_capacity = sizeof(s_carrier_output);
         EngineError error = {0};
         // what this process handed moved into the run before the carrier reads it, and what it handed once it ends
-        qry_moved(s_channel.buffer);
+        qry_member_settled();
         const unsigned long long carrier_began = run_channel_now();
         const long ran = interface_probe_run(&probe, &answer, &error);
         s_channel.carried_nanoseconds += run_channel_now() - carrier_began;
-        qry_settled(s_channel.buffer);
+        qry_member_rings_settled();
         run_channel_output_handed(&answer);
         if ((ran != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
         {
             for (unsigned int at = first; at < count; at += 1u)
             {
                 asked[at]->outcome = RUN_NO_CHANNEL;
-                snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the carrier %.96s was not started",
-                         s_channel.word[0]);
+                run_channel_started_refused(asked[at]);
             }
             return answered;
         }
@@ -320,11 +325,13 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
         for (; at < count; at += 1u)
         {
             char answers_name[RUN_NAME_LONGEST];
-            snprintf(answers_name, sizeof(answers_name), "answers%u.txt", at);
+            char code_name[RUN_NAME_LONGEST];
+            char cases_name[RUN_NAME_LONGEST];
+            run_channel_named(at, 0, code_name, cases_name, answers_name);
             const unsigned char *bytes = NULL;
             unsigned long long size = 0ull;
             unsigned long long sequence = 0ull;
-            if (!qry_latest(s_channel.buffer, answers_name, &bytes, &size, &sequence) || (sequence <= after))
+            if (!qry_member_blob(answers_name, &bytes, &size, &sequence) || (sequence < after))
             {
                 break;
             }
@@ -341,8 +348,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
         {
             asked[at]->outcome =
                 (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL : (unsigned int)RUN_NOTHING;
-            snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the carrier %s, code %llx",
-                     interface_ending_name(answer.ending), answer.code);
+            run_channel_ending_refused(asked[at], &answer);
             // a carrier ended, or one that left a panic on the line, ended carrying this question: a conference
             if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ull))
             {
@@ -369,7 +375,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int co
             for (; at < count; at += 1u)
             {
                 asked[at]->outcome = RUN_NO_CHANNEL;
-                snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the carrier answered none of the questions");
+                run_channel_refused(asked[at], "the carrier answered none of the questions");
             }
         }
         first = at;

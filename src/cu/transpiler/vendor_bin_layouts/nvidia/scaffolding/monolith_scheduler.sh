@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Writes monolith_scheduler.md: the scheduler's bits NVIDIA's compiler writes over every CUDA source of the tree,
 # gathered by operation (monolith_scheduler.c). Each source is built by NVIDIA's compiler to a cubin for one part, and
@@ -8,10 +9,10 @@
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 HERE="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
-CUBIN="$TOP/src/cu/types/file_defs/readers"
-KRS_C="$TOP/src/cu/types/file_defs/readers"
+CUBIN="$TOP/src/cu/includes/parsers"
+KRS_C="$TOP/src/cu/includes/parsers"
 INT="$TOP/src/cu/transpiler/lstar/interface"
 OUT="$TOP/build/monolith/scheduler"
 mkdir -p "$OUT/cubins"

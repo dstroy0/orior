@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 set -u
 
@@ -6,7 +7,7 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pwd)"
 MODULE_CU="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pwd)"
 TOP="$(cd "$MODULE/../../../.." && pwd)"
-SCRIPTURA="$TOP/c/engine/runtime/scriptura"
+SCRIPTURA="$TOP/cu/engine/runtime/scriptura"
 # utils/maint/ is at the repository's root, one above src/
 source "$(cd "$TOP/.." && pwd)/utils/maint/engine/build_stamp.sh"
 build_stamp obsignatio_test

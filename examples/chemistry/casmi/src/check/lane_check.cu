@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // A parquet file's double columns read as the bytes they are stored as, each byte pair one 16-bit lane: lifted by the
 // tower and coded by compression on the device, decoded and lowered, and the lowered lanes held against the stored
@@ -14,9 +15,9 @@
 #include "../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "../../../../../src/cu/engine/runtime/radix_keys/radix_keys.h"
 #include "../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
-#include "../../../../../src/cu/types/integers/exact_integer.h"
-#include "../../../../../src/cu/types/integerfloats/edouble/edouble_record.h"
-#include "../../../../../src/cu/types/integers/exact_record/exact_record.h"
+#include "../../../../../src/cu/includes/types/integers/exact_integer.h"
+#include "../../../../../src/cu/includes/types/integerfloats/edouble/edouble_record.h"
+#include "../../../../../src/cu/includes/types/integers/exact_record/exact_record.h"
 #include "../parquet/parquet.h"
 #include "sim.h"
 

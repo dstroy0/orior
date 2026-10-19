@@ -1,8 +1,9 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chain_build.c: every arrangement of primitives that produces a relation
 #include "chain_build.h"
+#include "../../../../engine/runtime/scriptura/scriptura.h"
 
-#include <stdio.h>
 #include <string.h>
 
 // The precepts a chain is built from: the ones that carry a word and take a child. NOP carries no child, ERR says a
@@ -294,41 +295,35 @@ void chain_shuffle(ChainSet *set, unsigned int seed)
     }
 }
 
-// the place the next write starts once `written` letters were asked at `at`: a write the room cuts short leaves
-// the text ended on its last place, and every write after it writes the ending alone
-static unsigned int chain_written(unsigned int at, unsigned int room, int written)
-{
-    const unsigned int end = room - 1u;
-    // a refused write moves nothing, and a written count is not negative
-    const unsigned int moved = (written > 0) ? (unsigned int)written : 0u;
-    return ((end - at) < moved) ? end : (at + moved);
-}
-
-// the subtree rooted at `child` written into `text` from `at`; the place the next write starts
-static unsigned int chain_child_text(const Chain *chain, unsigned char child, char *text, unsigned int room,
-                                     unsigned int at)
+// the subtree rooted at `child` written into `line`
+static void chain_child_text(const Chain *chain, unsigned char child, ScripturaLine *line)
 {
     if (child == PRECEPT_ZERO)
     {
-        return chain_written(at, room, snprintf(&text[at], room - at, "zero"));
+        scriptura_text(line, "zero");
+        return;
     }
     if (child == PRECEPT_ONES)
     {
-        return chain_written(at, room, snprintf(&text[at], room - at, "ones"));
+        scriptura_text(line, "ones");
+        return;
     }
     if (child >= PRECEPT_ARG)
     {
-        return chain_written(at, room, snprintf(&text[at], room - at, "w%u", (unsigned int)(child - PRECEPT_ARG)));
+        scriptura_character(line, 'w');
+        scriptura_decimal(line, (unsigned int)(child - PRECEPT_ARG), 0u);
+        return;
     }
     const PreceptNode *const node = &chain->node[child];
-    at = chain_written(at, room, snprintf(&text[at], room - at, "%s(", s_precept_text[node->precept]));
-    at = chain_child_text(chain, node->left, text, room, at);
+    scriptura_text(line, s_precept_text[node->precept]);
+    scriptura_character(line, '(');
+    chain_child_text(chain, node->left, line);
     if (node->right != PRECEPT_NONE)
     {
-        at = chain_written(at, room, snprintf(&text[at], room - at, ", "));
-        at = chain_child_text(chain, node->right, text, room, at);
+        scriptura_text(line, ", ");
+        chain_child_text(chain, node->right, line);
     }
-    return chain_written(at, room, snprintf(&text[at], room - at, ")"));
+    scriptura_character(line, ')');
 }
 
 unsigned int chain_text(const Chain *chain, char *text, unsigned int room)
@@ -338,5 +333,8 @@ unsigned int chain_text(const Chain *chain, char *text, unsigned int room)
     {
         return 0u;
     }
-    return chain_child_text(chain, (unsigned char)(chain->nodes - 1u), text, room, 0u);
+    ScripturaLine line = {text, room, 0ull};
+    chain_child_text(chain, (unsigned char)(chain->nodes - 1u), &line);
+    // a text is at most its room, which an unsigned int holds
+    return (unsigned int)scriptura_closed(&line);
 }

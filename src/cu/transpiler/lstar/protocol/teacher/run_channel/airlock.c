@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // airlock.c: the airlock: the cross run over the list and passed or held, the questions named and relisted, the check
 // traced, and a register hold put again with the count raised
@@ -14,15 +15,15 @@ static long long run_channel_airlock_ran(char *const *command, unsigned long lon
     answer.output_capacity = sizeof(s_airlock_output);
     EngineError error = {0};
     // what this process handed moved into the run before the airlock reads it, and what it handed once it ends
-    qry_moved(s_channel.buffer);
+    qry_member_settled();
     const long ran = interface_probe_run(&probe, &answer, &error);
-    qry_settled(s_channel.buffer);
+    qry_member_rings_settled();
     const unsigned long long kept =
         (answer.output_bytes < sizeof(s_airlock_output)) ? answer.output_bytes : sizeof(s_airlock_output);
-    // what the pop and the cross printed, the airlock's trace (qry_buffer.h, QRY_TRACE)
-    if (qry_traced("airlock", QRY_ORDINARY))
+    // what the pop and the cross printed, the airlock's trace (qry_member.h)
+    if (s_channel.buffer != NULL)
     {
-        qry_hand(s_channel.buffer, said, s_airlock_output, kept, QRY_ORDINARY);
+        qry_member_append(said, s_airlock_output, kept, QRY_ORDINARY);
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED))
     {
@@ -40,16 +41,17 @@ static long long run_channel_airlock_ran(char *const *command, unsigned long lon
 // after the list; 0 otherwise, and the round is not carried
 static int run_channel_airlock_passed(unsigned int questions)
 {
-    const size_t room = s_channel.list_size + ((size_t)questions * sizeof(RUN_AIRLOCK_ANSWERS)) + 1u;
-    char *const renamed = (char *)malloc(room);
-    if (renamed == NULL)
+    // the list renamed, a record at most as long as the list's room
+    static char s_renamed[RUN_LIST_ROOM];
+    if ((s_channel.list_size + ((size_t)questions * sizeof(RUN_AIRLOCK_ANSWERS))) > sizeof(s_renamed))
     {
         return 0;
     }
+    char *const renamed = s_renamed;
     size_t length = 0u;
     for (size_t at = 0u; at < s_channel.list_size;)
     {
-        const char *const line = s_channel.list + at;
+        const char *const line = s_channel_list + at;
         const char *const end = (const char *)memchr(line, '\n', s_channel.list_size - at);
         const size_t line_length = (end != NULL) ? (size_t)(end - line) : (s_channel.list_size - at);
         at += line_length + 1u;
@@ -68,10 +70,9 @@ static int run_channel_airlock_passed(unsigned int questions)
         renamed[length] = '\n';
         length += 1u;
     }
-    const unsigned long long handed = qry_hand(s_channel.buffer, RUN_AIRLOCK_LIST, renamed, length, QRY_ORDINARY);
-    free(renamed);
+    const unsigned long long handed = qry_member_append(RUN_AIRLOCK_LIST, renamed, length, QRY_ORDINARY);
     // the list's sequence, once it is moved into the run: the held list and the holds the cross hands come after it
-    const unsigned long long began = (handed != 0ull) ? qry_moved(s_channel.buffer) : 0ull;
+    const unsigned long long began = (handed != 0ull) ? qry_member_settled() : 0ull;
     s_channel.airlock_began = began;
     if (began == 0ull)
     {
@@ -119,7 +120,7 @@ static int run_channel_airlock_passed(unsigned int questions)
     const unsigned char *held = NULL;
     unsigned long long held_size = 0ull;
     unsigned long long held_sequence = 0ull;
-    return qry_latest(s_channel.buffer, s_channel.held, &held, &held_size, &held_sequence) && (held_sequence > began);
+    return qry_member_blob(s_channel.held, &held, &held_size, &held_sequence) && (held_sequence >= began);
 }
 
 // 1 where the round on the channel's list, `questions` of them, may be carried: it passed the airlock; or the channel
@@ -134,15 +135,18 @@ int run_channel_airlocked(unsigned int questions, char *refused, size_t room)
         {
             return 1;
         }
-        snprintf(refused, room, "the airlock: the cross did not read this round, and nothing goes to the part");
+        ScripturaLine said = {refused, room, 0ull};
+        scriptura_text(&said, "the airlock: the cross did not read this round, and nothing goes to the part");
+        scriptura_closed(&said);
         return 0;
     }
     if (s_channel.held_given || s_channel.dry)
     {
         return 1;
     }
-    snprintf(refused, room,
-             "the airlock: the channel has none, its carrier no held list, and nothing goes to the part");
+    ScripturaLine said = {refused, room, 0ull};
+    scriptura_text(&said, "the airlock: the channel has none, its carrier no held list, and nothing goes to the part");
+    scriptura_closed(&said);
     return 0;
 }
 
@@ -150,16 +154,41 @@ int run_channel_airlocked(unsigned int questions, char *refused, size_t room)
 // into its own room of RUN_NAME_LONGEST
 void run_channel_named(unsigned int at, int alone, char *code_name, char *cases_name, char *answers_name)
 {
-    if (alone)
+    static const char *const s_stems[3] = {"question", "cases", "answers"};
+    static const char *const s_endings[3] = {".bin", ".txt", ".txt"};
+    char *const names[3] = {code_name, cases_name, answers_name};
+    for (unsigned int name = 0u; name < 3u; name += 1u)
     {
-        snprintf(code_name, RUN_NAME_LONGEST, "question.bin");
-        snprintf(cases_name, RUN_NAME_LONGEST, "cases.txt");
-        snprintf(answers_name, RUN_NAME_LONGEST, "answers.txt");
-        return;
+        ScripturaLine line = {names[name], RUN_NAME_LONGEST, 0ull};
+        scriptura_text(&line, s_stems[name]);
+        if (!alone)
+        {
+            scriptura_decimal(&line, at, 0u);
+        }
+        scriptura_text(&line, s_endings[name]);
+        scriptura_closed(&line);
     }
-    snprintf(code_name, RUN_NAME_LONGEST, "question%u.bin", at);
-    snprintf(cases_name, RUN_NAME_LONGEST, "cases%u.txt", at);
-    snprintf(answers_name, RUN_NAME_LONGEST, "answers%u.txt", at);
+}
+
+// The line of the question `asked` on the channel's list, `<code> <registers> <cases> <answers> <slot> <launches>`,
+// written into `line`, which holds `room`: its length, or 0 where it did not fit
+size_t run_channel_list_line_written(char *line, size_t room, const char *code_name, const char *cases_name,
+                                     const char *answers_name, const RunQuestion *asked)
+{
+    ScripturaLine written = {line, room, 0ull};
+    scriptura_text(&written, code_name);
+    scriptura_character(&written, ' ');
+    scriptura_decimal(&written, asked->registers, 0u);
+    scriptura_character(&written, ' ');
+    scriptura_text(&written, cases_name);
+    scriptura_character(&written, ' ');
+    scriptura_text(&written, answers_name);
+    scriptura_character(&written, ' ');
+    scriptura_decimal(&written, asked->slot, 0u);
+    scriptura_character(&written, ' ');
+    scriptura_decimal(&written, asked->launches, 0u);
+    scriptura_character(&written, '\n');
+    return (size_t)scriptura_finish(&written);
 }
 
 // The questions of `asked` from `first` to `count` put on the channel's list again, a line each, their blobs as they
@@ -175,21 +204,20 @@ int run_channel_relisted(RunQuestion *const *asked, unsigned int first, unsigned
         char answers_name[RUN_NAME_LONGEST];
         char line[RUN_LINE_LONGEST];
         run_channel_named(at, alone, code_name, cases_name, answers_name);
-        const int line_length = snprintf(line, sizeof(line), "%s %u %s %s %u %u\n", code_name, asked[at]->registers,
-                                         cases_name, answers_name, asked[at]->slot, asked[at]->launches);
-        // a line of three short names and three counts fits the line, and its length is not negative
-        listed = (line_length > 0) && run_channel_listed(line, (size_t)line_length);
+        const size_t line_length =
+            run_channel_list_line_written(line, sizeof(line), code_name, cases_name, answers_name, asked[at]);
+        listed = (line_length != 0u) && run_channel_listed(line, line_length);
     }
     return listed;
 }
 
-// The teacher's trace of the check before the part (qry_buffer.h, QRY_TRACE, the path `teacher`): `said` of the
+// The teacher's trace of the check before the part (qry_member.h, the record `teacher`): `said` of the
 // question `asked`, a line handed to the run's trace after its identity, as run_channel_traced hands one, so that a
 // branch the learner took is traced back to the check that put its question
 void run_channel_check_traced(const RunQuestion *asked, const char *said)
 {
     const unsigned int priority = (run_channel_on_line() != 0ull) ? QRY_PANIC : QRY_ORDINARY;
-    if ((s_channel.buffer == NULL) || !qry_traced("teacher", priority))
+    if (s_channel.buffer == NULL)
     {
         return;
     }
@@ -198,10 +226,16 @@ void run_channel_check_traced(const RunQuestion *asked, const char *said)
     char line[1024];
     run_channel_identity(asked, &numbered);
     kqr_identity_text(&numbered, identity, sizeof(identity));
-    const int length = snprintf(line, sizeof(line), "teacher: %s checked: %s\n", identity, said);
-    // the line fits its room, and its length is not negative
-    const size_t kept = (length < 0) ? 0u : (((size_t)length < sizeof(line)) ? (size_t)length : (sizeof(line) - 1u));
-    qry_hand(s_channel.buffer, "trace", line, (unsigned long long)kept, QRY_ORDINARY);
+    ScripturaLine written = {line, sizeof(line), 0ull};
+    scriptura_text(&written, "teacher: ");
+    scriptura_text(&written, identity);
+    scriptura_text(&written, " checked: ");
+    scriptura_text_most(&written, said, sizeof(line) - 128u);
+    scriptura_character(&written, '\n');
+    if (scriptura_fits(&written))
+    {
+        qry_member_append("trace", line, written.at, priority);
+    }
 }
 
 // The holds the airlock's cross handed for the round it last read, each question of `asked` from `first` to `count`
@@ -213,8 +247,8 @@ unsigned int run_channel_raised(RunQuestion *const *asked, unsigned int first, u
     const unsigned char *holds = NULL;
     unsigned long long size = 0ull;
     unsigned long long sequence = 0ull;
-    if (!qry_latest(s_channel.buffer, RUN_AIRLOCK_HOLDS, &holds, &size, &sequence) ||
-        (sequence <= s_channel.airlock_began))
+    if (!qry_member_blob(RUN_AIRLOCK_HOLDS, &holds, &size, &sequence) ||
+        (sequence < s_channel.airlock_began))
     {
         return 0u;
     }
@@ -226,8 +260,10 @@ unsigned int run_channel_raised(RunQuestion *const *asked, unsigned int first, u
         char answers_name[RUN_NAME_LONGEST];
         char stem[RUN_NAME_LONGEST + sizeof(RUN_AIRLOCK_ANSWERS)];
         run_channel_named(at, alone, code_name, cases_name, answers_name);
-        snprintf(stem, sizeof(stem), "%s%.*s", RUN_AIRLOCK_ANSWERS, (int)strcspn(answers_name, "."), answers_name);
-        const size_t stem_length = strlen(stem);
+        ScripturaLine stem_line = {stem, sizeof(stem), 0ull};
+        scriptura_text(&stem_line, RUN_AIRLOCK_ANSWERS);
+        scriptura_text_most(&stem_line, answers_name, strcspn(answers_name, "."));
+        const size_t stem_length = (size_t)scriptura_closed(&stem_line);
         unsigned int clearing = 0u;
         int held = 0;
         int cleared = 1;
@@ -243,12 +279,17 @@ unsigned int run_channel_raised(RunQuestion *const *asked, unsigned int first, u
             }
             // a hold's line: the stem, the count that clears it, and why
             char text[RUN_LINE_LONGEST + 512u];
-            snprintf(text, sizeof(text), "%.*s", (int)(length - stem_length - 1u), line + stem_length + 1u);
+            ScripturaLine text_line = {text, sizeof(text), 0ull};
+            scriptura_text_most(&text_line, line + stem_length + 1u, length - stem_length - 1u);
+            scriptura_closed(&text_line);
             char *after = NULL;
             const unsigned long long count_read = strtoull(text, &after, 10);
             const char *const why = after + strspn(after, " ");
             char said[RUN_LINE_LONGEST + 640u];
-            snprintf(said, sizeof(said), "held, %s", why);
+            ScripturaLine said_line = {said, sizeof(said), 0ull};
+            scriptura_text(&said_line, "held, ");
+            scriptura_text(&said_line, why);
+            scriptura_closed(&said_line);
             run_channel_check_traced(asked[at], said);
             held = 1;
             // a count of registers is at most what a kernel allots a thread, which an unsigned int holds
@@ -293,9 +334,13 @@ unsigned int run_channel_raised(RunQuestion *const *asked, unsigned int first, u
             continue;
         }
         char said[160];
-        snprintf(said, sizeof(said),
-                 "put again with %u registers in place of %u, every hold of it a register past its count", clearing,
-                 asked[at]->registers);
+        ScripturaLine said_line = {said, sizeof(said), 0ull};
+        scriptura_text(&said_line, "put again with ");
+        scriptura_decimal(&said_line, clearing, 0u);
+        scriptura_text(&said_line, " registers in place of ");
+        scriptura_decimal(&said_line, asked[at]->registers, 0u);
+        scriptura_text(&said_line, ", every hold of it a register past its count");
+        scriptura_closed(&said_line);
         run_channel_check_traced(asked[at], said);
         asked[at]->registers = clearing;
         raised += 1u;

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // puts.cu: the puts of the log: a put's cases read, a link's operation stem, the operands deciding a put, the set
 // a put is read into, a name among names, and the key of a pair

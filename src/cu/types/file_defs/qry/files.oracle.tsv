@@ -1,5 +1,0 @@
-where	who	kind	code	form	numbers	gloss
-row	qry_filed_by	file	-	file <blob> <path>	<who> <blob> <path text>	a file a program of the run wrote through the run's writer, a row of the table files handed critical after its bytes, the who the code that wrote it
-column 0	qry_filed_by	blob	-	<key>	<key>	the blob of the file's bytes: its sequence in the run, the file's name in the run its name
-column 1	qry_filed_by	path	-	<text>	<text>	the file's name in the run (qry_file_named), its path from the top of the tree, by its number in the table of texts
-any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (QryWho, qry_buffer.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, files, and its key the blob's sequence in the run

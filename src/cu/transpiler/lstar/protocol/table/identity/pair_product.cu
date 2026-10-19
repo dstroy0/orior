@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair_product.cu: the put beneath its ask in the log, and the product asked over the cases at its link: what
 // the form reads there, and what it and its stand-in write
@@ -71,14 +72,14 @@ int PutLink::logged(PairWork &work) const
         {
             read = named;
         }
-        else if ((value == "RZ") || (value == "PT") || (value == "!PT") ||
+        else if ((value == ruleset_physreg(work.sass, "zero")) || (value == "PT") || (value == "!PT") ||
                  std::regex_match(value, std::regex("-?(0x[0-9a-fA-F]+|[0-9]+)")))
         {
             // a flag bound to a literal is read as a flag, `P` before its name
             const int flag = (value == "PT") || (value == "!PT");
             read = (flag ? "P=" : "=") + from_names[parameter] + part;
             literal_reads[read] = (value == "PT") ? 1ull
-                                  : ((value == "RZ") || (value == "!PT"))
+                                  : ((value == ruleset_physreg(work.sass, "zero")) || (value == "!PT"))
                                       ? 0ull
                                       : (unsigned long long)std::stoll(value, nullptr, 0);
         }
@@ -113,12 +114,9 @@ int PutLink::logged(PairWork &work) const
             }
             const std::string cut =
                 carrier_cut_at_read(flow.first, flow.second, chain.second, link_at, form_lines, read);
-            std::vector<unsigned char> cut_code(16u * 4096u);
-            const unsigned int cut_count =
-                cut.empty() ? 0u
-                            : sass_assemble_lines(work.machine, cut.c_str(), SASS_CONTROL_SAFE,
-                                                  cut_code.data(), cut_code.size());
-            cut_code.resize(16u * cut_count);
+            std::vector<unsigned char> cut_code =
+                cut.empty() ? std::vector<unsigned char>() : vendor_assembled(work.machine, cut);
+            const unsigned int cut_count = (unsigned int)(cut_code.size() / 16u);
             if (s_ask_trace != NULL)
             {
                 ask_written(s_ask_trace, "reads %s, the carrier cut at %s, %u links:\n%s", read.c_str(),
@@ -143,12 +141,9 @@ int PutLink::logged(PairWork &work) const
                     ? std::string()
                     : carrier_cut_at_read(flow.first, flow.second, chain.second, link_at, form_lines,
                                           product, sides[side], wide);
-            std::vector<unsigned char> cut_code(16u * 4096u);
-            const unsigned int cut_count =
-                cut.empty() ? 0u
-                            : sass_assemble_lines(work.machine, cut.c_str(), SASS_CONTROL_SAFE,
-                                                  cut_code.data(), cut_code.size());
-            cut_code.resize(16u * cut_count);
+            std::vector<unsigned char> cut_code =
+                cut.empty() ? std::vector<unsigned char>() : vendor_assembled(work.machine, cut);
+            const unsigned int cut_count = (unsigned int)(cut_code.size() / 16u);
             if (s_ask_trace != NULL)
             {
                 ask_written(s_ask_trace, "writes %s %s, the carrier cut after %s, %u links:\n%s",

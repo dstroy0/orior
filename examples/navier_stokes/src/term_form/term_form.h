@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // term_form.h: an exact polynomial in terms with rational coefficients, e held apart at a rational power
 #ifndef TERM_FORM_H

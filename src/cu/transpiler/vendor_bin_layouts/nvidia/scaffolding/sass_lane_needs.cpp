@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Which forms a real lane asks sass.krs for, and which of those the ruleset leaves empty.
 //
@@ -18,8 +19,8 @@ extern "C"
 }
 
 #include "machine_ir_types.h"
-#include "../../../../types/file_defs/readers/ruleset_core_words.h"
-#include "../../../../types/file_defs/readers/ruleset_reader.h"
+#include "../../../../includes/file_defs/krs/ruleset_core_words.h"
+#include "../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "sass_target.h"
 #include "target.h"
 

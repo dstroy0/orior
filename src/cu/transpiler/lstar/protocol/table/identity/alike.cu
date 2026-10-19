@@ -1,6 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // alike.cu: a question put and read alike or apart with the host, the host's questions written and its answers read, and a chain's code read from the engine
 #include "identity_internal.h"
+#include "../../../../../includes/parsers/who.h"
 
 // 1 where the part answers `code`, put as `question` says of its registers, shape and launches, alike with the host
 // on every case it computes, 0 where it answers apart, refuses it or the gate holds it, each counted in `asks`
@@ -182,7 +184,7 @@ int stall_alike(const std::vector<unsigned char> &code, const std::vector<std::s
 }
 
 // each chain's answers the host computes, one a case over every case, by the chain's number, read from the latest blob
-// of `answers` in the run's buffer
+// of `answers` in the run
 std::map<std::string, std::vector<std::string>> host_answers_read(const char *answers)
 {
     std::map<std::string, std::vector<std::string>> host;
@@ -253,10 +255,10 @@ unsigned int chain_registers(const char *engine, const std::string &number)
 // run channel taken again (ksc_rows_replaced_traced_by); every row let go that no row put gives again is kept in the
 // part's .krf beside it (krf.h). 1, or 0 where the .ksc could not be written
 int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows,
-                               QryWho who)
+                               Who who)
 {
     KscFile file = {};
-    KtextFile removed = {};
+    KfileLines removed = {};
     std::vector<const char *> texts;
     for (const std::string &row : rows)
     {
@@ -276,15 +278,10 @@ int ksc_answers_written(const char *ksc, const std::string &asked, const std::ve
             printf("  %u rows let go from %s could not be kept in %s\n", removed.lines, ksc, krf);
         }
     }
-    ktext_free(&removed);
+    kfile_lines_free(&removed);
     return written;
 }
 
-void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
-                               const std::string &kdm, const Ruleset *sass, const SassMachine *machine,
-                               const StallField &stall, unsigned long long longest,
-                               const std::set<std::pair<std::string, std::string>> &held, size_t most,
-                               std::vector<StallAsk> *asks, std::vector<std::vector<unsigned char>> *codes);
 
 // the kernel `number` of the stick's text, from its signature to the brace that closes it
 static std::string kernel_text(const std::string &stick, const std::string &number)

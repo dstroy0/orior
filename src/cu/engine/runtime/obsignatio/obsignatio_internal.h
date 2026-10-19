@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // What the obsignatio_*.cu pieces share: its includes, types and the functions one piece calls in another
 #ifndef OBSIGNATIO_INTERNAL_H
@@ -318,11 +319,110 @@ OBSIGNATIO_SHARED static inline void obsignatio_digest(const unsigned int *key, 
     obsignatio_root(&node, out, out_bytes);
 }
 
-int obsignatio_mode_valid(unsigned int mode, const unsigned char *key);
+// whether a mode and a key go together: the unkeyed modes take none, the keyed ones one
+static inline int obsignatio_mode_valid(unsigned int mode, const unsigned char *key)
+{
+    const int unkeyed = (mode == OBSIGNATIO_MODE_HASH) || (mode == OBSIGNATIO_MODE_CONTEXT);
+    const int keyed = (mode == OBSIGNATIO_MODE_KEYED) || (mode == OBSIGNATIO_MODE_MATERIAL);
+    return (unkeyed && (key == NULL)) || (keyed && (key != NULL));
+}
 
-ObsignatioKey obsignatio_key_load(const unsigned char *key);
+// a key's 32 bytes as eight words, low byte first, or the IV where there is no key
+static inline ObsignatioKey obsignatio_key_load(const unsigned char *key)
+{
+    ObsignatioKey loaded;
+    if (key == NULL)
+    {
+        loaded.words[0] = OBSIGNATIO_IV0;
+        loaded.words[1] = OBSIGNATIO_IV1;
+        loaded.words[2] = OBSIGNATIO_IV2;
+        loaded.words[3] = OBSIGNATIO_IV3;
+        loaded.words[4] = OBSIGNATIO_IV4;
+        loaded.words[5] = OBSIGNATIO_IV5;
+        loaded.words[6] = OBSIGNATIO_IV6;
+        loaded.words[7] = OBSIGNATIO_IV7;
+        return loaded;
+    }
+    for (unsigned int word = 0u; word < OBSIGNATIO_CHAINING_WORDS; word += 1u)
+    {
+        loaded.words[word] = 0u;
+        for (unsigned int byte = 0u; byte < 4u; byte += 1u)
+        {
+            // an unsigned char widens to unsigned int exactly. The shift into the top byte stays defined
+            loaded.words[word] |= (unsigned int)key[(word * 4u) + byte] << (8u * byte);
+        }
+    }
+    return loaded;
+}
 
+// the signum of `count` bytes in `mode` with `key`, `out_bytes` of it into `out`, on the host: the one hash every host
+// caller makes, from C or C++
+static inline void obsignatio_host_digest(const unsigned char *key, unsigned int mode, const unsigned char *bytes,
+                                          unsigned long long count, unsigned char *out, unsigned long long out_bytes)
+{
+    const ObsignatioKey loaded = obsignatio_key_load(key);
+    const ObsignatioSource source = {bytes, NULL, 0ull, 0ull, count};
+    obsignatio_digest(loaded.words, mode, &source, out, out_bytes);
+}
+
+#define OBSIGNATIO_CONTEXT_PREFIX "obsignatio aeterna 2026-09-23 "
+
+// the context a level's key is drawn from, NULL for no level
+static inline const char *obsignatio_context_of(ObsignatioLevel level)
+{
+    switch (level)
+    {
+    case OBSIGNATIO_LEVEL_ROW:
+        return OBSIGNATIO_CONTEXT_PREFIX "row";
+    case OBSIGNATIO_LEVEL_PLANE:
+        return OBSIGNATIO_CONTEXT_PREFIX "plane";
+    case OBSIGNATIO_LEVEL_VOLUME:
+        return OBSIGNATIO_CONTEXT_PREFIX "volume";
+    case OBSIGNATIO_LEVEL_LANES:
+        return OBSIGNATIO_CONTEXT_PREFIX "lanes";
+    case OBSIGNATIO_LEVEL_CHUNK:
+        return OBSIGNATIO_CONTEXT_PREFIX "chunk";
+    case OBSIGNATIO_LEVEL_STREAM:
+        return OBSIGNATIO_CONTEXT_PREFIX "stream";
+    case OBSIGNATIO_LEVEL_SIDE:
+        return OBSIGNATIO_CONTEXT_PREFIX "side";
+    case OBSIGNATIO_LEVEL_MEMBERS:
+        return OBSIGNATIO_CONTEXT_PREFIX "members";
+    case OBSIGNATIO_LEVEL_SAMPLE:
+        return OBSIGNATIO_CONTEXT_PREFIX "sample";
+    case OBSIGNATIO_LEVEL_SET:
+        return OBSIGNATIO_CONTEXT_PREFIX "set";
+    case OBSIGNATIO_LEVEL_FILE:
+        return OBSIGNATIO_CONTEXT_PREFIX "file";
+    case OBSIGNATIO_LEVEL_UNIVERSAL:
+        return OBSIGNATIO_CONTEXT_PREFIX "universal";
+    case OBSIGNATIO_LEVEL_SIDE_STORED:
+        return OBSIGNATIO_CONTEXT_PREFIX "side stored";
+    case OBSIGNATIO_LEVEL_SIDE_INFLATED:
+        return OBSIGNATIO_CONTEXT_PREFIX "side inflated";
+    default:
+        return NULL;
+    }
+}
+
+// a level's key, the signum of its context in the context mode, into `key`, which holds OBSIGNATIO_KEY_BYTES: 1, or 0
+// for no level
+static inline int obsignatio_host_level_key(ObsignatioLevel level, unsigned char *key)
+{
+    const char *const context = obsignatio_context_of(level);
+    if (context == NULL)
+    {
+        return 0;
+    }
+    // the context's chars are hashed as the unsigned bytes they are stored as
+    obsignatio_host_digest(NULL, OBSIGNATIO_MODE_CONTEXT, (const unsigned char *)context, strlen(context), key,
+                           OBSIGNATIO_KEY_BYTES);
+    return 1;
+}
+
+#if defined(__cplusplus)
 extern "C" long obsignatio_signum(const ObsignatioSignumRequest *request);
+#endif
 #if (defined(__CUDACC__))
 
 __global__ void obsignatio_chunk_kernel(const unsigned char *bytes, unsigned long long messages,

@@ -1,6 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chains.c: the chains: a chain read, a form put at a link, the chains written for each relation and read back
 #include "writings_internal.h"
+#include "../../../../../includes/parsers/line_read.h"
 
 // one node of a chain: its precept, and the register text of each operand, a leaf's or an earlier node's
 typedef struct
@@ -241,7 +243,12 @@ int writings_chains_read(const char *folder, const char *record)
     {
         unsigned int number = 0u;
         char operator_name[32];
-        if (sscanf(line, "%u\t%31[^\t]\t%511[^\t\r\n]", &number, operator_name, s_chain[count]) != 3)
+        const char *read = line;
+        int whole = line_unsigned(&read, &number) && (*read == '\t');
+        read += whole ? 1 : 0;
+        whole = whole && line_until(&read, '\t', operator_name, sizeof(operator_name)) && (*read == '\t');
+        read += whole ? 1 : 0;
+        if (!whole || !line_until(&read, '\t', s_chain[count], sizeof(s_chain[count])))
         {
             continue;
         }

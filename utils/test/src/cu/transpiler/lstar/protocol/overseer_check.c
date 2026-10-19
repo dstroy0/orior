@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // overseer_check.c: the overseer held to overseer.h on accounts handed to a run, and the teacher's conference held on
 // a carrier that reaches no part (overseer_carrier.c)
@@ -37,10 +38,11 @@
 // setenv and unsetenv are POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
 #endif
+#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/overseer/overseer.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
-#include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
 
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +61,7 @@ static void check_that(int held, const char *what)
 }
 
 // the accounts of one conference, each `expert` and `text` in turn, ended by NULL, handed to `run`
-static void check_accounts(QryBuffer *run, const char *identity, const char *const *accounts)
+static void check_accounts(QryShared *run, const char *identity, const char *const *accounts)
 {
     for (unsigned int at = 0u; accounts[at] != NULL; at += 2u)
     {
@@ -67,29 +69,27 @@ static void check_accounts(QryBuffer *run, const char *identity, const char *con
     }
 }
 
-// 1 where the blobs `name` of the run, joined, hold `text`
-static int check_joined_holds(QryBuffer *run, const char *name, const char *text)
+// every record of a name the run holds, gathered, and a NUL past them
+static unsigned char s_gathered[(QRY_WRITER_RING_BYTES / 2ull) + 1ull];
+
+// the records `name` of the run gathered into s_gathered: their bytes, 0 where there are none or they do not fit
+static unsigned long long check_gathered(const char *name)
 {
-    unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    int holds = 0;
-    if (qry_joined(run, name, &bytes, &size) && (size != 0ull))
-    {
-        char *const text_of = (char *)malloc((size_t)size + 1u);
-        if (text_of != NULL)
-        {
-            memcpy(text_of, bytes, (size_t)size);
-            text_of[size] = '\0';
-            holds = strstr(text_of, text) != NULL;
-            free(text_of);
-        }
-    }
-    free(bytes);
-    return holds;
+    const unsigned long long size = qry_member_gathered(name, s_gathered, sizeof(s_gathered) - 1u);
+    const unsigned long long held = (size == QRY_MEMBER_UNREAD) ? 0ull : size;
+    s_gathered[held] = 0u;
+    return held;
+}
+
+// 1 where the records `name` of the run, gathered, hold `text`
+static int check_joined_holds(QryShared *run, const char *name, const char *text)
+{
+    (void)run;
+    return (check_gathered(name) != 0ull) && (strstr((const char *)s_gathered, text) != NULL);
 }
 
 // 1 where the conference of `identity` holds `text`
-static int check_conference_holds(QryBuffer *run, const char *identity, const char *text)
+static int check_conference_holds(QryShared *run, const char *identity, const char *text)
 {
     char name[OVERSEER_NAME_LONGEST];
     overseer_conference_named(identity, name);
@@ -97,11 +97,11 @@ static int check_conference_holds(QryBuffer *run, const char *identity, const ch
 }
 
 // 1 where the latest blob `name` of the run holds `text`
-static int check_latest_holds(QryBuffer *run, const char *name, const char *text)
+static int check_latest_holds(QryShared *run, const char *name, const char *text)
 {
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    if (!qry_latest(run, name, &bytes, &size, NULL))
+    if (!qry_member_blob(name, &bytes, &size, NULL))
     {
         return 0;
     }
@@ -119,17 +119,14 @@ static int check_latest_holds(QryBuffer *run, const char *name, const char *text
 // The rows of `words` words each of the run's table `table` whose first column, past the who's two words, is
 // `conference`: their count, the last of them copied into `last`, which holds `words`, and in `cause_reads` the count
 // of those whose fourth column, an account's cause, is `cause`
-static unsigned int check_rows_of(QryBuffer *run, const char *table, unsigned int words, unsigned long long conference,
+static unsigned int check_rows_of(QryShared *run, const char *table, unsigned int words, unsigned long long conference,
                                   unsigned long long *last, unsigned long long cause, unsigned int *cause_reads)
 {
-    unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    (void)run;
+    const unsigned char *const bytes = s_gathered;
+    const unsigned long long size = check_gathered(table);
     unsigned int count = 0u;
     *cause_reads = 0u;
-    if (!qry_joined(run, table, &bytes, &size))
-    {
-        return 0u;
-    }
     unsigned long long row[16];
     const size_t row_size = (size_t)words * sizeof(unsigned long long);
     for (unsigned long long at = 0ull; (words <= 16u) && ((at + row_size) <= size); at += row_size)
@@ -142,20 +139,16 @@ static unsigned int check_rows_of(QryBuffer *run, const char *table, unsigned in
             *cause_reads += ((words > 5u) && (row[5] == cause)) ? 1u : 0u;
         }
     }
-    free(bytes);
     return count;
 }
 
 // 1 where the run's table of texts holds a row of the number `number`
-static int check_text_held(QryBuffer *run, unsigned long long number)
+static int check_text_held(QryShared *run, unsigned long long number)
 {
-    unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    (void)run;
+    const unsigned char *const bytes = s_gathered;
+    const unsigned long long size = check_gathered("texts");
     int found = 0;
-    if (!qry_joined(run, "texts", &bytes, &size))
-    {
-        return 0;
-    }
     // a text's row: two words of no who, its number, its length, then its bytes filled out to a whole word
     unsigned long long opening[4];
     for (unsigned long long at = 0ull; !found && ((at + sizeof(opening)) <= size);)
@@ -164,25 +157,25 @@ static int check_text_held(QryBuffer *run, unsigned long long number)
         found = (opening[2] == number);
         at += sizeof(opening) + (((opening[3] + 7ull) / 8ull) * 8ull);
     }
-    free(bytes);
     return found;
 }
 
 // The rows of the run's table of verdicts of the ask whose code is the latest blob question.bin, in their order: the
 // rule, held, carried and reason of each, into `rule`, `held`, `carried` and `reason`, each of room `room`. Their count
-static unsigned int check_verdicts(QryBuffer *run, unsigned long long *rule, unsigned long long *held,
+static unsigned int check_verdicts(QryShared *run, unsigned long long *rule, unsigned long long *held,
                                    unsigned long long *carried, unsigned long long *reason, unsigned int room)
 {
     const unsigned char *code = NULL;
     unsigned long long code_size = 0ull;
     unsigned long long ask = 0ull;
-    unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
     unsigned int count = 0u;
-    if (!qry_latest(run, "question.bin", &code, &code_size, &ask) || !qry_joined(run, "verdicts", &bytes, &size))
+    (void)run;
+    if (!qry_member_blob("question.bin", &code, &code_size, &ask))
     {
         return 0u;
     }
+    const unsigned char *const bytes = s_gathered;
+    const unsigned long long size = check_gathered("verdicts");
     // a verdict's row: the who's two words, then its ask, rule, held, the byte it held at, its reason and carried
     unsigned long long row[8];
     for (unsigned long long at = 0ull; ((at + sizeof(row)) <= size) && (count < room); at += sizeof(row))
@@ -197,16 +190,15 @@ static unsigned int check_verdicts(QryBuffer *run, unsigned long long *rule, uns
             count += 1u;
         }
     }
-    free(bytes);
     return count;
 }
 
 // 1 where the latest blob `name` of the run is there and holds no byte
-static int check_latest_empty(QryBuffer *run, const char *name)
+static int check_latest_empty(QryShared *run, const char *name)
 {
     const unsigned char *bytes = NULL;
     unsigned long long size = 1ull;
-    return qry_latest(run, name, &bytes, &size, NULL) && (size == 0ull);
+    return qry_member_blob(name, &bytes, &size, NULL) && (size == 0ull);
 }
 
 // a question's identity as R keeps it (kqr.h): the hash of its code, its registers, its shape and launches, its
@@ -239,7 +231,7 @@ int main(int count, char **words)
         printf("overseer_check <overseer_carrier> [<cubin_run> <machine file> <layout> <cross> <nvdisasm>]\n");
         return 2;
     }
-    QryBuffer *const run = qry_run();
+    QryShared *const run = qry_member_run();
     check_that(run != NULL, "the check runs in a run whose writer runs");
     if (run == NULL)
     {
@@ -279,7 +271,7 @@ int main(int count, char **words)
 
     // tables: the conference a row of the run's conferences, each account it heard a row of its accounts and its
     // lesson a row of its lessons, each naming the conference by the number of the question's identity
-    const unsigned long long consensus = qry_row_text(run, "check-consensus", strlen("check-consensus"));
+    const unsigned long long consensus = table_text("check-consensus", strlen("check-consensus"));
     unsigned long long last[10];
     unsigned int reads = 0u;
     check_that((check_rows_of(run, "conferences", 10u, consensus, last, 0ull, &reads) == 1u) && (last[3] == 1ull) &&
@@ -405,41 +397,6 @@ int main(int count, char **words)
     check_that(check_latest_holds(run, "trace", line),
                "trace: the teacher's line for the refused question is in the run");
     run_channel_close();
-
-    // trace: every path traces where QRY_TRACE is unset; a plain name keeps only its path, a name after `-` keeps its
-    // path out, 0 keeps every path out, and a panic's or a critical trace always reaches the run
-    static const struct
-    {
-        const char *chosen;
-        const char *path;
-        unsigned int priority;
-        int traced;
-        const char *what;
-    } s_traces[] = {
-        {"", "teacher", QRY_ORDINARY, 1, "trace: unset, every path traces"},
-        {"teacher", "teacher", QRY_ORDINARY, 1, "trace: a plain name traces its path"},
-        {"teacher", "airlock", QRY_ORDINARY, 0, "trace: and keeps every other path out"},
-        {"teacher,airlock", "airlock", QRY_ORDINARY, 1, "trace: a list of names traces each"},
-        {"-airlock", "airlock", QRY_ORDINARY, 0, "trace: a name after - keeps its path out"},
-        {"-airlock", "teacher", QRY_ORDINARY, 1, "trace: and every other path traces"},
-        {"0", "teacher", QRY_ORDINARY, 0, "trace: 0 keeps every path out"},
-        {"0", "teacher", QRY_PANIC, 1, "trace: but a panic's trace always reaches the run"},
-        {"airlock", "teacher", QRY_CRITICAL, 1, "trace: and a critical one's"},
-    };
-    for (size_t at = 0u; at < (sizeof(s_traces) / sizeof(s_traces[0])); at += 1u)
-    {
-#if defined(_WIN32)
-        _putenv_s(QRY_TRACE_ENVIRONMENT, s_traces[at].chosen);
-#else
-        setenv(QRY_TRACE_ENVIRONMENT, s_traces[at].chosen, 1);
-#endif
-        check_that(qry_traced(s_traces[at].path, s_traces[at].priority) == s_traces[at].traced, s_traces[at].what);
-    }
-#if defined(_WIN32)
-    _putenv_s(QRY_TRACE_ENVIRONMENT, "");
-#else
-    unsetenv(QRY_TRACE_ENVIRONMENT);
-#endif
 
     // airlock: a round the cross does not read, or reads and hands no held list after, is carried by nothing
     static const char *const s_crossings[] = {"unread", "silent"};

@@ -1,3 +1,4 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # tessera's daemon for one device, started by its socket: systemd hands the listening socket over as fd 3
 # (LISTEN_FDS=1), the daemon takes it instead of binding its own, and ends once it has held no job for its idle time.

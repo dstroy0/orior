@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // launch.c: the launch: the host's clock and its turn given up, the launch bounded and timed, the answers read, the container out, and a dry run written
 #include "cubin_run_internal.h"
@@ -318,41 +319,55 @@ void cubin_run_container_out(const char *answers_path, const unsigned char *cont
     const char *const dot = strrchr(answers_path, '.');
     const int stem = (dot != NULL) ? (int)(dot - answers_path) : (int)strlen(answers_path);
     snprintf(path, sizeof(path), "%.*s.cubin", stem, answers_path);
-    qry_hand(s_run, path, container, size, QRY_ORDINARY);
+    qry_member_append(path, container, size, QRY_ORDINARY);
 }
 
 // What a dry run would have handed the part, a record of each question: the question's shape, the gate's verdict, its
 // cases, and each place of its code. With the --query facet every place is written; without it, only the places that
 // are not as the run's first question holds them, read back as our reader reads them. The first question's code is
-// kept as dry_base.bin, and every place of it is written. The record is a blob dry.txt of the run's buffer, a blob
+// kept as dry_base.bin, and every place of it is written. The record is a blob dry.txt of the run, a blob
 // a question, and the base the blob dry_base.bin
 void cubin_run_dry_written(unsigned long long code_size, unsigned int registers, unsigned int launches,
                                   const CubinRunShape *shape, unsigned int verdict, unsigned long long at)
 {
     const char *const path = "dry.txt";
     const char *const base_path = "dry_base.bin";
-    CubinRunSaying *const dry = &s_dry_said;
-    cubin_run_say(dry,
-                  "question: %llu bytes of code, %u registers, %u threads in %u blocks, %u launches, %u cases; the "
-                  "gate: %s",
-                  code_size, registers, shape->threads, shape->blocks, launches, s_case_count,
-                  cubin_safe_name(verdict));
+    ScripturaLine *const dry = &s_dry_said;
+    scriptura_text(dry, "question: ");
+    scriptura_decimal(dry, (unsigned long long)(code_size), 0u);
+    scriptura_text(dry, " bytes of code, ");
+    scriptura_decimal(dry, (unsigned long long)(registers), 0u);
+    scriptura_text(dry, " registers, ");
+    scriptura_decimal(dry, (unsigned long long)(shape->threads), 0u);
+    scriptura_text(dry, " threads in ");
+    scriptura_decimal(dry, (unsigned long long)(shape->blocks), 0u);
+    scriptura_text(dry, " blocks, ");
+    scriptura_decimal(dry, (unsigned long long)(launches), 0u);
+    scriptura_text(dry, " launches, ");
+    scriptura_decimal(dry, (unsigned long long)(s_case_count), 0u);
+    scriptura_text(dry, " cases; the gate: ");
+    scriptura_text(dry, cubin_safe_name(verdict));
     if (verdict != CUBIN_SAFE)
     {
-        cubin_run_say(dry, " at byte %llu", at);
+        scriptura_text(dry, " at byte ");
+        scriptura_decimal(dry, (unsigned long long)(at), 0u);
     }
     // the first two words of each case, the first 64 cases where a question holds more
-    cubin_run_say(dry, "\n  cases");
+    scriptura_text(dry, "\n  cases");
     for (unsigned int place = 0u; (place < s_case_count) && (place < 64u); place += 1u)
     {
-        cubin_run_say(dry, " %x,%x", s_cases[place][0], s_cases[place][1]);
+        scriptura_text(dry, " ");
+        scriptura_hex(dry, (unsigned long long)(s_cases[place][0]), 0u);
+        scriptura_text(dry, ",");
+        scriptura_hex(dry, (unsigned long long)(s_cases[place][1]), 0u);
     }
-    cubin_run_say(dry, "%s\n", (s_case_count > 64u) ? " ..." : "");
+    scriptura_text(dry, (s_case_count > 64u) ? " ..." : "");
+    scriptura_text(dry, "\n");
     static unsigned char s_base[CUBIN_RUN_BYTES];
     const unsigned long long base_size = cubin_run_input(base_path, s_base, sizeof(s_base));
     if (base_size == 0ull)
     {
-        qry_hand(s_run, base_path, s_code, code_size, QRY_ORDINARY);
+        qry_member_append(base_path, s_code, code_size, QRY_ORDINARY);
     }
     for (unsigned long long place = 0ull; (place + 16ull) <= code_size; place += 16ull)
     {
@@ -373,7 +388,15 @@ void cubin_run_dry_written(unsigned long long code_size, unsigned int registers,
         {
             snprintf(text, sizeof(text), "no form");
         }
-        cubin_run_say(dry, "  %04llx  %016llx %016llx  %s\n", place, low, high, text);
+        scriptura_text(dry, "  ");
+        scriptura_hex(dry, (unsigned long long)(place), 4u);
+        scriptura_text(dry, "  ");
+        scriptura_hex(dry, (unsigned long long)(low), 16u);
+        scriptura_text(dry, " ");
+        scriptura_hex(dry, (unsigned long long)(high), 16u);
+        scriptura_text(dry, "  ");
+        scriptura_text(dry, text);
+        scriptura_text(dry, "\n");
     }
     cubin_run_said(dry, path, QRY_ORDINARY, 0);
 }

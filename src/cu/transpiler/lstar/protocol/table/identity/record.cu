@@ -1,6 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record.cu: the fields of the part's .ksc the walks read, the stall and the registers, the cases a question is put over, and the query record opened and closed
 #include "identity_internal.h"
+#include "../../../../../includes/parsers/who.h"
 
 // the instructions' bits `field` takes at instruction `index` of `code`, sixteen bytes an instruction
 unsigned long long stall_bits(const std::vector<unsigned char> &code, size_t index, const StallField &field)
@@ -112,7 +114,7 @@ std::map<std::string, StallField> stall_fields(const char *ksc)
     {
         char name[64];
         StallField field = {0u, 0u};
-        if (sscanf(file.line[at], "field %63s %u %u", name, &field.first, &field.bits) == 3)
+        if (ksc_field_read(file.line[at], name, sizeof(name), &field.first, &field.bits))
         {
             fields[name] = field;
         }
@@ -205,14 +207,14 @@ std::string s_record_ksc;
 // or sample that follows it and nowhere where none follows: a cycle the record answers whole adds no line to it
 KqrRecord s_query_record;
 
-// the flags of the trace's choices, read from their table (src/cu/types/file_defs/klq/query_trace.tsv) when the pair
+// the flags of the trace's choices, read from their table (src/cu/includes/file_defs/klq/query_trace.tsv) when the pair
 // mode opens
 QueryTrace s_query_trace;
 
 static std::string s_query_record_path;
 
 int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows,
-                               QryWho who);
+                               Who who);
 
 void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous,
                        const std::vector<unsigned int> &slots, const RunQuestion *question, unsigned long long *asks,
@@ -295,7 +297,7 @@ void record_open(const char *ksc, const char *mode)
     else
     {
         // the record a view of the run's table of asks, written as its rows put it together
-        kqr_tabled(&s_query_record, qry_run(), s_query_record_path.c_str());
+        kqr_tabled(&s_query_record, qry_member_run(), s_query_record_path.c_str());
     }
     kqr_mark(&s_query_record, KQR_CYCLE_RECORD, mode);
     static int s_registered = 0;

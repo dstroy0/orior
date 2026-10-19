@@ -1,12 +1,14 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cost.cu: the cost: each arrangement put at a link of its operator's word and the part's clock read around it
 #include "identity_internal.h"
+#include "../../../../../includes/parsers/who.h"
 
 // The link the arrangements of an operator, `own` among `rows`, are put at: of the links of the word of the web they
 // produce (word_produced), in the order the pair puts links, the first whose result a later link reads, that carries
 // the cases, whose operands and result are registers, whose chain names its registers, and which the chain can be cut
-// at with the clock read in its place. 1; 0 with `link->word` NULL where they produce no word sass.krs writes with two
-// reads, and 0 where no link is such
+// at with the clock read in its place. 1; 0 with `link->word` NULL where they produce no word the ruleset writes with
+// two reads, and 0 where no link is such
 static int operator_link(const Ruleset *sass, Carriers &carriers, unsigned long seed, const std::string &operator_name,
                          const std::vector<CostRow> &rows, const std::vector<size_t> &own, OperatorLink *link)
 {
@@ -51,8 +53,8 @@ static int operator_link(const Ruleset *sass, Carriers &carriers, unsigned long 
             continue;
         }
         const unsigned int base = carriers.magnitudes[chain.first].first;
-        const std::string start = "R" + std::to_string(base + 1u);
-        const std::string end = "R" + std::to_string(base + 2u);
+        const std::string start = ruleset_register(sass, "file", base + 1u);
+        const std::string end = ruleset_register(sass, "file", base + 2u);
         const std::string clock =
             "\tCS2R.32 \t" + start + ", SR_CLOCKLO;\n\tCS2R.32 \t" + end + ", SR_CLOCKLO;\n" +
             arrangement_written(sass, {{PRECEPT_SUB, PRECEPT_LEFT, PRECEPT_RIGHT}}, {end, start}, "", end, base + 4u);
@@ -99,17 +101,18 @@ static std::string placed_filled(const std::string &placed, const std::string &t
 // of a carrier of ours that holds the word they produce (word_web.h): the first link, in the order the pair puts
 // links, whose result a later link reads, that carries the cases, and whose operands and result are registers. The
 // link's operands are the arrangement's and its result the arrangement's root's. An arrangement each of whose nodes is
-// the precept of a word sass.krs writes is written node by node through it, and one with a node no such word writes is
-// left. Each is asked two questions over every case the host computes the carrier on: the carrier with the arrangement
-// in the link's place, held against the host's answers; and the part's clock read before and after the arrangement
-// written COST_REPEATS times, each time over the last time's result, the difference stored in place of the carrier's
-// answer. Each link is asked its clock read twice with nothing between, the clock's own. No question waits on another's
-// answer, and every one is written before any is put: all are put in one round, in an order drawn from KLQ_SEED, and
-// the round after puts again only those the part refused, declaring every register its file holds (cuts_asked). The
-// clock's reading is the words the part stores and no launch's time: each is an ask the query record answers once it is
-// asked, and a question the record holds is never put again. An arrangement the part answers apart or refuses keeps
-// no cost. Its cost is the least difference any case read, less the least its link's clock read alone, over
-// COST_REPEATS, in the part's clock count: written in its row of the .kdm with 1 run, the one reading.
+// the precept of a word the ruleset writes is written node by node through it, and one with a node no such word
+// writes is left. Each is asked two questions over every case the host computes the carrier on: the carrier with the
+// arrangement in the link's place, held against the host's answers; and the part's clock read before and after the
+// arrangement written COST_REPEATS times, each time over the last time's result, the difference stored in place of
+// the carrier's answer. Each link is asked its clock read twice with nothing between, the clock's own. No question
+// waits on another's answer, and every one is written before any is put: all are put in one round, in an order drawn
+// from the run's IDENTITY_SEED, and the round after puts again only those the part refused, declaring every register its file holds
+// (cuts_asked). The clock's reading is the words the part stores and no launch's time: each is an ask the query
+// record answers once it is asked, and a question the record holds is never put again. An arrangement the part
+// answers apart or refuses keeps no cost. Its cost is the least difference any case read, less the least its link's
+// clock read alone, over COST_REPEATS, in the part's clock count: written in its row of the .kdm with 1 run, the one
+// reading.
 // the run's blob cost.txt holds every arrangement with its link and what came of it.
 // The machine file's forms are costed the same way where `forms` names the blob the vendor's writer placed them in
 // (khw_machine_write, krs): a line `<relation> <signed> <low> <high> <text>`, the text with each operand of the
@@ -123,16 +126,15 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
                          const char *kdm, const char *machine_path, const char *forms, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
-    static SassMachine s_machine;
-    if ((sass == NULL) || (sass_machine_read(&s_machine, machine_path) == 0))
+    const Ruleset *const sass = identity_ruleset();
+    if (sass == NULL)
     {
-        printf("klq_identity cost: sass.krs or the machine file %s is not read\n", machine_path);
+        printf("klq_identity cost: the ruleset %s names is not read\n", IDENTITY_RULESET);
         return 1;
     }
     Carriers carriers;
     carriers_read(engine, host, &carriers);
-    const unsigned long seed = (getenv("KLQ_SEED") != NULL) ? std::stoul(getenv("KLQ_SEED")) : 1ul;
+    const unsigned long seed = identity_seed();
     // the .kdm's lines, and each arrangement's row among them
     std::vector<std::string> lines;
     std::vector<CostRow> rows;
@@ -152,33 +154,27 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     std::vector<CostForm> costed_forms;
     if (forms != NULL)
     {
-        unsigned char *bytes = NULL;
-        unsigned long long size = 0ull;
-        unsigned long long at = 0ull;
-        if (qry_file_read(qry_run(), forms, &bytes, &size))
+        // the latest blob of `forms` read where the run holds it, one row a form (forms_blob.h)
+        const unsigned char *rows = NULL;
+        unsigned long long rows_size = 0ull;
+        if (!qry_member_blob(forms, &rows, &rows_size, NULL))
         {
-            char line[1024];
-            while (qry_line_next(bytes, size, &at, line, sizeof(line)))
-            {
-                CostForm form = {std::string(), 0ull, 0ull, std::string(), ULLONG_MAX, 0ull, std::string()};
-                char relation[64];
-                int signed_read = 0;
-                int placed_at = 0;
-                if (sscanf(line, "%63s %d %llx %llx %n", relation, &signed_read, &form.low, &form.high, &placed_at) < 4)
-                {
-                    continue;
-                }
-                form.relation = relation;
-                form.placed = line + placed_at;
-                form.placed.erase(form.placed.find_last_not_of("\r\n") + 1u);
-                const int two_words = (form.placed.find("{0}") != std::string::npos) &&
-                                      (form.placed.find("{1}") != std::string::npos) &&
-                                      (form.placed.find("{2}") != std::string::npos) &&
-                                      (form.placed.find("{3}") == std::string::npos);
-                form.verdict = two_words ? std::string() : std::string("no two-word places");
-                costed_forms.push_back(form);
-            }
-            free(bytes);
+            rows = NULL;
+        }
+        for (unsigned long long row_at = 0ull; (rows != NULL) && (row_at < (rows_size / sizeof(FormsBlobRow)));
+             row_at += 1ull)
+        {
+            FormsBlobRow row;
+            memcpy(&row, rows + (row_at * sizeof(FormsBlobRow)), sizeof(row));
+            row.relation[sizeof(row.relation) - 1u] = '\0';
+            row.text[sizeof(row.text) - 1u] = '\0';
+            CostForm form = {row.relation, row.low, row.high, row.text, ULLONG_MAX, 0ull, std::string()};
+            const int two_words = (form.placed.find("{0}") != std::string::npos) &&
+                                  (form.placed.find("{1}") != std::string::npos) &&
+                                  (form.placed.find("{2}") != std::string::npos) &&
+                                  (form.placed.find("{3}") == std::string::npos);
+            form.verdict = two_words ? std::string() : std::string("no two-word places");
+            costed_forms.push_back(form);
         }
     }
     if (!run_channel_open(carrier, 60000000ull))
@@ -194,13 +190,8 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     std::vector<unsigned int> places;
     stall_cases(question.get(), &places);
     unsigned long long asks = 0ull;
-    const auto assembled = [&](const std::string &text) -> std::vector<unsigned char> {
-        std::vector<unsigned char> code(16u * 4096u);
-        const unsigned int count =
-            text.empty() ? 0u
-                         : sass_assemble_lines(&s_machine, text.c_str(), SASS_CONTROL_SAFE, code.data(), code.size());
-        code.resize(16u * count);
-        return code;
+    const auto assembled = [machine_path](const std::string &text) -> std::vector<unsigned char> {
+        return text.empty() ? std::vector<unsigned char>() : vendor_assembled(machine_path, text);
     };
     // every question of the job, written before any is put: its code, the registers it declares, the row it asks of,
     // or the link whose clock it reads alone where it is past every row, and whether it holds the row against the host
@@ -236,7 +227,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         {
             if (operator_at.word == NULL)
             {
-                run_print(&table, "%s: its arrangements produce no word of two reads sass.krs writes\n",
+                run_print(&table, "%s: its arrangements produce no word of two reads the ruleset writes\n",
                           each.first.c_str());
                 own_left(own, "unwritable");
                 continue;
@@ -261,10 +252,10 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         snprintf(address, sizeof(address), "%s:%04x", chain.first.c_str(), 16u * (unsigned int)link_at);
         run_print(&table, "%s at %s, %s in place of %s", each.first.c_str(), address, word->name, found_text.c_str());
         run_print(&table, "%s", (!found_text.empty() && (found_text.back() == '\n')) ? "" : "\n");
-        const std::string ones = "R" + std::to_string(base);
-        const std::string start = "R" + std::to_string(base + 1u);
-        const std::string end = "R" + std::to_string(base + 2u);
-        const std::string last = "R" + std::to_string(base + 3u);
+        const std::string ones = ruleset_register(sass, "file", base);
+        const std::string start = ruleset_register(sass, "file", base + 1u);
+        const std::string end = ruleset_register(sass, "file", base + 2u);
+        const std::string last = ruleset_register(sass, "file", base + 3u);
         const unsigned int mark = base + 4u + PRECEPT_NODES;
         const std::string ones_written =
             arrangement_written(sass, {{PRECEPT_NOT, PRECEPT_ZERO, PRECEPT_NONE}}, {}, "", ones, base + 4u);
@@ -337,9 +328,9 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         }
         const auto &chain = *forms_link.link.chain;
         const auto &flow = carriers.flows[chain.first];
-        const std::string start = "R" + std::to_string(forms_link.base + 1u);
-        const std::string end = "R" + std::to_string(forms_link.base + 2u);
-        const std::string last = "R" + std::to_string(forms_link.base + 3u);
+        const std::string start = ruleset_register(sass, "file", forms_link.base + 1u);
+        const std::string end = ruleset_register(sass, "file", forms_link.base + 2u);
+        const std::string last = ruleset_register(sass, "file", forms_link.base + 3u);
         const unsigned int mark = forms_link.base + 4u + PRECEPT_NODES;
         std::string block = "\tCS2R.32 \t" + start + ", SR_CLOCKLO;\n";
         for (unsigned int again = 0u; again < COST_REPEATS; again += 1u)
@@ -375,9 +366,9 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     // the plan handed as the teacher hands one, for the panel: the questions of the one round
     char plan[64];
     const int plan_length = snprintf(plan, sizeof(plan), "cost %zu\n", round.size());
-    if ((plan_length > 0) && (qry_run() != NULL))
+    if ((plan_length > 0) && (qry_member_run() != NULL))
     {
-        qry_hand(qry_run(), "plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
+        qry_member_append("plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
     }
     printf("  plan: cost %zu\n", round.size());
     printf("  %zu questions written, put in one round\n", round.size());
@@ -502,15 +493,15 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     int held = 1;
     for (const std::string &each : lines)
     {
-        held = held && ktext_line_add(&written, each.c_str());
+        held = held && kfile_lines_line_add(&written, each.c_str());
     }
     const unsigned int tail = kdm_tail_at(&written);
     std::vector<const char *> section;
-    QryWho who;
+    Who who;
     int who_held = 0;
     for (unsigned int at = 1u; at < tail; at += 1u)
     {
-        if (!ktext_who_line(written.line[at], &who, &who_held))
+        if (!kfile_lines_who_line(written.line[at], &who, &who_held))
         {
             section.push_back(written.line[at]);
         }
@@ -536,19 +527,19 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
 }
 
 // The pairs the arrangements of the .kdm at `kdm` hold and no chain of ours does, those of `held` left: each
-// arrangement whose nodes sass.krs writes is written at its operator's link as the cost puts it (operator_link), and
+// arrangement whose nodes the ruleset writes is written at its operator's link as the cost puts it (operator_link), and
 // where a node's result is read by the very next node, the pair of their operations is probed there. At most `most`
 // arrangements are a pair's probes, and each is written with every stall the longest and asked at every stall of its
 // writer, each ask into `asks` and its code into `codes`
 void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
-                               const std::string &kdm, const Ruleset *sass, const SassMachine *machine,
+                               const std::string &kdm, const Ruleset *sass, const char *machine_path,
                                const StallField &stall, unsigned long long longest,
                                const std::set<std::pair<std::string, std::string>> &held, size_t most,
                                std::vector<StallAsk> *asks, std::vector<std::vector<unsigned char>> *codes)
 {
     Carriers carriers;
     carriers_read(engine, host, &carriers);
-    const unsigned long seed = (getenv("KLQ_SEED") != NULL) ? std::stoul(getenv("KLQ_SEED")) : 1ul;
+    const unsigned long seed = identity_seed();
     std::vector<std::string> lines;
     std::vector<CostRow> rows;
     std::map<std::string, std::vector<size_t>> operators;
@@ -566,13 +557,11 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
         const std::smatch &found = at_link.link.found;
         const std::string before = chain.second.substr(0u, (size_t)found.position(0));
         const std::string past = chain.second.substr((size_t)(found.position(0) + found.length(0)));
-        const std::string ones = "R" + std::to_string(at_link.base);
+        const std::string ones = ruleset_register(sass, "file", at_link.base);
         const std::string ones_written =
             arrangement_written(sass, {{PRECEPT_NOT, PRECEPT_ZERO, PRECEPT_NONE}}, {}, "", ones, at_link.base + 4u);
-        std::vector<unsigned char> code(16u * 4096u);
         // the instructions before the arrangement's first node
-        const unsigned int ahead =
-            sass_assemble_lines(machine, (before + ones_written).c_str(), SASS_CONTROL_SAFE, code.data(), code.size());
+        const unsigned int ahead = (unsigned int)(vendor_assembled(machine_path, before + ones_written).size() / 16u);
         for (const size_t at : each.second)
         {
             const CostRow &row = rows[at];
@@ -607,14 +596,13 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
                 {
                     continue;
                 }
-                const unsigned int count =
-                    sass_assemble_lines(machine, (before + ones_written + standing + past).c_str(), SASS_CONTROL_SAFE,
-                                        code.data(), code.size());
+                std::vector<unsigned char> written =
+                    vendor_assembled(machine_path, before + ones_written + standing + past);
+                const size_t count = written.size() / 16u;
                 if (count == 0u)
                 {
                     continue;
                 }
-                std::vector<unsigned char> written(code.begin(), code.begin() + (long)(16u * count));
                 for (size_t index = 0u; index < count; index += 1u)
                 {
                     stall_bits_write(&written, index, stall, longest);

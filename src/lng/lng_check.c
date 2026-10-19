@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lng_check.c: the three language tables held against the tree and against each other (lng.h), run from the top of
 // the tree by lng_check.sh.
@@ -7,6 +8,7 @@
 // Each defect is printed and the run exits 1. A finding does not fail the run. Exit 2 where a table, the schema or
 // gnascor could not be read
 #include "lng.h"
+#include "verba_scribo/verba_scribo.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,12 +18,12 @@
 #define LNG_GNASCOR "src/cu/transpiler/gnascor.md"
 #define LNG_FORMS "src/cu/transpiler/lstar/protocol/table/cu.krs"
 
-static KtextFile s_file;
+static KfileLines s_file;
 
 // the file at `path` read into s_file, or the run ended where it holds no line
 static void lng_check_read(const char *path)
 {
-    if (!ktext_read(&s_file, path) || (s_file.lines == 0u))
+    if (!kfile_lines_read(&s_file, path) || (s_file.lines == 0u))
     {
         fprintf(stderr, "lng_check: %s could not be read\n", path);
         exit(2);
@@ -83,19 +85,19 @@ int main(void)
     const LngList kdms = found[2];
     for (unsigned int at = 0u; at < rulesets.count; at += 1u)
     {
-        ktext_read(&s_file, rulesets.text[at]);
+        kfile_lines_read(&s_file, rulesets.text[at]);
         lng_ruleset_words(rulesets.text[at], (const char *const *)s_file.line, s_file.lines, &used);
     }
     for (unsigned int at = 0u; at < kscs.count; at += 1u)
     {
-        ktext_read(&s_file, kscs.text[at]);
+        kfile_lines_read(&s_file, kscs.text[at]);
         lng_ksc_words(kscs.text[at], &s_file, &used);
     }
     for (unsigned int at = 0u; at < (kscs.count + kdms.count); at += 1u)
     {
         const char *const path = (at < kscs.count) ? kscs.text[at] : kdms.text[at - kscs.count];
         LngList kept = {NULL, 0u, 0u};
-        ktext_read(&s_file, path);
+        kfile_lines_read(&s_file, path);
         lng_ruleset_lines(&s_file, &kept);
         lng_ruleset_words(path, (const char *const *)kept.text, kept.count, &used);
         lng_list_free(&kept);
@@ -112,15 +114,19 @@ int main(void)
 
     // gnascor's word map, read whole
     lng_check_read(LNG_GNASCOR);
-    QryText text = {NULL, 0ull, 0ull, 0};
+    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    size_t joined = 0u;
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
-        qry_text_printed(&text, "%s\n", s_file.line[line]);
+        joined = verba_textus.put(
+            &(VerbaTextusCfg){.out = s_text_bytes, .cap = sizeof(s_text_bytes), .at = joined, .text = s_file.line[line]});
+        joined = verba_littera.ch(
+            &(VerbaLitteraCfg){.out = s_text_bytes, .cap = sizeof(s_text_bytes), .at = joined, .ch = '\n'});
     }
+    (void)verba_finis.finish(&(VerbaFinisCfg){.out = s_text_bytes, .cap = sizeof(s_text_bytes), .at = joined});
     LngList listed[3] = {{NULL, 0u, 0u}, {NULL, 0u, 0u}, {NULL, 0u, 0u}};
     static const char *const s_listed_kind[3] = {"doing", "gluing", "thing"};
-    lng_gnascor_lists((text.bytes != NULL) ? text.bytes : "", &listed[2], &listed[0], &listed[1]);
-    qry_text_freed(&text);
+    lng_gnascor_lists(s_text_bytes, &listed[2], &listed[0], &listed[1]);
     LngList listed_words = {NULL, 0u, 0u};
     for (unsigned int kind = 0u; kind < 3u; kind += 1u)
     {
@@ -188,7 +194,7 @@ int main(void)
     // the forms of cu.krs, each its name and its text
     LngList form_names = {NULL, 0u, 0u};
     LngList form_texts = {NULL, 0u, 0u};
-    ktext_read(&s_file, LNG_FORMS);
+    kfile_lines_read(&s_file, LNG_FORMS);
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
         const char *const text_line = s_file.line[line];
@@ -245,6 +251,6 @@ int main(void)
     lng_table_free(&table);
     lng_list_free(&findings);
     lng_list_free(&defects);
-    ktext_free(&s_file);
+    kfile_lines_free(&s_file);
     return failed ? 1 : 0;
 }

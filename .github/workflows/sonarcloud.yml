@@ -1,7 +1,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# SonarQube Cloud over the app in src/ui, on each push to main and each pull request that changes
+# SonarQube Cloud over the app in ui, on each push to main and each pull request that changes
 # it: its JavaScript, its stylesheet and page, and its Rust with Clippy's findings read in.
 #
 # Three things are done by hand once. The project is made at sonarcloud.io from this repository, in
@@ -15,11 +15,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/ui/**"
+      - "ui/**"
       - ".github/workflows/sonarcloud.yml"
   pull_request:
     paths:
-      - "src/ui/**"
+      - "ui/**"
       - ".github/workflows/sonarcloud.yml"
   workflow_dispatch:
 
@@ -47,8 +47,8 @@ jobs:
       # the reports is given under both names SonarSource's pages give it.
       - name: Clippy
         run: |
-          for crate in cli src-tauri test; do
-            cargo clippy --manifest-path "src/ui/$crate/Cargo.toml" --all-targets --message-format=json > "clippy-$crate.json" || true
+          for crate in gui/src-tauri test; do
+            cargo clippy --manifest-path "ui/$crate/Cargo.toml" --all-targets --message-format=json > "clippy-${crate##*/}.json" || true
           done
 
       - uses: SonarSource/sonarqube-scan-action@v6
@@ -58,10 +58,10 @@ jobs:
           args: >
             -Dsonar.organization=dstroy0
             -Dsonar.projectKey=dstroy0_orior
-            -Dsonar.sources=src/ui
-            -Dsonar.tests=src/ui/test
-            -Dsonar.exclusions=src/ui/test/**,src/ui/**/target/**,src/ui/docs/**
-            -Dsonar.test.inclusions=src/ui/test/**
-            -Dsonar.test.exclusions=src/ui/test/target/**,src/ui/test/runs/**
-            -Dsonar.rust.clippy.reportPaths=clippy-cli.json,clippy-src-tauri.json,clippy-test.json
-            -Dsonar.rust.clippyReport.reportPaths=clippy-cli.json,clippy-src-tauri.json,clippy-test.json
+            -Dsonar.sources=ui
+            -Dsonar.tests=ui/test
+            -Dsonar.exclusions=ui/test/**,ui/**/target/**,ui/docs/**
+            -Dsonar.test.inclusions=ui/test/**
+            -Dsonar.test.exclusions=ui/test/target/**,ui/test/runs/**
+            -Dsonar.rust.clippy.reportPaths=clippy-src-tauri.json,clippy-test.json
+            -Dsonar.rust.clippyReport.reportPaths=clippy-src-tauri.json,clippy-test.json

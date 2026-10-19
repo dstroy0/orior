@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // read.h: the vendor's instruction set read: each CLASS with its opcode, its fields by name, each a run of bits or
 // several, and its constant-bank operand where it holds one

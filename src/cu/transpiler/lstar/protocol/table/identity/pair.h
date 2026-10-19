@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair.h: what the modules of the pair share: the work of one pair pass, and a link of a carrier a put logs its
 // product at
@@ -49,7 +50,7 @@ struct PutLink
     int logged(PairWork &work) const;
 };
 
-// The work of one pair pass: the host's answers to the carriers' cases, the ruleset, the part's machine, the
+// The work of one pair pass: the host's answers to the carriers' cases, the ruleset, the path of the part's machine file, the
 // carriers, the seed the order of the links of one magnitude is drawn from, the bridge's lines and its keys, the
 // schema's forms in its order, the values the cases are made of, and the counts of conferences held, lessons taught
 // and asks put
@@ -57,7 +58,7 @@ struct PairWork
 {
     std::map<std::string, std::vector<std::string>> host;
     const Ruleset *sass = NULL;
-    SassMachine *machine = NULL;
+    const char *machine = NULL;
     Carriers carriers;
     unsigned long seed = 1ul;
     std::vector<std::string> bridge;

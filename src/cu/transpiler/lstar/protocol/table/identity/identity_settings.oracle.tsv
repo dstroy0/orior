@@ -1,0 +1,8 @@
+where	who	kind	form	gloss
+record	query crate	identity.seed	1 word	the seed the order of a magnitude's links is drawn from, the low byte first
+record	query crate	identity.ruleset	the path's bytes	the ruleset the identity writes forms in, its path from the top of the tree
+record	query crate	identity.writer	3136 bytes	the vendor's writer, an IdentityWriter
+writer 0	query crate	program	1024 bytes	the writer's program, ended by a NUL
+writer 1	query crate	part	64 bytes	the part it writes for, ended by a NUL
+writer 2	query crate	layout	1024 bytes	the part's layout file, ended by a NUL
+writer 3	query crate	mnemonics	1024 bytes	the part's mnemonics file, ended by a NUL

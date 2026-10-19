@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sass_machine_internal.h: what the modules of the machine file's reader and writer share: its includes, the line ending, the names of the operand kinds and marks, and the functions one module reads from another (sass_machine.h)
 #ifndef SASS_MACHINE_INTERNAL_H
@@ -5,8 +6,8 @@
 
 #include "../sass_machine.h"
 
-#include "../../../../types/file_defs/ksc/ksc.h"
-#include "../../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../includes/file_defs/qry/writer/qry_member.h"
 
 #include <stdio.h>
 #include <stdlib.h>

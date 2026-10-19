@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #ifndef RUN_CHANNEL_H
 #define RUN_CHANNEL_H
@@ -114,7 +115,7 @@ typedef struct
 
 // The channel opened on the carrier `carrier`, the words that start it ended by NULL, and each question given
 // `limit_microseconds` before its process is ended. Every file of the channel is a blob of the run's .qry, handed to
-// the run's buffer (qry_buffer.h), and the carrier is handed the blobs' names: no file of the channel is written to
+// the run (qry_member.h), and the carrier is handed the blobs' names: no file of the channel is written to
 // disk but by the run's writer. The round a carrier is about to carry, questions.txt, is handed critical and is on disk
 // before the carrier starts; a round that cannot be put there is not carried. 1, or 0 with the reason printed where
 // no writer runs for the run. A channel is opened once and every question after goes through it.
@@ -143,7 +144,7 @@ typedef struct
 // question of no shape of its own held only for registers past the count its kernel allots is given the count that
 // clears every hold of it, and the round is listed again and read again, until no question is given one. A count
 // changes how a question is put and never what it asks. Every hold, every question kept held and every count given is
-// a line of the teacher's trace (QRY_TRACE, the path `teacher`), `teacher: <identity> checked: <what>`, so that a
+// a line of the teacher's trace (the record `teacher`), `teacher: <identity> checked: <what>`, so that a
 // branch the learner took is traced back to the check that put its question
 int run_channel_open(const char *const *carrier, unsigned long long limit_microseconds);
 

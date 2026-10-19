@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The alphabet web and the word web read once each and held to what a tree is (web_check.c). Both are headers of the
 # compiler's own, so this needs no device, no CUDA toolchain and no ruleset
@@ -8,7 +9,7 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
+CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp web_check
 

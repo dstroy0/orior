@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #ifndef QUERY_INTERFACE_H
 #define QUERY_INTERFACE_H
@@ -17,13 +18,12 @@
 // the most addresses one probe is given, which bounds the lines it writes back
 #define QUERY_INTERFACE_MOST 1024ull
 
-// one walk: the program it runs as, the file its probe writes to, the qualifier put at every address, the addresses,
-// and how long a probe is given before the interface ends it
+// one walk: the program it runs as, the qualifier put at every address, the addresses, and how long a probe is given
+// before the interface ends it
 typedef struct
 {
-    // the built query_walk, and the file the interface has it write its lines to
+    // the built query_walk, which hands its lines to the run this process is a member of (QUERY_WALK_RECORD)
     const char *program;
-    const char *output_path;
     // a QueryQualifier, put at every address
     unsigned int qualifier;
     // the first address, how many, and the bytes between two

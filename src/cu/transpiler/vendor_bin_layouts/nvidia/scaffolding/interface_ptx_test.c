@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // The interface's PTX test (engine_table.md item 11(f) 4). The interface runs interface_ptx_probe, one question a process: the
 // membership queries, every arithmetic, test and conversion form of ptx.krs checked against the host's integers; then

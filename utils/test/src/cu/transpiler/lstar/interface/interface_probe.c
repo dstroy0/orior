@@ -1,10 +1,11 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #if !defined(_WIN32)
 // nanosleep is POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
 #endif
-// A probe for the interface test: one question a process, named by its first word, asked of the host part and its system.
-// Built with no optimization: each question reaches the part as written. The operands are volatile: no compiler
+// A probe for the interface test: one question a process, named by its first word, asked of the host part and its
+// system. Built with no optimization: each question reaches the part as written. The operands are volatile: no compiler
 // folds a division it can see is undefined, and the part itself answers
 #include <limits.h>
 #include <stdint.h>

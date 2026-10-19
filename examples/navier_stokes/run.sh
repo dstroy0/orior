@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds a driver on the host and runs it on the cfg named: bash run.sh core_rule cfg/core_rule.cfg
 set -u
@@ -21,7 +22,7 @@ build_stamp navier_stokes
 
 SIMS_CU="$SRC/sims/cu"
 SCRIPTURA="$SRC/cu/engine/runtime/scriptura"
-NO_ROUNDING="$SRC/cu/types/integers"
+NO_ROUNDING="$SRC/cu/includes/types/integers"
 CFG_JSON="$SRC/cu/includes/formats/cfg_json"
 DAEMON_DIRECTORY="$SRC/cu/engine/runtime/daemon"
 OBSIGNATIO="$SRC/cu/engine/runtime/obsignatio"

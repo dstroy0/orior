@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Every ruleset read against its code generator's schema, and the files each is read from held against each other for
 # the relations no set of them should hold (ruleset_read_test.cu); files given as arguments are held against each
@@ -10,7 +11,7 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
+CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp ruleset_read_test
 
@@ -18,7 +19,7 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU
 BINARY="$OUT/ruleset_read_test"
 rm -f "$BINARY"
 OBJECTS=()
-for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu "$TEST/ruleset_read_test.cu"; do
+for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu "$TEST/ruleset_read_test.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) continue ;;
     esac

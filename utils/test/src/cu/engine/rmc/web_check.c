@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // web_check.c: every tree of the alphabet web and the word web read once, and held to what a tree is. A node may
 // reach only nodes below it, which is what makes the root reachable and keeps a tree from looping; a node's children

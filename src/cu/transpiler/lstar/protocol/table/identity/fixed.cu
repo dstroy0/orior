@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fixed.cu: the fixed registers asked of the part: the slot of the kernel the system accepted, the register that reads
 // 0 whatever is written to it, and what each register holds at the slot (The fixed registers asked, Open 6.2)
@@ -50,6 +51,9 @@ static std::vector<unsigned char> place_put(const std::vector<unsigned char> &ke
     return variant;
 }
 
+// the yield field as the part's .ksc gives it, none where it gives no row
+static StallField s_yield = {0u, 0u};
+
 // place `place` of `variant` put to stall the longest with its yield bit clear: the gate lets an instruction no form
 // holds through with the longest stall alone, and the vendor's reader takes the longest stall with the yield bit
 // clear alone, the two bits together an encoding it calls illegal
@@ -57,8 +61,7 @@ static void place_stalled_longest(std::vector<unsigned char> *variant, unsigned 
                                   unsigned long long longest)
 {
     stall_bits_write(variant, place, stall, longest);
-    const StallField yield_bit = {SASS_YIELD_FIRST, 1u};
-    stall_bits_write(variant, place, yield_bit, 0ull);
+    stall_bits_write(variant, place, s_yield, 0ull);
 }
 
 // what the mode holds while it asks: the cases' host places, the question, the asks counted, the blob fixed.txt, and
@@ -95,33 +98,34 @@ static void fixed_closed(FixedAsk *ask)
     run_channel_close();
 }
 
-// The fixed registers asked (Open 6.2), over the kernel the system accepted, read whole from the run's kernel.txt as
-// the frame reads it. The slot: each place from the opening's beginning is put holding the encoding the unreached
-// places hold, the last place's, and the first whose kernel answers the case's second word on every case is the slot,
-// nothing then writing the register the kernel stores: `run answers <s> slot place`. Zero: the slot's own instruction
-// is put writing the top of the register field, and the kernel's own closing stores, which read that register, read it
-// back in the record's second word; the top reads 0 where that word is 0 on every case whatever the slot wrote:
-// `run answers <n> fixed zero`. No other register is asked for it: a question changes one place no form of the
-// machine holds, the gate's bound, and the kernel's store is held by no form once changed. What each register holds:
-// for each register n the kernel holds, the slot's instruction is put with n as its first source and zero as its
-// second, and the stored answer is n's value, read against the thread's number and the case's words (fixed_read.h):
-// `run answers <n> fixed lane_number`, `fixed record`, `fixed index`, `case word 0` and `case word 1`, each kind the
-// lowest register holding it. The place a variant changes is put with its stall the longest and its yield bit clear,
-// the one way the gate lets an instruction no form holds through and the vendor's reader takes it, as the walks'
-// chains are put. Each ask and each reading is a line of the run's blob fixed.txt. 0 where the rows are written or
-// the run is dry, 1 otherwise with the reason printed
+// The fixed registers asked (Open 6.2), over the kernel the system accepted, read whole from the run's kernel blob
+// (kernel_blob.h) as the frame reads it. The slot: each place from the opening's beginning is put holding the encoding
+// the unreached places hold, the last place's, and the first whose kernel answers the case's second word on every
+// case is the slot, nothing then writing the register the kernel stores: `run answers <s> slot place`. Zero: the
+// slot's own instruction is put writing the top of the register field, and the kernel's own closing stores, which
+// read that register, read it back in the record's second word; the top reads 0 where that word is 0 on every case
+// whatever the slot wrote: `run answers <n> fixed zero`. No other register is asked for it: a question changes one
+// place no form of the machine holds, the gate's bound, and the kernel's store is held by no form once changed. What
+// each register holds: for each register n the kernel holds, the slot's instruction is put with n as its first source
+// and zero as its second, and the stored answer is n's value, read against the thread's number and the case's words
+// (fixed_read.h): `run answers <n> fixed lane_number`, `fixed record`, `fixed index`, `case word 0` and `case word 1`,
+// each kind the lowest register holding it. The place a variant changes is put with its stall the longest and its
+// yield bit clear, the one way the gate lets an instruction no form holds through and the vendor's reader takes it,
+// as the walks' chains are put. Each ask and each reading is a line of the run's blob fixed.txt. 0 where the rows are
+// written or the run is dry, 1 otherwise with the reason printed
 int identity_fixed(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                    const char *const *carrier)
 {
     (void)engine;
     (void)answers;
-    std::vector<unsigned char> kernel;
+    const unsigned char *code = NULL;
+    unsigned int places = 0u;
     unsigned int registers = 0u;
-    if (!frame_kernel_read("fixed", &kernel, &registers))
+    if (!frame_kernel_read(&code, &places, &registers))
     {
         return 1;
     }
-    const unsigned int places = (unsigned int)(kernel.size() / 16u);
+    std::vector<unsigned char> kernel(code, code + (16u * (size_t)places));
     std::map<std::string, StallField> fields = stall_fields(ksc);
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
         (fields.count("rb") == 0u))
@@ -133,6 +137,7 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     const StallField rd = fields["rd"];
     const StallField ra = fields["ra"];
     const StallField rb = fields["rb"];
+    s_yield = (fields.count("yield") != 0u) ? fields["yield"] : StallField{0u, 0u};
     const unsigned long long longest = (1ull << stall.bits) - 1ull;
     const unsigned long long top = (1ull << rd.bits) - 1ull;
     const unsigned int from = fixed_opening_read(ksc);

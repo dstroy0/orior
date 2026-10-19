@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The construction set of the register lane's VHDL on a part, measured by the machine (engine_table.md item 11(f)):
@@ -9,7 +10,7 @@
 // what the lane's schedule model gives a form it does not name. The set is written as a krep KCS file and read back
 // whole, and the file is removed where the two differ.
 #include "crc.h"
-#include "../engine/parser/krep.h"
+#include "../includes/file_defs/krep/krep.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"
 

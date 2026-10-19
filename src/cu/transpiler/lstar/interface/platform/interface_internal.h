@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_internal.h: what interface.c and the platforms' probes share: the includes, the bounds of a probe's
 // clock, polling, reads and drain, the check every failure goes through, and the functions each reads from the other
@@ -10,7 +11,6 @@
 #endif
 #include "../interface.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,5 +49,8 @@ unsigned long long interface_now(void);
 // the probe started and run to its end or its limit by the platform's own means (platform/windows.c,
 // platform/posix.c): 0 where it was waited on to its end; -1 where the output file or the pipe could not be made
 long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error);
+// the probe's output file read back by the platform's own means: its length whole, and as much of it as the answer's
+// capacity holds; 0, or -1 where the file could not be read whole
+long interface_output_file_read(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error);
 
 #endif

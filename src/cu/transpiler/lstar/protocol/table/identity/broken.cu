@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // broken.cu: the broken: ours held against the answer question by question, each place they part traced to the forms that wrote it
 #include "identity_internal.h"

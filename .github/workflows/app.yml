@@ -65,7 +65,7 @@ jobs:
           BUNDLES: ${{ matrix.bundles }}
           TARGET: ${{ matrix.target }}
         run: |
-          cd src/ui/src-tauri
+          cd ui/gui/src-tauri
           args=(--bundles "$BUNDLES")
           if [ -n "$TARGET" ]; then args+=(--target "$TARGET"); fi
           if [ -n "$TAG" ]; then args+=(--config "{\"version\":\"${TAG#v}\"}"); fi

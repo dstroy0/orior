@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_unprinted.c: bits the disassembler does not print, asked of the part. A question is a few
 // instructions put in place of the kernel's IADD3, one of them the instruction whose bits are turned. That instruction

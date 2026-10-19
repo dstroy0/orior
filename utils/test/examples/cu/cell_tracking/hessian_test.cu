@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The scan's hessian, faces and drift (cell_tracking/src/peaks/hessian and cell_tracking/src/scan/drift). Every voxel
@@ -11,7 +12,7 @@
 // after frame as the scan calls it, and both find a drawn set's known shift. Malformed requests error. The test is one
 // job on the device's tessera daemon, submitted before its first device work.
 #include "drift.h"
-#include "../../../../../src/cu/types/integers/exact_integer.h"
+#include "../../../../../src/cu/includes/types/integers/exact_integer.h"
 #include "hessian.h"
 #include "../../../../../src/cu/engine/analysis/shift_agreement/shift_agreement.h"
 #include "sim.h"

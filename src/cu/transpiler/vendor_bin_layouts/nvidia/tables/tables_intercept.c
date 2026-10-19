@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tables_intercept.c: every heap block the vendor's disassembler lets go, or still holds as it ends, and every copy
 // it makes, written out whole, so that the tables it unpacks for one architecture are read off them: the

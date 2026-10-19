@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface.c: a probe run through the interface: its output kept, ended and read back, the host's clock, and the
 // probe run to its end on whichever platform holds it (platform/windows.c, platform/posix.c)
@@ -54,28 +55,6 @@ unsigned long long interface_now(void)
 }
 
 
-// the probe's output read back: its length whole, and as much of it as the answer's capacity holds
-static long interface_output_read(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
-{
-    FILE *const file = fopen(probe->output_path, "rb");
-    if (!INTERFACE_CHECK(file != NULL, probe->output_path, error, ENGINE_ERROR_RESOURCE))
-    {
-        return -1L;
-    }
-    char piece[INTERFACE_READ_BYTES];
-    unsigned long long total = 0ull;
-    size_t read = fread(piece, 1u, sizeof(piece), file);
-    while (read != 0u)
-    {
-        interface_output_kept(answer, &total, piece, read);
-        read = fread(piece, 1u, sizeof(piece), file);
-    }
-    const int complete = ferror(file) == 0;
-    fclose(file);
-    interface_output_ended(answer, total);
-    return INTERFACE_CHECK(complete, probe->output_path, error, ENGINE_ERROR_RESOURCE) ? 0L : -1L;
-}
-
 long interface_probe_run(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {
     answer->ending = INTERFACE_ENDING_NOT_STARTED;
@@ -96,5 +75,5 @@ long interface_probe_run(const InterfaceProbe *probe, InterfaceAnswer *answer, E
         return -1L;
     }
     // output that came through the pipe is in the answer already
-    return (probe->output_path != NULL) ? interface_output_read(probe, answer, error) : 0L;
+    return (probe->output_path != NULL) ? interface_output_file_read(probe, answer, error) : 0L;
 }

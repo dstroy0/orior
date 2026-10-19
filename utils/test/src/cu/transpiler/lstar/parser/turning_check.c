@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // turning_check.c: the turning case of a ladder form held: the first case of its relation whose three readings in the
 // register pass stand apart, so that no run is placed by a coincidence
@@ -14,7 +15,7 @@
 //            are one run where one field holds both, the narrowest where fields nest, or none holds either
 //
 //     turning_check
-#include "../../../../../../../src/cu/transpiler/lstar/parser/khw_write/khw_write_internal.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;

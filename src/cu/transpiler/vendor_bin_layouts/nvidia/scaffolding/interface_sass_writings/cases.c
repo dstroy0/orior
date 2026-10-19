@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cases.c: the cases: a file read, an anchor that fits, the relations and the expected answers, the cases written, the kernel, a splice, a mark and a swap, a form that fits, the table and the sources, digits in order, an instruction and the container written
 #include "writings_internal.h"

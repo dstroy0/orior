@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The checkers of cell_tracking/src/check shown to fire: check_test writes a good set for each checker and a broken
 # copy for each fault it names, and each checker is run on every copy. The good sets must exit 0 with no fault; each

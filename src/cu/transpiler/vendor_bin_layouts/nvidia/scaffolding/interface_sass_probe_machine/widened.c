@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // widened.c: the machine widened: a form's fields, an operation named, what a widening holds, the machine widened, its fields, the sweep's carriers, the machine swept, and two machines the same
 #include "probe_machine_internal.h"

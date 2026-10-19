@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Proves the reversible lookup edges sandwiched between tower floors: a lift that applies permutation
 // edges between its floors and a lower that replays their inverses in reverse rebuilds the lanes

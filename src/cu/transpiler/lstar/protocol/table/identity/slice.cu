@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // slice.cu: the slice: nvcc's writing of the stick cut into windows, each an identity at the address it occurs at, and the chains written
 #include "identity_internal.h"

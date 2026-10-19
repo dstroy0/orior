@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rank_file.cu: a parquet file read for the ranker, every row group in order, its pages decoded by the engine's own
 // codecs through the CASMI parquet reader. Each double keeps the 64 bits it is stored as; each text column's strings

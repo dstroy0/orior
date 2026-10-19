@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // klq_identity.cu: the identities a language's questions carry, read off the measuring stick and written to Lstar.klq
 //
@@ -34,13 +35,13 @@
 // occurs at, each primitive a link that first occurs where it stands, and each chain a signature of the identities it
 // is read as, its primitives and its operands, with a number its contents in their order give it.
 //
-// Every file a mode writes goes through the run's writer (qry_buffer.h): a current file of the tree, Lstar.klq, the
-// .ksc, the .kqr or the .kdm, written by it in the file's place (qry_filed), and a table of the run's own a blob of the
+// Every file a mode writes goes through the run's writer (qry_member.h): a current file of the tree, Lstar.klq, the
+// .ksc, the .kqr or the .kdm, written by it in the file's place (qry_member_filed), and a table of the run's own a blob of the
 // run named by the table's own name. slice hands the run slices.txt, each slice a line, chains.txt, the primitives and
 // the chains, and host_questions.cpp, every question whose operands and result are integers that a slice holds, that is
 // a task of register pressure, or that <ours folder> holds the engine's chain for, compiled for the host as C++ with
 // the arity every kernel shares. The host computes each over every case, and its answers are the blob
-// IDENTITY_HOST_ANSWERS of the run's buffer (qry_buffer.h), as is every <host answers> named above; read then gives
+// IDENTITY_HOST_ANSWERS of the run (qry_member.h), as is every <host answers> named above; read then gives
 // each identity its verdict: the first case the two questions of one of its slices answer apart closes it as two
 // operations, and an identity alike on every case asked stays open with its count of cases. A case the host's C would
 // trap on or leave undefined is asked of nothing. Each identity is written to Lstar.klq after its keys, with the forms

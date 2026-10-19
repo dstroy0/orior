@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // What the qasm_device_*.cu pieces share: its includes, types and the functions one piece calls in another
 #ifndef QASM_DEVICE_INTERNAL_H
@@ -6,7 +7,7 @@
 #include "qasm.h"
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../src/cu/types/integers/exact_integer.h"
+#include "../../../src/cu/includes/types/integers/exact_integer.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../src/cu/engine/runtime/obsignatio/obsignatio.h"

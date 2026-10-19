@@ -1,7 +1,9 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // verdicts.c: the verdicts: the held encodings cleared, read line by line, added and loaded, whether a verdict is ready
 // and holds, the admitted encodings cleared, read and held, and a verdict's name
 #include "cubin_safe_internal.h"
+#include "../../../../includes/parsers/line_read.h"
 
 static unsigned long long *s_held_low = NULL;
 static unsigned long long *s_held_high = NULL;
@@ -39,7 +41,8 @@ static int cubin_safe_verdict_lines(const char *bytes, unsigned long long size)
         at += (unsigned long long)length + 1ull;
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
-        if (sscanf(line, "%llx %llx", &low, &high) != 2)
+        const char *read = line;
+        if (!line_number(&read, 1, &low) || !line_number(&read, 1, &high))
         {
             continue;
         }
@@ -186,7 +189,9 @@ int cubin_safe_admitted_read(const char *bytes, unsigned long long size)
         at += (unsigned long long)length + 1ull;
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
-        if (sscanf(line, "lesson admitted * %llx %llx", &low, &high) != 2)
+        const char *read = line;
+        if (!line_letters(&read, "lesson ") || !line_letters(&read, "admitted ") || !line_letters(&read, "* ") ||
+            !line_number(&read, 1, &low) || !line_number(&read, 1, &high))
         {
             continue;
         }

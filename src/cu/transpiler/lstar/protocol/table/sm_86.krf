@@ -86,3 +86,7 @@ removed ksc query142-20261015T170442 replaced run answers 0000000000000fff cost 
 removed ksc query142-20261015T170442 replaced run answers 00000000000013ff cost 0000000700078224 000fcc00078e04ff 000000000001b801
 who 0377016b01bc000018dec5933bbdfb74
 removed ksc query143-20261015T175519 replaced run answers 0000000000000f60 cost 0000000700077210 004fca0007ffe0ff 0000000000040f20
+who 03e2016701bd000018df32727338d384
+removed krs query13-20261017T030839 replaced form test_word_le where left right = ISETP.LE.U32.AND {right}, {left}, {where}\n
+removed krs query13-20261017T030839 replaced form test_word_ge where left right = ISETP.LE.U32.AND {left}, {right}, {where}\n
+removed krs query16-20261017T033025 replaced form parameter_load_word to offset = MOV {to}, {offset}\n

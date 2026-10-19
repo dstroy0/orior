@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // period_record.cu: the agreement and the null on the record machine
 #include "period_internal.h"
@@ -5,7 +6,7 @@
 #include "../cycle/cycle.h"
 #include "../key_schedule/key_schedule.h"
 #include "../keymath/keymath.h"
-#include "../../../types/integers/exact_record/exact_record.h"
+#include "../../../includes/types/integers/exact_record/exact_record.h"
 
 // a sweep's index names a voxel by an output one bit wider than its register, 32 bits a limb
 #define PERIOD_RECORD_VOXELS_MAX (1ull << 31u)

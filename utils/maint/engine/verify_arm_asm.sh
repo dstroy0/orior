@@ -77,7 +77,7 @@ echo
 echo "  Instruction selection, read off the object file. This grades emission, never behavior."
 echo
 
-ARMS="$ROOT/src/cu/types/integers"
+ARMS="$ROOT/src/cu/includes/types/integers"
 
 
 # The two arms that also have hardware here. Checked the same way so the grade is comparable, and

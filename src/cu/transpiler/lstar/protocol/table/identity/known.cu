@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // known.cu: the known and the permute: the engine's writing of the stick sifted through what nvcc writes, and nvcc's chains put together by their categories
 #include "identity_internal.h"

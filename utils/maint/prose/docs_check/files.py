@@ -72,7 +72,7 @@ def checked_file(path):
     """Whether this tool reads this path at all."""
     return path.endswith(CHECKED) or build_file(path)
 
-# Fetched or generated, and none of it authored here. target is what cargo writes for src/ui.
+# Fetched or generated, and none of it authored here. target is what cargo writes for ui.
 # fixtures holds the positive control for machine_distance.py, written deliberately in the register
 # being detected. Repairing it deletes the only sample of the thing.
 #

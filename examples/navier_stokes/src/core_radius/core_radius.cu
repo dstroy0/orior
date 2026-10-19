@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // core_radius.cu: a radius in X the axis core's series is proved to reach, its fields bounded order by order on a
 // family of ellipses in eta, every bound an exact rational

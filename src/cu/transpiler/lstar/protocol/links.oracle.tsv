@@ -1,0 +1,7 @@
+where	who	kind	code	form	numbers	gloss
+row	-	link	-	link <from> <to> <code>	<who> <from> <to> <code>	a relation between two rows of the run that one column of a row cannot hold, a row of the table links
+column 0	-	from	-	<key>	<key>	the key of the row or blob the link is from
+column 1	-	to	-	<key>	<key>	the key of the row the link is to
+column 2	-	code	-	<code>	<code>	what the link is, by the codes below
+code	krep_write_by	written_from	0x1	written_from	-	a file's bytes, the blob its write handed, written from the rows of a table keyed to the head row it is to: a k-file a run is to write, a view of its table (krep_records.h)
+any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (Who, who.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, links, and its key the blob's sequence in the run

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Whether a kernel's machine code may be put to the part, read on the host before the driver is handed it
 #ifndef CUBIN_SAFE_H
@@ -139,7 +140,7 @@ unsigned int cubin_safe_launch(int status, unsigned long long waited);
 // launch, or the display driver wrote an error to the system log while it ran (nvlddmkm at the levels critical and
 // error, read by the listener, cubin_run/driver.c): the driver's word is the part's fault telemetry as much as the
 // part's own stamp. `status` the driver's own word on its stop event. CUBIN_SAFE_LAUNCH_FAULT where the part faulted,
-// by the stamp or by a `status` that corrupts the context, and the launch is a panic (qry_buffer.h); CUBIN_SAFE
+// by the stamp or by a `status` that corrupts the context, and the launch is a panic (qry_member.h); CUBIN_SAFE
 // otherwise
 unsigned int cubin_safe_fault(int part_faulted, int status);
 
@@ -151,8 +152,8 @@ unsigned int cubin_safe_fault(int part_faulted, int status);
 // language. 1, or 0 where the file did not read
 int cubin_safe_verdict_load(const char *path);
 
-// The same verdict read from `size` bytes at `bytes`, the held list as the cross hands it to the run's buffer
-// (qry_buffer.h): 1, or 0 where it did not fit memory, and then nothing is loaded and every code is held off the part
+// The same verdict read from `size` bytes at `bytes`, the held list as the cross hands it to the run
+// (qry_member.h): 1, or 0 where it did not fit memory, and then nothing is loaded and every code is held off the part
 int cubin_safe_verdict_read(const char *bytes, unsigned long long size);
 
 // The encodings of `size` bytes at `bytes`, a line `<low> <high>` each, added to the verdict already loaded and held

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Asks the part what the bits the disassembler does not print do (interface_sass_probe_unprinted.c), and writes
 # interface_sass_unprinted.md beside this script whole.
@@ -23,10 +24,10 @@ fi
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 CUBIN="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
-KRS_C="$TOP/src/cu/types/file_defs/readers"
+KRS_C="$TOP/src/cu/includes/parsers"
 OUT="$TOP/build/unprinted"
 mkdir -p "$OUT"
 

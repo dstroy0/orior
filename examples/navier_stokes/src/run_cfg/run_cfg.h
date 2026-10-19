@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // run_cfg.h: a cfg read whole, its members found by a dotted path, decimal strings read as exact rationals
 #ifndef RUN_CFG_H

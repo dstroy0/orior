@@ -1,10 +1,11 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_listing.c: the vendor's listing of many kernels' codes, read at one start of its disassembler: every code put
 // into one cubin, the kernels' own a toolchain made, and the listing cut into each kernel's
 //
 //     cubin_listing <pattern> <kernel prefix> <architecture> <nvdisasm> <codes>
 //
-// <codes> is a blob of the run's buffer, a line a code: the path of a file of a kernel's encodings, its name
+// <codes> is a blob of the run, a line a code: the path of a file of a kernel's encodings, its name
 // `<number>.bin`, the code of the kernel `<kernel prefix><number>` of the cubin at <pattern>. Each code is put into
 // that kernel's code section, its exits found by the pattern's own EXIT encoding, and the whole cubin read once. A
 // start of the disassembler costs far more than the codes it reads, and one start reads them all.
@@ -20,7 +21,7 @@
 #include "cubin_listing.h"
 #include "cubin_write.h"
 
-#include "../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../lstar/interface/interface.h"
 
 #include <stdio.h>
@@ -33,7 +34,7 @@ typedef struct
 {
     char number[64];
     char kernel[160];
-    unsigned char *code;
+    const unsigned char *code;
     unsigned long long size;
     unsigned int *exits;
     unsigned int exit_count;
@@ -121,7 +122,7 @@ static int listing_stopped_at(unsigned long long *address)
 // the codes not set aside read as one raw run: each that stops the vendor set aside, and the run read again without it,
 // until it reads clean. 1, or 0 where the vendor could not be run, the run could not be handed, or it stopped at no
 // address it named, every code left then set aside
-static int listing_raw_cleared(QryBuffer *run, ListedCode *codes, unsigned int count, const char *nvdisasm,
+static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int count, const char *nvdisasm,
                                const char *architecture)
 {
     unsigned long long total = 0ull;
@@ -156,7 +157,7 @@ static int listing_raw_cleared(QryBuffer *run, ListedCode *codes, unsigned int c
             cleared = 1;
             break;
         }
-        if ((qry_streamed(run, "cubin_listing_raw", joined, size, path, sizeof(path)) == 0ull))
+        if ((qry_member_streamed("cubin_listing_raw", joined, size, path, sizeof(path)) == 0ull))
         {
             break;
         }
@@ -198,7 +199,7 @@ static int listing_raw_cleared(QryBuffer *run, ListedCode *codes, unsigned int c
 
 // the cubin of every code not set aside written from the pattern and read once, its listing cut into each code's and
 // handed to the run: 1 where it read clean, 0 where it did not, nothing then handed
-static int listing_cubin_read(QryBuffer *run, ListedCode *codes, unsigned int count, const unsigned char *pattern,
+static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int count, const unsigned char *pattern,
                               unsigned long long pattern_size, const char *nvdisasm)
 {
     ContainerPart *const parts = (ContainerPart *)calloc((size_t)count + 1u, sizeof(ContainerPart));
@@ -227,7 +228,7 @@ static int listing_cubin_read(QryBuffer *run, ListedCode *codes, unsigned int co
     char path[1400];
     int read = (parts != NULL) && (names != NULL) && (of != NULL) && (cubin != NULL) && (kept != 0u) &&
                cubin_kernels_write(&kernels, cubin, room, &cubin_size) &&
-               (qry_streamed(run, "cubin_listing_cubin", cubin, cubin_size, path, sizeof(path)) != 0ull) &&
+               (qry_member_streamed("cubin_listing_cubin", cubin, cubin_size, path, sizeof(path)) != 0ull) &&
                (listing_read(nvdisasm, NULL, path) == 0);
     free(cubin);
     CubinListingCut cut;
@@ -241,7 +242,7 @@ static int listing_cubin_read(QryBuffer *run, ListedCode *codes, unsigned int co
     {
         char name[96];
         snprintf(name, sizeof(name), "%s.dis", codes[of[at]].number);
-        read = qry_hand(run, name, cut.text + cut.start[at], cut.size[at], QRY_ORDINARY) != 0ull;
+        read = qry_member_append(name, cut.text + cut.start[at], cut.size[at], QRY_ORDINARY) != 0;
     }
     cubin_listing_cut_freed(&cut);
     free(parts);
@@ -278,13 +279,13 @@ int main(int count, char **words)
     const char *const prefix = words[2];
     const char *const architecture = words[3];
     const char *const nvdisasm = words[4];
-    QryBuffer *const run = qry_run();
+    QryShared *const run = qry_member_run();
     const unsigned char *list = NULL;
     unsigned long long list_size = 0ull;
-    unsigned char *pattern = NULL;
+    const unsigned char *pattern = NULL;
     unsigned long long pattern_size = 0ull;
-    if ((run == NULL) || !qry_latest(run, words[5], &list, &list_size, NULL) ||
-        !qry_file_read(run, pattern_path, &pattern, &pattern_size))
+    if ((run == NULL) || !qry_member_blob(words[5], &list, &list_size, NULL) ||
+        !qry_member_file_blob(pattern_path, &pattern, &pattern_size))
     {
         fprintf(stderr, "cubin_listing: no run, no list %s in it, or no pattern %s\n", words[5], pattern_path);
         return 2;
@@ -320,7 +321,7 @@ int main(int count, char **words)
         snprintf(code->number, sizeof(code->number), "%.*s", (int)((dot != NULL) ? (size_t)(dot - base) : strlen(base)),
                  base);
         snprintf(code->kernel, sizeof(code->kernel), "%s%s", prefix, code->number);
-        if (!qry_file_read(run, line, &code->code, &code->size) || ((code->size % 16ull) != 0ull))
+        if (!qry_member_file_blob(line, &code->code, &code->size) || ((code->size % 16ull) != 0ull))
         {
             fprintf(stderr, "cubin_listing: the code %s could not be read, or is no whole count of instructions\n",
                     line);
@@ -383,23 +384,21 @@ int main(int count, char **words)
         char name[96];
         snprintf(name, sizeof(name), "%s.dis", codes[one].number);
         const int streamed =
-            qry_streamed(run, "cubin_listing_alone", codes[one].code, codes[one].size, path, sizeof(path)) != 0ull;
+            qry_member_streamed("cubin_listing_alone", codes[one].code, codes[one].size, path, sizeof(path)) != 0ull;
         const int status = streamed ? listing_read(nvdisasm, architecture, path) : -1;
         reached = reached && (status >= 0);
         if (status >= 0)
         {
-            qry_hand(run, name, s_output, s_output_size, QRY_ORDINARY);
+            qry_member_append(name, s_output, s_output_size, QRY_ORDINARY);
         }
     }
     printf("cubin_listing: %u codes read in %u starts of the vendor, %u of them read alone\n", code_count, s_starts,
            aside);
     for (unsigned int one = 0u; one < code_count; one += 1u)
     {
-        free(codes[one].code);
         free(codes[one].exits);
     }
     free(codes);
-    free(pattern);
     free(s_output);
     return reached ? 0 : 2;
 }

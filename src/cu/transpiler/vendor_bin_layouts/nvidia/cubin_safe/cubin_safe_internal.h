@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_safe_internal.h: what the modules of the gate share: its includes, the stall and wait shifts, the bounds of the sections and the register fields, the held and admitted encodings, and the functions one module reads from another (cubin_safe.h)
 #ifndef CUBIN_SAFE_INTERNAL_H

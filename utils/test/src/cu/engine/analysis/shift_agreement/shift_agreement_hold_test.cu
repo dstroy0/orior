@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // shift_agreement_reserve_bytes against sums worked by hand from the layout: the pool's six slices, each on 256 bytes,
 // rounded up to the 2 MiB page once, and the negation and root tables rounded up to the page together. The test is

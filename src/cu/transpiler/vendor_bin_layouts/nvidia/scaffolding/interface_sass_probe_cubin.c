@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_cubin.c: a cubin written from text. The probe learns what the part holds by reading its tools;
 // this is the other direction, putting instructions of the interface's own into a cubin the part will load and run, with

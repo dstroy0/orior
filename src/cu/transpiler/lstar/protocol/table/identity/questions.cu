@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // questions.cu: the values a case is made of, a run's blobs read as text, and the links and questions the stick's manifest lists
 #include "identity_internal.h"
@@ -9,13 +10,13 @@ static const char *const s_control_or_wait[] = {"BRA",   "BRX",  "JMP",      "JM
                                                 "YIELD", "BAR",  "DEPBAR",   "NANOSLEEP", "BPT", "RTT",
                                                 "KILL",  "RPCMOV", "RETIRE", "PMTRIG"};
 
-// the latest blob of `name` in the run's buffer (qry_buffer.h) as text, empty where no run's writer runs or the run
+// the latest blob of `name` in the run (qry_member.h) as text, empty where no run's writer runs or the run
 // holds none
 std::string run_blob_text(const char *name)
 {
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    if (!qry_latest(qry_run(), name, &bytes, &size, NULL))
+    if (!qry_member_blob(name, &bytes, &size, NULL))
     {
         return std::string();
     }
@@ -23,19 +24,18 @@ std::string run_blob_text(const char *name)
     return std::string(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
 }
 
-// the file at `path` as the run holds it (qry_file_read): its latest blob, or the file where the run holds none; empty
+// the file at `path` as the run holds it (qry_member_file): its latest blob, or the file where the run holds none; empty
 // where neither is there
 std::string run_file_text(const std::string &path)
 {
-    unsigned char *bytes = NULL;
+    const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    if (!qry_file_read(qry_run(), path.c_str(), &bytes, &size))
+    if (!qry_member_file_blob(path.c_str(), &bytes, &size))
     {
         return std::string();
     }
     // a file read whole is at most what a size_t counts
     const std::string text(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
-    free(bytes);
     return text;
 }
 
@@ -62,7 +62,7 @@ void run_print(RunWritten *written, const char *format, ...)
 // name. 1, or 0 where no run's writer runs or it was not handed
 int run_closed(const RunWritten *written)
 {
-    QryBuffer *const run = qry_run();
+    QryShared *const run = qry_member_run();
     if (run == NULL)
     {
         printf("klq_identity: no query writer runs to write %s: %s names no .qry a writer holds open\n",
@@ -71,11 +71,11 @@ int run_closed(const RunWritten *written)
     }
     if (written->filed)
     {
-        return qry_filed(run, written->path.c_str(), written->text.data(), written->text.size()) != 0ull;
+        return qry_member_filed(written->path.c_str(), written->text.data(), written->text.size());
     }
     const size_t slash = written->path.find_last_of("/\\");
     const std::string name = (slash == std::string::npos) ? written->path : written->path.substr(slash + 1u);
-    return qry_hand(run, name.c_str(), written->text.data(), written->text.size(), QRY_ORDINARY) != 0ull;
+    return qry_member_append(name.c_str(), written->text.data(), written->text.size(), QRY_ORDINARY) != 0;
 }
 
 // 1 where the link, as written or read as its kind, transfers control or waits, which cubin_safe.h's rule 2 keeps off

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sass_listing_seeds.c: the instructions a listing of NVIDIA's compiler writes, one of each operation, as the seeds a
 // discover pass asks their relation of (khw_write --seeds). The listing prints each instruction's two 64-bit words as

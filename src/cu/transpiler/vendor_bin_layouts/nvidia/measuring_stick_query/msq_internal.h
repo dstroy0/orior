@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // msq_internal.h: what the modules of the cross share: its includes, the bounds of a run and a question, the control operations, the listing, question, reader, registers, distinct and frame structures, the run and the reader given, and the functions one module reads from another
 #ifndef MSQ_INTERNAL_H
@@ -8,7 +9,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
-#include "../../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../lstar/interface/interface.h"
 
 #include <pthread.h>
@@ -80,7 +81,7 @@ typedef struct
     char *text;
 } MsqListing;
 
-// a run of bytes in the run's buffer, or of memory of the program's own
+// a run of bytes in the run, or of memory of the program's own
 typedef struct
 {
     const unsigned char *bytes;
@@ -219,7 +220,7 @@ typedef struct
     size_t read_room;
 } MsqHolds;
 
-extern QryBuffer *s_run;
+extern QryShared *s_run;
 extern const char *s_nvdisasm;
 extern const char *s_architecture;
 extern _Atomic unsigned long long s_streamed_nanoseconds;

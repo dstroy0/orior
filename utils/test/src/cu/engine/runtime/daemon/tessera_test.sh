@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The two tesseras held to each other (tessera_test.cu): the device's tessera makes the host daemon's ledger's
 # decisions, answer for answer and ledger for ledger. The test is one job on the device's tessera daemon, built beside
@@ -9,7 +10,7 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../../../../../.." && pwd)"
 DAEMON="$TOP/src/cu/engine/runtime/daemon"
 DAEMON_CU="$TOP/src/cu/engine/runtime/daemon"
-NO_ROUNDING="$TOP/src/cu/types/integers"
+NO_ROUNDING="$TOP/src/cu/includes/types/integers"
 SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 source "$TOP/utils/maint/engine/tessera_build.sh"

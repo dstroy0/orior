@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // measuring_stick_engine: each kernel of the measuring stick read form by form through cu.krs, and each form written at
 // once in sass.krs, the two rulesets of one schema (cu_target.h). The kernel is assembled against the part's machine
@@ -34,7 +35,7 @@
 // its encodings <out>/NNNN.bin. Nothing goes to a device.
 //
 // Each kernel's trace is handed to the query run QRY names as the blob NNNN.trace, as every path's trace is unless
-// QRY_TRACE is 0 (qry_buffer.h); with no run's writer to take it, nothing is read.
+// (qry_member.h); with no run's writer to take it, nothing is read.
 extern "C"
 {
 #include "sass_assemble.h"
@@ -42,13 +43,14 @@ extern "C"
 #include "interface_sass_probe.h"
 }
 
-#include "../../../types/file_defs/qry/qry_buffer.h"
-#include "../../../types/file_defs/readers/ruleset_core_words.h"
-#include "../../../types/file_defs/readers/ruleset_reader.h"
+#include "../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../includes/file_defs/krs/ruleset_core_words.h"
+#include "../../../includes/file_defs/krs/ruleset_reader.h"
 #include "cu_target.h"
 #include "machine_ir_types.h"
 #include "sass_target.h"
 #include "target.h"
+#include "../../../engine/runtime/scriptura/scriptura.h"
 
 #include <algorithm>
 #include <cctype>
@@ -251,9 +253,9 @@ struct StickPattern
     int select;
 };
 
-// The trace of the kernel being read, unless QRY_TRACE is 0: every reading tried, nested as it is tried, every
+// The trace of the kernel being read: every reading tried, nested as it is tried, every
 // form whose text matches and every choice of its operands with why it fails, what each reading gives, every line
-// written and every question put, gathered in memory and handed to the run's buffer once the kernel is read. Nothing
+// written and every question put, gathered in memory and handed to the run once the kernel is read. Nothing
 // is gathered where s_tracing is false
 static std::string s_trace;
 static bool s_tracing = false;
@@ -2960,17 +2962,18 @@ int main(int argc, char **argv)
         fprintf(stderr, "measuring_stick_engine <stick .cu> <nvcc listing> <out directory>\n");
         return 2;
     }
-    // the run's buffer each kernel's trace is handed to, as every path's trace is unless QRY_TRACE is 0
-    const int tracing = qry_traced("measuring_stick_engine", QRY_ORDINARY);
-    QryBuffer *const traced = tracing ? qry_run() : NULL;
-    if (tracing && (traced == NULL))
+    // the run every file the engine leaves is handed to, and each kernel's trace
+    const int tracing = 1;
+    QryShared *const run = qry_member_run();
+    if (run == NULL)
     {
         fprintf(stderr,
-                "measuring_stick_engine: no query writer runs to take the trace: %s names no .qry a writer holds "
+                "measuring_stick_engine: no query writer runs to take its files: %s names no .qry a writer holds "
                 "open\n",
                 QRY_ENVIRONMENT);
         return 2;
     }
+    QryShared *const traced = tracing ? run : NULL;
     const Ruleset *const cu = cu_target().ruleset(1);
     const Ruleset *const sass = sass_target().ruleset(1);
     if ((cu == NULL) || (sass == NULL))
@@ -3008,32 +3011,37 @@ int main(int argc, char **argv)
     }
     stick_pipes_write(listing);
     const std::string out = argv[3];
-    FILE *const table = fopen((out + "/engine.tsv").c_str(), "wb");
-    if (table == NULL)
-    {
-        return 1;
-    }
-    fprintf(table, "number\tanswer\tforms\tinstructions\tnote\n");
+    // engine.tsv, each kernel's line, and each kernel's <number>.sass, .bin and .registers, every one handed to the
+    // run's writer as a file it writes as the run ends (qry_member_filed)
+    static char s_table_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine table = {s_table_bytes, sizeof(s_table_bytes), 0ull};
+    scriptura_text(&table, "number\tanswer\tforms\tinstructions\tnote\n");
     unsigned int answered = 0u;
+    unsigned int unfiled = 0u;
     for (const StickSource &source : sources)
     {
         StickKernel kernel(cu, sass, &machine, &patterns, 1);
-        // the run's buffer handed <number>.trace once the kernel is read, unless QRY_TRACE is 0
+        // the run handed <number>.trace once the kernel is read
         s_tracing = (traced != NULL);
         s_trace.clear();
         const std::string question = stick_kernel(source, &kernel);
         if (s_tracing)
         {
             s_trace += question.empty() ? "answered\n" : ("question " + question + "\n");
-            qry_hand(traced, (source.number + ".trace").c_str(), s_trace.data(), s_trace.size(), QRY_ORDINARY);
+            qry_member_append((source.number + ".trace").c_str(), s_trace.data(), s_trace.size(), QRY_ORDINARY);
             s_tracing = false;
         }
         if (!question.empty())
         {
-            fprintf(table, "%s\tquestion\t0\t0\t%s\n", source.number.c_str(), question.c_str());
+            scriptura_text(&table, source.number.c_str());
+            scriptura_text(&table, "\tquestion\t0\t0\t");
+            scriptura_text(&table, question.c_str());
+            scriptura_text(&table, "\n");
             continue;
         }
-        std::ofstream(out + "/" + source.number + ".sass", std::ios::binary) << kernel.text;
+        const std::string chain = out + "/" + source.number;
+        unfiled += !qry_member_filed((chain + ".sass").c_str(), kernel.text.data(), kernel.text.size()) ? 1u
+                                                                                                               : 0u;
         unsigned int count = 0u;
         for (size_t at = 0u; at < kernel.text.size(); at += 1u)
         {
@@ -3045,20 +3053,34 @@ int main(int argc, char **argv)
         std::vector<unsigned char> code((size_t)count * 16u);
         if (sass_assemble_lines(&machine, kernel.text.c_str(), SASS_CONTROL_SAFE, code.data(), code.size()) != count)
         {
-            fprintf(table, "%s\tquestion\t%u\t%u\tthe assembler refuses a line of the kernel\n",
-                    source.number.c_str(), kernel.forms, count);
+            scriptura_text(&table, source.number.c_str());
+            scriptura_text(&table, "\tquestion\t");
+            scriptura_decimal(&table, (unsigned long long)(kernel.forms), 0u);
+            scriptura_text(&table, "\t");
+            scriptura_decimal(&table, (unsigned long long)(count), 0u);
+            scriptura_text(&table, "\tthe assembler refuses a line of the kernel\n");
             continue;
         }
-        std::ofstream(out + "/" + source.number + ".bin", std::ios::binary)
-            .write((const char *)code.data(), (std::streamsize)code.size());
+        unfiled += !qry_member_filed((chain + ".bin").c_str(), code.data(), code.size()) ? 1u : 0u;
         // the count of registers the kernel names, then each register it holds and the lines that claim and release
         // it
-        std::ofstream(out + "/" + source.number + ".registers", std::ios::binary) << kernel.registers_held << "\n"
-                                                                                  << kernel.held_lines;
-        fprintf(table, "%s\tanswered\t%u\t%u\t\n", source.number.c_str(), kernel.forms, count);
+        const std::string registers = std::to_string(kernel.registers_held) + "\n" + kernel.held_lines;
+        unfiled += !qry_member_filed((chain + ".registers").c_str(), registers.data(), registers.size()) ? 1u
+                                                                                                                : 0u;
+        scriptura_text(&table, source.number.c_str());
+        scriptura_text(&table, "\tanswered\t");
+        scriptura_decimal(&table, (unsigned long long)(kernel.forms), 0u);
+        scriptura_text(&table, "\t");
+        scriptura_decimal(&table, (unsigned long long)(count), 0u);
+        scriptura_text(&table, "\t\n");
         answered += 1u;
     }
-    fclose(table);
+    if ((!scriptura_fits(&table) || !qry_member_filed((out + "/engine.tsv").c_str(), table.out, table.at)) || (unfiled != 0u))
+    {
+        fprintf(stderr, "measuring_stick_engine: engine.tsv or %u of the kernels' files under %s were not written\n",
+                unfiled, out.c_str());
+        return 1;
+    }
     fprintf(stderr,
             "measuring stick through cu.krs and sass.krs: %zu kernels, %u answered, %zu put a question; %zu folds "
             "found on the compile channel, %zu held in sass.ksc\n",

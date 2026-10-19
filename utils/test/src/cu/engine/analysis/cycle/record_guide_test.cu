@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The worked example of engine/prg_sch/README.md, run as written: a two-member program that moves each body by its
@@ -8,7 +9,7 @@
 // submitted before the program is loaded onto the device.
 #include "codegen_device.h"
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/cu/types/integers/exact_integer.h"
+#include "../../../../../../../src/cu/includes/types/integers/exact_integer.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"

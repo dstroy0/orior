@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // standing_check.c: one form standing for the encodings that answer as it does, so that the working set holds one
 // form for each answer and the widening's turns of a form's bits outside its operands do not fill it
@@ -10,7 +11,7 @@
 //   folded     the set folded keeps the oldest of the forms one stands for, in their order
 //
 //     standing_check
-#include "../../../../../../../src/cu/transpiler/lstar/parser/khw_write/khw_write_internal.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;

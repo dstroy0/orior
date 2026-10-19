@@ -1,0 +1,13 @@
+where	who	kind	form	gloss
+head 0	ksg_list_written	magic	8 bytes	KREP and four zero bytes
+head 1	ksg_list_written	kind	4 bytes	KSA_KIND, KSA and a zero byte
+head 2	ksg_list_written	version	1 limb	KREP_VERSION
+body 0	ksg_list_written	count	1 word	the approvals in the list, at most KSA_APPROVALS_MOST
+body 1	ksg_list_written	tag	4 bytes	each approval's scheme, a tag of the table in ksa.c: ED25 for ed25519
+body 2	ksg_list_written	key_bytes	1 word	the bytes of its public key
+body 3	ksg_list_written	signature_bytes	1 word	the bytes of its signature
+body 4	ksg_list_written	key	key_bytes bytes	the approver's public key
+body 5	ksg_list_written	signature	signature_bytes bytes	the signature over KSA_CONTEXT and then the seal's trailer
+key 0	ksg_keys_made	head	16 bytes	the k-file head, kind KSA_SECRET_KIND for a secret and KSA_PUBLIC_KIND for a public key
+key 1	ksg_keys_made	tag	4 bytes	the scheme's tag
+key 2	ksg_keys_made	bytes	secret_bytes or key_bytes bytes	the secret, kept from every reader but its owner, or the public key

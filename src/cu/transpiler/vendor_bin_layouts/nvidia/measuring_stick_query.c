@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // measuring_stick_query.c: the query's questions read against the vendor's own disassembler, the object the carrier
 // popped out under --diff-output-against-vendor. A question whose slot instruction the vendor calls illegal, reads as a
@@ -13,7 +14,7 @@
 //
 //     measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds> [<read>]]
 //
-// Every name but the disassembler's is a blob of the run's buffer, the .qry QRY names (qry_buffer.h): the list, a line
+// Every name but the disassembler's is a blob of the run, the .qry QRY names (qry_member.h): the list, a line
 // a question, `<code> <registers> <cases> <answers> <slot> [<launches>]` (run_channel.h), each question's code, and the
 // container the carrier popped for it as <answers stem>.cubin. Every container is the kernel the system accepted with
 // the question's code in it; the code of each, as the part would be handed it, is read out of the container's code
@@ -47,9 +48,10 @@
 // kernel allots and that count is at most MSQ_ALLOTTED_MOST, 0 where no count clears it. The vendor names no
 // operation and nothing it says enters a form: the held list is only the exact words not to ask, and a count that
 // clears a hold changes how a question is put and not what it asks. Exit 1 where any
-// question is held, 2 where a blob, a tool or the run's buffer was not reached, or a frame was read at no stop it
+// question is held, 2 where a blob, a tool or the run was not reached, or a frame was read at no stop it
 // named: the round is then not carried
 #include "measuring_stick_query/msq_internal.h"
+#include "../../../includes/parsers/line_read.h"
 
 int main(int count, char **words)
 {
@@ -66,7 +68,7 @@ int main(int count, char **words)
     const char *const held_name = words[5];
     const char *const holds_name = (count >= 7) ? words[6] : NULL;
     const char *const read_name = (count == 8) ? words[7] : NULL;
-    s_run = qry_run();
+    s_run = qry_member_run();
     if (s_run == NULL)
     {
         fprintf(stderr, "measuring_stick_query: no query writer runs: %s names no .qry a writer holds open\n",
@@ -75,7 +77,7 @@ int main(int count, char **words)
     }
     const unsigned char *list = NULL;
     unsigned long long list_size = 0ull;
-    if (!qry_latest(s_run, list_name, &list, &list_size, NULL))
+    if (!qry_member_blob(list_name, &list, &list_size, NULL))
     {
         fprintf(stderr, "measuring_stick_query: the run's buffer holds no %s\n", list_name);
         return 2;
@@ -105,7 +107,10 @@ int main(int count, char **words)
         char answers_name[256];
         unsigned int registers = 0u;
         unsigned long long slot = 0ull;
-        if (sscanf(line, "%255s %u %255s %255s %llu", code_name, &registers, cases_name, answers_name, &slot) < 5)
+        const char *read = line;
+        if (!line_word(&read, code_name, sizeof(code_name)) || !line_unsigned(&read, &registers) ||
+            !line_word(&read, cases_name, sizeof(cases_name)) || !line_word(&read, answers_name, sizeof(answers_name)) ||
+            !line_number(&read, 0, &slot))
         {
             continue;
         }
@@ -113,7 +118,7 @@ int main(int count, char **words)
         msq_extension_put(answers_name, ".cubin", container_name, sizeof(container_name));
         MsqBytes container;
         MsqQuestion *const question = &questions[question_count];
-        if (!qry_latest(s_run, container_name, &container.bytes, &container.size, NULL) ||
+        if (!qry_member_blob(container_name, &container.bytes, &container.size, NULL) ||
             !msq_container_code(&container, &question->code))
         {
             continue;
@@ -305,7 +310,7 @@ int main(int count, char **words)
                 s_nvdisasm, (pool.why != NULL) ? pool.why : "the work could not be queued");
         return 2;
     }
-    // the questions held, each with why, the held list and the report handed to the run's buffer. A question is held
+    // the questions held, each with why, the held list and the report handed to the run. A question is held
     // by its slot where the vendor reads it as below, and by its frame where the vendor calls an instruction of it
     // illegal or reads one naming a register at or past the count its kernel allots: each such instruction's encoding
     // is held, and the gate holds every code that holds it. A frame the vendor stopped in at no instruction it named
@@ -432,7 +437,7 @@ int main(int count, char **words)
         // the held encoding, the question's own code at its slot
         const unsigned char *code = NULL;
         unsigned long long code_size = 0ull;
-        const int coded = qry_latest(s_run, question->code_name, &code, &code_size, NULL) &&
+        const int coded = qry_member_blob(question->code_name, &code, &code_size, NULL) &&
                           (question->slot < (code_size / 16ull)) && (((question->slot * 16ull) + 16ull) <= code_size);
         msq_hold_said(&kept, question, coded ? (code + (question->slot * 16ull)) : NULL, why, clearing);
     }
@@ -449,17 +454,17 @@ int main(int count, char **words)
     {
         msq_added(&whole_report, &whole_report_size, &whole_report_room, kept.report, kept.report_size);
     }
-    qry_hand(s_run, held_name, kept.held, kept.held_size, QRY_ORDINARY);
-    qry_hand(s_run, report_name, whole_report, whole_report_size, QRY_ORDINARY);
+    qry_member_append(held_name, kept.held, kept.held_size, QRY_ORDINARY);
+    qry_member_append(report_name, whole_report, whole_report_size, QRY_ORDINARY);
     // the holds the teacher reads, handed even where there are none, so that it knows this round was read
     if (holds_name != NULL)
     {
-        qry_hand(s_run, holds_name, kept.listed, kept.listed_size, QRY_ORDINARY);
+        qry_member_append(holds_name, kept.listed, kept.listed_size, QRY_ORDINARY);
     }
     // the slots read clear, handed even where there are none, so that the teacher knows the round was read
     if (read_name != NULL)
     {
-        qry_hand(s_run, read_name, kept.read, kept.read_size, QRY_ORDINARY);
+        qry_member_append(read_name, kept.read, kept.read_size, QRY_ORDINARY);
     }
     printf("  questions read: %zu in %llu readings; the vendor holds %zu off the part\n", question_count,
            readings_count, holds);
@@ -469,7 +474,7 @@ int main(int count, char **words)
            slot_words.count, frame_count, tails.count, accumulated_calls, aside_count,
            (double)atomic_load(&s_streamed_nanoseconds) / 1000000000.0,
            (double)atomic_load(&s_vendor_nanoseconds) / 1000000000.0);
-    printf("  the held list is %s and the report %s, blobs of %s\n", held_name, report_name, qry_path(s_run));
+    printf("  the held list is %s and the report %s, blobs of %s\n", held_name, report_name, qry_member_path());
     if (kept.said_size != 0u)
     {
         fwrite(kept.said, 1u, kept.said_size, stdout);

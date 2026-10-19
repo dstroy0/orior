@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # casmi_driver (src/casmi_driver) with the engine it runs on, its core and the modules it reaches, compiled beside it,
 # and the device's tessera daemon built beside it. Arguments are architectures, sm_86 and the like
@@ -60,19 +61,19 @@ EXACT_DIGITS=$(( (FITTED_LIMBS * 32 * 1000 - 1) / 3322 ))
 EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${FITTED_LIMBS}u" "-DANCHOR_EXACT_DIGITS=${EXACT_DIGITS}u")
 
 # the engine's core reaches every module here; the reader formats are its sources
-MODULES=(cu/includes/formats/cfg_json cu/includes/formats/stack cu/engine/parser
+MODULES=(cu/includes/formats/cfg_json cu/includes/formats/stack cu/includes/file_defs/krep
          cu/engine/analysis/compression cu/engine/analysis/tower cu/engine/runtime/device_pool
          cu/engine/analysis/entropy_history cu/engine/analysis/noise_detector cu/engine/runtime/schedule
          cu/engine/analysis/keymath cu/engine/analysis/key_schedule cu/engine/analysis/cycle
-         cu/engine/rmc cu/types/file_defs/readers
+         cu/engine/rmc cu/includes/parsers
          cu/engine/runtime/radix_keys cu/engine/analysis/unit_sweep cu/engine/runtime/obsignatio
          cu/engine/analysis/residual cu/engine/nbody/max_tree cu/engine/nbody/flatten cu/engine/analysis/golden_bands
          cu/engine/analysis/residual_survey cu/engine/nbody/grow cu/engine/analysis/shift_agreement
          cu/engine/nbody/climb_machine cu/engine/nbody/body_overlap cu/engine/nbody/fingerprint
          cu/engine/nbody/print_pair cu/engine/nbody/velocity cu/engine/nbody/division cu/engine/nbody/marginal
          cu/engine/nbody/contact_side cu/engine/nbody/box_history cu/engine/nbody/heaviest_matching
-         cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/types/integerfloats/edouble
-         cu/types/integers/exact_record cu/engine/runtime/scriptura)
+         cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/includes/types/integerfloats/edouble
+         cu/includes/types/integers/exact_record cu/engine/runtime/scriptura)
 INGEST=(cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate cu/includes/codecs/deflate
         cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc cu/includes/formats/tiff
         cu/includes/formats/hdf5 cu/includes/codecs/zip cu/includes/formats/dicom cu/includes/formats/npy
@@ -95,8 +96,8 @@ SCRIPTURA_OBJECTS=()
 PORTABLE=()
 for module in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement cu/includes/formats/cfg_json \
               cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/heaviest_matching cu/engine/nbody/marginal \
-              cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/types/integerfloats/edouble \
-              cu/types/integers/exact_record cu/engine/runtime/scriptura "${INGEST[@]}"; do
+              cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/includes/types/integerfloats/edouble \
+              cu/includes/types/integers/exact_record cu/engine/runtime/scriptura "${INGEST[@]}"; do
     for source in "$(build_path "$module")"/*.c; do
         [ -f "$source" ] && PORTABLE+=("$source")
     done

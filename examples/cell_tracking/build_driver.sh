@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 set -u
 
@@ -64,14 +65,14 @@ EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_E
 echo "  exact integer: $((EXACT_LIMBS * 32)) bits, $EXACT_DIGITS digits, for a question of $QUESTION_LIMBS limbs, from $EXACT_ROOT"
 
 FUNCTIONALS=(cell_tracking/src/run_cfg cu/includes/formats/cfg_json cell_tracking/src/run_log
-             cu/includes/formats/stack cu/engine/parser
+             cu/includes/formats/stack cu/includes/file_defs/krep
              cu/engine/analysis/compression cu/engine/analysis/tower
              cu/engine/runtime/device_pool
              cu/engine/analysis/entropy_history
              cu/engine/analysis/noise_detector cu/engine/runtime/schedule
              cu/engine/analysis/keymath
              cu/engine/analysis/key_schedule cu/engine/analysis/cycle
-             cu/engine/rmc cu/types/file_defs/readers
+             cu/engine/rmc cu/includes/parsers
              cu/engine/runtime/radix_keys cu/engine/analysis/unit_sweep
              cu/engine/runtime/obsignatio cu/engine/analysis/residual
              cu/engine/nbody/max_tree cu/engine/nbody/flatten
@@ -84,8 +85,8 @@ FUNCTIONALS=(cell_tracking/src/run_cfg cu/includes/formats/cfg_json cell_trackin
              cu/engine/nbody/velocity cu/engine/nbody/division
              cu/engine/nbody/marginal
              cu/engine/nbody/contact_side cu/engine/nbody/box_history
-             cu/engine/nbody/heaviest_matching cu/types/integerfloats/double_fields
-             cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura cell_tracking/src/relate_frames
+             cu/engine/nbody/heaviest_matching cu/includes/types/integerfloats/double_fields
+             cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura cell_tracking/src/relate_frames
              cell_tracking/src/group_objects cell_tracking/src/link_objects cell_tracking/src/bodies
              cell_tracking/src/score_sample cell_tracking/src/coherence cell_tracking/src/peaks
              cell_tracking/src/scan cell_tracking/src/sort cell_tracking/src/divide cell_tracking/src/faces
@@ -110,7 +111,7 @@ done
 PORTABLE_OBJECTS=()
 for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement cu/includes/formats/cfg_json \
                 cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/heaviest_matching cu/engine/nbody/marginal \
-                cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
+                cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
                 "${INGEST[@]}"; do
     for source in "$(build_path "$portable")"/*.c; do
         name="$(basename "$source" .c)"

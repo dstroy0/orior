@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sha256.c: SHA-256 as FIPS 180-4 states it. The constants are section 4.2.2's and 5.3.3's, the functions section
 // 4.1.2's, the padding section 5.1.1's and the compression section 6.2.2's

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Writes monolith_forms.md: every form the record programs' lanes decide asked of NVIDIA's compiler in one program, and
 # each read back off its listing and its PTX beside the form sass.krs and ptx.krs give (monolith_forms.cpp). Nothing is
@@ -16,19 +17,19 @@ if [ "${1:-}" = "apply" ]; then
 fi
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 HERE="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 RULESETS="$TOP/src/cu/transpiler/lstar/protocol/table"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
+CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
 KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
-NO_ROUNDING="$TOP/src/cu/types/integers"
+NO_ROUNDING="$TOP/src/cu/includes/types/integers"
 SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
 OUT="$TOP/build/monolith/forms"
 mkdir -p "$OUT"
@@ -62,7 +63,7 @@ for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,
     fi
     OBJECTS+=("$object")
 done
-for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu \
+for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu \
     "$TOP/src/cu/scaffolding/c_target.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;
@@ -79,7 +80,7 @@ for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c"; do
     object="$OUT/$(basename "$source").o"
     if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
-        cc -std=c11 -O2 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/types/file_defs/readers" \
+        cc -std=c11 -O2 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/parsers" \
             -I "$TOP/src/cu/transpiler/lstar/interface" -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")

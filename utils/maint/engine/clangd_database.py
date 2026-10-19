@@ -1,3 +1,4 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The compilation database clangd reads, written to build/compile_commands.json; .clangd at the repository's root
 # points clangd at it. The engine, its sims and its tests build through nvcc, whose command lines clangd cannot read,

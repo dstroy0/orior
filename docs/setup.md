@@ -50,9 +50,9 @@ That builds the benches and the tests. Every target builds with GCC, Clang and M
 If all you want is the search kernel, you don't need a build system at all. It is four portable source groups and two include paths:
 
 ```sh
-gcc -std=c11 -Isrc/cu/engine/nbody/orior -Isrc/cu/types/integers your_program.c \
+gcc -std=c11 -Isrc/cu/engine/nbody/orior -Isrc/cu/includes/types/integers your_program.c \
     src/cu/engine/nbody/orior/orior_*.c src/cu/engine/nbody/orior/scan.c \
-    src/cu/types/integers/exact_integer_*.c src/cu/types/integers/arm.c
+    src/cu/includes/types/integers/exact_integer_*.c src/cu/includes/types/integers/arm.c
 ```
 
 ## The research papers

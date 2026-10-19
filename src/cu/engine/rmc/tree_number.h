@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tree_number.h: a tree of precepts as one number
 #ifndef TREE_NUMBER_H
@@ -26,7 +27,7 @@
 // as does the compiler reading its own trees.
 // Past 13 places the number outgrows an unsigned long long, and the container changes where the encoding does not.
 // The engine already holds an exact integer of any width - AnchorExactInteger in
-// src/cu/types/integers/exact_integer_api.h, limbs least significant first with the sign held apart -
+// src/cu/includes/types/integers/exact_integer_api.h, limbs least significant first with the sign held apart -
 // and a tree's number in base TREE_SYMBOLS is written into one the same way it is written into a word here.
 //
 // Nothing reaches for it yet, and this is the size where that stops being true: a fixed-arity tree never passes 5

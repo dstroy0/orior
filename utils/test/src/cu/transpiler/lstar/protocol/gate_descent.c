@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // gate_descent.c: the gate run as the engine's own sift descent, against every arrangement asked every case
 //
@@ -19,9 +20,10 @@
 // paid on this host against arithmetic every system that computes agrees about. A target is asked only the cases
 // the descent placed.
 #include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
+#include "../../../../../../../src/cu/includes/file_defs/kdm/kdm.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
+#include "verba_scribo/verba_scribo.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
-#include "../../../../../../../src/cu/types/file_defs/kdm/kdm.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -191,33 +193,56 @@ static void gate_put(unsigned int anchor, unsigned int alignments, const size_t 
     {
         return;
     }
-    QryText rows = {NULL, 0ull, 0ull, 0};
+    static char s_rows_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    const size_t rows_room = sizeof(s_rows_bytes);
+    size_t rows = 0u;
     for (unsigned int at = 0u; at < alignments; at += 1u)
     {
         char text[256];
         chain_text(&s_fitted.chain[at], text, sizeof(text));
-        qry_text_printed(&rows, "%s\t%u\t%s\t-\t0\t%u\n", s_anchor_text[anchor], s_fitted.chain[at].nodes, text,
-                         (s_survivors[at] != 0u) ? 1u : 0u);
+        rows = verba_textus.put(
+            &(VerbaTextusCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .text = s_anchor_text[anchor]});
+        rows = verba_littera.ch(&(VerbaLitteraCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .ch = '\t'});
+        rows = verba_numerus.u64(
+            &(VerbaNumerusCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .val = s_fitted.chain[at].nodes});
+        rows = verba_littera.ch(&(VerbaLitteraCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .ch = '\t'});
+        rows = verba_textus.put(&(VerbaTextusCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .text = text});
+        rows = verba_textus.put(
+            &(VerbaTextusCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .text = "\t-\t0\t"});
+        rows = verba_numerus.u64(&(VerbaNumerusCfg){
+            .out = s_rows_bytes, .cap = rows_room, .at = rows, .val = (s_survivors[at] != 0u) ? 1u : 0u});
+        rows = verba_littera.ch(&(VerbaLitteraCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .ch = '\n'});
     }
     static KdmFile s_rows;
     const char **lines = NULL;
     unsigned int count = 0u;
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.kdm", s_put_folder, s_anchor_text[anchor]);
-    const int put = ktext_lines_cut(&rows, &lines, &count) &&
-                    ((count == 0u) || (ktext_lines_put(&s_rows, 0u, lines, count) != 0u)) && kdm_write(&s_rows, path);
+    const int put = verba_finis.ok(&(VerbaFinisCfg){.cap = rows_room, .at = rows}) &&
+                    kfile_lines_cut(s_rows_bytes, rows, &lines, &count) &&
+                    ((count == 0u) || (kfile_lines_put(&s_rows, 0u, lines, count) != 0u)) && kdm_write(&s_rows, path);
     free(lines);
-    qry_text_freed(&rows);
     kdm_free(&s_rows);
-    QryText cases = {NULL, 0ull, 0ull, 0};
+    static char s_cases_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    const size_t cases_room = sizeof(s_cases_bytes);
+    size_t cases = 0u;
     for (unsigned int at = 0u; at < placed; at += 1u)
     {
         const size_t which = chosen[at];
-        qry_text_printed(&cases, "%08x %08x %08x\n", s_gate.given[which].operand[0], s_gate.given[which].operand[1],
-                         s_gate.expected[which]);
+        const unsigned long long words[3] = {s_gate.given[which].operand[0], s_gate.given[which].operand[1],
+                                             s_gate.expected[which]};
+        for (unsigned int word = 0u; word < 3u; word += 1u)
+        {
+            cases = verba_numerus.hex(
+                &(VerbaNumerusCfg){.out = s_cases_bytes, .cap = cases_room, .at = cases, .val = words[word], .min = 8u});
+            cases = verba_littera.ch(&(VerbaLitteraCfg){
+                .out = s_cases_bytes, .cap = cases_room, .at = cases, .ch = (word < 2u) ? ' ' : '\n'});
+        }
     }
     snprintf(path, sizeof(path), "%s/%s_cases.txt", s_put_folder, s_anchor_text[anchor]);
-    const unsigned long long filed = qry_text_filed(qry_run(), path, &cases);
+    const unsigned long long filed = verba_finis.ok(&(VerbaFinisCfg){.cap = cases_room, .at = cases})
+                                         ? qry_member_filed(path, s_cases_bytes, cases)
+                                         : 0ull;
     if (!put || (filed == 0ull))
     {
         printf("  %-8s the target's half was not written to %s\n", s_anchor_text[anchor], s_put_folder);
@@ -254,10 +279,10 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
     s_gate.asked = 0ull;
     for (unsigned int descent = 0u; descent < GATE_DESCENTS_MOST; descent += 1u)
     {
-        const size_t depth = ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets,
-                                               .count = ANCHOR_STEER_ANCHORS, .survivors = s_survivors,
-                                               .survivors_length = alignments, .sample_stride = 1u, .any = &field,
-                                               .resume = resume);
+        const size_t depth =
+            ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets,
+                              .count = ANCHOR_STEER_ANCHORS, .survivors = s_survivors, .survivors_length = alignments,
+                              .sample_stride = 1u, .any = &field, .resume = resume);
         for (size_t slot = 0u; slot < depth; slot += 1u)
         {
             const size_t at = offsets[slot];
@@ -285,17 +310,16 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
         lost += ((s_survivors[at] == 0u) && (holds != 0u)) ? 1u : 0u;
     }
 
-    ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets,
-                      .count = ANCHOR_STEER_ANCHORS, .survivors = s_one_descent, .survivors_length = alignments,
-                      .sample_stride = 1u, .any = &field);
-    ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets,
-                      .count = ANCHOR_STEER_ANCHORS, .survivors = s_full_depth, .survivors_length = alignments,
-                      .sample_stride = 1u, .any = &field, .force_full_depth = 1);
+    ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets, .count = ANCHOR_STEER_ANCHORS,
+                      .survivors = s_one_descent, .survivors_length = alignments, .sample_stride = 1u, .any = &field);
+    ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets, .count = ANCHOR_STEER_ANCHORS,
+                      .survivors = s_full_depth, .survivors_length = alignments, .sample_stride = 1u, .any = &field,
+                      .force_full_depth = 1);
     const unsigned int stopped = gate_standing(s_one_descent, alignments);
     const unsigned int continued = gate_standing(s_full_depth, alignments);
 
-    const unsigned int agreed = ((lost == 0u) && (verified == truth) && (truth == kept) && (stopped == continued)) ? 1u
-                                                                                                                 : 0u;
+    const unsigned int agreed =
+        ((lost == 0u) && (verified == truth) && (truth == kept) && (stopped == continued)) ? 1u : 0u;
     gate_put(anchor, alignments, chosen, placed);
     printf("  %-8s %4u fit the ladder, %4u hold every case, %4u kept by the sweep; %u case(s) placed, %4u standing, "
            "%4u verified, %u lost; stopped %u and full depth %u; %llu questions planned on this host; %s\n",

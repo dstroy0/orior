@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // asm_printer_core_words.h: the build's types, words, parts and steps (asm_printer_core.h includes the parts in order)
 #ifndef ASM_PRINTER_CORE_WORDS_H

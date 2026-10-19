@@ -1,8 +1,7 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// qry_rows_check.c: a row of a table of the run and a text of its table of texts held to qry_buffer.h
+// qry_rows_check.c: a text of the run's table of texts held to table_text.h
 //
-//   rows       a row handed is a blob of its table's name, the who of the code that handed it, then its columns as
-//              handed; a row of more columns than a row holds is not handed
 //   texts      a text's number is the 64-bit FNV-1a hash of its bytes, its row handed once however often this process
 //              numbers it: of no who, its number, its length and its bytes filled out to a whole word with zeros; an
 //              empty text has no number
@@ -10,8 +9,9 @@
 //     qry_rows_check
 //
 // It runs in a query run (qry_run.sh).
-#include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
+#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
 
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,45 +42,27 @@ static unsigned long long check_hash(const char *text)
 
 int main(void)
 {
-    QryBuffer *const run = qry_run();
-    if (run == NULL)
+    if (qry_member_run() == NULL)
     {
         printf("qry_rows_check: no run's writer runs\n");
         return 2;
     }
 
-    // rows
-    const unsigned long long columns[3] = {7ull, 0x8000000000000001ull, 0ull};
-    const QryWho who = QRY_WHO_HERE;
-    check_that(qry_row_handed_by(run, "check_rows", columns, 3u, QRY_ORDINARY, who) == 1,
-               "rows: a row of three columns is handed");
-    unsigned long long many[QRY_ROW_COLUMNS + 1u];
-    memset(many, 0, sizeof(many));
-    check_that(qry_row_handed(run, "check_rows", many, QRY_ROW_COLUMNS + 1u) == 0,
-               "rows: a row of more columns than a row holds is not handed");
-    unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long words[5];
-    qry_who_words(who, words);
-    const unsigned long long expected[5] = {words[0], words[1], columns[0], columns[1], columns[2]};
-    check_that(qry_joined(run, "check_rows", &bytes, &size) && (size == sizeof(expected)) &&
-                   (memcmp(bytes, expected, sizeof(expected)) == 0),
-               "rows: the table holds the one row, its who's two words, then its columns as handed");
-    free(bytes);
-
     // texts
     const char *const said = "a text the check numbers twice";
-    const unsigned long long number = qry_row_text(run, said, strlen(said));
+    const unsigned long long number = table_text(said, strlen(said));
     check_that(number == check_hash(said), "texts: a text's number is the FNV-1a hash of its bytes");
-    check_that(qry_row_text(run, said, strlen(said)) == number, "texts: numbered again, it has the same number");
-    check_that(qry_row_text(run, said, 0ull) == 0ull, "texts: an empty text has no number");
-    bytes = NULL;
-    size = 0ull;
+    check_that(table_text(said, strlen(said)) == number, "texts: numbered again, it has the same number");
+    check_that(table_text(said, 0ull) == 0ull, "texts: an empty text has no number");
     // the table's rows walked, each its opening and its bytes filled out to a whole word, and this text's counted
     unsigned int rows = 0u;
     int whole = 1;
     int filled = 1;
-    const int joined = qry_joined(run, QRY_TEXTS_TABLE, &bytes, &size);
+    static unsigned char s_texts[QRY_WRITER_RING_BYTES / 2ull];
+    const unsigned char *const bytes = s_texts;
+    qry_member_settled();
+    const unsigned long long size = qry_member_gathered(TABLE_TEXTS, s_texts, sizeof(s_texts));
+    const int joined = (size != QRY_MEMBER_UNREAD);
     for (unsigned long long at = 0ull; joined && whole && (at < size);)
     {
         unsigned long long opening[4];
@@ -107,7 +89,6 @@ int main(void)
     check_that(joined && whole && (rows == 1u),
                "texts: the table holds its row once, of no who, its number, its length and its bytes");
     check_that(filled, "texts: and the bytes filled out to a whole word with zeros");
-    free(bytes);
 
     printf("qry_rows_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;

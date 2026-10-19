@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tables_read_check.c: the vendor's instruction set read: its classes, their opcodes and fields, and the class an
 // encoding belongs to
@@ -30,63 +31,65 @@ static void check_that(int held, const char *what)
 }
 
 // two classes as the vendor's text gives them: a move of an immediate, and a load off the constant bank
-static const char s_text[] = "ARCHITECTURE \"Test\"\n"
-                             "\n"
-                             "CLASS \"mov__RI\"\n"
-                             "FORMAT PREDICATE @[!]Predicate(PT):Pg Opcode\n"
-                             "Register:Rd\n"
-                             "','UImm(32)*:Sb\n"
-                             "$( { '?' USCHED_INFO(\"DRAIN\"):usched_info } )$;\n"
-                             "\n"
-                             "CONDITIONS\n"
-                             "\n"
-                             "OOR_REG_ERROR\n"
-                             " (((Rd)==`Register@RZ)||((Rd)<=(%MAX_REG_COUNT-1))) :\n"
-                             " \"Register Rd is out of range\"\n"
-                             "\n"
-                             "OPCODES\n"
-                             "        MOVint_pipe =  0b100000000010;\n"
-                             "        MOV =  0b100000000010;\n"
-                             "\n"
-                             "ENCODING\n"
-                             "!mov__RI_unused;\n"
-                             "BITS_3_14_12_Pg = Pg;\n"
-                             "BITS_13_91_91_11_0_opcode=Opcode;\n"
-                             "BITS_8_23_16_Rd=Rd;\n"
-                             "BITS_32_63_32_Ra_offset=Sb;\n"
-                             "BITS_3_115_113_src_rel_sb=*7;\n"
-                             "BITS_8_124_122_109_105_opex=TABLES_opex_1(batch_t,usched_info);\n"
-                             "\n"
-                             "\n"
-                             "CLASS \"ldc__RaRZ\"\n"
-                             "FORMAT PREDICATE @[!]Predicate(PT):Pg Opcode /SZ_U8_S8_U16_S16_32_64(\"32\"):sz\n"
-                             "Register:Rd\n"
-                             "','C:Sa[UImm(5/0*):Sa_bank]*   [ZeroRegister(\"RZ\"):Ra + SImm(17/0)*:Ra_offset]\n"
-                             "$( { '&' REQ:req '=' BITSET(6/0x0000):req_bit_set } )$;\n"
-                             "\n"
-                             "CONDITIONS\n"
-                             "\n"
-                             "OOR_REG_ERROR\n"
-                             " (((sz == `SZ_U8_S8_U16_S16_32_64@\"64\"))) -> (((((Rd)==`Register@RZ)||(((Rd)<=(%MAX_REG_COUNT-2))&&((Rd)!=`Register@R254))))) :\n"
-                             " \"Register Rd is out of range\"\n"
-                             "\n"
-                             "MISALIGNED_REG_ERROR\n"
-                             " (((sz == `SZ_U8_S8_U16_S16_32_64@\"64\"))) -> (((((Rd)+((Rd)==`Register@RZ)) % 2) == 0)) :\n"
-                             " \"Register Rd is misaligned\"\n"
-                             "\n"
-                             "ILLEGAL_INSTR_ENCODING_ERROR\n"
-                             " (%SHADER_TYPE == $ST_UNKNOWN) || ((Rd) == `Register@RZ) :\n"
-                             " \"Not a register condition\"\n"
-                             "\n"
-                             "OPCODES\n"
-                             "        LDC =  0b101110000010;\n"
-                             "\n"
-                             "ENCODING\n"
-                             "BITS_13_91_91_11_0_opcode=Opcode;\n"
-                             "BITS_8_23_16_Rd=Rd;\n"
-                             "BITS_5_58_54_Sc_bank,BITS_14_53_40_Sc_addr=ConstBankAddress2(Sa_bank,Ra_offset);\n"
-                             "BITS_3_75_73_sz=sz;\n"
-                             "\n";
+static const char s_text[] =
+    "ARCHITECTURE \"Test\"\n"
+    "\n"
+    "CLASS \"mov__RI\"\n"
+    "FORMAT PREDICATE @[!]Predicate(PT):Pg Opcode\n"
+    "Register:Rd\n"
+    "','UImm(32)*:Sb\n"
+    "$( { '?' USCHED_INFO(\"DRAIN\"):usched_info } )$;\n"
+    "\n"
+    "CONDITIONS\n"
+    "\n"
+    "OOR_REG_ERROR\n"
+    " (((Rd)==`Register@RZ)||((Rd)<=(%MAX_REG_COUNT-1))) :\n"
+    " \"Register Rd is out of range\"\n"
+    "\n"
+    "OPCODES\n"
+    "        MOVint_pipe =  0b100000000010;\n"
+    "        MOV =  0b100000000010;\n"
+    "\n"
+    "ENCODING\n"
+    "!mov__RI_unused;\n"
+    "BITS_3_14_12_Pg = Pg;\n"
+    "BITS_13_91_91_11_0_opcode=Opcode;\n"
+    "BITS_8_23_16_Rd=Rd;\n"
+    "BITS_32_63_32_Ra_offset=Sb;\n"
+    "BITS_3_115_113_src_rel_sb=*7;\n"
+    "BITS_8_124_122_109_105_opex=TABLES_opex_1(batch_t,usched_info);\n"
+    "\n"
+    "\n"
+    "CLASS \"ldc__RaRZ\"\n"
+    "FORMAT PREDICATE @[!]Predicate(PT):Pg Opcode /SZ_U8_S8_U16_S16_32_64(\"32\"):sz\n"
+    "Register:Rd\n"
+    "','C:Sa[UImm(5/0*):Sa_bank]*   [ZeroRegister(\"RZ\"):Ra + SImm(17/0)*:Ra_offset]\n"
+    "$( { '&' REQ:req '=' BITSET(6/0x0000):req_bit_set } )$;\n"
+    "\n"
+    "CONDITIONS\n"
+    "\n"
+    "OOR_REG_ERROR\n"
+    " (((sz == `SZ_U8_S8_U16_S16_32_64@\"64\"))) -> "
+    "(((((Rd)==`Register@RZ)||(((Rd)<=(%MAX_REG_COUNT-2))&&((Rd)!=`Register@R254))))) :\n"
+    " \"Register Rd is out of range\"\n"
+    "\n"
+    "MISALIGNED_REG_ERROR\n"
+    " (((sz == `SZ_U8_S8_U16_S16_32_64@\"64\"))) -> (((((Rd)+((Rd)==`Register@RZ)) % 2) == 0)) :\n"
+    " \"Register Rd is misaligned\"\n"
+    "\n"
+    "ILLEGAL_INSTR_ENCODING_ERROR\n"
+    " (%SHADER_TYPE == $ST_UNKNOWN) || ((Rd) == `Register@RZ) :\n"
+    " \"Not a register condition\"\n"
+    "\n"
+    "OPCODES\n"
+    "        LDC =  0b101110000010;\n"
+    "\n"
+    "ENCODING\n"
+    "BITS_13_91_91_11_0_opcode=Opcode;\n"
+    "BITS_8_23_16_Rd=Rd;\n"
+    "BITS_5_58_54_Sc_bank,BITS_14_53_40_Sc_addr=ConstBankAddress2(Sa_bank,Ra_offset);\n"
+    "BITS_3_75_73_sz=sz;\n"
+    "\n";
 
 int main(void)
 {
@@ -163,16 +166,19 @@ int main(void)
 
     // the conditions: the move's one on its register's range, and the load's two on its registers, the one under
     // ILLEGAL_INSTR_ENCODING_ERROR passed over as no condition on the registers
-    check_that((mov->conditions == 1u) && (ldc->conditions == 2u) && (strcmp(ldc->size_list, "SZ_U8_S8_U16_S16_32_64") == 0),
+    check_that((mov->conditions == 1u) && (ldc->conditions == 2u) &&
+                   (strcmp(ldc->size_list, "SZ_U8_S8_U16_S16_32_64") == 0),
                "conditions: the register conditions of each class are kept, under their list's name");
     const char *failed = NULL;
     unsigned long long odd_low = read_low;
     unsigned long long odd_high = read_high;
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 7ull);
-    check_that(!tables_class_legal(ldc, odd_low, odd_high, &failed) && (failed != NULL) && (strstr(failed, "% 2") != NULL),
+    check_that(!tables_class_legal(ldc, odd_low, odd_high, &failed) && (failed != NULL) &&
+                   (strstr(failed, "% 2") != NULL),
                "conditions: a 64-bit load into R7 fails the misaligned condition");
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 6ull);
-    check_that(tables_class_legal(ldc, odd_low, odd_high, NULL), "conditions: the same load into R6 holds to every condition");
+    check_that(tables_class_legal(ldc, odd_low, odd_high, NULL),
+               "conditions: the same load into R6 holds to every condition");
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 254ull);
     check_that(!tables_class_legal(ldc, odd_low, odd_high, &failed) && (strstr(failed, "R254") != NULL),
                "conditions: a 64-bit load into R254 fails the range condition");
@@ -180,8 +186,10 @@ int main(void)
     check_that(tables_class_legal(ldc, odd_low, odd_high, NULL), "conditions: a 64-bit load into RZ holds");
     tables_field_write(tables_field_named(ldc, "sz"), &odd_low, &odd_high, 4ull);
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 7ull);
-    check_that(tables_class_legal(ldc, odd_low, odd_high, NULL), "conditions: a 32-bit load into R7 holds, the width's guard not met");
-    check_that(tables_class_legal(mov, low, high, NULL), "conditions: the move's eight-bit register is always in range");
+    check_that(tables_class_legal(ldc, odd_low, odd_high, NULL),
+               "conditions: a 32-bit load into R7 holds, the width's guard not met");
+    check_that(tables_class_legal(mov, low, high, NULL),
+               "conditions: the move's eight-bit register is always in range");
 
     low = 0ull;
     high = 0ull;

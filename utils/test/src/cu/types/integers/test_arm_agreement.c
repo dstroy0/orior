@@ -1,5 +1,6 @@
-/* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+/*
  *
  * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
@@ -141,8 +142,7 @@ int main(void)
         const uint8_t *const needle = corpus + AGREEMENT_NEEDLE_AT;
         const size_t expected = orior_naive(corpus, AGREEMENT_CORPUS_BYTES, needle, 16u);
 
-        grade("orior_run on a null plan", orior_run(NULL, corpus, AGREEMENT_CORPUS_BYTES, needle, 16u),
-              expected);
+        grade("orior_run on a null plan", orior_run(NULL, corpus, AGREEMENT_CORPUS_BYTES, needle, 16u), expected);
     }
 
     free(corpus);

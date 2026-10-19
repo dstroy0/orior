@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // probe.c: the probe: a file read and written, bits and words read and written, the binary and the text, the kernel, a place found and written, and one question run on the part
 #include "unprinted_internal.h"

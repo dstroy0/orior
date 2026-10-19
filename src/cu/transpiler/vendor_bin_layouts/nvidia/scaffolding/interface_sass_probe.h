@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // What the interface_sass_probe*.c pieces share
 #ifndef INTERFACE_SASS_PROBE_H
@@ -12,11 +13,12 @@
 // is the operation's, one the disassembler refuses is an encoding the part lacks, and one that changes nothing in the
 // text is either control (the stall, yield and barriers the scheduler sets) or unused. Every process is run through the
 // interface, whose runner loses nothing when the disassembler fails
-#include "../../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../lstar/interface/interface.h"
 #include "../sass_machine.h"
 
 #include <stdio.h>
+#include "../../../../includes/parsers/who.h"
 
 // the longest instruction text kept, and the most instructions a listing holds
 #define SASS_TEXT 192u
@@ -138,10 +140,10 @@ int sass_pipe_read(const char *machines, const char *part);
 
 // `machines`/<part>.kdm handed back to the run's writer with the pipes held in place of those it held, at the end of
 // its tail under a who line of `who` (kdm.h): 1, or 0 with the reason printed
-int sass_pipe_write_by(const char *machines, const char *part, QryWho who);
+int sass_pipe_write_by(const char *machines, const char *part, Who who);
 
 // sass_pipe_write_by, the who the code that calls it
-#define sass_pipe_write(machines_, part_) sass_pipe_write_by((machines_), (part_), QRY_WHO_HERE)
+#define sass_pipe_write(machines_, part_) sass_pipe_write_by((machines_), (part_), WHO_HERE)
 
 // `machines`/<part>.ksc read back into the classification in place of the questions and counts it held, as the run
 // holds it (ksc.h), for a later pass to add to in place of overwriting it: its folds among them, and its equal writings
@@ -154,10 +156,10 @@ void sass_class_drop(unsigned int channel, unsigned int answered, const char *op
 
 // the system's classification handed to the run's writer as `machines`/<part>.ksc, every line after its first under a
 // who line of `who` (ksc.h): 1, or 0 with the reason printed
-int sass_class_write_by(const char *machines, const char *part, QryWho who);
+int sass_class_write_by(const char *machines, const char *part, Who who);
 
 // sass_class_write_by, the who the code that calls it
-#define sass_class_write(machines_, part_) sass_class_write_by((machines_), (part_), QRY_WHO_HERE)
+#define sass_class_write(machines_, part_) sass_class_write_by((machines_), (part_), WHO_HERE)
 
 // one operation the listings hold, keyed by the low 12 bits of its encoding: the first instruction seen with it
 typedef struct

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rank_machine.cu: the record machine as the ranker reaches it: a built program loaded, a sweep of it run on the
 // device over records the host holds, and a record's fields read and written as exact integers

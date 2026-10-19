@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 set -u
 
@@ -63,7 +64,7 @@ EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_E
 
 DEFINES=(-DBODY_OVERLAP_BUILD_DLL=1 -DHEAVIEST_MATCHING_BUILD_DLL=1
          -DSHIFT_AGREEMENT_BUILD_DLL=1)
-MODULES=(cu/includes/formats/stack cu/engine/parser
+MODULES=(cu/includes/formats/stack cu/includes/file_defs/krep
          cu/engine/analysis/compression cu/engine/analysis/tower
          cu/engine/runtime/device_pool
          cu/engine/analysis/entropy_history cu/engine/analysis/keymath
@@ -72,7 +73,7 @@ MODULES=(cu/includes/formats/stack cu/engine/parser
          cu/engine/runtime/obsignatio
          cu/engine/analysis/residual cu/engine/nbody/max_tree
          cu/engine/nbody/flatten cu/engine/nbody/grow
-         cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura
+         cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura
          cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching
          cu/engine/analysis/shift_agreement cu/engine/analysis/period
          )
@@ -92,8 +93,8 @@ for module in "${MODULES[@]}"; do
 done
 PORTABLE_OBJECTS=()
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
-                cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/types/integerfloats/double_fields \
-                cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura cu/types/integers/exact_record \
+                cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/includes/types/integerfloats/double_fields \
+                cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura cu/includes/types/integers/exact_record \
                 "${INGEST[@]}"; do
     for source in "$(build_path "$portable")"/*.c; do
         name="$(basename "$source" .c)"

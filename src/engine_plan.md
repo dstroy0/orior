@@ -290,7 +290,7 @@ reads has changed.
    before a cubin is written. A loop ask
    branches by its nature and is held off the part until a rule says when a loop ends.
 
-7. **One function of 132 runs on the device.** `src/cu/types/integerfloats/double_fields/double_fields.cu` holds
+7. **One function of 132 runs on the device.** `src/cu/includes/types/integerfloats/double_fields/double_fields.cu` holds
     `double_fields.c`'s four functions as one record program, encoded, laid out and loaded by the calls
     `engine_record_encode` makes, swept on the device and run on the host. `double_fields_test.cu` holds it 1:1
     against the C on 4110 lanes, the edges of a double and 4096 drawn words, with merges past every mask: the

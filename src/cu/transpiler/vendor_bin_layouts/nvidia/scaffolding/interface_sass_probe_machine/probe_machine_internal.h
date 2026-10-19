@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // probe_machine_internal.h: what the modules of the probe's machine share: its includes, the encodings and texts held, the bounds of the carriers, and the functions one module reads from another (interface_sass_probe.h)
 #ifndef PROBE_MACHINE_INTERNAL_H

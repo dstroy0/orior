@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // forms.c: the forms: a question asked, an operand, a form's text, lines and addresses, a memory form's text and lines, the tally and the value, a form run and every form asked
 #include "unprinted_internal.h"

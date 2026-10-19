@@ -1,10 +1,13 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // query_interface.c: a walk of asks put from inside the interface, every ending kept as the answer of the address that
 // caused it
 #include "query_interface.h"
+#include "../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../engine/runtime/scriptura/scriptura.h"
 
-#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define QUERY_INTERFACE_CHECK(condition_, evacaddr_, error_, kind_)                                                    \
     engine_error_check((condition_), (kind_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__,                         \
@@ -14,6 +17,33 @@
 // the most addresses a probe is given
 #define QUERY_INTERFACE_LINE 48ull
 static char s_query_interface_lines[(QUERY_INTERFACE_MOST * QUERY_INTERFACE_LINE) + 1ull];
+
+// `value` in hex written into `text`, which holds 24
+static void query_interface_hex(char *text, unsigned long long value)
+{
+    ScripturaLine line = {text, 24ull, 0ull};
+    scriptura_hex(&line, value, 0u);
+    scriptura_closed(&line);
+}
+
+// The lines the walk's probe handed the run (QUERY_WALK_RECORD) after the place `began` of the run's schedule, once
+// every ring is taken, joined into s_query_interface_lines in the order the writer took them and ended by a zero byte
+static void query_interface_lines_gathered(unsigned long long began)
+{
+    qry_member_rings_settled();
+    ScripturaLine lines = {s_query_interface_lines, sizeof(s_query_interface_lines), 0ull};
+    unsigned long long at = began;
+    const QryRecord *record = NULL;
+    while (qry_member_read(&at, &record))
+    {
+        if ((record->name_length == (sizeof(QUERY_WALK_RECORD) - 1u)) &&
+            (memcmp(QRY_RECORD_NAME(record), QUERY_WALK_RECORD, sizeof(QUERY_WALK_RECORD) - 1u) == 0))
+        {
+            scriptura_counted(&lines, (const char *)QRY_RECORD_BLOB(record), record->blob_length);
+        }
+    }
+    scriptura_closed(&lines);
+}
 
 int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *driver, unsigned long long *probes,
                         EngineError *error)
@@ -30,24 +60,24 @@ int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *drive
         char stride[24];
         char turns[24];
         char word[24];
-        snprintf(qualifier, sizeof(qualifier), "%x", walk->qualifier);
-        snprintf(from, sizeof(from), "%llx", walk->from + (next * walk->stride));
-        snprintf(count, sizeof(count), "%llx", given);
-        snprintf(stride, sizeof(stride), "%llx", walk->stride);
-        snprintf(turns, sizeof(turns), "%llx", walk->turns);
-        snprintf(word, sizeof(word), "%x", walk->word);
+        query_interface_hex(qualifier, walk->qualifier);
+        query_interface_hex(from, walk->from + (next * walk->stride));
+        query_interface_hex(count, given);
+        query_interface_hex(stride, walk->stride);
+        query_interface_hex(turns, walk->turns);
+        query_interface_hex(word, walk->word);
         // the interface's command is a list of words it does not write to; the cast only meets its declared type
         char *const asked[] = {(char *)walk->program, qualifier, from, count, stride, turns, word, NULL};
         char *const spanned[] = {(char *)walk->program, from, count, stride, NULL};
-        const InterfaceProbe probe = {(driver->asks != 0) ? asked : spanned, walk->output_path,
-                                      walk->limit_microseconds};
+        const InterfaceProbe probe = {(driver->asks != 0) ? asked : spanned, NULL, walk->limit_microseconds};
         InterfaceAnswer answer = {0};
-        answer.output = s_query_interface_lines;
-        answer.output_capacity = sizeof(s_query_interface_lines);
+        // the place the run's schedule holds before the probe starts: every line it hands stands past it
+        const unsigned long long began = qry_member_settled();
         if (interface_probe_run(&probe, &answer, error) != 0L)
         {
             return 0;
         }
+        query_interface_lines_gathered(began);
         *probes += 1ull;
         if (!QUERY_INTERFACE_CHECK(answer.ending != INTERFACE_ENDING_NOT_STARTED, walk, error, ENGINE_ERROR_RESOURCE))
         {

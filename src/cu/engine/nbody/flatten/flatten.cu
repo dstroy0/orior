@@ -1,10 +1,11 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "flatten.h"
 
 #include "../../analysis/cycle/cycle.h"
 #include "../../engine.h"
 #include "../max_tree/max_tree.h"
-#include "../../parser/krep.h"
+#include "../../../includes/file_defs/krep/krep.h"
 
 #include <cuda_runtime.h>
 

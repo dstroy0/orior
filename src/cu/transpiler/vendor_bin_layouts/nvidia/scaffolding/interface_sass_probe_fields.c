@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_fields.c: a form's fields found by running it on the part, not by reading a disassembler. An
 // instruction is assembled through the machine file, put in place of the kernel's IADD3, and run once for its answer;

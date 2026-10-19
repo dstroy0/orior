@@ -1,6 +1,9 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // accounts.c: the accounts: a conference named, an account written to the run, a standing joined, a cause read, text trimmed, an expert named, a clause read, and an account and the accounts read back
 #include "overseer_internal.h"
+#include "../table_text.h"
+#include "../../../../includes/parsers/who.h"
 
 OverseerLesson s_lessons[OVERSEER_LESSONS_MOST];
 unsigned int s_lesson_count;
@@ -9,33 +12,35 @@ OverseerHeard s_heard;
 
 void overseer_conference_named(const char *identity, char *name)
 {
-    const int length = snprintf(name, OVERSEER_NAME_LONGEST, "%s_%s", QRY_CONFERENCE_CALL, identity);
-    // the name fits its room or is cut to it, and its length is not negative; each space of it an underscore
-    const size_t written = (length < 0)                               ? 0u
-                           : ((size_t)length < OVERSEER_NAME_LONGEST) ? (size_t)length
-                                                                      : (OVERSEER_NAME_LONGEST - 1u);
+    ScripturaLine line = {name, OVERSEER_NAME_LONGEST, 0ull};
+    scriptura_text(&line, QRY_CONFERENCE_CALL);
+    scriptura_character(&line, '_');
+    scriptura_text_most(&line, identity, OVERSEER_NAME_LONGEST - sizeof(QRY_CONFERENCE_CALL) - 1u);
+    // the name cut to its room; each space of it an underscore
+    const size_t written = (size_t)scriptura_closed(&line);
     for (size_t at = 0u; at < written; at += 1u)
     {
         name[at] = (name[at] == ' ') ? '_' : name[at];
     }
 }
 
-int overseer_account(QryBuffer *run, const char *identity, const char *expert, const char *text)
+int overseer_account(QryShared *run, const char *identity, const char *expert, const char *text)
 {
     char name[OVERSEER_NAME_LONGEST];
     char account[OVERSEER_ACCOUNT_LONGEST];
     overseer_conference_named(identity, name);
-    const int length = snprintf(account, sizeof(account), "%s: %s\n", expert, text);
-    // an account longer than its room is cut, its line ended; the length is not negative where it was written
-    const size_t kept = (length < 0)                         ? 0u
-                        : ((size_t)length < sizeof(account)) ? (size_t)length
-                                                             : (sizeof(account) - 1u);
+    ScripturaLine line = {account, sizeof(account), 0ull};
+    scriptura_text_most(&line, expert, OVERSEER_EXPERT_LONGEST);
+    scriptura_text(&line, ": ");
+    // an account longer than its room is cut, its line ended
+    scriptura_text_most(&line, text, sizeof(account) - line.at - 2u);
+    scriptura_character(&line, '\n');
+    const size_t kept = (size_t)scriptura_closed(&line);
     if (kept == 0u)
     {
         return 0;
     }
-    account[kept - 1u] = '\n';
-    return (run != NULL) && (qry_hand(run, name, account, (unsigned long long)kept, QRY_ORDINARY) != 0ull);
+    return (run != NULL) && (qry_member_append(name, account, (unsigned long long)kept, QRY_ORDINARY) != 0);
 }
 
 void overseer_standing_joined(const char *standing, char *joined)
@@ -97,7 +102,7 @@ static void overseer_expert_named(OverseerHeard *heard, const char *expert)
     }
     if (heard->expert_count < OVERSEER_EXPERTS_MOST)
     {
-        snprintf(heard->experts[heard->expert_count], OVERSEER_EXPERT_LONGEST, "%s", expert);
+        scriptura_text_into(heard->experts[heard->expert_count], OVERSEER_EXPERT_LONGEST, expert);
         heard->expert_count += 1u;
     }
 }
@@ -129,7 +134,7 @@ static void overseer_clause_read(OverseerHeard *heard, const char *expert, const
         const unsigned int cause = overseer_cause_read(rest);
         if ((cause != OVERSEER_CAUSE_NONE) && (heard->vote_count < OVERSEER_VOTES_MOST))
         {
-            snprintf(heard->votes[heard->vote_count].expert, OVERSEER_EXPERT_LONGEST, "%s", expert);
+            scriptura_text_into(heard->votes[heard->vote_count].expert, OVERSEER_EXPERT_LONGEST, expert);
             heard->votes[heard->vote_count].cause = cause;
             heard->vote_count += 1u;
         }
@@ -143,15 +148,15 @@ static void overseer_clause_read(OverseerHeard *heard, const char *expert, const
     else if (strcmp(word, "carrier") == 0)
     {
         // a carrier's name is its chain's number, far inside the room; a longer one is cut to it
-        snprintf(heard->carrier, sizeof(heard->carrier), "%.*s", (int)(sizeof(heard->carrier) - 1u), rest);
+        scriptura_text_into(heard->carrier, sizeof(heard->carrier), rest);
     }
     else if (strcmp(word, "learning") == 0)
     {
-        snprintf(heard->learning, sizeof(heard->learning), "%s", rest);
+        scriptura_text_into(heard->learning, sizeof(heard->learning), rest);
     }
     else if (strcmp(word, "counterexample") == 0)
     {
-        snprintf(heard->counterexample, sizeof(heard->counterexample), "%s", rest);
+        scriptura_text_into(heard->counterexample, sizeof(heard->counterexample), rest);
     }
 }
 
@@ -159,7 +164,7 @@ static void overseer_clause_read(OverseerHeard *heard, const char *expert, const
 // `standing` clause taking the rest of the line. The account a row of the run's table of accounts: the conference,
 // the number of the question's identity, `conference`; the expert's text, the account's and the cause it reads, 0
 // where it reads none
-static void overseer_account_read(OverseerHeard *heard, const char *line, const char *end, QryBuffer *run,
+static void overseer_account_read(OverseerHeard *heard, const char *line, const char *end, QryShared *run,
                                   unsigned long long conference)
 {
     const char *const colon = (const char *)memchr(line, ':', (size_t)(end - line));
@@ -173,8 +178,8 @@ static void overseer_account_read(OverseerHeard *heard, const char *line, const 
     heard->accounts += 1u;
     char text[OVERSEER_ACCOUNT_LONGEST];
     overseer_trimmed(colon + 1, end, text, sizeof(text));
-    const unsigned long long account[3] = {conference, qry_row_text(run, expert, strlen(expert)),
-                                           qry_row_text(run, text, strlen(text))};
+    const unsigned long long account[3] = {conference, table_text(expert, strlen(expert)),
+                                           table_text(text, strlen(text))};
     const unsigned int votes_before = heard->vote_count;
     char *const standing = strstr(text, "; standing ");
     if (standing != NULL)
@@ -194,17 +199,18 @@ static void overseer_account_read(OverseerHeard *heard, const char *line, const 
         clause = next;
     }
     // the cause the account reads, the last of its cause clauses where it gives one
-    const unsigned long long row[4] = {account[0], account[1], account[2],
+    unsigned long long row[2u + 4] = {0ull, 0ull, account[0], account[1], account[2],
                                        (heard->vote_count != votes_before) ? heard->votes[heard->vote_count - 1u].cause
                                                                            : 0ull};
-    qry_row_handed(run, OVERSEER_ACCOUNTS_TABLE, row, 4u);
+    who_words(WHO_HERE, row);
+    qry_member_append(OVERSEER_ACCOUNTS_TABLE, row, sizeof(row), QRY_ORDINARY);
 }
 
 // every line of `bytes`, `size` of them, read as an account once, each a row of the run's table of accounts of the
 // conference `conference`: a line read before in this conference is the same account heard twice, as the carrier's own
 // is in its answer and on the panic line
 void overseer_accounts_read(OverseerHeard *heard, const unsigned char *bytes, unsigned long long size,
-                                   const unsigned char *before, unsigned long long before_size, QryBuffer *run,
+                                   const unsigned char *before, unsigned long long before_size, QryShared *run,
                                    unsigned long long conference)
 {
     unsigned long long at = 0ull;

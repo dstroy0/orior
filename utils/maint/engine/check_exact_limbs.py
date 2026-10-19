@@ -171,11 +171,11 @@ def version_lock(out):
     Returns 1 where they agree, 0 where they do not.
     """
     limbs = constant(
-        "src/cu/types/integers/exact_integer.h",
+        "src/cu/includes/types/integers/exact_integer.h",
         r"#define\s+ANCHOR_EXACT_LIMBS\s+(\d+)",
     )
     floor = constant(
-        "src/cu/types/integers/exact_integer.h",
+        "src/cu/includes/types/integers/exact_integer.h",
         r"#define\s+ANCHOR_EXACT_DIGITS\s+(\d+)",
     )
     scale = constant(

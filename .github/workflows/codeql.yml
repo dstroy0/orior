@@ -1,7 +1,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# CodeQL over the app in src/ui: its JavaScript, its Rust and these workflows, with the queries of
+# CodeQL over the app in ui: its JavaScript, its Rust and these workflows, with the queries of
 # security and of quality, on each push to main and each pull request that changes the app, and once
 # a week for queries added since. What it finds shows under the repository's Security, Code scanning.
 #
@@ -13,12 +13,12 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/ui/**"
+      - "ui/**"
       - ".github/codeql/**"
       - ".github/workflows/**"
   pull_request:
     paths:
-      - "src/ui/**"
+      - "ui/**"
       - ".github/codeql/**"
       - ".github/workflows/**"
   schedule:

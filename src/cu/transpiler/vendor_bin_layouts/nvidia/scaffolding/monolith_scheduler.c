@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // monolith_scheduler.c: the scheduler's bits NVIDIA's compiler writes, read off its cubins and gathered by operation.
 // No listing is read and no disassembler is run: each cubin's code sections are read from the ELF, each instruction is

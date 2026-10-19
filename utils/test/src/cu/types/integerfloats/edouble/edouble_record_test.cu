@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Proves edouble_record, the exact double on the device: one program over random lanes, a = m_a 2^e_a and
 // b = m_b 2^e_b with signed 12-bit mantissas and signed 4-bit exponents, run on the device and on the host, the two
@@ -21,8 +22,8 @@
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
-#include "../../../../../../../src/cu/types/integerfloats/edouble/edouble_record.h"
-#include "../../../../../../../src/cu/types/integers/exact_integer.h"
+#include "../../../../../../../src/cu/includes/types/integerfloats/edouble/edouble_record.h"
+#include "../../../../../../../src/cu/includes/types/integers/exact_integer.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

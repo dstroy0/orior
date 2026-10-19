@@ -1,7 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../src/cu/types/integers/arm.h"
+#include "../../src/cu/includes/types/integers/arm.h"
 #if defined(ANCHOR_EXACT_HAVE_CUDA) && ANCHOR_EXACT_HAVE_CUDA
-#include "../../src/cu/types/integers/arm_cuda.h"
+#include "../../src/cu/includes/types/integers/arm_cuda.h"
 #endif
 
 #include <stdio.h>

@@ -1,6 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // question.c: the question: the safety word laid on the code, a refusal's cause heard and said, the fault kept, the account given, one question carried, and the verdict loaded
 #include "cubin_run_internal.h"
+#include "../../../../engine/runtime/scriptura/scriptura.h"
 
 // a part of a driver's error name and the cause a conference reads it as (overseer.h)
 typedef struct
@@ -140,17 +142,22 @@ static void cubin_run_faulted_kept(unsigned long long low, unsigned long long hi
 {
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    QryText text = {0};
-    if (qry_latest(s_run, CUBIN_RUN_FAULTS, &bytes, &size, NULL))
+    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine text = {s_text_bytes, sizeof(s_text_bytes), 0ull};
+    if (qry_member_blob(CUBIN_RUN_FAULTS, &bytes, &size, NULL))
     {
-        qry_text_added(&text, bytes, size);
+        scriptura_counted(&text, (const char *)bytes, size);
     }
-    qry_text_printed(&text, "%016llx %016llx %s\n", low, high, (cause != NULL) ? cause : "-");
-    if (!text.failed)
+    scriptura_hex(&text, (unsigned long long)(low), 16u);
+    scriptura_text(&text, " ");
+    scriptura_hex(&text, (unsigned long long)(high), 16u);
+    scriptura_text(&text, " ");
+    scriptura_text(&text, (cause != NULL) ? cause : "-");
+    scriptura_text(&text, "\n");
+    if (scriptura_fits(&text))
     {
-        qry_hand(s_run, CUBIN_RUN_FAULTS, text.bytes, text.size, QRY_CRITICAL);
+        qry_member_append(CUBIN_RUN_FAULTS, text.out, text.at, QRY_CRITICAL);
     }
-    qry_text_freed(&text);
     char line[48];
     snprintf(line, sizeof(line), "%016llx %016llx\n", low, high);
     cubin_safe_verdict_added(line, strlen(line));
@@ -158,10 +165,10 @@ static void cubin_run_faulted_kept(unsigned long long low, unsigned long long hi
 
 // The account `call` holds said in the answer `answers` too, and handed as a panic of the call where `panicked` and
 // the run's writer runs; let go either way
-static void cubin_run_account_given(CubinRunSaying *answers, CubinRunSaying *call, int panicked)
+static void cubin_run_account_given(ScripturaLine *answers, ScripturaLine *call, int panicked)
 {
     // an account is a line, far below what an int counts
-    cubin_run_say(answers, "%.*s", (int)call->size, call->text);
+    scriptura_counted(answers, call->out, call->at);
     if (panicked)
     {
         cubin_run_said(call, QRY_PANIC_CALL, QRY_PANIC, 0);
@@ -174,71 +181,105 @@ static void cubin_run_account_given(CubinRunSaying *answers, CubinRunSaying *cal
 // the part's fault telemetry's, of the Xid critical errors the part stamped against it; and the gate's, of the code it
 // passed, its verdict, the held list and the slot instruction against it. The proctor and the BAR0 driver each end in the
 // cause it reads, where it reads one. Where the carrier lost its mind, a launch that faulted the part or hung past its
-// bound, each account is also handed as a panic of the call (QRY_PANIC_CALL) to the run's buffer, opening the line
+// bound, each account is also handed as a panic of the call (QRY_PANIC_CALL) to the run, opening the line
 // every party of the run sees. Nothing waits on the disk: the carrier goes straight on off the part
-void cubin_run_refusal_said(CubinRunSaying *answers, int panicked, const char *code_path,
+void cubin_run_refusal_said(ScripturaLine *answers, int panicked, const char *code_path,
                                    unsigned long long code_size, unsigned int registers, unsigned int slot,
                                    unsigned int launches, const CubinRunShape *shape, const char *status_name,
                                    CubinRunStatus status, unsigned int verdict, unsigned long long at)
 {
-    CubinRunSaying *const call = &s_call_said;
+    ScripturaLine *const call = &s_call_said;
     call->size = 0u;
     const char *const proctor_cause = cubin_run_cause_named(status_name);
-    cubin_run_say(call,
-                  "proctor: the launch of %s, %llu bytes of code, %u registers, %u threads in %u blocks over %u cases, "
-                  "%u launches timed after it, %s: the driver's status %s (%d)%s%s\n",
-                  code_path, code_size, registers, shape->threads, shape->blocks, s_case_count, launches,
-                  s_launch_faulted     ? "faulted the part"
+    scriptura_text(call, "proctor: the launch of ");
+    scriptura_text(call, code_path);
+    scriptura_text(call, ", ");
+    scriptura_decimal(call, (unsigned long long)(code_size), 0u);
+    scriptura_text(call, " bytes of code, ");
+    scriptura_decimal(call, (unsigned long long)(registers), 0u);
+    scriptura_text(call, " registers, ");
+    scriptura_decimal(call, (unsigned long long)(shape->threads), 0u);
+    scriptura_text(call, " threads in ");
+    scriptura_decimal(call, (unsigned long long)(shape->blocks), 0u);
+    scriptura_text(call, " blocks over ");
+    scriptura_decimal(call, (unsigned long long)(s_case_count), 0u);
+    scriptura_text(call, " cases, ");
+    scriptura_decimal(call, (unsigned long long)(launches), 0u);
+    scriptura_text(call, " launches timed after it, ");
+    scriptura_text(call, s_launch_faulted     ? "faulted the part"
                   : s_launch_timed_out ? "hung past its bound"
-                                       : "was refused, the part left whole",
-                  (status_name != NULL) ? status_name : "with no name", status,
-                  (proctor_cause != NULL) ? "; cause " : "", (proctor_cause != NULL) ? proctor_cause : "");
+                                       : "was refused, the part left whole");
+    scriptura_text(call, ": the driver's status ");
+    scriptura_text(call, (status_name != NULL) ? status_name : "with no name");
+    scriptura_text(call, " (");
+    scriptura_signed(call, (long long)(status));
+    scriptura_text(call, ")");
+    scriptura_text(call, (proctor_cause != NULL) ? "; cause " : "");
+    scriptura_text(call, (proctor_cause != NULL) ? proctor_cause : "");
+    scriptura_text(call, "\n");
     cubin_run_account_given(answers, call, panicked);
     const char *const listener_cause = cubin_run_cause_heard();
     if (!s_telemetry_ready && !s_events_ready)
     {
-        cubin_run_say(call, "listener: the part's fault telemetry was not reached this run, and heard nothing\n");
+        scriptura_text(call, "listener: the part's fault telemetry was not reached this run, and heard nothing\n");
     }
     else if (s_xid_count == 0u)
     {
-        cubin_run_say(call, "listener: the part stamped no Xid critical error against the launch\n");
+        scriptura_text(call, "listener: the part stamped no Xid critical error against the launch\n");
     }
     else
     {
-        cubin_run_say(call, "listener: the part stamped %u Xid critical errors against the launch, Xid", s_xid_count);
+        scriptura_text(call, "listener: the part stamped ");
+        scriptura_decimal(call, (unsigned long long)(s_xid_count), 0u);
+        scriptura_text(call, " Xid critical errors against the launch, Xid");
         for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_KEPT); place += 1u)
         {
-            cubin_run_say(call, " %llu", s_xid_data[place]);
+            scriptura_text(call, " ");
+            scriptura_decimal(call, (unsigned long long)(s_xid_data[place]), 0u);
             if (s_xid_text[place][0] != '\0')
             {
-                cubin_run_say(call, " (%s)", s_xid_text[place]);
+                scriptura_text(call, " (");
+                scriptura_text(call, s_xid_text[place]);
+                scriptura_text(call, ")");
             }
         }
-        cubin_run_say(call, "%s%s%s\n", (s_xid_count > CUBIN_RUN_XID_KEPT) ? " ..." : "",
-                      (listener_cause != NULL) ? "; cause " : "", (listener_cause != NULL) ? listener_cause : "");
+        scriptura_text(call, (s_xid_count > CUBIN_RUN_XID_KEPT) ? " ..." : "");
+        scriptura_text(call, (listener_cause != NULL) ? "; cause " : "");
+        scriptura_text(call, (listener_cause != NULL) ? listener_cause : "");
+        scriptura_text(call, "\n");
     }
     cubin_run_account_given(answers, call, panicked);
     // the slot instruction as the gate read it, the safety word laid on, where the code holds a slot
     const int slotted = (((unsigned long long)slot * 16ull) + 16ull) <= code_size;
     const unsigned long long low = slotted ? cubin_run_word(s_code, slot * 16u) : 0ull;
     const unsigned long long high = slotted ? cubin_run_word(s_code, (slot * 16u) + 8u) : 0ull;
-    cubin_run_say(call, "gate: the code read %s", cubin_safe_name(verdict));
+    scriptura_text(call, "gate: the code read ");
+    scriptura_text(call, cubin_safe_name(verdict));
     if (verdict != CUBIN_SAFE)
     {
-        cubin_run_say(call, " at byte %llu", at);
+        scriptura_text(call, " at byte ");
+        scriptura_decimal(call, (unsigned long long)(at), 0u);
     }
-    cubin_run_say(call, ", its register fields bound by %u; the held list %s", registers,
-                  cubin_safe_verdict_ready() ? "loaded" : "not loaded");
+    scriptura_text(call, ", its register fields bound by ");
+    scriptura_decimal(call, (unsigned long long)(registers), 0u);
+    scriptura_text(call, "; the held list ");
+    scriptura_text(call, cubin_safe_verdict_ready() ? "loaded" : "not loaded");
     if (slotted)
     {
-        cubin_run_say(call, "; the slot %u, %016llx %016llx, %s", slot, low, high,
-                      cubin_safe_verdict_holds(low, high) ? "in the held list" : "not in the held list");
+        scriptura_text(call, "; the slot ");
+        scriptura_decimal(call, (unsigned long long)(slot), 0u);
+        scriptura_text(call, ", ");
+        scriptura_hex(call, (unsigned long long)(low), 16u);
+        scriptura_text(call, " ");
+        scriptura_hex(call, (unsigned long long)(high), 16u);
+        scriptura_text(call, ", ");
+        scriptura_text(call, cubin_safe_verdict_holds(low, high) ? "in the held list" : "not in the held list");
     }
     else
     {
-        cubin_run_say(call, "; the code holds no slot");
+        scriptura_text(call, "; the code holds no slot");
     }
-    cubin_run_say(call, "\n");
+    scriptura_text(call, "\n");
     cubin_run_account_given(answers, call, panicked);
     if (s_launch_faulted && slotted)
     {
@@ -250,7 +291,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
                               unsigned int registers, const char *cases_path, const char *answers_path,
                               unsigned int slot, unsigned int launches, CubinRunShape shape, int shaped)
 {
-    CubinRunSaying *const answers = &s_answer_said;
+    ScripturaLine *const answers = &s_answer_said;
     answers->size = 0u;
     s_part_registers = CUBIN_RUN_REGISTERS_UNREAD;
     const unsigned long long input_began = cubin_run_host_now();
@@ -269,8 +310,13 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     const unsigned long long threads = (unsigned long long)shape.threads * shape.blocks;
     if ((threads < s_case_count) || (threads > CUBIN_RUN_THREADS_MOST))
     {
-        cubin_run_say(answers, "skipped a launch of %u threads in %u blocks for %u cases\n", shape.threads,
-                      shape.blocks, s_case_count);
+        scriptura_text(answers, "skipped a launch of ");
+        scriptura_decimal(answers, (unsigned long long)(shape.threads), 0u);
+        scriptura_text(answers, " threads in ");
+        scriptura_decimal(answers, (unsigned long long)(shape.blocks), 0u);
+        scriptura_text(answers, " blocks for ");
+        scriptura_decimal(answers, (unsigned long long)(s_case_count), 0u);
+        scriptura_text(answers, " cases\n");
         return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // the scheduler's own word set here, before the gate and the part: the protocol sent the code as the part
@@ -290,7 +336,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     unsigned long long size = 0ull;
     if (!cubin_write(&written, s_container, sizeof(s_container), &size))
     {
-        cubin_run_say(answers, "skipped not written\n");
+        scriptura_text(answers, "skipped not written\n");
         return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // read on the host before the driver sees it: code that breaks a rule of cubin_safe is answered without the part,
@@ -311,13 +357,19 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     }
     if (verdict != CUBIN_SAFE)
     {
-        cubin_run_say(answers, "skipped %u %s at byte %llu\n", verdict, cubin_safe_name(verdict), at);
+        scriptura_text(answers, "skipped ");
+        scriptura_decimal(answers, (unsigned long long)(verdict), 0u);
+        scriptura_text(answers, " ");
+        scriptura_text(answers, cubin_safe_name(verdict));
+        scriptura_text(answers, " at byte ");
+        scriptura_decimal(answers, (unsigned long long)(at), 0u);
+        scriptura_text(answers, "\n");
         return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // a dry run stops here, before the driver: the question is answered as one held off the part
     if (s_dry)
     {
-        cubin_run_say(answers, "skipped dry, the part taken out\n");
+        scriptura_text(answers, "skipped dry, the part taken out\n");
         return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // the safety airlock: a live run reaches the part only with the vendor's verdict in hand (--held). Without it this
@@ -325,7 +377,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     // the part here, the cross must read it first
     if (!cubin_safe_verdict_ready())
     {
-        cubin_run_say(answers, "skipped no vendor verdict, the cross must read this code before the part\n");
+        scriptura_text(answers, "skipped no vendor verdict, the cross must read this code before the part\n");
         return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // a slot instruction the vendor's reader held off the part was already caught by cubin_safe_image above, where the
@@ -352,7 +404,8 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         char refused[160];
         snprintf(refused, sizeof(refused), "refused %s%s", (name != NULL) ? name : "CUDA_ERROR_LAUNCH_FAILED",
                  s_launch_faulted ? " the part faulted" : "");
-        cubin_run_say(answers, "%s\n", refused);
+        scriptura_text(answers, refused);
+        scriptura_text(answers, "\n");
         const unsigned int outcome = s_launch_timed_out ? CUBIN_RUN_TIMED_OUT
                                      : s_launch_faulted ? CUBIN_RUN_FAULTED
                                                         : CUBIN_RUN_REFUSED;
@@ -366,24 +419,39 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
                                verdict, at);
         return cubin_run_said(answers, answers_path, panicked ? QRY_PANIC : QRY_ORDINARY, 1);
     }
-    cubin_run_say(answers, "answered");
+    scriptura_text(answers, "answered");
     for (unsigned int place = 0u; place < s_case_count; place += 1u)
     {
-        cubin_run_say(answers, " %llx", ((unsigned long long)s_answers[place][1] << 32u) | s_answers[place][0]);
+        scriptura_text(answers, " ");
+        scriptura_hex(answers, (unsigned long long)(((unsigned long long)s_answers[place][1] << 32u) | s_answers[place][0]), 0u);
     }
-    cubin_run_say(answers, "\n");
+    scriptura_text(answers, "\n");
     // the part's own count of the kernel's registers, beside the count the question declared: read off the part, the
     // register boundary in hand without an ask that walks up to it
     if (s_part_registers != CUBIN_RUN_REGISTERS_UNREAD)
     {
-        cubin_run_say(answers, "registers %u %u\n", registers, s_part_registers);
+        scriptura_text(answers, "registers ");
+        scriptura_decimal(answers, (unsigned long long)(registers), 0u);
+        scriptura_text(answers, " ");
+        scriptura_decimal(answers, (unsigned long long)(s_part_registers), 0u);
+        scriptura_text(answers, "\n");
     }
     if (launches != 0u)
     {
-        cubin_run_say(answers, "timed %u %llu %llu %llu\n", launches, nanoseconds, s_timed_least, s_timed_most);
+        scriptura_text(answers, "timed ");
+        scriptura_decimal(answers, (unsigned long long)(launches), 0u);
+        scriptura_text(answers, " ");
+        scriptura_decimal(answers, (unsigned long long)(nanoseconds), 0u);
+        scriptura_text(answers, " ");
+        scriptura_decimal(answers, (unsigned long long)(s_timed_least), 0u);
+        scriptura_text(answers, " ");
+        scriptura_decimal(answers, (unsigned long long)(s_timed_most), 0u);
+        scriptura_text(answers, "\n");
         if (cubin_run_clock_offset() != 0u)
         {
-            cubin_run_say(answers, "clock address %x\n", cubin_run_clock_offset());
+            scriptura_text(answers, "clock address ");
+            scriptura_hex(answers, (unsigned long long)(cubin_run_clock_offset()), 0u);
+            scriptura_text(answers, "\n");
         }
     }
     const unsigned long long handed_began = cubin_run_host_now();
@@ -394,16 +462,16 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     return said;
 }
 
-// the held list named `name` loaded into the gate, the blob of it in the run's buffer, and with it every encoding that
+// the held list named `name` loaded into the gate, the blob of it in the run, and with it every encoding that
 // faulted the part, the run's CUBIN_RUN_FAULTS where it holds one. 1, or 0 where either did not read
 int cubin_run_verdict_load(const char *name)
 {
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    if (!qry_latest(s_run, name, &bytes, &size, NULL) || !cubin_safe_verdict_read((const char *)bytes, size))
+    if (!qry_member_blob(name, &bytes, &size, NULL) || !cubin_safe_verdict_read((const char *)bytes, size))
     {
         return 0;
     }
-    return !qry_latest(s_run, CUBIN_RUN_FAULTS, &bytes, &size, NULL) ||
+    return !qry_member_blob(CUBIN_RUN_FAULTS, &bytes, &size, NULL) ||
            cubin_safe_verdict_added((const char *)bytes, size);
 }

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin.c: the container: a file read and written, a word read and written, the kernel, a splice, a place found, the container written, the keys, a flip held safe, the first field and the operand at a place
 #include "fields_internal.h"

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // scheduler_internal.h: what the modules of the monolith's scheduler share: its includes, the bounds of a container, a section and the operations, an instruction and an operation as read, the machine, container, section and operations held, and the functions one module reads from another
 #ifndef MONOLITH_SCHEDULER_INTERNAL_H

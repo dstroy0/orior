@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // unprinted_internal.h: what the modules of the unprinted probe share: its includes, the bounds of a container, its code, text and output, the fixed operands and the questions, the machine, runner, folder, kernel, pattern and container held, and the functions one module reads from another
 #ifndef UNPRINTED_INTERNAL_H

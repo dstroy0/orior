@@ -1,9 +1,10 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // stick_internal.h: what the modules of the stick's reader share: its includes, the spaces and the prefix, the numbers, kernel and engine structures, the names held and hashed, the kernels and engines read, and the functions one module reads from another
 #ifndef STICK_INTERNAL_H
 #define STICK_INTERNAL_H
 
-#include "../../../../types/file_defs/ktext.h"
+#include "../../../../includes/file_defs/kfile_lines/kfile_lines.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,7 +54,7 @@ extern StickKernel *s_kernel;
 extern unsigned int s_kernels;
 extern StickEngine *s_engine;
 extern unsigned int s_engines;
-extern KtextFile s_file;
+extern KfileLines s_file;
 
 void *stick_held(void *pointer);
 char *stick_copy(const char *text, size_t length);
@@ -71,8 +72,9 @@ void stick_ruleset_operations(const char *path, unsigned char **held, unsigned i
 const StickEngine *stick_engine_of(const char *name);
 int stick_kernel_order(const void *left, const void *right);
 int stick_name_order(const void *left, const void *right);
-void stick_escaped(QryText *record, const char *text);
+size_t stick_escaped(char *record, size_t room, size_t at, const char *text);
 void stick_counted(const StickNumbers *operations, unsigned int *count);
-void stick_counts_written(QryText *record, const unsigned int *order, const unsigned int *count, const unsigned int *less);
+size_t stick_counts_written(char *record, size_t room, size_t at, const unsigned int *order, const unsigned int *count,
+                            const unsigned int *less);
 
 #endif

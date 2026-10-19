@@ -1,0 +1,11 @@
+where	who	kind	form	gloss
+line 1	kdm_write	kdm	kdm <part>	the part this map is of
+body	kdm_write	arrangement	<operator>\t<nodes>\t<chain>\t<cost>\t<runs>[\t<verdict>]	an arrangement of primitives that produces an operator, and what it costs this part; a cost is an exact rational, numerator/denominator in the part's clock count, and a cost of - over 0 runs has not been timed on anything; where a descent wrote a sixth field, its verdict, 1 standing and 0 out
+tail	-	krs block	__krs__( ... )__krs__	a block of the ruleset's language (klang.h): its lines are read by the ruleset reader after sass.krs and its part's .krs, and by the rules of .krs
+krs block	-	fixed	fixed <name> = <text>	a line of the ruleset read after sass.krs and its part's .krs
+krs block	-	form	form <name> <parameter>... = <text>	a line of the ruleset read after sass.krs and its part's .krs
+krs block	-	err	err <name> <parameter>...	a line of the ruleset read after sass.krs and its part's .krs
+krs block	-	nop	nop <name> <parameter>...	a line of the ruleset read after sass.krs and its part's .krs
+tail	interface_sass_probe_class	pipe	pipe <operation> <writing> <first> <second>	an operation the system writes on the FMA pipe in place of the integer pipe: the operation, its writing there, and the lane it moves in, one whose integer pipe holds the first number of operations or more and the second more than its FMA pipe
+any	-	comment	# <text>	a comment
+any	kfile_lines_put_by	who	who <code> | who -	the who of the lines after it to the next who line, the code that put them, its code read through the who table (qry_writer who); who - where no who is known of the lines after it

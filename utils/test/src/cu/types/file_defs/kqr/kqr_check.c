@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // kqr_check.c: the .kqr's reader and writer held to what the record's oracle says of it (kqr.oracle.tsv), on a record
 // this check writes in the text form and as records, and on a part's own record
@@ -23,9 +24,12 @@
 //     kqr_check <folder> [<a part's .kqr>]...
 //
 // It runs in a query run (qry_run.sh): every record it writes is handed to the run's writer.
-#include "../../../../../../../src/cu/types/file_defs/kqr/kqr.h"
-#include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
+#include "../../../../../../../src/cu/includes/file_defs/kqr/kqr_record.h"
+#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
 
+#include "../../../../../../../src/cu/includes/parsers/who.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
+#include "verba_scribo/verba_scribo.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,37 +47,61 @@ static void check_that(int held, const char *what)
     }
 }
 
-// the whole file at `path` as the run holds it, or the disk where the run holds none (qry_file_read), into memory of
-// the caller's to free, its length in `size`: NULL where it did not read
-static char *file_read(const char *path, size_t *size)
+// the rooms a file read or a record rendered is kept in, so that four stand at once, and the bytes each holds. A file
+// is at most what a record holds, but its text form is not bounded by it: a word of one byte in the record can be
+// sixteen hex digits in the text, so a room grows to what it is asked to hold
+static char *s_room[4];
+static size_t s_room_bytes[4];
+
+// room `room` given at least `bytes`: 1, or 0 where there was no memory for it, the room as it was
+static int room_held(unsigned int room, size_t bytes)
 {
-    unsigned char *bytes = NULL;
-    unsigned long long length = 0ull;
-    *size = 0u;
-    if (!qry_file_read(qry_run(), path, &bytes, &length))
+    if (s_room_bytes[room] >= bytes)
     {
-        return NULL;
+        return 1;
     }
-    // a file read whole is at most what a size_t counts
-    *size = (size_t)length;
-    char *const text = (char *)realloc(bytes, (size_t)length + 1u);
-    if (text == NULL)
+    char *const larger = (char *)realloc(s_room[room], bytes);
+    if (larger == NULL)
     {
-        free(bytes);
-        return NULL;
+        return 0;
     }
-    text[length] = '\0';
-    return text;
+    s_room[room] = larger;
+    s_room_bytes[room] = bytes;
+    return 1;
 }
 
-// `record` written as its text form into memory of the caller's to free, its length in `size`, each who its code
-static char *rendered(const KqrRecord *record, size_t *size)
+// the whole file at `path` as the run holds it, or the disk where the run holds none (qry_member_file_blob), into room
+// `room` and ended, its length in `size`: the room, or NULL where it did not read or there was no memory for it
+static char *file_read(const char *path, size_t *size, unsigned int room)
 {
-    QryText text = {0};
-    kqr_text_rendered(record, &text, 0);
-    qry_text_added(&text, "", 1u);
-    *size = (size_t)(text.size - 1ull);
-    return text.bytes;
+    const unsigned char *blob = NULL;
+    unsigned long long length = 0ull;
+    if (!qry_member_file_blob(path, &blob, &length) || !room_held(room, (size_t)length + 1u))
+    {
+        return NULL;
+    }
+    memcpy(s_room[room], blob, (size_t)length);
+    s_room[room][length] = '\0';
+    *size = (size_t)length;
+    return s_room[room];
+}
+
+// `record` written as its text form into room `room`, its length in `size`, each who its code, the room grown until
+// the text fits: the room, or NULL where there was no memory for it
+static char *rendered(const KqrRecord *record, size_t *size, unsigned int room)
+{
+    size_t bytes = QRY_WRITER_RING_BYTES / 2ull;
+    while (room_held(room, bytes))
+    {
+        const size_t at = kqr_text_rendered(record, s_room[room], s_room_bytes[room], 0u, 0);
+        if (verba_finis.ok(&(VerbaFinisCfg){.cap = s_room_bytes[room], .at = at}))
+        {
+            *size = verba_finis.finish(&(VerbaFinisCfg){.out = s_room[room], .cap = s_room_bytes[room], .at = at});
+            return s_room[room];
+        }
+        bytes = s_room_bytes[room] * 2u;
+    }
+    return NULL;
 }
 
 static const char *const s_written =
@@ -113,31 +141,30 @@ static int files_same(const KrepFile *one, const KrepFile *other)
     return same;
 }
 
-// 1 where the run's table of links holds a link from the latest blob of the file at `path` to the head row `key`, the
-// file's bytes written from the rows of its table
+// the run's table of links, gathered
+static unsigned char s_links[QRY_WRITER_RING_BYTES / 2ull];
+
+// 1 where the run's table of links holds a link from the latest record of the file at `path`, by its time, to the
+// head row `key`, the file's bytes written from the rows of its table
 static int written_from(const char *path, unsigned long long key)
 {
-    QryBuffer *const run = qry_run();
-    char name[QRY_NAME_LONGEST + 1u];
-    const unsigned char *held = NULL;
-    unsigned long long held_size = 0ull;
-    unsigned long long sequence = 0ull;
-    unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    if (!qry_file_named(path, name, sizeof(name)) || !qry_latest(run, name, &held, &held_size, &sequence) ||
-        !qry_joined(run, QRY_LINKS_TABLE, &bytes, &size))
+    const char *const name = qry_member_file_name(path);
+    const QryRecord *held = NULL;
+    const unsigned long long size = qry_member_gathered(TABLE_LINKS, s_links, sizeof(s_links));
+    const unsigned char *const bytes = s_links;
+    if ((name == NULL) || !qry_member_latest(name, &held, NULL) || (size == QRY_MEMBER_UNREAD))
     {
         return 0;
     }
+    const unsigned long long sequence = held->time;
     // a link's row: the who's two words, the key it is from, the key it is to and its code
     unsigned long long row[5];
     int found = 0;
     for (unsigned long long at = 0ull; !found && ((at + sizeof(row)) <= size); at += sizeof(row))
     {
         memcpy(row, bytes + at, sizeof(row));
-        found = (row[2] == sequence) && (row[3] == key) && (row[4] == QRY_LINK_WRITTEN_FROM);
+        found = (row[2] == sequence) && (row[3] == key) && (row[4] == TABLE_LINK_WRITTEN_FROM);
     }
-    free(bytes);
     return found;
 }
 
@@ -166,15 +193,16 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
 {
     char error[1280];
     size_t records_size = 0u;
-    char *const records = file_read(part, &records_size);
+    char *const records = file_read(part, &records_size, 0u);
     check_that(records != NULL, "a part's record reads");
     check_that(kqr_read(&s_record, part, "part", error, sizeof(error)) == 1, "a part's record opens");
     size_t size = 0u;
-    char *const text = rendered(&s_record, &size);
+    char *const text = rendered(&s_record, &size, 1u);
     check_that(text != NULL, "a part's record renders its text form");
     char again[1024];
     snprintf(again, sizeof(again), "%s/kqr_check_part_%u.kqr", folder, number);
-    check_that(kqr_tabled(&s_record, qry_run(), again) == 1, "a part's record is made a view of the run's table");
+    check_that(kqr_tabled(&s_record, qry_member_run(), again) == 1,
+               "a part's record is made a view of the run's table");
     check_that(view_same(&s_record), "and its rows put together the record as it was read");
     unsigned int asks = 0u;
     unsigned int found = 0u;
@@ -209,10 +237,10 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
     }
     check_that(kqr_write(&s_record, again) == 1, "a part's record is written as records");
     size_t numbered_size = 0u;
-    char *const numbered = file_read(again, &numbered_size);
+    file_read(again, &numbered_size, 2u);
     check_that(kqr_read(&s_record, again, "part", error, sizeof(error)) == 1, "and read back");
     size_t again_size = 0u;
-    char *const again_text = rendered(&s_record, &again_size);
+    char *const again_text = rendered(&s_record, &again_size, 3u);
     const int same =
         (again_text != NULL) && (text != NULL) && (again_size == size) && (memcmp(again_text, text, size) == 0);
     check_that(same, "a part's record read back from its records is its text form byte for byte");
@@ -220,10 +248,6 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
            "written back %s\n",
            part, asks, found, s_record.samples, s_record.cycles, size, numbered_size, same ? "the same" : "DIFFERING");
     check_that((asks != 0u) && (found == asks), "every ask of a part's record is found by its identity");
-    free(text);
-    free(records);
-    free(numbered);
-    free(again_text);
     kqr_free(&s_record);
 }
 
@@ -237,7 +261,7 @@ int main(int count, char **words)
     char path[1024];
     char error[1280];
     snprintf(path, sizeof(path), "%s/kqr_check.kqr", words[1]);
-    if (qry_filed(qry_run(), path, s_written, strlen(s_written)) == 0ull)
+    if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
     {
         printf("  %s could not be written: no run's writer runs, or it stands outside the tree\n", path);
         return 2;
@@ -248,20 +272,18 @@ int main(int count, char **words)
     check_that((s_record.cycles == 2u) && (s_record.asks == 3u) && (s_record.samples == 1u),
                "its cycles, its asks and its samples counted");
     size_t size = 0u;
-    char *text = rendered(&s_record, &size);
+    char *text = rendered(&s_record, &size, 1u);
     check_that((text != NULL) && (strcmp(text, s_written) == 0), "it is written as its text form byte for byte");
-    free(text);
     check_that(kqr_write(&s_record, path) == 1, "it is written as records");
-    char *bytes = file_read(path, &size);
+    char *bytes = file_read(path, &size, 0u);
     check_that((bytes != NULL) && (size > 16u) && (memcmp(bytes, "KREP\0\0\0\0KQR\0", 12u) == 0),
                "which open with the k-file head and the .kqr's kind");
-    free(bytes);
     check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 1, "the records are read back");
-    text = rendered(&s_record, &size);
+    text = rendered(&s_record, &size, 1u);
     check_that((text != NULL) && (strcmp(text, s_written) == 0), "as the text form byte for byte");
-    free(text);
     check_that(kqr_tabled(&s_record, NULL, path) == 0, "with no run, a record is no table's");
-    check_that(kqr_tabled(&s_record, qry_run(), path) == 1, "a record is made a view of the run's table of asks");
+    check_that(kqr_tabled(&s_record, qry_member_run(), path) == 1,
+               "a record is made a view of the run's table of asks");
     check_that(view_same(&s_record), "and its rows put together every text and every record it holds");
 
     KqrIdentity identity = identity_of("00000000000000aa 12 0 0 0 3 00000000000000bb");
@@ -288,10 +310,9 @@ int main(int count, char **words)
     check_that(!kqr_path_read(&s_record, 1u, &s_path), "and nothing past the last pair");
     kqr_mark(&s_record, KQR_CYCLE_RECORD, "check");
     check_that(!s_record.changed, "a record nothing was put to is unchanged");
-    text = rendered(&s_record, &size);
+    text = rendered(&s_record, &size, 1u);
     check_that((text != NULL) && (strcmp(text, s_written) == 0),
                "and a cycle marked with nothing put after it adds nothing");
-    free(text);
 
     kqr_mark(&s_record, KQR_SEED_RECORD, "7");
     kqr_mark(&s_record, KQR_ROUND_RECORD, "1");
@@ -307,7 +328,7 @@ int main(int count, char **words)
     s_resolved.identity = identity_of("00000000000000aa 12 0 0 0 3 00000000000000bb");
     kqr_keep(&s_record, &s_resolved);
     s_resolved.identity = identity_of("00000000000000f0 12 0 0 0 2 00000000000000bb");
-    const QryWho put = QRY_WHO_HERE;
+    const Who put = WHO_HERE;
     kqr_keep_by(&s_record, &s_resolved, put);
     memset(&s_sample, 0, sizeof(s_sample));
     s_sample.identity = identity_of("00000000000000f1 12 256 4096 100 648 00000000000000bb");
@@ -352,11 +373,11 @@ int main(int count, char **words)
     check_that(kqr_write(&s_record, path) == 1, "the record is written as records");
     check_that(written_from(path, key), "its bytes are linked to the rows they were written from");
     check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 1, "and read back");
-    text = rendered(&s_record, &size);
-    char put_code[QRY_WHO_CODE_LETTERS + 1u];
-    qry_who_code(put, put_code, sizeof(put_code));
+    text = rendered(&s_record, &size, 1u);
+    char put_code[WHO_CODE_LETTERS + 1u];
+    who_code(put, put_code, sizeof(put_code));
     // a who line is `who`, a space, the code's letters and the line's end
-    const size_t who_line = 4u + QRY_WHO_CODE_LETTERS + 1u;
+    const size_t who_line = 4u + WHO_CODE_LETTERS + 1u;
     const char *const resolved_at =
         (text != NULL)
             ? strstr(text, "ask 00000000000000ad 12 0 0 0 2 00000000000000bb answers 7 9\nwho -\ncycle 2 pair\n")
@@ -381,20 +402,18 @@ int main(int count, char **words)
                                  "it\npair word_add word_xor open 3\n") != NULL),
                "the samples kept as put, and the pairs read off the asks after them, a pair with no hash of its reads");
     check_that((text != NULL) && (strstr(text, "word_sub") == NULL), "the pairs before them gone");
-    QryText named = {0};
-    kqr_text_rendered(&s_record, &named, 1);
-    qry_text_added(&named, "", 1u);
-    check_that((named.bytes != NULL) &&
-                   (strstr(named.bytes, "utils/test/src/cu/types/file_defs/kqr/kqr_check.c:") != NULL),
+    static char s_named_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    const size_t named = kqr_text_rendered(&s_record, s_named_bytes, sizeof(s_named_bytes), 0u, 1);
+    check_that(verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_named_bytes), .at = named}) &&
+                   (verba_finis.finish(
+                        &(VerbaFinisCfg){.out = s_named_bytes, .cap = sizeof(s_named_bytes), .at = named}) != 0u) &&
+                   (strstr(s_named_bytes, "utils/test/src/cu/types/file_defs/kqr/kqr_check.c:") != NULL),
                "a who record named through the who table gives this file and the line of the put");
     printf("%s", (text != NULL) ? text : "");
-    qry_text_freed(&named);
-    free(text);
     kqr_free(&s_record);
 
     const char *const unknown = "kqr part\nask 00000000000000aa 12 0 0 0 3 00000000000000bb answers\nwhat\n";
-    check_that(qry_filed(qry_run(), path, unknown, strlen(unknown)) != 0ull,
-               "a record with a line of no kind is written");
+    check_that(qry_member_filed(path, unknown, strlen(unknown)) != 0ull, "a record with a line of no kind is written");
     check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 0, "a line of no kind is refused");
     check_that(strstr(error, ":3: what is no line of a query record") != NULL, "with its line");
     check_that(s_record.open && (s_record.asks == 0u), "and the record is open and empty");

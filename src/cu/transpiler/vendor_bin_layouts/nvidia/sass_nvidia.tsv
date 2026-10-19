@@ -31,3 +31,5 @@ field	byte	72	8
 #
 # the scheduler's stall count
 field	stall	105	4
+# the bit that yields the part to another warp, which the vendor's reader calls illegal set beside the longest stall
+field	yield	109	1

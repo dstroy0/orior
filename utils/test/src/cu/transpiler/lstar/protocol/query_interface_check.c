@@ -1,7 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // query_interface_check.c: walks of asks put from inside the interface, held to addresses whose answers are known
 //
-//     query_interface_check <query_walk> <output file>
+//     query_interface_check <query_walk>, run inside a run whose records the walk hands its lines to
 //
 // Address 0 is mapped in no process: a read there ends the asker on every host, and the walk reads that ending as
 // the address's answer and goes on. On Windows the kernel keeps a page at 0x7FFE0000 that every process reads and
@@ -28,9 +29,9 @@ static void check_that(int held, const char *what)
 
 int main(int count_of_words, char **words)
 {
-    if (count_of_words != 3)
+    if (count_of_words != 2)
     {
-        printf("  query_interface_check <query_walk> <output file>\n");
+        printf("  query_interface_check <query_walk>\n");
         return 2;
     }
     EngineError error = {0};
@@ -39,7 +40,6 @@ int main(int count_of_words, char **words)
     // three reads at address 0 and the two words after it: each ends its own probe
     QueryWalk nothing = {0};
     nothing.program = words[1];
-    nothing.output_path = words[2];
     nothing.qualifier = QUERY_EQUALS;
     nothing.from = 0ull;
     nothing.count = 3ull;

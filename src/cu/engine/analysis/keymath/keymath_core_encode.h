@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // keymath_core_encode.h: form bits, errors and the record's encoding (keymath_core.h includes the parts in order)
 #ifndef KEYMATH_CORE_ENCODE_H

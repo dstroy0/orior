@@ -1,12 +1,10 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair.cu: the pair: each pair of the bridge put to the part through the carriers, its verdict written beneath it
 #include "pair.h"
 
 thread_local RunQuestion *t_question = NULL;
 thread_local std::vector<unsigned int> *t_places = NULL;
-
-// the part's machine file, read once for the pass
-static SassMachine s_machine;
 
 // every choice a put makes at a link, written to the log as `choice <flags> <link>`, the flags of the trace's
 // table that hold there ORed into one word (query_trace.tsv): why a link was passed over, how the part answered
@@ -43,7 +41,7 @@ unsigned int PairWork::conferred(const std::string &from, const std::string &to,
                                  unsigned int scratch, const RunQuestion &asked, const std::string &closed_here,
                                  const std::string &link_address)
 {
-    QryBuffer *const run = qry_run();
+    QryShared *const run = qry_member_run();
     const std::string identity = question_identity(&asked);
     char joined[OVERSEER_STANDING_LONGEST];
     overseer_standing_joined(standing.c_str(), joined);
@@ -91,32 +89,33 @@ unsigned int PairWork::conferred(const std::string &from, const std::string &to,
 }
 
 // The bridge's pairs put to the part, `pair <form> <form>` in Lstar.klq: two forms whose sameness the text leaves
-// open. A pair is put in a carrier, a chain of ours the host computes that holds one form's text as sass.krs writes it:
-// the form's arguments are read off the chain's lines, the other form is written in its place with the arguments of
-// its parameters' names, and the chain is assembled as the engine assembles it and put to the part over every case
+// open. A pair is put in a carrier, a chain of ours the host computes that holds one form's text as the ruleset writes
+// it: the form's arguments are read off the chain's lines, the other form is written in its place with the arguments
+// of its parameters' names, and the chain is assembled as the engine assembles it and put to the part over every case
 // the host computes the carrier on. The pair is open with its count of cases where the part answers the changed chain
-// as the host answers the carrier on every one, and closed at the carrier's address, the question and the position of
-// the link, and the first case it answers apart. Each form is tried in the other's place, the first in the second's
-// first; a pair neither form can stand in for in any carrier, the second naming a parameter the first does not or
-// neither's text standing in a chain, and a pair the part refuses in every carrier, is open with 0. Each verdict is
-// written beneath its pair in the bridge in place of the one it held. Where the log is kept, each put is followed by
-// the values the form reads there on every case, the carrier cut at the form, for klq_decoder to read its product off
+// as the host answers the carrier on every one, and closed at the carrier's address, the question and the position
+// of the link, and the first case it answers apart. Each form is tried in the other's place, the first in the
+// second's first; a pair neither form can stand in for in any carrier, the second naming a parameter the first does
+// not or neither's text standing in a chain, and a pair the part refuses in every carrier, is open with 0. Each
+// verdict is written beneath its pair in the bridge in place of the one it held. Where the log is kept, each put is
+// followed by the values the form reads there on every case, the carrier cut at the form, for klq_decoder to read its
+// product off
 int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq,
                   const char *machine_path, const char *const *carrier)
 {
     PairWork work;
     work.host = host_answers_read(answers);
-    work.sass = code_generator("sass.krs").ruleset(1);
-    if ((work.sass == NULL) || (sass_machine_read(&s_machine, machine_path) == 0))
+    work.sass = identity_ruleset();
+    work.machine = machine_path;
+    if (work.sass == NULL)
     {
-        printf("klq_identity pair: sass.krs or the machine file %s is not read\n", machine_path);
+        printf("klq_identity pair: the ruleset %s names is not read\n", IDENTITY_RULESET);
         return 1;
     }
-    work.machine = &s_machine;
     carriers_read(engine, work.host, &work.carriers);
-    // the seed the order of the links of one magnitude is drawn from, with each put's two forms, KLQ_SEED where it is
-    // given
-    work.seed = (getenv("KLQ_SEED") != NULL) ? std::stoul(getenv("KLQ_SEED")) : 1ul;
+    // the seed the order of the links of one magnitude is drawn from, with each put's two forms, the run's
+    // IDENTITY_SEED where it is given
+    work.seed = identity_seed();
     std::string line;
     std::istringstream held_bridge(run_file_text(klq));
     while (std::getline(held_bridge, line))
@@ -138,7 +137,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     kqr_mark(&s_query_record, KQR_SEED_RECORD, std::to_string(work.seed).c_str());
     // the lessons a run before this one taught, carried into this run (overseer.h)
     overseer_lessons_cleared();
-    const unsigned int lessons_carried = overseer_lessons_read(qry_run());
+    const unsigned int lessons_carried = overseer_lessons_read(qry_member_run());
     // the asks the query record held before this cycle, read with R
     const unsigned int recorded_before = s_query_record.asks;
     const std::unique_ptr<RunQuestion> stalled(new RunQuestion());
@@ -388,7 +387,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     printf("klq_identity pair: %llu asks, %u open, %u closed, %u not asked, written to %s\n", work.asks, open, closed,
            unasked, klq);
     // the lessons held, those carried in and those taught, handed to the run for the next run to carry
-    overseer_lessons_handed(qry_run());
+    overseer_lessons_handed(qry_member_run());
     printf("klq_identity pair: %u conferences called by refusals, %u lessons taught, %u carried in\n", work.conferences,
            work.lessons_taught, lessons_carried);
     // the path this cycle read off the asks, each pair and its verdict, an open pair the question a further pass takes

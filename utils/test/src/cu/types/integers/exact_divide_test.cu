@@ -1,10 +1,11 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Proves the exact integer's division: the long division returns numerator = quotient . divisor + remainder with the
 // remainder below the divisor and the signs of truncation, over keyed and edge-shaped limbs at every width; the
 // exact division (a multiply by the divisor's inverse and a mask) returns the quotient of every product and errors
 // what leaves a remainder; the gcd divides both values and leaves coprime cofactors.
 
-#include "../../../../../../src/cu/types/integers/exact_integer.h"
+#include "../../../../../../src/cu/includes/types/integers/exact_integer.h"
 
 #include <cstdio>
 #include <cstring>

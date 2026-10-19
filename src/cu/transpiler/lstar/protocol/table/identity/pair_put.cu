@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair_put.cu: the put: one form stood in for by the other at each of its links in each carrier, until the
 // part answers one apart
@@ -18,7 +19,7 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
     // parameters, and each of the form's parameters the stand-in writes a literal in place of
     std::map<char, std::string> bound;
     std::map<char, std::string> fixed;
-    const int unified = form_unified(to_text, from_text, &bound, &fixed);
+    const int unified = form_unified(sass, to_text, from_text, &bound, &fixed);
     // a const load and a plain one: the first link alike is the part's answer, and the question stays open for
     // the chain to settle, or for a lower identity to witness where the rest of the chain fails
     const int const_loaded = form_const_loaded(from_text, to_text);
@@ -127,7 +128,7 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         // registers past the chain's own
         std::string standing;
         unsigned int scratch_taken = 0u;
-        if (ruleset_opcode(sass, to, arguments, scratch_past(carriers.magnitudes[chain.first].first, &scratch_taken),
+        if (ruleset_opcode(sass, to, arguments, scratch_past(sass, carriers.magnitudes[chain.first].first, &scratch_taken),
                            standing) == 0)
         {
             chose("unwritable", link_address);
@@ -142,14 +143,13 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         t_dangerous = form_dangerous(standing);
         const std::string before = chain.second.substr(0u, (size_t)found.position(0));
         const std::string changed = before + standing + chain.second.substr((size_t)(found.position(0) + found.length(0)));
-        std::vector<unsigned char> code(16u * 4096u);
-        const unsigned int count = sass_assemble_lines(machine, changed.c_str(), SASS_CONTROL_SAFE, code.data(), code.size());
+        std::vector<unsigned char> code = vendor_assembled(machine, changed);
+        const unsigned int count = (unsigned int)(code.size() / 16u);
         if (count == 0u)
         {
             chose("unassembled", link_address);
             continue;
         }
-        code.resize(16u * count);
         const unsigned int link = (unsigned int)std::count(before.begin(), before.end(), '\n');
         char address[32];
         snprintf(address, sizeof(address), "%s:%04x", chain.first.c_str(), 16u * link);

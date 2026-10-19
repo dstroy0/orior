@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# PQC - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """Match a round's surface topology across two independent seeds, with rotation taken away, and read the delta.
 

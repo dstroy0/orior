@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rank.h: each query molecule's train structures ranked by their reference spectra against the molecule's own, read
 // from the parquet files themselves, every value an exact integer and every verdict a sign the device returned

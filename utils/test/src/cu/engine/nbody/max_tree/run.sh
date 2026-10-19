@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 set -u
 
@@ -9,7 +10,7 @@ TOP="$(cd "$MODULE/../../../../.." && pwd)"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp max_tree_test
 
-EXACT_ROOT="${ANCHOR_EXACT_ROOT:-$TOP/src/cu/types/integers}"
+EXACT_ROOT="${ANCHOR_EXACT_ROOT:-$TOP/src/cu/includes/types/integers}"
 RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$TOP/src/cu/engine"/engine_config_*.h)"
 [ -n "$RESIDUAL_LIMBS" ] || { echo "  build failed: no ENGINE_RESIDUAL_LIMBS in engine_config_*.h"; exit 1; }
 FITTED_LIMBS=1

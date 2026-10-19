@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // mmio_read.c: the userspace reader of the GPU's BAR0 register aperture through the kernel driver (mmio_read.h). It
 // opens the driver's device read-only, asks the extent it mapped, and reads 32-bit registers from it by IOCTL. No call

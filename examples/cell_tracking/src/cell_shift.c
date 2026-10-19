@@ -1,10 +1,11 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../../src/cu/types/integers/arm.h"
-#include "../../../src/cu/types/integers/exact_integer.h"
+#include "../../../src/cu/includes/types/integers/arm.h"
+#include "../../../src/cu/includes/types/integers/exact_integer.h"
 
 #define SHIFT_TEXT 64u
 

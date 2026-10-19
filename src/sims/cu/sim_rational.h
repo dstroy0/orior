@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Exact rationals on the exact integer, for the sims that carry values no word holds. Every value is kept in lowest
 // terms: by a word gcd while both parts fit below 2^62, and wider by the exact integer's gcd and exact division. An

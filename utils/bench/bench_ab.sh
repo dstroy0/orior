@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds bench_ab against orior and the tree's SHA-256, and runs it. With no files it reads every arm over the
 # built in corpora; given files, it reads each one's spacing, units and salience instead.
@@ -9,7 +10,7 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../.." && pwd)"
 SIFT="$TOP/src/cu/engine/nbody/orior"
-EXACT="$TOP/src/cu/types/integers"
+EXACT="$TOP/src/cu/includes/types/integers"
 OUT="$TOP/build/bench"
 mkdir -p "$OUT"
 

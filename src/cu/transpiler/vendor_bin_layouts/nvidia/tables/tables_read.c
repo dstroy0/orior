@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tables_read.c: the vendor's instruction set read for the command line: each encoding given named by its class,
 // its constant operand's bank, byte offset and bytes read, and rule 13's verdict against a bank size; or the spans

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // constant.c: rule 13, a read of the constant bank held before the part where it reaches a bank the container has no
 // section for or past the bank's end, read through the vendor's own instruction set

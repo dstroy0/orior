@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lng_check_test.c: src/lng/lng.c graded on tables whose defects and findings were worked out by hand.
 //
@@ -407,7 +408,7 @@ int main(void)
     {
         // a .ksc of the ksc's own lines, a who line and a block of the ruleset's language: the ksc reads its own
         // lines and the ruleset reads the block's, each line keeping its number
-        static KtextFile s_file;
+        static KfileLines s_file;
         static const char *const s_lines[7] = {
             "channel probe_sm",
             "who 00000000000000000000000000000000",
@@ -419,7 +420,7 @@ int main(void)
         };
         for (unsigned int at = 0u; at < 7u; at += 1u)
         {
-            ktext_line_add(&s_file, s_lines[at]);
+            kfile_lines_line_add(&s_file, s_lines[at]);
         }
         LngMap used = {{NULL, 0u, 0u}, {NULL, 0u, 0u}};
         lng_ksc_words("x.ksc", &s_file, &used);
@@ -441,7 +442,7 @@ int main(void)
         expect("the ruleset reads the block's lines", &used.value, s_ruleset_where, 6u);
         lng_map_free(&used);
         lng_list_free(&kept);
-        ktext_free(&s_file);
+        kfile_lines_free(&s_file);
     }
 
     lng_table_free(&matrix);

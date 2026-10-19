@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds sha256_check and holds the tree's SHA-256 (src/cu/includes/codecs/sha256) to NIST's published vectors, the
 # byte and bit message files and the Monte chain, vendored under utils/test/src/cu/transpiler/qasm/vectors.

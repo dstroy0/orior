@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_class.c: the system's classification, written as <part>.ksc. Every other piece here learns what
 // the system holds; this one records how that was learned - which channel each question went out on, and whether
@@ -5,12 +6,16 @@
 // into <part>.kdm
 #include "interface_sass_probe.h"
 
-#include "../../../../types/file_defs/kdm/kdm.h"
-#include "../../../../types/file_defs/ksc/ksc.h"
+#include "../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../includes/file_defs/ksc/ksc.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "verba_scribo/verba_scribo.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../../../../includes/parsers/who.h"
+#include "../../../../includes/parsers/line_read.h"
 
 // the most questions kept whole. The decode channel puts one for every bit of every form, far past this, and is
 // counted in place of being kept
@@ -244,7 +249,7 @@ int sass_class_read(const char *machines, const char *part)
     // its closer, which the ruleset beside the file reads after its own
     unsigned int block = s_file.lines;
     unsigned int block_past = s_file.lines;
-    if (!ktext_block_lines(&s_file, "krs", 0u, &block, &block_past))
+    if (!kfile_lines_block_lines(&s_file, "krs", 0u, &block, &block_past))
     {
         block = s_file.lines;
         block_past = s_file.lines;
@@ -286,12 +291,15 @@ int sass_class_read(const char *machines, const char *part)
         char other[SASS_TEXT];
         unsigned int word = 0u;
         unsigned int tally = 0u;
-        if (sscanf(line, "equal %191s %191s", one, other) == 2)
+        const char *read = line;
+        if (line_letters(&read, "equal ") && line_word(&read, one, sizeof(one)) && line_word(&read, other, sizeof(other)))
         {
             sass_equal_take(one, other);
             continue;
         }
-        if (sscanf(line, "count %15s %15s %u", channel_text, class_text, &tally) == 3)
+        read = line;
+        if (line_letters(&read, "count ") && line_word(&read, channel_text, sizeof(channel_text)) &&
+            line_word(&read, class_text, sizeof(class_text)) && line_unsigned(&read, &tally))
         {
             const unsigned int channel = sass_channel_of(channel_text);
             const unsigned int answered = sass_class_of(class_text);
@@ -302,7 +310,18 @@ int sass_class_read(const char *machines, const char *part)
             }
             continue;
         }
-        if (sscanf(line, "%15s %15s %8x %191[^\n]", channel_text, class_text, &word, question) == 4)
+        unsigned long long word_read = 0ull;
+        read = line;
+        const int answered_line = line_word(&read, channel_text, sizeof(channel_text)) &&
+                                  line_word(&read, class_text, sizeof(class_text)) &&
+                                  line_number(&read, 1, &word_read) && (word_read <= 0xffffffffull);
+        while (answered_line && ((*read == ' ') || (*read == '\t')))
+        {
+            read += 1;
+        }
+        // the word read is held inside 32 bits by the test above
+        word = (unsigned int)word_read;
+        if (answered_line && line_until(&read, '\n', question, sizeof(question)))
         {
             const unsigned int channel = sass_channel_of(channel_text);
             const unsigned int answered = sass_class_of(class_text);
@@ -325,98 +344,152 @@ int sass_class_read(const char *machines, const char *part)
     return 1;
 }
 
-// the lines of `body`, each ended by a newline, put by `who` into `file` after every line it holds (ktext.h): 1, or 0
-// where there was no memory for them
-static int sass_class_lines_put(KscFile *file, QryText *body, QryWho who)
+// the lines a file's text is put together as in memory, each ended by a newline, `s_lines_at` bytes of them so far, the
+// room once a write did not fit
+static char s_lines_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static size_t s_lines_at;
+
+// `length` bytes of `text` written after the lines held
+static void lines_counted(const char *text, size_t length)
+{
+    s_lines_at = verba_textus.put_n(&(VerbaTextusCfg){
+        .out = s_lines_bytes, .cap = sizeof(s_lines_bytes), .at = s_lines_at, .text = text, .text_len = length});
+}
+
+// `text` written after the lines held
+static void lines_text(const char *text)
+{
+    s_lines_at = verba_textus.put(
+        &(VerbaTextusCfg){.out = s_lines_bytes, .cap = sizeof(s_lines_bytes), .at = s_lines_at, .text = text});
+}
+
+// `text` written after the lines held, and spaces after it to `columns`
+static void lines_columns(const char *text, size_t columns)
+{
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = columns});
+    lines_counted(text, length);
+    for (size_t pad = length; pad < columns; pad += 1u)
+    {
+        s_lines_at = verba_littera.ch(
+            &(VerbaLitteraCfg){.out = s_lines_bytes, .cap = sizeof(s_lines_bytes), .at = s_lines_at, .ch = ' '});
+    }
+}
+
+// `value` written in base ten after the lines held
+static void lines_number(unsigned long long value)
+{
+    s_lines_at = verba_numerus.u64(
+        &(VerbaNumerusCfg){.out = s_lines_bytes, .cap = sizeof(s_lines_bytes), .at = s_lines_at, .val = value});
+}
+
+// `value` written in lower case base sixteen after the lines held, `digits` digits at the fewest
+static void lines_hex(unsigned long long value, unsigned int digits)
+{
+    s_lines_at = verba_numerus.hex(&(VerbaNumerusCfg){
+        .out = s_lines_bytes, .cap = sizeof(s_lines_bytes), .at = s_lines_at, .val = value, .min = (uint8_t)digits});
+}
+
+// the lines held put by `who` into `file` after every line it holds (kfile_lines.h): 1, or 0 where they did not fit or
+// there was no memory for them
+static int sass_class_lines_put(KscFile *file, Who who)
 {
     const char **lines = NULL;
     unsigned int count = 0u;
-    const int held = ktext_lines_cut(body, &lines, &count) &&
-                     ((count == 0u) || (ktext_lines_put_by(file, file->lines, lines, count, who) != 0u));
+    const int held = verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_lines_bytes), .at = s_lines_at}) &&
+                     kfile_lines_cut(s_lines_bytes, s_lines_at, &lines, &count) &&
+                     ((count == 0u) || (kfile_lines_put_by(file, file->lines, lines, count, who) != 0u));
     free(lines);
     return held;
 }
 
-int sass_class_write_by(const char *machines, const char *part, QryWho who)
+int sass_class_write_by(const char *machines, const char *part, Who who)
 {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.ksc", machines, part);
     // the classification put together in memory, its first line, and then every line after it under a who line of
     // `who`, handed whole to the run's writer (ksc.h)
-    QryText body = {0};
-    qry_text_printed(&body,
-                     "# How this system is asked, and what came back. A probe is not a thing of its own: it is a\n");
-    qry_text_printed(
-        &body, "# question put on one of the channels below and the answer read back. Written by the interface's\n");
-    qry_text_printed(&body,
-                     "# SASS probe; every line here is something the system said, and nothing here was assumed.\n\n");
-    qry_text_printed(&body, "# the channels this system answers on\n");
+    s_lines_at = 0u;
+    lines_text("# How this system is asked, and what came back. A probe is not a thing of its own: it is a\n");
+    lines_text("# question put on one of the channels below and the answer read back. Written by the interface's\n");
+    lines_text("# SASS probe; every line here is something the system said, and nothing here was assumed.\n\n");
+    lines_text("# the channels this system answers on\n");
     for (unsigned int channel = 0u; channel < SASS_CHANNEL_COUNT; channel += 1u)
     {
-        qry_text_printed(&body, "channel %-8s %s\n", s_channel_text[channel], s_channel_why[channel]);
+        lines_text("channel ");
+        lines_columns(s_channel_text[channel], 8u);
+        lines_text(" ");
+        lines_text(s_channel_why[channel]);
+        lines_text("\n");
     }
-    qry_text_printed(&body, "\n# what an answer can be\n");
+    lines_text("\n# what an answer can be\n");
     for (unsigned int answered = 0u; answered < SASS_CLASS_COUNT; answered += 1u)
     {
-        qry_text_printed(&body, "class %-8s %s\n", s_class_text[answered], s_class_why[answered]);
+        lines_text("class ");
+        lines_columns(s_class_text[answered], 8u);
+        lines_text(" ");
+        lines_text(s_class_why[answered]);
+        lines_text("\n");
     }
-    qry_text_printed(&body, "\n# every question put, counted by the channel it went out on and what came back\n");
+    lines_text("\n# every question put, counted by the channel it went out on and what came back\n");
     for (unsigned int channel = 0u; channel < SASS_CHANNEL_COUNT; channel += 1u)
     {
         for (unsigned int answered = 0u; answered < SASS_CLASS_COUNT; answered += 1u)
         {
-            qry_text_printed(&body, "count %-8s %-8s %u\n", s_channel_text[channel], s_class_text[answered],
-                             s_tally[channel][answered]);
+            lines_text("count ");
+            lines_columns(s_channel_text[channel], 8u);
+            lines_text(" ");
+            lines_columns(s_class_text[answered], 8u);
+            lines_text(" ");
+            lines_number(s_tally[channel][answered]);
+            lines_text("\n");
         }
     }
-    qry_text_printed(&body,
-                     "\n# every question the system was asked in its own code, one a line: the channel, what came\n");
-    qry_text_printed(&body,
-                     "# back, the word it answered, and the question. These are the ones the system answered for\n");
-    qry_text_printed(&body, "# itself, with no compiler and no disassembler standing between.\n");
+    lines_text("\n# every question the system was asked in its own code, one a line: the channel, what came\n");
+    lines_text("# back, the word it answered, and the question. These are the ones the system answered for\n");
+    lines_text("# itself, with no compiler and no disassembler standing between.\n");
     for (unsigned int number = 0u; number < s_classed_count; number += 1u)
     {
         const SassClassed *const one = &s_classed[number];
-        qry_text_printed(&body, "%s %s %08x %s\n", s_channel_text[one->channel], s_class_text[one->answered], one->word,
-                         one->question);
+        lines_text(s_channel_text[one->channel]);
+        lines_text(" ");
+        lines_text(s_class_text[one->answered]);
+        lines_text(" ");
+        lines_hex(one->word, 8u);
+        lines_text(" ");
+        lines_text(one->question);
+        lines_text("\n");
     }
-    qry_text_printed(
-        &body, "\n# writings the system answers alike: an operation written where the ruleset holds the other, each\n");
-    qry_text_printed(&body, "# giving the same machine code. A reading in one is the ruleset's form in the other.\n");
+    lines_text("\n# writings the system answers alike: an operation written where the ruleset holds the other, each\n");
+    lines_text("# giving the same machine code. A reading in one is the ruleset's form in the other.\n");
     for (unsigned int number = 0u; number < s_equal_count; number += 1u)
     {
-        qry_text_printed(&body, "equal %s %s\n", s_equal[number].one, s_equal[number].other);
+        lines_text("equal ");
+        lines_text(s_equal[number].one);
+        lines_text(" ");
+        lines_text(s_equal[number].other);
+        lines_text("\n");
     }
     if (s_forms_length != 0u)
     {
-        qry_text_printed(
-            &body,
-            "\n# forms the system folds into one instruction of its own, as the ruleset beside this file reads\n");
-        qry_text_printed(&body, "# them after its own lines and its part's.\n");
-        qry_text_printed(&body, "__krs__(\n");
-        qry_text_added(&body, s_forms, s_forms_length);
-        qry_text_printed(&body, ")__krs__\n");
+        lines_text("\n# forms the system folds into one instruction of its own, as the ruleset beside this file reads\n");
+        lines_text("# them after its own lines and its part's.\n");
+        lines_text("__krs__(\n");
+        lines_counted((const char *)s_forms, s_forms_length);
+        lines_text(")__krs__\n");
     }
     if (s_containers_length != 0u)
     {
-        qry_text_printed(&body,
-                         "\n# the fields of an instruction a question on the run channel turns, each its first bit "
-                         "and its bits, a\n");
-        qry_text_printed(&body,
-                         "# barrier holding every bit setting none; then the container the system accepted, which "
-                         "every such\n");
-        qry_text_printed(&body,
-                         "# question is put in: the kernel it enters at, then its bytes in hex, sixty-four a row. "
-                         "A question's code,\n");
-        qry_text_printed(&body, "# registers and exits replace the code's.\n");
-        qry_text_added(&body, s_containers, s_containers_length);
+        lines_text("\n# the fields of an instruction a question on the run channel turns, each its first bit and its bits, a\n");
+        lines_text("# barrier holding every bit setting none; then the container the system accepted, which every such\n");
+        lines_text("# question is put in: the kernel it enters at, then its bytes in hex, sixty-four a row. A question's code,\n");
+        lines_text("# registers and exits replace the code's.\n");
+        lines_counted((const char *)s_containers, s_containers_length);
     }
     static KscFile s_file;
     char first[SASS_TEXT];
     snprintf(first, sizeof(first), "ksc %s", part);
     const int written =
-        ksc_line_add(&s_file, first) && sass_class_lines_put(&s_file, &body, who) && ksc_write_by(&s_file, path, who);
-    qry_text_freed(&body);
+        ksc_line_add(&s_file, first) && sass_class_lines_put(&s_file, who) && ksc_write_by(&s_file, path, who);
     ksc_free(&s_file);
     if (!written)
     {
@@ -450,7 +523,9 @@ int sass_pipe_read(const char *machines, const char *part)
         char other[SASS_TEXT];
         unsigned int least = 0u;
         unsigned int over = 0u;
-        if (sscanf(s_file.line[at], "pipe %191s %191s %u %u", one, other, &least, &over) == 4)
+        const char *read = s_file.line[at];
+        if (line_letters(&read, "pipe ") && line_word(&read, one, sizeof(one)) && line_word(&read, other, sizeof(other)) &&
+            line_unsigned(&read, &least) && line_unsigned(&read, &over))
         {
             sass_pipe_take(one, other, least, over);
         }
@@ -459,27 +534,35 @@ int sass_pipe_read(const char *machines, const char *part)
     return 1;
 }
 
-int sass_pipe_write_by(const char *machines, const char *part, QryWho who)
+int sass_pipe_write_by(const char *machines, const char *part, Who who)
 {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.kdm", machines, part);
     // the .kdm as the run holds it, its pipes put in place of those it held, at the end of its tail (kdm.h)
     static KdmFile s_file;
-    QryText text = {0};
+    s_lines_at = 0u;
     for (unsigned int number = 0u; number < s_pipe_count; number += 1u)
     {
-        qry_text_printed(&text, "pipe %s %s %u %u\n", s_pipe[number].operation, s_pipe[number].writing,
-                         s_pipe[number].least, s_pipe[number].over);
+        lines_text("pipe ");
+        lines_text(s_pipe[number].operation);
+        lines_text(" ");
+        lines_text(s_pipe[number].writing);
+        lines_text(" ");
+        lines_number(s_pipe[number].least);
+        lines_text(" ");
+        lines_number(s_pipe[number].over);
+        lines_text("\n");
     }
     const char **pipes = NULL;
     unsigned int count = 0u;
     const unsigned int comments = (unsigned int)(sizeof(s_pipe_comment) / sizeof(s_pipe_comment[0]));
-    const int written = ktext_lines_cut(&text, &pipes, &count) && (count == s_pipe_count) && kdm_read(&s_file, path) &&
+    const int written = verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_lines_bytes), .at = s_lines_at}) &&
+                        kfile_lines_cut(s_lines_bytes, s_lines_at, &pipes, &count) && (count == s_pipe_count) &&
+                        kdm_read(&s_file, path) &&
                         (s_file.lines != 0u) &&
                         kdm_pipes_replaced_by(&s_file, s_pipe_comment, comments, pipes, count, who) &&
                         kdm_write_by(&s_file, path, who);
     free(pipes);
-    qry_text_freed(&text);
     kdm_free(&s_file);
     if (!written)
     {

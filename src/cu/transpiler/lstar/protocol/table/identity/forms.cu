@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // forms.cu: what a form's text says: its tokens, its launches, conditions and instructions, and what its opcode controls, compares, operates on or commutes
 #include "identity_internal.h"
@@ -161,13 +162,14 @@ std::vector<std::string> form_tokens(const std::string &text)
 // The form `to_text` read against the form `from_text`, token by token, each parameter a marker: each parameter of
 // `to` bound in `bound` to what `from` writes in its place, a marker of one of `from`'s parameters or a literal, and
 // each parameter of `from` that `to` writes a literal in place of bound in `fixed` to that literal. A marker naming a
-// part of a pair stands against the same part of a marker, and against `RZ`, whose every part is zero. 1 where every
-// other token is the same: `to` is `from` with the parameters `fixed` names bound, one structure
-int form_unified(const std::string &to_text, const std::string &from_text, std::map<char, std::string> *bound,
-                        std::map<char, std::string> *fixed)
+// part of a pair stands against the same part of a marker, and against the fixed zero, whose every part is zero. 1
+// where every other token is the same: `to` is `from` with the parameters `fixed` names bound, one structure
+int form_unified(const Ruleset *sass, const std::string &to_text, const std::string &from_text,
+                 std::map<char, std::string> *bound, std::map<char, std::string> *fixed)
 {
     const std::vector<std::string> to_tokens = form_tokens(to_text);
     const std::vector<std::string> from_tokens = form_tokens(from_text);
+    const std::string zero = ruleset_physreg(sass, "zero");
     bound->clear();
     fixed->clear();
     if (to_tokens.empty() || (to_tokens.size() != from_tokens.size()))
@@ -186,7 +188,7 @@ int form_unified(const std::string &to_text, const std::string &from_text, std::
         {
             // a part of a pair stands against the same part of another, and a whole against a marker or a literal
             const std::string standing = from_marker ? from_token.substr(0u, 3u) : from_token;
-            const int parts_stand = from_marker ? (to_part == from_part) : (to_part.empty() || (from_token == "RZ"));
+            const int parts_stand = from_marker ? (to_part == from_part) : (to_part.empty() || (from_token == zero));
             if (!parts_stand || ((bound->count(to_token[1]) != 0u) && ((*bound)[to_token[1]] != standing)))
             {
                 return 0;
@@ -196,7 +198,7 @@ int form_unified(const std::string &to_text, const std::string &from_text, std::
         }
         if (from_marker)
         {
-            if ((!from_part.empty() && (to_token != "RZ")) ||
+            if ((!from_part.empty() && (to_token != zero)) ||
                 ((fixed->count(from_token[1]) != 0u) && ((*fixed)[from_token[1]] != to_token)))
             {
                 return 0;

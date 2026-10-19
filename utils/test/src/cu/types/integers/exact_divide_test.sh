@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 set -u
 
@@ -28,9 +29,9 @@ case "$(uname -s)" in
 esac
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -I "$TOP/src/cu/types/integers" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -I "$TOP/src/cu/includes/types/integers" -o "$BINARY" \
     "$TEST/exact_divide_test.cu" \
-    "$TOP/src/cu/types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c
+    "$TOP/src/cu/includes/types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 
 "$BINARY"

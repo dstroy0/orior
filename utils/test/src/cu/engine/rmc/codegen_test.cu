@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The compiler on the device checked against the compiler on the host (engine_table.md item 11(f)(a)).
@@ -14,7 +15,7 @@
 #include "../../engine/analysis/cycle/record_image.h"
 #include "code_generator.h"
 #include "codegen_device.h"
-#include "../../../../../../src/cu/types/file_defs/readers/ruleset_reader.h"
+#include "../../../../../../src/cu/includes/file_defs/krs/ruleset_reader.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

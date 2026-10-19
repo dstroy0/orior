@@ -1,11 +1,12 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // overseer_internal.h: what the modules of the overseer share: its includes, the tables it writes, the bounds of the lessons, carriers, experts, votes and clauses, the lessons held, the causes' words, the votes and what was heard, and the functions one module reads from another (overseer.h)
 #ifndef OVERSEER_INTERNAL_H
 #define OVERSEER_INTERNAL_H
 
 #include "overseer.h"
+#include "../../../../engine/runtime/scriptura/scriptura.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -76,6 +77,6 @@ extern OverseerHeard s_heard;
 
 unsigned int overseer_cause_read(const char *word);
 void overseer_trimmed(const char *from, const char *to, char *into, size_t room);
-void overseer_accounts_read(OverseerHeard *heard, const unsigned char *bytes, unsigned long long size, const unsigned char *before, unsigned long long before_size, QryBuffer *run, unsigned long long conference);
+void overseer_accounts_read(OverseerHeard *heard, const unsigned char *bytes, unsigned long long size, const unsigned char *before, unsigned long long before_size, QryShared *run, unsigned long long conference);
 
 #endif

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ingest.h: every member of a CASMI parquet file sealed as a crystal of a set by the engine's ingest
 #ifndef CASMI_INGEST_H

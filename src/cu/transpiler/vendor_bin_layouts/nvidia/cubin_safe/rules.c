@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rules.c: the rules: a register read and held out of range, the key's form and the key straight, the exit and where it
 // ends, the code held safe, the image, the launch, and a fault's status read

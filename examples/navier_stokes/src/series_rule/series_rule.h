@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // series_rule.h: series in X held by the rule of their entries at a general order k, every expression in one normal form
 #ifndef SERIES_RULE_H

@@ -1,6 +1,7 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kdm_check.c: the .kdm's reader and writer (kdm.h, ktext.h) and the block rule (klang.h) held to what their users
-// read of them, on a .kdm this check writes and on a part's own
+// kdm_check.c: the .kdm's reader and writer (kdm.h, kfile_lines.h) and the block rule (klang.h) held to what their
+// users read of them, on a .kdm this check writes and on a part's own
 //
 //   rows       a row is read with its five fields, and a descent's with its verdict; a comment, the head of the rows,
 //              a who line and a line of a block are no row
@@ -10,7 +11,7 @@
 //              file held it, the who in force over it written again before it
 //   pipes      the pipes and their comment let go and put again at the end, after a who line of the code that put them
 //   whole      a file written whole again keeps the who of each line it held, and a line it did not goes under the
-//              writer's (ktext_lines_written_by)
+//              writer's (kfile_lines_written_by)
 //   put        a file handed to the run is read as the run holds it and is not on the disk while the run runs; once
 //              the run ends it is in its place (chain_check.sh); a file the run reads from the disk is the run's after,
 //              read from memory
@@ -20,9 +21,11 @@
 //     kdm_check <folder> [<a part's .kdm>]
 //
 // It runs in a query run (qry_run.sh): every file it writes is handed to the run's writer.
-#include "../../../../../../../src/cu/types/file_defs/kdm/kdm.h"
-#include "../../../../../../../src/cu/types/file_defs/klang.h"
+#include "../../../../../../../src/cu/includes/file_defs/kdm/kdm.h"
+#include "../../../../../../../src/cu/includes/file_defs/klang/klang.h"
 
+#include "../../../../../../../src/cu/includes/parsers/who.h"
+#include "verba_scribo/verba_scribo.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,16 +43,26 @@ static void check_that(int held, const char *what)
     }
 }
 
-// `file`'s lines from `from` joined, each ended by a newline, into memory of the caller's to free
-static char *joined(const KdmFile *file, unsigned int from)
+// the file joined as a check reads it, and as it stood before a write
+static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static char s_before_bytes[QRY_WRITER_RING_BYTES / 2ull];
+
+// `file`'s lines from `from` joined, each ended by a newline, into the `room` bytes at `bytes`: `bytes`, or NULL where
+// they did not fit
+static const char *joined(const KdmFile *file, unsigned int from, char *bytes, size_t room)
 {
-    QryText text = {0};
+    size_t written = 0u;
     for (unsigned int at = from; at < file->lines; at += 1u)
     {
-        qry_text_printed(&text, "%s\n", file->line[at]);
+        written = verba_textus.put(&(VerbaTextusCfg){.out = bytes, .cap = room, .at = written, .text = file->line[at]});
+        written = verba_littera.ch(&(VerbaLitteraCfg){.out = bytes, .cap = room, .at = written, .ch = '\n'});
     }
-    qry_text_added(&text, "", 1u);
-    return text.bytes;
+    if (!verba_finis.ok(&(VerbaFinisCfg){.cap = room, .at = written}))
+    {
+        return NULL;
+    }
+    verba_finis.finish(&(VerbaFinisCfg){.out = bytes, .cap = room, .at = written});
+    return bytes;
 }
 
 // 1 where the block of `lang` found in `text` holds `inside`
@@ -92,7 +105,7 @@ int main(int count, char **words)
     }
     char path[1024];
     snprintf(path, sizeof(path), "%s/kdm_check.kdm", words[1]);
-    if (qry_filed(qry_run(), path, s_written, strlen(s_written)) == 0ull)
+    if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
     {
         printf("  %s could not be written: no run's writer runs, or it stands outside the tree\n", path);
         return 2;
@@ -114,7 +127,7 @@ int main(int count, char **words)
 
     unsigned int first = 0u;
     unsigned int past = 0u;
-    check_that(ktext_block_lines(&s_file, "krs", 0u, &first, &past) && (first == 6u) && (past == 11u),
+    check_that(kfile_lines_block_lines(&s_file, "krs", 0u, &first, &past) && (first == 6u) && (past == 11u),
                "a block's lines run to its own closer, past the closer of the block inside it");
     check_that(block_holds("a __gsm__( x )__krs__ ) y )__gsm__ b", "gsm", " x )__krs__ ) y "),
                "a closer of another language and a parenthesis end no block");
@@ -128,10 +141,10 @@ int main(int count, char **words)
 
     const char *const section[4] = {"# a new comment", "# operator\tnodes\tchain\tcost\truns",
                                     "add\t1\tadd(w0, w1)\t2/1\t3", "sub\t1\tsub(w0, w1)\t-\t0"};
-    const QryWho wrote = QRY_WHO_HERE;
+    const Who wrote = WHO_HERE;
     check_that(kdm_section_written_by(&s_file, "part", section, 4u, wrote), "the section is written again");
-    char code[QRY_WHO_CODE_LETTERS + 1u];
-    qry_who_code(wrote, code, sizeof(code));
+    char code[WHO_CODE_LETTERS + 1u];
+    who_code(wrote, code, sizeof(code));
     char expected[2048];
     snprintf(expected, sizeof(expected),
              "kdm part\n"
@@ -142,19 +155,18 @@ int main(int count, char **words)
              "sub\t1\tsub(w0, w1)\t-\t0\n"
              "who -\n" KDM_CHECK_TAIL,
              code);
-    char *text = joined(&s_file, 0u);
+    const char *text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
     check_that((text != NULL) && (strcmp(text, expected) == 0),
                "the section goes after a who line of the code that wrote it, and the tail stands as it was, the who in "
                "force over it, none, written again before it");
-    free(text);
-    QryWho there;
-    check_that(ktext_who_at(&s_file, 4u, &there) && (there.source == wrote.source) && (there.line == wrote.line),
+    Who there;
+    check_that(kfile_lines_who_at(&s_file, 4u, &there) && (there.source == wrote.source) && (there.line == wrote.line),
                "the who in force over the rows is the code that wrote them");
-    check_that(!ktext_who_at(&s_file, 8u, &there), "and over the tail no who is in force, as before");
+    check_that(!kfile_lines_who_at(&s_file, 8u, &there), "and over the tail no who is in force, as before");
 
-    const QryWho again = QRY_WHO_HERE;
+    const Who again = WHO_HERE;
     check_that(kdm_section_written_by(&s_file, "part", section, 4u, again), "the section is written again once more");
-    qry_who_code(again, code, sizeof(code));
+    who_code(again, code, sizeof(code));
     snprintf(expected, sizeof(expected),
              "kdm part\n"
              "who %s\n"
@@ -164,16 +176,15 @@ int main(int count, char **words)
              "sub\t1\tsub(w0, w1)\t-\t0\n"
              "who -\n" KDM_CHECK_TAIL,
              code);
-    text = joined(&s_file, 0u);
+    text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
     check_that((text != NULL) && (strcmp(text, expected) == 0),
                "and the who line before the tail is kept as the tail's own, not written twice");
-    free(text);
 
     const char *const comment[1] = {"# the pipes"};
     const char *const pipes[1] = {"pipe IADD3 IADD3 8 1"};
-    const QryWho piped = QRY_WHO_HERE;
+    const Who piped = WHO_HERE;
     check_that(kdm_pipes_replaced_by(&s_file, comment, 1u, pipes, 1u, piped), "the pipes are replaced");
-    qry_who_code(piped, code, sizeof(code));
+    who_code(piped, code, sizeof(code));
     snprintf(expected, sizeof(expected),
              ")__krs__\n"
              "who %s\n"
@@ -181,11 +192,10 @@ int main(int count, char **words)
              "# the pipes\n"
              "pipe IADD3 IADD3 8 1\n",
              code);
-    text = joined(&s_file, s_file.lines - 5u);
+    text = joined(&s_file, s_file.lines - 5u, s_text_bytes, sizeof(s_text_bytes));
     check_that((text != NULL) && (strcmp(text, expected) == 0) && (s_file.lines == 18u),
                "the pipes and their comment let go and put again at the end, after a who line of the code that put "
                "them");
-    free(text);
     unsigned int pipe_lines = 0u;
     for (unsigned int at = 0u; at < s_file.lines; at += 1u)
     {
@@ -200,15 +210,15 @@ int main(int count, char **words)
     const char *const held[4] = {"kdm part", "# a comment", "add\t1\tadd(w0, w1)\t-\t0", "sub\t1\tsub(w0, w1)\t-\t0"};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        ktext_line_add(&s_file, held[at]);
+        kfile_lines_line_add(&s_file, held[at]);
     }
-    const QryWho whole = QRY_WHO_HERE;
-    check_that(ktext_lines_written_by(&s_file, 1u, held, 4u, whole) && (s_file.lines == 4u),
+    const Who whole = WHO_HERE;
+    check_that(kfile_lines_written_by(&s_file, 1u, held, 4u, whole) && (s_file.lines == 4u),
                "a file written again as it was is the same lines, no who line put");
     const char *const changed[4] = {"kdm part", "# a comment", "add\t1\tadd(w0, w1)\t2/1\t3",
                                     "sub\t1\tsub(w0, w1)\t-\t0"};
-    check_that(ktext_lines_written_by(&s_file, 1u, changed, 4u, whole), "a file is written again with a line changed");
-    qry_who_code(whole, code, sizeof(code));
+    check_that(kfile_lines_written_by(&s_file, 1u, changed, 4u, whole), "a file is written again with a line changed");
+    who_code(whole, code, sizeof(code));
     snprintf(expected, sizeof(expected),
              "kdm part\n"
              "# a comment\n"
@@ -217,16 +227,14 @@ int main(int count, char **words)
              "who -\n"
              "sub\t1\tsub(w0, w1)\t-\t0\n",
              code);
-    text = joined(&s_file, 0u);
+    text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
     check_that((text != NULL) && (strcmp(text, expected) == 0),
                "the changed line goes under a who line of the writer's, and the line after it keeps none, as before");
-    free(text);
-    const QryWho later_whole = QRY_WHO_HERE;
-    check_that(ktext_lines_written_by(&s_file, 1u, changed, 4u, later_whole), "and is written again by another");
-    text = joined(&s_file, 0u);
+    const Who later_whole = WHO_HERE;
+    check_that(kfile_lines_written_by(&s_file, 1u, changed, 4u, later_whole), "and is written again by another");
+    text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
     check_that((text != NULL) && (strcmp(text, expected) == 0),
                "the line it held keeps the who that wrote it, not the later writer's");
-    free(text);
     kdm_free(&s_file);
 
     // a file the run writes is the run's while the run runs: read as the run holds it, not on the disk, and in its
@@ -235,32 +243,34 @@ int main(int count, char **words)
     char put_path[1024];
     snprintf(put_path, sizeof(put_path), "%s/kdm_check_put.kdm", words[1]);
     char put_text[1200];
-    snprintf(put_text, sizeof(put_text), "kdm put\n# %s\n", qry_path(qry_run()));
-    check_that(qry_filed(qry_run(), put_path, put_text, strlen(put_text)) != 0ull, "a file is handed to the run");
-    unsigned char *put_held = NULL;
+    snprintf(put_text, sizeof(put_text), "kdm put\n# %s\n", qry_member_path());
+    check_that(qry_member_filed(put_path, put_text, strlen(put_text)) != 0ull, "a file is handed to the run");
+    const unsigned char *put_held = NULL;
     unsigned long long put_size = 0ull;
-    check_that(qry_file_read(qry_run(), put_path, &put_held, &put_size) && (put_size == strlen(put_text)) &&
+    check_that(qry_member_file_blob(put_path, &put_held, &put_size) && (put_size == strlen(put_text)) &&
                    (memcmp(put_held, put_text, (size_t)put_size) == 0),
                "and read back as the run holds it");
-    free(put_held);
-    put_held = NULL;
-    put_size = 0ull;
-    const int on_disk = qry_file_read(NULL, put_path, &put_held, &put_size) && (put_size == strlen(put_text)) &&
-                        (memcmp(put_held, put_text, (size_t)put_size) == 0);
-    free(put_held);
+    unsigned long long disk_size = 0ull;
+    const unsigned char *const disk_held = qry_member_file_mapped(put_path, &disk_size);
+    const int on_disk =
+        (disk_held != NULL) && (disk_size == strlen(put_text)) && (memcmp(disk_held, put_text, (size_t)disk_size) == 0);
+    if (disk_held != NULL)
+    {
+        qry_member_file_unmapped(disk_held, disk_size);
+    }
     check_that(!on_disk, "and not on the disk while the run runs");
 
     if (count >= 3)
     {
         check_that(kdm_read(&s_file, words[2]) && (s_file.lines != 0u), "a part's .kdm reads");
         // read once from the disk, the file is the run's: every read of it after is from memory
-        char part_name[QRY_NAME_LONGEST + 1u];
+        const char *const part_name = qry_member_file_name(words[2]);
         const unsigned char *part_held = NULL;
         unsigned long long part_size = 0ull;
-        check_that(qry_file_named(words[2], part_name, sizeof(part_name)) &&
-                       qry_latest(qry_run(), part_name, &part_held, &part_size, NULL) && (part_size != 0ull),
+        check_that((part_name != NULL) && qry_member_blob(part_name, &part_held, &part_size, NULL) &&
+                       (part_size != 0ull),
                    "and once read from the disk, the run holds it, and reads it from memory after");
-        char *const before = joined(&s_file, 0u);
+        const char *const before = joined(&s_file, 0u, s_before_bytes, sizeof(s_before_bytes));
         const unsigned int lines = s_file.lines;
         const unsigned int tail = kdm_tail_at(&s_file);
         const char **const held = (const char **)calloc((size_t)tail + 1u, sizeof(char *));
@@ -271,18 +281,23 @@ int main(int count, char **words)
             section_lines += 1u;
         }
         // the section's lines stand in the file until it is written again: they are copied first
-        QryText copied = {0};
+        static char s_copied_bytes[QRY_WRITER_RING_BYTES / 2ull];
+        size_t copied = 0u;
         for (unsigned int at = 0u; at < section_lines; at += 1u)
         {
-            qry_text_printed(&copied, "%s\n", held[at]);
+            copied = verba_textus.put(&(VerbaTextusCfg){
+                .out = s_copied_bytes, .cap = sizeof(s_copied_bytes), .at = copied, .text = held[at]});
+            copied = verba_littera.ch(
+                &(VerbaLitteraCfg){.out = s_copied_bytes, .cap = sizeof(s_copied_bytes), .at = copied, .ch = '\n'});
         }
         const char **cut = NULL;
         unsigned int cuts = 0u;
-        const QryWho part = QRY_WHO_HERE;
-        const int written = ktext_lines_cut(&copied, &cut, &cuts) && (cuts == section_lines) &&
+        const Who part = WHO_HERE;
+        const int written = verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_copied_bytes), .at = copied}) &&
+                            kfile_lines_cut(s_copied_bytes, copied, &cut, &cuts) && (cuts == section_lines) &&
                             kdm_section_written_by(&s_file, "", cut, cuts, part);
-        qry_who_code(part, code, sizeof(code));
-        char *const after = joined(&s_file, 0u);
+        who_code(part, code, sizeof(code));
+        const char *const after = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
         char head[64];
         snprintf(head, sizeof(head), "who %s\n", code);
         const size_t first_line = (before != NULL) ? (strcspn(before, "\n") + 1u) : 0u;
@@ -294,10 +309,7 @@ int main(int count, char **words)
         check_that(same, "a part's section written again as it holds it leaves it as it was, a who line after its "
                          "first");
         free(cut);
-        qry_text_freed(&copied);
         free(held);
-        free(before);
-        free(after);
         kdm_free(&s_file);
     }
 

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // mmio.h: the words the userspace reader and the kernel driver share to listen to the GPU's BAR0 register aperture
 // (mmio_read.h, bar0_driver.c): the device the driver creates and the reader opens, the control codes the driver

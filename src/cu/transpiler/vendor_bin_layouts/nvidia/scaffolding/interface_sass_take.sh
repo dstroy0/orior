@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Takes every instruction of a listing whose form the machine file lacks into it with its fields
 # (interface_sass_probe_take.c). nvdisasm turns each taken form's bits over, the probe's own reading.
@@ -19,12 +20,12 @@ TEST="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 OUT="$TOP/build/interface_sass_take"
 mkdir -p "$OUT/decode"
-source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
 qry_writer_built "$OUT"
 type -P nvdisasm > /dev/null || { echo "  no nvdisasm on the PATH: the CUDA toolkit's disassembler names the fields"; exit 1; }
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
-          -I "$TOP/src/cu/types/file_defs/readers" -I "$TEST")
+          -I "$TOP/src/cu/includes/parsers" -I "$TEST")
 OBJECTS=()
 for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" \
               "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c" \
@@ -36,7 +37,6 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
 done
 cc -o "$OUT/interface_sass_probe_take" "${OBJECTS[@]}" || exit 1
 run_started "$OUT/qry"
-run_read "$MACHINE"
 if [ "$LISTING" = "--fields" ]; then
     "$OUT/interface_sass_probe_take" --fields "$MACHINE" "$ARCH" "$OUT/decode"
 else

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // double_fields' ribosome held 1:1 against double_fields.c. The record program double_fields_record fills is encoded,
@@ -8,7 +9,7 @@
 // one job on the device's tessera daemon.
 #include "codegen_device.h"
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/cu/types/integerfloats/double_fields/double_fields.h"
+#include "../../../../../../../src/cu/includes/types/integerfloats/double_fields/double_fields.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"

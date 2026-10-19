@@ -1,3 +1,4 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # measuring_stick.py: the measuring stick, every function of the CUDA language each in a kernel of its own, written to
 # one .cu file and a manifest. Each category is taken whole: every C++ operator on every type it applies to, every

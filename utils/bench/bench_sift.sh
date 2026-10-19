@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds bench_sift against orior and the tree's SHA-256, and runs it: candidates, skip distance and anchor
 # independence over five corpora, the anchor picked by orior's census magnitude, by a shuffled order and by none.
@@ -9,7 +10,7 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../.." && pwd)"
 SIFT="$TOP/src/cu/engine/nbody/orior"
-EXACT="$TOP/src/cu/types/integers"
+EXACT="$TOP/src/cu/includes/types/integers"
 OUT="$TOP/build/bench"
 mkdir -p "$OUT"
 

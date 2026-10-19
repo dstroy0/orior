@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #ifndef QUERY_ASK_H
 #define QUERY_ASK_H
@@ -22,6 +23,10 @@
 // from inside a cell, where an ending is the answer and the asker goes on.
 
 #include "host_entry.h"
+
+// the record a walk program hands the run each answered address's line in, as it is answered: a line is in the run's
+// shared memory before the next ask can end the process
+#define QUERY_WALK_RECORD "walk"
 
 // what an ask asks of its address
 typedef enum

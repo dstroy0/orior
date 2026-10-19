@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // decoder_internal.h: what the modules of klq_decoder share: its includes, one put of the log, the metas, sets
 // and categories a pair is read into, the functions over puts, and the decoding of one log
@@ -6,8 +7,8 @@
 
 #include "carrier_flow.h"
 #include "concept_product.h"
-#include "qry_buffer.h"
-#include "query_trace.h"
+#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../includes/file_defs/klq/query_trace.h"
 
 #include <stdio.h>
 #include <stdlib.h>

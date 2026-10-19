@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # lane_check (src/check): a parquet file's double columns read as their stored lanes, through the tower and
 # compression and back, and a record program run on the lowered lanes on the device against the host reference. One
@@ -14,7 +15,7 @@ build_stamp casmi_check
 SOURCE="$TOP/src/cu"
 CYCLE="$SOURCE/engine/analysis/cycle"
 CODEGEN="$SOURCE/engine/rmc"
-PARSER="$SOURCE/types/file_defs/readers"
+PARSER="$SOURCE/includes/parsers"
 KEYMATH="$SOURCE/engine/analysis/keymath"
 KEY_SCHEDULE="$SOURCE/engine/analysis/key_schedule"
 TOWER="$SOURCE/engine/analysis/tower"

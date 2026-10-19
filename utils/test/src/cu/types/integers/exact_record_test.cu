@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Proves exact_record, the exact integer's arithmetic as record programs: each program is built through the API, run
 // on the device and on the host over random lanes, and the two must agree word for word and equal the values the
@@ -12,7 +13,7 @@
 #include "../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
-#include "../../../../../../src/cu/types/integers/exact_record/exact_record.h"
+#include "../../../../../../src/cu/includes/types/integers/exact_record/exact_record.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bus_enum_walk.c: the classify walk run over a span in probes the interface can lose, the kinds collected and the
 // enumeration region read from them. An address that ends its probe answered nothing, and the walk goes on from the

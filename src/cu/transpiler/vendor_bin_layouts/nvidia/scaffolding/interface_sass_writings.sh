@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Searches the part for a writing of each ladder relation and each precept in one instruction
 # (interface_sass_writings.c). Every form of the machine file that writes a register from registers, predicates and
@@ -19,13 +20,13 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 CUB="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INT="$TOP/src/cu/transpiler/lstar/interface"
-KRS="$TOP/src/cu/types/file_defs/readers"
+KRS="$TOP/src/cu/includes/parsers"
 BOOT="$TOP/src/cu/transpiler/lstar/protocol"
 SIFT="$TOP/src/cu/engine/nbody/orior"
-EXACT="$TOP/src/cu/types/integers"
+EXACT="$TOP/src/cu/includes/types/integers"
 OUT="$TOP/build/writings"
 CUDA="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
 case "$(uname -s)" in
@@ -110,7 +111,7 @@ fi
 DESCENT="$OUT/descent"
 rm -rf "$DESCENT"
 mkdir -p "$DESCENT"
-source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
 qry_writer_built "$OUT"
 run_started "$OUT/qry"
 "$OUT/gate_descent" "$(cygpath -m "$DESCENT")" > "$DESCENT/gate_descent.out" || exit 1

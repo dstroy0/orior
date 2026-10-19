@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // klq_decoder.cu: reads the log klq_identity writes into the query's .qry beside its trace, and writes the set of our
 // coherence each pair of the bridge is read into beneath its verdict in Lstar.klq (P13, the qualifiers and the

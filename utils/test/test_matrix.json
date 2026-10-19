@@ -11,6 +11,17 @@
         "src/cu/transpiler/lstar/interface"
       ]
     },
+    "cli": {
+      "desc": "orior's C side: the command line, the window's calls and every module under them.",
+      "script": "utils/test/src/ui/cli/cli_test.sh",
+      "src": [
+        "+<../ui/cli/*>",
+        "+<../ui/query/*>"
+      ],
+      "tests": [
+        "ui/cli"
+      ]
+    },
     "interface_ptx": {
       "desc": "The interface's probe runner as PTX.",
       "script": "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.sh",
@@ -18,7 +29,7 @@
         "+<cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/*>",
         "+<cu/transpiler/lstar/interface/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>"
+        "+<cu/includes/parsers/*>"
       ],
       "tests": [
         "src/cu/transpiler/lstar/interface"
@@ -31,7 +42,7 @@
         "+<cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/*>",
         "+<cu/transpiler/lstar/interface/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>"
+        "+<cu/includes/parsers/*>"
       ],
       "tests": [
         "src/cu/transpiler/lstar/interface"
@@ -42,7 +53,7 @@
       "script": "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/cubin_safe_check.sh",
       "src": [
         "+<cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/*>",
-        "+<cu/transpiler/lstar/parser/*>"
+        "+<cu/includes/parsers/*>"
       ],
       "tests": [
       ]
@@ -51,10 +62,10 @@
       "desc": "The compiler on the device held to the compiler on the host: layout, each language's instructions as the lane runs and scheduled into states, and the text, byte for byte; then the bootstrap in PTX, C and VHDL.",
       "script": "utils/test/src/cu/transpiler/codegen/codegen_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/includes/codecs/crc/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -70,7 +81,7 @@
       "script": "utils/test/src/cu/transpiler/codegen/web_check.sh",
       "src": [
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>"
+        "+<cu/includes/parsers/*>"
       ],
       "tests": [
         "src/cu/transpiler/codegen",
@@ -82,7 +93,7 @@
       "script": "utils/test/src/cu/transpiler/codegen/ruleset_read_test.sh",
       "src": [
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>"
+        "+<cu/includes/parsers/*>"
       ],
       "tests": [
         "src/cu/transpiler/codegen",
@@ -106,7 +117,7 @@
       "desc": "The device pool.",
       "script": "utils/test/src/cu/engine/runtime/device_pool/device_pool_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/engine/runtime/device_pool/*>",
         "+<cu/engine/runtime/scriptura/*>"
       ],
@@ -118,17 +129,17 @@
       "desc": "double_fields' ribosome, its four functions as one record program swept on the device and run on the host, held 1:1 against double_fields.c on the edges of a double and 4096 drawn words.",
       "script": "utils/test/src/cu/types/integerfloats/double_fields/double_fields_test.sh",
       "src": [
-        "+<cu/types/integerfloats/double_fields/*>",
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integerfloats/double_fields/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
         "+<cu/engine/runtime/scriptura/*>"
       ],
       "tests": [
-        "src/cu/types/integerfloats/double_fields"
+        "src/cu/includes/types/integerfloats/double_fields"
       ]
     },
     "engine_c": {
@@ -146,29 +157,29 @@
       "desc": "Exact division on the device.",
       "script": "utils/test/src/cu/types/integers/exact_divide_test.sh",
       "src": [
-        "+<cu/types/*>"
+        "+<cu/includes/types/*>"
       ],
       "tests": [
-        "src/cu/types/integers",
-        "src/cu/types/integers"
+        "src/cu/includes/types/integers",
+        "src/cu/includes/types/integers"
       ]
     },
     "exact_transform": {
       "desc": "The exact transform product.",
       "script": "utils/test/src/cu/types/integers/exact_transform_test.sh",
       "src": [
-        "+<cu/types/*>"
+        "+<cu/includes/types/*>"
       ],
       "tests": [
-        "src/cu/types/integers",
-        "src/cu/types/integers"
+        "src/cu/includes/types/integers",
+        "src/cu/includes/types/integers"
       ]
     },
     "max_tree": {
       "desc": "The max tree.",
       "script": "utils/test/src/cu/engine/nbody/max_tree/run.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/engine/nbody/max_tree/*>"
       ],
       "tests": [
@@ -192,7 +203,7 @@
       "script": "utils/test/src/cu/engine/analysis/period/period_test.sh",
       "src": [
         "+<cu/engine/analysis/period/*>",
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/engine/runtime/device_pool/*>",
         "+<cu/engine/runtime/scriptura/*>"
       ],
@@ -206,7 +217,7 @@
       "script": "archive/utils/test/src/python/engine/analysis/period/period_test.sh",
       "src": [
         "+<cu/engine/analysis/period/*>",
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<python/*>",
         "+<cu/engine/runtime/device_pool/*>",
         "+<cu/engine/runtime/scriptura/*>",
@@ -225,7 +236,7 @@
       "desc": "measure.periodic_energy graded against src/sims/cu/engine/analysis/art/periodic_energy.h, line for line: test/python/periodic_energy_test.py over periodic_energy_probe, a tessera job.",
       "script": "archive/utils/test/src/python/engine/analysis/periodic_energy_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<python/*>",
         "+<cu/engine/runtime/scriptura/*>",
         "+<sims/*>",
@@ -250,9 +261,9 @@
       "desc": "The record bitwise test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_bitwise_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -271,9 +282,9 @@
       "desc": "The record bitwise test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_bitwise_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -293,9 +304,9 @@
       "desc": "The record boundary test, its lanes compiled as PTX; every compiled launch held to the interpreter. Parts: written, read_off, top, counted_forward.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -315,9 +326,9 @@
       "desc": "The record boundary test, its lanes compiled as PTX; every compiled launch held to the interpreter. Parts: floors.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -337,9 +348,9 @@
       "desc": "The record boundary test, its lanes compiled as PTX; every compiled launch held to the interpreter. Parts: counted_inverse.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -359,9 +370,9 @@
       "desc": "The record boundary test, its lanes compiled as PTX; every compiled launch held to the interpreter. Parts: redundant.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -381,9 +392,9 @@
       "desc": "The record boundary test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter. Parts: written, read_off, top, counted_forward.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -404,9 +415,9 @@
       "desc": "The record boundary test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter. Parts: floors.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -427,9 +438,9 @@
       "desc": "The record boundary test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter. Parts: counted_inverse.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -450,9 +461,9 @@
       "desc": "The record boundary test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter. Parts: redundant.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -473,10 +484,10 @@
       "desc": "Each record program's lane as C source, compiled by the host compiler and held to the host oracle. Runs under WSL: Strawberry MinGW cannot link it.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_c_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/includes/codecs/crc/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -492,9 +503,9 @@
       "desc": "The record coherence test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_coherence_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -513,9 +524,9 @@
       "desc": "The record coherence test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_coherence_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -535,9 +546,9 @@
       "desc": "The record divide test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_divide_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -556,9 +567,9 @@
       "desc": "The record divide test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_divide_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -578,9 +589,9 @@
       "desc": "The record gaussian test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_gaussian_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -599,9 +610,9 @@
       "desc": "The record gaussian test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_gaussian_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -621,9 +632,9 @@
       "desc": "The record guide test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_guide_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -642,9 +653,9 @@
       "desc": "The record guide test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_guide_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -664,7 +675,7 @@
       "desc": "The record machine's host oracle.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -679,9 +690,9 @@
       "desc": "The record lane test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_lane_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -700,9 +711,9 @@
       "desc": "The record lane test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_lane_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -722,9 +733,9 @@
       "desc": "The record sum test: a field summed exactly across lanes on the device, word for word against the host's serial sum and against closed forms; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_sum_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -743,9 +754,9 @@
       "desc": "The record order test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_order_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -764,9 +775,9 @@
       "desc": "The record order test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_order_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -786,9 +797,9 @@
       "desc": "The record speed test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_speed_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -807,9 +818,9 @@
       "desc": "The record speed test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_speed_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -829,9 +840,9 @@
       "desc": "The record table test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_table_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -850,9 +861,9 @@
       "desc": "The record table test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_table_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -873,9 +884,9 @@
       "script": "utils/test/src/cu/engine/analysis/cycle/record_tower_test.sh",
       "src": [
         "+<cu/engine/analysis/tower/*>",
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -897,9 +908,9 @@
       "script": "utils/test/src/cu/engine/analysis/cycle/record_tower_test.sh",
       "src": [
         "+<cu/engine/analysis/tower/*>",
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -921,14 +932,14 @@
       "script": "src/cu/scaffolding/record_vhdl_test.sh",
       "src": [
         "+<cu/scaffolding/*>",
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/includes/codecs/crc/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/parser/*>",
+        "+<cu/includes/file_defs/krep/*>",
         "+<cu/engine/runtime/scriptura/*>"
       ],
       "tests": [
@@ -943,9 +954,9 @@
       "src": [
         "+<cu/engine/analysis/residual/*>",
         "+<cu/engine/analysis/unit_sweep/*>",
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -970,7 +981,7 @@
       "desc": "The device's tessera held to the host daemon's ledger, answer for answer.",
       "script": "utils/test/src/cu/engine/runtime/daemon/tessera_test.sh",
       "src": [
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/engine/runtime/daemon/*>",
         "+<cu/engine/runtime/scriptura/*>"
       ],
@@ -995,7 +1006,7 @@
       "script": "utils/test/src/cu/engine/analysis/unit_sweep/unit_sweep_planes_test.sh",
       "src": [
         "+<cu/engine/analysis/unit_sweep/*>",
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/engine/runtime/scriptura/*>"
       ],
       "tests": [
@@ -1007,14 +1018,14 @@
       "script": "src/cu/scaffolding/vhdl_construction_set.sh",
       "src": [
         "+<cu/scaffolding/*>",
-        "+<cu/types/integers/*>",
+        "+<cu/includes/types/integers/*>",
         "+<cu/includes/codecs/crc/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/parser/*>",
+        "+<cu/includes/file_defs/krep/*>",
         "+<cu/engine/runtime/scriptura/*>"
       ],
       "tests": [

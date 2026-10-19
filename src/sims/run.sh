@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 set -u
 
@@ -21,7 +22,7 @@ if [ "${1:-}" = "--" ]; then
 fi
 
 SCRIPTURA="$TOP/cu/engine/runtime/scriptura"
-NO_ROUNDING="$TOP/cu/types/integers"
+NO_ROUNDING="$TOP/cu/includes/types/integers"
 PERIOD="$TOP/cu/engine/analysis/period"
 PERIOD_CU="$TOP/cu/engine/analysis/period"
 TOWER="$TOP/cu/engine/analysis/tower"
@@ -34,7 +35,7 @@ CYCLE="$TOP/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/cu/engine/analysis/cycle"
 CODEGEN="$TOP/cu/engine/rmc"
 CODEGEN_CU="$TOP/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/cu/types/file_defs/readers"
+CODEGEN_CU_2="$TOP/cu/includes/parsers"
 KEYMATH="$TOP/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/cu/engine/analysis/key_schedule"
@@ -84,7 +85,7 @@ fi
 # chaitin_omega runs its reduction and pi_tower its BBP terms, as programs on the engine's record machine
 HOST_SOURCES=()
 if [ "$SIM" = "chaitin_omega" ] || [ "$SIM" = "pi_tower" ]; then
-    MODULE_SOURCES+=("$CYCLE_CU/cycle_compile_cache.cu" "$CYCLE_CU/cycle_compile.cu" "$CYCLE_CU/cycle_compile_route.cu" "$CYCLE_CU/cycle_compile_toolchain.cu" "$CYCLE_CU/cycle_launch.cu" "$CYCLE_CU/cycle_prelude.cu" "$CYCLE_CU/cycle_record.cu" "$CYCLE_CU/cycle_record_launch.cu" "$CYCLE_CU/cycle_sweep.cu" "$CODEGEN_CU/asm_printer_layout.cu" "$CODEGEN_CU/asm_printer_program.cu" "$CODEGEN_CU/c_target.cu" "$CODEGEN_CU/code_generator.cu" "$CODEGEN_CU/code_generator_entries.cu" "$CODEGEN_CU/codegen.cu" "$CODEGEN_CU/codegen_lowering.cu" "$CODEGEN_CU/codegen_output.cu" "$CODEGEN_CU_2/codegen_reader.cu" "$CODEGEN_CU/codegen_rules.cu" "$CODEGEN_CU/ptx_target.cu" "$CODEGEN_CU_2"/ruleset_flat/*.cu "$CODEGEN_CU/sass_target.cu" "$CODEGEN_CU_2/target_parse.cu" "$CODEGEN_CU/target_rulesets.cu" "$CODEGEN_CU/vhdl_target.cu" "$CODEGEN_CU/yosys_script.cu" "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu")
+    MODULE_SOURCES+=("$CYCLE_CU/cycle_compile_cache.cu" "$CYCLE_CU/cycle_compile.cu" "$CYCLE_CU/cycle_compile_route.cu" "$CYCLE_CU/cycle_compile_toolchain.cu" "$CYCLE_CU/cycle_launch.cu" "$CYCLE_CU/cycle_prelude.cu" "$CYCLE_CU/cycle_record.cu" "$CYCLE_CU/cycle_record_launch.cu" "$CYCLE_CU/cycle_sweep.cu" "$CODEGEN_CU/asm_printer_layout.cu" "$CODEGEN_CU/asm_printer_program.cu" "$CODEGEN_CU/c_target.cu" "$CODEGEN_CU/code_generator.cu" "$CODEGEN_CU/code_generator_entries.cu" "$CODEGEN_CU/codegen.cu" "$CODEGEN_CU/codegen_lowering.cu" "$CODEGEN_CU/codegen_output.cu" "$CODEGEN_CU_2/codegen_reader.cu" "$CODEGEN_CU/codegen_rules.cu" "$CODEGEN_CU/ptx_target.cu" "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu "$CODEGEN_CU/sass_target.cu" "$CODEGEN_CU_2/target_parse.cu" "$CODEGEN_CU/target_rulesets.cu" "$CODEGEN_CU/vhdl_target.cu" "$CODEGEN_CU/yosys_script.cu" "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu")
     HOST_SOURCES+=("$CYCLE/cycle.c")
 fi
 

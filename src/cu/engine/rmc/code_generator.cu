@@ -1,7 +1,8 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "code_generator.h"
 #include "codegen_core.h"
-#include "../../types/file_defs/readers/ruleset_reader.h"
+#include "../../includes/file_defs/krs/ruleset_reader.h"
 
 #include <stddef.h>
 #include <stdio.h>

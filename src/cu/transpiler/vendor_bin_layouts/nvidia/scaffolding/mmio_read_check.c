@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // mmio_read_check.c: the reader held to the part. It opens the driver's device, asks the extent it mapped, and reads
 // PMC_BOOT_0, the register at offset 0 of BAR0 that names the chip: a value that is neither 0 nor all ones proves the

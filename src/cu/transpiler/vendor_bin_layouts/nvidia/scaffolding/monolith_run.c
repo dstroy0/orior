@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // monolith_run.c: the monolith's cubin (monolith.cu) loaded as it was built and run on the part. Nothing is compiled
 // here: the driver is handed the cubin and asked for its entries.

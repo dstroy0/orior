@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fixed_read.h: what a register holds at the slot, read from its values over the cases, in C for the fixed mode's asks
 // and for the check that holds them (The fixed registers asked, Open 6.2)

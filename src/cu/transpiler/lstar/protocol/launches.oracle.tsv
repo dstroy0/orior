@@ -1,0 +1,14 @@
+where	who	kind	code	form	numbers	gloss
+row	cubin_run	launch	-	launch <ask> <outcome> <launches> <nanoseconds> <least> <most> <said>	<who> <ask> <outcome> <launches> <nanoseconds> <least> <most> <said text>	a launch the carrier made once the gate and the airlock let its question through, a row of the table launches
+column 0	cubin_run	ask	-	<key>	<key>	the ask the launch carried: the sequence of its code's blob in the run
+column 1	cubin_run	outcome	-	<outcome>	<code>	what came of the launch, by the codes below
+column 2	cubin_run	launches	-	<count>	<count>	the launches timed together after it, 0 where it is untimed
+column 3	cubin_run	nanoseconds	-	<nanoseconds>	<nanoseconds>	the time those launches took together on the part's own timer, 0 where it is untimed or did not answer
+column 4	cubin_run	least	-	<nanoseconds>	<nanoseconds>	the least one timed launch took, 0 where none was timed alone
+column 5	cubin_run	most	-	<nanoseconds>	<nanoseconds>	the most one timed launch took, 0 where none was timed alone
+column 6	cubin_run	said	-	<text>	<text>	the line the carrier said of a launch that did not answer, by its number in the table of texts, 0 where it answered
+outcome	cubin_run	answered	0x0	answered	-	the part ran it and the word of every case came back
+outcome	cubin_run	refused	0x1	refused	-	the driver or the part refused the launch, and the part stayed whole
+outcome	cubin_run	faulted	0x2	faulted	-	the launch faulted the part, its context left corrupt
+outcome	cubin_run	timed_out	0x3	timed_out	-	the launch did not return inside its bound
+any	-	number	-	-	-	every row opens with the who of the code that handed it, its two words (Who, who.h), then its columns, each a 64-bit word, the low byte first; a row is a blob of the table's name, launches, and its key the blob's sequence in the run

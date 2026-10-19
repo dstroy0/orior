@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_safe_check.c: cubin_safe held to one case a rule, each made from the machine file's own forms, then every cubin
 // named read on the host and its verdict printed. Nothing here touches a device.

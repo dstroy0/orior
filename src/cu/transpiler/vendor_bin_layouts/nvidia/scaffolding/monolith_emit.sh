@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Writes monolith_differences.md: the monolith's tagged build, a block at a time, held against what our compiler
 # writes (monolith_emit.cpp).
@@ -11,13 +12,13 @@
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
-source "$TOP/src/cu/types/file_defs/file_defs.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 HERE="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
-CUBIN="$TOP/src/cu/types/file_defs/readers"
-KRS_C="$TOP/src/cu/types/file_defs/readers"
+CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
+CUBIN="$TOP/src/cu/includes/parsers"
+KRS_C="$TOP/src/cu/includes/parsers"
 OUT="$TOP/build/monolith/emit"
 mkdir -p "$OUT"
 
@@ -48,7 +49,7 @@ nvcc "${HOST_FLAGS[@]}" -cubin -arch="$ARCH" -O3 -DMONOLITH_TAGGED=1 -o "$OUT/mo
 cuobjdump -sass -fun monolith "$OUT/monolith_tagged.cubin" > "$OUT/monolith_tagged.listing" || exit 1
 
 OBJECTS=()
-for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/ruleset_flat/*.cu "$HERE/sass_target.cu"; do
+for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu "$HERE/sass_target.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac

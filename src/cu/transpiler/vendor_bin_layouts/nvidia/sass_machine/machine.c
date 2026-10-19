@@ -1,6 +1,9 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // machine.c: the machine file: a form of the machine, the exit encoding, the operations that transfer control or wait, the barrier and the schedule, the machine taken from text, the runs, kinds and answers written and read, and the file written and read
 #include "sass_machine_internal.h"
+#include "../../../../includes/parsers/line_read.h"
+#include "../../../../engine/runtime/scriptura/scriptura.h"
 
 const SassForm *sass_machine_form(const SassMachine *machine, const SassInstructionParts *parts)
 {
@@ -107,6 +110,43 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
     return 1;
 }
 
+int sass_machine_take_related(SassMachine *machine, const char *text, unsigned long long low, unsigned long long high,
+                              const char *relation, SassForm **kept)
+{
+    SassInstructionParts parts;
+    sass_instruction_read(text, &parts);
+    for (unsigned int number = 0u; number < machine->forms; number += 1u)
+    {
+        SassForm *const form = &machine->form[number];
+        if (sass_form_same(form, &parts) && ((form->relation[0] == '\0') || (strcmp(form->relation, relation) == 0)))
+        {
+            *kept = form;
+            return 1;
+        }
+    }
+    if (machine->forms == SASS_MACHINE_FORMS)
+    {
+        machine->refused += 1u;
+        *kept = NULL;
+        return 0;
+    }
+    SassForm *const form = &machine->form[machine->forms];
+    memset(form, 0, sizeof(*form));
+    memcpy(form->operation, parts.operation, sizeof(form->operation));
+    form->operands = parts.operands;
+    for (unsigned int place = 0u; place < parts.operands; place += 1u)
+    {
+        form->kind[place] = parts.kind[place];
+        form->mark[place] = parts.mark[place];
+    }
+    form->low = low;
+    form->high = high;
+    snprintf(form->text, sizeof(form->text), "%s", text);
+    machine->forms += 1u;
+    *kept = form;
+    return 1;
+}
+
 int sass_text_placed(const SassForm *form, char *written, size_t room)
 {
     SassInstructionParts parts;
@@ -147,15 +187,9 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         // the operand reads as an address where the place is filled
         const int address = (parts.kind[operand] == SASS_OPERAND_ADDRESS) && (text[0] == '[');
         const size_t inner = address ? (1u + strcspn(text + 1, ".+]")) : 0u;
-        // a placed constant whose offset is a base and a term, `c[0x0][0x160+0x10]`, keeps its bank and its base, the
-        // place the term, `c[0x0][0x160+{<place>}]`
-        const char *const term = (parts.kind[operand] == SASS_OPERAND_CONSTANT) ? strrchr(text, '+') : NULL;
         printed = (place == SASS_RUN_NO_PLACE) ? snprintf(written + at, room - at, "%s%s%s", between, mark, text)
                   : address ? snprintf(written + at, room - at, "%s%s[{%u}%s", between, mark, place, text + inner)
-                  : (term != NULL)
-                      ? snprintf(written + at, room - at, "%s%s%.*s{%u}]", between, mark, (int)(term - text + 1), text,
-                                 place)
-                      : snprintf(written + at, room - at, "%s%s{%u}", between, mark, place);
+                            : snprintf(written + at, room - at, "%s%s{%u}", between, mark, place);
         at += (printed > 0) ? (size_t)printed : room;
     }
     return (at < room) ? 1 : 0;
@@ -204,11 +238,19 @@ static int sass_runs_read(SassForm *form, const char *column)
         unsigned int operand = 0u;
         unsigned int first = 0u;
         unsigned int last = 0u;
-        int read = 0;
-        if ((sscanf(at, "%u:%u-%u%n", &operand, &first, &last, &read) != 3) || (form->runs == SASS_MACHINE_RUNS))
+        // a run, `<operand>:<first>-<last>`
+        const char *walk = at;
+        int whole = line_unsigned(&walk, &operand) && (*walk == ':');
+        walk += whole ? 1 : 0;
+        whole = whole && line_unsigned(&walk, &first) && (*walk == '-');
+        walk += whole ? 1 : 0;
+        whole = whole && line_unsigned(&walk, &last);
+        if (!whole || (form->runs == SASS_MACHINE_RUNS))
         {
             return 0;
         }
+        // a run's letters are within its column, which an int counts
+        const int read = (int)(walk - at);
         unsigned int place = SASS_RUN_NO_PLACE;
         if ((at[read] == ':') && (strncmp(&at[read + 1], SASS_RUN_NO_PLACE_TEXT, strlen(SASS_RUN_NO_PLACE_TEXT)) != 0))
         {
@@ -245,15 +287,18 @@ static void sass_kinds_write(const SassForm *form, char *written, size_t room)
 
 int sass_machine_write(const SassMachine *machine, const char *path)
 {
-    QryText file = {0};
-    qry_text_printed(&file, "forms 2" SASS_LINE_END);
-    qry_text_printed(&file,
+    static char s_file_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    ScripturaLine file = {s_file_bytes, sizeof(s_file_bytes), 0ull};
+    scriptura_text(&file, "forms 2" SASS_LINE_END);
+    scriptura_text(&file,
                      "# The part's instructions as the cell's probes read them back: one line a form, an operation "
                      "and" SASS_LINE_END
                      "# the kind and mark of each printed operand, with the encoding the form was first seen with "
                      "and" SASS_LINE_END "# the instruction it was seen as. The format is the comment at the head of "
                      "sass_machine.h." SASS_LINE_END);
-    qry_text_printed(&file, "part %s" SASS_LINE_END, machine->part);
+    scriptura_text(&file, "part ");
+    scriptura_text(&file, machine->part);
+    scriptura_text(&file, SASS_LINE_END);
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
         const SassForm *const form = &machine->form[number];
@@ -262,12 +307,26 @@ int sass_machine_write(const SassMachine *machine, const char *path)
         sass_kinds_write(form, kinds, sizeof(kinds));
         sass_runs_write(form, runs, sizeof(runs));
         const int asked = (form->relation[0] != '\0');
-        qry_text_printed(&file, "form %s %s 0x%016llx 0x%016llx %s %s %s %s" SASS_LINE_END, form->operation, kinds,
-                         form->low, form->high, runs, asked ? form->relation : SASS_RUN_NO_PLACE_TEXT,
-                         asked ? ((form->signed_read != 0) ? "1" : "0") : SASS_RUN_NO_PLACE_TEXT, form->text);
+        scriptura_text(&file, "form ");
+        scriptura_text(&file, form->operation);
+        scriptura_text(&file, " ");
+        scriptura_text(&file, kinds);
+        scriptura_text(&file, " 0x");
+        scriptura_hex(&file, form->low, 16u);
+        scriptura_text(&file, " 0x");
+        scriptura_hex(&file, form->high, 16u);
+        scriptura_text(&file, " ");
+        scriptura_text(&file, runs);
+        scriptura_text(&file, " ");
+        scriptura_text(&file, asked ? form->relation : SASS_RUN_NO_PLACE_TEXT);
+        scriptura_text(&file, " ");
+        scriptura_text(&file, asked ? ((form->signed_read != 0) ? "1" : "0") : SASS_RUN_NO_PLACE_TEXT);
+        scriptura_text(&file, " ");
+        scriptura_text(&file, form->text);
+        scriptura_text(&file, SASS_LINE_END);
     }
-    // handed to the run's writer whole, which writes it in the file's place (qry_filed)
-    if (qry_text_filed(qry_run(), path, &file) == 0ull)
+    // handed to the run's writer whole, which writes it in the file's place (qry_member_filed)
+    if (!scriptura_fits(&file) || !qry_member_filed(path, file.out, file.at))
     {
         printf("  sass_machine: %s could not be written: no run's writer runs, or it stands outside the tree\n", path);
         return 0;
@@ -357,7 +416,9 @@ static void sass_answers_read(SassMachine *machine, const char *path)
             machine->register_past = answered;
             continue;
         }
-        if (sscanf(s_row.question, "stall %63s %63s", writer, reader) != 2)
+        const char *question = s_row.question;
+        if (!line_letters(&question, "stall ") || !line_word(&question, writer, sizeof(writer)) ||
+            !line_word(&question, reader, sizeof(reader)))
         {
             continue;
         }
@@ -384,11 +445,11 @@ static void sass_answers_read(SassMachine *machine, const char *path)
 
 int sass_machine_read(SassMachine *machine, const char *path)
 {
-    // the machine file as the run holds it (qry_file_read)
-    unsigned char *file_bytes = NULL;
+    // the machine file as the run holds it (qry_member_file)
+    const unsigned char *file_bytes = NULL;
     unsigned long long file_size = 0ull;
     unsigned long long file_at = 0ull;
-    if (!qry_file_read(qry_run(), path, &file_bytes, &file_size))
+    if (!qry_member_file_blob(path, &file_bytes, &file_size))
     {
         printf("  sass_machine: %s could not be read\n", path);
         return 0;
@@ -397,7 +458,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
     char line[SASS_MACHINE_TEXT + (SASS_MACHINE_TOKEN * (SASS_MACHINE_OPERANDS + 4u))];
     unsigned int version = 0u;
     int broken = 0;
-    while (qry_line_next(file_bytes, file_size, &file_at, line, sizeof(line)))
+    while (line_read(file_bytes, file_size, &file_at, line, sizeof(line)))
     {
         line[strcspn(line, "\r\n")] = '\0';
         if ((line[0] == '#') || (line[0] == '\0'))
@@ -427,14 +488,17 @@ int sass_machine_read(SassMachine *machine, const char *path)
         char signed_read[SASS_MACHINE_TOKEN] = "";
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
-        int at = 0;
         // the text past the runs, and at forms 2 past the relation and the signedness, is the instruction the form was
         // seen as, and holds spaces
-        const int read = (version == 2u)
-                             ? (sscanf(line + 5, "%63s %511s %llx %llx %511s %63s %63s %n", operation, kinds, &low,
-                                       &high, runs, relation, signed_read, &at) == 7)
-                             : (sscanf(line + 5, "%63s %511s %llx %llx %511s %n", operation, kinds, &low, &high, runs,
-                                       &at) == 5);
+        const char *seen = line + 5;
+        int read = line_word(&seen, operation, sizeof(operation)) && line_word(&seen, kinds, sizeof(kinds)) &&
+                   line_number(&seen, 1, &low) && line_number(&seen, 1, &high) && line_word(&seen, runs, sizeof(runs));
+        read = read && ((version != 2u) || (line_word(&seen, relation, sizeof(relation)) &&
+                                            line_word(&seen, signed_read, sizeof(signed_read))));
+        while ((*seen == ' ') || (*seen == '\t'))
+        {
+            seen += 1;
+        }
         if (!read)
         {
             broken = 1;
@@ -448,7 +512,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
         SassForm *const form = &machine->form[machine->forms];
         memset(form, 0, sizeof(*form));
         snprintf(form->operation, sizeof(form->operation), "%s", operation);
-        snprintf(form->text, sizeof(form->text), "%s", line + 5 + at);
+        snprintf(form->text, sizeof(form->text), "%s", seen);
         form->low = low;
         form->high = high;
         if (strcmp(relation, SASS_RUN_NO_PLACE_TEXT) != 0)
@@ -460,7 +524,6 @@ int sass_machine_read(SassMachine *machine, const char *path)
         broken = sass_runs_read(form, runs) ? broken : 1;
         machine->forms += 1u;
     }
-    free(file_bytes);
     if (((version != 1u) && (version != 2u)) || broken || (machine->forms == 0u))
     {
         printf("  sass_machine: %s is not a machine file this reads (forms %u, %u read)\n", path, version,

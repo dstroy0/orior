@@ -1,11 +1,12 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // writings_internal.h: what the modules of the writings probe share: its includes, the bounds of a container, its code and text, the registers the cases are written in, the anchors' and precepts' texts, the machine, pattern, container and kernel held, and the functions one module reads from another
 #ifndef WRITINGS_INTERNAL_H
 #define WRITINGS_INTERNAL_H
 
 #include "../../../../../engine/rmc/word_web.h"
-#include "../../../../../types/file_defs/kdm/kdm.h"
-#include "../../../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../lstar/protocol/counterexample/ladder.h"
 #include "../../cubin_safe.h"
 #include "../../cubin_write.h"

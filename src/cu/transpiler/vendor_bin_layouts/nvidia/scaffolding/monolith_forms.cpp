@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // monolith_forms.cpp: the forms a lane is written in, each asked of NVIDIA's compiler in one program, and each form of
 // sass.krs and ptx.krs read back off what the compiler wrote for it.
@@ -26,7 +27,7 @@
 // the cubin writer is C and its headers carry no guard of their own: the linkage is named here
 extern "C"
 {
-#include "../../../../types/file_defs/qry/qry_buffer.h"
+#include "../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../sass_assemble.h"
 #include "../sass_machine.h"
 #include "interface_sass_probe.h"
@@ -122,10 +123,10 @@ static std::vector<std::string> words_split(const std::string &text)
 // the ruleset at `path` read: 1, or 0 where it did not read
 static int krs_read(const char *path, Krs *krs)
 {
-    // the ruleset as the run holds it, or the disk where the run holds none (qry_file_read)
-    unsigned char *bytes = NULL;
+    // the ruleset as the run holds it, or the disk where the run holds none (qry_member_file)
+    const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    if (!qry_file_read(qry_run(), path, &bytes, &size))
+    if (!qry_member_file_blob(path, &bytes, &size))
     {
         return 0;
     }
@@ -166,7 +167,6 @@ static int krs_read(const char *path, Krs *krs)
             krs->fixed[head[1]] = text;
         }
     }
-    free(bytes);
     return 1;
 }
 
@@ -2493,16 +2493,15 @@ static std::string krs_escape(const std::string &text)
 // the file was not read or written
 static int krs_apply(const char *path, const std::map<std::string, std::string> &adopted)
 {
-    // the ruleset as the run holds it, or the disk where the run holds none (qry_file_read)
-    unsigned char *bytes = NULL;
+    // the ruleset as the run holds it, or the disk where the run holds none (qry_member_file)
+    const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    if (!qry_file_read(qry_run(), path, &bytes, &size))
+    if (!qry_member_file_blob(path, &bytes, &size))
     {
         return -1;
     }
     // a ruleset read whole is at most what a size_t counts
     std::string whole((const char *)bytes, (size_t)size);
-    free(bytes);
     int written = 0;
     std::string out;
     size_t at = 0u;

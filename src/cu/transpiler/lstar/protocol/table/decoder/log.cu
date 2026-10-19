@@ -1,31 +1,67 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // log.cu: the log read off the run into the puts, case sets, metas, categories and choices, and each pair's set,
 // product and identity decoded off its puts
 #include "decoder_internal.h"
 
-int Decoding::log_read(const char *qry)
+#include "../../../../../includes/file_defs/qry/qry_read.h"
+
+// the log, every record of it joined in the writer's order
+static unsigned char s_log[QRY_WRITER_RING_BYTES / 2ull];
+
+// `record` joined to the log where it is a record of the log and fits: 1, or 0 where it does not fit
+static int log_record_joined(const QryRecord *record, unsigned long long *size)
 {
-    // the log, every blob of it joined in the order handed: from the run's buffer while its writer runs, from the .qry
-    // once it has stopped (qry_buffer.h)
-    unsigned char *joined = NULL;
-    unsigned long long joined_size = 0ull;
-    char joined_error[512] = "";
-    QryBuffer *const run = qry_open(qry);
-    const int logged = (run != NULL)
-                           ? qry_joined(run, "log", &joined, &joined_size)
-                           : qry_file_joined(qry, "log", &joined, &joined_size, joined_error, sizeof(joined_error));
-    qry_close(run);
-    if (!logged)
+    if ((record->name_length != 3u) || (memcmp(QRY_RECORD_NAME(record), "log", 3u) != 0))
     {
-        printf("klq_decoder: %s\n", (joined_error[0] != '\0') ? joined_error : "the log could not be read");
         return 1;
     }
-    if (joined_error[0] != '\0')
+    if (record->blob_length > (sizeof(s_log) - *size))
     {
-        printf("klq_decoder: %s\n", joined_error);
+        return 0;
     }
-    std::istringstream log(std::string((const char *)joined, (size_t)joined_size));
-    free(joined);
+    // a record fits half a ring, whose bytes a size_t counts
+    memcpy(s_log + *size, QRY_RECORD_BLOB(record), (size_t)record->blob_length);
+    *size += record->blob_length;
+    return 1;
+}
+
+// the log joined into s_log: from the run while its writer runs, from the .qry at `qry` once it has stopped. Its
+// bytes, or QRY_MEMBER_UNREAD where it could not be read whole
+static unsigned long long log_joined(const char *qry)
+{
+    unsigned long long size = 0ull;
+    unsigned long long at = 0ull;
+    const QryRecord *record = NULL;
+    int whole = 1;
+    if (qry_member_run() != NULL)
+    {
+        while (whole && qry_member_read(&at, &record))
+        {
+            whole = log_record_joined(record, &size);
+        }
+        return whole ? size : QRY_MEMBER_UNREAD;
+    }
+    unsigned long long mapped = 0ull;
+    const unsigned char *const bytes = qry_member_file_mapped(qry, &mapped);
+    while (whole && (bytes != NULL) && qry_record_read(bytes, mapped, &at, &record))
+    {
+        whole = log_record_joined(record, &size);
+    }
+    whole = whole && (bytes != NULL) && (at == mapped);
+    qry_member_file_unmapped(bytes, mapped);
+    return whole ? size : QRY_MEMBER_UNREAD;
+}
+
+int Decoding::log_read(const char *qry)
+{
+    const unsigned long long joined_size = log_joined(qry);
+    if (joined_size == QRY_MEMBER_UNREAD)
+    {
+        printf("klq_decoder: the log could not be read whole\n");
+        return 1;
+    }
+    std::istringstream log(std::string((const char *)s_log, (size_t)joined_size));
     std::string came_back;
     int block_answered = 0;
     std::string line;

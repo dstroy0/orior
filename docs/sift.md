@@ -1,6 +1,6 @@
 # The sift
 
-The search, and the steering that decides where it looks, live in [`src/cu/engine/nbody/orior/orior_*.c`](https://github.com/dstroy0/orior/tree/main/src/cu/engine/nbody/orior). Together with the portable scan and the exact whole number math in [`src/cu/types/integers/`](https://github.com/dstroy0/orior/tree/main/src/cu/types/integers), it builds and runs with nothing but a C11 compiler: four source groups and no build system ([Setup](setup.md#the-c-engine)).
+The search, and the steering that decides where it looks, live in [`src/cu/engine/nbody/orior/orior_*.c`](https://github.com/dstroy0/orior/tree/main/src/cu/engine/nbody/orior). Together with the portable scan and the exact whole number math in [`src/cu/includes/types/integers/`](https://github.com/dstroy0/orior/tree/main/src/cu/includes/types/integers), it builds and runs with nothing but a C11 compiler: four source groups and no build system ([Setup](setup.md#the-c-engine)).
 
 The Python in [`archive/src/python/engine/nbody/orior/sift/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/nbody/orior/sift) builds the same thing and shares no code with the C version. The two are checked against each other by making sure their counts agree.
 

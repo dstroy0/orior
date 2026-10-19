@@ -1,3 +1,4 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational")
 import os
 import random
@@ -70,7 +71,7 @@ def rows(values, per_line, indent):
 
 
 out = []
-out.append("/* cell_tracking - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>")
+out.append("/* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>")
 out.append(" * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational")
 out.append(" *")
 out.append(" * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a")

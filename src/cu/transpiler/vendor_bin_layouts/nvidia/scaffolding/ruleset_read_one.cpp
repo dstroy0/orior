@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // One form of one ruleset written, with no device and no suite: the check that a ruleset a hand just edited still
 // reads against its code generator's schema, and that a form given as a construct writes the lines it says it does

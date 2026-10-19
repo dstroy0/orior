@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // vendor.c: the vendor's instruction set for the part the cross reads for, and whether its disassembler reads a piece
 #include "msq_internal.h"
@@ -36,14 +37,13 @@ int msq_tables_read(void)
     }
     char path[512];
     snprintf(path, sizeof(path), "build/vendor/nvidia/tables/%s_instructions.txt", part);
-    unsigned char *text = NULL;
+    const unsigned char *text = NULL;
     unsigned long long size = 0ull;
-    if (!qry_file_read(s_run, path, &text, &size))
+    if (!qry_member_file_blob(path, &text, &size))
     {
         return 0;
     }
     const int read = tables_set_read(&s_tables, text, (size_t)size) && (s_tables.count != 0u);
-    free(text);
     s_tables_state = read ? 1 : -1;
     return read;
 }

@@ -1,7 +1,9 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // funnel.c: the vendor's tables read off a capture of its disassembler: the records, the instruction set unpacked
 // from its LZ4 archive, and the latencies gathered from the copies out of their buffer
 #include "funnel.h"
+#include "../../../../includes/parsers/line_read.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,7 +61,9 @@ int tables_record_read(const unsigned char *bytes, size_t size, size_t *at, Tabl
     unsigned long long to = 0ull;
     unsigned long long from = 0ull;
     unsigned long long count = 0ull;
-    if (sscanf(line, "<%llx %llx %llu>", &to, &from, &count) != 3)
+    const char *read = line + 1;
+    if ((line[0] != '<') || !line_number(&read, 1, &to) || !line_number(&read, 1, &from) ||
+        !line_number(&read, 0, &count) || (*read != '>'))
     {
         return 0;
     }

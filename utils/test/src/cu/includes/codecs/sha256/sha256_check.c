@@ -1,8 +1,10 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sha256_check.c: sha256 held to NIST's published SHA-256 vectors (CAVP, the SHAVS files vendored under
-// utils/test/src/cu/transpiler/qasm/vectors). Each message file gives a length, a message and its digest, the byte files a length in whole bytes and the
-// bit files any count of bits; the Monte file gives a seed and the digest of every hundred-and-first link of a chain,
-// each link the digest of the three before it laid end to end (SHAVS section 6.4).
+// utils/test/src/cu/transpiler/qasm/vectors). Each message file gives a length, a message and its digest, the byte
+// files a length in whole bytes and the bit files any count of bits; the Monte file gives a seed and the digest of
+// every hundred-and-first link of a chain, each link the digest of the three before it laid end to end (SHAVS
+// section 6.4).
 //
 //     sha256_check <message file>... --monte <monte file>
 //

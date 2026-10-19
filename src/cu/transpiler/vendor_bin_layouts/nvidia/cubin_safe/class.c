@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // class.c: an instruction's class read off the vendor's instruction set for rules 2 and 3: whether the operation the
 // class is named for transfers control or waits, whatever name the machine file's form gives the encoding

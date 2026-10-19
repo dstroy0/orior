@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // measuring_stick_read.c: nvcc's listing of the measuring stick read kernel by kernel, the answer key what the engine
 // builds for each function of the language is held against. A kernel's operations are its instructions' operations,
@@ -10,10 +11,30 @@
 // instruction by instruction: the assembler and the disassembler agree on every operation the comparison counts.
 //
 // Each operation is held as a number, the place of its name in the run's table of names, and compared as one. Every
-// file is read as the run holds it (ktext.h), and the record is handed to the run's writer, which writes it.
+// file is read as the run holds it (kfile_lines.h), and the record is handed to the run's writer, which writes it.
 //
 //     measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]
 #include "measuring_stick_read/stick_internal.h"
+#include "verba_scribo/verba_scribo.h"
+
+// the record, written into s_record_bytes and handed whole to the run's writer, `s_record_at` bytes so far, the room
+// once a write did not fit
+static char s_record_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static size_t s_record_at;
+
+// `text` written after what the record holds
+static void record_text(const char *text)
+{
+    s_record_at = verba_textus.put(
+        &(VerbaTextusCfg){.out = s_record_bytes, .cap = sizeof(s_record_bytes), .at = s_record_at, .text = text});
+}
+
+// `value` written in base ten after what the record holds
+static void record_number(unsigned long long value)
+{
+    s_record_at = verba_numerus.u64(
+        &(VerbaNumerusCfg){.out = s_record_bytes, .cap = sizeof(s_record_bytes), .at = s_record_at, .val = value});
+}
 
 // a manifest line: a kernel's number, its category and its function
 typedef struct
@@ -152,18 +173,17 @@ int main(int argc, char **argv)
     }
 
     const size_t prefix = sizeof(s_prefix) - 1u;
-    QryText record = {NULL, 0ull, 0ull, 0};
-    qry_text_printed(&record, "# The measuring stick: nvcc's listing, the answer key\n\n");
-    qry_text_printed(&record,
-                     "Written by `orior protocol stick` whole on every run. Each kernel of the measuring stick "
-                     "(measuring_stick.py), every function of the CUDA language in a kernel of its own, is "
-                     "compiled by nvcc for sm_86 and read here. What the engine builds for each function is "
-                     "held against it, a kernel at parity where the engine's code uses the same operations as "
-                     "nvcc's, each as many times.\n\n");
-    qry_text_printed(&record,
-                     "- kernels: %u\n- instructions: %u\n- operations nvcc writes over the stick: %u, of which "
-                     "sass.krs writes %u\n\n",
-                     sticks, instructions, writings, held_writings);
+    record_text("# The measuring stick: nvcc's listing, the answer key\n\n");
+    record_text("Written by `orior protocol stick` whole on every run. Each kernel of the measuring stick (measuring_stick.py), every function of the CUDA language in a kernel of its own, is compiled by nvcc for sm_86 and read here. What the engine builds for each function is held against it, a kernel at parity where the engine's code uses the same operations as nvcc's, each as many times.\n\n");
+    record_text("- kernels: ");
+    record_number(sticks);
+    record_text("\n- instructions: ");
+    record_number(instructions);
+    record_text("\n- operations nvcc writes over the stick: ");
+    record_number(writings);
+    record_text(", of which sass.krs writes ");
+    record_number(held_writings);
+    record_text("\n\n");
     if (argc == 7)
     {
         unsigned int answered = 0u;
@@ -186,19 +206,24 @@ int main(int argc, char **argv)
             stick_counted(&stick[at].operations, other);
             parity += (memcmp(count, other, s_names * sizeof(unsigned int)) == 0) ? 1u : 0u;
         }
-        qry_text_printed(&record,
-                         "- kernels the engine answers: %u, of which at parity with nvcc: %u; kernels that put a "
-                         "question: %u\n- the engine's instructions: %u in its lanes' text, %u read back by nvdisasm, "
-                         "%u of them the operation the text wrote\n\n",
-                         answered, parity, sticks - answered, text, read_back, agree);
+        record_text("- kernels the engine answers: ");
+        record_number(answered);
+        record_text(", of which at parity with nvcc: ");
+        record_number(parity);
+        record_text("; kernels that put a question: ");
+        record_number(sticks - answered);
+        record_text("\n- the engine's instructions: ");
+        record_number(text);
+        record_text(" in its lanes' text, ");
+        record_number(read_back);
+        record_text(" read back by nvdisasm, ");
+        record_number(agree);
+        record_text(" of them the operation the text wrote\n\n");
         // a table is written with its rows, and a table with none is one line saying so
-        qry_text_printed(&record,
-                         "## The engine against nvcc\n\nEach kernel the engine answers: its record steps, "
-                         "nvcc's instructions and the engine's as nvdisasm reads them back, and the operations "
-                         "only one of the two writes, each by how many more times it writes it.\n\n");
-        qry_text_printed(&record, (answered != 0u) ? "| kernel | function | steps | nvcc | engine | only nvcc | only "
-                                                     "the engine |\n|---|---|---|---|---|---|---|\n"
-                                                   : "The engine answers no kernel.\n");
+        record_text("## The engine against nvcc\n\nEach kernel the engine answers: its record steps, nvcc's instructions and the engine's as nvdisasm reads them back, and the operations only one of the two writes, each by how many more times it writes it.\n\n");
+        record_text((answered != 0u) ? "| kernel | function | steps | nvcc | engine | only nvcc | only "
+                                       "the engine |\n|---|---|---|---|---|---|---|\n"
+                                     : "The engine answers no kernel.\n");
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
             const StickEngine *const entry = stick_engine_of(stick[at].name);
@@ -208,14 +233,21 @@ int main(int argc, char **argv)
             }
             stick_counted(&entry->operations, count);
             stick_counted(&stick[at].operations, other);
-            qry_text_printed(&record, "| %s | `", stick[at].name + prefix);
-            stick_escaped(&record, stick[at].function);
-            qry_text_printed(&record, "` | %u | %u | %u | ", entry->steps, stick[at].operations.count,
-                             entry->operations.count);
-            stick_counts_written(&record, order, other, count);
-            qry_text_printed(&record, " | ");
-            stick_counts_written(&record, order, count, other);
-            qry_text_printed(&record, " |\n");
+            record_text("| ");
+            record_text(stick[at].name + prefix);
+            record_text(" | `");
+            s_record_at = stick_escaped(s_record_bytes, sizeof(s_record_bytes), s_record_at, stick[at].function);
+            record_text("` | ");
+            record_number(entry->steps);
+            record_text(" | ");
+            record_number(stick[at].operations.count);
+            record_text(" | ");
+            record_number(entry->operations.count);
+            record_text(" | ");
+            s_record_at = stick_counts_written(s_record_bytes, sizeof(s_record_bytes), s_record_at, order, other, count);
+            record_text(" | ");
+            s_record_at = stick_counts_written(s_record_bytes, sizeof(s_record_bytes), s_record_at, order, count, other);
+            record_text(" |\n");
         }
         // the questions the engine puts: each note, the kernels that put it and the first of them, the most first
         char **const note = (char **)stick_held(calloc(sticks + 1u, sizeof(char *)));
@@ -239,10 +271,9 @@ int main(int argc, char **argv)
             note[one] = entry->note;
             note_kernels[one] += 1u;
         }
-        qry_text_printed(&record, "\n## The questions the engine puts\n\nEach kernel the engine does not answer, by "
-                                  "the question it puts.\n\n");
-        qry_text_printed(&record, (notes != 0u) ? "| question | kernels | first kernel |\n|---|---|---|\n"
-                                                : "The engine puts no question.\n");
+        record_text("\n## The questions the engine puts\n\nEach kernel the engine does not answer, by the question it puts.\n\n");
+        record_text((notes != 0u) ? "| question | kernels | first kernel |\n|---|---|---|\n"
+                                  : "The engine puts no question.\n");
         for (unsigned int written_notes = 0u; written_notes < notes; written_notes += 1u)
         {
             unsigned int best = notes;
@@ -257,30 +288,40 @@ int main(int argc, char **argv)
                            ? one
                            : best;
             }
-            qry_text_printed(&record, "| ");
-            stick_escaped(&record, note[best]);
-            qry_text_printed(&record, " | %u | %s |\n", note_kernels[best], stick[note_first[best]].name + prefix);
+            record_text("| ");
+            s_record_at = stick_escaped(s_record_bytes, sizeof(s_record_bytes), s_record_at, note[best]);
+            record_text(" | ");
+            record_number(note_kernels[best]);
+            record_text(" | ");
+            record_text(stick[note_first[best]].name + prefix);
+            record_text(" |\n");
             note[best] = NULL;
         }
-        qry_text_printed(&record, "\n");
+        record_text("\n");
         free(note_first);
         free(note_kernels);
         free(note);
     }
-    qry_text_printed(&record, "## By category\n\n| category | kernels | nvcc instructions |\n|---|---|---|\n");
+    record_text("## By category\n\n| category | kernels | nvcc instructions |\n|---|---|---|\n");
     for (unsigned int at = 0u; at < categories; at += 1u)
     {
-        qry_text_printed(&record, "| %s | %u | %u |\n", category[at], category_kernels[at], category_instructions[at]);
+        record_text("| ");
+        record_text(category[at]);
+        record_text(" | ");
+        record_number(category_kernels[at]);
+        record_text(" | ");
+        record_number(category_instructions[at]);
+        record_text(" |\n");
     }
     unsigned int unwritten = 0u;
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
         unwritten += (missing[at] != 0u) ? 1u : 0u;
     }
-    qry_text_printed(&record, "\n## Operations nvcc writes that no form of sass.krs writes\n\n");
-    qry_text_printed(&record, (unwritten != 0u) ? "| operation | kernels it is in | first kernel | its function |\n"
-                                                  "|---|---|---|---|\n"
-                                                : "Every operation nvcc writes, a form of sass.krs writes.\n");
+    record_text("\n## Operations nvcc writes that no form of sass.krs writes\n\n");
+    record_text((unwritten != 0u) ? "| operation | kernels it is in | first kernel | its function |\n"
+                                    "|---|---|---|---|\n"
+                                  : "Every operation nvcc writes, a form of sass.krs writes.\n");
     for (;;)
     {
         unsigned int best = s_names;
@@ -296,23 +337,35 @@ int main(int argc, char **argv)
             break;
         }
         const StickKernel *const first = &stick[missing_first[best]];
-        qry_text_printed(&record, "| `%s` | %u | %s | `", s_name[best], missing[best], first->name + prefix);
-        stick_escaped(&record, first->function);
-        qry_text_printed(&record, "` |\n");
+        record_text("| `");
+        record_text(s_name[best]);
+        record_text("` | ");
+        record_number(missing[best]);
+        record_text(" | ");
+        record_text(first->name + prefix);
+        record_text(" | `");
+        s_record_at = stick_escaped(s_record_bytes, sizeof(s_record_bytes), s_record_at, first->function);
+        record_text("` |\n");
         missing[best] = 0u;
     }
-    qry_text_printed(&record, "\n## Every kernel\n\n| kernel | category | function | nvcc | its operations |\n"
-                              "|---|---|---|---|---|\n");
+    record_text("\n## Every kernel\n\n| kernel | category | function | nvcc | its operations |\n|---|---|---|---|---|\n");
     for (unsigned int at = 0u; at < sticks; at += 1u)
     {
-        qry_text_printed(&record, "| %s | %s | `", stick[at].name + prefix, stick[at].category);
-        stick_escaped(&record, stick[at].function);
-        qry_text_printed(&record, "` | %u | ", stick[at].operations.count);
+        record_text("| ");
+        record_text(stick[at].name + prefix);
+        record_text(" | ");
+        record_text(stick[at].category);
+        record_text(" | `");
+        s_record_at = stick_escaped(s_record_bytes, sizeof(s_record_bytes), s_record_at, stick[at].function);
+        record_text("` | ");
+        record_number(stick[at].operations.count);
+        record_text(" | ");
         stick_counted(&stick[at].operations, count);
-        stick_counts_written(&record, order, count, NULL);
-        qry_text_printed(&record, " |\n");
+        s_record_at = stick_counts_written(s_record_bytes, sizeof(s_record_bytes), s_record_at, order, count, NULL);
+        record_text(" |\n");
     }
-    if (qry_text_filed(qry_run(), argv[4], &record) == 0ull)
+    if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_record_bytes), .at = s_record_at}) ||
+        !qry_member_filed(argv[4], s_record_bytes, s_record_at))
     {
         fprintf(stderr, "measuring_stick_read: the record %s was not written\n", argv[4]);
         return 1;

@@ -1,3 +1,4 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Every form sass.krs writes, assembled against the part's machine file, with no device and no toolchain.
 //
@@ -25,7 +26,7 @@ extern "C"
 #include "../sass_machine.h"
 }
 
-#include "../../../../types/file_defs/readers/ruleset_flat.h"
+#include "../../../../includes/file_defs/krs/ruleset_flat.h"
 #include "sass_target.h"
 #include "target.h"
 
