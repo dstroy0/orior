@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The pane the app shows while it reads a tree: the lattice with the eye over it. It stays at least
-// SHORTEST milliseconds, long enough for the eye to follow the pointer before it rolls, so a fast
-// read shows the eye whole instead of flashing it. It is killed at once, its wait and its eye both
+// SHORTEST milliseconds, long enough for the eye to follow the pointer, so a fast read shows the eye
+// whole instead of flashing it, and fades after. It is killed at once, its wait and its eye both
 // ended, where the window goes while it still shows, and where the app asks for that.
 
 import { startEye } from "./eye.js";
 import { drawLattice } from "./lattice.js";
 
-export const SHORTEST = 10000;
+export const SHORTEST = 6000;
 export const FADE = 350;
 
 let stop = null;
