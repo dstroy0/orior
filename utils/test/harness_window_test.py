@@ -300,6 +300,20 @@ def window_built(gui_name, sanitizer=""):
     return os.path.join(target, "debug", gui_name + (".exe" if os.name == "nt" else ""))
 
 
+def test_windows_ended(program):
+    """Every window running from the test program ended, on Windows: the one a run started and any a test opened
+    from it, as New Window does, which outlive the run and hold the program file against the next build; how many."""
+    if os.name != "nt":
+        return 0
+    import harness_win32 as win
+
+    wanted = os.path.abspath(program).lower()
+    running = [process_id for process_id, _, exe in win.processes() if win.image_path(process_id).lower() == wanted]
+    for process_id in running:
+        win.ended(process_id)
+    return len(running)
+
+
 def sanitizer_settings(sanitizer, run):
     """The settings the window runs under `sanitizer` with: its reports written to sanitizer.<pid> in the run's
     folder, no report ending the window, every one told and counted, and the leaks of a window the run kills
@@ -547,12 +561,14 @@ def drive(options, run, tree, env, benched, report):
                 driven.close()
                 sanitizer_said(run, report)
             return
-        program = window_built(gui_name, options.sanitize)
-        told.append(("ORIOR_TEST_PROGRAM", program))
-        # a window left by a run ended from outside would hold the display and the port this run takes
+        # a window left by a run ended from outside would hold the display, the port this run takes and the program
+        # file the build writes
         import harness_window
 
         harness_window.windows_ended()
+        test_windows_ended(os.path.join(APP_TARGET + ("-" + options.sanitize if options.sanitize else ""), "debug", gui_name + ".exe"))
+        program = window_built(gui_name, options.sanitize)
+        told.append(("ORIOR_TEST_PROGRAM", program))
         window = Window(program, run, tree, extra)
     except (RuntimeError, OSError) as error:
         print("  %s" % error, flush=True)
@@ -574,6 +590,9 @@ def drive(options, run, tree, env, benched, report):
             print("  the window is kept open on port %d" % window.port, flush=True)
         else:
             window.close()
+            left = test_windows_ended(program)
+            if left:
+                print("  %d window%s a test opened ended" % (left, "" if left == 1 else "s"), flush=True)
         sanitizer_said(run, report)
 
 
