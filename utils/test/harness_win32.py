@@ -162,6 +162,45 @@ def ended(process_id, wait_ms=5000):
     return waited != WAIT_TIMEOUT
 
 
+class MemoryBasicInformation(ctypes.Structure):
+    _fields_ = [
+        ("BaseAddress", ctypes.c_void_p),
+        ("AllocationBase", ctypes.c_void_p),
+        ("AllocationProtect", wintypes.DWORD),
+        ("PartitionId", wintypes.WORD),
+        ("RegionSize", ctypes.c_size_t),
+        ("State", wintypes.DWORD),
+        ("Protect", wintypes.DWORD),
+        ("Type", wintypes.DWORD),
+    ]
+
+
+MEM_COMMIT = 0x1000
+MEM_PRIVATE = 0x20000
+MEM_MAPPED = 0x40000
+MEM_IMAGE = 0x1000000
+kernel32.VirtualQueryEx.restype = ctypes.c_size_t
+kernel32.VirtualQueryEx.argtypes = [wintypes.HANDLE, ctypes.c_void_p, ctypes.POINTER(MemoryBasicInformation), ctypes.c_size_t]
+
+
+def regions(process_id):
+    """Every region of a process's address space: (base, allocation base, bytes, state, type, protect), as
+    VirtualQueryEx walks them; empty where the process cannot be asked."""
+    handle = kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, process_id)
+    if not handle:
+        return []
+    found = []
+    at = 0
+    information = MemoryBasicInformation()
+    while kernel32.VirtualQueryEx(handle, at, ctypes.byref(information), ctypes.sizeof(information)):
+        found.append((information.BaseAddress or 0, information.AllocationBase or 0, information.RegionSize, information.State, information.Type, information.Protect))
+        at = (information.BaseAddress or 0) + information.RegionSize
+        if at >= 0x7FFFFFFFFFFF:
+            break
+    kernel32.CloseHandle(handle)
+    return found
+
+
 def memory(process_id):
     """(private working set bytes, working set bytes, commit bytes) of a process, as the system counts them; None
     where it cannot be asked."""

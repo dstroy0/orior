@@ -37,6 +37,8 @@ pub struct Memory {
     pub working: u64,
     pub commit: u64,
     pub parts: Vec<Part>,
+    /// The bytes the window's Rust side holds live, taken from its allocator and not given back.
+    pub rust_live: u64,
 }
 
 #[cfg(windows)]

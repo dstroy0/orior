@@ -320,7 +320,7 @@
   // memory.tsv beside the run's report: the test, the bytes in RAM and reserved over every process,
   // the app's own process's, the cellblock's pool and its two peaks, and the share of the app's
   // reserved bytes the pool accounts for.
-  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\ttallies\tkept_calls"];
+  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\ttallies\tkept_calls\trust_live"];
   let counting = false;
   // The rows the files before this one wrote, read once, so the table runs across the whole run and
   // not the last file alone.
@@ -347,9 +347,10 @@
     if (!read || !cells || !home) {
       return;
     }
-    const own = read.parts[0] ?? { working: 0, commit: 0 };
+    // the window's own process by its name: the parts stand largest first, and the web view is the largest
+    const own = read.parts.find((one) => one.name === "orior_gui") ?? { working: 0, commit: 0 };
     const accounted = own.commit > 0 ? (cells.pool / own.commit).toFixed(3) : "";
-    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, tallies, kept].join("\t"));
+    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, tallies, kept, read.rust_live ?? 0].join("\t"));
     await invoke("file_write_any", { path: `${String(home).replace(/\\/g, "/")}/../memory.tsv`, text: `${memoryRows.join("\n")}\n` }).catch(() => {});
   }
 

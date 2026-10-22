@@ -13,7 +13,7 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 
 pub struct Counting;
@@ -23,12 +23,24 @@ thread_local! {
     static GIVEN: Cell<u64> = const { Cell::new(0) };
 }
 
+// The bytes every thread has taken and given back since the program started, whatever the count's
+// state: their difference is what the Rust side holds live.
+static TAKEN_ALL: AtomicU64 = AtomicU64::new(0);
+static GIVEN_ALL: AtomicU64 = AtomicU64::new(0);
+
 fn took(bytes: usize) {
+    TAKEN_ALL.fetch_add(bytes as u64, Ordering::Relaxed);
     let _ = TAKEN.try_with(|taken| taken.set(taken.get().wrapping_add(bytes as u64)));
 }
 
 fn gave(bytes: usize) {
+    GIVEN_ALL.fetch_add(bytes as u64, Ordering::Relaxed);
     let _ = GIVEN.try_with(|given| given.set(given.get().wrapping_add(bytes as u64)));
+}
+
+/// The bytes the Rust side holds live: taken and not yet given back, over every thread.
+pub fn live() -> u64 {
+    TAKEN_ALL.load(Ordering::Relaxed).wrapping_sub(GIVEN_ALL.load(Ordering::Relaxed))
 }
 
 // SAFETY: every request goes to the system's allocator as it came; the counts are thread-local

@@ -335,6 +335,33 @@ def cmd_debug(a):
     return 0
 
 
+def cmd_regions(a):
+    """The window's own process's committed bytes by kind, private, mapped and image, and its largest committed
+    allocations of each kind, every region of one allocation summed: where the process grows outside the cellblock
+    and the Rust allocator, this says whether it grew in private heaps or in mapped files."""
+    if not windows_only():
+        return 1
+    import harness_win32 as win
+
+    found = window_of(a.id)
+    if not found:
+        return 1
+    process_id = found[0]
+    kinds = {win.MEM_PRIVATE: "private", win.MEM_MAPPED: "mapped", win.MEM_IMAGE: "image"}
+    totals = {}
+    allocations = {}
+    for _, allocation, size, state, kind, _ in win.regions(process_id):
+        if state != win.MEM_COMMIT:
+            continue
+        name = kinds.get(kind, "other")
+        totals[name] = totals.get(name, 0) + size
+        allocations[(name, allocation)] = allocations.get((name, allocation), 0) + size
+    print("process %d committed: %s" % (process_id, ", ".join("%s %d MB" % (name, bytes_ >> 20) for name, bytes_ in sorted(totals.items()))))
+    for (name, allocation), size in sorted(allocations.items(), key=lambda one: -one[1])[: a.count]:
+        print("  %-8s %18s %6d MB" % (name, "0x%x" % allocation, size >> 20))
+    return 0
+
+
 def cmd_memory(a):
     if not windows_only():
         return 1
@@ -487,6 +514,11 @@ def register(sub):
 
     p = window.add_parser("memory", help="the window's process tree, each one's private working set and commit")
     p.set_defaults(fn=cmd_memory)
+
+    p = window.add_parser("regions", help="the window's committed bytes by kind, private, mapped and image, and its largest allocations")
+    p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
+    p.add_argument("--count", type=int, default=12, help="how many of the largest allocations are listed")
+    p.set_defaults(fn=cmd_regions)
 
     p = window.add_parser("luminance", help="the dark scheme's color tokens by CIE lightness, from --floor down, with the rules that paint them")
     p.add_argument("--floor", type=float, default=78.0, help="the lightness below which tokens are left out")

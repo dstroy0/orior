@@ -232,6 +232,7 @@ fn memory_use(app: State<App>) -> Option<memory::Memory> {
     let mut read = memory::read()?;
     let _ = app;
     named(&mut read, &running());
+    read.rust_live = allocations::live();
     Some(read)
 }
 
