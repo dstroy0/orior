@@ -42,6 +42,8 @@ static unsigned long long cells_pool_bytes(void)
 
 // the rise of a mark past the one last told that is told again
 #define CLI_CELLS_TOLD_STEP (1ull << 20u)
+// the word written past a cell's last byte, which a write past the cell changes
+#define CLI_CELL_GUARD_WORD 0x5ca1ab1e0ddba11ull
 
 static CliLock s_lock = CLI_LOCK_INIT;
 
@@ -242,7 +244,8 @@ static void *cells_taken(CliCellsTally *tally, unsigned long long bytes, const c
     const int pooled = (cli_cells_site_cellblock() != NULL) || cli_cells_site_made((size_t)CLI_CELLS_POOL);
     if (pooled && (bytes <= cells_pool_bytes()))
     {
-        cell = cli_cells_site.cli_cells_pool.persistent_buf_alloc((size_t)(bytes + (2u * CLI_CELL_ALIGN)));
+        cell = cli_cells_site.cli_cells_pool.persistent_buf_alloc(
+            (size_t)(bytes + (2u * CLI_CELL_ALIGN) + CLI_CELL_GUARD));
         rose = cells_risen(&s_told, CLI_CELLS_PEAK(persistent_hw) + CLI_CELLS_PEAK(temporary_hw));
         if ((cell != NULL) && (tally != NULL))
         {
@@ -280,13 +283,22 @@ static void *cells_taken(CliCellsTally *tally, unsigned long long bytes, const c
         cli_line_decimal(&refused, bytes, 1u);
         cli_line_text(&refused, " bytes for ");
         cli_line_text(&refused, what);
-        cli_line_text(&refused, ": the cellblock cannot meet it\n");
+        cli_line_text(&refused, ": the cellblock cannot meet it; its persistent end is at ");
+        // the cellblock's state as it stands, read for the telling alone
+        const CarcerCellBlock *const cellblock = cli_cells_site_cellblock();
+        cli_line_decimal(&refused, (cellblock != NULL) ? (unsigned long long)cellblock->persistent_end : 0ull, 1u);
+        cli_line_text(&refused, ", its temporary top at ");
+        cli_line_decimal(&refused, (cellblock != NULL) ? (unsigned long long)cellblock->temporary_top : 0ull, 1u);
+        cli_line_text(&refused, " of ");
+        cli_line_decimal(&refused, cells_pool_bytes(), 1u);
+        cli_line_character(&refused, '\n');
         query_terminal_written(1, told, cli_line_fits(&refused) ? refused.at : 0ull);
         return NULL;
     }
     // the start moves up to the second boundary past the cell's first byte, CLI_CELL_ALIGN + 1 to twice that, the
     // byte ahead of the start holding how far, the word 16 bytes ahead the cell's bytes and the word 24 bytes ahead
-    // what it was taken for; an address is a pointer's width, which uintptr_t holds
+    // what it was taken for; the guard word stands past the cell's last byte, and a give-back that finds it changed
+    // says the cell was overrun; an address is a pointer's width, which uintptr_t holds
     const uintptr_t at = (uintptr_t)cell;
     const uintptr_t aligned = (at + (2u * CLI_CELL_ALIGN)) & ~(uintptr_t)(CLI_CELL_ALIGN - 1u);
     unsigned char *const start = cell + (aligned - at);
@@ -294,10 +306,37 @@ static void *cells_taken(CliCellsTally *tally, unsigned long long bytes, const c
     start[-1] = (unsigned char)(aligned - at);
     memor.cpy(&(MemoriaCfg){.dst = start - 16, .src = &bytes, .bytes = sizeof(bytes)});
     memor.cpy(&(MemoriaCfg){.dst = start - 24, .src = &what, .bytes = sizeof(what)});
+    const unsigned long long guard = CLI_CELL_GUARD_WORD;
+    memor.cpy(&(MemoriaCfg){.dst = start + bytes, .src = &guard, .bytes = sizeof(guard)});
     cli_lock_take(&s_lock);
     cells_what_counted(what, bytes, 1);
     cli_lock_give(&s_lock);
     return start;
+}
+
+// what a cell's header and guard say as it is given back: nothing where they stand as its take wrote them; else which
+// was overwritten, said to the terminal with what the cell was taken for where its name still reads
+static void cells_checked(const unsigned char *start, unsigned long long bytes, const char *what)
+{
+    const unsigned int distance = start[-1];
+    const int header_whole = (distance > CLI_CELL_ALIGN) && (distance <= (2u * CLI_CELL_ALIGN));
+    unsigned long long guard = 0ull;
+    memor.cpy(&(MemoriaCfg){.dst = &guard, .src = start + bytes, .bytes = sizeof(guard)});
+    if (header_whole && (guard == CLI_CELL_GUARD_WORD))
+    {
+        return;
+    }
+    char told[512];
+    CliLine said = {told, sizeof(told), 0ull};
+    cli_line_text(&said, header_whole ? "orior: the cell for " : "orior: a cell's header was overwritten before ");
+    cli_line_text(&said, header_whole ? what : "it was given back: the cell before it was overrun\n");
+    if (header_whole)
+    {
+        cli_line_text(&said, " was overrun: the guard past its ");
+        cli_line_decimal(&said, bytes, 1u);
+        cli_line_text(&said, " bytes was overwritten\n");
+    }
+    query_terminal_written(1, told, cli_line_fits(&said) ? said.at : 0ull);
 }
 
 // a cell given back, its bytes taken off `tally` where it is given, and off the count of what it was taken for
@@ -313,6 +352,7 @@ static void cells_given(CliCellsTally *tally, void *cell)
     const char *what = NULL;
     memor.cpy(&(MemoriaCfg){.dst = &bytes, .src = start - 16, .bytes = sizeof(bytes)});
     memor.cpy(&(MemoriaCfg){.dst = &what, .src = start - 24, .bytes = sizeof(what)});
+    cells_checked(start, bytes, what);
     cli_lock_take(&s_lock);
     cli_cells_site.cli_cells_pool.persistent_buf_release(first);
     if (tally != NULL)

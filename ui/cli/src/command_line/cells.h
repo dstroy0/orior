@@ -19,10 +19,12 @@ extern "C"
 
 // the boundary every cell starts on, a vector register's width; the most bytes a cell of `bytes_` takes from the
 // cellblock, its header, the size and the used flag, the two boundaries' width its start and its size are taken over
-// by, and the cellblock's rounding up to a word; and the cellblock's pool, the most bytes its two ends hold at once, as
-// the cellblock's own peaks give them, taken up to the next 32 MiB
+// by, the guard word past its last byte, and the cellblock's rounding up to a word; and the cellblock's pool, the most
+// bytes its two ends hold at once, as the cellblock's own peaks give them, taken up to the next 32 MiB
 #define CLI_CELL_ALIGN 32u
-#define CLI_CELL_COST(bytes_) ((2u * sizeof(size_t)) + (bytes_) + (2u * CLI_CELL_ALIGN) + (sizeof(size_t) - 1u))
+#define CLI_CELL_GUARD sizeof(unsigned long long)
+#define CLI_CELL_COST(bytes_)                                                                                          \
+    ((2u * sizeof(size_t)) + (bytes_) + (2u * CLI_CELL_ALIGN) + CLI_CELL_GUARD + (sizeof(size_t) - 1u))
 #define CLI_CELLS_POOL ((256ull << 20u) + (32ull << 20u))
 
     // A module's own count of the cells it holds: its name as its report is told, the bytes it holds now, its mark of
