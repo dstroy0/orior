@@ -291,21 +291,36 @@
   // memory.tsv beside the run's report: the test, the bytes in RAM and reserved over every process,
   // the app's own process's, the cellblock's pool and its two peaks, and the share of the app's
   // reserved bytes the pool accounts for.
-  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\ttallies"];
+  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\ttallies\tkept_calls"];
+  let counting = false;
+  // The rows the files before this one wrote, read once, so the table runs across the whole run and
+  // not the last file alone.
+  let kept_before = null;
   async function memorySampled(name) {
     const { invoke } = await import(`${location.origin}/bridge.js`);
+    const home = harness.servers?.ORIOR_TEST_HOME;
+    if (kept_before === null && home) {
+      const path = `${String(home).replace(/\\/g, "/")}/../memory.tsv`;
+      const text = await invoke("file_read_any", { path }).catch(() => "");
+      kept_before = text.split("\n").filter((line) => line.trim() && !line.startsWith("test\t"));
+      memoryRows.push(...kept_before);
+    }
     const read = await invoke("memory_use").catch(() => null);
     const cells = await invoke("cells_said").catch(() => null);
     // the three modules holding the most at their peaks, each as name:bytes, for the audit of who holds what
     const listed = await invoke("cells_tallies").catch(() => null);
     const tallies = (listed?.tallies ?? []).sort((a, b) => b.hw - a.hw).slice(0, 3).map((one) => `${one.name}:${one.hw}`).join(",");
-    const home = harness.servers?.ORIOR_TEST_HOME;
+    // the three calls of the tree's side that kept the most bytes over the test, each as name:bytes, the count
+    // turned on at the first sample and reset at each
+    const calls = await invoke("memory_calls", { on: counting ? undefined : true, reset: true }).catch(() => null);
+    counting = true;
+    const kept = Object.entries(calls ?? {}).filter(([, one]) => one.kept > 0).sort((a, b) => b[1].kept - a[1].kept).slice(0, 3).map(([call, one]) => `${call}:${one.kept}`).join(",");
     if (!read || !cells || !home) {
       return;
     }
     const own = read.parts[0] ?? { working: 0, commit: 0 };
     const accounted = own.commit > 0 ? (cells.pool / own.commit).toFixed(3) : "";
-    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, tallies].join("\t"));
+    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, tallies, kept].join("\t"));
     await invoke("file_write_any", { path: `${String(home).replace(/\\/g, "/")}/../memory.tsv`, text: `${memoryRows.join("\n")}\n` }).catch(() => {});
   }
 
