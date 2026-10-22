@@ -5,6 +5,7 @@
 #include "../command_line/cells.h"
 #include "jupyter_internal.h"
 
+#include "../text/reply.h"
 #include "../text/text.h"
 
 CliLock g_cli_kernels_lock = CLI_LOCK_INIT;
@@ -269,6 +270,45 @@ static int jupyter_process_started(CliKernel *kernel, const char *folder, const 
     return 1;
 }
 
+// the ports the kernel bound, read back from its connection file once the kernel has written them there, each
+// looked for every CLI_KERNEL_PORTS_EVERY milliseconds until `until`: 1 with the five into `ports`, or 0 with why
+// said
+#define CLI_KERNEL_PORTS_EVERY 20u
+static int jupyter_ports_read(CliKernel *kernel, unsigned int *ports, unsigned long long until, CliLine *said)
+{
+    static const char *const s_keys[5] = {"shell_port", "iopub_port", "stdin_port", "control_port", "hb_port"};
+    while (cli_clock_milliseconds() < until)
+    {
+        CliReply file = {NULL, 0ull};
+        unsigned int read = 0u;
+        if (cli_reply_held(kernel->connection, &file))
+        {
+            const unsigned long long root = cli_reply_root(&file);
+            for (unsigned int at = 0u; at < 5u; at += 1u)
+            {
+                const unsigned long long port = cli_reply_whole(&file, cli_reply_member(&file, root, s_keys[at]));
+                // a port is below 65536, which an unsigned int holds
+                ports[at] = ((port > 0ull) && (port < 65536ull)) ? (unsigned int)port : 0u;
+                read += (ports[at] > 0u) ? 1u : 0u;
+            }
+            cli_reply_let_go(&file);
+        }
+        if (read == 5u)
+        {
+            return 1;
+        }
+        // a process id is below 2^32, which an unsigned int holds
+        if (!cli_process_running((unsigned int)kernel->spawned.id))
+        {
+            cli_line_text(said, "the kernel ended before it wrote the ports it bound");
+            return 0;
+        }
+        query_paused(CLI_KERNEL_PORTS_EVERY);
+    }
+    cli_line_text(said, "the kernel wrote no ports it bound to its connection file in time");
+    return 0;
+}
+
 // the kernel's sockets connected, its session made and its sockets' readers started: 1, or 0 with why said
 static int jupyter_sockets_connected(CliKernel *kernel, const unsigned int *ports, unsigned long long until,
                                      CliLine *said)
@@ -315,14 +355,9 @@ CliKernel *cli_jupyter_started(const CliKernelSpec *spec, const char *folder, Cl
         cli_line_text(said, " installs it");
         return NULL;
     }
-    unsigned int ports[5];
-    for (unsigned int at = 0u; at < 5u; at += 1u)
-    {
-        if (!cli_port_free(&ports[at], said))
-        {
-            return NULL;
-        }
-    }
+    // the kernel binds ports of its own choosing, each written 0 in its connection file, and writes the file again
+    // with the ports it bound, which are read back from it: no port is probed and let go for another process to take
+    unsigned int ports[5] = {0u, 0u, 0u, 0u, 0u};
     CliKernel *const kernel = jupyter_place_taken();
     if (kernel == NULL)
     {
@@ -342,7 +377,7 @@ CliKernel *cli_jupyter_started(const CliKernelSpec *spec, const char *folder, Cl
     const unsigned long long until = cli_clock_milliseconds() + CLI_KERNEL_START;
     // The kernel is ready once it says what it is; the subscription to what it publishes has had the time to reach
     // it by then
-    int ready = jupyter_sockets_connected(kernel, ports, until, said);
+    int ready = jupyter_ports_read(kernel, ports, until, said) && jupyter_sockets_connected(kernel, ports, until, said);
     int asked = 0;
     while (ready && !asked && (cli_clock_milliseconds() < until))
     {

@@ -6,8 +6,8 @@
 #define COMPILE_DB_INTERNAL_H
 
 #include "../text/json_tree.h"
+#include "../text/reply.h"
 #include "compile_db.h"
-#include "reply.h"
 
 // how deep below build/cmake and build/meson a build is looked for; the most files a look reads; the most folders a
 // search below a build finds; and the files and folders their rooms are begun with, doubling as they are put

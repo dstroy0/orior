@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // executables_cmake.c: the file a CMake build made, as the reply of CMake's file API names it, and the file a Meson
 // build made, as `meson introspect` names it, each reply walked by key off its bytes
-#include "../builds/reply.h"
+#include "../text/reply.h"
 #include "../text/text.h"
 #include "executables_internal.h"
 

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// reply.h: a build tool's JSON reply read off its bytes in one pass with no tree made: a member found by its key in
-// an object, an array's items taken in turn, a string decoded and a number read, every value not asked for passed
-// over by its brackets. CMake's file API and Meson's introspection write a known shape, so a reader walks it by key
-// and the reply's bytes are the only room it takes (compile_db_reply.c)
+// reply.h: a JSON reply, a build tool's or a kernel's, read off its bytes in one pass with no tree made: a member found
+// by its key in an object, an array's items taken in turn, a string decoded and a number read, every value not asked
+// for passed over by its brackets. CMake's file API and Meson's introspection write a known shape, so a reader walks it
+// by key and the reply's bytes are the only room it takes (reply.c)
 #ifndef REPLY_H
 #define REPLY_H
 
