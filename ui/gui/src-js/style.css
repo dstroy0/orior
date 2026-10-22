@@ -763,6 +763,106 @@ body[data-strip-edge] .strip-edge {
   z-index: 44;
 }
 
+/* The claim: while the reader edits, the work takes the bar's row, the toolbar's, the strip's column
+   and the status bar's row, and the frame keeps its right gap on every side. Each part slides out of
+   its edge and back on a rest in the gap there, which claim.js sets as the reveal. */
+:root {
+  --claim-slide: 0.35s;
+}
+
+.bar,
+.toolbar,
+.strip,
+.statusbar {
+  transition: margin var(--claim-slide) ease;
+}
+
+.frame {
+  transition: padding var(--claim-slide) ease;
+}
+
+body[data-claim] {
+  --strip-width: 0px;
+}
+
+body[data-claim] .frame {
+  padding: var(--frame-right);
+}
+
+body[data-claim] .bar {
+  margin-top: calc(-1 * var(--bar-height));
+}
+
+body[data-claim] .toolbar {
+  margin-top: -30px;
+}
+
+body[data-claim] .strip {
+  margin-left: -44px;
+}
+
+body[data-claim] .statusbar {
+  margin-bottom: -27px;
+}
+
+body[data-claim][data-reveal="top"] .bar,
+body[data-claim][data-reveal="top"] .toolbar {
+  margin-top: 0;
+}
+
+body[data-claim][data-reveal="bottom"] .statusbar {
+  margin-bottom: 0;
+}
+
+body[data-claim][data-reveal="left"] .strip {
+  margin-left: 0;
+}
+
+/* With the bar away, the controls stand ready above the window's top right as a rounded tab, the
+   eye at their head: a ghost of them as the pointer nears their corner, and the whole tab down on a
+   rest there. With the bar back they stand in it as before. */
+body[data-claim] .window-controls {
+  position: fixed;
+  top: 0;
+  right: var(--frame-right);
+  z-index: 60;
+  padding: 3px 6px 5px 8px;
+  border-radius: 0 0 9px 9px;
+  background-color: var(--glass-tint);
+  background-image: var(--glass-grain);
+  background-attachment: fixed;
+  box-shadow: 0 6px 18px var(--lifted);
+  transform: translateY(-100%);
+  opacity: 0;
+  transition: transform var(--claim-slide) ease, opacity var(--claim-slide) ease;
+}
+
+body[data-claim][data-near] .window-controls {
+  transform: translateY(-55%);
+  opacity: 0.35;
+}
+
+body[data-claim][data-reveal="controls"] .window-controls {
+  transform: none;
+  opacity: 1;
+}
+
+body[data-claim][data-reveal="top"] .window-controls {
+  position: static;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  transform: none;
+  opacity: 1;
+}
+
+.window-controls .bar-mark {
+  left: 0;
+  top: 0;
+  margin-right: 0.3rem;
+}
+
 /* Less motion asked for, by the system or by View, Reduce Motion: every animation and transition of the
    page ends where it starts. */
 [data-reduced-motion] *,
@@ -1157,6 +1257,15 @@ body[data-strip-edge] .strip-edge {
 
 /* The machine a tree on another machine is on, quiet while its link is joined and marked while it is
    being joined or is not reached. */
+/* The memory readout keeps one width, four figures and the unit in tabular figures, so a change of
+   figures moves nothing beside it. */
+#status-memory {
+  display: inline-block;
+  min-width: 7ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .status-machine {
   overflow: hidden;
   max-width: 30vw;
@@ -2079,6 +2188,26 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .open-body .wordmark {
   width: fit-content;
   margin-inline: auto;
+}
+
+/* The empty view's name stands at the top, and tabula where the name stood, at the view's middle. */
+.empty > .empty-body {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  justify-items: center;
+}
+
+.empty > .empty-body h1 {
+  align-self: start;
+  margin-top: 10vh;
+}
+
+.empty-under {
+  margin: 0;
+  font: 700 clamp(3rem, 7vw, 5.5rem) / 1 var(--head);
+  letter-spacing: -0.04em;
 }
 
 /* The canvas the name pours up to the bar on, over the view it leaves. */
