@@ -13,11 +13,6 @@
 
 #include "../text/text.h"
 
-// the largest file read for its tests, the most lines of it, and the most tests of one file
-#define CLI_TESTS_LARGEST (2ull << 20u)
-#define CLI_TESTS_LINES ((2u << 20u) + 2u)
-#define CLI_TESTS_OF_FILE 65536u
-
 // the folders a search for tests does not go into: environments, what a build writes, and caches
 static const char *const s_not_searched[10] = {"venv",        ".venv", "env",  "node_modules", "site-packages",
                                                "__pycache__", "build", "dist", ".tox",         ".nox"};
@@ -25,31 +20,93 @@ static const char *const s_not_searched[10] = {"venv",        ".venv", "env",  "
 // no function or class of a test
 #define CLI_TESTS_NONE 0xffffffffu
 
-// A search's room, a cell taken with the tests' lock and given back with it: the facts a file is read into, its lines'
-// starts, and each class's body's last line; a file's tests, each its function and its class, CLI_TESTS_NONE where it
-// has none; and the tree's files, the rules, the Rust tests and a file read
+// A search's room, under the tests' lock: the rules and the Rust tests; and a file's part, one cell sized to the file
+// by a walk that counts its facts and given back as the file's tests are handed on: the facts, its lines' starts, each
+// class's body's last line, and its tests, each its function and its class, CLI_TESTS_NONE where it has none
 typedef struct
 {
-    CliInspectImport imports[16384u];
-    CliInspectClass classes[16384u];
-    CliInspectFunction functions[65536u];
-    CliInspectFinding findings[65536u];
-    CliInspectFix fixes[65536u];
-    CliInspectEdit edits[65536u];
-    CliInspectName names[262144u];
-    char text[16u << 20u];
     CliFacts facts;
-    unsigned int line_start[CLI_TESTS_LINES];
-    unsigned int body_end[16384u];
-    unsigned int test_function[CLI_TESTS_OF_FILE];
-    unsigned int test_class[CLI_TESTS_OF_FILE];
+    unsigned int *line_start;
+    unsigned int lines;
+    unsigned int *body_end;
+    unsigned int *test_function;
+    unsigned int *test_class;
     CliTestRules rules;
     CliCargoTests cargo;
-    unsigned char read[CLI_TESTS_LARGEST];
 } CliTestsRoom;
 
+static CliTestsRoom s_kept;
 static CliTestsRoom *s_room;
 static CliLock s_tests_lock = CLI_LOCK_INIT;
+
+// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+static void *found_part(unsigned char **at, unsigned long long bytes)
+{
+    void *const part = *at;
+    *at += (bytes + 7ull) & ~7ull;
+    return part;
+}
+
+// the lines of `size` bytes of `text`: one more than its newlines, the last line's start after a final newline counted
+// as a line's
+static unsigned int found_lines(const char *text, unsigned long long size)
+{
+    unsigned int lines = 1u;
+    for (const char *at = text; at < text + size; lines += 1u)
+    {
+        const char *const newline =
+            memor.chr(&(MemoriaCfg){.src = at, .val = '\n', .bytes = (size_t)(size - (unsigned long long)(at - text))});
+        if (newline == NULL)
+        {
+            break;
+        }
+        at = newline + 1;
+    }
+    return lines;
+}
+
+// a file's part taken for the counts of a walk over its `size` bytes of `text` and the room's pointers set into it:
+// the cell, or NULL where the file is not read or no cell is left
+static void *found_part_taken(const char *text, unsigned long long size)
+{
+    CliFacts counted;
+    cli_facts_counting(&counted);
+    if (!cli_inspect_facts("python", text, size, &counted))
+    {
+        return NULL;
+    }
+    const unsigned int lines = found_lines(text, size);
+    const unsigned long long bytes =
+        (counted.imports * sizeof(CliInspectImport)) + (counted.classes * sizeof(CliInspectClass)) +
+        (counted.functions * sizeof(CliInspectFunction)) + (counted.findings * sizeof(CliInspectFinding)) +
+        (counted.fixes * sizeof(CliInspectFix)) + (counted.edits * sizeof(CliInspectEdit)) +
+        (counted.names * sizeof(CliInspectName)) + counted.used + ((unsigned long long)lines * sizeof(unsigned int)) +
+        ((unsigned long long)counted.classes * sizeof(unsigned int)) +
+        (2ull * counted.functions * sizeof(unsigned int)) + (12ull * 8ull);
+    unsigned char *const cell = cli_cell_taken(bytes, "a file's tests found");
+    if (cell == NULL)
+    {
+        return NULL;
+    }
+    unsigned char *at = cell;
+    CliInspectImport *const imports = found_part(&at, counted.imports * sizeof(CliInspectImport));
+    CliInspectClass *const classes = found_part(&at, counted.classes * sizeof(CliInspectClass));
+    CliInspectFunction *const functions = found_part(&at, counted.functions * sizeof(CliInspectFunction));
+    CliInspectFinding *const findings = found_part(&at, counted.findings * sizeof(CliInspectFinding));
+    CliInspectFix *const fixes = found_part(&at, counted.fixes * sizeof(CliInspectFix));
+    CliInspectEdit *const edits = found_part(&at, counted.edits * sizeof(CliInspectEdit));
+    CliInspectName *const names = found_part(&at, counted.names * sizeof(CliInspectName));
+    char *const pool = found_part(&at, counted.used);
+    s_room->line_start = found_part(&at, (unsigned long long)lines * sizeof(unsigned int));
+    s_room->lines = lines;
+    s_room->body_end = found_part(&at, (unsigned long long)counted.classes * sizeof(unsigned int));
+    s_room->test_function = found_part(&at, (unsigned long long)counted.functions * sizeof(unsigned int));
+    s_room->test_class = found_part(&at, (unsigned long long)counted.functions * sizeof(unsigned int));
+    cli_facts_begun(&s_room->facts, imports, counted.imports, classes, counted.classes, functions, counted.functions,
+                    findings, counted.findings, fixes, counted.fixes, edits, counted.edits, names, counted.names, pool,
+                    counted.used);
+    return cell;
+}
 
 // the indent of the line at `line` of `size` bytes of `text`, `lines` of them
 static unsigned int found_indent(const char *text, unsigned long long size, unsigned int line, unsigned int lines,
@@ -71,7 +128,7 @@ static unsigned int found_indent(const char *text, unsigned long long size, unsi
 static void found_bodies(const char *text, unsigned long long size)
 {
     unsigned int lines = 0u;
-    for (unsigned long long at = 0ull; (at < size) && (lines < CLI_TESTS_LINES); lines += 1u)
+    for (unsigned long long at = 0ull; (at < size) && (lines < s_room->lines); lines += 1u)
     {
         s_room->line_start[lines] = (unsigned int)at;
         const char *const newline =
@@ -173,7 +230,7 @@ static int found_nested(unsigned int function, int bounded, unsigned int after)
 static unsigned int found_tests(const CliTestRules *rules)
 {
     unsigned int count = 0u;
-    for (unsigned int at = 0u; (at < s_room->facts.functions) && (count < CLI_TESTS_OF_FILE); at += 1u)
+    for (unsigned int at = 0u; at < s_room->facts.functions; at += 1u)
     {
         const CliInspectFunction *const function = &s_room->facts.function[at];
         const unsigned int class_at = found_held_by(function->from.line);
@@ -219,15 +276,19 @@ static unsigned int found_tests(const CliTestRules *rules)
     return count;
 }
 
-// the tests of `file`, its `size` bytes of `text`, each handed to `each`, in the taken room
+// the tests of `file`, its `size` bytes of `text`, each handed to `each`, in a part taken for the file and given
+// back after
 static void found_in(const char *file, const char *text, unsigned long long size, const CliTestRules *rules,
                      CliTestEach each, void *context)
 {
-    cli_facts_begun(&s_room->facts, s_room->imports, 16384u, s_room->classes, 16384u, s_room->functions, 65536u,
-                    s_room->findings, 65536u, s_room->fixes, 65536u, s_room->edits, 65536u, s_room->names, 262144u,
-                    s_room->text, sizeof(s_room->text));
+    void *const part = found_part_taken(text, size);
+    if (part == NULL)
+    {
+        return;
+    }
     if (!cli_inspect_facts("python", text, size, &s_room->facts))
     {
+        cli_cell_given(part);
         return;
     }
     found_bodies(text, size);
@@ -256,6 +317,7 @@ static void found_in(const char *file, const char *text, unsigned long long size
                         found_text(function->name), function->from.line};
         each(context, &test);
     }
+    cli_cell_given(part);
 }
 
 // whether the path `file` is one the rules search for tests: a Python file outside the folders not searched, named as
@@ -322,37 +384,37 @@ static void found_python(const char *root, CliTestEach each, void *context)
         char path[CLI_PATH_LONGEST];
         cli_full(root, file, path);
         unsigned long long size = 0ull;
-        if (!cli_file_size(path, &size) || (size > CLI_TESTS_LARGEST))
+        if (!cli_file_size(path, &size))
         {
             continue;
         }
-        const unsigned long long read = qry_member_file_read(path, s_room->read, sizeof(s_room->read));
-        const char *const text = (const char *)s_room->read;
+        unsigned char *const bytes = cli_cell_taken(size + 1ull, "a test file read");
+        if (bytes == NULL)
+        {
+            continue;
+        }
+        const unsigned long long read = qry_member_file_read(path, bytes, size + 1ull);
+        const char *const text = (const char *)bytes;
         if ((read != QRY_MEMBER_UNREAD) && cli_utf8_whole(text, read))
         {
             found_in(file, text, read, &s_room->rules, each, context);
         }
+        cli_cell_given(bytes);
     }
     cli_files_let(files);
 }
 
-// the tests' lock taken and the room a cell under it: 1, or 0 with the lock given back where no cell is left
+// the tests' lock taken and the kept room set under it: 1
 static int found_held(void)
 {
     cli_lock_take(&s_tests_lock);
-    s_room = cli_cell_taken(sizeof(*s_room), "a search for tests");
-    if (s_room == NULL)
-    {
-        cli_lock_give(&s_tests_lock);
-        return 0;
-    }
+    s_room = &s_kept;
     return 1;
 }
 
-// the room given back and the tests' lock with it
+// the room let go and the tests' lock with it
 static void found_released(void)
 {
-    cli_cell_given(s_room);
     s_room = NULL;
     cli_lock_give(&s_tests_lock);
 }
