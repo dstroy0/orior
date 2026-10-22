@@ -16,7 +16,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl build-essential pkg-config git python3 rsync openssh-client \
       libwebkit2gtk-4.1-dev webkit2gtk-driver libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
       xvfb xauth dbus dbus-x11 at-spi2-core fonts-dejavu-core fonts-noto-core x11vnc novnc websockify \
-      cmake ninja-build clangd clang clang-tidy cppcheck lldb gdb python-is-python3 python3-debugpy python3-pytest \
+      cmake ninja-build clangd clang clang-tidy libclang-rt-18-dev cppcheck lldb gdb python-is-python3 python3-debugpy python3-pytest \
  && rm -rf /var/lib/apt/lists/*
 # lldb's debugger for editors goes by its version's name; orior looks for lldb-dap.
 RUN found="$(ls /usr/bin/lldb-dap* /usr/lib/llvm-*/bin/lldb-dap 2>/dev/null | head -1)" && test -n "$found" && ln -sf "$found" /usr/local/bin/lldb-dap

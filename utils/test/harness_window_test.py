@@ -6,8 +6,12 @@ for each file, and every press, key, drag and wheel sent as real input. The wind
 port where its web view is WebView2, on Windows, and through WebDriver where it is WebKitGTK, on Linux; --docker runs
 the suite in the harness's Linux image on this machine.
 
-    harness.py window test [--only TEXT]... [--driver cdp|webdriver] [--docker] [--monitor N] [--monitors]
-                           [--no-servers] [--keep-window] [--stop-servers]
+    harness.py window test [--only TEXT]... [--driver cdp|webdriver] [--docker] [--sanitize address|thread]
+                           [--monitor N] [--monitors] [--no-servers] [--keep-window] [--stop-servers]
+
+--sanitize builds the window's C side and links the window under that sanitizer, with clang's runtime, and the window
+runs with its reports written to sanitizer.<pid> in the run's folder; a report fails the run. On Windows the released
+compiler's runtime is not linked by cargo: the option runs on Linux, in the image or on the machine.
 
 Before the suite, the system is read: each program the tests drive found on PATH with its version, the run's folder
 writable, the display set where one is needed. Before the first file the window's comms are proven, and after each
@@ -130,6 +134,7 @@ def options_of(words):
     parser.add_argument("--only", action="append", default=[], help="the test files whose paths hold this text")
     parser.add_argument("--driver", choices=("cdp", "webdriver"), default="cdp" if os.name == "nt" else "webdriver")
     parser.add_argument("--docker", action="store_true", help="the suite in the harness's Linux image on this machine")
+    parser.add_argument("--sanitize", choices=("address", "thread"), default="", help="the window built and run under this sanitizer, its reports in the run's folder")
     parser.add_argument("--monitor", type=int, default=int(os.environ.get("ORIOR_TEST_MONITOR") or 0), help="the display's number, as the system's settings give it")
     parser.add_argument("--monitors", action="store_true", help="the displays listed, by the number --monitor takes")
     parser.add_argument("--no-servers", action="store_true", help="no test server started here: each is told in the environment")
@@ -281,15 +286,46 @@ def browser_arguments(port):
     return ("%s --remote-debugging-port=%d" % (given, port)).strip()
 
 
-def window_built(gui_name):
-    """The window built into build/cargo/app, apart from the released one; or the program ORIOR_TEST_GUI names."""
+def window_built(gui_name, sanitizer=""):
+    """The window built into build/cargo/app, apart from the released one, under `sanitizer` where one is named and
+    into a target folder of that sanitizer's own; or the program ORIOR_TEST_GUI names."""
     given = os.environ.get("ORIOR_TEST_GUI")
     if given and os.path.isfile(given):
         return given
-    built = subprocess.run(["cargo", "build", "--manifest-path", findroot.at("ui", "gui", "src-tauri", "Cargo.toml"), "--target-dir", APP_TARGET], cwd=ROOT, stdin=subprocess.DEVNULL)
+    target = APP_TARGET + ("-" + sanitizer if sanitizer else "")
+    env = dict(os.environ, **harness_webdriver.sanitizer_build_env(sanitizer))
+    built = subprocess.run(["cargo", "build", "--manifest-path", findroot.at("ui", "gui", "src-tauri", "Cargo.toml"), "--target-dir", target], cwd=ROOT, env=env, stdin=subprocess.DEVNULL)
     if built.returncode != 0:
         raise RuntimeError("the window did not build")
-    return os.path.join(APP_TARGET, "debug", gui_name + (".exe" if os.name == "nt" else ""))
+    return os.path.join(target, "debug", gui_name + (".exe" if os.name == "nt" else ""))
+
+
+def sanitizer_settings(sanitizer, run):
+    """The settings the window runs under `sanitizer` with: its reports written to sanitizer.<pid> in the run's
+    folder, no report ending the window, every one told and counted, and the leaks of a window the run kills
+    not counted."""
+    if not sanitizer:
+        return []
+    into = os.path.join(run, "sanitizer").replace("\\", "/")
+    if sanitizer == "thread":
+        return [("TSAN_OPTIONS", "log_path=%s:halt_on_error=0" % into)]
+    return [("ASAN_OPTIONS", "log_path=%s:halt_on_error=0:detect_leaks=0" % into)]
+
+
+def sanitizer_said(run, report):
+    """Each file the sanitizer wrote in the run's folder: how many reports it holds, by kind, into the report's
+    sayings."""
+    for name in sorted(os.listdir(run)):
+        if not name.startswith("sanitizer."):
+            continue
+        kinds = {}
+        with open(os.path.join(run, name), encoding="utf-8", errors="replace") as kept:
+            for line in kept:
+                if "ERROR: " in line or "WARNING: " in line:
+                    kind = line.split(": ", 2)[-1].split(" ")[0].strip()
+                    kinds[kind] = kinds.get(kind, 0) + 1
+        told = ", ".join("%d %s" % (count, kind) for kind, count in sorted(kinds.items(), key=lambda one: -one[1]))
+        report.said.append("the sanitizer wrote %s: %s" % (os.path.join(run, name), told or "no report"))
 
 
 class Window:
@@ -492,7 +528,7 @@ def drive(options, run, tree, env, benched, report):
     """The window built and started on the run's tree, the files run in it, and the window ended."""
     gui_name = bin_named("gui")
     told = env + [("ORIOR_TEST_HOME", os.path.join(run, "home")), ("ORIOR_TEST_TREE", tree)]
-    extra = [("ORIOR_SSH", value) for key, value in env if key == "ORIOR_TEST_SSH"]
+    extra = [("ORIOR_SSH", value) for key, value in env if key == "ORIOR_TEST_SSH"] + sanitizer_settings(options.sanitize, run)
     tests = ["src/" + file for file in files_under(os.path.join(SUITE, "src"), ".test.js") if not options.only or any(only in file for only in options.only)]
     try:
         copy_tree(os.path.join(SUITE, "fixtures", "tree"), tree)
@@ -501,7 +537,7 @@ def drive(options, run, tree, env, benched, report):
             bench_placed(tree)
         os.makedirs(os.path.join(run, "home"), exist_ok=True)
         if options.driver == "webdriver":
-            program = harness_webdriver.build(gui_name)
+            program = harness_webdriver.build(gui_name, options.sanitize)
             told.append(("ORIOR_TEST_PROGRAM", program))
             driven = harness_webdriver.start(program, run, tree, extra)
             try:
@@ -509,8 +545,9 @@ def drive(options, run, tree, env, benched, report):
             finally:
                 harness_input.stop_started()
                 driven.close()
+                sanitizer_said(run, report)
             return
-        program = window_built(gui_name)
+        program = window_built(gui_name, options.sanitize)
         told.append(("ORIOR_TEST_PROGRAM", program))
         # a window left by a run ended from outside would hold the display and the port this run takes
         import harness_window
@@ -537,6 +574,7 @@ def drive(options, run, tree, env, benched, report):
             print("  the window is kept open on port %d" % window.port, flush=True)
         else:
             window.close()
+        sanitizer_said(run, report)
 
 
 def register(window):

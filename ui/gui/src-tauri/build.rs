@@ -32,8 +32,16 @@ fn main() {
     if !status.success() {
         panic!("ui/cli/build.sh library {target} did not build");
     }
-    println!("cargo:rustc-link-search=native={}", top.join("build/cli").join(&target).display());
+    // ORIOR_SANITIZE names a sanitizer the C side is built under, into a folder of its own, and the window links its
+    // runtime
+    println!("cargo:rerun-if-env-changed=ORIOR_SANITIZE");
+    let sanitizer = std::env::var("ORIOR_SANITIZE").unwrap_or_default();
+    let built = if sanitizer.is_empty() { target.clone() } else { format!("{target}-{sanitizer}") };
+    println!("cargo:rustc-link-search=native={}", top.join("build/cli").join(&built).display());
     println!("cargo:rustc-link-lib=static=orior_cli");
+    if !sanitizer.is_empty() {
+        println!("cargo:rustc-link-arg=-fsanitize={sanitizer}");
+    }
     let system: &[&str] = if target.contains("windows") {
         &["ws2_32", "secur32", "crypt32", "shell32", "advapi32", "user32"]
     } else if target.contains("apple") {

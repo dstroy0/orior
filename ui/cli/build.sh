@@ -39,16 +39,19 @@ if [ "$LTO" = 1 ]; then
     LTO_WORDS=(-flto=thin)
     LINK_WORDS=(-flto=thin -fuse-ld=lld)
 fi
-# LTO=1 builds every object as bitcode and links the programs with the whole program optimized at the link, into
-# build/cli/<target>-lto, beside the plain build; the archive it leaves is bitcode, for an LTO link alone
-LTO="${LTO:-0}"
-LTO_SUFFIX=""
-LTO_WORDS=()
-LINK_WORDS=()
-if [ "$LTO" = 1 ]; then
-    LTO_SUFFIX="-lto"
-    LTO_WORDS=(-flto=thin)
-    LINK_WORDS=(-flto=thin -fuse-ld=lld)
+# ORIOR_SANITIZE=address or thread builds every object and link under that sanitizer, with frame pointers kept for
+# its stacks and the code position-independent, since the sanitizer's constructors keep every object's sections in
+# the window's shared library, into build/cli/<target>-<sanitizer> beside the plain build; the window's build links
+# the same. Every report is recoverable, so a program run with halting off tells each one and goes on, and the
+# bundler runs so here
+SANITIZE="${ORIOR_SANITIZE:-}"
+SANITIZE_WORDS=()
+if [ -n "$SANITIZE" ]; then
+    LTO_SUFFIX="$LTO_SUFFIX-$SANITIZE"
+    SANITIZE_WORDS=("-fsanitize=$SANITIZE" "-fsanitize-recover=$SANITIZE" -fno-omit-frame-pointer -fPIC)
+    LINK_WORDS+=("-fsanitize=$SANITIZE")
+    export ASAN_OPTIONS="halt_on_error=0${ASAN_OPTIONS:+:$ASAN_OPTIONS}"
+    export TSAN_OPTIONS="halt_on_error=0${TSAN_OPTIONS:+:$TSAN_OPTIONS}"
 fi
 
 # MMgr's two include roots and embedded_types' headers, and the capabilities MMgr is built with, so a CLI source
@@ -111,19 +114,20 @@ words_of() {
         *) SUFFIX=""; LIBRARIES=(-lpthread -ldl -lm -lrt) ;;
     esac
     vector_words_of "$target"
-    WORDS=("$CC" "--target=$target" -std=c11 -O2 -g -c "${MMGR_WORDS[@]}" "${VECTOR_WORDS[@]}" "${LTO_WORDS[@]}")
+    WORDS=("$CC" "--target=$target" -std=c11 -O2 -g -c "${MMGR_WORDS[@]}" "${VECTOR_WORDS[@]}" "${LTO_WORDS[@]}"
+           "${SANITIZE_WORDS[@]}")
 }
 
 # MMgr built for `target` by orior's CMake, src/cu, into build/orior_cmake/<target>, as orior builds it, with no CUDA
 # looked for; only its orior_mmgr target is built; the objects of its host environment's modules into MMGR_OBJECTS
 mmgr_built() {
     local target="$1"
-    local into="$TOP/build/orior_cmake/$target"
+    local into="$TOP/build/orior_cmake/$target$LTO_SUFFIX"
     mkdir -p "$TOP/build/orior_cmake"
     vector_words_of "$target"
     { cmake -S "$TOP/src/cu" -B "$into" -G Ninja -DCMAKE_C_COMPILER="$CC" -DCMAKE_C_COMPILER_TARGET="$target" \
         -DCMAKE_BUILD_TYPE=Release -DORIOR_SKIP_CUDA=ON -DORIOR_MMGR_ONLY=ON \
-        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER -DMMGR_ENABLE_HOST=1 ${VECTOR_WORDS[*]}" \
+        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER -DMMGR_ENABLE_HOST=1 ${VECTOR_WORDS[*]} ${SANITIZE_WORDS[*]}" \
         && cmake --build "$into" --target orior_mmgr; } > "$into.log" 2>&1 || {
         echo "  build failed: MMgr did not build for $target"
         tail -20 "$into.log"
@@ -135,8 +139,8 @@ mmgr_built() {
     done < <(find "$into/includes/mmgr/src" -path '*_host.dir/*' \( -name '*.obj' -o -name '*.o' \) | sort)
 }
 
-# each source compiled for `target` into `objects`, those whose object is older than the source or any header of the
-# tree's; the objects into OBJECTS
+# each source compiled for `target` into `objects`, those whose object is older than the source, any header of the
+# tree's or this script, whose words the objects are compiled with; the objects into OBJECTS
 compiled() {
     local target="$1" objects="$2"
     shift 2
@@ -145,6 +149,9 @@ compiled() {
     local newest
     newest="$(find "$TOP/ui" "$TOP/src/cu/includes" -name '*.h' \
               -newer "$objects" 2>/dev/null | head -1)"
+    if [ "${BASH_SOURCE[0]}" -nt "$objects" ]; then
+        newest="${BASH_SOURCE[0]}"
+    fi
     OBJECTS=()
     local failed="$objects/failed"
     rm -f "$failed"

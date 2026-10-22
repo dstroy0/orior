@@ -10,6 +10,7 @@ script with a home, a tree and a log of the run's own."""
 import http.client
 import json
 import os
+import platform
 import socket
 import subprocess
 import sys
@@ -156,14 +157,25 @@ def stage():
             os.remove(os.path.join(STAGING, file))
 
 
-def build(gui_name):
-    """The page staged and the window built with it in place of its own files; the program built."""
+def sanitizer_build_env(sanitizer):
+    """What cargo's environment says to build the window under `sanitizer`: the C side's build told, and clang as
+    the linker, since the C objects are clang's and their symbols name clang's sanitizer runtime."""
+    if not sanitizer:
+        return {}
+    machine = platform.machine().lower().replace("amd64", "x86_64").replace("arm64", "aarch64")
+    return {"ORIOR_SANITIZE": sanitizer, "CARGO_TARGET_%s_UNKNOWN_LINUX_GNU_LINKER" % machine.upper(): "clang"}
+
+
+def build(gui_name, sanitizer=""):
+    """The page staged and the window built with it in place of its own files; the program built, under `sanitizer`
+    where one is named, into a target folder of that sanitizer's own."""
     stage()
-    env = dict(os.environ, TAURI_CONFIG=json.dumps({"build": {"frontendDist": STAGING}}))
-    built = subprocess.run(["cargo", "build", "--manifest-path", findroot.at("ui", "gui", "src-tauri", "Cargo.toml"), "--target-dir", DRIVEN_TARGET], cwd=ROOT, env=env, stdin=subprocess.DEVNULL)
+    env = dict(os.environ, TAURI_CONFIG=json.dumps({"build": {"frontendDist": STAGING}}), **sanitizer_build_env(sanitizer))
+    target = DRIVEN_TARGET + ("-" + sanitizer if sanitizer else "")
+    built = subprocess.run(["cargo", "build", "--manifest-path", findroot.at("ui", "gui", "src-tauri", "Cargo.toml"), "--target-dir", target], cwd=ROOT, env=env, stdin=subprocess.DEVNULL)
     if built.returncode != 0:
         raise RuntimeError("the window did not build")
-    return os.path.join(DRIVEN_TARGET, "debug", gui_name + (".exe" if os.name == "nt" else ""))
+    return os.path.join(target, "debug", gui_name + (".exe" if os.name == "nt" else ""))
 
 
 def quoted(text):
