@@ -158,9 +158,11 @@ static void requests_values(void)
               "unless the environment says not to");
     char key[256];
     CliLine key_line = {key, sizeof(key), 0ull};
+    CliLine body = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    cli_line_growing(&body, 4096ull, "a test request's body");
     said.at = 0ull;
-    cli_check(cli_requests_ready(root, "api/v1/calls.http", s_file, sizeof(s_file) - 1u, 14ull, "dev", &s_sent, s_body,
-                                 sizeof(s_body), &key_line, &said),
+    cli_check(cli_requests_ready(root, "api/v1/calls.http", s_file, sizeof(s_file) - 1u, 14ull, "dev", &s_sent, &body,
+                                 &key_line, &said),
               "a request is made ready");
     cli_check_text(key, key_line.at, "make", "the request the line is in");
     cli_check(
@@ -168,12 +170,13 @@ static void requests_values(void)
         "its address filled in");
     cli_check_text(s_sent.body, s_sent.body_size, "{\"name\": \"all\"}", "and its body");
     said.at = 0ull;
-    cli_check(!cli_requests_ready(root, "api/v1/calls.http", s_file, sizeof(s_file) - 1u, 14ull, NULL, &s_sent, s_body,
-                                  sizeof(s_body), NULL, &said) &&
+    cli_check(!cli_requests_ready(root, "api/v1/calls.http", s_file, sizeof(s_file) - 1u, 14ull, NULL, &s_sent, &body,
+                                  NULL, &said) &&
                   (cli_line_closed(&said) != 0ull) &&
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = why, .cap = CLI_CELLS_POOL, .other = "{{host}}", .other_cap = CLI_CELLS_POOL}) != NULL),
               "no environment, no host");
+    cli_cell_given(body.out);
     static CliRequestsValues s_none;
     static const char s_dynamic[] = "{{$uuid}} {{$timestamp}}";
     out.at = 0ull;

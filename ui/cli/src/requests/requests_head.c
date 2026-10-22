@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // requests_head.c: the head of a request as it goes out, the head of its answer kept as it is read, the answer's body
 // undone where it was packed, and whether that body is text
+#include "../command_line/cells.h"
 #include "../editor/archive.h"
 #include "../text/json_tree.h"
 #include "requests_internal.h"
@@ -126,30 +127,74 @@ static int head_is(const CliRequestsAnswer *answer, const CliRequestsText *value
            cli_requests_holds(answer->head + value->at, value->size, lower);
 }
 
+// the room's unpacked body a cell of `bytes`, CLI_REQUESTS_BODY at the most, the one before given back where it is
+// smaller: 1, or 0 with why said where the cell is refused
+static int head_unpacked_room(CliRequestsRoom *room, unsigned long long bytes, CliLine *said)
+{
+    const unsigned long long wanted = (bytes < 1ull) ? 1ull : ((bytes > CLI_REQUESTS_BODY) ? CLI_REQUESTS_BODY : bytes);
+    if ((room->unpacked != NULL) && (room->unpacked_room >= wanted))
+    {
+        return 1;
+    }
+    unsigned char *const cell = cli_cell_taken(wanted, "an answer's body undone");
+    if (cell == NULL)
+    {
+        cli_line_text(said, "the answer's body undone could not be held");
+        return 0;
+    }
+    cli_cell_given(room->unpacked);
+    room->unpacked = cell;
+    room->unpacked_room = wanted;
+    return 1;
+}
+
 int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, CliLine *said)
 {
     CliRequestsAnswer *const answer = &room->answer;
     const CliRequestsText *const encoding = cli_requests_header(answer, "Content-Encoding");
+    const unsigned char *const raw = (const unsigned char *)room->raw.out;
     unsigned long long unpacked = 0ull;
-    answer->body = room->raw;
+    answer->body = raw;
     answer->size = size;
     if (head_is(answer, encoding, "gzip") || head_is(answer, encoding, "x-gzip"))
     {
-        if (!cli_gunzip(room->raw, size, room->unpacked, CLI_REQUESTS_BODY, &unpacked, said))
+        // a gzip ends with its unpacked size, so the room is taken once at that size
+        const unsigned long long told =
+            (size >= 4ull)
+                ? ((unsigned long long)raw[size - 4ull] | ((unsigned long long)raw[size - 3ull] << 8u) |
+                   ((unsigned long long)raw[size - 2ull] << 16u) | ((unsigned long long)raw[size - 1ull] << 24u))
+                : 0ull;
+        if (!head_unpacked_room(room, told, said) ||
+            !cli_gunzip(raw, size, room->unpacked, room->unpacked_room, &unpacked, said))
         {
             return 0;
         }
     }
     else if (head_is(answer, encoding, "deflate"))
     {
-        const unsigned char *const raw = room->raw;
+        // a deflate says no size: the room begins at four times the packed bytes and doubles while it fills
         const int zlib =
             (size > 2u) && ((raw[0] & 0x0fu) == 8u) && ((((unsigned int)raw[0] << 8u) | raw[1]) % 31u == 0u);
-        unsigned long long used = 0ull;
-        if (!cli_inflate(zlib ? (raw + 2) : raw, zlib ? (size - 2u) : size, room->unpacked, CLI_REQUESTS_BODY,
-                         &unpacked, &used, said))
+        const unsigned long long said_at = said->at;
+        unsigned long long room_bytes = 4ull * size;
+        for (;;)
         {
-            return 0;
+            unsigned long long used = 0ull;
+            if (!head_unpacked_room(room, room_bytes, said))
+            {
+                return 0;
+            }
+            if (cli_inflate(zlib ? (raw + 2) : raw, zlib ? (size - 2u) : size, room->unpacked, room->unpacked_room,
+                            &unpacked, &used, said))
+            {
+                break;
+            }
+            if ((unpacked < room->unpacked_room) || (room->unpacked_room >= CLI_REQUESTS_BODY))
+            {
+                return 0;
+            }
+            said->at = said_at;
+            room_bytes = 2ull * room->unpacked_room;
         }
     }
     else

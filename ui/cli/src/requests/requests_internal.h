@@ -154,18 +154,24 @@ typedef struct
     char target[CLI_REQUESTS_ADDRESS + 1u];
 } CliRequestsAddress;
 
-// The room a request is sent in: the request as it was made ready and its body, the request as it goes on each hop
-// and its address taken apart, its answer, the answer's body as read and as undone, and the bytes read from the
-// connection not yet taken, from `start` to `end`
+// the bytes a request's body and an answer's body as read are begun in, each a growing line that doubles as it fills,
+// the answer's to CLI_REQUESTS_BODY at the most
+#define CLI_REQUESTS_BODY_FIRST (1u << 12u)
+
+// The room a request is sent in: the request as it was made ready and its body, a growing line, the request as it
+// goes on each hop and its address taken apart, its answer, the answer's body as read, a growing line, and as
+// undone, a cell of `unpacked_room` taken as it is undone, and the bytes read from the connection not yet taken,
+// from `start` to `end`
 typedef struct
 {
     CliRequestsSent sent;
-    char body[CLI_REQUESTS_BODY];
+    CliLine body;
     CliRequestsSent hop;
     CliRequestsAddress address;
     CliRequestsAnswer answer;
-    unsigned char raw[CLI_REQUESTS_BODY];
-    unsigned char unpacked[CLI_REQUESTS_BODY];
+    CliLine raw;
+    unsigned char *unpacked;
+    unsigned long long unpacked_room;
     unsigned char reading[CLI_REQUESTS_READING];
     unsigned long long start;
     unsigned long long end;
@@ -216,11 +222,11 @@ void cli_requests_iso(unsigned long long seconds, CliLine *out);
 void cli_requests_curl_written(const CliRequestsSent *sent, CliLine *out);
 
 // the request at line `line` of the file at `path`, whose text is `size` bytes of `text`, made ready with the variables
-// of the file and of environment `env` into `sent`, its body read into `body`, which holds `room`, and its key into
-// `key` where it is not NULL: 1, or 0 with why said (requests_ready.c)
+// of the file and of environment `env` into `sent`, its body read into `body`, a growing line the sent request's body
+// then points into, and its key into `key` where it is not NULL: 1, or 0 with why said (requests_ready.c)
 int cli_requests_ready(const char *root, const char *path, const char *text, unsigned long long size,
-                       unsigned long long line, const char *env, CliRequestsSent *sent, char *body,
-                       unsigned long long room, CliLine *key, CliLine *said);
+                       unsigned long long line, const char *env, CliRequestsSent *sent, CliLine *body, CliLine *key,
+                       CliLine *said);
 
 // `size` bytes of `text` read as Rust reads an unsigned integer of base `base`, 10 or 16, a `+` let before its digits,
 // into `value`: 1, or 0 where it is no such integer or is above `most`; whether `size` bytes of `text` hold `needle`,
@@ -247,8 +253,8 @@ int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, CliLine
 int cli_requests_is_text(const CliRequestsAnswer *answer);
 
 // the room's hop sent once, to its own address, the peer's certificate checked where `verify` is 1, and the whole
-// answer read into the room's answer, its body read into `raw`, undone into `unpacked` where it was packed: 1, or 0
-// with why said (requests_http.c)
+// answer read into the room's answer, its body read into `raw`, undone into `unpacked`, a cell taken for it, where it
+// was packed: 1, or 0 with why said (requests_http.c)
 int cli_requests_once(CliRequestsRoom *room, int verify, CliLine *said);
 
 // a room of the two a request is sent in taken, waiting while both are in use, and given back; and `sent` sent and

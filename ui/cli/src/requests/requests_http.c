@@ -4,6 +4,7 @@
 // answer read whole: each answer of 1xx but 101 passed over, a chunked body, one of a length and one read to the
 // connection's end, the most of it CLI_REQUESTS_BODY and the rest cut; gzip and deflate undone; and how long each
 // part took
+#include "../command_line/cells.h"
 #include "../comms/tls.h"
 #include "../machine/net.h"
 #include "../text/json_tree.h"
@@ -96,12 +97,32 @@ static int http_line(HttpConnection *connection, unsigned long long *line, unsig
     }
 }
 
-// `length` bytes of the body read, those that fit in CLI_REQUESTS_BODY put after the `*size` in `raw`, `*cut` set
-// where any did not: 1, or 0 with why said
+// `put` bytes of the body from the reading put after the `*size` in `raw`, a growing line, and `*size` raised: 1, or
+// 0 with why said where the line could not grow
+static int http_put(CliRequestsRoom *room, unsigned long long put, unsigned long long *size, CliLine *said)
+{
+    cli_line_counted(&room->raw, (const char *)room->reading + room->start, put);
+    if (!cli_line_fits(&room->raw))
+    {
+        cli_line_text(said, "the answer's body could not be held");
+        return 0;
+    }
+    *size += put;
+    return 1;
+}
+
+// `length` bytes of the body read, those that fit in CLI_REQUESTS_BODY put after the `*size` in `raw`, its room made
+// for them all at once, `*cut` set where any did not: 1, or 0 with why said
 static int http_exactly(HttpConnection *connection, unsigned long long length, unsigned long long *size, int *cut,
                         CliLine *said)
 {
     CliRequestsRoom *const room = connection->room;
+    const unsigned long long fits_all = CLI_REQUESTS_BODY - *size;
+    if (!cli_line_room(&room->raw, (length < fits_all) ? length : fits_all))
+    {
+        cli_line_text(said, "the answer's body could not be held");
+        return 0;
+    }
     unsigned long long left = length;
     while (left > 0u)
     {
@@ -118,8 +139,10 @@ static int http_exactly(HttpConnection *connection, unsigned long long length, u
         const unsigned long long take = (left < held) ? left : held;
         const unsigned long long fits = CLI_REQUESTS_BODY - *size;
         const unsigned long long put = (take < fits) ? take : fits;
-        memor.cpy(&(MemoriaCfg){.dst = room->raw + *size, .src = room->reading + room->start, .bytes = (size_t)put});
-        *size += put;
+        if (!http_put(room, put, size, said))
+        {
+            return 0;
+        }
         *cut = *cut || (take > fits);
         room->start += take;
         left -= take;
@@ -136,8 +159,10 @@ static int http_to_end(HttpConnection *connection, unsigned long long *size, int
         const unsigned long long held = room->end - room->start;
         const unsigned long long fits = CLI_REQUESTS_BODY - *size;
         const unsigned long long put = (held < fits) ? held : fits;
-        memor.cpy(&(MemoriaCfg){.dst = room->raw + *size, .src = room->reading + room->start, .bytes = (size_t)put});
-        *size += put;
+        if (!http_put(room, put, size, said))
+        {
+            return 0;
+        }
         room->start = room->end;
         if (held > fits)
         {
@@ -259,27 +284,32 @@ static int http_head(HttpConnection *connection, unsigned long long step, CliLin
 static int http_written(HttpConnection *connection, const char *host, CliLine *said)
 {
     CliRequestsRoom *const room = connection->room;
-    // the room's unpacked body holds nothing until the answer is read, so the head is written there
-    CliLine head = {(char *)room->unpacked, CLI_REQUESTS_BODY, 0ull};
-    cli_requests_head_written(&room->hop, &room->address, &head);
-    if (!cli_line_fits(&head))
+    CliLine head = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    if (!cli_line_growing(&head, CLI_REQUESTS_BODY_FIRST, "a request's head written"))
     {
-        cli_line_text(said, "the request is larger than orior_cli holds");
+        cli_line_text(said, "the request's head could not be held");
         return 0;
     }
-    if (connection->tls != NULL)
+    cli_requests_head_written(&room->hop, &room->address, &head);
+    int written = cli_line_fits(&head);
+    if (!written)
     {
-        return cli_tls_written(connection->tls, head.out, head.at, said) &&
-               cli_tls_written(connection->tls, room->hop.body, room->hop.body_size, said);
+        cli_line_text(said, "the request is larger than orior_cli holds");
     }
-    if (!cli_socket_written(&connection->socket, head.out, head.at) ||
-        !cli_socket_written(&connection->socket, room->hop.body, room->hop.body_size))
+    else if (connection->tls != NULL)
+    {
+        written = cli_tls_written(connection->tls, head.out, head.at, said) &&
+                  cli_tls_written(connection->tls, room->hop.body, room->hop.body_size, said);
+    }
+    else if (!cli_socket_written(&connection->socket, head.out, head.at) ||
+             !cli_socket_written(&connection->socket, room->hop.body, room->hop.body_size))
     {
         cli_line_text(said, host);
         cli_line_text(said, ": the request could not be sent");
-        return 0;
+        written = 0;
     }
-    return 1;
+    cli_cell_given(head.out);
+    return written;
 }
 
 // the answer's body read as its head says it comes, its bytes as they came into `raw`, `*size` of them: 1, or 0 with
@@ -297,6 +327,7 @@ static int http_body(HttpConnection *connection, unsigned long long *size, CliLi
     int cut = 0;
     int read = 1;
     *size = 0ull;
+    connection->room->raw.at = 0ull;
     if (empty)
     {
     }
@@ -314,7 +345,8 @@ static int http_body(HttpConnection *connection, unsigned long long *size, CliLi
         read = http_to_end(connection, size, &cut, said);
     }
     answer->cut = cut;
-    answer->body = connection->room->raw;
+    // the body's cell is the one it ended in: a growing line moves as it fills
+    answer->body = (const unsigned char *)connection->room->raw.out;
     answer->size = *size;
     return read;
 }
@@ -340,7 +372,8 @@ int cli_requests_once(CliRequestsRoom *room, int verify, CliLine *said)
     answer->status = 0u;
     answer->headers = 0u;
     answer->head_used = 0ull;
-    answer->body = room->raw;
+    room->raw.at = 0ull;
+    answer->body = (const unsigned char *)room->raw.out;
     answer->size = 0ull;
     answer->cut = 0;
     answer->binary = 0;

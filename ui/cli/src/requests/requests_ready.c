@@ -31,9 +31,9 @@ static int ready_filled(const CliRequestsParsed *parsed, CliRequestsText text, c
     return 1;
 }
 
-// the file `name`, beside the file at `path`, read whole into `body`, which holds `room`: its size into `size`: 1, or
-// 0 with why said
-static int ready_body_file(const char *root, const char *path, const char *name, char *body, unsigned long long room,
+// the file `name`, beside the file at `path`, read whole into `body`, a growing line: its size into `size`: 1, or 0
+// with why said
+static int ready_body_file(const char *root, const char *path, const char *name, CliLine *body,
                            unsigned long long *size, CliLine *said)
 {
     char inside[CLI_PATH_LONGEST];
@@ -53,13 +53,15 @@ static int ready_body_file(const char *root, const char *path, const char *name,
     cli_line_character(&line, '/');
     cli_line_text(&line, name);
     unsigned long long length = 0ull;
-    const unsigned char *const bytes =
-        (cli_line_closed(&line) != 0ull) ? cli_file_held(beside, &length) : NULL;
+    const unsigned char *const bytes = (cli_line_closed(&line) != 0ull) ? cli_file_held(beside, &length) : NULL;
     const int whole = (bytes != NULL) && cli_utf8_whole((const char *)bytes, length);
-    const int fits = whole && (length <= room);
+    if (whole)
+    {
+        cli_line_counted(body, (const char *)bytes, length);
+    }
+    const int fits = whole && cli_line_fits(body);
     if (fits)
     {
-        memor.cpy(&(MemoriaCfg){.dst = body, .src = bytes, .bytes = (size_t)length});
         *size = length;
     }
     if (bytes != NULL)
@@ -81,7 +83,7 @@ static int ready_body_file(const char *root, const char *path, const char *name,
 
 // the request made ready, the requests' lock held and the file read: 1, or 0 with why said
 static int ready_made(const char *root, const char *path, const CliRequestsParsed *parsed, const CliRequest *request,
-                      const char *env, CliRequestsSent *sent, char *body, unsigned long long room, CliLine *said)
+                      const char *env, CliRequestsSent *sent, CliLine *body, CliLine *said)
 {
     if (!cli_requests_values(root, path, env, &s_values, said))
     {
@@ -131,34 +133,32 @@ static int ready_made(const char *root, const char *path, const CliRequestsParse
             return 0;
         }
     }
-    sent->body = body;
     sent->body_size = 0ull;
     sent->redirect = request->redirect;
+    body->at = 0ull;
+    int made = 1;
     if (request->has_body)
     {
-        CliLine line = {body, room, 0ull};
-        if (!cli_requests_filled(parsed->text + request->body.at, request->body.size, &s_values, &line, said))
-        {
-            return 0;
-        }
-        if (!cli_line_fits(&line))
+        made = cli_requests_filled(parsed->text + request->body.at, request->body.size, &s_values, body, said);
+        if (made && !cli_line_fits(body))
         {
             ready_full_said(said);
-            return 0;
+            made = 0;
         }
-        sent->body_size = line.at;
-        return 1;
+        sent->body_size = made ? body->at : 0ull;
     }
-    if (request->has_body_file)
+    else if (request->has_body_file)
     {
-        return ready_body_file(root, path, parsed->text + request->body_file.at, body, room, &sent->body_size, said);
+        made = ready_body_file(root, path, parsed->text + request->body_file.at, body, &sent->body_size, said);
     }
-    return 1;
+    // the body's cell is the one it ended in: a growing line moves as it fills
+    sent->body = body->out;
+    return made;
 }
 
 int cli_requests_ready(const char *root, const char *path, const char *text, unsigned long long size,
-                       unsigned long long line, const char *env, CliRequestsSent *sent, char *body,
-                       unsigned long long room, CliLine *key, CliLine *said)
+                       unsigned long long line, const char *env, CliRequestsSent *sent, CliLine *body, CliLine *key,
+                       CliLine *said)
 {
     cli_lock_take(&g_cli_requests_lock);
     const CliRequestsParsed *const parsed = &g_cli_requests_parsed;
@@ -175,7 +175,7 @@ int cli_requests_ready(const char *root, const char *path, const char *text, uns
     }
     else
     {
-        ready = ready_made(root, path, parsed, request, env, sent, body, room, said);
+        ready = ready_made(root, path, parsed, request, env, sent, body, said);
         cli_requests_values_given(&s_values);
         if (ready && (key != NULL))
         {

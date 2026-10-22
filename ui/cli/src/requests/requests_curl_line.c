@@ -88,8 +88,7 @@ int cli_requests_curl(const char *root, const char *path, const char *text, unsi
         cli_line_text(said, "the request's room could not be taken");
         return 0;
     }
-    const int ready =
-        cli_requests_ready(root, path, text, size, line, env, &room->sent, room->body, sizeof(room->body), NULL, said);
+    const int ready = cli_requests_ready(root, path, text, size, line, env, &room->sent, &room->body, NULL, said);
     if (ready)
     {
         cli_requests_curl_written(&room->sent, out);

@@ -23,7 +23,21 @@ CliRequestsRoom *cli_requests_room_taken(void)
     {
         cli_wake_wait(&s_wake, &s_lock);
     }
-    CliRequestsRoom *const room = cli_cell_taken(sizeof(CliRequestsRoom), "a request's room");
+    CliRequestsRoom *room = cli_cell_taken(sizeof(CliRequestsRoom), "a request's room");
+    if (room != NULL)
+    {
+        room->unpacked = NULL;
+        room->unpacked_room = 0ull;
+        const int made = cli_line_growing(&room->body, CLI_REQUESTS_BODY_FIRST, "a request's body") &&
+                         cli_line_growing(&room->raw, CLI_REQUESTS_BODY_FIRST, "an answer's body as read");
+        if (!made)
+        {
+            cli_cell_given(room->raw.out);
+            cli_cell_given(room->body.out);
+            cli_cell_given(room);
+            room = NULL;
+        }
+    }
     s_rooms_used += (room != NULL) ? 1u : 0u;
     cli_lock_give(&s_lock);
     return room;
@@ -35,6 +49,9 @@ void cli_requests_room_given(CliRequestsRoom *room)
     {
         return;
     }
+    cli_cell_given(room->unpacked);
+    cli_cell_given(room->raw.out);
+    cli_cell_given(room->body.out);
     cli_cell_given(room);
     cli_lock_take(&s_lock);
     s_rooms_used -= 1u;
@@ -53,7 +70,7 @@ static void send_failed(CliRequestsRoom *room, const char *failed, unsigned long
     answer->version.size = 0ull;
     answer->headers = 0u;
     answer->head_used = 0ull;
-    answer->body = room->raw;
+    answer->body = (const unsigned char *)room->raw.out;
     answer->size = 0ull;
     answer->cut = 0;
     answer->binary = 0;
@@ -149,8 +166,7 @@ int cli_requests_sent_at(const char *root, const char *path, const char *text, u
     }
     char key[CLI_REQUESTS_ADDRESS + CLI_REQUESTS_NAME];
     CliLine key_line = {key, sizeof(key), 0ull};
-    int sent = cli_requests_ready(root, path, text, size, line, env, &room->sent, room->body, sizeof(room->body),
-                                  &key_line, said);
+    int sent = cli_requests_ready(root, path, text, size, line, env, &room->sent, &room->body, &key_line, said);
     if (sent && !cli_line_fits(&key_line))
     {
         cli_line_text(said, "the request is larger than orior_cli holds");
@@ -181,7 +197,8 @@ int cli_requests_get(const char *address, unsigned int *status, CliLine *reason,
     memor.cpy(&(MemoriaCfg){.dst = room->sent.method, .src = "GET", .bytes = 4u});
     CliLine url = {room->sent.url, sizeof(room->sent.url), 0ull};
     cli_line_text(&url, address);
-    room->sent.body = room->body;
+    room->body.at = 0ull;
+    room->sent.body = room->body.out;
     room->sent.redirect = 1;
     const int fits = (cli_line_closed(&url) != 0ull);
     if (fits)
