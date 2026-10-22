@@ -8,11 +8,8 @@
 #include "../text/text.h"
 #include <stdlib.h>
 
-// the most files covered, the bytes their names take, the lines marked, and the bytes the coverage told takes
-#define CLI_COVER_FILES 16384u
-#define CLI_COVER_NAMES (1u << 22u)
-#define CLI_COVER_LINES (1u << 21u)
-#define CLI_COVER_TOLD (1u << 25u)
+// the bytes the coverage told is begun to be written in, doubling as it fills
+#define CLI_COVER_TOLD_FIRST (1u << 16u)
 
 const char g_cli_test_shim[] =
     "\n"
@@ -78,20 +75,83 @@ typedef struct
     unsigned int line;
 } CliCoverLine;
 
-// The coverage put together: the files by name and the lines marked
+// The coverage put together: the files by name and the lines marked, parts of one cell sized by a count over the
+// run's coverage files before they are read, the files by their quotes, the lines by their numbers and the names by
+// their bytes
 typedef struct
 {
-    unsigned long long names[CLI_COVER_FILES];
+    void *room;
+    unsigned long long *names;
     unsigned int files;
-    char text[CLI_COVER_NAMES];
+    unsigned int files_most;
+    char *text;
     unsigned long long used;
-    CliCoverLine lines[CLI_COVER_LINES];
+    unsigned long long text_most;
+    CliCoverLine *lines;
     unsigned int line_count;
-    unsigned int order[CLI_COVER_FILES];
-    char told[CLI_COVER_TOLD];
+    unsigned int lines_most;
+    unsigned int *order;
 } CliCover;
 
+static CliCover s_room;
 static CliCover *s_cover;
+
+// The counts a coverage file's bytes give before it is read: its quotes, two to each key, its runs of digits, one to
+// each line marked, and its bytes
+typedef struct
+{
+    unsigned long long quotes;
+    unsigned long long numbers;
+    unsigned long long bytes;
+} CliCoverCounts;
+
+// the counts of `size` bytes of `text` added to `counts`
+static void cover_counted(const char *text, unsigned long long size, CliCoverCounts *counts)
+{
+    int in_digits = 0;
+    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    {
+        const char letter = text[at];
+        const int digit = (letter >= '0') && (letter <= '9');
+        counts->quotes += (letter == '"') ? 1ull : 0ull;
+        counts->numbers += (digit && !in_digits) ? 1ull : 0ull;
+        in_digits = digit;
+    }
+    counts->bytes += size;
+}
+
+// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+static void *cover_part(unsigned char **at, unsigned long long bytes)
+{
+    void *const part = *at;
+    *at += (bytes + 7ull) & ~7ull;
+    return part;
+}
+
+// the coverage's room taken for `counts` and its parts set into it: 1, or 0 with no room
+static int cover_room_taken(const CliCoverCounts *counts)
+{
+    const unsigned long long files = (counts->quotes / 2ull) + 1ull;
+    const unsigned long long lines = counts->numbers + 1ull;
+    const unsigned long long bytes = (files * (sizeof(unsigned long long) + sizeof(unsigned int))) +
+                                     (lines * sizeof(CliCoverLine)) + counts->bytes + 1ull + (4ull * 8ull);
+    unsigned char *const cell = cli_cell_taken(bytes, "a run's coverage");
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    unsigned char *at = cell;
+    s_cover->room = cell;
+    s_cover->names = cover_part(&at, files * sizeof(unsigned long long));
+    s_cover->order = cover_part(&at, files * sizeof(unsigned int));
+    // the counts are of files read whole into memory, which an unsigned int's worth of files and lines holds
+    s_cover->files_most = (unsigned int)files;
+    s_cover->lines = cover_part(&at, lines * sizeof(CliCoverLine));
+    s_cover->lines_most = (unsigned int)lines;
+    s_cover->text = cover_part(&at, counts->bytes + 1ull);
+    s_cover->text_most = counts->bytes + 1ull;
+    return 1;
+}
 
 // A reading of one coverage file: its text, its size and where it stands
 typedef struct
@@ -152,7 +212,7 @@ static int cover_string(CliCoverRead *read, CliLine *out)
     return 1;
 }
 
-// the place of a file's name among those covered, put where it is new: CLI_COVER_FILES where none is left
+// the place of a file's name among those covered, put where it is new: the most files where none is left
 static unsigned int cover_file(const char *name, unsigned long long length)
 {
     for (unsigned int at = 0u; at < s_cover->files; at += 1u)
@@ -164,9 +224,9 @@ static unsigned int cover_file(const char *name, unsigned long long length)
             return at;
         }
     }
-    if ((s_cover->files == CLI_COVER_FILES) || (s_cover->used + length + 1ull > CLI_COVER_NAMES))
+    if ((s_cover->files == s_cover->files_most) || (s_cover->used + length + 1ull > s_cover->text_most))
     {
-        return CLI_COVER_FILES;
+        return s_cover->files_most;
     }
     s_cover->names[s_cover->files] = s_cover->used;
     memor.cpy(&(MemoriaCfg){.dst = s_cover->text + s_cover->used, .src = name, .bytes = length});
@@ -253,7 +313,7 @@ static void cover_lines(CliCoverRead *read, unsigned int file, unsigned int coul
             whole = (read->text[at] >= '0') && (read->text[at] <= '9') && (value <= (~0ull - digit) / 10ull);
             value = whole ? (value * 10ull) + digit : value;
         }
-        if (whole && (file < CLI_COVER_FILES) && (s_cover->line_count < CLI_COVER_LINES))
+        if (whole && (file < s_cover->files_most) && (s_cover->line_count < s_cover->lines_most))
         {
             s_cover->lines[s_cover->line_count] =
                 (CliCoverLine){file, could, (unsigned int)((value > 0ull) ? value - 1ull : 0ull)};
@@ -409,9 +469,23 @@ void cli_test_coverage_told(CliTestRun *run)
 {
     static CliLock s_cover_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_cover_lock);
-    s_cover = cli_cell_taken(sizeof(*s_cover), "a run's coverage");
-    if (s_cover == NULL)
+    s_cover = &s_room;
+    // the files counted on one pass and read on the next, into a room the counts size
+    CliCoverCounts counts = {0ull, 0ull, 0ull};
+    for (unsigned int at = 0u; at < run->worker_count; at += 1u)
     {
+        const CliTestWorker *const worker = &run->workers[at];
+        unsigned long long size = 0ull;
+        const char *const text = worker->cargo ? NULL : cli_test_file_read(worker->covered, &size);
+        if (text != NULL)
+        {
+            cover_counted(text, size, &counts);
+        }
+        cli_test_file_let_go(text, size);
+    }
+    if (!cover_room_taken(&counts))
+    {
+        s_cover = NULL;
         cli_lock_give(&s_cover_lock);
         return;
     }
@@ -429,7 +503,8 @@ void cli_test_coverage_told(CliTestRun *run)
         }
         cli_test_file_let_go(text, size);
     }
-    if (s_cover->files > 0u)
+    CliLine out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    if ((s_cover->files > 0u) && cli_line_growing(&out, CLI_COVER_TOLD_FIRST, "a run's coverage told"))
     {
         qsort(s_cover->lines, s_cover->line_count, sizeof(s_cover->lines[0]), cover_line_order);
         for (unsigned int file = 0u; file < s_cover->files; file += 1u)
@@ -437,7 +512,6 @@ void cli_test_coverage_told(CliTestRun *run)
             s_cover->order[file] = file;
         }
         qsort(s_cover->order, s_cover->files, sizeof(s_cover->order[0]), cover_file_order);
-        CliLine out = {s_cover->told, sizeof(s_cover->told), 0ull};
         cli_line_text(&out, "{\"kind\":\"coverage\",\"run\":");
         cli_line_decimal(&out, run->number, 1u);
         cli_line_text(&out, ",\"files\":[");
@@ -466,7 +540,9 @@ void cli_test_coverage_told(CliTestRun *run)
             run->tell.told(run->tell.context, out.out, out.at);
         }
     }
-    cli_cell_given(s_cover);
+    cli_cell_given(out.out);
+    cli_cell_given(s_cover->room);
+    s_cover->room = NULL;
     s_cover = NULL;
     cli_lock_give(&s_cover_lock);
 }

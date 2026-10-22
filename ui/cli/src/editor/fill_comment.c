@@ -4,14 +4,13 @@
 // closing lines' text kept where they hold any; split into paragraphs at blank lines and at each tag; each paragraph's
 // words filled under ` * `, and each run of tags of one kind lined up: the tags, their types in braces, the names of
 // those that name one, and their descriptions each in one column, a description that runs past the margin going on
-// under its own first word. A run's tags are joined from their lines into a room of CLI_FILL_JOINED bytes, those past
+// under its own first word. A run's tags are joined from their lines into a room sized to the comment's bytes
 // it left out of the run
 #include "../command_line/cells.h"
 #include "fill_internal.h"
 
-// the most parts of a comment, and the bytes its tags take joined
-#define CLI_FILL_PARTS (1u << 18u)
-#define CLI_FILL_JOINED (1u << 22u)
+// the bytes a tag line's head, its hanging lead and the comment's lead each hold
+#define CLI_FILL_LINE_ROOM (1u << 16u)
 
 // the tags whose first word after a type is a name
 static const char *const s_named_tags[7] = {"param", "arg", "argument", "property", "prop", "template", "typedef"};
@@ -29,36 +28,69 @@ typedef struct
     unsigned long long description_size;
 } CliFillTag;
 
-// A fill's room, a cell taken under the fill's lock: each part's first line among the comment's lines and its count,
-// 0 for a blank line between parts; each part's tag; the tags' texts joined; and a tag line's head, its hanging lead
-// and the comment's lead
+// A fill's room, parts of one cell taken for the comment filled, sized to its lines and bytes, and given back as the
+// fill ends: each part's first line among the comment's lines and its count, 0 for a blank line between parts; each
+// part's tag; the tags' texts joined; and a tag line's head, its hanging lead and the comment's lead
 typedef struct
 {
-    unsigned int part_first[CLI_FILL_PARTS];
-    unsigned int part_lines[CLI_FILL_PARTS];
-    CliFillTag tag[CLI_FILL_PARTS];
-    char joined[CLI_FILL_JOINED];
-    char head[1u << 16u];
-    char hang[1u << 16u];
-    char lead[1u << 16u];
+    unsigned int *part_first;
+    unsigned int *part_lines;
+    unsigned int parts_most;
+    CliFillTag *tag;
+    char *joined;
+    unsigned long long joined_most;
+    char *head;
+    char *hang;
+    char *lead;
 } CliFillRoom;
 
+static CliFillRoom s_room;
 static CliFillRoom *s_fill;
 
 int cli_fill_comment_held(CliLine *said)
 {
-    s_fill = cli_cell_taken(sizeof(*s_fill), "a comment's fill");
-    if (s_fill == NULL)
-    {
-        cli_line_text(said, "a comment's fill could not be taken");
-    }
-    return s_fill != NULL;
+    (void)said;
+    s_fill = &s_room;
+    return 1;
 }
 
 void cli_fill_comment_released(void)
 {
-    cli_cell_given(s_fill);
     s_fill = NULL;
+}
+
+// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+static void *comment_part(unsigned char **at, unsigned long long bytes)
+{
+    void *const part = *at;
+    *at += (bytes + 7ull) & ~7ull;
+    return part;
+}
+
+// the fill's cell taken for a comment of `lines` lines and `bytes` bytes and the room's parts set into it: the cell,
+// or NULL with why said where it is refused
+static void *comment_room_taken(unsigned int lines, unsigned long long bytes, CliLine *said)
+{
+    const unsigned long long joined = bytes + lines + 1ull;
+    const unsigned long long size = ((unsigned long long)lines * ((2ull * sizeof(unsigned int)) + sizeof(CliFillTag))) +
+                                    joined + (3ull * CLI_FILL_LINE_ROOM) + (8ull * 8ull);
+    unsigned char *const cell = cli_cell_taken(size, "a comment's fill");
+    if (cell == NULL)
+    {
+        cli_line_text(said, "a comment's fill could not be taken");
+        return NULL;
+    }
+    unsigned char *at = cell;
+    s_fill->part_first = comment_part(&at, (unsigned long long)lines * sizeof(unsigned int));
+    s_fill->part_lines = comment_part(&at, (unsigned long long)lines * sizeof(unsigned int));
+    s_fill->parts_most = lines;
+    s_fill->tag = comment_part(&at, (unsigned long long)lines * sizeof(CliFillTag));
+    s_fill->joined = comment_part(&at, joined);
+    s_fill->joined_most = joined;
+    s_fill->head = comment_part(&at, CLI_FILL_LINE_ROOM);
+    s_fill->hang = comment_part(&at, CLI_FILL_LINE_ROOM);
+    s_fill->lead = comment_part(&at, CLI_FILL_LINE_ROOM);
+    return cell;
 }
 
 // the start of a line's text, its whitespace taken off
@@ -192,7 +224,7 @@ static unsigned int comment_parts(unsigned int lines)
         {
             s_fill->part_lines[count - 1u] += 1u;
         }
-        else if (count < CLI_FILL_PARTS)
+        else if (count < s_fill->parts_most)
         {
             s_fill->part_first[count] = at;
             s_fill->part_lines[count] = blank ? 0u : 1u;
@@ -301,7 +333,7 @@ static void comment_padded(CliLine *out, const char *text, unsigned long long si
 static const char *comment_joined(unsigned int part, unsigned long long *used, unsigned long long *size)
 {
     char *const start = s_fill->joined + *used;
-    CliLine line = {start, CLI_FILL_JOINED - *used, 0ull};
+    CliLine line = {start, s_fill->joined_most - *used, 0ull};
     for (unsigned int at = 0u; at < s_fill->part_lines[part]; at += 1u)
     {
         const unsigned int index = s_fill->part_first[part] + at;
@@ -362,7 +394,7 @@ static void comment_run(CliFilled *filled, unsigned int *part, unsigned int part
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliFillTag *const tag = &s_fill->tag[at];
-        CliLine head = {s_fill->head, sizeof(s_fill->head), 0ull};
+        CliLine head = {s_fill->head, CLI_FILL_LINE_ROOM, 0ull};
         cli_line_counted(&head, lead, lead_size);
         comment_padded(&head, tag->tag, tag->tag_size, widths[0]);
         if (widths[1] > 0u)
@@ -381,7 +413,7 @@ static void comment_run(CliFilled *filled, unsigned int *part, unsigned int part
             continue;
         }
         cli_line_character(&head, ' ');
-        CliLine hang = {s_fill->hang, sizeof(s_fill->hang), 0ull};
+        CliLine hang = {s_fill->hang, CLI_FILL_LINE_ROOM, 0ull};
         cli_line_counted(&hang, lead, lead_size);
         for (unsigned long long letters = cli_text_letters(lead, lead_size);
              letters < cli_text_letters(s_fill->head, head.at); letters += 1u)
@@ -405,10 +437,17 @@ int cli_fill_comment(const char *text, unsigned long long size, const CliFillLin
     }
     const char *const indent = text + first.start;
     const unsigned long long indent_size = cli_text_lead(indent, first.end - first.start);
-    CliLine lead = {s_fill->lead, sizeof(s_fill->lead), 0ull};
+    const unsigned int lines = comment_body(text, size, &first, &last);
+    char why[CLI_SAID_LONGEST];
+    CliLine said = {why, sizeof(why), 0ull};
+    void *const cell = comment_room_taken(lines, last.end - first.start, &said);
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    CliLine lead = {s_fill->lead, CLI_FILL_LINE_ROOM, 0ull};
     cli_line_counted(&lead, indent, indent_size);
     cli_line_text(&lead, " * ");
-    const unsigned int lines = comment_body(text, size, &first, &last);
     const unsigned int parts = comment_parts(lines);
     cli_filled_line(filled, indent, indent_size);
     cli_line_text(filled->out, "/**");
@@ -457,5 +496,6 @@ int cli_fill_comment(const char *text, unsigned long long size, const CliFillLin
     cli_filled_line(filled, indent, indent_size);
     cli_line_text(filled->out, " */");
     cli_fill_edit_of(text, &first, &last, filled, edit);
+    cli_cell_given(cell);
     return 1;
 }

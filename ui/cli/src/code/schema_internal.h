@@ -112,20 +112,19 @@ const char *cli_schema_kind(const CliSchemaNode *node);
 // the meta-schemas orior_cli holds, each its URL with no scheme and no `#` and its text (schema_bundled.c)
 extern const char *const g_cli_schema_bundled[5][2];
 
-// the most documents a check reaches, those it could not find, the values and bytes they take, and the deepest a value
-// is checked
+// the most documents a check reaches, those it could not find, the values and bytes their tree is begun with, doubling
+// as they fill, and the deepest a value is checked
 #define CLI_SCHEMA_DOCUMENTS 32u
 #define CLI_SCHEMA_MISSING 64u
-#define CLI_SCHEMA_STORE_NODES (1u << 19u)
-#define CLI_SCHEMA_STORE_TEXT (1u << 24u)
+#define CLI_SCHEMA_STORE_NODES_FIRST 4096u
+#define CLI_SCHEMA_STORE_TEXT_FIRST (1u << 16u)
 #define CLI_SCHEMA_DEEPEST 64u
 
-// The schemas a check reaches, each by its URL or its path, read into one tree, and those it could not find
+// The schemas a check reaches, each by its URL or its path, read into one tree that grows in a cell of its own, and
+// those it could not find
 typedef struct
 {
     CliJson json;
-    CliJsonNode node[CLI_SCHEMA_STORE_NODES];
-    char text[CLI_SCHEMA_STORE_TEXT];
     char key[CLI_SCHEMA_DOCUMENTS][CLI_PATH_LONGEST];
     unsigned int root[CLI_SCHEMA_DOCUMENTS];
     unsigned int documents;

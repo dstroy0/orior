@@ -29,7 +29,10 @@ int cli_schema_held(void)
         g_cli_schema_read->members_most = 0u;
         g_cli_schema_read->pool_most = 0u;
     }
-    if ((g_cli_schema_read == NULL) || (g_cli_schema_store == NULL))
+    const int grown =
+        (g_cli_schema_store != NULL) && cli_json_growing(&g_cli_schema_store->json, CLI_SCHEMA_STORE_NODES_FIRST,
+                                                         CLI_SCHEMA_STORE_TEXT_FIRST, "the schemas reached");
+    if ((g_cli_schema_read == NULL) || !grown)
     {
         cli_schema_released();
         return 0;
@@ -103,6 +106,10 @@ void cli_schema_released(void)
     if (g_cli_schema_read != NULL)
     {
         cli_schema_read_given(g_cli_schema_read);
+    }
+    if (g_cli_schema_store != NULL)
+    {
+        cli_json_given(&g_cli_schema_store->json);
     }
     cli_cell_given(g_cli_schema_store);
     cli_cell_given(g_cli_schema_read);

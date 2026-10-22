@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schema_store.c: the schemas a check reaches: each read once, by its URL among the meta-schemas orior_cli holds or those
-// kept from a fetch, or by its path, its file mapped where it lies, its comments taken out in a cell of its size and
-// read in a cell of the tokens it holds, into one tree. A document larger than CLI_SCHEMA_DOCUMENT_TEXT, of more tokens
-// than CLI_SCHEMA_TOKENS, or whose values the tree cannot hold, is one that could not be read
+// schema_store.c: the schemas a check reaches: each read once, by its URL among the meta-schemas orior_cli holds or
+// those kept from a fetch, or by its path, its file mapped where it lies, its comments taken out in a cell of its size
+// and read in a cell of the tokens it holds, into one tree. A document larger than CLI_SCHEMA_DOCUMENT_TEXT, of more
+// tokens than CLI_SCHEMA_TOKENS, or whose values the tree cannot hold, is one that could not be read
 #include "schema_internal.h"
 
 #include "../text/text.h"
@@ -16,7 +16,7 @@ CliCellsTally g_cli_schema_cells = CLI_CELLS_TALLY("cli_schemas");
 
 void cli_schema_store_begun(CliSchemaStore *store)
 {
-    cli_json_begun(&store->json, store->node, CLI_SCHEMA_STORE_NODES, store->text, CLI_SCHEMA_STORE_TEXT);
+    cli_json_emptied(&store->json);
     store->documents = 0u;
     store->missings = 0u;
 }
@@ -193,7 +193,7 @@ static unsigned int store_read(CliSchemaStore *store, const char *text, unsigned
                                 "a schema's tokens")
             : NULL;
     unsigned int root = CLI_JSON_NONE;
-    if (tokens != NULL)
+    if ((tokens != NULL) && cli_json_room(&store->json, tokens_most, size))
     {
         char why[256];
         CliLine said = {why, sizeof(why), 0ull};
