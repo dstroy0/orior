@@ -16,14 +16,15 @@ void cli_json_begun(CliJson *json, CliJsonNode *node, unsigned int nodes_most, c
     json->used = 0ull;
     json->text_most = text_most;
     json->full = 0;
+    json->grows = 0;
+    json->what = NULL;
 }
 
 // `length` bytes of `text` kept among the tree's texts, a NUL after them: where they start, or 0 where they do not fit
 static unsigned long long cli_kept(CliJson *json, const char *text, unsigned long long length)
 {
-    if ((json->used + length + 1ull) > json->text_most)
+    if (!cli_json_room(json, 0u, length + 1ull))
     {
-        json->full = 1;
         return 0ull;
     }
     const unsigned long long at = json->used;
@@ -35,9 +36,8 @@ static unsigned long long cli_kept(CliJson *json, const char *text, unsigned lon
 
 unsigned int cli_json_made(CliJson *json, CfgJsonKind kind)
 {
-    if (json->nodes >= json->nodes_most)
+    if (!cli_json_room(json, 1u, 0ull))
     {
-        json->full = 1;
         return CLI_JSON_NONE;
     }
     const unsigned int made = json->nodes;
@@ -375,8 +375,13 @@ static unsigned int cli_converted(CliJson *json, const char *text, const CfgJson
     }
     if (at->kind == CFG_JSON_STRING)
     {
+        // a string's letters as kept are at most its letters as written
+        if (!cli_json_room(json, 0u, (unsigned long long)(at->end - at->start) + 1ull))
+        {
+            return CLI_JSON_NONE;
+        }
         const unsigned long long room = json->text_most - json->used;
-        if ((room == 0ull) || !cfg_json_string(text, at, json->text + json->used, (size_t)room))
+        if (!cfg_json_string(text, at, json->text + json->used, (size_t)room))
         {
             json->full = 1;
             return CLI_JSON_NONE;

@@ -70,23 +70,21 @@ int cli_compile_first_word(const char *text, unsigned long long length, char *fi
 void cli_compile_words_each(const char *text, unsigned long long length,
                             void (*each)(void *context, const char *word, unsigned long long size), void *context);
 
-// the JSON file at `path` read into `json`, `tokens` holding `tokens_most`: its root, or CLI_JSON_NONE where it is not
-// there or is no JSON (compile_db.c)
-unsigned int cli_compile_json_read(CliJson *json, const char *path, CfgJsonToken *tokens, unsigned int tokens_most);
+// the JSON file at `path` read into `json`, a growing tree, its tokens a cell of their count given back as the read
+// ends: its root, or CLI_JSON_NONE where it is not there or is no JSON (compile_db.c)
+unsigned int cli_compile_json_read(CliJson *json, const char *path);
 // what a look at the tree at `root` reads into `inputs` (compile_db_look.c)
 void cli_compile_inputs(const char *root, CliInputs *inputs);
 
-// the most nodes and bytes of the entries gathered and of a CMake reply read, the most projects, languages and flags
-// of one compile group, and the most bytes the database is written in
-#define CLI_GATHER_NODES (1u << 20u)
-#define CLI_GATHER_TEXT (1u << 25u)
-#define CLI_REPLY_NODES (1u << 19u)
-#define CLI_REPLY_TEXT (1u << 24u)
+// the nodes and bytes the entries gathered and a CMake reply read are begun with, doubling as they fill, the most
+// projects, languages and flags of one compile group, and the bytes the database and a compile group's flags are
+// begun to be written in, doubling as they fill
+#define CLI_GATHER_NODES_FIRST 4096u
+#define CLI_GATHER_TEXT_FIRST (1u << 18u)
 #define CLI_GATHER_PROJECTS 256u
 #define CLI_GATHER_LANGUAGES 16u
 #define CLI_GATHER_FLAGS 4096u
-#define CLI_GATHER_WRITTEN (1u << 26u)
-// the bytes a compile group's flags are begun to be written in, doubling as they fill
+#define CLI_GATHER_WRITTEN_FIRST (1u << 16u)
 #define CLI_GATHER_FLAGS_FIRST 4096u
 
 // A project's entries: its folder, when its configuration was written, and its entries in the gathered tree
@@ -97,26 +95,21 @@ typedef struct
     unsigned int entries;
 } CliProject;
 
-// A language's compiler as a CMake build gives it: its path and its id
+// A language's compiler as a CMake build gives it: its language, its path and its id, each a place among the reply
+// tree's texts, which move as the tree grows
 typedef struct
 {
-    const char *language;
-    const char *path;
-    const char *id;
+    unsigned long long language;
+    unsigned long long path;
+    unsigned long long id;
 } CliCompilerOf;
 
-// The gathering: the entries tree and the reply tree with their tokens, the projects, a compile group's flags, and the
-// database written; the trees' nodes, texts and tokens and the database written are cells of CLI_GATHER_NODES,
-// CLI_GATHER_TEXT, CLI_REPLY_NODES, CLI_REPLY_TEXT and CLI_GATHER_WRITTEN, and the flags' text a growing line, each
-// one after another with its zero after it, taken for one gathering and given back as it ends
+// The gathering: the entries tree and the reply tree, each growing in a cell of its own, the projects, a compile
+// group's flags, their text a growing line, each one after another with its zero after it, taken for one gathering
+// and given back as it ends
 typedef struct
 {
-    CliJsonNode *nodes;
-    char *text;
     CliJson json;
-    CfgJsonToken *tokens;
-    CliJsonNode *reply_nodes;
-    char *reply_text;
     CliJson reply;
     CliProject project[CLI_GATHER_PROJECTS];
     unsigned int projects;
@@ -125,7 +118,6 @@ typedef struct
     CliLine flags_text;
     unsigned int flag[CLI_GATHER_FLAGS];
     unsigned int flags;
-    char *written;
 } CliGathering;
 
 extern CliGathering g_cli_gather;

@@ -12,35 +12,21 @@ CliGathering g_cli_gather;
 // the gathering's cells given back, those it has; and taken: 1, or 0 with none kept where the cells cannot meet them
 static void gather_cells_given(void)
 {
-    cli_cell_given(g_cli_gather.written);
-    cli_cell_given(g_cli_gather.reply_text);
-    cli_cell_given(g_cli_gather.reply_nodes);
-    cli_cell_given(g_cli_gather.tokens);
-    cli_cell_given(g_cli_gather.text);
-    cli_cell_given(g_cli_gather.nodes);
+    cli_json_given(&g_cli_gather.reply);
+    cli_json_given(&g_cli_gather.json);
     cli_cell_given(g_cli_gather.flags_text.out);
     g_cli_gather.flags_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    g_cli_gather.written = NULL;
-    g_cli_gather.reply_text = NULL;
-    g_cli_gather.reply_nodes = NULL;
-    g_cli_gather.tokens = NULL;
-    g_cli_gather.text = NULL;
-    g_cli_gather.nodes = NULL;
 }
 
 static int gather_cells_taken(void)
 {
-    g_cli_gather.nodes = cli_cell_taken(CLI_GATHER_NODES * sizeof(CliJsonNode), "the compile entries' nodes");
-    g_cli_gather.text = cli_cell_taken(CLI_GATHER_TEXT, "the compile entries' texts");
-    g_cli_gather.tokens = cli_cell_taken(CLI_GATHER_NODES * sizeof(CfgJsonToken), "the compile entries' tokens");
-    g_cli_gather.reply_nodes = cli_cell_taken(CLI_REPLY_NODES * sizeof(CliJsonNode), "a CMake reply's nodes");
-    g_cli_gather.reply_text = cli_cell_taken(CLI_REPLY_TEXT, "a CMake reply's texts");
-    g_cli_gather.written = cli_cell_taken(CLI_GATHER_WRITTEN, "the compile database written");
+    const int entries = cli_json_growing(&g_cli_gather.json, CLI_GATHER_NODES_FIRST, CLI_GATHER_TEXT_FIRST,
+                                         "the compile entries gathered");
+    const int reply =
+        cli_json_growing(&g_cli_gather.reply, CLI_GATHER_NODES_FIRST, CLI_GATHER_TEXT_FIRST, "a CMake reply read");
     g_cli_gather.flags_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     const int flags = cli_line_growing(&g_cli_gather.flags_text, CLI_GATHER_FLAGS_FIRST, "a compile group's flags");
-    const int taken = (g_cli_gather.nodes != NULL) && (g_cli_gather.text != NULL) && (g_cli_gather.tokens != NULL) &&
-                      (g_cli_gather.reply_nodes != NULL) && (g_cli_gather.reply_text != NULL) &&
-                      (g_cli_gather.written != NULL) && flags;
+    const int taken = entries && reply && flags;
     if (!taken)
     {
         gather_cells_given();
@@ -144,29 +130,33 @@ static void cli_project_put(const char *project, unsigned long long time, unsign
     }
 }
 
-// the entries written where they differ from the file there
+// the entries written, in a growing line given back after, where they differ from the file there
 static void cli_written(const char *path, unsigned int entries)
 {
-    CliLine out = {g_cli_gather.written, CLI_GATHER_WRITTEN, 0ull};
-    cli_json_write(&g_cli_gather.json, entries, &out, 2u, 0);
-    if (!cli_line_fits(&out))
+    CliLine out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    if (!cli_line_growing(&out, CLI_GATHER_WRITTEN_FIRST, "the compile database written"))
     {
         return;
     }
-    unsigned long long size = 0ull;
-    const unsigned char *const there = cli_file_held(path, &size);
-    const int same = (there != NULL) && (size == out.at) &&
-                     (memor.cmp(&(MemoriaCfg){.src = there, .other = g_cli_gather.written, .bytes = size}) == 0);
-    if (there != NULL)
+    cli_json_write(&g_cli_gather.json, entries, &out, 2u, 0);
+    if (cli_line_fits(&out))
     {
-        cli_file_let_go(there, size);
+        unsigned long long size = 0ull;
+        const unsigned char *const there = cli_file_held(path, &size);
+        const int same = (there != NULL) && (size == out.at) &&
+                         (memor.cmp(&(MemoriaCfg){.src = there, .other = out.out, .bytes = size}) == 0);
+        if (there != NULL)
+        {
+            cli_file_let_go(there, size);
+        }
+        char folder[CLI_PATH_LONGEST];
+        if (!same && cli_path_parent(path, folder))
+        {
+            query_folder_made(folder);
+            query_file_written(path, out.out, out.at);
+        }
     }
-    char folder[CLI_PATH_LONGEST];
-    if (!same && cli_path_parent(path, folder))
-    {
-        query_folder_made(folder);
-        query_file_written(path, g_cli_gather.written, out.at);
-    }
+    cli_cell_given(out.out);
 }
 
 // the gathering itself, its cells taken: the database's compilers and folder
@@ -194,11 +184,9 @@ void cli_compile_gather(const char *root, const CliInputs *inputs, CliDatabase *
 static void gather_held(const char *root, const CliInputs *inputs, CliDatabase *database)
 {
     CliJson *const json = &g_cli_gather.json;
-    cli_json_begun(json, g_cli_gather.nodes, CLI_GATHER_NODES, g_cli_gather.text, CLI_GATHER_TEXT);
     if (inputs->own)
     {
-        const unsigned int own =
-            cli_compile_json_read(json, inputs->file[0].path, g_cli_gather.tokens, CLI_GATHER_NODES);
+        const unsigned int own = cli_compile_json_read(json, inputs->file[0].path);
         cli_of_entries(NULL, own, database);
         return;
     }
@@ -217,7 +205,7 @@ static void gather_held(const char *root, const CliInputs *inputs, CliDatabase *
         if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "compile_commands.json", .cap = CLI_CELLS_POOL}))
         {
             char folder[CLI_PATH_LONGEST];
-            entries = cli_compile_json_read(json, file->path, g_cli_gather.tokens, CLI_GATHER_NODES);
+            entries = cli_compile_json_read(json, file->path);
             entries = cli_json_is(json, entries, CFG_JSON_ARRAY) ? entries : cli_json_made(json, CFG_JSON_ARRAY);
             if (!cli_path_parent(file->path, folder) || !cli_path_parent(folder, project))
             {

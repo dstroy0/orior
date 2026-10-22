@@ -28,7 +28,8 @@ typedef struct
     unsigned int count;
 } CliJsonNode;
 
-// A tree: its nodes and its texts in the storage handed it, and 1 in `full` where a node or a text did not fit
+// A tree: its nodes and its texts in the storage handed it, and 1 in `full` where a node or a text did not fit; a
+// tree that grows holds both in one cell of its own, taken as `what`, and moves into a larger one as they fill
 typedef struct
 {
     CliJsonNode *node;
@@ -38,6 +39,8 @@ typedef struct
     unsigned long long used;
     unsigned long long text_most;
     int full;
+    int grows;
+    const char *what;
 } CliJson;
 
 // a tree made empty over `node`, which holds `nodes_most`, and `text`, which holds `text_most`
@@ -53,6 +56,14 @@ unsigned int cli_json_tokens_counted(const char *text, unsigned long long size);
 // a tree made empty in a cell of its own holding `nodes_most` nodes and `text_most` bytes of texts: 1, or 0 with the
 // cell refused and said and the tree holding nothing
 int cli_json_held(CliJson *json, unsigned int nodes_most, unsigned long long text_most, const char *what);
+// a tree made empty in a cell of its own that grows: `nodes_first` nodes and `text_first` bytes to begin with, and a
+// cell of twice the room taken, what it holds kept, as a node or a text does not fit: 1, or 0 with the cell refused;
+// room on the tree for `nodes` nodes and `text` bytes more, a tree that grows moved into a larger cell where they do
+// not fit: 1, or 0 with the tree full; and a tree emptied, its room kept. Every node is an index and every text a
+// place, so a tree moves whole: a pointer into a growing tree's texts is held only until the next node or text is made
+int cli_json_growing(CliJson *json, unsigned int nodes_first, unsigned long long text_first, const char *what);
+int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text);
+void cli_json_emptied(CliJson *json);
 // `size` bytes of `text` read into a tree in a cell of its own, sized to the tokens they hold and to their bytes, with
 // `nodes_more` nodes and `text_more` bytes over for what is made after: its root, or CLI_JSON_NONE with why said; and
 // the tree's cell given back, the tree left holding nothing, where it holds one or none

@@ -6,18 +6,11 @@
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
-// the most nodes and bytes of a build's reply read
-#define CLI_PROGRAM_NODES (1u << 19u)
-#define CLI_PROGRAM_TEXT (1u << 24u)
-
-// The search: the reply tree and its tokens, the folders found, the path wanted, and the best program yet with how it
-// ranks
+// The search: the reply tree, growing in a cell of its own for the search, the folders found, the path wanted, and
+// the best program yet with how it ranks
 typedef struct
 {
-    CliJsonNode nodes[CLI_PROGRAM_NODES];
-    char text[CLI_PROGRAM_TEXT];
     CliJson json;
-    CfgJsonToken tokens[CLI_PROGRAM_NODES];
     CliFoundFolders folders;
     char wanted[CLI_PATH_LONGEST];
     int found;
@@ -26,6 +19,7 @@ typedef struct
     CliProgram best;
 } CliProgramSearch;
 
+static CliProgramSearch s_kept;
 static CliProgramSearch *s_search;
 
 // a path as the search compares paths: with forward slashes, and on Windows in lower case
@@ -113,7 +107,7 @@ static unsigned int cli_reply_file(const char *reply, unsigned int node)
     }
     char path[CLI_PATH_LONGEST];
     cli_full(reply, name, path);
-    return cli_compile_json_read(&s_search->json, path, s_search->tokens, CLI_PROGRAM_NODES);
+    return cli_compile_json_read(&s_search->json, path);
 }
 
 // the executable targets of one CMake build that make `wanted` from a source, each put among those found
@@ -126,19 +120,28 @@ static void cli_cmake_programs(const char *reply)
     {
         return;
     }
-    cli_json_begun(json, s_search->nodes, CLI_PROGRAM_NODES, s_search->text, CLI_PROGRAM_TEXT);
-    const unsigned int told = cli_compile_json_read(json, index, s_search->tokens, CLI_PROGRAM_NODES);
+    cli_json_emptied(json);
+    const unsigned int told = cli_compile_json_read(json, index);
     const unsigned int answers = cli_json_member(json, told, "reply");
     const unsigned int model = cli_reply_file(reply, cli_json_member(json, answers, "codemodel-v2"));
     const unsigned int chains =
         cli_json_member(json, cli_reply_file(reply, cli_json_member(json, answers, "toolchains-v1")), "toolchains");
     const unsigned int paths = cli_json_member(json, model, "paths");
-    const char *const source = cli_string(paths, "source");
-    const char *const build = cli_string(paths, "build");
-    if ((source == NULL) || (build == NULL))
+    const char *const source_text = cli_string(paths, "source");
+    const char *const build_text = cli_string(paths, "build");
+    if ((source_text == NULL) || (build_text == NULL))
     {
         return;
     }
+    // the folders copied out of the reply, whose texts move as each target's file is read into it
+    char source[CLI_PATH_LONGEST];
+    char build[CLI_PATH_LONGEST];
+    memor.cpy(&(MemoriaCfg){.dst = source,
+                            .src = source_text,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = source_text, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = build,
+                            .src = build_text,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = build_text, .cap = CLI_CELLS_POOL}) + 1u});
     const char *named = build;
     for (const char *at = build; at[0] != '\0'; at += 1)
     {
@@ -160,7 +163,12 @@ static void cli_cmake_programs(const char *reply)
         return;
     }
     const char *const config_name = cli_string(configuration, "name");
-    const char *const config = (config_name != NULL) ? config_name : "";
+    char config[CLI_NAME_LONGEST];
+    memor.cpy(&(MemoriaCfg){.dst = config,
+                            .src = (config_name != NULL) ? config_name : "",
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = (config_name != NULL) ? config_name : "",
+                                                                   .cap = CLI_CELLS_POOL}) +
+                                     1u});
     const unsigned int targets = cli_json_member(json, configuration, "targets");
     for (unsigned int at = 0u; cli_json_item(json, targets, at) != CLI_JSON_NONE; at += 1u)
     {
@@ -293,8 +301,8 @@ static void cli_meson_programs(const char *info)
     {
         config = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : config;
     }
-    cli_json_begun(json, s_search->nodes, CLI_PROGRAM_NODES, s_search->text, CLI_PROGRAM_TEXT);
-    const unsigned int all = cli_compile_json_read(json, targets_path, s_search->tokens, CLI_PROGRAM_NODES);
+    cli_json_emptied(json);
+    const unsigned int all = cli_compile_json_read(json, targets_path);
     for (unsigned int at = 0u; cli_json_item(json, all, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int target = cli_json_item(json, all, at);
@@ -399,9 +407,11 @@ int cli_compile_db_program_of(const char *root, const char *file, CliProgram *pr
     static const char *const s_info[1] = {"meson-info"};
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
-    s_search = cli_cell_taken(sizeof(*s_search), "a search for a file's program");
-    if (s_search == NULL)
+    s_search = &s_kept;
+    if (!cli_json_growing(&s_search->json, CLI_GATHER_NODES_FIRST, CLI_GATHER_TEXT_FIRST,
+                          "a build's reply read for a program"))
     {
+        s_search = NULL;
         cli_lock_give(&s_lock);
         return 0;
     }
@@ -427,7 +437,7 @@ int cli_compile_db_program_of(const char *root, const char *file, CliProgram *pr
         *program = s_search->best;
     }
     cli_compile_found_given(&s_search->folders);
-    cli_cell_given(s_search);
+    cli_json_given(&s_search->json);
     s_search = NULL;
     cli_lock_give(&s_lock);
     return found;

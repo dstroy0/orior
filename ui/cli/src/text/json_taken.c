@@ -57,7 +57,57 @@ int cli_json_held(CliJson *json, unsigned int nodes_most, unsigned long long tex
     unsigned char *const cell = cli_cell_taken(nodes_bytes + text_most + 1ull, what);
     cli_json_begun(json, (CliJsonNode *)cell, (cell != NULL) ? nodes_most : 0u,
                    (cell != NULL) ? (char *)(cell + nodes_bytes) : NULL, (cell != NULL) ? text_most + 1ull : 0ull);
+    json->what = what;
     return cell != NULL;
+}
+
+int cli_json_growing(CliJson *json, unsigned int nodes_first, unsigned long long text_first, const char *what)
+{
+    const int held = cli_json_held(json, nodes_first, text_first, what);
+    json->grows = held;
+    return held;
+}
+
+int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
+{
+    const unsigned long long nodes_wanted = (unsigned long long)json->nodes + nodes;
+    const unsigned long long text_wanted = json->used + text;
+    if ((nodes_wanted <= json->nodes_most) && (text_wanted <= json->text_most))
+    {
+        return 1;
+    }
+    // a node's index is an unsigned int's, so a tree past one's reach is full
+    if (!json->grows || (nodes_wanted > 0xffffffffull))
+    {
+        json->full = 1;
+        return 0;
+    }
+    const unsigned long long nodes_twice = 2ull * json->nodes_most;
+    const unsigned long long text_twice = 2ull * json->text_most;
+    const unsigned int nodes_most = (unsigned int)((nodes_twice > nodes_wanted) ? nodes_twice : nodes_wanted);
+    const unsigned long long text_most = (text_twice > text_wanted) ? text_twice : text_wanted;
+    const unsigned long long nodes_bytes = (unsigned long long)nodes_most * sizeof(CliJsonNode);
+    unsigned char *const cell = cli_cell_taken(nodes_bytes + text_most, json->what);
+    if (cell == NULL)
+    {
+        json->full = 1;
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = cell, .src = json->node, .bytes = (size_t)json->nodes * sizeof(CliJsonNode)});
+    memor.cpy(&(MemoriaCfg){.dst = cell + nodes_bytes, .src = json->text, .bytes = (size_t)json->used});
+    cli_cell_given(json->node);
+    json->node = (CliJsonNode *)cell;
+    json->nodes_most = nodes_most;
+    json->text = (char *)(cell + nodes_bytes);
+    json->text_most = text_most;
+    return 1;
+}
+
+void cli_json_emptied(CliJson *json)
+{
+    json->nodes = 0u;
+    json->used = 0ull;
+    json->full = 0;
 }
 
 unsigned int cli_json_taken(CliJson *json, const char *text, unsigned long long size, unsigned int nodes_more,

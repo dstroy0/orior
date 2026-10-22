@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compile_db.c: what a look for the tree's compilation database reads with: a file and when it changed, the folders and
 // files of a name below a build, a CMake reply's newest index, a command line's words, and a JSON file read
+#include "../command_line/cells.h"
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
@@ -306,7 +307,7 @@ int cli_compile_first_word(const char *text, unsigned long long length, char *fi
     return found.found;
 }
 
-unsigned int cli_compile_json_read(CliJson *json, const char *path, CfgJsonToken *tokens, unsigned int tokens_most)
+unsigned int cli_compile_json_read(CliJson *json, const char *path)
 {
     unsigned long long size = 0ull;
     const unsigned char *const bytes = cli_file_held(path, &size);
@@ -314,9 +315,17 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path, CfgJsonToken
     {
         return CLI_JSON_NONE;
     }
-    char why[CLI_NAME_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_read(json, (const char *)bytes, size, tokens, tokens_most, &unread);
+    const unsigned int tokens_most = cli_json_tokens_counted((const char *)bytes, size) + 1u;
+    CfgJsonToken *const tokens =
+        cli_cell_taken((unsigned long long)tokens_most * sizeof(CfgJsonToken), "a compile file's tokens");
+    unsigned int root = CLI_JSON_NONE;
+    if ((tokens != NULL) && cli_json_room(json, tokens_most, size))
+    {
+        char why[CLI_NAME_LONGEST];
+        CliLine unread = {why, sizeof(why), 0ull};
+        root = cli_json_read(json, (const char *)bytes, size, tokens, tokens_most, &unread);
+    }
+    cli_cell_given(tokens);
     cli_file_let_go(bytes, size);
     return root;
 }
