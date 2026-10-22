@@ -6,53 +6,30 @@
 #include "../text/json_tree.h"
 #include "pages_internal.h"
 
-// the most units of a block of lines find reads, the most bytes of an edit's lines, and the most bytes of the matches
-// find writes
-#define CLI_PAGE_UNITS (1u << 24u)
+// the most bytes of an edit's lines, the most bytes of the matches find writes, and the bytes a reading's cell begins
+// with for an edit, find and a save, which grows to the lines read
 #define CLI_PAGE_EDIT (1u << 25u)
 #define CLI_PAGE_FOUND (1u << 24u)
+#define CLI_PAGE_LINES_FIRST (64ull * 1024ull)
 
-// The room the edits take: the lines read, the pieces kept as a replace builds them, a block's units for find and
-// their lines, and an edit's text as it is written
+// The pieces a replace keeps as it builds them: a cell of `most`, the text's pieces and the two a cut piece's parts
+// about the lines written add
 typedef struct
 {
-    CliPageLines lines;
-    CliPagePiece kept[CLI_PAGE_PIECES];
-    unsigned short unit[CLI_PAGE_UNITS];
-    unsigned long long start[CLI_PAGE_BLOCK];
-    unsigned long long length[CLI_PAGE_BLOCK];
-    char edit[CLI_PAGE_EDIT];
-} CliPageRoom;
-
-// the room, a cell taken under the pages' lock for one call and given back before the lock is
-static CliPageRoom *s_room;
-
-// the room taken: 1, or 0 with why said where the cells cannot meet it; and given back, where it was taken
-static int pages_room_taken(CliLine *said)
-{
-    s_room = cli_cell_taken(sizeof(*s_room), "the room a paged text's edits take");
-    if (s_room == NULL)
-    {
-        cli_line_text(said, "the room a paged text's edits take could not be taken");
-    }
-    return s_room != NULL;
-}
-
-static void pages_room_given(void)
-{
-    cli_cell_given(s_room);
-    s_room = NULL;
-}
+    CliPagePiece *piece;
+    unsigned int most;
+    unsigned int count;
+} CliPageKept;
 
 // a piece put after the pieces kept, one of written lines left out where it holds none
-static void cli_kept_put(unsigned int *count, CliPagePiece piece)
+static void cli_kept_put(CliPageKept *kept, CliPagePiece piece)
 {
-    if ((piece.written && (piece.lines == 0ull)) || (*count >= CLI_PAGE_PIECES))
+    if ((piece.written && (piece.lines == 0ull)) || (kept->count >= kept->most))
     {
         return;
     }
-    s_room->kept[*count] = piece;
-    *count += 1u;
+    kept->piece[kept->count] = piece;
+    kept->count += 1u;
 }
 
 // the part of a piece of `one` from `a` to before `b` of its `count` lines
@@ -67,11 +44,20 @@ static CliPagePiece cli_cut(const CliPaged *one, const CliPagePiece *piece, unsi
     return (CliPagePiece){0, piece->from + a, open ? 0ull : (piece->from + b), open, 0ull};
 }
 
-// the written lines `lines` put in place of the text's lines from `from` to before `to`
-static void cli_replaced(CliPaged *one, unsigned long long from, unsigned long long to, CliPagePiece lines)
+// the written lines `lines` put in place of the text's lines from `from` to before `to`, the pieces built in a cell
+// sized to the text's pieces and the two more a cut adds: 1, or 0 with why said where the cell is refused
+static int cli_replaced(CliPaged *one, unsigned long long from, unsigned long long to, CliPagePiece lines,
+                        CliLine *said)
 {
+    const unsigned int most = ((one->pieces + 2u) < CLI_PAGE_PIECES) ? (one->pieces + 2u) : CLI_PAGE_PIECES;
+    CliPageKept kept = {cli_cell_taken((unsigned long long)most * sizeof(CliPagePiece), "the pieces a replace keeps"),
+                        most, 0u};
+    if (kept.piece == NULL)
+    {
+        cli_line_text(said, "the pieces a replace keeps could not be taken");
+        return 0;
+    }
     const unsigned long long indexed = cli_page_indexed(one);
-    unsigned int kept = 0u;
     unsigned long long at = 0ull;
     int placed = 0;
     for (unsigned int index = 0u; index < one->pieces; index += 1u)
@@ -111,8 +97,10 @@ static void cli_replaced(CliPaged *one, unsigned long long from, unsigned long l
     {
         cli_kept_put(&kept, lines);
     }
-    memor.cpy(&(MemoriaCfg){.dst = one->piece, .src = s_room->kept, .bytes = kept * sizeof(CliPagePiece)});
-    one->pieces = kept;
+    memor.cpy(&(MemoriaCfg){.dst = one->piece, .src = kept.piece, .bytes = kept.count * sizeof(CliPagePiece)});
+    one->pieces = kept.count;
+    cli_cell_given(kept.piece);
+    return 1;
 }
 
 // the byte a col counted in UTF-16 units falls at in `length` bytes of `line`, past its end for a col past it
@@ -155,11 +143,10 @@ static CliPagePiece cli_written_put(CliPaged *one, const char *text, unsigned lo
     return (CliPagePiece){1, from, one->shadow_used, 0, lines};
 }
 
-// one edit written over the text: the lines it reaches read, the head of the first and the tail of the last kept
-// about its text, and those lines put in their place: 1, or 0 with why said
-static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliLine *said)
+// one edit written over the text: the lines it reaches read into `lines`, the head of the first and the tail of the
+// last kept about its text in a cell of their size, and those lines put in their place: 1, or 0 with why said
+static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *lines, CliLine *said)
 {
-    CliPageLines *const lines = &s_room->lines;
     const unsigned long long reach = edit->to.line + 1ull;
     if (!cli_page_lines_of(one, edit->from.line, reach, lines, said))
     {
@@ -177,25 +164,28 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliLine *said)
     const unsigned long long last_length = lines->length[lines->count - 1ull];
     const unsigned long long head = cli_byte_at(first, first_length, edit->from.col);
     const unsigned long long tail = cli_byte_at(last, last_length, edit->to.col);
-    CliLine written = {s_room->edit, sizeof(s_room->edit), 0ull};
-    cli_line_counted(&written, first, head);
-    cli_line_counted(&written, edit->text, edit->length);
-    cli_line_counted(&written, last + tail, last_length - tail);
-    cli_line_character(&written, '\n');
-    if (!cli_line_fits(&written))
+    const unsigned long long size = head + edit->length + (last_length - tail) + 1ull;
+    if (size > CLI_PAGE_EDIT)
     {
         cli_line_text(said, "the lines written over ");
         cli_line_text(said, one->key);
         cli_line_text(said, " are more than are kept");
         return 0;
     }
-    const CliPagePiece put = cli_written_put(one, s_room->edit, written.at, said);
-    if (put.lines == 0ull)
+    char *const text = cli_cell_taken(size, "an edit's lines as written");
+    if (text == NULL)
     {
+        cli_line_text(said, "an edit's lines as written could not be taken");
         return 0;
     }
-    cli_replaced(one, edit->from.line, reach, put);
-    return 1;
+    CliLine written = {text, size, 0ull};
+    cli_line_counted(&written, first, head);
+    cli_line_counted(&written, edit->text, edit->length);
+    cli_line_counted(&written, last + tail, last_length - tail);
+    cli_line_character(&written, '\n');
+    const CliPagePiece put = cli_written_put(one, text, written.at, said);
+    cli_cell_given(text);
+    return (put.lines != 0ull) && cli_replaced(one, edit->from.line, reach, put, said);
 }
 
 int cli_pages_edit(const char *key, const CliEdit *const *changes, const unsigned int *edits, unsigned int count,
@@ -203,19 +193,24 @@ int cli_pages_edit(const char *key, const CliEdit *const *changes, const unsigne
 {
     cli_lock_take(&g_cli_pages_lock);
     CliPaged *const one = cli_paged_of(key, said);
-    int written = (one != NULL) && pages_room_taken(said);
+    CliPageLines lines;
+    int written = (one != NULL) && cli_page_lines_held(&lines, 2ull, CLI_PAGE_LINES_FIRST, said);
+    const int held = written;
     for (unsigned int change = 0u; written && (change < count); change += 1u)
     {
         for (unsigned int at = edits[change]; written && (at > 0u); at -= 1u)
         {
-            written = cli_edit_written(one, &changes[change][at - 1u], said);
+            written = cli_edit_written(one, &changes[change][at - 1u], &lines, said);
         }
     }
     if (written)
     {
         cli_page_shape_written(one, out);
     }
-    pages_room_given();
+    if (held)
+    {
+        cli_page_lines_given(&lines);
+    }
     cli_lock_give(&g_cli_pages_lock);
     return written;
 }
@@ -250,12 +245,21 @@ int cli_pages_changed(const char *key, CliLine *out, CliLine *said)
     return one != NULL;
 }
 
-// the lines read made a block of UTF-16 lines for find
-static CliLines cli_block_of(const CliPageLines *lines)
+// the bytes a block of UTF-16 lines for find takes over the lines read: a unit for each byte at the most, since a
+// letter of one to three bytes is one unit and one of four bytes two, and each line's start and length
+static unsigned long long cli_block_bytes(const CliPageLines *lines)
 {
-    CliLines block = {
-        s_room->unit, CLI_PAGE_UNITS, 0ull, s_room->start, s_room->length, (unsigned int)CLI_PAGE_BLOCK, 0u, 0};
-    for (unsigned long long line = 0ull; (line < lines->count) && (line < CLI_PAGE_BLOCK); line += 1ull)
+    const unsigned long long count = (lines->count < CLI_PAGE_BLOCK) ? lines->count : CLI_PAGE_BLOCK;
+    return (lines->used * sizeof(unsigned short)) + (2ull * count * sizeof(unsigned long long));
+}
+
+// the lines read made a block of UTF-16 lines for find, in `storage` of cli_block_bytes
+static CliLines cli_block_of(const CliPageLines *lines, unsigned char *storage)
+{
+    const unsigned long long count = (lines->count < CLI_PAGE_BLOCK) ? lines->count : CLI_PAGE_BLOCK;
+    unsigned long long *const start = (unsigned long long *)(storage + (lines->used * sizeof(unsigned short)));
+    CliLines block = {(unsigned short *)storage, lines->used, 0ull, start, start + count, (unsigned int)count, 0u, 0};
+    for (unsigned long long line = 0ull; line < count; line += 1ull)
     {
         const char *const text = lines->text + lines->start[line];
         const unsigned long long size = lines->length[line];
@@ -324,20 +328,31 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
     {
         cli_line_text(said, "the matches find writes could not be taken");
     }
-    int read = (found_text != NULL) && pages_room_taken(said);
+    CliPageLines lines;
+    int read = (found_text != NULL) && cli_page_lines_held(&lines, CLI_PAGE_BLOCK, CLI_PAGE_LINES_FIRST, said);
+    const int held = read;
     const unsigned long long total = read ? cli_total(one) : 0ull;
     CliLine written = {found_text, CLI_PAGE_FOUND, 0ull};
     CliPageFound found = {&written, 0ull, 0ull};
     for (unsigned long long from = 0ull; read && (from < total) && (found.found < most);)
     {
         const unsigned long long to = ((from + CLI_PAGE_BLOCK) < total) ? (from + CLI_PAGE_BLOCK) : total;
-        read = cli_page_lines_of(one, from, to, &s_room->lines, said);
+        read = cli_page_lines_of(one, from, to, &lines, said);
+        // the block's units and lines a cell sized to the lines read, given back as the block is searched
+        unsigned char *const storage =
+            read ? cli_cell_taken(cli_block_bytes(&lines), "a block's units for find") : NULL;
+        if (read && (storage == NULL))
+        {
+            cli_line_text(said, "a block's units for find could not be taken");
+            read = 0;
+        }
         if (read)
         {
-            const CliLines block = cli_block_of(&s_room->lines);
+            const CliLines block = cli_block_of(&lines, storage);
             found.from = from;
             read = cli_document_find_each(&block, sought, most - found.found, cli_page_match, &found, said);
         }
+        cli_cell_given(storage);
         from = to;
     }
     if (read)
@@ -346,7 +361,10 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
         cli_line_counted(out, found_text, written.at);
         cli_line_character(out, ']');
     }
-    pages_room_given();
+    if (held)
+    {
+        cli_page_lines_given(&lines);
+    }
     cli_cell_given(found_text);
     cli_lock_give(&g_cli_pages_lock);
     return read;
@@ -370,7 +388,8 @@ int cli_pages_save(const char *key, CliLine *out, CliLine *said)
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }
-    if (!pages_room_taken(said))
+    CliPageLines lines;
+    if (!cli_page_lines_held(&lines, CLI_PAGE_BLOCK, CLI_PAGE_LINES_FIRST, said))
     {
         cli_lock_give(&g_cli_pages_lock);
         return 0;
@@ -382,20 +401,29 @@ int cli_pages_save(const char *key, CliLine *out, CliLine *said)
     for (unsigned long long from = 0ull; written && (from < total);)
     {
         const unsigned long long to = ((from + CLI_PAGE_BLOCK) < total) ? (from + CLI_PAGE_BLOCK) : total;
-        written = cli_page_lines_of(one, from, to, &s_room->lines, said);
-        CliLine block = {s_room->edit, sizeof(s_room->edit), 0ull};
-        for (unsigned long long at = 0ull; written && (at < s_room->lines.count); at += 1ull)
+        written = cli_page_lines_of(one, from, to, &lines, said);
+        // the block's text a cell sized to the lines read and an end of line, two bytes at the most, for each
+        const unsigned long long size = lines.used + (2ull * lines.count) + 1ull;
+        char *const text = written ? cli_cell_taken(size, "a block of lines saved") : NULL;
+        if (written && (text == NULL))
+        {
+            cli_line_text(said, "a block of lines saved could not be taken");
+            written = 0;
+        }
+        CliLine block = {text, size, 0ull};
+        for (unsigned long long at = 0ull; written && (at < lines.count); at += 1ull)
         {
             if ((from + at) > 0ull)
             {
                 cli_line_text(&block, one->eol);
             }
-            cli_line_counted(&block, s_room->lines.text + s_room->lines.start[at], s_room->lines.length[at]);
+            cli_line_counted(&block, lines.text + lines.start[at], lines.length[at]);
         }
-        written = written && cli_line_fits(&block) && cli_file_appended(beside, s_room->edit, block.at, 0);
+        written = written && cli_line_fits(&block) && cli_file_appended(beside, text, block.at, 0);
+        cli_cell_given(text);
         from = to;
     }
-    pages_room_given();
+    cli_page_lines_given(&lines);
     if (!written)
     {
         query_removed(beside);

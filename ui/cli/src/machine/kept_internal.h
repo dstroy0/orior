@@ -46,10 +46,11 @@ typedef struct
 
 // where the entry `key` is kept; the object the file at `path` holds, read as JSON with comments and trailing commas,
 // into `json`, a tree of its own sized to the file's tokens and bytes and `nodes_more` nodes and `text_more` bytes
-// over for what is put in it after, an empty one where it is not there or does not read: its root, CLI_JSON_NONE
-// where the tree's cell is refused, the tree given back with cli_json_given either way; the JSON files of `folder`
-// into `files`, by name, in order, and the cell they are held in given back; a text begun in pieces, and joined into a
-// cell of its size, the pieces given back: the cell, its size into `size`, NULL where it is not whole (kept.c)
+// over to begin with, growing past them as entries are put, an empty one where it is not there or does not read: its
+// root, CLI_JSON_NONE where the tree's cell is refused, the tree given back with cli_json_given either way; the JSON
+// files of `folder` into `files`, by name, in order, and the cell they are held in given back; a text begun in pieces,
+// and joined into a cell of its size, the pieces given back: the cell, its size into `size`, NULL where it is not
+// whole (kept.c)
 unsigned int cli_kept_place(const char *key);
 unsigned int cli_kept_map_read(CliJson *json, const char *path, unsigned int nodes_more, unsigned long long text_more);
 void cli_kept_json_files(const char *folder, CliJsonFiles *files);

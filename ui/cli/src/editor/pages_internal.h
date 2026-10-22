@@ -65,16 +65,32 @@ typedef struct CliPaged
     unsigned int pieces;
 } CliPaged;
 
-// Lines a reading of a text gives, each where it starts in the text and its bytes
+// Lines a reading of a text gives, each where it starts in the text and its bytes: one cell holding the starts, the
+// lengths and the text, sized to the lines asked and the bytes read and moved into one of twice the room as either
+// fills, up to CLI_PAGE_READ_LINES lines and CLI_PAGE_READ_TEXT bytes, past which the reading is full
 typedef struct
 {
-    char text[CLI_PAGE_READ_TEXT];
-    unsigned long long used;
-    unsigned long long start[CLI_PAGE_READ_LINES];
-    unsigned long long length[CLI_PAGE_READ_LINES];
+    unsigned char *cell;
+    unsigned long long *start;
+    unsigned long long *length;
+    unsigned long long lines_most;
     unsigned long long count;
+    char *text;
+    unsigned long long text_most;
+    unsigned long long used;
     int full;
 } CliPageLines;
+
+// the lines held in a cell of `lines_first` lines and `text_first` bytes to begin with: 1, or 0 with why said; the
+// lines emptied, their cell kept; room for `lines_more` lines and `text_more` bytes, the cell moved into one of twice
+// the room where they do not fit: 1, or 0 with the lines full; a line of `size` bytes put after the lines, the lines
+// full where it does not fit; and the cell given back (pages_lines.c)
+int cli_page_lines_held(CliPageLines *lines, unsigned long long lines_first, unsigned long long text_first,
+                        CliLine *said);
+void cli_page_lines_emptied(CliPageLines *lines);
+int cli_page_lines_room(CliPageLines *lines, unsigned long long lines_more, unsigned long long text_more);
+void cli_page_lines_put(CliPageLines *lines, const char *bytes, unsigned long long size);
+void cli_page_lines_given(CliPageLines *lines);
 
 // the first of the paged texts held and the lock they and their pieces are read and written under; and the lock every
 // index is read and written under, and its wake

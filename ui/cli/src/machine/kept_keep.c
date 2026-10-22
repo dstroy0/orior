@@ -270,9 +270,9 @@ int cli_kept_keep(const char *folder, const char *changes, unsigned long long le
         return 0;
     }
     // what the changes put in the settings or the state: each a key and an entry's text, read as JSON or kept as a
-    // string, each within the changes' own text, so twice its nodes and bytes hold them all
-    const unsigned int nodes_more = (unsigned int)(((length < CLI_KEPT_BYTES) ? length : CLI_KEPT_BYTES) * 2ull) + 2u;
-    const unsigned long long text_more = (length * 2ull) + 2ull;
+    // string; the trees grow as the entries are put, from the changes' own nodes and bytes of room over
+    const unsigned int nodes_more = given.nodes + 2u;
+    const unsigned long long text_more = length + 2ull;
     CliJson settings;
     CliJson state;
     cli_json_begun(&settings, NULL, 0u, NULL, 0ull);

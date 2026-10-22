@@ -103,11 +103,13 @@ unsigned int cli_kept_map_read(CliJson *json, const char *path, unsigned int nod
     }
     if (cli_json_is(json, root, CFG_JSON_OBJECT))
     {
+        // the tree grows as entries are put, so the room over is a first size and not a bound
+        json->grows = 1;
         return root;
     }
-    // an empty object in a tree of its own, with the room over asked for
+    // an empty object in a tree of its own, with the room over asked for to begin with
     cli_json_given(json);
-    return cli_json_held(json, nodes_more + 1u, text_more, "an empty kept file's tree")
+    return cli_json_growing(json, nodes_more + 1u, text_more, "an empty kept file's tree")
                ? cli_json_made(json, CFG_JSON_OBJECT)
                : CLI_JSON_NONE;
 }

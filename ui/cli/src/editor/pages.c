@@ -6,9 +6,11 @@
 #include "../text/json_tree.h"
 #include "pages_internal.h"
 
-// how many bytes the index reads at a time, and how many of a file's first bytes tell its end of line
+// how many bytes the index reads at a time, how many of a file's first bytes tell its end of line, and the bytes a
+// reading's cell begins with for each line asked
 #define CLI_PAGE_CHUNK (1ull << 20u)
 #define CLI_PAGE_HEAD (64ull * 1024ull)
+#define CLI_PAGE_LINE_GUESS 64ull
 
 CliPaged *g_cli_paged = NULL;
 CliLock g_cli_pages_lock = CLI_LOCK_INIT;
@@ -258,21 +260,6 @@ int cli_pages_shape(const char *key, CliLine *out, CliLine *said)
     return one != NULL;
 }
 
-// a line put after the lines read
-static void cli_line_put(CliPageLines *lines, const char *bytes, unsigned long long size)
-{
-    if ((lines->count >= CLI_PAGE_READ_LINES) || ((lines->used + size) > CLI_PAGE_READ_TEXT))
-    {
-        lines->full = 1;
-        return;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = lines->text + lines->used, .src = bytes, .bytes = size});
-    lines->start[lines->count] = lines->used;
-    lines->length[lines->count] = size;
-    lines->used += size;
-    lines->count += 1ull;
-}
-
 // the file's lines from `from` to before `to`, read from the disk from the nearest line the index holds before
 // `from`, put after the lines read, as many as asked, empty past the file's end: 1, or 0 with why said
 static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long long to, CliPageLines *lines,
@@ -345,15 +332,15 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
         unsigned long long length = end - at;
         length -= ((newline != NULL) && (length > 0ull) && (bytes[end - 1ull] == '\r')) ? 1ull : 0ull;
         const unsigned long long read = (newline != NULL) ? (end - at + 1ull) : (size - at);
-        if ((line >= from) && (lines->count < CLI_PAGE_READ_LINES))
+        // the line read as UTF-8, each byte that starts no whole letter as U+FFFD, three bytes, straight after the
+        // lines read, the room for it made first
+        if ((line >= from) && !lines->full && cli_page_lines_room(lines, 1ull, 3ull * length))
         {
-            // the line read as UTF-8, each byte that starts no whole letter as U+FFFD, straight after the lines read
-            CliLine lossy = {lines->text + lines->used, CLI_PAGE_READ_TEXT - lines->used, 0ull};
+            CliLine lossy = {lines->text + lines->used, lines->text_most - lines->used, 0ull};
             cli_lossy(&lossy, bytes + at, length);
-            lines->full = lines->full || !cli_line_fits(&lossy);
             lines->start[lines->count] = lines->used;
-            lines->length[lines->count] = cli_line_fits(&lossy) ? lossy.at : 0ull;
-            lines->used += lines->length[lines->count];
+            lines->length[lines->count] = lossy.at;
+            lines->used += lossy.at;
             lines->count += 1ull;
         }
         at = (newline != NULL) ? (end + 1ull) : size;
@@ -363,13 +350,9 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
         }
     }
     cli_file_let_go(bytes, size);
-    while ((lines->count - first) < (to - from))
+    while (((lines->count - first) < (to - from)) && !lines->full)
     {
-        cli_line_put(lines, "", 0ull);
-        if (lines->full)
-        {
-            break;
-        }
+        cli_page_lines_put(lines, "", 0ull);
     }
     return 1;
 }
@@ -398,7 +381,7 @@ static int cli_written_lines(const CliPaged *one, const CliPagePiece *piece, uns
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
         if (line >= skip)
         {
-            cli_line_put(lines, (const char *)bytes + at, end - at);
+            cli_page_lines_put(lines, (const char *)bytes + at, end - at);
         }
         at = (end < size) ? (end + 1ull) : size;
     }
@@ -408,9 +391,7 @@ static int cli_written_lines(const CliPaged *one, const CliPagePiece *piece, uns
 
 int cli_page_lines_of(CliPaged *one, unsigned long long from, unsigned long long to, CliPageLines *lines, CliLine *said)
 {
-    lines->used = 0ull;
-    lines->count = 0ull;
-    lines->full = 0;
+    cli_page_lines_emptied(lines);
     const unsigned long long indexed = cli_page_indexed(one);
     unsigned long long at = 0ull;
     for (unsigned int index = 0u; index < one->pieces; index += 1u)
@@ -467,27 +448,28 @@ int cli_pages_read(const char *key, unsigned long long from, unsigned long long 
         }
         query_paused(10u);
     }
-    CliPageLines *const lines = cli_cell_taken(sizeof(*lines), "the lines a reading gives");
-    if (lines == NULL)
+    // the lines' cell begins at the lines asked and CLI_PAGE_LINE_GUESS bytes for each, and grows to what is read
+    const unsigned long long asked = (to > from) ? (to - from) : 1ull;
+    CliPageLines lines;
+    if (!cli_page_lines_held(&lines, asked, asked * CLI_PAGE_LINE_GUESS, said))
     {
-        cli_line_text(said, "the lines a reading gives could not be taken");
         return 0;
     }
     cli_lock_take(&g_cli_pages_lock);
     CliPaged *const one = cli_paged_of(key, said);
-    const int read = (one != NULL) && cli_page_lines_of(one, from, to, lines, said);
+    const int read = (one != NULL) && cli_page_lines_of(one, from, to, &lines, said);
     if (read)
     {
         cli_line_character(out, '[');
-        for (unsigned long long at = 0ull; at < lines->count; at += 1ull)
+        for (unsigned long long at = 0ull; at < lines.count; at += 1ull)
         {
             cli_line_text(out, (at != 0ull) ? "," : "");
-            cli_json_quoted(out, lines->text + lines->start[at], lines->length[at]);
+            cli_json_quoted(out, lines.text + lines.start[at], lines.length[at]);
         }
         cli_line_character(out, ']');
     }
     cli_lock_give(&g_cli_pages_lock);
-    cli_cell_given(lines);
+    cli_page_lines_given(&lines);
     return read;
 }
 
