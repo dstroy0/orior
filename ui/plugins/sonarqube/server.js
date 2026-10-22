@@ -69,9 +69,14 @@ const MESSAGE_KINDS = { 1: "Error", 2: "Warning", 3: "Info", 4: "Log", 5: "Debug
 
 orior.server.on("window/logMessage", ({ type, message }) => logged(`${MESSAGE_KINDS[type] ?? "Log"}: ${message}`));
 
+// A message the server shows goes to the log, and an error opens the panel as well: the server tells
+// of its connections and its status as it starts, which is the log's to hold and not the reader's to
+// dismiss.
 orior.server.on("window/showMessage", async ({ type, message }) => {
   logged(`${MESSAGE_KINDS[type] ?? "Info"}: ${message}`);
-  await shown("ask", `<p${type === 1 ? ' class="fail"' : ""}>${escaped(message)}</p>`);
+  if (type === 1) {
+    await shown("ask", `<p class="fail">${escaped(message)}</p>`);
+  }
 });
 
 // The answers waited for of questions shown, by the question's number.
