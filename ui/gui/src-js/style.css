@@ -981,6 +981,12 @@ body[data-claim][data-reveal="top"] .window-controls {
   background: var(--ed-error);
 }
 
+/* The bell's dot stands a rung down from the signal, more than a third dimmer, since it waits in the
+   bar rather than calling from it. */
+.bar-tool.unread::after {
+  background: color-mix(in srgb, var(--bar-signal) 55%, var(--ink));
+}
+
 /* The icons: lines of one weight with round ends, in the color of what holds them. */
 .glyph {
   width: 18px;
@@ -7135,10 +7141,26 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   gap: 0.5rem;
 }
 
+/* The slider's track is drawn here, not the system's: the part up to the thumb in the signal and the
+   rest a dim line a rung above the ground, so the unset part does not outshine the text about it. */
 .prefs-opacity-slider {
   flex: 1;
   min-width: 0;
-  accent-color: var(--signal);
+  appearance: none;
+  height: 4px;
+  margin: 0.6rem 0;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--signal) calc(var(--share, 0) * 1%), var(--line) 0);
+  outline-offset: 6px;
+}
+
+.prefs-opacity-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--signal);
 }
 
 .prefs-opacity-said {

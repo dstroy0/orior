@@ -595,9 +595,12 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     for (const setting of OPACITY_SETTINGS) {
       const slider = element("input", { type: "range", className: "prefs-opacity-slider", min: String(OPACITY_STEPS[0]), max: String(OPACITY_STEPS.at(-1)), step: String(OPACITY_STEPS[1] - OPACITY_STEPS[0]), value: String(opacity(setting)), ariaLabel: setting.label });
       const said = element("span", { className: "prefs-opacity-said", textContent: `${opacity(setting)}%` });
+      // the share the slider stands at, for the track's fill to stop at
+      slider.style.setProperty("--share", slider.value);
       slider.addEventListener("input", () => {
         setOpacity(setting, Number(slider.value));
         said.textContent = `${slider.value}%`;
+        slider.style.setProperty("--share", slider.value);
       });
       rows.push(element("label", { className: "report-row" }, element("span", { textContent: setting.label }), element("span", { className: "prefs-opacity" }, slider, said)));
     }
