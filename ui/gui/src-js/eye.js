@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The eye the app shows while it loads. It opens once, from a low slit to wide over OPENING
-// seconds, and its lids hold still from then on. Once it is open its iris divides, and divides again,
-// and it rolls and stares.
+// seconds, and its lids hold still from then on. Once it is open its iris divides, and divides again;
+// it follows the pointer for FOLLOWS seconds, and from then on it rolls and stares.
 //
 // The opening is an almond, pointed at both corners, between heavy dark lids. A shadowy purple
 // plasma burns all round it: a smooth glowing rim along both lids, and tongues that rise from the
@@ -837,12 +837,25 @@ function drawEye(pen, width, height, state) {
   drawPlasma(size, lid, state, smooth(Math.max(0, Math.min(1, (state.open - OPEN_FROM) / (1 - OPEN_FROM)))));
 }
 
-// Once open, the eye rolls and stares by turns. A roll carries the gaze round a loop at ROLL
-// radians a second, one way or the other, for ROLLS seconds; a stare snaps it to the middle, straight
-// at the reader, for STARES seconds. Each is a span from the first number to the second.
+// Once open, the eye follows the pointer for FOLLOWS seconds: its gaze turns to where the pointer
+// stands over the eye, as far as the eye turns, closing FOLLOW of the gap a second, and to the
+// middle while the pointer is off the window. Then it rolls and stares by turns. A roll carries the
+// gaze round a loop at ROLL radians a second, one way or the other, for ROLLS seconds; a stare snaps
+// it to the middle, straight at the reader, for STARES seconds. Each is a span from the first number
+// to the second.
+const FOLLOWS = 8;
+const FOLLOW = 14;
 const ROLL = 3;
 const ROLLS = [1.6, 2.8];
 const STARES = [0.8, 1.6];
+
+// The gaze that looks at the pointer at (x, y) in a canvas of this size: across and down from the
+// eye's middle in parts of its half width and half height, each held within -1 and 1.
+function gazeAt(x, y, width, height) {
+  const { cx, cy, a, b } = placeOf(width, height);
+  const held = (part) => Math.max(-1, Math.min(1, part));
+  return [held((x - cx) / a), held((y - cy) / b)];
+}
 
 // The plasma's canvas holds LIT of the screen's pixels and is stretched over the eye. Its light is
 // soft, and the GPU fills fewer pixels a frame.
@@ -876,9 +889,10 @@ export function startEye(canvas) {
   let front = [0, 0, 1];
   let divideAt = DIVIDE_FROM;
   let rolling = false;
+  let following = true;
   let way = 1;
   let loop = 0;
-  let turnAt = OPENING + 0.4;
+  let turnAt = OPENING + FOLLOWS;
   let last = clock();
   const begun = last;
   let frame = 0;
@@ -927,6 +941,7 @@ export function startEye(canvas) {
     grow(state.irises, seconds);
 
     if (seconds > turnAt) {
+      following = false;
       rolling = !rolling;
       way = draw() < 0.5 ? -1 : 1;
       const span = rolling ? ROLLS : STARES;
@@ -936,8 +951,10 @@ export function startEye(canvas) {
     if (rolling) {
       loop += way * ROLL * dt;
       aim = [Math.cos(loop) * 0.95, Math.sin(loop) * 0.85];
+    } else if (following && state.mouse) {
+      aim = gazeAt(state.mouse[0], state.mouse[1], box.width, box.height);
     }
-    const pull = 1 - Math.exp(-dt * (rolling ? 10 : 24));
+    const pull = 1 - Math.exp(-dt * (rolling ? 10 : following ? FOLLOW : 24));
     state.gaze = state.gaze.map((g, at) => g + (aim[at] - g) * pull);
     state.shine += ((rolling ? DIM : 1) - state.shine) * (1 - Math.exp(-dt * GLINT));
 

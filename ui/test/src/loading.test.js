@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { hideLoading, showLoading } from "../../gui/src-js/loading.js";
+import { FADE, hideLoading, killLoading, SHORTEST, showLoading } from "../../gui/src-js/loading.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -20,19 +20,32 @@ test("the pane shows the eye over the lattice, and stays at least its shortest t
   const started = performance.now();
   await hideLoading();
   const took = performance.now() - started;
-  assert.ok(took >= 900 + 350 - 20, `the pane stayed ${Math.round(took)} ms`);
+  assert.ok(took >= SHORTEST + FADE - 20, `the pane stayed ${Math.round(took)} ms`);
   assert.equal(pane().hidden, true);
   assert.equal(pane().dataset.leaving, "true");
 });
 
 test("a pane shown longer than its shortest time leaves after its fade alone", async () => {
   showLoading();
-  await ui.rest(1000);
+  await ui.rest(SHORTEST + 100);
   const started = performance.now();
   await hideLoading();
   const took = performance.now() - started;
-  assert.ok(took >= 330 && took < 900, `it left in ${Math.round(took)} ms`);
+  assert.ok(took >= FADE - 20 && took < SHORTEST, `it left in ${Math.round(took)} ms`);
   assert.equal(pane().hidden, true);
+});
+
+test("a pane killed in its wait is gone at once, and the hide it was in ends", async () => {
+  showLoading();
+  const started = performance.now();
+  const hiding = hideLoading();
+  await ui.rest(100);
+  killLoading();
+  await hiding;
+  const took = performance.now() - started;
+  assert.ok(took < SHORTEST, `it ended in ${Math.round(took)} ms`);
+  assert.equal(pane().hidden, true);
+  assert.equal(pane().dataset.leaving, "true");
 });
 
 test("showing it again while it shows starts one eye in place of the other", async () => {
