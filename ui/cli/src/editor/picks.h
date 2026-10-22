@@ -9,13 +9,12 @@
 
 #include "../command_line/cli_internal.h"
 
-// the most lists held at once, the most rows of them all, and the most bytes of their texts
+// the most lists held at once
 #define CLI_PICKS_LISTS 64u
-#define CLI_PICKS_ROWS (1u << 20u)
-#define CLI_PICKS_TEXT (1u << 25u)
 
-// the rows of `length` bytes of `texts`, one to a line, held: the number they are held by, from 1, or 0 where they
-// do not fit beside the lists held; the list held by `id` let go; and the rows of the list held by `id` that answer
+// the rows of `length` bytes of `texts`, one to a line, held in a cell of their size: the number they are held by,
+// from 1, or 0 where the lists held are already the most or no cell is left; the list held by `id` let go; and the
+// rows of the list held by `id` that answer
 // `query`, at most `most` of them, the best first and rows that score alike in the list's order, with no query its
 // first `most` rows, written as `[{"at", "score", "hits"}]`: 1, or 0 with why said where no list is held by `id`
 unsigned long long cli_picks_hold(const char *texts, unsigned long long length);
