@@ -283,6 +283,17 @@ static int cells_said(const CliServeArgs *args, CliLine *out, CliLine *said)
     return 1;
 }
 
+// every module's count of the cells it holds, for the audit of the cellblock
+static int cells_tallies(const CliServeArgs *args, CliLine *out, CliLine *said)
+{
+    (void)args;
+    (void)said;
+    cli_line_text(out, "{\"tallies\":");
+    cli_cells_tallies_written(out);
+    cli_line_character(out, '}');
+    return 1;
+}
+
 static int qry_window(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     (void)args;
@@ -455,6 +466,7 @@ const CliServeCall g_cli_serve_run_calls[] = {
     {"cores_keep", cores_keep},
     {"qry_window", qry_window},
     {"cells_said", cells_said},
+    {"cells_tallies", cells_tallies},
     {"qry_joined", qry_joined},
     {"tests_found", tests_found},
     {"tests_run", tests_run},

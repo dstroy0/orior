@@ -26,17 +26,19 @@ extern "C"
 #define CLI_CELLS_POOL ((256ull << 20u) + (32ull << 20u))
 
     // A module's own count of the cells it holds: its name as its report is told, the bytes it holds now, its mark of
-    // the most it held at once, and that mark as last told. Read and raised under the cellblock's lock
+    // the most it held at once, that mark as last told, and whether it stands among the tallies listed, which it
+    // joins at its first take. Read and raised under the cellblock's lock
     typedef struct
     {
         const char *name;
         unsigned long long holds;
         unsigned long long hw;
         unsigned long long told;
+        int listed;
     } CliCellsTally;
 
 // a module's count, holding nothing yet, its report told as `name_`
-#define CLI_CELLS_TALLY(name_) {(name_), 0ull, 0ull, 0ull}
+#define CLI_CELLS_TALLY(name_) {(name_), 0ull, 0ull, 0ull, 0}
 
     // a cell of `bytes` for `what`, from the persistent end: its first byte, on a CLI_CELL_ALIGN boundary, or NULL,
     // said, where the cellblock cannot meet it; and a cell given back, NULL given back as nothing
@@ -61,6 +63,9 @@ extern "C"
     // `<pool's bytes> <its mark> 0`, read off its count
     void cli_cells_said(CliLine *out);
     void cli_cells_tally_said(const CliCellsTally *tally, CliLine *out);
+    // every module's count that has taken a cell, as JSON, `[{"name", "holds", "hw"}...]`, in the order of their first
+    // takes: the audit of who holds what in the cellblock
+    void cli_cells_tallies_written(CliLine *out);
 
     // a report appended as the record `cells/<name>` to the run this process is a member of, and nothing where it is a
     // member of none

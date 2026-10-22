@@ -47,6 +47,57 @@ static CliLock s_lock = CLI_LOCK_INIT;
 
 // the cellblock's two peaks together as last told
 static unsigned long long s_told;
+// the most modules whose counts are listed, and the counts listed, each at its first take, in that order
+#define CLI_CELLS_TALLIES 128u
+static CliCellsTally *s_tallies[CLI_CELLS_TALLIES];
+static unsigned int s_tally_count;
+
+// What cells are taken for, each text by its address: the bytes held under it now and the most at once. The texts
+// are the literals each take names, found by their addresses in a table of CLI_CELLS_WHATS places, probed in turn
+// from the address's own; a text past the table's room is not counted
+typedef struct
+{
+    const char *what;
+    unsigned long long holds;
+    unsigned long long hw;
+} CliCellsWhat;
+
+#define CLI_CELLS_WHATS 1024u
+static CliCellsWhat s_whats[CLI_CELLS_WHATS];
+static unsigned int s_what_count;
+
+static void cells_hw(unsigned long long *hw, unsigned long long used);
+
+// `bytes` added to the count of `what` where `taken`, else taken off it; under the lock
+static void cells_what_counted(const char *what, unsigned long long bytes, int taken)
+{
+    if (what == NULL)
+    {
+        return;
+    }
+    // the address, a pointer's width in uintptr_t, probed from its own place in the table
+    unsigned int at = (unsigned int)(((uintptr_t)what >> 4u) % CLI_CELLS_WHATS);
+    for (unsigned int probed = 0u; probed < CLI_CELLS_WHATS; probed += 1u)
+    {
+        CliCellsWhat *const one = &s_whats[at];
+        if (one->what == NULL)
+        {
+            if (!taken || (s_what_count + 1u >= CLI_CELLS_WHATS))
+            {
+                return;
+            }
+            one->what = what;
+            s_what_count += 1u;
+        }
+        if (one->what == what)
+        {
+            one->holds = taken ? one->holds + bytes : ((one->holds > bytes) ? one->holds - bytes : 0ull);
+            cells_hw(&one->hw, one->holds);
+            return;
+        }
+        at = (at + 1u) % CLI_CELLS_WHATS;
+    }
+}
 
 // a report, `<pool's bytes> <persistent> <temporary>`, written into `out`
 static void cells_written(CliLine *out, unsigned long long persistent, unsigned long long temporary)
@@ -138,6 +189,46 @@ void cli_cells_tally_said(const CliCellsTally *tally, CliLine *out)
     cells_written(out, hw, 0ull);
 }
 
+void cli_cells_tallies_written(CliLine *out)
+{
+    cli_line_character(out, '[');
+    cli_lock_take(&s_lock);
+    for (unsigned int at = 0u; at < s_tally_count; at += 1u)
+    {
+        const CliCellsTally *const tally = s_tallies[at];
+        cli_line_text(out, (at != 0u) ? ",{\"name\":\"" : "{\"name\":\"");
+        cli_line_text(out, tally->name);
+        cli_line_text(out, "\",\"holds\":");
+        cli_line_decimal(out, tally->holds, 1u);
+        cli_line_text(out, ",\"hw\":");
+        cli_line_decimal(out, tally->hw, 1u);
+        cli_line_character(out, '}');
+    }
+    // and each purpose cells were taken for, by the text its takes name
+    int written = s_tally_count != 0u;
+    for (unsigned int at = 0u; at < CLI_CELLS_WHATS; at += 1u)
+    {
+        const CliCellsWhat *const one = &s_whats[at];
+        if (one->what == NULL)
+        {
+            continue;
+        }
+        cli_line_text(out, written ? ",{\"name\":" : "{\"name\":");
+        // the texts are the literals the takes name, with no quote nor backslash in them
+        cli_line_character(out, '"');
+        cli_line_text(out, one->what);
+        cli_line_character(out, '"');
+        cli_line_text(out, ",\"holds\":");
+        cli_line_decimal(out, one->holds, 1u);
+        cli_line_text(out, ",\"hw\":");
+        cli_line_decimal(out, one->hw, 1u);
+        cli_line_character(out, '}');
+        written = 1;
+    }
+    cli_lock_give(&s_lock);
+    cli_line_character(out, ']');
+}
+
 // a cell of `bytes` for `what`, counted to `tally` where it is given, and the reports told whose marks rose a step
 static void *cells_taken(CliCellsTally *tally, unsigned long long bytes, const char *what)
 {
@@ -159,6 +250,12 @@ static void *cells_taken(CliCellsTally *tally, unsigned long long bytes, const c
             cells_hw(&tally->hw, tally->holds);
             tally_rose = cells_risen(&tally->told, tally->hw);
             tally_hw = tally->hw;
+            if (!tally->listed && (s_tally_count < CLI_CELLS_TALLIES))
+            {
+                s_tallies[s_tally_count] = tally;
+                s_tally_count += 1u;
+                tally->listed = 1;
+            }
         }
     }
     cli_lock_give(&s_lock);
@@ -188,18 +285,22 @@ static void *cells_taken(CliCellsTally *tally, unsigned long long bytes, const c
         return NULL;
     }
     // the start moves up to the second boundary past the cell's first byte, CLI_CELL_ALIGN + 1 to twice that, the
-    // byte ahead of the start holding how far and the word 16 bytes ahead the cell's bytes; an address is a pointer's
-    // width, which uintptr_t holds
+    // byte ahead of the start holding how far, the word 16 bytes ahead the cell's bytes and the word 24 bytes ahead
+    // what it was taken for; an address is a pointer's width, which uintptr_t holds
     const uintptr_t at = (uintptr_t)cell;
     const uintptr_t aligned = (at + (2u * CLI_CELL_ALIGN)) & ~(uintptr_t)(CLI_CELL_ALIGN - 1u);
     unsigned char *const start = cell + (aligned - at);
     // the distance is CLI_CELL_ALIGN + 1 to twice that, which the assertion above holds within a byte
     start[-1] = (unsigned char)(aligned - at);
     memor.cpy(&(MemoriaCfg){.dst = start - 16, .src = &bytes, .bytes = sizeof(bytes)});
+    memor.cpy(&(MemoriaCfg){.dst = start - 24, .src = &what, .bytes = sizeof(what)});
+    cli_lock_take(&s_lock);
+    cells_what_counted(what, bytes, 1);
+    cli_lock_give(&s_lock);
     return start;
 }
 
-// a cell given back, its bytes taken off `tally` where it is given
+// a cell given back, its bytes taken off `tally` where it is given, and off the count of what it was taken for
 static void cells_given(CliCellsTally *tally, void *cell)
 {
     if (cell == NULL)
@@ -209,13 +310,16 @@ static void cells_given(CliCellsTally *tally, void *cell)
     unsigned char *const start = cell;
     unsigned char *const first = start - start[-1];
     unsigned long long bytes = 0ull;
+    const char *what = NULL;
     memor.cpy(&(MemoriaCfg){.dst = &bytes, .src = start - 16, .bytes = sizeof(bytes)});
+    memor.cpy(&(MemoriaCfg){.dst = &what, .src = start - 24, .bytes = sizeof(what)});
     cli_lock_take(&s_lock);
     cli_cells_site.cli_cells_pool.persistent_buf_release(first);
     if (tally != NULL)
     {
         tally->holds -= bytes;
     }
+    cells_what_counted(what, bytes, 0);
     cli_lock_give(&s_lock);
 }
 

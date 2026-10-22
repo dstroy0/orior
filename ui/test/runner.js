@@ -291,18 +291,21 @@
   // memory.tsv beside the run's report: the test, the bytes in RAM and reserved over every process,
   // the app's own process's, the cellblock's pool and its two peaks, and the share of the app's
   // reserved bytes the pool accounts for.
-  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted"];
+  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\ttallies"];
   async function memorySampled(name) {
     const { invoke } = await import(`${location.origin}/bridge.js`);
     const read = await invoke("memory_use").catch(() => null);
     const cells = await invoke("cells_said").catch(() => null);
+    // the three modules holding the most at their peaks, each as name:bytes, for the audit of who holds what
+    const listed = await invoke("cells_tallies").catch(() => null);
+    const tallies = (listed?.tallies ?? []).sort((a, b) => b.hw - a.hw).slice(0, 3).map((one) => `${one.name}:${one.hw}`).join(",");
     const home = harness.servers?.ORIOR_TEST_HOME;
     if (!read || !cells || !home) {
       return;
     }
     const own = read.parts[0] ?? { working: 0, commit: 0 };
     const accounted = own.commit > 0 ? (cells.pool / own.commit).toFixed(3) : "";
-    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted].join("\t"));
+    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, tallies].join("\t"));
     await invoke("file_write_any", { path: `${String(home).replace(/\\/g, "/")}/../memory.tsv`, text: `${memoryRows.join("\n")}\n` }).catch(() => {});
   }
 
