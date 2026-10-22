@@ -160,6 +160,7 @@ int cli_replay_held(void)
         if (g_cli_replay != NULL)
         {
             memor.set(&(MemoriaCfg){.dst = g_cli_replay, .val = 0, .bytes = sizeof(CliReplay)});
+            cli_recording_let_go();
         }
     }
     return g_cli_replay != NULL;

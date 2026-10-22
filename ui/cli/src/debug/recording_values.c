@@ -103,7 +103,7 @@ unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecor
     const CliRecording *const recording = &g_cli_replay->recording;
     CliRecordedHeld held = {NULL, 0u, most, 0u};
     *taken = NULL;
-    if (serial >= CLI_RECORDING_FRAMES)
+    if (serial >= recording->frame_most)
     {
         return 0u;
     }
@@ -138,15 +138,15 @@ unsigned int cli_recording_stack(unsigned int at, unsigned int (*frames)[2], uns
     while ((serial != 0u) && (count < 512u) && (count < room))
     {
         const unsigned int step = cli_recording_last_of(serial, at);
-        if (step == CLI_RECORDING_STEPS)
+        if (step == CLI_RECORDING_NO_STEP)
         {
             break;
         }
         frames[count][0] = serial;
         frames[count][1] = step;
         count += 1u;
-        serial =
-            ((serial < CLI_RECORDING_FRAMES) && recording->frames[serial].seen) ? recording->frames[serial].parent : 0u;
+        serial = ((serial < recording->frame_most) && recording->frames[serial].seen) ? recording->frames[serial].parent
+                                                                                      : 0u;
     }
     return count;
 }
@@ -177,7 +177,7 @@ void cli_recording_history(unsigned int serial, const char *name,
                            void *context)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    if (serial >= CLI_RECORDING_FRAMES)
+    if (serial >= recording->frame_most)
     {
         return;
     }

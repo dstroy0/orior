@@ -49,7 +49,7 @@ void cli_replay_full(const char *relative, char *full)
 const char *cli_replay_file_of(unsigned int serial)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    const CliRecordedFrame *const frame = (serial < CLI_RECORDING_FRAMES) ? &recording->frames[serial] : NULL;
+    const CliRecordedFrame *const frame = (serial < recording->frame_most) ? &recording->frames[serial] : NULL;
     return ((frame != NULL) && frame->seen && (frame->file < recording->file_count))
                ? cli_recording_name(recording->files[frame->file])
                : "";
@@ -60,7 +60,7 @@ unsigned int cli_replay_thread_of(unsigned int step)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
     const unsigned int serial = recording->steps[step].frame;
-    return ((serial < CLI_RECORDING_FRAMES) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
+    return ((serial < recording->frame_most) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
 }
 
 // the thread the replay stands on
@@ -72,9 +72,9 @@ unsigned int cli_replay_thread(void)
 unsigned int cli_recording_last_of(unsigned int serial, unsigned int at)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    if ((serial >= CLI_RECORDING_FRAMES) || (recording->frames[serial].count == 0u))
+    if ((serial >= recording->frame_most) || (recording->frames[serial].count == 0u))
     {
-        return CLI_RECORDING_STEPS;
+        return CLI_RECORDING_NO_STEP;
     }
     const CliRecordedFrame *const frame = &recording->frames[serial];
     unsigned int low = 0u;
@@ -91,7 +91,7 @@ unsigned int cli_recording_last_of(unsigned int serial, unsigned int at)
             high = middle;
         }
     }
-    return (low == 0u) ? CLI_RECORDING_STEPS : recording->by_frame[frame->first + low - 1u];
+    return (low == 0u) ? CLI_RECORDING_NO_STEP : recording->by_frame[frame->first + low - 1u];
 }
 
 int cli_replay_at_breakpoint(unsigned int step)

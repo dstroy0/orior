@@ -8,17 +8,13 @@
 #include "../text/json_tree.h"
 #include "recording.h"
 
-// the most steps, frames, files, threads and raises a recording holds, the bytes their names take, the threads whose
-// stacks are followed as it is read and the depth of each, and the files and lines breakpoints are set at
-#define CLI_RECORDING_STEPS (1u << 20u)
-#define CLI_RECORDING_FRAMES (1u << 19u)
-#define CLI_RECORDING_FILES 65536u
+// the threads whose stacks are followed as a recording is read and the depth of each, the files and lines
+// breakpoints are set at, and no step: a frame's last step where it has none, and a step asked for that is none
 #define CLI_RECORDING_THREADS 256u
-#define CLI_RECORDING_RAISED 65536u
-#define CLI_RECORDING_TEXT (1u << 24u)
 #define CLI_RECORDING_DEPTH 4096u
 #define CLI_RECORDING_BREAK_FILES 256u
 #define CLI_RECORDING_BREAK_LINES 4096u
+#define CLI_RECORDING_NO_STEP 0xffffffffu
 
 // A step of the recording: where its line record starts in the recording's text, its frame, its line, and how deep
 // its frame stood
@@ -54,25 +50,34 @@ typedef struct
 
 // A recorded run, read from the recorder's lines in its file, which is kept mapped as it is read from: its steps, its
 // frames by number, its steps by frame, its files, threads and raises, the names they take, the program's exit code,
-// and whether the recording stopped short of the run's end
+// and whether the recording stopped short of the run's end. The steps, frames, files, threads, raises and names are
+// parts of one cell, `room`, sized by a count of the file's lines by kind before they are read, and given back with
+// the recording; each part's `most` is what the count found
 typedef struct
 {
     char path[CLI_PATH_LONGEST];
     const char *text;
     unsigned long long size;
-    CliRecordedStep steps[CLI_RECORDING_STEPS];
+    void *room;
+    CliRecordedStep *steps;
     unsigned int step_count;
-    CliRecordedFrame frames[CLI_RECORDING_FRAMES];
-    unsigned int by_frame[CLI_RECORDING_STEPS];
-    unsigned int files[CLI_RECORDING_FILES];
+    unsigned int step_most;
+    CliRecordedFrame *frames;
+    unsigned int frame_most;
+    unsigned int *by_frame;
+    unsigned int *files;
     unsigned int file_count;
-    unsigned long long thread_ids[CLI_RECORDING_THREADS];
-    unsigned int thread_names[CLI_RECORDING_THREADS];
+    unsigned int file_most;
+    unsigned long long *thread_ids;
+    unsigned int *thread_names;
     unsigned int thread_count;
-    CliRecordedRaise raised[CLI_RECORDING_RAISED];
+    unsigned int thread_most;
+    CliRecordedRaise *raised;
     unsigned int raised_count;
-    char names[CLI_RECORDING_TEXT];
+    unsigned int raised_most;
+    char *names;
     unsigned int used;
+    unsigned long long names_most;
     int has_code;
     long long code;
     int cut;
@@ -112,7 +117,7 @@ int cli_replay_held(void);
 extern const char g_cli_recording_shim[];
 
 // the recording the recorder wrote at `path` read into the replay's, the file kept until the next is read; the
-// recording let go; a text of its names; the last step of frame `serial` at or before step `at`, CLI_RECORDING_STEPS
+// recording let go; a text of its names; the last step of frame `serial` at or before step `at`, CLI_RECORDING_NO_STEP
 // for none; the values of frame `serial`'s names as step `at` was about to run, by name, `most` of them at the most, in
 // a cell of their count into `taken`, given back with cli_cell_given: their count; the frames standing at step `at`,
 // the innermost first, each frame's number and the step of its line then: their count; and each step where `name` of

@@ -81,7 +81,7 @@ static void answer_variables(const CliJson *json, unsigned int arguments, CliLin
 {
     unsigned long long serial = 0ull;
     if (!cli_replay_whole(json, cli_json_member(json, arguments, "variablesReference"), &serial) ||
-        (serial >= CLI_RECORDING_FRAMES))
+        (serial >= g_cli_replay->recording.frame_most))
     {
         serial = 0ull;
     }

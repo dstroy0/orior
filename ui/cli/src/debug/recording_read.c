@@ -59,9 +59,120 @@ static void read_stacks_given(void)
     }
 }
 
+// the names of a recording with no room: one empty name
+static char s_no_names[1] = "";
+
 const char *cli_recording_name(unsigned int at)
 {
     return g_cli_replay->recording.names + at;
+}
+
+// The counts a recording's lines give by their kinds, read off the text before the lines are read whole: the steps,
+// the frames by the largest number a call or a line names, the files by the largest number a file record names, the
+// threads and the raises
+typedef struct
+{
+    unsigned int steps;
+    unsigned int frames;
+    unsigned int files;
+    unsigned int threads;
+    unsigned int raises;
+} ReadCounts;
+
+// the whole number written at `at` of `size` bytes of `text`, read up to its first letter that is no digit: the
+// number, all ones where none is written or it passes an unsigned int
+static unsigned int read_digits(const char *text, unsigned long long size, unsigned long long at)
+{
+    unsigned long long value = 0ull;
+    unsigned long long digits = 0ull;
+    while ((at < size) && (text[at] >= '0') && (text[at] <= '9') && (value < 0xffffffffull))
+    {
+        value = (value * 10ull) + (unsigned long long)(text[at] - '0');
+        at += 1ull;
+        digits += 1ull;
+    }
+    return ((digits == 0ull) || (value > 0xffffffffull)) ? 0xffffffffu : (unsigned int)value;
+}
+
+// the counts of `size` bytes of `text`: each line's kind is the word its array opens with, and the number after it
+// where the kind takes one
+static void read_counted(const char *text, unsigned long long size, ReadCounts *counts)
+{
+    static const char *const s_kinds[5] = {"[\"line\",", "[\"call\",", "[\"file\",", "[\"thread\",", "[\"raise\","};
+    *counts = (ReadCounts){0u, 0u, 0u, 0u, 0u};
+    for (unsigned long long at = 0ull; at < size;)
+    {
+        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
+        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        for (unsigned int kind = 0u; kind < 5u; kind += 1u)
+        {
+            const unsigned long long length =
+                cellul.len(&(CatenaFinitaCfg){.src = s_kinds[kind], .cap = CLI_CELLS_POOL});
+            if ((end - at < length) ||
+                (memor.cmp(&(MemoriaCfg){.src = text + at, .other = s_kinds[kind], .bytes = (size_t)length}) != 0))
+            {
+                continue;
+            }
+            const unsigned int number = read_digits(text, end, at + length);
+            const unsigned int named = (number == 0xffffffffu) ? 0u : (number + 1u);
+            counts->steps += (kind == 0u) ? 1u : 0u;
+            counts->frames = ((kind <= 1u) && (named > counts->frames)) ? named : counts->frames;
+            counts->files = ((kind == 2u) && (named > counts->files)) ? named : counts->files;
+            counts->threads += (kind == 3u) ? 1u : 0u;
+            counts->raises += (kind == 4u) ? 1u : 0u;
+            break;
+        }
+        at = end + 1ull;
+    }
+}
+
+// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+static void *read_part(unsigned char **at, unsigned long long bytes)
+{
+    void *const part = *at;
+    *at += (bytes + 7ull) & ~7ull;
+    return part;
+}
+
+// the recording's room taken for the counts of its `size` bytes of `text` and its parts set into it, the frames and
+// files zero and the names one empty name: 1, or 0 with the recording holding no room
+static int read_room_taken(CliRecording *recording, const char *text, unsigned long long size)
+{
+    ReadCounts counts;
+    read_counted(text, size, &counts);
+    const unsigned long long bytes =
+        ((unsigned long long)counts.steps * (sizeof(CliRecordedStep) + sizeof(unsigned int))) +
+        ((unsigned long long)counts.frames * sizeof(CliRecordedFrame)) +
+        ((unsigned long long)counts.files * sizeof(unsigned int)) +
+        ((unsigned long long)counts.threads * (sizeof(unsigned long long) + sizeof(unsigned int))) +
+        ((unsigned long long)counts.raises * sizeof(CliRecordedRaise)) + size + 1ull + (8ull * 8ull);
+    unsigned char *const cell = cli_cell_taken(bytes, "a recording read");
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    unsigned char *at = cell;
+    recording->room = cell;
+    recording->steps = read_part(&at, (unsigned long long)counts.steps * sizeof(CliRecordedStep));
+    recording->step_most = counts.steps;
+    recording->by_frame = read_part(&at, (unsigned long long)counts.steps * sizeof(unsigned int));
+    recording->frames = read_part(&at, (unsigned long long)counts.frames * sizeof(CliRecordedFrame));
+    recording->frame_most = counts.frames;
+    recording->files = read_part(&at, (unsigned long long)counts.files * sizeof(unsigned int));
+    recording->file_most = counts.files;
+    recording->thread_ids = read_part(&at, (unsigned long long)counts.threads * sizeof(unsigned long long));
+    recording->thread_names = read_part(&at, (unsigned long long)counts.threads * sizeof(unsigned int));
+    recording->thread_most = counts.threads;
+    recording->raised = read_part(&at, (unsigned long long)counts.raises * sizeof(CliRecordedRaise));
+    recording->raised_most = counts.raises;
+    recording->names = read_part(&at, size + 1ull);
+    recording->names_most = size + 1ull;
+    memor.set(
+        &(MemoriaCfg){.dst = recording->frames, .val = 0, .bytes = (size_t)counts.frames * sizeof(CliRecordedFrame)});
+    memor.set(&(MemoriaCfg){.dst = recording->files, .val = 0, .bytes = (size_t)counts.files * sizeof(unsigned int)});
+    recording->names[0] = '\0';
+    recording->used = 1u;
+    return 1;
 }
 
 // the line of the recording that starts at `at` read: its array, CLI_JSON_NONE where it is none
@@ -115,7 +226,7 @@ static unsigned int read_named(unsigned int record, unsigned int at, int slashed
     CliRecording *const recording = &g_cli_replay->recording;
     unsigned long long length = 0ull;
     const char *const text = cli_json_string(&s_json, cli_json_item(&s_json, record, at), &length);
-    if ((text == NULL) || (recording->used + length + 1ull > CLI_RECORDING_TEXT))
+    if ((text == NULL) || (recording->used + length + 1ull > recording->names_most))
     {
         return 0u;
     }
@@ -141,13 +252,13 @@ static void read_call(unsigned int record)
 {
     CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = read_number(record, 1u);
-    if (serial >= CLI_RECORDING_FRAMES)
+    if (serial >= recording->frame_most)
     {
         return;
     }
     CliRecordedFrame *const frame = &recording->frames[serial];
     const unsigned int count = frame->seen ? frame->count : 0u;
-    const unsigned int last = frame->seen ? frame->last : CLI_RECORDING_STEPS;
+    const unsigned int last = frame->seen ? frame->last : CLI_RECORDING_NO_STEP;
     *frame = (CliRecordedFrame){read_named(record, 4u, 0),
                                 (unsigned int)read_number(record, 3u),
                                 (unsigned int)read_number(record, 2u),
@@ -189,9 +300,9 @@ static void read_line(unsigned int record, unsigned long long at)
 {
     CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = read_number(record, 1u);
-    if ((serial >= CLI_RECORDING_FRAMES) || (recording->step_count == CLI_RECORDING_STEPS))
+    if ((serial >= recording->frame_most) || (recording->step_count == recording->step_most))
     {
-        recording->cut = recording->cut || (recording->step_count == CLI_RECORDING_STEPS);
+        recording->cut = recording->cut || (recording->step_count == recording->step_most);
         return;
     }
     CliRecordedFrame *const frame = &recording->frames[serial];
@@ -202,7 +313,7 @@ static void read_line(unsigned int record, unsigned long long at)
                                    : 1u;
     if (!frame->seen)
     {
-        *frame = (CliRecordedFrame){0u, 0u, 0u, 0u, 0u, 0u, CLI_RECORDING_STEPS, 1};
+        *frame = (CliRecordedFrame){0u, 0u, 0u, 0u, 0u, 0u, CLI_RECORDING_NO_STEP, 1};
     }
     frame->count += 1u;
     frame->last = recording->step_count;
@@ -217,7 +328,7 @@ static void read_return(unsigned int record)
     CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = read_number(record, 1u);
     const unsigned int thread =
-        ((serial < CLI_RECORDING_FRAMES) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
+        ((serial < recording->frame_most) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
     int found = 0;
     if ((thread < CLI_RECORDING_THREADS) && s_has_stack[thread])
     {
@@ -231,8 +342,8 @@ static void read_raise(unsigned int record)
 {
     CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = read_number(record, 1u);
-    const CliRecordedFrame *const frame = (serial < CLI_RECORDING_FRAMES) ? &recording->frames[serial] : NULL;
-    const unsigned int step = ((frame != NULL) && frame->seen && (frame->last < CLI_RECORDING_STEPS))
+    const CliRecordedFrame *const frame = (serial < recording->frame_most) ? &recording->frames[serial] : NULL;
+    const unsigned int step = ((frame != NULL) && frame->seen && (frame->last != CLI_RECORDING_NO_STEP))
                                   ? frame->last
                                   : ((recording->step_count > 0u) ? recording->step_count - 1u : 0u);
     const unsigned int kind = read_named(record, 3u, 0);
@@ -251,7 +362,7 @@ static void read_raise(unsigned int record)
             return;
         }
     }
-    if (recording->raised_count < CLI_RECORDING_RAISED)
+    if (recording->raised_count < recording->raised_most)
     {
         recording->raised[recording->raised_count] = (CliRecordedRaise){step, kind, message};
         recording->raised_count += 1u;
@@ -277,12 +388,26 @@ void cli_recording_let_go(void)
         recording->path[0] = '\0';
     }
     recording->size = 0ull;
+    cli_cell_given(recording->room);
+    recording->room = NULL;
+    recording->steps = NULL;
     recording->step_count = 0u;
-    memor.set(&(MemoriaCfg){.dst = recording->frames, .val = 0, .bytes = sizeof(recording->frames)});
+    recording->step_most = 0u;
+    recording->frames = NULL;
+    recording->frame_most = 0u;
+    recording->by_frame = NULL;
+    recording->files = NULL;
     recording->file_count = 0u;
+    recording->file_most = 0u;
+    recording->thread_ids = NULL;
+    recording->thread_names = NULL;
     recording->thread_count = 0u;
+    recording->thread_most = 0u;
+    recording->raised = NULL;
     recording->raised_count = 0u;
-    recording->names[0] = '\0';
+    recording->raised_most = 0u;
+    recording->names = s_no_names;
+    recording->names_most = 0ull;
     recording->used = 1u;
     recording->has_code = 0;
     recording->code = 0ll;
@@ -296,17 +421,17 @@ static void read_kept(unsigned int record, unsigned long long at)
     if (read_kind(record, "file"))
     {
         const unsigned long long file = read_number(record, 1u);
-        for (; (recording->file_count <= file) && (recording->file_count < CLI_RECORDING_FILES);
+        for (; (recording->file_count <= file) && (recording->file_count < recording->file_most);
              recording->file_count += 1u)
         {
             recording->files[recording->file_count] = 0u;
         }
-        if (file < CLI_RECORDING_FILES)
+        if (file < recording->file_most)
         {
             recording->files[file] = read_named(record, 2u, 1);
         }
     }
-    else if (read_kind(record, "thread") && (recording->thread_count < CLI_RECORDING_THREADS))
+    else if (read_kind(record, "thread") && (recording->thread_count < recording->thread_most))
     {
         recording->thread_ids[recording->thread_count] = read_number(record, 1u);
         recording->thread_names[recording->thread_count] = read_named(record, 2u, 0);
@@ -366,6 +491,11 @@ void cli_recording_read(const char *path)
     const unsigned char *const bytes = cli_file_held(path, &size);
     recording->text = (const char *)bytes;
     recording->size = (bytes != NULL) ? size : 0ull;
+    if ((bytes != NULL) && !read_room_taken(recording, recording->text, recording->size))
+    {
+        cli_recording_let_go();
+        return;
+    }
     unsigned long long at = 0ull;
     while (at < recording->size)
     {
@@ -384,7 +514,7 @@ void cli_recording_read(const char *path)
     read_stacks_given();
     // each frame's steps in turn, in the order they ran
     unsigned int first = 0u;
-    for (unsigned int serial = 0u; serial < CLI_RECORDING_FRAMES; serial += 1u)
+    for (unsigned int serial = 0u; serial < recording->frame_most; serial += 1u)
     {
         recording->frames[serial].first = first;
         recording->frames[serial].last = first;
