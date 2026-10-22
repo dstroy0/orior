@@ -6895,6 +6895,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   background: var(--backdrop);
 }
 
+/* A sheet holding the focus shows the same bold line the editor shows when it holds it. */
+.sheet:focus-within {
+  outline: 2px solid var(--hover);
+}
+
 .sheet-close {
   position: absolute;
   top: 0.5rem;
