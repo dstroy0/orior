@@ -9,6 +9,7 @@
     harness.py window zoom [--x --y --width --height --scale]    a part drawn larger to build/harness/window_zoom.png
     harness.py window debug [--seconds 45]                       run under cdb, the stack where it faults
     harness.py window memory                                     its process tree's private working set and commit
+    harness.py window luminance [--floor 78] [--each 6]          the dark scheme's tokens by lightness, with their rules
     harness.py window cpu [--minutes 2] [--step 5] [--spike 150] its processor time each step, its busiest threads, a
                                                                  stack of the busiest past the spike, to window_cpu.txt
     harness.py window in-job --id N                              whether a process sits in a job
@@ -283,6 +284,59 @@ def cmd_in_job(a):
     return 0
 
 
+STYLE = os.path.join(ROOT, "ui", "gui", "src-js", "style.css")
+
+
+def srgb_channel(value):
+    value /= 255.0
+    return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+
+
+def lightness(r, g, b):
+    """CIE lightness, 0 to 100, of an sRGB color."""
+    y = 0.2126 * srgb_channel(r) + 0.7152 * srgb_channel(g) + 0.0722 * srgb_channel(b)
+    return 116.0 * (y ** (1.0 / 3.0)) - 16.0 if y > 0.008856 else 903.3 * y
+
+
+def color_parsed(text):
+    hexed = re.match(r"#([0-9a-fA-F]{6})\b", text)
+    if hexed:
+        value = hexed.group(1)
+        return tuple(int(value[at : at + 2], 16) for at in (0, 2, 4))
+    rgbed = re.match(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)", text)
+    if rgbed:
+        return tuple(int(part) for part in rgbed.groups())
+    return None
+
+
+def cmd_luminance(a):
+    """Every color token of the dark scheme ranked by its CIE lightness, from --floor down, with how many rules of
+    the stylesheet read it and the first of them: the tokens standing as bright as the operators show beside what
+    they paint."""
+    with open(STYLE, encoding="utf-8") as kept:
+        css = kept.read()
+    root = css[: css.index('[data-scheme="light"]')]
+    tokens = {}
+    for name, value in re.findall(r"(--[\w-]+):\s*([^;]+);", root):
+        color = color_parsed(value.strip())
+        if color and name not in tokens:
+            tokens[name] = (lightness(*color), value.strip())
+    uses = {}
+    for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        for line in body.split(";"):
+            for name in tokens:
+                if "var(%s)" % name in line:
+                    uses.setdefault(name, []).append("%s %s" % (selector.strip().split("\n")[-1].strip()[:48], line.split(":")[0].strip()))
+    for name, (light, value) in sorted(tokens.items(), key=lambda one: -one[1][0]):
+        if light < a.floor:
+            break
+        where = uses.get(name, [])
+        print("%5.1f  %-22s %-26s %3d uses" % (light, name, value, len(where)))
+        for one in where[: a.each]:
+            print("           %s" % one)
+    return 0
+
+
 def register(sub):
     """The window group's commands added to harness.py's subparsers."""
     group = sub.add_parser("window", help="the released window started, ended, watched, pictured and measured (Windows)")
@@ -320,6 +374,11 @@ def register(sub):
 
     p = window.add_parser("memory", help="the window's process tree, each one's private working set and commit")
     p.set_defaults(fn=cmd_memory)
+
+    p = window.add_parser("luminance", help="the dark scheme's color tokens by CIE lightness, from --floor down, with the rules that paint them")
+    p.add_argument("--floor", type=float, default=78.0, help="the lightness below which tokens are left out")
+    p.add_argument("--each", type=int, default=6, help="how many of a token's rules are listed")
+    p.set_defaults(fn=cmd_luminance)
 
     p = window.add_parser("cpu", help="the window's processor time each --step s for --minutes, its busiest threads, "
                                        "and a stack of the busiest on a step past --spike ms, to build/harness/window_cpu.txt")

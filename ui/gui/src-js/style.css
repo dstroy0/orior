@@ -276,8 +276,10 @@ select {
   color: inherit;
 }
 
+/* The keys' focus is the signal's bold line everywhere: the hover color is a pointer's, and pink is
+   the error's. */
 :focus-visible {
-  outline: 2px solid var(--hover);
+  outline: 2px solid var(--signal);
   outline-offset: 1px;
 }
 
