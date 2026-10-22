@@ -11,45 +11,54 @@
 #include "../plugins/plugins.h"
 #include "window_internal.h"
 
-// A call's room, a cell taken with the lock and given back with it: the changes kept and their tree, the keys and
-// places asked for, the settings' chains and layers, and what a carry holds
+// the bytes a text written for orior's folder is begun in before it grows
+#define CLI_HOME_TEXT_FIRST (4ull << 10u)
+
+// The settings' chains and layers of one call, a cell of them taken for it
 typedef struct
 {
-    char text[1u << 22u];
-    CliJsonNode node[1u << 16u];
-    char tree_text[1u << 22u];
-    CfgJsonToken token[1u << 16u];
-    CliJson json;
-    const char *keys[4096];
-    const char *places[CLI_CARRIED_MOST];
     CliChain reader;
     CliChain tree;
     CliLayers layers;
-    CliCarried carried;
-} CliHomeRoom;
+} CliHomeSettings;
 
+// the lock a call on orior's folder answers under, one at a time, and the cells it holds while it answers, each sized
+// to what it holds
 static CliLock s_lock = CLI_LOCK_INIT;
-static CliHomeRoom *s_home;
+static CliCellsTally s_cells = CLI_CELLS_TALLY("cli_window_home");
 
-// the lock taken and the room a cell under it: 1, or 0 with why said and the lock given back
-static int home_held(CliLine *said)
+// a growing line begun for a text of orior's folder: 1, or 0 with why said where its cell is refused
+static int home_line_begun(CliLine *line, CliLine *said)
 {
-    cli_lock_take(&s_lock);
-    s_home = cli_cell_taken(sizeof(*s_home), "a call on the window's home");
-    if (s_home == NULL)
+    const int begun = cli_line_growing(line, CLI_HOME_TEXT_FIRST, "a text of orior's folder");
+    if (!begun)
     {
-        cli_lock_give(&s_lock);
-        cli_line_text(said, "a call on the window's home could not be taken");
+        cli_line_text(said, "a text of orior's folder could not be given a cell");
     }
-    return s_home != NULL;
+    return begun;
 }
 
-// the room given back, and the lock with it
-static void home_released(void)
+// the strings of the argument `key` into a cell of their count, `*items`, given back with cli_cell_given_by(&s_cells,
+// ...) either way, their count into `count`: 1, or 0 with why said
+static int home_strings(const CliServeArgs *args, const char *key, const char ***items, unsigned int *count,
+                        CliLine *said)
 {
-    cli_cell_given(s_home);
-    s_home = NULL;
-    cli_lock_give(&s_lock);
+    const unsigned int node = cli_serve_arg(args, key);
+    unsigned int most = 0u;
+    const unsigned int first =
+        cli_json_is(args->json, node, CFG_JSON_ARRAY) ? args->json->node[node].first : CLI_JSON_NONE;
+    for (unsigned int item = first; item != CLI_JSON_NONE; item = args->json->node[item].next)
+    {
+        most += 1u;
+    }
+    *count = 0u;
+    *items = cli_cell_taken_by(&s_cells, (most + 1ull) * sizeof(**items), "the strings a call on orior's folder names");
+    if (*items == NULL)
+    {
+        cli_line_text(said, "the strings a call on orior's folder names could not be given a cell");
+        return 0;
+    }
+    return cli_serve_strings(args, key, *items, most, count, said);
 }
 
 // the page's changed entries kept, each key starting `orior.` with its new text, or null where it is gone
@@ -59,15 +68,16 @@ static int home_kept_write(const CliServeArgs *args, CliLine *out, CliLine *said
     char folder[CLI_PATH_LONGEST];
     if (!cli_home_folder(folder))
     {
-        cli_line_text(said, "orior has no folder of its own to keep its entries in");
+        cli_line_text(said, "orior_cli has no folder of its own to keep its entries in");
         return 0;
     }
     const unsigned int changes = cli_serve_arg(args, "changes");
-    if (!home_held(said))
+    CliLine kept;
+    if (!home_line_begun(&kept, said))
     {
         return 0;
     }
-    CliLine kept = {s_home->text, sizeof(s_home->text), 0ull};
+    cli_lock_take(&s_lock);
     cli_line_character(&kept, '{');
     const unsigned int first =
         cli_json_is(args->json, changes, CFG_JSON_OBJECT) ? args->json->node[changes].first : CLI_JSON_NONE;
@@ -84,27 +94,30 @@ static int home_kept_write(const CliServeArgs *args, CliLine *out, CliLine *said
         cli_json_write(args->json, member, &kept, 0u, 0);
     }
     cli_line_character(&kept, '}');
-    const int done = cli_line_fits(&kept) && cli_kept_keep(folder, s_home->text, kept.at, said);
-    home_released();
+    const int done = cli_line_fits(&kept) && cli_kept_keep(folder, kept.out, kept.at, said);
+    cli_lock_give(&s_lock);
+    cli_cell_given(kept.out);
     return done;
 }
 
-// what orior's folder keeps read into the tree, under the lock: its object, or CLI_JSON_NONE where it keeps nothing
-static unsigned int home_kept_tree(void)
+// what orior's folder keeps read into `json`, a tree in a cell sized to it, given back with cli_json_given either
+// way, under the lock: its object, or CLI_JSON_NONE where it keeps nothing
+static unsigned int home_kept_tree(CliJson *json)
 {
     char folder[CLI_PATH_LONGEST];
-    cli_json_begun(&s_home->json, s_home->node, sizeof(s_home->node) / sizeof(s_home->node[0]), s_home->tree_text,
-                   sizeof(s_home->tree_text));
-    CliLine kept = {s_home->text, sizeof(s_home->text), 0ull};
-    if (!cli_home_folder(folder) || !cli_kept_read(folder, &kept) || !cli_line_fits(&kept))
+    cli_json_begun(json, NULL, 0u, NULL, 0ull);
+    CliLine kept;
+    char why[256];
+    CliLine ignored = {why, sizeof(why), 0ull};
+    if (!cli_home_folder(folder) || !home_line_begun(&kept, &ignored))
     {
         return CLI_JSON_NONE;
     }
-    char why[256];
-    CliLine ignored = {why, sizeof(why), 0ull};
-    const unsigned int tree = cli_json_read(&s_home->json, s_home->text, kept.at, s_home->token,
-                                            sizeof(s_home->token) / sizeof(s_home->token[0]), &ignored);
-    return cli_json_is(&s_home->json, tree, CFG_JSON_OBJECT) ? tree : CLI_JSON_NONE;
+    const unsigned int tree = (cli_kept_read(folder, &kept) && cli_line_fits(&kept))
+                                  ? cli_json_taken(json, kept.out, kept.at, 0u, 0ull, &ignored)
+                                  : CLI_JSON_NONE;
+    cli_cell_given(kept.out);
+    return cli_json_is(json, tree, CFG_JSON_OBJECT) ? tree : CLI_JSON_NONE;
 }
 
 // what orior's folder keeps, each key with `orior.` before it, or null where it keeps nothing yet
@@ -112,30 +125,29 @@ static int home_kept_read(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     (void)args;
     (void)said;
-    if (!home_held(said))
-    {
-        return 0;
-    }
-    const unsigned int tree = home_kept_tree();
+    CliJson json;
+    cli_lock_take(&s_lock);
+    const unsigned int tree = home_kept_tree(&json);
     if (tree == CLI_JSON_NONE)
     {
-        home_released();
+        cli_json_given(&json);
+        cli_lock_give(&s_lock);
         cli_line_text(out, "null");
         return 1;
     }
     cli_line_character(out, '{');
-    for (unsigned int member = s_home->json.node[tree].first; member != CLI_JSON_NONE;
-         member = s_home->json.node[member].next)
+    for (unsigned int member = json.node[tree].first; member != CLI_JSON_NONE; member = json.node[member].next)
     {
-        cli_line_text(out, (member != s_home->json.node[tree].first) ? ",\"orior." : "\"orior.");
-        cli_json_escaped_lossy(out, (const unsigned char *)(s_home->json.text + s_home->json.node[member].key),
-                               cellul.len(&(CatenaFinitaCfg){.src = s_home->json.text + s_home->json.node[member].key,
-                                                             .cap = CLI_CELLS_POOL}));
+        cli_line_text(out, (member != json.node[tree].first) ? ",\"orior." : "\"orior.");
+        cli_json_escaped_lossy(
+            out, (const unsigned char *)(json.text + json.node[member].key),
+            cellul.len(&(CatenaFinitaCfg){.src = json.text + json.node[member].key, .cap = CLI_CELLS_POOL}));
         cli_line_text(out, "\":");
-        cli_json_write(&s_home->json, member, out, 0u, 0);
+        cli_json_write(&json, member, out, 0u, 0);
     }
     cli_line_character(out, '}');
-    home_released();
+    cli_json_given(&json);
+    cli_lock_give(&s_lock);
     return 1;
 }
 
@@ -144,28 +156,27 @@ static int home_kept_read(const CliServeArgs *args, CliLine *out, CliLine *said)
 static int home_kept_now(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     unsigned int count = 0u;
-    if (!home_held(said))
+    const char **keys = NULL;
+    if (!home_strings(args, "keys", &keys, &count, said))
     {
+        cli_cell_given_by(&s_cells, keys);
         return 0;
     }
-    if (!cli_serve_strings(args, "keys", s_home->keys, 4096u, &count, said))
-    {
-        home_released();
-        return 0;
-    }
-    const unsigned int tree = home_kept_tree();
-    const unsigned int first = (tree != CLI_JSON_NONE) ? s_home->json.node[tree].first : CLI_JSON_NONE;
+    CliJson json;
+    cli_lock_take(&s_lock);
+    const unsigned int tree = home_kept_tree(&json);
+    const unsigned int first = (tree != CLI_JSON_NONE) ? json.node[tree].first : CLI_JSON_NONE;
     cli_line_text(out, "{\"set\":{");
     int any = 0;
-    for (unsigned int member = first; member != CLI_JSON_NONE; member = s_home->json.node[member].next)
+    for (unsigned int member = first; member != CLI_JSON_NONE; member = json.node[member].next)
     {
-        const char *const key = s_home->json.text + s_home->json.node[member].key;
+        const char *const key = json.text + json.node[member].key;
         if (cli_kept_is_carried(key))
         {
             cli_line_text(out, any ? "," : "");
             cli_window_quoted(out, key);
             cli_line_character(out, ':');
-            cli_json_write(&s_home->json, member, out, 0u, 0);
+            cli_json_write(&json, member, out, 0u, 0);
             any = 1;
         }
     }
@@ -173,11 +184,11 @@ static int home_kept_now(const CliServeArgs *args, CliLine *out, CliLine *said)
     any = 0;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const char *const key = s_home->keys[at] + 6;
-        if ((cellul.starts(&(CatenaFinitaCfg){.src = s_home->keys[at], .other = "orior.", .cap = CLI_CELLS_POOL})) &&
+        const char *const key = keys[at] + 6;
+        if ((cellul.starts(&(CatenaFinitaCfg){.src = keys[at], .other = "orior.", .cap = CLI_CELLS_POOL})) &&
             cli_kept_is_carried(key) &&
             (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "themes", .cap = CLI_CELLS_POOL})) &&
-            (cli_json_member(&s_home->json, tree, key) == CLI_JSON_NONE))
+            (cli_json_member(&json, tree, key) == CLI_JSON_NONE))
         {
             cli_line_text(out, any ? "," : "");
             cli_window_quoted(out, key);
@@ -185,7 +196,9 @@ static int home_kept_now(const CliServeArgs *args, CliLine *out, CliLine *said)
         }
     }
     cli_line_text(out, "]}");
-    home_released();
+    cli_json_given(&json);
+    cli_lock_give(&s_lock);
+    cli_cell_given_by(&s_cells, keys);
     return 1;
 }
 
@@ -193,24 +206,34 @@ static int home_kept_now(const CliServeArgs *args, CliLine *out, CliLine *said)
 static int home_settings_layers(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     const char *const root = cli_serve_string(args, "root", said);
-    if (root == NULL)
+    CliLine tree;
+    if ((root == NULL) || !home_line_begun(&tree, said))
     {
         return 0;
     }
-    if (!home_held(said))
+    CliHomeSettings *const settings =
+        cli_cell_taken_by(&s_cells, sizeof(*settings), "the settings' chains and layers of a call");
+    if (settings == NULL)
     {
+        cli_cell_given(tree.out);
+        cli_line_text(said, "the settings' chains and layers could not be given a cell");
         return 0;
     }
-    CliLine tree = {s_home->text, sizeof(s_home->text), 0ull};
+    cli_lock_take(&s_lock);
     cli_window_arg_written(args, "tree", &tree);
-    const int read = cli_line_fits(&tree) && cli_settings_chain_read(s_home->text, tree.at, &s_home->tree, said);
+    const int read = cli_line_fits(&tree) && cli_settings_chain_read(tree.out, tree.at, &settings->tree, said);
     if (read)
     {
-        cli_settings_reader(&s_home->reader);
-        cli_settings_layers(&s_home->reader, &s_home->tree, root, &s_home->layers);
-        cli_settings_layers_written(&s_home->layers, out);
+        cli_settings_reader(&settings->reader);
+        cli_settings_layers(&settings->reader, &settings->tree, root, &settings->layers);
+        cli_settings_layers_written(&settings->layers, out);
+        cli_settings_layers_given(&settings->layers);
+        cli_settings_chain_given(&settings->reader);
     }
-    home_released();
+    cli_settings_chain_given(&settings->tree);
+    cli_lock_give(&s_lock);
+    cli_cell_given_by(&s_cells, settings);
+    cli_cell_given(tree.out);
     return read;
 }
 
@@ -233,14 +256,18 @@ static int home_carry_send(const CliServeArgs *args, CliLine *out, CliLine *said
 {
     char home[CLI_PATH_LONGEST];
     const char *const to = cli_serve_string(args, "to", said);
-    static char s_done[1u << 14u];
-    CliLine done = {s_done, sizeof(s_done), 0ull};
-    if ((to == NULL) || !cli_window_home(home, said) || !cli_carry_send(home, to, &done, said))
+    CliLine done;
+    if ((to == NULL) || !cli_window_home(home, said) || !home_line_begun(&done, said))
     {
         return 0;
     }
-    cli_window_counted(out, s_done, cli_line_fits(&done) ? done.at : 0ull);
-    return 1;
+    const int sent = cli_carry_send(home, to, &done, said);
+    if (sent)
+    {
+        cli_window_counted(out, done.out, cli_line_fits(&done) ? done.at : 0ull);
+    }
+    cli_cell_given(done.out);
+    return sent;
 }
 
 // what the file or folder `from` carries, and how it differs from the reader's own here
@@ -252,20 +279,26 @@ static int home_carry_read(const CliServeArgs *args, CliLine *out, CliLine *said
     {
         return 0;
     }
-    if (!home_held(said))
+    CliCarried *const carried = cli_cell_taken_by(&s_cells, sizeof(*carried), "the files a carry holds");
+    if (carried == NULL)
     {
+        cli_line_text(said, "the files a carry holds could not be given a cell");
         return 0;
     }
-    const int read = cli_carry_read(from, &s_home->carried, said);
+    carried->count = 0u;
+    cli_lock_take(&s_lock);
+    const int read = cli_carry_read(from, carried, said);
     if (read)
     {
         cli_line_text(out, "{\"there\":");
-        home_carried_written(&s_home->carried, out);
+        home_carried_written(carried, out);
         cli_line_text(out, ",\"differences\":");
-        cli_carry_differences(home, &s_home->carried, out);
+        cli_carry_differences(home, carried, out);
         cli_line_character(out, '}');
     }
-    home_released();
+    cli_carried_clear(carried);
+    cli_lock_give(&s_lock);
+    cli_cell_given_by(&s_cells, carried);
     return read;
 }
 
@@ -280,18 +313,24 @@ static int home_carry_take(const CliServeArgs *args, CliLine *out, CliLine *said
     {
         return 0;
     }
-    if (!home_held(said))
+    const char **place_of = NULL;
+    const char **key_of = NULL;
+    CliCarried *const carried = cli_cell_taken_by(&s_cells, sizeof(*carried), "the files a carry holds");
+    if ((carried == NULL) || !home_strings(args, "places", &place_of, &places, said) ||
+        !home_strings(args, "keys", &key_of, &keys, said))
     {
+        if (carried == NULL)
+        {
+            cli_line_text(said, "the files a carry holds could not be given a cell");
+        }
+        cli_cell_given_by(&s_cells, key_of);
+        cli_cell_given_by(&s_cells, place_of);
+        cli_cell_given_by(&s_cells, carried);
         return 0;
     }
-    if (!cli_serve_strings(args, "places", s_home->places, CLI_CARRIED_MOST, &places, said) ||
-        !cli_serve_strings(args, "keys", s_home->keys, 4096u, &keys, said))
-    {
-        home_released();
-        return 0;
-    }
+    carried->count = 0u;
+    cli_lock_take(&s_lock);
     const unsigned int there = cli_serve_arg(args, "there");
-    cli_carried_clear(&s_home->carried);
     const unsigned int first =
         cli_json_is(args->json, there, CFG_JSON_OBJECT) ? args->json->node[there].first : CLI_JSON_NONE;
     for (unsigned int member = first; member != CLI_JSON_NONE; member = args->json->node[member].next)
@@ -300,12 +339,15 @@ static int home_carry_take(const CliServeArgs *args, CliLine *out, CliLine *said
         const char *const text = cli_json_string(args->json, member, &length);
         if (text != NULL)
         {
-            (void)cli_carried_put(&s_home->carried, args->json->text + args->json->node[member].key, text, length);
+            (void)cli_carried_put(carried, args->json->text + args->json->node[member].key, text, length);
         }
     }
-    const int taken =
-        cli_carry_take(home, from, &s_home->carried, s_home->places, places, s_home->keys, keys, out, said);
-    home_released();
+    const int taken = cli_carry_take(home, from, carried, place_of, places, key_of, keys, out, said);
+    cli_carried_clear(carried);
+    cli_lock_give(&s_lock);
+    cli_cell_given_by(&s_cells, key_of);
+    cli_cell_given_by(&s_cells, place_of);
+    cli_cell_given_by(&s_cells, carried);
     return taken;
 }
 
@@ -361,18 +403,17 @@ static int home_plugin_settings_read(const CliServeArgs *args, CliLine *out, Cli
     {
         return 0;
     }
-    if (!home_held(said))
-    {
-        return 0;
-    }
-    const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_home->text, sizeof(s_home->text));
+    cli_lock_take(&s_lock);
+    unsigned long long size = 0ull;
+    const unsigned char *const mapped = cli_file_held(path, &size);
     const unsigned long long start = out->at;
-    if ((size == QRY_MEMBER_UNREAD) || !cli_json_compacted(s_home->text, size, out))
+    if ((mapped == NULL) || !cli_json_compacted((const char *)mapped, size, out))
     {
         out->at = start;
         cli_line_text(out, "{}");
     }
-    home_released();
+    cli_file_let_go(mapped, size);
+    cli_lock_give(&s_lock);
     return 1;
 }
 
@@ -403,15 +444,17 @@ static int home_plugin_settings_write(const CliServeArgs *args, CliLine *out, Cl
         cli_line_text(said, ": it could not be made");
         return 0;
     }
-    if (!home_held(said))
+    CliLine text;
+    if (!home_line_begun(&text, said))
     {
         return 0;
     }
-    CliLine text = {s_home->text, sizeof(s_home->text), 0ull};
+    cli_lock_take(&s_lock);
     cli_json_write(args->json, values, &text, 2u, 0);
     cli_line_character(&text, '\n');
-    const int written = cli_line_fits(&text) && query_file_written(path, s_home->text, text.at);
-    home_released();
+    const int written = cli_line_fits(&text) && query_file_written(path, text.out, text.at);
+    cli_lock_give(&s_lock);
+    cli_cell_given(text.out);
     if (!written)
     {
         cli_line_text(said, path);

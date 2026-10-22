@@ -37,7 +37,7 @@ void cli_text_edit_written(const CliTextEdit *edit, CliLine *out);
 unsigned long long cli_text_byte_of(const char *line, unsigned long long size, unsigned int col);
 
 // `size` bytes of `text` with `edits`, `count` of them, written over it into `out`: 1, or 0 where there are more than
-// CLI_TEXT_EDITS of them
+// CLI_TEXT_EDITS of them or the cellblock cannot meet the places they are found at
 int cli_text_applied(const char *text, unsigned long long size, const CliTextEdit *edits, unsigned int count,
                      CliLine *out);
 

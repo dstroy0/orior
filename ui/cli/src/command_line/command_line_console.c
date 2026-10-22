@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_console.c: the commands the command line runs itself, in the terminal: the keys, what orior is and its
-// tree, errors filed on their own turned on or off, the bug report page opened, a search of the tree, the plugins, the
-// reader's stylesheet, the toolchains, a clone, the tree's dev container brought up and a window opened on it, files
-// formatted, run and validated; the tree's jobs listed, shown and run, its tests and its bridge listed, and the words
-// of `orior protocol` said to a window open on the tree or run here. And a word that names a file of the tree
+// command_line_console.c: the commands the command line runs itself, in the terminal: the keys, what orior_cli is and
+// its tree, errors filed on their own turned on or off, the bug report page opened, a search of the tree, the plugins,
+// the reader's stylesheet, the toolchains, a clone, the tree's dev container brought up and a window opened on it,
+// files formatted, run and validated; the tree's jobs listed, shown and run, its tests and its bridge listed, and the
+// words of `orior_cli protocol` said to a window open on the tree or run here. And a word that names a file of the tree
 #include "../deploy/devcontainer.h"
 #include "../editor/files.h"
 #include "../machine/reach.h"
@@ -33,7 +33,7 @@ static void console_err_said(const CliLine *said)
     cli_err_line(said->out, cli_line_fits(said) ? said->at : 0ull);
 }
 
-// `orior help auto-report [on|off]`: errors filing on their own turned on or off, or which said
+// `orior_cli help auto-report [on|off]`: errors filing on their own turned on or off, or which said
 static int console_auto_report(const char *word)
 {
     if (word == NULL)
@@ -59,7 +59,7 @@ static int console_auto_report(const char *word)
     return 0;
 }
 
-// `orior help report [category] [title]`: the bug report page opened with what was given filled in
+// `orior_cli help report [category] [title]`: the bug report page opened with what was given filled in
 static int console_report_page(const char *named, const char *const *words, unsigned int count)
 {
     static char s_title[1u << 12u];
@@ -89,85 +89,6 @@ static int console_report_page(const char *named, const char *const *words, unsi
     return 0;
 }
 
-// `orior edit search [--case] [--word] [--regex] <text>`: every line in the tree's files that holds the text, as
-// path:line:column: line; 1 where none does, as grep exits
-static int console_search(const char *named, const char *const *words, unsigned int count)
-{
-    CliSearching how = {0, 0, 0};
-    static char s_query[1u << 12u];
-    CliLine query = {s_query, sizeof(s_query), 0ull};
-    for (unsigned int at = 0u; at < count; at += 1u)
-    {
-        how.match_case |= (cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--case", .cap = CLI_CELLS_POOL}));
-        how.word |= (cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--word", .cap = CLI_CELLS_POOL}));
-        how.regex |= (cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--regex", .cap = CLI_CELLS_POOL}));
-        if ((!cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--case", .cap = CLI_CELLS_POOL})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--word", .cap = CLI_CELLS_POOL})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--regex", .cap = CLI_CELLS_POOL})))
-        {
-            cli_line_text(&query, (query.at > 0ull) ? " " : "");
-            cli_line_text(&query, words[at]);
-        }
-    }
-    if (cli_line_closed(&query) == 0ull)
-    {
-        cli_err("search needs text: orior edit search <text>");
-        return CLI_WRONG;
-    }
-    static char s_root[CLI_PATH_LONGEST];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    if (!cli_command_line_tree(named, s_root, &said))
-    {
-        console_err_said(&said);
-        return CLI_NO_CODE;
-    }
-    static CliPatterns s_none;
-    static char s_hits[1u << 22u];
-    CliLine hits = {s_hits, sizeof(s_hits), 0ull};
-    if (!cli_files_search(s_root, s_query, how, &s_none, &hits, &said))
-    {
-        console_err_said(&said);
-        return CLI_WRONG;
-    }
-    static CliJsonNode s_node[1u << 15u];
-    static char s_text[1u << 22u];
-    static CfgJsonToken s_token[1u << 15u];
-    static CliJson s_json;
-    cli_json_begun(&s_json, s_node, sizeof(s_node) / sizeof(s_node[0]), s_text, sizeof(s_text));
-    said.at = 0ull;
-    const unsigned int list = cli_json_read(&s_json, s_hits, cli_line_fits(&hits) ? hits.at : 0ull, s_token,
-                                            sizeof(s_token) / sizeof(s_token[0]), &said);
-    if (!cli_json_is(&s_json, list, CFG_JSON_ARRAY) || (s_json.node[list].count == 0u))
-    {
-        return 1;
-    }
-    for (unsigned int hit = s_json.node[list].first; hit != CLI_JSON_NONE; hit = s_json.node[hit].next)
-    {
-        CliLine line = {s_line, sizeof(s_line), 0ull};
-        const char *const path = cli_json_string(&s_json, cli_json_member(&s_json, hit, "path"), NULL);
-        cli_line_text(&line, (path != NULL) ? path : "");
-        static const char *const s_numbers[2] = {"line", "col"};
-        for (unsigned int number = 0u; number < 2u; number += 1u)
-        {
-            const unsigned int node = cli_json_member(&s_json, hit, s_numbers[number]);
-            cli_line_character(&line, ':');
-            if (cli_json_is(&s_json, node, CFG_JSON_NUMBER))
-            {
-                cli_line_counted(&line, s_json.text + s_json.node[node].text, s_json.node[node].length);
-            }
-        }
-        cli_line_text(&line, ": ");
-        unsigned long long length = 0ull;
-        const char *const text = cli_json_string(&s_json, cli_json_member(&s_json, hit, "text"), &length);
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
-        cli_text_trimmed((text != NULL) ? text : "", (text != NULL) ? length : 0ull, &from, &to);
-        cli_line_counted(&line, (text != NULL) ? text + from : "", to - from);
-        cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
-    }
-    return 0;
-}
-
 // a docker line said as the dev container comes up
 static void console_docker_line(void *context, const char *text, unsigned long long length)
 {
@@ -179,7 +100,7 @@ static void console_docker_line(void *context, const char *text, unsigned long l
 }
 
 // the tree's dev container brought up as its description says, docker's output shown as it comes, and a window
-// opened on the tree in it; a program not named orior, which opens no window, names the address to open
+// opened on the tree in it; a program not orior_gui, which opens no window, names the address to open
 static int console_dev_container(const char *named)
 {
     static char s_root[CLI_PATH_LONGEST];
@@ -214,10 +135,10 @@ static int console_dev_container(const char *named)
     const size_t stem = ((dot != NULL) && (dot != leaf))
                             ? (size_t)(dot - leaf)
                             : cellul.len(&(CatenaFinitaCfg){.src = leaf, .cap = CLI_CELLS_POOL});
-    if (!own || (stem != 5u) ||
-        (!cellul.starts(&(CatenaFinitaCfg){.src = leaf, .other = "orior", .cap = CLI_CELLS_POOL})))
+    if (!own || (stem != 9u) ||
+        (!cellul.starts(&(CatenaFinitaCfg){.src = leaf, .other = "orior_gui", .cap = CLI_CELLS_POOL})))
     {
-        console_out_two("orior --remote ", address);
+        console_out_two("orior_gui --remote ", address);
         return 0;
     }
     const char *const words[4] = {program, "--remote", address, NULL};
@@ -225,7 +146,7 @@ static int console_dev_container(const char *named)
     if (!cli_started_outside(words, &id))
     {
         CliLine line = {s_line, sizeof(s_line), 0ull};
-        cli_line_text(&line, "orior --remote ");
+        cli_line_text(&line, "orior_gui --remote ");
         cli_line_text(&line, address);
         cli_line_text(&line, ": it could not be started");
         cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
@@ -235,14 +156,14 @@ static int console_dev_container(const char *named)
     return 0;
 }
 
-// a line of `orior protocol` written to the output
+// a line of `orior_cli protocol` written to the output
 static void console_protocol_line(void *context, const char *text, unsigned long long length)
 {
     (void)context;
     cli_out_line(text, length);
 }
 
-// the words of `orior protocol`: said to a window open on the tree, which runs the protocol command as its job and
+// the words of `orior_cli protocol`: said to a window open on the tree, which runs the protocol command as its job and
 // shows the run in its protocol panel; with none open run here, and so does the job's own command, which carries the
 // window's door in its environment and must not reach the window again. A reading, `decode` and the two readings of a
 // pulled table, prints here and is no job of the window's
@@ -293,8 +214,8 @@ static int console_protocol(const char *root, const char *command, const char *c
     return (code < 0) ? CLI_WRONG : code;
 }
 
-// `orior file user-css`: the stylesheet the window lays over its own named, made empty but for a note where it is not
-// there yet
+// `orior_cli file user-css`: the stylesheet the window lays over its own named, made empty but for a note where it is
+// not there yet
 static int console_user_css(void)
 {
     char path[CLI_PATH_LONGEST];
@@ -322,7 +243,7 @@ static int console_treeless(const char *command, const char *named, const char *
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "about", .cap = CLI_CELLS_POOL}))
     {
-        cli_out("orior " CLI_VERSION);
+        cli_out("orior_cli " CLI_VERSION);
         CliLine said = {s_said, sizeof(s_said), 0ull};
         if (cli_command_line_tree(named, s_root, &said))
         {
@@ -336,7 +257,7 @@ static int console_treeless(const char *command, const char *named, const char *
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "search", .cap = CLI_CELLS_POOL}))
     {
-        *code = console_search(named, words, count);
+        *code = cli_console_search(named, words, count);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "plugins", .cap = CLI_CELLS_POOL}))
     {
@@ -425,7 +346,7 @@ int cli_console(const char *command, const char *named, const char *const *words
     {
         CliLine line = {s_line, sizeof(s_line), 0ull};
         cli_line_text(&line, command);
-        cli_line_text(&line, " needs a job: orior run list names them");
+        cli_line_text(&line, " needs a job: orior_cli run list names them");
         cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
         return CLI_WRONG;
     }

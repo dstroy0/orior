@@ -91,9 +91,9 @@ typedef struct
     size_t plane_capacity;
 } ScanContrast;
 
-static void scan_exact_unsigned(AnchorExactInteger *value, unsigned long long number)
+static void scan_exact_unsigned(OriorExactInteger *value, unsigned long long number)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     // the low half of a 64-bit word fits one 32-bit limb
     value->limb[0] = (uint32_t)(number & 0xFFFFFFFFull);
     // the high half, shifted down, is below 2^32
@@ -116,28 +116,28 @@ static void scan_classes(const unsigned long long *counts, unsigned int first, u
 
 static int scan_midpoint(const ScanClass *lower, const ScanClass *upper, unsigned int *split)
 {
-    AnchorExactInteger lower_count;
-    AnchorExactInteger upper_count;
-    AnchorExactInteger lower_sum;
-    AnchorExactInteger upper_sum;
-    AnchorExactInteger two;
+    OriorExactInteger lower_count;
+    OriorExactInteger upper_count;
+    OriorExactInteger lower_sum;
+    OriorExactInteger upper_sum;
+    OriorExactInteger two;
     scan_exact_unsigned(&lower_count, lower->count);
     scan_exact_unsigned(&upper_count, upper->count);
     scan_exact_unsigned(&lower_sum, lower->sum);
     scan_exact_unsigned(&upper_sum, upper->sum);
     scan_exact_unsigned(&two, 2ull);
-    AnchorExactInteger across;
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
-    AnchorExactInteger remainder;
-    const int divided = (anchor_exact_multiply(&lower_sum, &upper_count, &numerator) == ANCHOR_EXACT_OK) &&
-                        (anchor_exact_multiply(&upper_sum, &lower_count, &across) == ANCHOR_EXACT_OK) &&
-                        (anchor_exact_add(&numerator, &across, &numerator) == ANCHOR_EXACT_OK) &&
-                        (anchor_exact_multiply(&lower_count, &upper_count, &denominator) == ANCHOR_EXACT_OK) &&
-                        (anchor_exact_multiply(&denominator, &two, &denominator) == ANCHOR_EXACT_OK) &&
-                        (anchor_exact_divide(&numerator, &denominator, &numerator, &remainder) == ANCHOR_EXACT_OK);
+    OriorExactInteger across;
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
+    OriorExactInteger remainder;
+    const int divided = (orior_exact_multiply(&lower_sum, &upper_count, &numerator) == ORIOR_EXACT_OK) &&
+                        (orior_exact_multiply(&upper_sum, &lower_count, &across) == ORIOR_EXACT_OK) &&
+                        (orior_exact_add(&numerator, &across, &numerator) == ORIOR_EXACT_OK) &&
+                        (orior_exact_multiply(&lower_count, &upper_count, &denominator) == ORIOR_EXACT_OK) &&
+                        (orior_exact_multiply(&denominator, &two, &denominator) == ORIOR_EXACT_OK) &&
+                        (orior_exact_divide(&numerator, &denominator, &numerator, &remainder) == ORIOR_EXACT_OK);
     int fits = divided;
-    for (unsigned int limb = 1u; fits && (limb < ANCHOR_EXACT_LIMBS); limb += 1u)
+    for (unsigned int limb = 1u; fits && (limb < ORIOR_EXACT_LIMBS); limb += 1u)
     {
         fits = (numerator.limb[limb] == 0u);
     }

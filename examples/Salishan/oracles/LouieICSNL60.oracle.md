@@ -6,7 +6,7 @@ Tla’amin Nation; Henry Davis, University of British Columbia; Laura Griffin, U
 Marianne Huijsmans, University of Alberta; Gloria Mellesmoen, University of Victoria; Daniel K. E.
 Reisinger, University of British Columbia; Bailey Trotter, University of British Columbia, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -49,7 +49,7 @@ which the glyph stream puts after the A. (101) prints Freddie's words as said in
 (76) print no time. A footnote mark on a word, gɩǰɛ.2, is noted in the gloss; after a dash, na—6 and
 hiɬ-10, it stays on the word. Footnote 13 prints sәnpoliyan with a Cyrillic ә.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 519
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 7488
 distinct tokens in the paper, 0 language tokens are held by no row.

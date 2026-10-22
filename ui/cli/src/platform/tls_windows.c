@@ -14,10 +14,10 @@
 #include <schannel.h>
 #include <security.h>
 
-// the bytes of what came and is not yet opened, and of what is opened and not yet read, each session holds
+// the bytes of what came and is not yet opened a session holds through its handshake, whose tokens have no bound the
+// protocol sets; once the handshake gives the session's largest record, what came, what is opened and what is sealed
+// to go are each held in a cell of one record
 #define CLI_SEALED_BYTES (1u << 17u)
-
-#define CLI_PLAIN_BYTES (1u << 17u)
 
 struct CliTls
 {
@@ -26,10 +26,14 @@ struct CliTls
     CredHandle credential;
     CtxtHandle context;
     SecPkgContext_StreamSizes sizes;
-    unsigned char sealed[CLI_SEALED_BYTES];
+    unsigned char *sealed;
     unsigned long sealed_size;
-    unsigned char plain[CLI_PLAIN_BYTES];
+    unsigned long sealed_room;
+    unsigned char *plain;
     unsigned long long plain_size;
+    unsigned long long plain_room;
+    unsigned char *message;
+    unsigned long long message_room;
     int ended;
 };
 
@@ -60,7 +64,7 @@ static void cli_said(CliLine *said, SECURITY_STATUS status)
 static long long cli_fill(CliTls *tls)
 {
     const long long read =
-        cli_socket_some(tls->socket, tls->sealed + tls->sealed_size, CLI_SEALED_BYTES - tls->sealed_size);
+        cli_socket_some(tls->socket, tls->sealed + tls->sealed_size, tls->sealed_room - tls->sealed_size);
     // a count read is below the room, which an unsigned long counts
     tls->sealed_size += (read > 0ll) ? (unsigned long)read : 0ul;
     return read;
@@ -138,6 +142,28 @@ static int cli_handshake(CliTls *tls, const char *host, CliLine *said)
     }
 }
 
+// the session's cells sized to its largest record once the handshake gives it, what came past the handshake kept: 1,
+// or 0 where a cell is refused
+static int cli_records_held(CliTls *tls)
+{
+    const unsigned long record = tls->sizes.cbHeader + tls->sizes.cbMaximumMessage + tls->sizes.cbTrailer;
+    const unsigned long sealed_room = (record > tls->sealed_size) ? record : tls->sealed_size;
+    unsigned char *const sealed = cli_cell_taken_by(&g_cli_tls_cells, sealed_room, "what came of a TLS session");
+    tls->plain = cli_cell_taken_by(&g_cli_tls_cells, tls->sizes.cbMaximumMessage, "what a TLS session opened");
+    tls->plain_room = (tls->plain != NULL) ? tls->sizes.cbMaximumMessage : 0ull;
+    tls->message = cli_cell_taken_by(&g_cli_tls_cells, record, "a TLS record sealed");
+    tls->message_room = (tls->message != NULL) ? record : 0ull;
+    if (sealed == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = sealed, .src = tls->sealed, .bytes = tls->sealed_size});
+    cli_cell_given_by(&g_cli_tls_cells, tls->sealed);
+    tls->sealed = sealed;
+    tls->sealed_room = sealed_room;
+    return (tls->plain != NULL) && (tls->message != NULL);
+}
+
 CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine *said)
 {
     cli_lock_take(&s_lock);
@@ -153,7 +179,7 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     cli_lock_give(&s_lock);
     if (tls == NULL)
     {
-        cli_line_text(said, "TLS: more sessions are open than orior holds");
+        cli_line_text(said, "TLS: more sessions are open than orior_cli holds");
         return NULL;
     }
     tls->socket = socket;
@@ -175,6 +201,14 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
         tls->used = 0;
         return NULL;
     }
+    tls->sealed = cli_cell_taken_by(&g_cli_tls_cells, CLI_SEALED_BYTES, "a TLS handshake");
+    tls->sealed_room = (tls->sealed != NULL) ? CLI_SEALED_BYTES : 0ul;
+    if (tls->sealed == NULL)
+    {
+        cli_line_text(said, "TLS: the handshake could not be held");
+        cli_tls_closed(tls);
+        return NULL;
+    }
     if (!cli_handshake(tls, host, said))
     {
         cli_tls_closed(tls);
@@ -184,6 +218,12 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     if (status != SEC_E_OK)
     {
         cli_said(said, status);
+        cli_tls_closed(tls);
+        return NULL;
+    }
+    if (!cli_records_held(tls))
+    {
+        cli_line_text(said, "TLS: the session's records could not be held");
         cli_tls_closed(tls);
         return NULL;
     }
@@ -219,7 +259,7 @@ long long cli_tls_read(CliTls *tls, void *out, unsigned long long room, CliLine 
             for (unsigned int at = 0u; at < 4u; at += 1u)
             {
                 if ((buffers[at].BufferType == SECBUFFER_DATA) && (buffers[at].cbBuffer > 0ul) &&
-                    ((tls->plain_size + buffers[at].cbBuffer) <= CLI_PLAIN_BYTES))
+                    ((tls->plain_size + buffers[at].cbBuffer) <= tls->plain_room))
                 {
                     memor.cpy(&(MemoriaCfg){.dst = tls->plain + tls->plain_size,
                                             .src = buffers[at].pvBuffer,
@@ -267,26 +307,26 @@ long long cli_tls_read(CliTls *tls, void *out, unsigned long long room, CliLine 
 
 long long cli_tls_write(CliTls *tls, const void *data, unsigned long long size, CliLine *said)
 {
-    static unsigned char s_message[1u << 17u];
     static CliLock s_writing = CLI_LOCK_INIT;
     const unsigned long header = tls->sizes.cbHeader;
     const unsigned long trailer = tls->sizes.cbTrailer;
     const unsigned long most = tls->sizes.cbMaximumMessage;
     const unsigned long part = (size < most) ? (unsigned long)size : most;
-    if ((header + part + trailer) > sizeof(s_message))
+    if ((header + part + trailer) > tls->message_room)
     {
-        cli_line_text(said, "TLS: a record is larger than orior seals");
+        cli_line_text(said, "TLS: a record is larger than orior_cli seals");
         return CLI_SOCKET_FAILED;
     }
+    unsigned char *const message = tls->message;
     cli_lock_take(&s_writing);
-    memor.cpy(&(MemoriaCfg){.dst = s_message + header, .src = data, .bytes = part});
-    SecBuffer buffers[4] = {{header, SECBUFFER_STREAM_HEADER, s_message},
-                            {part, SECBUFFER_DATA, s_message + header},
-                            {trailer, SECBUFFER_STREAM_TRAILER, s_message + header + part},
+    memor.cpy(&(MemoriaCfg){.dst = message + header, .src = data, .bytes = part});
+    SecBuffer buffers[4] = {{header, SECBUFFER_STREAM_HEADER, message},
+                            {part, SECBUFFER_DATA, message + header},
+                            {trailer, SECBUFFER_STREAM_TRAILER, message + header + part},
                             {0ul, SECBUFFER_EMPTY, NULL}};
     SecBufferDesc list = {SECBUFFER_VERSION, 4ul, buffers};
     const SECURITY_STATUS status = EncryptMessage(&tls->context, 0ul, &list, 0ul);
-    const int sent = (status == SEC_E_OK) && cli_socket_written(tls->socket, s_message,
+    const int sent = (status == SEC_E_OK) && cli_socket_written(tls->socket, message,
                                                                 (unsigned long long)buffers[0].cbBuffer +
                                                                     buffers[1].cbBuffer + buffers[2].cbBuffer);
     cli_lock_give(&s_writing);
@@ -307,6 +347,12 @@ void cli_tls_closed(CliTls *tls)
 {
     DeleteSecurityContext(&tls->context);
     FreeCredentialsHandle(&tls->credential);
+    cli_cell_given_by(&g_cli_tls_cells, tls->sealed);
+    cli_cell_given_by(&g_cli_tls_cells, tls->plain);
+    cli_cell_given_by(&g_cli_tls_cells, tls->message);
+    tls->sealed = NULL;
+    tls->plain = NULL;
+    tls->message = NULL;
     cli_lock_take(&s_lock);
     tls->used = 0;
     cli_lock_give(&s_lock);

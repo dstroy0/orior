@@ -68,14 +68,17 @@ void cli_py_functions(const char *src, CliFacts *facts)
             facts->full = 1;
             return;
         }
-        facts->function[facts->functions] =
-            (CliInspectFunction){cli_inspect_kept(facts, src + name->start, name->end - name->start),
-                                 name->from,
-                                 name->to,
-                                 cli_py_tok(line, 0u)->from.line,
-                                 cli_py_tok(last, last->count - 1u)->to.line,
-                                 call_first,
-                                 facts->names - call_first};
+        const CliInspectFunction function = {cli_inspect_kept(facts, src + name->start, name->end - name->start),
+                                             name->from,
+                                             name->to,
+                                             cli_py_tok(line, 0u)->from.line,
+                                             cli_py_tok(last, last->count - 1u)->to.line,
+                                             call_first,
+                                             facts->names - call_first};
+        if (!facts->counting)
+        {
+            facts->function[facts->functions] = function;
+        }
         facts->functions += 1u;
     }
 }
@@ -92,13 +95,17 @@ static void facts_import(CliFacts *facts, const CliLine *spec, unsigned int name
     const CliInspectText kept_alias = (alias != NULL)
                                           ? cli_inspect_kept(facts, src + alias->start, alias->end - alias->start)
                                           : (CliInspectText){0u, 0u};
-    facts->import[facts->imports] = (CliInspectImport){cli_inspect_line_kept(facts, spec),
-                                                       name_first,
-                                                       facts->names - name_first,
-                                                       kept_alias,
-                                                       alias != NULL,
-                                                       cli_py_tok(line, 0u)->from,
-                                                       cli_py_tok(line, line->count - 1u)->to};
+    const CliInspectImport import = {cli_inspect_line_kept(facts, spec),
+                                     name_first,
+                                     facts->names - name_first,
+                                     kept_alias,
+                                     alias != NULL,
+                                     cli_py_tok(line, 0u)->from,
+                                     cli_py_tok(line, line->count - 1u)->to};
+    if (!facts->counting)
+    {
+        facts->import[facts->imports] = import;
+    }
     facts->imports += 1u;
 }
 

@@ -48,19 +48,21 @@ extern const char *const g_query_mmgr_settings[];
 // every tool, the last one's name NULL
 extern const QueryTool g_query_tools[];
 
-// a tool's sources and objects as the last walk of them listed them (tools.c)
-extern char s_c_sources[QUERY_SOURCES_MOST][QUERY_PATH_LONGEST];
-extern char s_cxx_sources[QUERY_SOURCES_MOST][QUERY_PATH_LONGEST];
-extern char s_tool_sources[QUERY_SOURCES_MOST][QUERY_PATH_LONGEST];
-extern char s_objects[3u * QUERY_SOURCES_MOST][QUERY_PATH_LONGEST];
+// a tool's sources and objects as the last walk of them listed them, given back with query_every_source_given once
+// the work on them is done (tools.c)
+extern QueryPaths g_query_c_sources;
+extern QueryPaths g_query_cxx_sources;
+extern QueryPaths g_query_tool_sources;
+extern QueryPaths g_query_objects;
 
 const QueryTool *query_tool_named(const char *name);
-// the files `patterns` name under `root` added to `found` from `count` on, in the order of the patterns and sorted
-// within one: the count after
-unsigned int query_sources(const char *root, const char *const *patterns, char (*found)[QUERY_PATH_LONGEST],
-                           unsigned int count);
+// the files `patterns` name under `root` put after those `found` holds, in the order of the patterns and sorted within
+// one: the count after
+unsigned int query_sources(const char *root, const char *const *patterns, QueryPaths *found);
+// every source of `tool` listed afresh, each count written; and every list of sources and the objects given back
 void query_every_source(const char *root, const QueryTool *tool, unsigned int *c, unsigned int *cxx,
                         unsigned int *tools);
+void query_every_source_given(void);
 unsigned long long query_newest_header_of(const char *root, const QueryTool *tool, char (*sources)[QUERY_PATH_LONGEST],
                                           unsigned int count);
 int query_fresh(int source_known, unsigned long long source, int object_known, unsigned long long object,

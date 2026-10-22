@@ -176,7 +176,7 @@ static void pairs_words(void)
                   mode.dry && (mode.word_count == 0u),
               "a fixed's, dry");
     static const char *const s_ptx[3] = {"pair", "--to", "ptx"};
-    cli_check(!pairs_read(s_ptx, 3u, &mode), "klq_identity writes forms in sass alone");
+    cli_check(!pairs_read(s_ptx, 3u, &mode), "orior_klq_identity writes forms in sass alone");
     static const char *const s_fly[1] = {"fly"};
     static const char *const s_seed[2] = {"pair", "--seed"};
     cli_check(!pairs_read(s_fly, 1u, &mode) && !pairs_read(s_seed, 2u, &mode) && !pairs_read(NULL, 0u, &mode),

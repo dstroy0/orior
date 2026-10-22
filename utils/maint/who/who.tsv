@@ -269,10 +269,10 @@ number	source
 0x010c	src/cu/includes/file_defs/krep/krep_internal.h
 0x010d	src/cu/includes/file_defs/krep/krep_io.cu
 0x010e	src/cu/includes/file_defs/krep/krep_sections.cu
-0x010f	src/cu/engine/render/anchor_raster.c
-0x0110	src/cu/engine/render/anchor_raster.h
-0x0111	src/cu/engine/render/anchor_raster_internal.h
-0x0112	src/cu/engine/render/anchor_raster_output.c
+0x010f	src/cu/engine/render/orior_raster.c
+0x0110	src/cu/engine/render/orior_raster.h
+0x0111	src/cu/engine/render/orior_raster_internal.h
+0x0112	src/cu/engine/render/orior_raster_output.c
 0x0113	src/cu/engine/render/raster.cu
 0x0114	src/cu/engine/render/raster_cuda_internal.h
 0x0115	src/cu/engine/render/raster_entry.cu
@@ -754,7 +754,7 @@ number	source
 0x02f1	utils/test/src/cu/engine/nbody/orior/test_steer_grading.c
 0x02f2	utils/test/src/cu/engine/nbody/orior/test_steer_internal.h
 0x02f3	utils/test/src/cu/engine/nbody/orior/test_steer_projection.c
-0x02f4	utils/test/src/cu/engine/render/anchor_raster_reduce_test.c
+0x02f4	utils/test/src/cu/engine/render/orior_raster_reduce_test.c
 0x02f5	utils/test/src/cu/engine/rmc/codegen_test.cu
 0x02f6	utils/test/src/cu/engine/rmc/ruleset_read_test.cu
 0x02f7	utils/test/src/cu/engine/rmc/web_check.c

@@ -58,7 +58,7 @@ while [ "$FITTED_LIMBS" -lt "$QUESTION_LIMBS" ]; do
 done
 EXACT_DIGITS=$(( (FITTED_LIMBS * 32 * 1000 - 1) / 3322 ))
 [ "$EXACT_DIGITS" -gt 1024 ] && EXACT_DIGITS=1024
-EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${FITTED_LIMBS}u" "-DANCHOR_EXACT_DIGITS=${EXACT_DIGITS}u")
+EXACT_FLAGS=(-I "$EXACT_ROOT" "-DORIOR_EXACT_LIMBS=${FITTED_LIMBS}u" "-DORIOR_EXACT_DIGITS=${EXACT_DIGITS}u")
 
 # the engine's core reaches every module here; the reader formats are its sources
 MODULES=(cu/includes/formats/cfg_json cu/includes/formats/stack cu/includes/file_defs/krep

@@ -48,7 +48,7 @@ static void max_tree_key_encode(const unsigned int *residual, unsigned int weake
     }
 }
 
-static void max_tree_key_exact(const unsigned int *key, AnchorExactInteger *value)
+static void max_tree_key_exact(const unsigned int *key, OriorExactInteger *value)
 {
     unsigned int any = 0u;
     for (unsigned int limb = 0u; limb < MAX_TREE_KEY_LIMBS; limb += 1u)
@@ -64,7 +64,7 @@ static int max_tree_stronger(const unsigned int *keys, unsigned int face, unsign
     max_tree_ask_ready();
     max_tree_key_exact(&keys[(size_t)face * MAX_TREE_KEY_LIMBS], &g_asked_left);
     max_tree_key_exact(&keys[(size_t)standing * MAX_TREE_KEY_LIMBS], &g_asked_right);
-    return (anchor_exact_compare(&g_asked_left, &g_asked_right) > 0) ? 1 : 0;
+    return (orior_exact_compare(&g_asked_left, &g_asked_right) > 0) ? 1 : 0;
 }
 
 int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int height, unsigned int width,

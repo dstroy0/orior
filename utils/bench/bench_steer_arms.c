@@ -68,14 +68,14 @@ int main(void)
 {
     int failed = 0;
 
-    const AnchorSteerEngine *arms[ARMS_MAX];
+    const OriorSteerEngine *arms[ARMS_MAX];
     size_t arm_count = 0u;
-    arms[arm_count] = anchor_steer_portable_engine();
+    arms[arm_count] = orior_steer_portable_engine();
     arm_count += 1u;
 
-#if defined(ANCHOR_STEER_HAVE_AVX512) && ANCHOR_STEER_HAVE_AVX512
+#if defined(ORIOR_STEER_HAVE_AVX512) && ORIOR_STEER_HAVE_AVX512
     {
-        const AnchorSteerEngine *avx512 = anchor_steer_avx512_engine();
+        const OriorSteerEngine *avx512 = orior_steer_avx512_engine();
         if (avx512 != NULL)
         {
             arms[arm_count] = avx512;
@@ -88,9 +88,9 @@ int main(void)
     }
 #endif
 
-#if defined(ANCHOR_STEER_HAVE_AVX2) && ANCHOR_STEER_HAVE_AVX2
+#if defined(ORIOR_STEER_HAVE_AVX2) && ORIOR_STEER_HAVE_AVX2
     {
-        const AnchorSteerEngine *avx2 = anchor_steer_avx2_engine();
+        const OriorSteerEngine *avx2 = orior_steer_avx2_engine();
         if (avx2 != NULL)
         {
             arms[arm_count] = avx2;
@@ -103,9 +103,9 @@ int main(void)
     }
 #endif
 
-#if defined(ANCHOR_STEER_HAVE_SVE) && ANCHOR_STEER_HAVE_SVE
+#if defined(ORIOR_STEER_HAVE_SVE) && ORIOR_STEER_HAVE_SVE
     {
-        const AnchorSteerEngine *sve = anchor_steer_sve_engine();
+        const OriorSteerEngine *sve = orior_steer_sve_engine();
         if (sve != NULL)
         {
             arms[arm_count] = sve;
@@ -118,9 +118,9 @@ int main(void)
     }
 #endif
 
-#if defined(ANCHOR_STEER_HAVE_NEON) && ANCHOR_STEER_HAVE_NEON
+#if defined(ORIOR_STEER_HAVE_NEON) && ORIOR_STEER_HAVE_NEON
     {
-        const AnchorSteerEngine *neon = anchor_steer_neon_engine();
+        const OriorSteerEngine *neon = orior_steer_neon_engine();
         if (neon != NULL)
         {
             arms[arm_count] = neon;
@@ -129,13 +129,13 @@ int main(void)
     }
 #endif
 
-#if defined(ANCHOR_STEER_HAVE_CUDA) && ANCHOR_STEER_HAVE_CUDA
+#if defined(ORIOR_STEER_HAVE_CUDA) && ORIOR_STEER_HAVE_CUDA
     {
-        const AnchorSteerEngine *cuda = anchor_steer_cuda_engine();
+        const OriorSteerEngine *cuda = orior_steer_cuda_engine();
         if (cuda != NULL)
         {
             char device[128];
-            if (anchor_steer_cuda_describe(device, sizeof(device)) != 0)
+            if (orior_steer_cuda_describe(device, sizeof(device)) != 0)
             {
                 printf("  cuda device: %s\n", device);
             }

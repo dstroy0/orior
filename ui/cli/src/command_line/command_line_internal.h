@@ -62,9 +62,9 @@ void cli_line_told_begun(void);
 void cli_line_told(const char *body, unsigned long long size);
 
 // the jobs of the menu's groups, their places in the catalog into `listed`, which holds CLI_LINE_JOBS: their count; a
-// menu's commands and the jobs of a menu of jobs listed, as `orior <menu>` alone shows them, its jobs from the tree at
-// `root`, NULL where there is none; and a job of a menu of jobs shown, as the window shows it on choosing, each giving
-// the code to exit with (command_line_menus.c)
+// menu's commands and the jobs of a menu of jobs listed, as `orior_cli <menu>` alone shows them, its jobs from the tree
+// at `root`, NULL where there is none; and a job of a menu of jobs shown, as the window shows it on choosing, each
+// giving the code to exit with (command_line_menus.c)
 unsigned int cli_menu_jobs(const CliCatalog *catalog, unsigned int menu, unsigned int *listed);
 int cli_menu_lines(const char *root, unsigned int menu);
 int cli_menu_job(const char *named, unsigned int menu, const char *const *words, unsigned int count);
@@ -88,13 +88,16 @@ int cli_completions(const char *shell, CliLine *out, CliLine *said);
 
 // a command the command line runs itself, in the terminal: the code to exit with (command_line_console.c)
 int cli_console(const char *command, const char *named, const char *const *words, unsigned int count);
+// `orior_cli edit search [--case] [--word] [--regex] <text>`: every line in the tree's files that holds the text, as
+// path:line:column: line; the code to exit with, 1 where none does, as grep exits (command_line_search.c)
+int cli_console_search(const char *named, const char *const *words, unsigned int count);
 // the path in the tree and what follows it of a word that names a file of the tree, as path, path:line or
 // path:line:column, into `out`: 1 where it names one, 0 with why said where it names a file outside the tree, -1 where
 // it names no file
 int cli_file_word(const char *named, const char *word, CliLine *out, CliLine *said);
 
-// the commands of `orior file` and `orior run` that work on plugins, toolchains, files and repositories, each giving
-// the code to exit with (command_line_tools.c, command_line_toolchains.c, command_line_files.c)
+// the commands of `orior_cli file` and `orior_cli run` that work on plugins, toolchains, files and repositories, each
+// giving the code to exit with (command_line_tools.c, command_line_toolchains.c, command_line_files.c)
 int cli_plugins_list(void);
 int cli_new_plugin(const char *const *words, unsigned int count);
 int cli_toolchains_words(const char *const *words, unsigned int count);

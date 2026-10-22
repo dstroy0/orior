@@ -513,7 +513,7 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
         cli_line_character(&file, '/');
         cli_line_text(&file, one->name);
         one->bytes = (cli_bridge_named(one->name) && (cli_line_closed(&file) != 0ull))
-                         ? qry_member_file_mapped(path, &one->size)
+                         ? cli_file_held(path, &one->size)
                          : NULL;
         unsigned long long lines = 1ull;
         for (unsigned long long letter = 0ull; (one->bytes != NULL) && (letter < one->size); letter += 1ull)
@@ -560,7 +560,7 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
         {
             cli_json_append(json, rulesets, cli_bridge_ruleset(json, relative, text_of, one->size));
         }
-        qry_member_file_unmapped(one->bytes, one->size);
+        cli_file_let_go(one->bytes, one->size);
     }
     cli_cell_given(files.file);
     cli_json_set(json, bridge, "maps", maps);

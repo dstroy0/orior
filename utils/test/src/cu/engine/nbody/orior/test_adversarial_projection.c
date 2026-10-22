@@ -25,7 +25,7 @@
  *       exact regime and the clamped one and that the separate route lost at least one occurrence.
  *       Part three builds a field past 256 classes where the clamp merges the two classes the
  *       needle uses. The joint rank count must stay at or above the truth and must exceed it, or
- *       the upper bound anchor_field_pair_project documents has not been measured.
+ *       the upper bound orior_field_pair_project documents has not been measured.
  *
  * @note WHY THE SUITE DID NOT CATCH IT. The one projected search in test_steer builds its rank
  *       needle by copying out of the corpus's own projected ranks (`utils/test/engine/nbody/orior/test_steer_*.c`,

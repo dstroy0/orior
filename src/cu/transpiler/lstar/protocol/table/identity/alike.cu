@@ -307,7 +307,7 @@ static std::string first_type(const std::string &kernel)
 int host_questions_write(const std::string &path, const std::string &stick, const std::set<std::string> &numbers)
 {
     RunWritten file = {path, 0, std::string()};
-    run_print(&file, "// the stick's integer questions as the host computes them, written by klq_identity\n");
+    run_print(&file, "// the stick's integer questions as the host computes them, written by orior_klq_identity\n");
     run_print(&file, "#include <limits>\n#include <stdio.h>\n\n");
     run_print(&file, "struct HostIndex\n{\n    unsigned int x, y, z;\n};\n");
     run_print(&file,

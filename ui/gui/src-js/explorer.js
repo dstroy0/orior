@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The explorer beside the editor: its panes, one over the next, each opened and closed by its head,
-// in groups the tool strip's icons choose between, one group shown at a time. Explorer holds Search,
-// which finds text in the tree's files and shows from Find in Files; Usages, which lists where a
+// in groups the tool strip's icons choose between, one group shown at a time. Search, a group of its
+// own, finds text in the tree's files and shows from Find in Files. Explorer holds Usages, which lists where a
 // symbol is used and shows from Find Usages; Call Hierarchy, which shows what calls a function and
 // what it calls; Open Editors, which lists the tabs; and the tree's own
 // pane of its files. Structure holds the Outline of what the open file declares and its Undo History.
@@ -51,7 +51,8 @@ const PANES = [
 
 // The panes each icon of the tool strip shows, one group at a time.
 const GROUPS = {
-  explorer: ["search", "usages", "calls", "todo", "open", "folder"],
+  explorer: ["usages", "calls", "todo", "open", "folder"],
+  search: ["search"],
   structure: ["outline", "undo"],
   commit: ["changes", "timeline", "local", "review"],
   problems: ["problems"],
@@ -258,7 +259,7 @@ export function shownGroup() {
   return state.group;
 }
 
-const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", runs: "Runs" };
+const GROUP_TITLES = { explorer: "Explorer", search: "Search", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", runs: "Runs" };
 
 // The explorer's title, and its group on it, which shows the tree's filter only with the files.
 function drawGroupTitle() {

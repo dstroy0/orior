@@ -1,4 +1,4 @@
-"""One paper through the anchor_sift engine: its own English as the target, then alphabet, web, residue.
+"""One paper through the orior-engine engine: its own English as the target, then alphabet, web, residue.
 
 usage: python paper_sift.py <stem> <authors> <language>
 

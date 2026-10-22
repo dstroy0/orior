@@ -5,7 +5,7 @@
 // value it allows. A schema is checked against its own schema in turn: the meta-schemas of drafts 4, 6 and 7, 2019-09
 // and 2020-12 come with orior.
 //
-// A schema is found by its path beside the file, by its URL among those orior holds, or in `schemas/` of orior's own
+// A schema is found by its path beside the file, by its URL among those orior_cli holds, or in `schemas/` of orior's own
 // folder, where a schema fetched is kept. One named by a URL and found in none of these is noted, and its note offers
 // the line that fetches it with curl, run in the terminal; nothing is fetched without that press.
 //

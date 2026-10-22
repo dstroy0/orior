@@ -945,7 +945,7 @@ int main(int count, char **arguments)
     const unsigned int g0 = (unsigned int)std::max(std::max(angular.size(), axial.size()), pressure.size()) - 1u;
     CoreRadiusOrders continued;
     // the carried magnitudes rounded up to multiples of 2^-bits
-    AnchorExactInteger unit;
+    OriorExactInteger unit;
     sim_rational_status_check(sim_exact_power(2ull, bits, &unit));
     core_radius_continued(&constants, &exact, (unsigned int)order, (unsigned int)carry, &unit, NULL, &continued);
     // the carry on the device to the cfg's reach, its primes enough for sums of twice the bits and 256 more

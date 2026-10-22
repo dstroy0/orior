@@ -194,6 +194,7 @@ int cli_devcontainer_plan(const char *root, CliPlan *plan, CliLine *said)
 {
     cli_lock_take(&s_lock);
     const int done = cli_plan_held(root, plan, said);
+    cli_plan_description_given();
     cli_lock_give(&s_lock);
     return done;
 }

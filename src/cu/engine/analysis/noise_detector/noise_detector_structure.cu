@@ -106,7 +106,7 @@ __global__ static void noise_structure_kernel(const unsigned short *lanes, unsig
 }
 
 // a 128 bit sum from its low and high words
-void noise_exact_words(AnchorExactInteger *value, const unsigned long long *words)
+void noise_exact_words(OriorExactInteger *value, const unsigned long long *words)
 {
     NoiseWide wide;
     wide.low = words[0];
@@ -115,14 +115,14 @@ void noise_exact_words(AnchorExactInteger *value, const unsigned long long *word
 }
 
 // pooled gains a bin's centerd sum N sum u v - sum u sum v, exactly
-static int noise_centerd_add(AnchorExactInteger *pooled, const AnchorExactInteger *count,
-                             const AnchorExactInteger *first, const AnchorExactInteger *second,
-                             const AnchorExactInteger *product)
+static int noise_centerd_add(OriorExactInteger *pooled, const OriorExactInteger *count,
+                             const OriorExactInteger *first, const OriorExactInteger *second,
+                             const OriorExactInteger *product)
 {
-    AnchorExactInteger term;
+    OriorExactInteger term;
     return noise_exact_add_product(pooled, count, product) &&
-           (anchor_exact_multiply(first, second, &term) == ANCHOR_EXACT_OK) &&
-           (anchor_exact_subtract(pooled, &term, pooled) == ANCHOR_EXACT_OK);
+           (orior_exact_multiply(first, second, &term) == ORIOR_EXACT_OK) &&
+           (orior_exact_subtract(pooled, &term, pooled) == ORIOR_EXACT_OK);
 }
 
 extern "C" long noise_structure_volume(const unsigned short *volume, const unsigned long long extent[4],
@@ -144,15 +144,15 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
         (frames >= 2ull) && (frames <= 65536ull) && (width >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels));
     // every sum is at most the frame pairs times the widest q^2, (65535 T)^4, which must stay below 2^128; the
     // widest q y, (65535 T)^2 131070^2, is no wider for T of 2 or more
-    AnchorExactInteger bound;
-    AnchorExactInteger factor;
+    OriorExactInteger bound;
+    OriorExactInteger factor;
     noise_exact_word(&bound, frames * voxels);
     noise_exact_word(&factor, 65535ull * frames);
     for (unsigned int power = 0u; bounded && (power < 4u); power += 1u)
     {
-        bounded = anchor_exact_multiply(&bound, &factor, &bound) == ANCHOR_EXACT_OK;
+        bounded = orior_exact_multiply(&bound, &factor, &bound) == ORIOR_EXACT_OK;
     }
-    for (unsigned int limb = 4u; bounded && (limb < ANCHOR_EXACT_LIMBS); limb += 1u)
+    for (unsigned int limb = 4u; bounded && (limb < ORIOR_EXACT_LIMBS); limb += 1u)
     {
         bounded = bound.limb[limb] == 0u;
     }
@@ -195,23 +195,23 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
     }
     int formed = 1;
     // a bin's sums as exact integers: N, then M, M^2, q, q^2, M q, y, M y and q y
-    AnchorExactInteger count;
-    AnchorExactInteger level;
-    AnchorExactInteger level_square;
-    AnchorExactInteger along;
-    AnchorExactInteger along_square;
-    AnchorExactInteger level_along;
-    AnchorExactInteger measured;
-    AnchorExactInteger level_measured;
-    AnchorExactInteger cross;
+    OriorExactInteger count;
+    OriorExactInteger level;
+    OriorExactInteger level_square;
+    OriorExactInteger along;
+    OriorExactInteger along_square;
+    OriorExactInteger level_along;
+    OriorExactInteger measured;
+    OriorExactInteger level_measured;
+    OriorExactInteger cross;
     // the centerd sums pooled over the bins: MM, QQ, MQ, MY and QY
-    AnchorExactInteger centerd[NOISE_STRUCTURE_CENTERD];
-    AnchorExactInteger term;
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
-    AnchorExactInteger total_along;
-    AnchorExactInteger total_measured;
-    AnchorExactInteger scale;
+    OriorExactInteger centerd[NOISE_STRUCTURE_CENTERD];
+    OriorExactInteger term;
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
+    OriorExactInteger total_along;
+    OriorExactInteger total_measured;
+    OriorExactInteger scale;
     // D_a is per (L - L_x)^2 = q / T^2. The level scale is T^2
     noise_exact_word(&scale, frames * frames);
     for (unsigned int lag = 0u; formed && (lag < NOISE_FLICKER_LAGS); lag += 1u)
@@ -219,10 +219,10 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
         unsigned long long pairs = 0ull;
         for (unsigned int entry = 0u; entry < NOISE_STRUCTURE_CENTERD; entry += 1u)
         {
-            anchor_exact_zero(&centerd[entry]);
+            orior_exact_zero(&centerd[entry]);
         }
-        anchor_exact_zero(&total_along);
-        anchor_exact_zero(&total_measured);
+        orior_exact_zero(&total_along);
+        orior_exact_zero(&total_measured);
         for (unsigned int level_bin = 0u; formed && (level_bin < NOISE_STRUCTURE_BINS); level_bin += 1u)
         {
             const unsigned long long *const cell =
@@ -242,16 +242,16 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
                      noise_centerd_add(&centerd[2], &count, &level, &along, &level_along) &&
                      noise_centerd_add(&centerd[3], &count, &level, &measured, &level_measured) &&
                      noise_centerd_add(&centerd[4], &count, &along, &measured, &cross) &&
-                     (anchor_exact_add(&total_along, &along, &total_along) == ANCHOR_EXACT_OK) &&
-                     (anchor_exact_add(&total_measured, &measured, &total_measured) == ANCHOR_EXACT_OK);
+                     (orior_exact_add(&total_along, &along, &total_along) == ORIOR_EXACT_OK) &&
+                     (orior_exact_add(&total_measured, &measured, &total_measured) == ORIOR_EXACT_OK);
         }
         // q's slope with M held: Num = MM QY - MQ MY over Den = MM QQ - MQ^2
-        formed = formed && (anchor_exact_multiply(&centerd[0], &centerd[1], &denominator) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&centerd[2], &centerd[2], &term) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_subtract(&denominator, &term, &denominator) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&centerd[0], &centerd[4], &numerator) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&centerd[2], &centerd[3], &term) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_subtract(&numerator, &term, &numerator) == ANCHOR_EXACT_OK);
+        formed = formed && (orior_exact_multiply(&centerd[0], &centerd[1], &denominator) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&centerd[2], &centerd[2], &term) == ORIOR_EXACT_OK) &&
+                 (orior_exact_subtract(&denominator, &term, &denominator) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&centerd[0], &centerd[4], &numerator) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&centerd[2], &centerd[3], &term) == ORIOR_EXACT_OK) &&
+                 (orior_exact_subtract(&numerator, &term, &numerator) == ORIOR_EXACT_OK);
         if (formed == 0)
         {
             break;
@@ -260,21 +260,21 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
         // the pooled centerd sums are the entries of a Gram matrix. MM QQ - MQ^2 is never negative, and it is 0
         // only where every bin's centerd q is one multiple of its centerd M
         read->read[lag] = denominator.sign > 0;
-        anchor_exact_zero(&read->slope[lag]);
-        anchor_exact_zero(&read->slope_denominator[lag]);
-        anchor_exact_zero(&read->intercept[lag]);
-        anchor_exact_zero(&read->intercept_denominator[lag]);
+        orior_exact_zero(&read->slope[lag]);
+        orior_exact_zero(&read->slope_denominator[lag]);
+        orior_exact_zero(&read->intercept[lag]);
+        orior_exact_zero(&read->intercept_denominator[lag]);
         if (read->read[lag] == 0)
         {
             continue;
         }
         // the intercept in q's units: (sum Y Den - Num sum A) / (sum N Den)
         noise_exact_word(&count, pairs);
-        formed = (anchor_exact_multiply(&numerator, &scale, &read->slope[lag]) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&total_measured, &denominator, &read->intercept[lag]) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&numerator, &total_along, &term) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_subtract(&read->intercept[lag], &term, &read->intercept[lag]) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&count, &denominator, &read->intercept_denominator[lag]) == ANCHOR_EXACT_OK);
+        formed = (orior_exact_multiply(&numerator, &scale, &read->slope[lag]) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&total_measured, &denominator, &read->intercept[lag]) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&numerator, &total_along, &term) == ORIOR_EXACT_OK) &&
+                 (orior_exact_subtract(&read->intercept[lag], &term, &read->intercept[lag]) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&count, &denominator, &read->intercept_denominator[lag]) == ORIOR_EXACT_OK);
         read->slope_denominator[lag] = denominator;
     }
     free(sums);

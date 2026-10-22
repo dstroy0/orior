@@ -3,7 +3,7 @@
 
 // Settings by file. The reader's own settings are the page's entries, kept in settings.json in
 // orior's own folder (early.js). The files settings.json takes stand under them; its part for the
-// system orior runs on, a tree's .orior/settings.json and the files that one takes stand over them,
+// system orior_gui runs on, a tree's .orior/settings.json and the files that one takes stand over them,
 // as settings.rs in the command line's crate reads them. The page's storage gives each setting as
 // the files put it in force: each part of the page that reads a setting reads the files' with the
 // reader's own. A setting the reader changes where a file stands over it keeps the file's value,

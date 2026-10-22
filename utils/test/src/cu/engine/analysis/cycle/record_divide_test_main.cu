@@ -40,7 +40,7 @@ static void divide_wide(DivideResults *results)
 
     const unsigned int lanes = DIVIDE_TEST_WIDE_LANES;
     unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * 96u, sizeof(unsigned int));
-    AnchorExactInteger *const operand = (AnchorExactInteger *)malloc((size_t)lanes * 2u * sizeof(AnchorExactInteger));
+    OriorExactInteger *const operand = (OriorExactInteger *)malloc((size_t)lanes * 2u * sizeof(OriorExactInteger));
     unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * 256u, sizeof(unsigned int));
     unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * 256u, sizeof(unsigned int));
     DivideLoaded loaded;
@@ -57,22 +57,22 @@ static void divide_wide(DivideResults *results)
     divide_check(results, loaded.layout.file_limbs > 64u, "the wide division program takes the 256-limb file");
     for (unsigned int lane = 0u; lane < lanes; lane += 1u)
     {
-        AnchorExactInteger *const numerator = &operand[2u * lane];
-        AnchorExactInteger *const divisor = &operand[(2u * lane) + 1u];
+        OriorExactInteger *const numerator = &operand[2u * lane];
+        OriorExactInteger *const divisor = &operand[(2u * lane) + 1u];
         const unsigned int pattern = divide_random();
         divide_magnitude(numerator, 2048u, pattern);
         divide_magnitude(divisor, 1024u, pattern >> 2u);
         if ((lane % 4u) == 1u)
         {
             // a shared factor. The gcd runs past one step
-            AnchorExactInteger shared;
-            AnchorExactInteger product;
+            OriorExactInteger shared;
+            OriorExactInteger product;
             divide_magnitude(&shared, 512u, pattern >> 4u);
             divide_magnitude(divisor, 512u, pattern >> 6u);
-            anchor_exact_multiply(divisor, &shared, &product);
+            orior_exact_multiply(divisor, &shared, &product);
             *divisor = product;
             divide_magnitude(&product, 1024u, pattern >> 8u);
-            anchor_exact_multiply(&product, &shared, numerator);
+            orior_exact_multiply(&product, &shared, numerator);
         }
         if (divisor->sign == 0)
         {
@@ -94,9 +94,9 @@ static void divide_wide(DivideResults *results)
     for (unsigned int lane = 0u; (identities != 0) && (lane < lanes); lane += 1u)
     {
         const unsigned int *const record = &host_out[lane * out_limbs];
-        AnchorExactInteger quotient;
-        AnchorExactInteger remainder;
-        AnchorExactInteger common;
+        OriorExactInteger quotient;
+        OriorExactInteger remainder;
+        OriorExactInteger common;
         divide_take(record, table[2].out_offset, table[2].out_bits, &quotient);
         divide_take(record, table[3].out_offset, table[3].out_bits, &remainder);
         divide_take(record, table[4].out_offset, table[4].out_bits, &common);
@@ -134,10 +134,10 @@ static void divide_wide(DivideResults *results)
         int factors = (host_ran != 0);
         for (unsigned int lane = 0u; (factors != 0) && (lane < lanes); lane += 1u)
         {
-            AnchorExactInteger back;
+            OriorExactInteger back;
             divide_take(&host_out[lane * exact_limbs], loaded.layout.step_table[3].out_offset,
                         loaded.layout.step_table[3].out_bits, &back);
-            factors = anchor_exact_equal(&back, &operand[2u * lane]) != 0;
+            factors = orior_exact_equal(&back, &operand[2u * lane]) != 0;
         }
         divide_check(results, factors, "wide: the exact quotient of factor . divisor by the divisor is the factor");
         divide_free(&loaded);
@@ -195,7 +195,7 @@ static void divide_constant(DivideResults *results)
     const unsigned int in_limbs = program.in_limbs[0];
     const unsigned int out_limbs = loaded.layout.out_limbs;
     unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * in_limbs, sizeof(unsigned int));
-    AnchorExactInteger *const operand = (AnchorExactInteger *)malloc((size_t)lanes * 2u * sizeof(AnchorExactInteger));
+    OriorExactInteger *const operand = (OriorExactInteger *)malloc((size_t)lanes * 2u * sizeof(OriorExactInteger));
     unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
     unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
     if ((atoms == NULL) || (operand == NULL) || (host_out == NULL) || (device_out == NULL))
@@ -210,8 +210,8 @@ static void divide_constant(DivideResults *results)
     }
     for (unsigned int lane = 0u; lane < lanes; lane += 1u)
     {
-        AnchorExactInteger *const factor = &operand[2u * lane];
-        AnchorExactInteger *const value = &operand[(2u * lane) + 1u];
+        OriorExactInteger *const factor = &operand[2u * lane];
+        OriorExactInteger *const value = &operand[(2u * lane) + 1u];
         const unsigned int pattern = divide_random();
         divide_magnitude(factor, 39u, pattern);
         divide_magnitude(value, 63u, pattern >> 2u);
@@ -227,8 +227,8 @@ static void divide_constant(DivideResults *results)
                  (host_ran != 0) && (device_ran != 0) &&
                      (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
                  "the constant program runs and the device equals the host word for word");
-    AnchorExactInteger wide;
-    anchor_exact_zero(&wide);
+    OriorExactInteger wide;
+    orior_exact_zero(&wide);
     wide.limb[0] = 7u;
     wide.limb[1] = 1u;
     wide.sign = 1;
@@ -240,18 +240,18 @@ static void divide_constant(DivideResults *results)
         const unsigned int *const record = &device_out[lane * out_limbs];
         for (unsigned int output = 0u; output < 3u; output += 1u)
         {
-            AnchorExactInteger back;
+            OriorExactInteger back;
             const unsigned int step = program.outputs[output];
             divide_take(record, table[step].out_offset, table[step].out_bits, &back);
-            factors = factors && (anchor_exact_equal(&back, &operand[2u * lane]) != 0);
+            factors = factors && (orior_exact_equal(&back, &operand[2u * lane]) != 0);
         }
-        AnchorExactInteger quotient;
-        AnchorExactInteger library;
-        AnchorExactInteger rest;
+        OriorExactInteger quotient;
+        OriorExactInteger library;
+        OriorExactInteger rest;
         divide_take(record, table[11].out_offset, table[11].out_bits, &quotient);
         quotients = quotients &&
-                    (anchor_exact_divide(&operand[(2u * lane) + 1u], &wide, &library, &rest) == ANCHOR_EXACT_OK) &&
-                    (anchor_exact_equal(&quotient, &library) != 0);
+                    (orior_exact_divide(&operand[(2u * lane) + 1u], &wide, &library, &rest) == ORIOR_EXACT_OK) &&
+                    (orior_exact_equal(&quotient, &library) != 0);
     }
     divide_check(results, factors, "factor . c divides back exactly by 3, 12 and 2^32 + 7, the last narrowed a limb");
     divide_check(results, quotients, "a 64-bit value over 2^32 + 7 is the library's quotient in 32 bits");

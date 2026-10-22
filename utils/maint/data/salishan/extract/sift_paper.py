@@ -1,4 +1,4 @@
-"""Sort a paper's text layer with the anchor_sift engine: English, the language, or residue.
+"""Sort a paper's text layer with the orior-engine engine: English, the language, or residue.
 
 usage: python sift_paper.py <stem> [lines|tokens]
 

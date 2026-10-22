@@ -14,7 +14,7 @@ extern "C"
     // mantissa times ten to the exponent, exactly as the text wrote it
     typedef struct
     {
-        AnchorExactInteger mantissa;
+        OriorExactInteger mantissa;
         long long exponent;
     } DicomDecimal;
 

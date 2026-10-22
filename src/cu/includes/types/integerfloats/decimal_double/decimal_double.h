@@ -25,7 +25,7 @@ extern "C"
         size_t digit_count;
         int ex;
         int neg;
-        AnchorExactInteger *candidate;
+        OriorExactInteger *candidate;
         DecimalDoubleResult *result;
         EngineError *error;
     } DecimalDoubleRequest;

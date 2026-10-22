@@ -93,7 +93,7 @@ static int keep_join(CliLine *why)
         }
         if (cli_line_closed(&start) == 0ull)
         {
-            cli_line_text(why, "the line that starts orior's server is longer than orior runs");
+            cli_line_text(why, "the line that starts orior's server is longer than orior_cli runs");
             return 0;
         }
         g_cli_link.has_start = 1;
@@ -105,7 +105,7 @@ static int keep_join(CliLine *why)
     cli_lock_give(&g_cli_link_lock);
     if (s_words.full || !cli_spawn_fed(&g_cli_link.spawned, s_words.word, NULL, NULL, 0u, 1, why))
     {
-        cli_line_text(why, s_words.full ? "the line that starts orior's server is longer than orior runs" : "");
+        cli_line_text(why, s_words.full ? "the line that starts orior's server is longer than orior_cli runs" : "");
         return 0;
     }
     cli_lock_take(&g_cli_link_lock);

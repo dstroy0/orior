@@ -10,15 +10,25 @@
 
 #define CLI_HISTORY_STAMPS 4096u
 
-// the most bytes of the newest snapshot read to compare a save with it
-#define CLI_HISTORY_BYTES (1u << 24u)
+static const char *const s_no_home = "orior_cli has no folder of its own here";
 
-static const char *const s_no_home = "orior has no folder of its own here";
-
-// the stamps of a folder of snapshots and the newest's text, held under the lock while one is kept or listed
+// the stamps of a folder of snapshots, held under the lock while one is kept or listed
 static unsigned long long s_stamps[CLI_HISTORY_STAMPS];
-static unsigned char s_kept[CLI_HISTORY_BYTES];
 static CliLock s_lock = CLI_LOCK_INIT;
+
+// whether the snapshot at `snapshot` holds `size` bytes of `text`, the snapshot mapped where it lies and let go
+static int cli_snapshot_same(const char *snapshot, const char *text, unsigned long long size)
+{
+    unsigned long long read = 0ull;
+    const unsigned char *const kept = cli_file_held(snapshot, &read);
+    const int same = (kept != NULL) && (read == size) &&
+                     (memor.cmp(&(MemoriaCfg){.src = kept, .other = text, .bytes = (size_t)size}) == 0);
+    if (kept != NULL)
+    {
+        cli_file_let_go(kept, read);
+    }
+    return same;
+}
 
 // FNV-1a over the bytes, which names a folder the same on every run, sixteen hex digits
 static void cli_hash_put(CliLine *line, const char *text)
@@ -162,13 +172,9 @@ static int cli_kept_held(const char *root, const char *path, const char *before,
     if (held != 0u)
     {
         const unsigned long long last = s_stamps[held - 1u];
-        if (cli_snapshot_path(folder, last, snapshot))
+        if (cli_snapshot_path(folder, last, snapshot) && cli_snapshot_same(snapshot, text, size))
         {
-            const unsigned long long read = qry_member_file_read(snapshot, s_kept, sizeof(s_kept));
-            if ((read == size) && (memor.cmp(&(MemoriaCfg){.src = s_kept, .other = text, .bytes = size}) == 0))
-            {
-                return 1;
-            }
+            return 1;
         }
         at = (at > (last + 1ull)) ? at : (last + 1ull);
     }
@@ -234,10 +240,12 @@ int cli_history_read(const char *root, const char *path, unsigned long long at, 
         cli_line_text(said, s_no_home);
         return 0;
     }
+    unsigned long long file_size = 0ull;
+    const int found = cli_folder_of(home, root, path, folder) && cli_snapshot_path(folder, at, snapshot) &&
+                      cli_file_size(snapshot, &file_size) && cli_line_room(out, file_size);
     const unsigned long long room = cli_line_fits(out) ? (out->capacity - out->at) : 0ull;
-    const unsigned long long size = (cli_folder_of(home, root, path, folder) && cli_snapshot_path(folder, at, snapshot))
-                                        ? qry_member_file_read(snapshot, (unsigned char *)(out->out + out->at), room)
-                                        : QRY_MEMBER_UNREAD;
+    const unsigned long long size =
+        found ? qry_member_file_read(snapshot, (unsigned char *)(out->out + out->at), room) : QRY_MEMBER_UNREAD;
     if (size == QRY_MEMBER_UNREAD)
     {
         cli_line_text(said, "no snapshot of ");

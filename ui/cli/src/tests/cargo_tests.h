@@ -5,7 +5,7 @@
 // Each Cargo.toml of the tree that makes a package gives its targets: the library, each binary and each test, by its
 // [lib], [[bin]] and [[test]] tables and by the files Cargo finds on its own. Each target's modules are followed from
 // its first file, `mod name;` by `mod name;`, and in each file every function marked `#[test]`, or with an attribute
-// whose path ends in `test` as `#[tokio::test]`, is a test. A test is named as orior names a Python one, its file
+// whose path ends in `test` as `#[tokio::test]`, is a test. A test is named as orior_cli names a Python one, its file
 // first, `src/files.rs::listing::name`, and runs by the name the harness gives it, `files::listing::name`.
 //
 // A run gives each target its own cargo test, every target's at once, with the words rust-analyzer gives an editor
@@ -48,20 +48,37 @@ typedef struct
     const char *full;
 } CliCargoFound;
 
-// The Rust tests of a tree and the texts they take, with 1 in `full` where one did not fit
+// the bytes of a piece of the tests' texts, past which a text longer takes a piece of its own size
+#define CLI_CARGO_PIECE (64ull << 10u)
+
+// A piece of the tests' texts: the piece put before it, the bytes put in it and those it holds, and its bytes
+typedef struct CliCargoPieceStruct
+{
+    struct CliCargoPieceStruct *next;
+    unsigned long long used;
+    unsigned long long room;
+    char text[];
+} CliCargoPiece;
+
+// The Rust tests of a tree and the texts they take, with 1 in `full` where one did not fit: the tests in a cell whose
+// room doubles as they are put, CLI_CARGO_FOUND at the most, and their texts in pieces that never move, the newest
+// first, CLI_CARGO_TEXT bytes at the most, each given back with cli_cargo_tests_given
 typedef struct
 {
-    CliCargoFound found[CLI_CARGO_FOUND];
+    CliCargoFound *found;
     unsigned int count;
-    char text[CLI_CARGO_TEXT];
+    unsigned int room;
+    CliCargoPiece *pieces;
     unsigned long long used;
     int full;
 } CliCargoTests;
 
 // whether `id`, a test's name or a file's path, is of Rust (cargo_found.c)
 int cli_cargo_is_rust(const char *id);
-// the Rust tests of the tree at `root` into `tests`, package by package in the order of their manifests' paths
+// the Rust tests of the tree at `root` into `tests`, package by package in the order of their manifests' paths, those
+// it held before given back; and the tests' cells given back, the tests left empty
 void cli_cargo_found(const char *root, CliCargoTests *tests);
+void cli_cargo_tests_given(CliCargoTests *tests);
 // how many cargo tests a run of `given`, `count` tests by their names or files by their paths, starts (cargo_run.c)
 unsigned int cli_cargo_targets_given(const char *root, const char *const *given, unsigned int count);
 // the program that runs the test `id` and the name the harness gives it, built as cargo test builds it, with the

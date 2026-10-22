@@ -6,8 +6,8 @@
 // gives
 #include "highlight_internal.h"
 
-// the most grammars kept
-#define CLI_GRAMMARS_MOST 64u
+// the grammars the list of those kept is begun with, doubling as every place is taken
+#define CLI_GRAMMARS_FIRST 16u
 
 // A grammar kept: its key, its cell and the cell's bytes, and its parts there
 typedef struct
@@ -21,7 +21,8 @@ typedef struct
 
 // the grammars kept, the grammar read, the lock the grammars are kept and read under, and what the grammars and the
 // rooms hold in the cellblock
-static CliKept s_kept[CLI_GRAMMARS_MOST];
+static CliKept *s_kept;
+static unsigned int s_kept_room;
 static CliGrammar s_read;
 static CliLock s_lock = CLI_LOCK_INIT;
 static CliCellsTally s_tally = CLI_CELLS_TALLY("cli_grammars");
@@ -100,6 +101,28 @@ static void cli_copied(const CliGrammar *read, unsigned char *region, CliGrammar
     memor.cpy(&(MemoriaCfg){.dst = kept->text, .src = read->text, .bytes = read->text_size});
 }
 
+// the list of the grammars kept twice its room, or CLI_GRAMMARS_FIRST where it has none, the places after those it
+// held empty: 1, or 0 where the cellblock cannot meet it; under the lock
+static int cli_kept_grown(void)
+{
+    const unsigned int room = (s_kept_room == 0u) ? CLI_GRAMMARS_FIRST : (2u * s_kept_room);
+    CliKept *const grown =
+        cli_cell_taken_by(&s_tally, (unsigned long long)room * sizeof(*grown), "the grammars kept, by key");
+    if (grown == NULL)
+    {
+        return 0;
+    }
+    memor.set(&(MemoriaCfg){.dst = grown, .val = 0, .bytes = (size_t)room * sizeof(*grown)});
+    if (s_kept != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_kept, .bytes = (size_t)s_kept_room * sizeof(*grown)});
+    }
+    cli_cell_given_by(&s_tally, s_kept);
+    s_kept = grown;
+    s_kept_room = room;
+    return 1;
+}
+
 // the grammar at `def` read into `room` and kept under `key` in a cell of its own, the cell of one kept
 // there before given back first: 1, or 0 with why said
 static int cli_kept_held(const char *key, const CliJson *json, unsigned int def, CliGrammarRoom *room, CliLine *said)
@@ -110,32 +133,37 @@ static int cli_kept_held(const char *key, const CliJson *json, unsigned int def,
     }
     CliGrammar laid = s_read;
     const unsigned long long size = cli_laid(&laid, NULL);
-    unsigned int held_at = CLI_GRAMMARS_MOST;
-    unsigned int free_at = CLI_GRAMMARS_MOST;
-    for (unsigned int at = 0u; at < CLI_GRAMMARS_MOST; at += 1u)
+    unsigned int held_at = s_kept_room;
+    unsigned int free_at = s_kept_room;
+    for (unsigned int at = 0u; at < s_kept_room; at += 1u)
     {
         held_at = (s_kept[at].used &&
                    (cellul.eq(&(CatenaFinitaCfg){.src = s_kept[at].key, .other = key, .cap = CLI_CELLS_POOL})))
                       ? at
                       : held_at;
-        free_at = (!s_kept[at].used && (free_at == CLI_GRAMMARS_MOST)) ? at : free_at;
+        free_at = (!s_kept[at].used && (free_at == s_kept_room)) ? at : free_at;
     }
-    if (held_at != CLI_GRAMMARS_MOST)
+    if (held_at != s_kept_room)
     {
         cli_cell_given_by(&s_tally, s_kept[held_at].region);
         s_kept[held_at].used = 0;
         free_at = held_at;
     }
-    if ((free_at == CLI_GRAMMARS_MOST) ||
-        (cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) >= CLI_NAME_LONGEST))
+    if (cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) >= CLI_NAME_LONGEST)
     {
-        cli_line_text(said, "more grammars than orior keeps");
+        cli_line_text(said, "a grammar's key is longer than orior_cli keeps");
+        return 0;
+    }
+    // every place taken, the list doubled and the first place it adds taken
+    if ((free_at == s_kept_room) && !cli_kept_grown())
+    {
+        cli_line_text(said, "the grammars kept take more than orior_cli keeps");
         return 0;
     }
     unsigned char *const region = cli_cell_taken_by(&s_tally, size, "a grammar kept");
     if (region == NULL)
     {
-        cli_line_text(said, "the grammars kept take more than orior keeps");
+        cli_line_text(said, "the grammars kept take more than orior_cli keeps");
         return 0;
     }
     CliKept *const kept = &s_kept[free_at];
@@ -276,14 +304,15 @@ int cli_highlight_color(const char *key, const char *state, const char *const *l
 {
     cli_lock_take(&s_lock);
     unsigned int held_at = 0u;
-    while ((held_at < CLI_GRAMMARS_MOST) &&
+    while ((held_at < s_kept_room) &&
            !(s_kept[held_at].used &&
              (cellul.eq(&(CatenaFinitaCfg){.src = s_kept[held_at].key, .other = key, .cap = CLI_CELLS_POOL}))))
     {
         held_at += 1u;
     }
     int roomed = 0;
-    if (held_at != CLI_GRAMMARS_MOST)
+    const int held = held_at != s_kept_room;
+    if (held)
     {
         CliHighlightRoom room;
         unsigned char *const cell = cli_coloring_roomed(&room, lines, count);
@@ -295,7 +324,7 @@ int cli_highlight_color(const char *key, const char *state, const char *const *l
         cli_cell_given_by(&s_tally, cell);
     }
     cli_lock_give(&s_lock);
-    if (held_at == CLI_GRAMMARS_MOST)
+    if (!held)
     {
         cli_line_text(said, "no grammar is kept under ");
         cli_line_text(said, key);
@@ -331,11 +360,11 @@ int cli_highlight_has_word(const CliGrammar *grammar, const CliHighlightList *li
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
+        // the held word is terminated and `word` holds no terminator within its length, so a compare over `length`
+        // bytes orders a shorter held word by its terminator, and a longer one by the byte after `length`
         const char *const held = grammar->text + grammar->word[list->first + middle];
-        const unsigned long long held_length = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL});
-        int order = memor.cmp(
-            &(MemoriaCfg){.src = held, .other = word, .bytes = (held_length < length) ? held_length : length});
-        order = (order != 0) ? order : ((held_length < length) ? -1 : (held_length > length) ? 1 : 0);
+        int order = memor.cmp(&(MemoriaCfg){.src = held, .other = word, .bytes = length});
+        order = (order != 0) ? order : ((held[length] != '\0') ? 1 : 0);
         if (order == 0)
         {
             return 1;

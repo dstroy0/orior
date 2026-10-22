@@ -5,36 +5,51 @@
 #include "json_tree.h"
 #include "text.h"
 
-void cli_json_quoted(CliLine *out, const char *text, unsigned long long length)
+// a byte JSON writes escaped, a quote, a backslash, a control, written so: 1, or 0 where the byte stands as it is
+static int json_letter_escaped(CliLine *out, unsigned char letter)
 {
     static const char s_hex[17] = "0123456789abcdef";
+    const char *const escape = (letter == '"')     ? "\\\""
+                               : (letter == '\\')  ? "\\\\"
+                               : (letter == '\n')  ? "\\n"
+                               : (letter == '\r')  ? "\\r"
+                               : (letter == '\t')  ? "\\t"
+                               : (letter == 0x08u) ? "\\b"
+                               : (letter == 0x0cu) ? "\\f"
+                                                   : NULL;
+    if (escape != NULL)
+    {
+        cli_line_text(out, escape);
+        return 1;
+    }
+    if (letter < 0x20u)
+    {
+        cli_line_text(out, "\\u00");
+        cli_line_character(out, s_hex[letter >> 4u]);
+        cli_line_character(out, s_hex[letter & 0x0fu]);
+        return 1;
+    }
+    return 0;
+}
+
+void cli_json_quoted(CliLine *out, const char *text, unsigned long long length)
+{
     cli_line_character(out, '"');
+    // each run of bytes that stand as they are is written in one piece; the quote, the backslash and the controls
+    // are the bytes escaped
+    unsigned long long run = 0ull;
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {
         const unsigned char letter = (unsigned char)text[at];
-        const char *const escape = (letter == '"')     ? "\\\""
-                                   : (letter == '\\')  ? "\\\\"
-                                   : (letter == '\n')  ? "\\n"
-                                   : (letter == '\r')  ? "\\r"
-                                   : (letter == '\t')  ? "\\t"
-                                   : (letter == 0x08u) ? "\\b"
-                                   : (letter == 0x0cu) ? "\\f"
-                                                       : NULL;
-        if (escape != NULL)
+        if ((letter >= 0x20u) && (letter != '"') && (letter != '\\'))
         {
-            cli_line_text(out, escape);
+            continue;
         }
-        else if (letter < 0x20u)
-        {
-            cli_line_text(out, "\\u00");
-            cli_line_character(out, s_hex[letter >> 4u]);
-            cli_line_character(out, s_hex[letter & 0x0fu]);
-        }
-        else
-        {
-            cli_line_character(out, (char)letter);
-        }
+        cli_line_counted(out, text + run, at - run);
+        (void)json_letter_escaped(out, letter);
+        run = at + 1ull;
     }
+    cli_line_counted(out, text + run, length - run);
     cli_line_character(out, '"');
 }
 
@@ -111,7 +126,6 @@ void cli_json_quoted_lossy(CliLine *out, const unsigned char *text, unsigned lon
 
 void cli_json_escaped_lossy(CliLine *out, const unsigned char *text, unsigned long long length)
 {
-    static const char s_hex[17] = "0123456789abcdef";
     unsigned long long at = 0ull;
     while (at < length)
     {
@@ -123,26 +137,7 @@ void cli_json_escaped_lossy(CliLine *out, const unsigned char *text, unsigned lo
             at += 1ull;
             continue;
         }
-        const unsigned char letter = text[at];
-        const char *const escape = (letter == '"')     ? "\\\""
-                                   : (letter == '\\')  ? "\\\\"
-                                   : (letter == '\n')  ? "\\n"
-                                   : (letter == '\r')  ? "\\r"
-                                   : (letter == '\t')  ? "\\t"
-                                   : (letter == 0x08u) ? "\\b"
-                                   : (letter == 0x0cu) ? "\\f"
-                                                       : NULL;
-        if (escape != NULL)
-        {
-            cli_line_text(out, escape);
-        }
-        else if (letter < 0x20u)
-        {
-            cli_line_text(out, "\\u00");
-            cli_line_character(out, s_hex[letter >> 4u]);
-            cli_line_character(out, s_hex[letter & 0x0fu]);
-        }
-        else
+        if (!json_letter_escaped(out, text[at]))
         {
             cli_line_counted(out, (const char *)text + at, bytes);
         }

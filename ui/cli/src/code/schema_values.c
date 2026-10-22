@@ -11,8 +11,11 @@
 #include <math.h>
 #include <stdlib.h>
 
-// the most letters of a string a pattern is matched against
+// the most letters of a string a pattern is matched against, the most bytes of a pattern, and the bytes a value is
+// begun to be written in before it is cut short, doubling as it is written
 #define CLI_SCHEMA_MATCHED (1u << 20u)
+#define CLI_SCHEMA_PATTERN (1u << 14u)
+#define CLI_SCHEMA_SHOWN_FIRST 256u
 
 const char *cli_schema_text(const CliSchemaRead *read, unsigned int at)
 {
@@ -270,10 +273,11 @@ static void values_cut(const char *text, unsigned long long size, CliLine *out)
 
 void cli_schema_shown(const CliJson *json, unsigned int value, CliLine *out)
 {
-    static char s_written[1u << 16u];
-    CliLine written = {s_written, sizeof(s_written), 0ull};
+    CliLine written;
+    (void)cli_line_growing(&written, CLI_SCHEMA_SHOWN_FIRST, "a value written to be shown");
     cli_json_write(json, value, &written, 0u, 1);
-    values_cut(s_written, cli_line_fits(&written) ? written.at : 0u, out);
+    values_cut(written.out, cli_line_fits(&written) ? written.at : 0u, out);
+    cli_cell_given(written.out);
 }
 
 // a file's value written as serde_json writes the value it reads it as, an object's keys in order, the last of a key
@@ -346,10 +350,11 @@ static void values_written(const CliSchemaRead *read, unsigned int node, CliLine
 
 void cli_schema_shown_value(const CliSchemaRead *read, unsigned int node, CliLine *out)
 {
-    static char s_written[1u << 16u];
-    CliLine written = {s_written, sizeof(s_written), 0ull};
+    CliLine written;
+    (void)cli_line_growing(&written, CLI_SCHEMA_SHOWN_FIRST, "a value written to be shown");
     values_written(read, node, &written);
-    values_cut(s_written, cli_line_fits(&written) ? written.at : 0u, out);
+    values_cut(written.out, cli_line_fits(&written) ? written.at : 0u, out);
+    cli_cell_given(written.out);
 }
 
 void cli_schema_number_shown(double value, CliLine *out)
@@ -383,30 +388,38 @@ int cli_schema_matches(const char *pattern, unsigned long long pattern_size, con
 {
     static CliRegexp s_regexp;
     static CliRegexpRoom s_room;
-    static unsigned int s_letters[CLI_SCHEMA_MATCHED];
     static CliRegexpSpan s_groups[CLI_REGEXP_GROUPS + 1u];
-    static char s_source[1u << 14u];
     static char s_said[512];
     static CliLock s_matches_lock = CLI_LOCK_INIT;
-    if (pattern_size >= sizeof(s_source))
+    if (pattern_size >= CLI_SCHEMA_PATTERN)
     {
         return -1;
     }
-    cli_lock_take(&s_matches_lock);
-    memor.cpy(&(MemoriaCfg){.dst = s_source, .src = pattern, .bytes = (size_t)pattern_size});
-    s_source[pattern_size] = '\0';
-    cli_regexp_roomed(&s_regexp, &s_room);
-    CliLine said = {s_said, sizeof(s_said), 0ull};
+    // the string's letters, each at least one of its bytes, and the pattern with a terminator after it
+    const unsigned long long room = (size < CLI_SCHEMA_MATCHED) ? size : CLI_SCHEMA_MATCHED;
+    unsigned int *const letters =
+        cli_cell_taken_by(&g_cli_schema_cells, (room + 1ull) * sizeof(*letters), "the letters a pattern is matched");
+    char *const source = cli_cell_taken_by(&g_cli_schema_cells, pattern_size + 1ull, "a pattern of a schema");
     int found = -1;
-    if (cli_regexp_read(&s_regexp, s_source, "u", &said))
+    if ((letters != NULL) && (source != NULL))
     {
-        const unsigned long long length = cli_regexp_letters(text, size, s_letters, CLI_SCHEMA_MATCHED);
-        found = 0;
-        for (unsigned long long at = 0ull; !found && (at <= length); at += 1u)
+        cli_lock_take(&s_matches_lock);
+        memor.cpy(&(MemoriaCfg){.dst = source, .src = pattern, .bytes = (size_t)pattern_size});
+        source[pattern_size] = '\0';
+        cli_regexp_roomed(&s_regexp, &s_room);
+        CliLine said = {s_said, sizeof(s_said), 0ull};
+        if (cli_regexp_read(&s_regexp, source, "u", &said))
         {
-            found = cli_regexp_match_into(&s_regexp, s_letters, length, at, s_groups);
+            const unsigned long long length = cli_regexp_letters(text, size, letters, room);
+            found = 0;
+            for (unsigned long long at = 0ull; !found && (at <= length); at += 1u)
+            {
+                found = cli_regexp_match_into(&s_regexp, letters, length, at, s_groups);
+            }
         }
+        cli_lock_give(&s_matches_lock);
     }
-    cli_lock_give(&s_matches_lock);
+    cli_cell_given_by(&g_cli_schema_cells, source);
+    cli_cell_given_by(&g_cli_schema_cells, letters);
     return found;
 }

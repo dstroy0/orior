@@ -221,11 +221,17 @@ void cli_job_show(const char *root, const CliCatalog *catalog, unsigned int job)
     }
     cli_out("");
     cli_out("runs");
-    static CliValues s_values;
     char why[4096];
     CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_job_values(catalog, job, NULL, 0u, &s_values, &said) ||
-        !cli_runner_shown(root, catalog, job, &s_values, jobs_shown, NULL, &said))
+    CliValues *const values = cli_cell_taken(sizeof(*values), "the values a job is shown with");
+    if (values == NULL)
+    {
+        cli_line_text(&said, "the cells cannot meet the values a job is shown with");
+    }
+    const int shown = (values != NULL) && cli_job_values(catalog, job, NULL, 0u, values, &said) &&
+                      cli_runner_shown(root, catalog, job, values, jobs_shown, NULL, &said);
+    cli_cell_given(values);
+    if (!shown)
     {
         line.at = 0ull;
         cli_line_text(&line, "  ");
@@ -246,7 +252,9 @@ typedef struct
 } CliLineRun;
 
 static CliLineRun s_run;
-static char s_told[1u << 20u];
+
+// the bytes what a run tells the window is begun to be written in, doubling as it fills
+#define CLI_JOBS_TOLD_FIRST 1024u
 
 void cli_line_told_begun(void)
 {
@@ -268,6 +276,16 @@ void cli_line_told(const char *body, unsigned long long size)
     }
 }
 
+// `told`, a growing line, told to the window where it fits, and given back
+static void jobs_told_given(CliLine *told)
+{
+    if (cli_line_fits(told))
+    {
+        cli_line_told(told->out, told->at);
+    }
+    cli_cell_given(told->out);
+}
+
 // a line of the errors led by `lead`
 static void jobs_err_led(const char *lead, const char *text)
 {
@@ -282,12 +300,13 @@ static void jobs_err_led(const char *lead, const char *text)
 static void jobs_said(void *context, const CliSaid *said)
 {
     (void)context;
-    CliLine told = {s_told, sizeof(s_told), 0ull};
     // a blob the run's writer placed is the panel's, and the command line shows the console alone
     if (said->kind == CLI_SAID_START)
     {
         return;
     }
+    CliLine told = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_line_growing(&told, CLI_JOBS_TOLD_FIRST, "what a run tells the window");
     if (said->kind == CLI_SAID_LINE)
     {
         cli_line_text(&told, "{\"line\":");
@@ -299,7 +318,7 @@ static void jobs_said(void *context, const CliSaid *said)
         cli_line_text(&told, ",\"ms\":");
         cli_json_double(&told, said->ms);
         cli_line_character(&told, '}');
-        cli_line_told(s_told, told.at);
+        jobs_told_given(&told);
         if (cellul.eq(&(CatenaFinitaCfg){.src = said->stream, .other = "stdout", .cap = CLI_CELLS_POOL}))
         {
             cli_out(said->text);
@@ -326,7 +345,7 @@ static void jobs_said(void *context, const CliSaid *said)
     cli_line_text(&told, said->stopped ? ",\"stopped\":true,\"ms\":" : ",\"stopped\":false,\"ms\":");
     cli_json_double(&told, said->ms);
     cli_line_character(&told, '}');
-    cli_line_told(s_told, told.at);
+    jobs_told_given(&told);
     for (unsigned int at = 0u; at < said->view_count; at += 1u)
     {
         jobs_err_led("page ", said->views[at]);
@@ -343,18 +362,21 @@ static void jobs_said(void *context, const CliSaid *said)
 int cli_job_run(const char *root, const CliCatalog *catalog, unsigned int job, const char *const *words,
                 unsigned int count)
 {
-    static CliValues s_values;
     char why[4096];
     CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_job_values(catalog, job, words, count, &s_values, &said))
+    CliValues *const values = cli_cell_taken(sizeof(*values), "the values a job is run with");
+    if ((values == NULL) || !cli_job_values(catalog, job, words, count, values, &said))
     {
+        cli_line_text(&said, (values == NULL) ? "the cells cannot meet the values a job is run with" : "");
         cli_err_line(why, cli_line_fits(&said) ? said.at : 0ull);
+        cli_cell_given(values);
         return CLI_WRONG;
     }
     cli_line_told_begun();
     s_run.ended = 0;
     s_run.has_code = 0;
-    CliLine told = {s_told, sizeof(s_told), 0ull};
+    CliLine told = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_line_growing(&told, CLI_JOBS_TOLD_FIRST, "what a run tells the window");
     cli_line_text(&told, "{\"state\":\"started\",\"job\":");
     const char *const id = cli_catalog_at(catalog, catalog->job[job].id);
     const char *const title = cli_catalog_at(catalog, catalog->job[job].title);
@@ -372,12 +394,14 @@ int cli_job_run(const char *root, const CliCatalog *catalog, unsigned int job, c
                               cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL}));
     }
     cli_line_text(&told, "]}");
-    cli_line_told(s_told, told.at);
+    jobs_told_given(&told);
     cli_runs_attached();
     const CliRunSink sink = {jobs_said, NULL};
     unsigned long long run = 0ull;
     said.at = 0ull;
-    if (!cli_runs_start(sink, root, catalog, job, &s_values, &run, &said))
+    const int started = cli_runs_start(sink, root, catalog, job, values, &run, &said);
+    cli_cell_given(values);
+    if (!started)
     {
         cli_err_line(why, cli_line_fits(&said) ? said.at : 0ull);
         return CLI_WRONG;

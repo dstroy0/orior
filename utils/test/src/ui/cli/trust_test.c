@@ -23,7 +23,6 @@ static int trust_answer(const char *kept, const char *tree)
 // the code a tree runs is found and the nearest answer stands
 static void trust_answers(void)
 {
-    static char s_code[8][CLI_PATH_LONGEST];
     char home[CLI_PATH_LONGEST];
     char trees[CLI_PATH_LONGEST];
     char tree[CLI_PATH_LONGEST];
@@ -40,12 +39,16 @@ static void trust_answers(void)
     trust_file(tree, "build.rs", "fn main() {}\n");
     trust_file(tree, "src/lib.rs", "");
     trust_file(tree, "prettier.config.js", "module.exports = {};\n");
-    const unsigned int found = cli_trust_looked_for(tree, s_code, 8u);
-    cli_check(
-        (found == 2u) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = s_code[0], .other = "build.rs", .cap = CLI_CELLS_POOL})) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = s_code[1], .other = "prettier.config.js", .cap = CLI_CELLS_POOL})),
-        "the code a tree runs is found");
+    CliTrustCode code = {NULL, 0ull, 0u};
+    const int looked = cli_trust_looked_for(tree, &code);
+    const char *const first = (code.paths != NULL) ? code.paths : "";
+    const char *const second = first + cellul.len(&(CatenaFinitaCfg){.src = first, .cap = CLI_CELLS_POOL}) + 1u;
+    cli_check(looked && (code.count == 2u) &&
+                  (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "build.rs", .cap = CLI_CELLS_POOL})) &&
+                  (cellul.eq(&(CatenaFinitaCfg){.src = second, .other = "prettier.config.js", .cap = CLI_CELLS_POOL})),
+              "the code a tree runs is found, in a cell of its paths");
+    cli_trust_code_given(&code);
+    cli_check(g_cli_trust_cells.holds == 0ull, "and the cell and the files read are given back");
     cli_full(home, "trust.json", kept);
     cli_check(trust_answer(kept, tree) == -1, "a tree with no answer has none");
     (void)cli_trust_set_in(kept, trees, 1, &said);
@@ -57,7 +60,7 @@ static void trust_answers(void)
     cli_full(tree, ".git", path);
     (void)query_folder_made(path);
     trust_file(tree, ".git/config", "[core]\n\tfsmonitor = watch\n");
-    // the tree lies inside the folders this machine's own answers may trust, so git is asked under a home of the
+    // the tree lies inside the folders this machine's own answers may trust; git is therefore asked under a home of the
     // check's own that holds no answer
     char bare_home[CLI_PATH_LONGEST];
     cli_full(home, "bare_home", bare_home);

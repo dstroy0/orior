@@ -55,7 +55,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
         (fields.count("rb") == 0u))
     {
-        printf("klq_identity curve: %s gives no stall field or not every register field\n", ksc);
+        printf("orior_klq_identity curve: %s gives no stall field or not every register field\n", ksc);
         return 1;
     }
     const StallField stall = fields["stall"];
@@ -199,7 +199,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
     }
     if (!run_closed(&table))
     {
-        printf("klq_identity curve: %s/curve.txt could not be written\n", folder.c_str());
+        printf("orior_klq_identity curve: %s/curve.txt could not be written\n", folder.c_str());
         run_channel_close();
         return 1;
     }
@@ -214,11 +214,11 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
         });
         if (!ksc_answers_write(ksc, asked, own))
         {
-            printf("klq_identity curve: %s could not be written\n", ksc);
+            printf("orior_klq_identity curve: %s could not be written\n", ksc);
             return 1;
         }
     }
-    printf("klq_identity curve: %zu tasks over %llu asks, %zu answers written to %s\n", tasks.size(), asks,
+    printf("orior_klq_identity curve: %zu tasks over %llu asks, %zu answers written to %s\n", tasks.size(), asks,
            rows.size(), ksc);
     return 0;
 }

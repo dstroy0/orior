@@ -31,7 +31,7 @@ static void watch_file(const char *root, const char *name, const char *text)
     (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-// the batch of `count` changes written into s_out
+// the group of `count` changes written into s_out
 static void watch_gathered(const char *root, const char *const *paths, const unsigned int *kinds, unsigned int count)
 {
     CliLine out = {s_out, sizeof(s_out), 0ull};
@@ -39,7 +39,7 @@ static void watch_gathered(const char *root, const char *const *paths, const uns
     s_out[(out.at < sizeof(s_out)) ? out.at : sizeof(s_out) - 1u] = '\0';
 }
 
-// a batch says which folders and files changed
+// a group says which folders and files changed
 static void watch_batch(void)
 {
     static const char *const s_paths[5] = {"src/b.rs", "src/a.rs", "src", "old.txt", ".git/objects/ab/cdef"};
@@ -72,7 +72,7 @@ static void watch_batch(void)
               "a record of changes that ran over is told");
 }
 
-// a batch taken, kept after the others, a line each
+// a group taken, kept after the others, a line each
 static void watch_taken(void *context, const char *batch, unsigned long long size)
 {
     (void)context;
@@ -87,7 +87,7 @@ static void watch_taken(void *context, const char *batch, unsigned long long siz
     cli_lock_give(&s_lock);
 }
 
-// whether the batches taken name `text`
+// whether the groups taken name `text`
 static int watch_named(const char *text)
 {
     cli_lock_take(&s_lock);
@@ -160,5 +160,9 @@ int main(void)
     watch_batch();
     watch_system();
     watch_reading();
+    // the changes waiting and a group's are each a few paths, far below the room a fixed queue gave them
+    cli_check((g_cli_watch_cells.holds == 0ull) && (g_cli_watch_cells.hw != 0ull) &&
+                  (g_cli_watch_cells.hw < (1ull << 20u)),
+              "the changes and a batch are held in cells sized to them, and given back");
     return cli_checked();
 }

@@ -167,9 +167,28 @@ int main(void)
                                            .other = "0 ",
                                            .cap = CLI_CELLS_POOL}),
               "what matches no rule has no token");
+    // grammars kept under many keys, each kept as the list of them grows, the first still colors after the last
+    int kept = 1;
+    for (unsigned int at = 0u; at < 100u; at += 1u)
+    {
+        char key[32];
+        CliLine named = {key, sizeof(key), 0ull};
+        cli_line_text(&named, "many_");
+        cli_line_decimal(&named, at, 1u);
+        (void)cli_line_closed(&named);
+        kept &= highlight_kept(key, s_grammar, sizeof(s_grammar) - 1u, NULL);
+    }
+    cli_check(kept &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = highlight_line("many_0", "if", "root", runs, sizeof(runs)),
+                                               .other = "0 keyword",
+                                               .cap = CLI_CELLS_POOL}) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = highlight_line("many_99", "if", "root", runs, sizeof(runs)),
+                                               .other = "0 keyword",
+                                               .cap = CLI_CELLS_POOL}),
+              "a hundred grammars are kept, each under its key");
     static const char s_bad[] = "{\"tokenizer\": {\"root\": [[{\"pattern\": \"(?<=a)b\"}, \"x\"]]}}";
     cli_check(!highlight_kept("bad", s_bad, sizeof(s_bad) - 1u, NULL), "a pattern not read here is refused");
-    // the grammars report their own mark: the most the grammars kept and the rooms of a read and a coloring held of
+    // the grammars report their own mark: the most the grammars kept and the rooms of a read and a coloring kept of
     // the cellblock at once
     char report[160];
     CliLine said = {report, sizeof(report), 0ull};

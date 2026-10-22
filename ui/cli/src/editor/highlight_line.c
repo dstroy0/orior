@@ -23,7 +23,17 @@ static unsigned long long cli_text_of(unsigned long long from, unsigned long lon
     CliLine line = {out, (4ull * s_room->most) + 1ull, 0ull};
     for (unsigned long long at = from; at < to; at += 1ull)
     {
-        cli_utf8_put(&line, lower ? cli_regexp_lower(s_room->letters[at]) : s_room->letters[at]);
+        const unsigned int letter = lower ? cli_regexp_lower(s_room->letters[at]) : s_room->letters[at];
+        // an ASCII letter is its own byte; the rest take the UTF-8 writer
+        if ((letter < 128u) && (line.at < line.capacity))
+        {
+            line.out[line.at] = (char)letter;
+            line.at += 1ull;
+        }
+        else
+        {
+            cli_utf8_put(&line, letter);
+        }
     }
     return cli_line_closed(&line);
 }
@@ -41,32 +51,32 @@ static unsigned int cli_resolve(const CliGrammar *grammar, unsigned int token, u
     {
         return (held->kind == CLI_TOKEN_NAME) ? held->name : 0u;
     }
+    // the matched text as UTF-8, and the key the word lists are searched with: the text itself, or lowered where the
+    // grammar sets case aside
     const unsigned long long text_length = cli_text_of(from, to, s_room->picked, 0);
-    const unsigned long long key_length = cli_text_of(from, to, s_room->key, grammar->ignore_case);
+    const char *const key = grammar->ignore_case ? s_room->key : s_room->picked;
+    const unsigned long long key_length = grammar->ignore_case ? cli_text_of(from, to, s_room->key, 1) : text_length;
     unsigned int fallback = CLI_HIGHLIGHT_NONE;
     for (unsigned int at = held->first; at < (held->first + held->count); at += 1u)
     {
-        const char *const name = grammar->text + grammar->cases[at].key;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "@default", .cap = CLI_CELLS_POOL}))
+        const CliHighlightCase *const entry = &grammar->cases[at];
+        if (entry->fallback)
         {
-            fallback = (fallback == CLI_HIGHLIGHT_NONE) ? grammar->cases[at].token : fallback;
+            fallback = (fallback == CLI_HIGHLIGHT_NONE) ? entry->token : fallback;
             continue;
         }
+        const char *const name = grammar->text + entry->key;
         int hit = 0;
-        if (name[0] == '@')
+        if (entry->list != CLI_HIGHLIGHT_NONE)
         {
-            for (unsigned int list = 0u; !hit && (list < grammar->word_lists); list += 1u)
-            {
-                hit =
-                    (cellul.eq(&(CatenaFinitaCfg){
-                        .src = grammar->text + grammar->words[list].name, .other = name + 1, .cap = CLI_CELLS_POOL})) &&
-                    cli_highlight_has_word(grammar, &grammar->words[list], s_room->key, key_length);
-            }
+            hit = cli_highlight_has_word(grammar, &grammar->words[entry->list], key, key_length);
         }
-        else
+        else if (name[0] != '@')
         {
-            hit = (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) == text_length) &&
-                  (memor.cmp(&(MemoriaCfg){.src = name, .other = s_room->picked, .bytes = text_length}) == 0);
+            // the case's text is terminated and the matched text holds no terminator, so a compare over the matched
+            // text's length with the byte after it tells the two apart in one pass
+            hit = (memor.cmp(&(MemoriaCfg){.src = name, .other = s_room->picked, .bytes = text_length}) == 0) &&
+                  (name[text_length] == '\0');
         }
         if (hit)
         {

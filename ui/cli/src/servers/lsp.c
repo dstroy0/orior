@@ -9,6 +9,11 @@
 
 CliLock g_cli_lsps_lock = CLI_LOCK_INIT;
 
+// the id of the request the reading thread hands to who hears it, as its JSON, and whether who hears it answers later
+static _Thread_local const char *t_asking;
+static _Thread_local unsigned long long t_asking_size;
+static _Thread_local int t_later;
+
 // a piece of what the server writes read
 static unsigned long long lsp_out_read(void *source, char *piece, unsigned long long room)
 {
@@ -79,12 +84,17 @@ static void lsp_asked(CliLsp *lsp, const char *body, unsigned long long size, un
     CliPieces pieces;
     CliLine answer;
     cli_pieces_begun(&pieces, &answer, piece, sizeof(piece));
-    lsp->heard(lsp->context, name, has_params ? body + params : "null", has_params ? params_size : 4ull, &answer);
-    unsigned long long answer_size = 0ull;
-    char *const written = cli_pieces_joined(&pieces, &answer, "an answer to a server", &answer_size);
     unsigned long long id = 0ull;
     unsigned long long id_size = 0ull;
-    if (cli_lsp_member(body, size, "id", &id, &id_size))
+    const int asked = cli_lsp_member(body, size, "id", &id, &id_size);
+    t_asking = asked ? (body + id) : NULL;
+    t_asking_size = asked ? id_size : 0ull;
+    t_later = 0;
+    lsp->heard(lsp->context, name, has_params ? body + params : "null", has_params ? params_size : 4ull, &answer);
+    t_asking = NULL;
+    unsigned long long answer_size = 0ull;
+    char *const written = cli_pieces_joined(&pieces, &answer, "an answer to a server", &answer_size);
+    if (asked && !t_later)
     {
         const int answered = (written != NULL) && (answer_size > 0ull);
         const CliLspPart parts[5] = {CLI_LSP_RAW("{\"jsonrpc\":\"2.0\",\"id\":"),
@@ -355,23 +365,26 @@ int cli_lsp_requested(CliLsp *lsp, const char *method, const char *params, unsig
     return 1;
 }
 
-void cli_lsp_at(const char *path, unsigned int line, unsigned int col, const char *added, CliLine *params)
+int cli_lsp_answer_later(char *id, unsigned long long room)
 {
-    char uri[CLI_PATH_LONGEST * 3u];
-    cli_lsp_uri_of(path, uri, sizeof(uri));
-    cli_line_text(params, "{\"textDocument\":{\"uri\":");
-    cli_json_quoted(params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
-    cli_line_text(params, "},\"position\":{\"line\":");
-    cli_line_decimal(params, line, 1u);
-    cli_line_text(params, ",\"character\":");
-    cli_line_decimal(params, col, 1u);
-    cli_line_character(params, '}');
-    if (added != NULL)
+    if ((t_asking == NULL) || ((t_asking_size + 1ull) > room))
     {
-        cli_line_character(params, ',');
-        cli_line_text(params, added);
+        return 0;
     }
-    cli_line_character(params, '}');
+    memor.cpy(&(MemoriaCfg){.dst = id, .src = t_asking, .bytes = t_asking_size});
+    id[t_asking_size] = '\0';
+    t_later = 1;
+    return 1;
+}
+
+int cli_lsp_answer(CliLsp *lsp, const char *id, const char *result, unsigned long long size, CliLine *said)
+{
+    const CliLspPart parts[5] = {CLI_LSP_RAW("{\"jsonrpc\":\"2.0\",\"id\":"),
+                                 {id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}), 0},
+                                 CLI_LSP_RAW(",\"result\":"),
+                                 {result, size, 0},
+                                 CLI_LSP_RAW("}")};
+    return cli_lsp_send_parts(&lsp->input, &lsp->input_lock, parts, 5u, said);
 }
 
 const char *cli_lsp_capabilities(const CliLsp *lsp, unsigned long long *size)

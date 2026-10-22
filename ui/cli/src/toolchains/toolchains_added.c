@@ -6,7 +6,7 @@
 
 CliLock g_cli_toolchains_lock = CLI_LOCK_INIT;
 
-// the file `name` in orior's own folder into `path`: 1, or 0 where orior has no folder of its own
+// the file `name` in orior's own folder into `path`: 1, or 0 where orior_cli has no folder of its own
 int cli_toolchains_file(const char *name, char *path)
 {
     if (!cli_home_folder(path))
@@ -241,7 +241,7 @@ int cli_toolchains_add(const CliJson *given, unsigned int tool, char *id, CliLin
     char path[CLI_PATH_LONGEST];
     if (!cli_toolchains_file("user_toolchains.json", path))
     {
-        cli_line_text(said, "orior has no folder of its own to keep toolchains in");
+        cli_line_text(said, "orior_cli has no folder of its own to keep toolchains in");
         return 0;
     }
     char name[CLI_NAME_LONGEST];
@@ -361,7 +361,7 @@ int cli_toolchains_add(const CliJson *given, unsigned int tool, char *id, CliLin
     return kept;
 }
 
-// The reader's file read with orior's own tools beside it, under the lock: 1, or 0 with why said where orior has no
+// The reader's file read with orior's own tools beside it, under the lock: 1, or 0 with why said where orior_cli has no
 // folder of its own
 typedef struct
 {
@@ -380,7 +380,7 @@ static int cli_added_read(CliAdded *read, CliLine *said)
     cli_json_begun(&read->bundled, NULL, 0u, NULL, 0ull);
     if (!cli_toolchains_file("user_toolchains.json", read->path))
     {
-        cli_line_text(said, "orior has no folder of its own to keep toolchains in");
+        cli_line_text(said, "orior_cli has no folder of its own to keep toolchains in");
         return 0;
     }
     // the two lists made where the file has none, and a group put, take three nodes and their texts

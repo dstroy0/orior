@@ -52,7 +52,7 @@ pub fn heard(method: &str, params: &Value) {
     }
 }
 
-/// Ends the trace and hands its summary to the run at `qry` as the blob `name`, with `writer`.
+/// Ends the trace and hands its summary to the run at `qry` as the file `name`, a path under the run's top, with `writer`.
 pub fn end(conn: &Connection, writer: &str, qry: &str, name: &str) -> Result<(), String> {
     conn.call("Tracing.end", json!({}), Duration::from_secs(10))?;
     let until = Instant::now() + Duration::from_secs(60);
@@ -70,10 +70,11 @@ pub fn end(conn: &Connection, writer: &str, qry: &str, name: &str) -> Result<(),
         std::thread::sleep(Duration::from_millis(50));
     };
     let summary = summary(&events);
-    let mut handing = Command::new(writer).args(["hand", name]).env("QRY", qry).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|error| format!("{writer}: {error}"))?;
+    // the summary handed to the run as the file `name`, the writer's member word for a program that is no member
+    let mut handing = Command::new(writer).args(["--filed", qry, name]).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|error| format!("{writer}: {error}"))?;
     handing.stdin.take().ok_or("the writer took no input")?.write_all(summary.as_bytes()).map_err(|error| error.to_string())?;
     let ended = handing.wait().map_err(|error| error.to_string())?;
-    if ended.success() { Ok(()) } else { Err(format!("{writer} hand {name} ended {ended}")) }
+    if ended.success() { Ok(()) } else { Err(format!("{writer} --filed {qry} {name} ended {ended}")) }
 }
 
 /// Each thread's complete events summed by name, the most time first.

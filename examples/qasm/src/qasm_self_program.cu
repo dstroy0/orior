@@ -60,16 +60,16 @@ unsigned int qasm_self_step(QasmSelfSteps *list, EngineRecordOperation operation
 
 // A magnitude of 2 or more as a register: one CONSTANT step up to 64 bits, and a wider one built a limb at a time from
 // the top, times 2^32 and plus the next limb down.
-static unsigned int qasm_self_constant(QasmSelfBuild *build, const AnchorExactInteger *magnitude)
+static unsigned int qasm_self_constant(QasmSelfBuild *build, const OriorExactInteger *magnitude)
 {
     for (unsigned int at = 0u; at < build->constant_count; at += 1u)
     {
-        if (anchor_exact_equal(&build->constant_value[at], magnitude) != 0)
+        if (orior_exact_equal(&build->constant_value[at], magnitude) != 0)
         {
             return build->constant_step[at];
         }
     }
-    unsigned int used = ANCHOR_EXACT_LIMBS;
+    unsigned int used = ORIOR_EXACT_LIMBS;
     while ((used > 1u) && (magnitude->limb[used - 1u] == 0u))
     {
         used -= 1u;
@@ -102,9 +102,9 @@ static unsigned int qasm_self_constant(QasmSelfBuild *build, const AnchorExactIn
 }
 
 // one term: the register times the coefficient's magnitude, or the register itself where that is 1
-static unsigned int qasm_self_term(QasmSelfBuild *build, unsigned int source, const AnchorExactInteger *magnitude)
+static unsigned int qasm_self_term(QasmSelfBuild *build, unsigned int source, const OriorExactInteger *magnitude)
 {
-    if (anchor_exact_equal(magnitude, &qasm_self_one) != 0)
+    if (orior_exact_equal(magnitude, &qasm_self_one) != 0)
     {
         return source;
     }
@@ -121,21 +121,21 @@ static unsigned int qasm_self_sum(QasmSelfBuild *build, unsigned int target, uns
     unsigned int sum = build->zero;
     for (unsigned int source = 0u; source < amplitudes; source += 1u)
     {
-        const AnchorExactInteger *const entry = &build->numerators[QASM_SELF_PARTS * ((source * amplitudes) + target)];
+        const OriorExactInteger *const entry = &build->numerators[QASM_SELF_PARTS * ((source * amplitudes) + target)];
         for (unsigned int from = 0u; from < QASM_SELF_PARTS; from += 1u)
         {
-            const AnchorExactInteger *const coefficient = &entry[qasm_self_entry_part[part][from]];
+            const OriorExactInteger *const coefficient = &entry[qasm_self_entry_part[part][from]];
             const unsigned int below = build->below[(QASM_SELF_PARTS * source) + from];
             if ((coefficient->sign == 0) || (below == build->zero))
             {
                 continue;
             }
-            AnchorExactInteger magnitude = *coefficient;
+            OriorExactInteger magnitude = *coefficient;
             magnitude.sign = 1;
             if (qasm_self_doubled[part][from] != 0)
             {
-                const AnchorExactStatus doubled = anchor_exact_add(&magnitude, &magnitude, &magnitude);
-                build->over_width = build->over_width || (doubled != ANCHOR_EXACT_OK);
+                const OriorExactStatus doubled = orior_exact_add(&magnitude, &magnitude, &magnitude);
+                build->over_width = build->over_width || (doubled != ORIOR_EXACT_OK);
             }
             const int negative = (coefficient->sign < 0) != (qasm_self_negated[part][from] != 0);
             const unsigned int term = qasm_self_term(build, below, &magnitude);
@@ -155,22 +155,22 @@ static unsigned int qasm_self_sum(QasmSelfBuild *build, unsigned int target, uns
 }
 
 // common = lcm(common, denominator), both positive
-int qasm_self_lcm(AnchorExactInteger *common, const AnchorExactInteger *denominator, EngineError *error)
+int qasm_self_lcm(OriorExactInteger *common, const OriorExactInteger *denominator, EngineError *error)
 {
-    AnchorExactInteger divisor;
-    AnchorExactInteger share;
-    return QASM_FITS(anchor_exact_gcd(common, denominator, &divisor), common, error) &&
-           QASM_FITS(anchor_exact_divide_exact(denominator, &divisor, &share), common, error) &&
-           QASM_FITS(anchor_exact_multiply(common, &share, common), common, error);
+    OriorExactInteger divisor;
+    OriorExactInteger share;
+    return QASM_FITS(orior_exact_gcd(common, denominator, &divisor), common, error) &&
+           QASM_FITS(orior_exact_divide_exact(denominator, &divisor, &share), common, error) &&
+           QASM_FITS(orior_exact_multiply(common, &share, common), common, error);
 }
 
 // a rational over a denominator it divides: its numerator times the denominator's share of it
-int qasm_self_over(const QasmRational *value, const AnchorExactInteger *common, AnchorExactInteger *numerator,
+int qasm_self_over(const QasmRational *value, const OriorExactInteger *common, OriorExactInteger *numerator,
                    EngineError *error)
 {
-    AnchorExactInteger share;
-    return QASM_FITS(anchor_exact_divide_exact(common, &value->denominator, &share), value, error) &&
-           QASM_FITS(anchor_exact_multiply(&value->numerator, &share, numerator), value, error);
+    OriorExactInteger share;
+    return QASM_FITS(orior_exact_divide_exact(common, &value->denominator, &share), value, error) &&
+           QASM_FITS(orior_exact_multiply(&value->numerator, &share, numerator), value, error);
 }
 
 // One gate as a floor: its columns from the dense port, its denominator, and every part of the floor above as the sum
@@ -194,7 +194,7 @@ int qasm_self_floor(QasmSelfBuild *build, unsigned int qubits, const QasmExactGa
         }
     }
     qasm_dense_release(&basis);
-    AnchorExactInteger common = qasm_self_one;
+    OriorExactInteger common = qasm_self_one;
     const unsigned int entries = amplitudes * amplitudes;
     for (unsigned int entry = 0u; ok && (entry < entries); entry += 1u)
     {
@@ -221,7 +221,7 @@ int qasm_self_floor(QasmSelfBuild *build, unsigned int qubits, const QasmExactGa
     }
     ok = ok && QASM_CHECK(build->over_width == 0, gate, error, ENGINE_ERROR_RESOURCE) &&
          QASM_CHECK(build->list.spent == 0, &build->list, error, ENGINE_ERROR_RESOURCE) &&
-         QASM_FITS(anchor_exact_multiply(&build->denominator, &common, &build->denominator), gate, error);
+         QASM_FITS(orior_exact_multiply(&build->denominator, &common, &build->denominator), gate, error);
     // the floor just built is the floor the next gate reads
     unsigned int *const below = build->below;
     build->below = build->built;
@@ -230,9 +230,9 @@ int qasm_self_floor(QasmSelfBuild *build, unsigned int qubits, const QasmExactGa
 }
 
 // the bits a magnitude uses, 0 for zero
-unsigned int qasm_self_bits(const AnchorExactInteger *value)
+unsigned int qasm_self_bits(const OriorExactInteger *value)
 {
-    for (unsigned int limb = ANCHOR_EXACT_LIMBS; limb > 0u; limb -= 1u)
+    for (unsigned int limb = ORIOR_EXACT_LIMBS; limb > 0u; limb -= 1u)
     {
         const uint32_t word = value->limb[limb - 1u];
         if (word != 0u)
@@ -250,14 +250,14 @@ unsigned int qasm_self_bits(const AnchorExactInteger *value)
 
 // a value as `bits` bits of two's complement at bit `offset` of a zeroed record: a negative value is its magnitude's
 // complement plus one, the carry walking up from bit 0
-void qasm_self_put(unsigned int *record, unsigned int offset, unsigned int bits, const AnchorExactInteger *value)
+void qasm_self_put(unsigned int *record, unsigned int offset, unsigned int bits, const OriorExactInteger *value)
 {
     const unsigned int negative = (value->sign < 0) ? 1u : 0u;
     unsigned int carry = negative;
     for (unsigned int at = 0u; at < bits; at += 1u)
     {
         const unsigned int limb = at >> 5u;
-        const unsigned int magnitude_bit = (limb < ANCHOR_EXACT_LIMBS) ? ((value->limb[limb] >> (at & 31u)) & 1u) : 0u;
+        const unsigned int magnitude_bit = (limb < ORIOR_EXACT_LIMBS) ? ((value->limb[limb] >> (at & 31u)) & 1u) : 0u;
         const unsigned int flipped = magnitude_bit ^ negative;
         const unsigned int bit = flipped ^ carry;
         carry = flipped & carry;

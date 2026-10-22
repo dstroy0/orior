@@ -288,8 +288,8 @@ int main(int argc, char **argv)
         return 2;
     }
     CResults results = {0u, 0u, 0u, std::string(argv[1]), std::string(argv[2])};
-    printf("  record c test: %u lanes a program, ANCHOR_EXACT_LIMBS %u, built by %s\n", HOST_TEST_LANES,
-           (unsigned int)ANCHOR_EXACT_LIMBS, argv[2]);
+    printf("  record c test: %u lanes a program, ORIOR_EXACT_LIMBS %u, built by %s\n", HOST_TEST_LANES,
+           (unsigned int)ORIOR_EXACT_LIMBS, argv[2]);
     record_image_programs(&results, c_run);
     printf("  record c test: %u checks, %u failed, %u programs not supported in C\n", results.checks, results.failed,
            results.unsupported);

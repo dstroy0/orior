@@ -48,22 +48,22 @@ typedef struct
 
 typedef struct
 {
-    AnchorExactInteger lift[PSI_EXHAUSTIVE + 1u];
-    AnchorExactInteger up[PSI_EXHAUSTIVE + 1u];
-    AnchorExactInteger unit[PSI_EXHAUSTIVE + 1u];
-    AnchorExactInteger half[PSI_EXHAUSTIVE + 1u];
-    AnchorExactInteger denominator[PSI_EXHAUSTIVE + 1u];
+    OriorExactInteger lift[PSI_EXHAUSTIVE + 1u];
+    OriorExactInteger up[PSI_EXHAUSTIVE + 1u];
+    OriorExactInteger unit[PSI_EXHAUSTIVE + 1u];
+    OriorExactInteger half[PSI_EXHAUSTIVE + 1u];
+    OriorExactInteger denominator[PSI_EXHAUSTIVE + 1u];
 } PsiScale;
 
 int psi_case_open(PsiCase *psi_case, unsigned long long dimension, unsigned long long base, unsigned int depth);
 
-void psi_times_integer(const AnchorExactInteger *value, unsigned long long factor, AnchorExactInteger *result);
+void psi_times_integer(const OriorExactInteger *value, unsigned long long factor, OriorExactInteger *result);
 
-void psi_add(const AnchorExactInteger *left, const AnchorExactInteger *right, AnchorExactInteger *result);
+void psi_add(const OriorExactInteger *left, const OriorExactInteger *right, OriorExactInteger *result);
 
-void psi_multiply(const AnchorExactInteger *left, const AnchorExactInteger *right, AnchorExactInteger *result);
+void psi_multiply(const OriorExactInteger *left, const OriorExactInteger *right, OriorExactInteger *result);
 
-SimRational psi_rational_exact(const AnchorExactInteger *numerator, const AnchorExactInteger *denominator);
+SimRational psi_rational_exact(const OriorExactInteger *numerator, const OriorExactInteger *denominator);
 
 void psi_value_zero(PsiValue *value);
 
@@ -81,7 +81,7 @@ SimRational psi_value_expand(const PsiValue *value, unsigned long long base);
 
 void psi_value_print(ScripturaLine *line, const PsiValue *value);
 
-void psi_sprecher_numerator(const PsiCase *psi_case, const unsigned char *digit, AnchorExactInteger *numerator);
+void psi_sprecher_numerator(const PsiCase *psi_case, const unsigned char *digit, OriorExactInteger *numerator);
 
 void psi_digits(unsigned long long index, unsigned long long base, unsigned int levels, unsigned char *digit);
 
@@ -90,18 +90,18 @@ void psi_sprecher(SimResults *results, const PsiCase *psi_case);
 void psi_scale_open(const PsiCase *psi_case, PsiScale *scale);
 
 void psi_table_next(const PsiCase *psi_case, const PsiScale *scale, unsigned int level, unsigned long long tilt,
-                    const AnchorExactInteger *below, unsigned long long below_count, AnchorExactInteger *table);
+                    const OriorExactInteger *below, unsigned long long below_count, OriorExactInteger *table);
 
 unsigned long long psi_wide_side(const PsiCase *psi_case, unsigned long long tilt);
 
 void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned long long tilt,
-                    AnchorExactInteger *measured_widest);
+                    OriorExactInteger *measured_widest);
 
 void psi_pair_symbolic(const PsiCase *psi_case, const unsigned char *digit, unsigned int levels,
                        unsigned long long tilt, PsiValue *value, PsiValue *plus);
 
 void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned long long tilt,
-                    const AnchorExactInteger *measured_widest);
+                    const OriorExactInteger *measured_widest);
 
 // a value below 2^128, as two words
 typedef struct

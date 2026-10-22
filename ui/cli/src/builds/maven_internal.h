@@ -57,23 +57,34 @@ typedef struct
 } CliXmlError;
 
 // An XML file as read: its text, its elements, its comments' spans, what kept it from reading, and the elements its
-// text leaves open, the outermost first
+// text leaves open, the outermost first; each list's room in one cell sized to the tags the text can hold, no more than
+// its most, given back with cli_xml_given
 typedef struct
 {
     const char *text;
     unsigned long long size;
-    CliXmlElement element[CLI_XML_ELEMENTS];
+    CliXmlElement *element;
     unsigned int elements;
-    unsigned long long comment_from[CLI_XML_COMMENTS];
-    unsigned long long comment_to[CLI_XML_COMMENTS];
+    unsigned int element_room;
+    unsigned long long *comment_from;
+    unsigned long long *comment_to;
     unsigned int comments;
-    CliXmlError error[CLI_XML_ERRORS];
+    unsigned int comment_room;
+    CliXmlError *error;
     unsigned int errors;
-    unsigned int open[CLI_XML_ELEMENTS];
+    unsigned int error_room;
+    unsigned int *open;
     unsigned int opens;
 } CliXml;
 
-// `size` bytes of an XML file's text read into `xml`, as far as it goes; the message of what kept it from reading
+// the cells the XML files read are held in, counted, each given back with cli_xml_given (maven_xml.c)
+extern CliCellsTally g_cli_xml_cells;
+
+// the cell of an XML file read given back, the file left read as empty; each read is given back before `xml` is read
+// again or let go
+void cli_xml_given(CliXml *xml);
+// `size` bytes of an XML file's text read into `xml`, as far as it goes, in a cell of its own, whatever `xml` held
+// before not looked at; the message of what kept it from reading
 // written; the root element, CLI_XML_NONE where there is none; the first child of `of` named `name`, CLI_XML_NONE
 // where it has none; whether an element is named `name`; the text an element holds where it holds no elements, its
 // entities read, into `out`: 1, or 0 where it holds elements or is not closed; the text of the child `name` of `of`;
@@ -115,22 +126,37 @@ extern const char *const g_cli_maven_project_properties[11];
 
 // What a POM gives its children: its properties, each a name and a value, the dependencies its management gives a
 // version, by `group:artifact`, and whether it and each parent above it were read and one of its managed dependencies
-// imports a POM, each a text of the model's
+// imports a POM, each a text of the model's. The properties' lists share a cell of `property_room` each, the managed
+// dependencies' a cell of `managed_room` each, and the texts a cell of `text_room`, each doubling as it is put, given
+// back with cli_maven_model_given
 typedef struct
 {
-    unsigned int name_at[CLI_MAVEN_PROPERTIES];
-    unsigned int name_size[CLI_MAVEN_PROPERTIES];
-    unsigned int value_at[CLI_MAVEN_PROPERTIES];
-    unsigned int value_size[CLI_MAVEN_PROPERTIES];
+    unsigned int *name_at;
+    unsigned int *name_size;
+    unsigned int *value_at;
+    unsigned int *value_size;
     unsigned int properties;
-    unsigned int managed_at[CLI_MAVEN_MANAGED];
-    unsigned int managed_size[CLI_MAVEN_MANAGED];
+    unsigned int property_room;
+    unsigned int *managed_at;
+    unsigned int *managed_size;
     unsigned int managed;
+    unsigned int managed_room;
     int imports;
     int whole;
-    char text[CLI_MAVEN_MODEL_TEXT];
+    char *text;
     unsigned int used;
+    unsigned int text_room;
 } CliMavenModel;
+
+// the cells the models read are held in, counted; a model's cells given back, the model left empty, a model given
+// back before it is read again or let go; room made for one property more, and for one managed dependency more: 1, or
+// 0 where the model holds the most or the cell is refused; and `size` bytes of `bytes` kept in the model's text, its
+// room doubled to hold them: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit (maven_model_kept.c)
+extern CliCellsTally g_cli_maven_model_cells;
+void cli_maven_model_given(CliMavenModel *model);
+int cli_maven_property_room(CliMavenModel *model);
+int cli_maven_managed_room(CliMavenModel *model);
+unsigned int cli_maven_model_kept(CliMavenModel *model, const char *bytes, unsigned long long size);
 
 // what the POM at `path`, `size` bytes of its text, gives its children, its parents read up to eight above it, into
 // `model`; the value of the property `name` the model sets, NULL where it sets none; `value` with each property it

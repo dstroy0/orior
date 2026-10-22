@@ -3,6 +3,7 @@
 // json_compact.c: JSON read and written again as serde_json writes a Value it read, with no tree: on one line, each
 // string as serde_json escapes it, each number as the integer or the float serde_json reads it as
 #include "json_tree.h"
+#include "text.h"
 
 #include <stdlib.h>
 
@@ -362,18 +363,5 @@ unsigned long long cli_json_value_end(const char *text, unsigned long long size,
 
 int cli_utf8_whole(const char *bytes, unsigned long long size)
 {
-    unsigned long long at = 0ull;
-    while (at < size)
-    {
-        unsigned int letter = 0u;
-        const unsigned long long taken = cli_lossy_letter((const unsigned char *)bytes, size, at, &letter);
-        if ((letter == 0xFFFDu) &&
-            ((taken != 3ull) ||
-             (memor.cmp(&(MemoriaCfg){.src = bytes + at, .other = "\xEF\xBF\xBD", .bytes = 3u}) != 0)))
-        {
-            return 0;
-        }
-        at += taken;
-    }
-    return 1;
+    return cli_text_utf8_whole((const unsigned char *)bytes, size);
 }

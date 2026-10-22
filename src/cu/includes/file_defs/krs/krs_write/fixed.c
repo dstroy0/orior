@@ -182,7 +182,7 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
         krf_path_beside(ksc_path, krf, sizeof(krf));
         if (!krf_removed(krf, "krs", "replaced", removed, removals))
         {
-            printf("  krs_write: %u fixed lines a row replaced could not be kept in %s\n", removals, krf);
+            printf("  orior_krs_write: %u fixed lines a row replaced could not be kept in %s\n", removals, krf);
         }
     }
     return written;

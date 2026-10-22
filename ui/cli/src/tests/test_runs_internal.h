@@ -147,10 +147,23 @@ void cli_test_shares(CliTestRun *run, unsigned int count, unsigned int most);
 // 1, or 0 with why said (test_python.c)
 int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, int cover, CliLine *said);
 
-// the outcomes of pytest's report in JUnit's form, and the failures of unittest's report, each told
-// (test_reports.c)
+// the outcomes of pytest's report in JUnit's form each told, and the cells the report's tags and texts hold
+// (test_reports.c); and the failures of unittest's report each told (test_unittest_report.c)
+extern CliCellsTally g_cli_test_report_cells;
 void cli_test_report_told(CliTestWorker *worker, const char *xml, unsigned long long size);
 void cli_test_unittest_failures_told(CliTestWorker *worker, const char *text, unsigned long long size);
+// where `needle` is first found in `length` bytes of `text`, `length` where it is not; a whole text read as a 32-bit
+// count, a + before it as Rust takes one: 1, or 0 where it is none; whether `length` bytes of a path, its backslashes
+// read as slashes, end with `wanted`; the next line of `size` bytes from `at`, a "\r" before its "\n" taken off: 1
+// with its start and end, or 0 where none is left; and the last line of a text that is not blank, trimmed, a line of
+// `---` passed over where `skip_rules`, as its start and size: 1, or 0 where every line is blank (test_reports.c)
+unsigned long long cli_report_find(const char *text, unsigned long long length, const char *needle);
+int cli_report_count(const char *text, unsigned long long length, long long *value);
+int cli_report_ends_with(const char *path, unsigned long long length, const char *wanted);
+int cli_report_line(const char *text, unsigned long long size, unsigned long long *at, unsigned long long *start,
+                    unsigned long long *end);
+int cli_report_last_line(const char *text, unsigned long long size, int skip_rules, unsigned long long *last,
+                         unsigned long long *last_size);
 // a line pytest prints in its verbose report as a test ends: the test's name, its start and size in the line, and its
 // outcome: 1, or 0 where the line is no such line; a line unittest prints so, `test_x (pkg.test_a.Case.test_x) ...
 // ok`: the test's name as pytest gives it into `id`, which holds `room`, and its outcome, the same way; a pytest

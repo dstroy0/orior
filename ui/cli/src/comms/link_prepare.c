@@ -64,13 +64,13 @@ int cli_link_target(const char *system, char *target, CliLine *said)
                                   : NULL;
     if (named == NULL)
     {
-        cli_line_text(said, "orior builds no server for ");
+        cli_line_text(said, "orior_cli builds no server for ");
         cli_line_counted(said, arch, arch_size);
         return 0;
     }
     if (!prepare_is(kind, kind_size, "Linux"))
     {
-        cli_line_text(said, "orior builds no server for ");
+        cli_line_text(said, "orior_cli builds no server for ");
         cli_line_counted(said, kind, kind_size);
         cli_line_text(said, " from this machine");
         return 0;
@@ -118,11 +118,11 @@ static int prepare_built(const char *target, CliLinkStated stated, void *context
     }
     if (!found || (cli_line_closed(&script_line) == 0ull) || !query_is_file(script))
     {
-        cli_line_text(said, "no orior server for ");
+        cli_line_text(said, "no orior_cli server for ");
         cli_line_text(said, target);
         cli_line_text(said, " is beside this program, under servers/");
         cli_line_text(said, target);
-        cli_line_text(said, "/orior-cli");
+        cli_line_text(said, "/orior_cli");
         return 0;
     }
     char told[CLI_NAME_LONGEST + 64u];
@@ -140,7 +140,7 @@ static int prepare_built(const char *target, CliLinkStated stated, void *context
     cli_line_text(&built, tree);
     cli_line_text(&built, "/build/cli/");
     cli_line_text(&built, target);
-    cli_line_text(&built, "/orior-cli");
+    cli_line_text(&built, "/orior_cli");
     cli_line_closed(&built);
     const char *const words[4] = {bash, script, target, NULL};
     CliRan *const ran = cli_ran_taken();
@@ -187,7 +187,7 @@ static int prepare_server(const char *system, CliLinkStated stated, void *contex
         cli_line_text(&beside, folder);
         cli_line_text(&beside, "/servers/");
         cli_line_text(&beside, target);
-        cli_line_text(&beside, "/orior-cli");
+        cli_line_text(&beside, "/orior_cli");
         if ((cli_line_closed(&beside) != 0ull) && query_is_file(path))
         {
             return 1;
@@ -264,7 +264,7 @@ int cli_link_prepare(const CliLinkAddress *address, CliLinkStated stated, void *
     char program[CLI_PATH_LONGEST + 128u];
     CliLine program_line = {program, sizeof(program), 0ull};
     cli_line_text(&program_line, folder);
-    cli_line_text(&program_line, cli_link_is_windows(system) ? "/orior-cli.exe" : "/orior-cli");
+    cli_line_text(&program_line, cli_link_is_windows(system) ? "/orior_cli.exe" : "/orior_cli");
     cli_line_closed(&program_line);
     char line[(4u * CLI_PATH_LONGEST) + 128u];
     CliLine test = {line, sizeof(line), 0ull};
@@ -283,7 +283,7 @@ int cli_link_prepare(const CliLinkAddress *address, CliLinkStated stated, void *
         cli_line_closed(&told_line);
         stated(context, "preparing", told);
         unsigned long long bytes_size = 0ull;
-        const unsigned char *const bytes = qry_member_file_mapped(local, &bytes_size);
+        const unsigned char *const bytes = cli_file_held(local, &bytes_size);
         if (bytes == NULL)
         {
             cli_line_text(said, local);
@@ -308,7 +308,7 @@ int cli_link_prepare(const CliLinkAddress *address, CliLinkStated stated, void *
         cli_link_quote(program, cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), &send);
         cli_line_closed(&send);
         const int sent = cli_link_ask(address, line, (const char *)bytes, bytes_size, &nothing, said);
-        qry_member_file_unmapped(bytes, bytes_size);
+        cli_file_let_go(bytes, bytes_size);
         if (!sent)
         {
             return 0;

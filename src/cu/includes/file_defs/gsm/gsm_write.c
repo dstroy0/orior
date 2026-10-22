@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // gsm_write.c: a part's relations written in gnascor's assembly, each as the cases the part answered it on
 //
-//     gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>
+//     orior_gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>
 //
 // The face is relational (src/lng/transpiler_gsm_parser.md): a case is the operands and then the answer the relation
 // holds, 1,1->2. A form enters the part's machine file only where the part answered one relation on every case of it
@@ -64,7 +64,7 @@ static int gsm_vendor_run(char *const *word)
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
-        printf("  gsm_write: the vendor's writer did not end clean (%s, code %llx)\n",
+        printf("  orior_gsm_write: the vendor's writer did not end clean (%s, code %llx)\n",
                interface_ending_name(answer.ending), answer.code);
         return 0;
     }
@@ -123,7 +123,7 @@ int main(int count, char **word)
 {
     if (count != 6)
     {
-        printf("gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>\n");
+        printf("orior_gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>\n");
         return 2;
     }
     const char *const part = word[1];
@@ -131,7 +131,7 @@ int main(int count, char **word)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        printf("  gsm_write: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        printf("  orior_gsm_write: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
         return 1;
     }
     // the forms the vendor's writer hands, told from any handed before them by their sequence
@@ -149,7 +149,7 @@ int main(int count, char **word)
     }
     if (!qry_member_blob(GSM_FORMS_NAME, &bytes, &size, &sequence) || (sequence <= before))
     {
-        printf("  gsm_write: the vendor's writer handed the run's buffer no %s\n", GSM_FORMS_NAME);
+        printf("  orior_gsm_write: the vendor's writer handed the run's buffer no %s\n", GSM_FORMS_NAME);
         return 1;
     }
     const unsigned int forms = gsm_relations_read(bytes, size);
@@ -196,9 +196,9 @@ int main(int count, char **word)
     }
     if (!verba_finis.ok(&(VerbaFinisCfg){.cap = room, .at = out}) || !qry_member_filed(path, s_out_bytes, out))
     {
-        printf("  gsm_write: %s could not be written\n", path);
+        printf("  orior_gsm_write: %s could not be written\n", path);
         return 1;
     }
-    printf("  gsm_write: %u relations the %u forms answered, %u cases, written to %s\n", relations, forms, cases, path);
+    printf("  orior_gsm_write: %u relations the %u forms answered, %u cases, written to %s\n", relations, forms, cases, path);
     return 0;
 }

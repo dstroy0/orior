@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// krs_write_internal.h: what the modules of krs_write share: its includes, the bounds of the forms, lines, parameters
+// krs_write_internal.h: what the modules of orior_krs_write share: its includes, the bounds of the forms, lines, parameters
 // and names, the anchors' texts, the forms, costs and givens read, and the functions one module reads from another
 #ifndef KRS_WRITE_INTERNAL_H
 #define KRS_WRITE_INTERNAL_H

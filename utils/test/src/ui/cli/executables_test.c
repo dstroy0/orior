@@ -147,6 +147,8 @@ static void executables_spec(void)
     s_names.count = 0u;
     cli_npm_bins("{\"name\":\"lib\"}", &s_names, &module);
     cli_check(s_names.count == 0u, "and none where it has none");
+    cli_check((g_cli_executables_cells.holds == 0ull) && (g_cli_executables_cells.hw != 0ull),
+              "each script is read in cells given back as it is read");
 }
 
 // Go gives the main packages by folder
@@ -385,7 +387,7 @@ static void executables_trace(void)
 int main(void)
 {
     // the check's folders sit inside the tree's repository, whose commit would date every step; a date already given
-    // is kept, so the steps are shown as they are outside any repository
+    // is kept; the steps are therefore shown as they are outside any repository
     (void)query_environment_set("SOURCE_DATE_EPOCH", "0");
     executables_cargo();
     executables_scripts();

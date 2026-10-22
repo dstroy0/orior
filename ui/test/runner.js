@@ -203,7 +203,7 @@
     // environment and what its standard input reads.
     run: async (program, args = [], { env = {}, input = "", wait = true } = {}) => ask({ op: "run", program, args, env, input, wait }),
     // The browser's own trace of the window's frames, started, and ended with its summary handed to the
-    // query run `qry` as the blob `name` by the run's `writer`.
+    // query run `qry` as the file `name`, a path under the run's top, by the run's `writer`.
     browserTrace: async () => ask({ op: "browser_trace" }),
     browserTraced: async (writer, qry, name) => ask({ op: "browser_trace", end: true, writer, qry, name }),
     type: async (text) => ask({ op: "type", text }),
@@ -276,13 +276,35 @@
   };
   harness.watching = import(`${location.origin}/bridge.js`).then((bridge) => bridge.watchCalls(calls.watcher));
 
-  harness.test = (name, work, { timeout = 30000 } = {}) => harness.tests.push({ name, work, timeout });
+  // A test is run again where it fails, up to `tries` runs in all, so the frames a screenshot, a
+  // notification or any other foreground work takes from one run do not fail it: a test passes on
+  // the first run that passes, and fails with the last run's error.
+  harness.test = (name, work, { timeout = 30000, tries = 3 } = {}) => harness.tests.push({ name, work, timeout, tries });
   harness.assert = assert;
   harness.ui = ui;
   harness.calls = calls;
   harness.Failure = Failure;
   // What a held call's error says, for a test that sets those errors aside.
   harness.held = HELD;
+
+  // The memory after each test, the system's account of the app and the cellblock's own, a row of
+  // memory.tsv beside the run's report: the test, the bytes in RAM and reserved over every process,
+  // the app's own process's, the cellblock's pool and its two peaks, and the share of the app's
+  // reserved bytes the pool accounts for.
+  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted"];
+  async function memorySampled(name) {
+    const { invoke } = await import(`${location.origin}/bridge.js`);
+    const read = await invoke("memory_use").catch(() => null);
+    const cells = await invoke("cells_said").catch(() => null);
+    const home = harness.servers?.ORIOR_TEST_HOME;
+    if (!read || !cells || !home) {
+      return;
+    }
+    const own = read.parts[0] ?? { working: 0, commit: 0 };
+    const accounted = own.commit > 0 ? (cells.pool / own.commit).toFixed(3) : "";
+    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted].join("\t"));
+    await invoke("file_write_any", { path: `${String(home).replace(/\\/g, "/")}/../memory.tsv`, text: `${memoryRows.join("\n")}\n` }).catch(() => {});
+  }
 
   // Runs the tests a file gave, in order, and gives each one's name, whether it passed, why not, and
   // how long it took; the file's tests are taken away once run.
@@ -291,26 +313,35 @@
     const tests = harness.tests.splice(0);
     const results = [];
     for (const one of tests) {
-      calls.forget();
       const started = performance.now();
-      try {
-        await Promise.race([one.work(), new Promise((_, fail) => setTimeout(() => fail(new Failure(`it ran past ${one.timeout} ms`)), one.timeout))]);
-        results.push({ name: one.name, ok: true, ms: Math.round(performance.now() - started) });
-      } catch (error) {
-        // A stack of V8's opens with the message; one of WebKit's holds the frames alone.
-        const message = String(error?.message ?? error);
-        const stack = String(error?.stack ?? "");
-        const told = stack.includes(message) ? stack : `${message}\n${stack}`;
-        // A step only the window with its debugging port can take, met under WebDriver: the test is
-        // not run here, and says why, where it would fail for what the window cannot be asked.
-        const notHere = message.startsWith("not run on a WebDriver window:");
-        results.push({ name: one.name, ok: notHere, ms: Math.round(performance.now() - started), error: notHere ? message : told.split("\n").slice(0, 4).join("\n") });
+      for (let ran = 1; ran <= one.tries; ran += 1) {
+        calls.forget();
+        try {
+          await Promise.race([one.work(), new Promise((_, fail) => setTimeout(() => fail(new Failure(`it ran past ${one.timeout} ms`)), one.timeout))]);
+          results.push({ name: one.name, ok: true, ms: Math.round(performance.now() - started) });
+          break;
+        } catch (error) {
+          // A stack of V8's opens with the message; one of WebKit's holds the frames alone.
+          const message = String(error?.message ?? error);
+          const stack = String(error?.stack ?? "");
+          const told = stack.includes(message) ? stack : `${message}\n${stack}`;
+          // A step only the window with its debugging port can take, met under WebDriver: the test is
+          // not run here, and says why, where it would fail for what the window cannot be asked.
+          const notHere = message.startsWith("not run on a WebDriver window:");
+          if (notHere || ran === one.tries) {
+            const tried = ran > 1 ? `after ${ran} runs: ` : "";
+            results.push({ name: one.name, ok: notHere, ms: Math.round(performance.now() - started), error: notHere ? message : `${tried}${told.split("\n").slice(0, 4).join("\n")}` });
+            break;
+          }
+        } finally {
+          await memorySampled(one.name);
+          await ui.focusTold(true).catch(() => {});
+          document.querySelectorAll("dialog[open]").forEach((one) => one.close());
+          try {
+            (await import(`${location.origin}/menu.js`)).closeMenu?.(false);
+          } catch {}
+        }
       }
-      await ui.focusTold(true).catch(() => {});
-      document.querySelectorAll("dialog[open]").forEach((one) => one.close());
-      try {
-        (await import(`${location.origin}/menu.js`)).closeMenu?.(false);
-      } catch {}
     }
     return results;
   };

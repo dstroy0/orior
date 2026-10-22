@@ -6,19 +6,18 @@
 #include "catalog_internal.h"
 #include "cells.h"
 
-// the lists kept while a job is made, and the folders and paths walked, under the lock while the catalog is read
-// A reading's room, a cell taken with the lock and given back with it: the runs, parts and paths listed, the
-// subjects, the folders within them and their files, the folders of each depth collected, and a job's about
+// A reading's lists, a cell taken with the lock and given back with it: the runs, parts and paths listed, the
+// subjects, the folders within them and their files, and the folders of each depth collected, each list in a cell of
+// its own sized to what it holds
 typedef struct
 {
-    char runs[CLI_LISTED_MOST][CLI_PATH_LONGEST];
-    char parts[CLI_LISTED_MOST][CLI_NAME_LONGEST];
-    char paths[CLI_LISTED_MOST][CLI_PATH_LONGEST];
+    CliPaths runs;
+    CliEntries parts;
+    CliPaths paths;
     CliEntries subjects;
     CliEntries inner;
     CliEntries files;
     CliEntries dirs[17];
-    char about[1u << 16u];
 } CliCatalogJobsRoom;
 
 static CliCatalogJobsRoom *s_jobs;
@@ -51,23 +50,29 @@ static void cli_driver(const char *root, CliCatalog *catalog)
     char base[CLI_PATH_LONGEST];
     char cfg[CLI_PATH_LONGEST];
     cli_catalog_join(root, "examples/cell_tracking/src/track_driver/track_driver.cu", source);
-    const char *const text = cli_catalog_script_read(source);
+    char *const text = cli_catalog_script_taken(source);
     if (text == NULL)
     {
         return;
     }
-    const unsigned int parts = cli_catalog_driver_parts(text, s_jobs->parts, CLI_LISTED_MOST);
+    (void)cli_catalog_names_room(&s_jobs->parts, cli_catalog_driver_parts(text, NULL, 0u));
+    const unsigned int parts =
+        (s_jobs->parts.name != NULL) ? cli_catalog_driver_parts(text, s_jobs->parts.name, s_jobs->parts.room) : 0u;
+    cli_catalog_text_given(text);
     cli_relative(root, source, file);
-    CliLine about = {s_jobs->about, sizeof(s_jobs->about), 0ull};
-    cli_catalog_about(source, &about);
-    cli_line_closed(&about);
+    char *const taken = cli_catalog_about_taken(source);
+    const char *const about = (taken != NULL) ? taken : "";
     cli_catalog_join(root, "examples/cell_tracking", tracker);
     cli_catalog_join(tracker, "base.cfg", base);
-    cli_relative(root, base, s_jobs->runs[0]);
     cli_catalog_join(tracker, "cfg", cfg);
-    const unsigned int runs = cli_catalog_paths(root, cfg, cli_catalog_is_cfg, s_jobs->runs, 1u, CLI_LISTED_MOST);
+    unsigned int runs = 0u;
+    if (cli_catalog_paths_room(&s_jobs->runs, 1u))
+    {
+        cli_relative(root, base, s_jobs->runs.path[0]);
+        runs = cli_catalog_paths(root, cfg, cli_catalog_is_cfg, &s_jobs->runs, 1u);
+    }
 
-    cli_catalog_job(catalog, "ingest/track_driver", "ingest", "track_driver --ingest", file, s_jobs->about, "");
+    cli_catalog_job(catalog, "ingest/track_driver", "ingest", "track_driver --ingest", file, about, "");
     cli_catalog_param(catalog, "source", "dir", 1);
     cli_catalog_param(catalog, "axes", "word", 0);
     cli_catalog_param(catalog, "channel", "word", 0);
@@ -80,13 +85,13 @@ static void cli_driver(const char *root, CliCatalog *catalog)
     cli_catalog_arg(catalog, CLI_ARG_FLAG, "--channel", "channel", NULL, NULL, 0);
     cli_set(catalog);
 
-    cli_catalog_job(catalog, "run/track_driver", "run", "track_driver --run", file, s_jobs->about, "");
-    cli_choice(catalog, "cfg", s_jobs->runs, runs, 0);
+    cli_catalog_job(catalog, "run/track_driver", "run", "track_driver --run", file, about, "");
+    cli_choice(catalog, "cfg", s_jobs->runs.path, runs, 0);
     cli_catalog_param(catalog, "cfg-out", "save", 0);
     cli_catalog_param(catalog, "run", "many", 0);
     for (unsigned int at = 0u; at < parts; at += 1u)
     {
-        cli_catalog_choice(catalog, s_jobs->parts[at]);
+        cli_catalog_choice(catalog, s_jobs->parts.name[at]);
     }
     cli_catalog_words(catalog);
     cli_catalog_param(catalog, "set", "dir", 0);
@@ -98,8 +103,8 @@ static void cli_driver(const char *root, CliCatalog *catalog)
     cli_catalog_arg(catalog, CLI_ARG_WORDS, "arguments", NULL, NULL, NULL, 0);
     cli_set(catalog);
 
-    cli_catalog_job(catalog, "render/track_driver", "render", "track_driver --vis", file, s_jobs->about, "");
-    cli_choice(catalog, "cfg", s_jobs->runs, runs, 0);
+    cli_catalog_job(catalog, "render/track_driver", "render", "track_driver --vis", file, about, "");
+    cli_choice(catalog, "cfg", s_jobs->runs.path, runs, 0);
     cli_catalog_param(catalog, "vis", "save", 0);
     cli_catalog_param(catalog, "export", "save", 0);
     cli_catalog_words(catalog);
@@ -111,6 +116,7 @@ static void cli_driver(const char *root, CliCatalog *catalog)
     cli_catalog_arg(catalog, CLI_ARG_FLAG, "--export", "export", NULL, NULL, 0);
     cli_catalog_arg(catalog, CLI_ARG_WORDS, "arguments", NULL, NULL, NULL, 0);
     cli_set(catalog);
+    cli_catalog_text_given(taken);
 }
 
 // The other runners: the Navier-Stokes programs on their cfgs and the qasm circuits
@@ -120,21 +126,25 @@ static void cli_runners(const char *root, CliCatalog *catalog)
     char script[CLI_PATH_LONGEST];
     char folder[CLI_PATH_LONGEST];
     cli_catalog_join(root, "examples/navier_stokes/run.sh", navier);
-    const char *const text = cli_catalog_script_read(navier);
+    char *const text = cli_catalog_script_taken(navier);
     if (text != NULL)
     {
-        const unsigned int programs = cli_catalog_case_names(text, "PROGRAM", s_jobs->parts, CLI_LISTED_MOST);
+        (void)cli_catalog_names_room(&s_jobs->parts, cli_catalog_case_names(text, "PROGRAM", NULL, 0u));
+        const unsigned int programs =
+            (s_jobs->parts.name != NULL)
+                ? cli_catalog_case_names(text, "PROGRAM", s_jobs->parts.name, s_jobs->parts.room)
+                : 0u;
+        cli_catalog_text_given(text);
         cli_catalog_join(root, "examples/navier_stokes/cfg", folder);
-        const unsigned int configs =
-            cli_catalog_paths(root, folder, cli_catalog_is_cfg, s_jobs->runs, 0u, CLI_LISTED_MOST);
+        const unsigned int configs = cli_catalog_paths(root, folder, cli_catalog_is_cfg, &s_jobs->runs, 0u);
         cli_relative(root, navier, script);
         cli_catalog_script_job(catalog, root, "run", navier, NULL, "");
         cli_catalog_param(catalog, "program", "choice", 1);
         for (unsigned int at = 0u; at < programs; at += 1u)
         {
-            cli_catalog_choice(catalog, s_jobs->parts[at]);
+            cli_catalog_choice(catalog, s_jobs->parts.name[at]);
         }
-        cli_choice(catalog, "cfg", s_jobs->runs, configs, 1);
+        cli_choice(catalog, "cfg", s_jobs->runs.path, configs, 1);
         cli_catalog_step(catalog, CLI_PROGRAM_BASH, script, NULL, 0);
         cli_catalog_arg(catalog, CLI_ARG_VALUE, "program", NULL, NULL, NULL, 0);
         cli_catalog_arg(catalog, CLI_ARG_VALUE, "cfg", NULL, NULL, NULL, 0);
@@ -144,14 +154,13 @@ static void cli_runners(const char *root, CliCatalog *catalog)
     if (query_is_file(qasm))
     {
         cli_catalog_join(root, "examples/qasm/test", folder);
-        const unsigned int circuits =
-            cli_catalog_paths(root, folder, cli_catalog_is_qasm, s_jobs->runs, 0u, CLI_LISTED_MOST);
+        const unsigned int circuits = cli_catalog_paths(root, folder, cli_catalog_is_qasm, &s_jobs->runs, 0u);
         cli_relative(root, qasm, script);
         cli_catalog_script_job(catalog, root, "run", qasm, NULL, "");
         cli_catalog_param(catalog, "circuit", "choice-or-file", 1);
         for (unsigned int at = 0u; at < circuits; at += 1u)
         {
-            cli_catalog_choice(catalog, s_jobs->runs[at]);
+            cli_catalog_choice(catalog, s_jobs->runs.path[at]);
         }
         cli_catalog_words(catalog);
         cli_catalog_step(catalog, CLI_PROGRAM_BASH, script, NULL, 0);
@@ -165,14 +174,14 @@ static void cli_view(const char *root, CliCatalog *catalog, const char *path, un
 {
     for (unsigned int at = 0u; at < *seen; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_jobs->paths[at], .other = path, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_jobs->paths.path[at], .other = path, .cap = CLI_CELLS_POOL}))
         {
             return;
         }
     }
-    if (*seen < CLI_LISTED_MOST)
+    if (*seen < s_jobs->paths.room)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths[*seen],
+        memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths.path[*seen],
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
         *seen += 1u;
@@ -201,16 +210,20 @@ static void cli_views(const char *root, CliCatalog *catalog)
     char examples[CLI_PATH_LONGEST];
     unsigned int places = 0u;
     unsigned int seen = 0u;
-    cli_catalog_join(root, "examples/00_blob_viz_tools", s_jobs->runs[places]);
-    places += 1u;
     cli_catalog_join(root, "examples", examples);
     cli_catalog_entries(examples, 1, NULL, &s_jobs->subjects);
-    for (unsigned int at = 0u; (at < s_jobs->subjects.count) && ((places + 2u) <= CLI_LISTED_MOST); at += 1u)
+    (void)cli_catalog_paths_room(&s_jobs->runs, 1u + (2u * s_jobs->subjects.count));
+    if (s_jobs->runs.room != 0u)
+    {
+        cli_catalog_join(root, "examples/00_blob_viz_tools", s_jobs->runs.path[places]);
+        places += 1u;
+    }
+    for (unsigned int at = 0u; (at < s_jobs->subjects.count) && ((places + 2u) <= s_jobs->runs.room); at += 1u)
     {
         char subject[CLI_PATH_LONGEST];
         cli_catalog_join(examples, s_jobs->subjects.name[at], subject);
-        cli_catalog_join(subject, "maint", s_jobs->runs[places]);
-        memor.cpy(&(MemoriaCfg){.dst = s_jobs->runs[places + 1u],
+        cli_catalog_join(subject, "maint", s_jobs->runs.path[places]);
+        memor.cpy(&(MemoriaCfg){.dst = s_jobs->runs.path[places + 1u],
                                 .src = subject,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}) + 1u});
         places += 2u;
@@ -218,16 +231,18 @@ static void cli_views(const char *root, CliCatalog *catalog)
     for (unsigned int at = 0u; at < places; at += 1u)
     {
         char path[CLI_PATH_LONGEST];
-        cli_catalog_entries(s_jobs->runs[at], 0, cli_catalog_is_builder, &s_jobs->files);
+        cli_catalog_entries(s_jobs->runs.path[at], 0, cli_catalog_is_builder, &s_jobs->files);
+        (void)cli_catalog_paths_room(&s_jobs->paths, seen + s_jobs->files.count);
         for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
         {
-            cli_catalog_join(s_jobs->runs[at], s_jobs->files.name[each], path);
+            cli_catalog_join(s_jobs->runs.path[at], s_jobs->files.name[each], path);
             cli_view(root, catalog, path, &seen);
         }
-        cli_catalog_entries(s_jobs->runs[at], 0, cli_catalog_is_figure, &s_jobs->files);
+        cli_catalog_entries(s_jobs->runs.path[at], 0, cli_catalog_is_figure, &s_jobs->files);
+        (void)cli_catalog_paths_room(&s_jobs->paths, seen + s_jobs->files.count);
         for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
         {
-            cli_catalog_join(s_jobs->runs[at], s_jobs->files.name[each], path);
+            cli_catalog_join(s_jobs->runs.path[at], s_jobs->files.name[each], path);
             cli_view(root, catalog, path, &seen);
         }
     }
@@ -262,6 +277,7 @@ static void cli_stages(const char *root, CliCatalog *catalog)
             char folder[CLI_PATH_LONGEST];
             cli_catalog_join(subject, s_jobs->inner.name[stage], folder);
             cli_catalog_entries(folder, 0, cli_catalog_is_py, &s_jobs->files);
+            (void)cli_catalog_paths_room(&s_jobs->paths, every + s_jobs->files.count);
             for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
             {
                 char script[CLI_PATH_LONGEST];
@@ -270,10 +286,10 @@ static void cli_stages(const char *root, CliCatalog *catalog)
                 cli_catalog_join(folder, s_jobs->files.name[each], script);
                 cli_relative(root, script, file);
                 cli_relative(subject, script, title);
-                if (every < CLI_LISTED_MOST)
+                if (every < s_jobs->paths.room)
                 {
                     memor.cpy(&(MemoriaCfg){
-                        .dst = s_jobs->paths[every],
+                        .dst = s_jobs->paths.path[every],
                         .src = file,
                         .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u});
                     every += 1u;
@@ -299,16 +315,12 @@ static void cli_stages(const char *root, CliCatalog *catalog)
         cli_line_closed(&line);
         cli_relative(root, subject, file);
         cli_catalog_join(subject, "README.md", readme);
-        CliLine about = {s_jobs->about, sizeof(s_jobs->about), 0ull};
-        if (query_is_file(readme))
-        {
-            cli_catalog_markdown_opening(readme, &about);
-        }
-        cli_line_closed(&about);
-        cli_catalog_job(catalog, id, "pipeline", name, file, s_jobs->about, "");
+        char *const about = query_is_file(readme) ? cli_catalog_markdown_taken(readme) : NULL;
+        cli_catalog_job(catalog, id, "pipeline", name, file, (about != NULL) ? about : "", "");
+        cli_catalog_text_given(about);
         for (unsigned int each = 0u; each < every; each += 1u)
         {
-            cli_catalog_step(catalog, CLI_PROGRAM_PYTHON, s_jobs->paths[each], NULL, 0);
+            cli_catalog_step(catalog, CLI_PROGRAM_PYTHON, s_jobs->paths.path[each], NULL, 0);
             cli_catalog_arg(catalog, CLI_ARG_WORDS, "arguments", NULL, NULL, NULL, 0);
         }
     }
@@ -320,9 +332,9 @@ static unsigned int cli_collect(const char *under, const char *name, unsigned in
 {
     char here[CLI_PATH_LONGEST];
     cli_catalog_join(under, name, here);
-    if (query_is_file(here) && (count < CLI_LISTED_MOST))
+    if (query_is_file(here) && cli_catalog_paths_room(&s_jobs->paths, count + 1u))
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths[count],
+        memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths.path[count],
                                 .src = here,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = here, .cap = CLI_CELLS_POOL}) + 1u});
         count += 1u;
@@ -339,6 +351,7 @@ static unsigned int cli_collect(const char *under, const char *name, unsigned in
         cli_catalog_join(under, s_jobs->dirs[depth].name[at], dir);
         count = cli_collect(dir, name, count, depth + 1u);
     }
+    cli_catalog_entries_given(&s_jobs->dirs[depth]);
     return count;
 }
 
@@ -358,41 +371,38 @@ static void cli_tests(const char *root, CliCatalog *catalog)
         cli_catalog_join(subject, "test", under);
         count = cli_collect(under, "run.sh", count, 0u);
     }
-    for (unsigned int at = 1u; at < count; at += 1u)
-    {
-        char held[CLI_PATH_LONGEST];
-        memor.cpy(&(MemoriaCfg){
-            .dst = held,
-            .src = s_jobs->paths[at],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_jobs->paths[at], .cap = CLI_CELLS_POOL}) + 1u});
-        unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(s_jobs->paths[place - 1u], held) > 0))
-        {
-            memor.cpy(&(MemoriaCfg){
-                .dst = s_jobs->paths[place],
-                .src = s_jobs->paths[place - 1u],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_jobs->paths[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
-            place -= 1u;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths[place],
-                                .src = held,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
-    }
+    cli_paths_sorted(s_jobs->paths.path, count);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_catalog_bash_alone(catalog, root, "test", s_jobs->paths[at]);
+        cli_catalog_bash_alone(catalog, root, "test", s_jobs->paths.path[at]);
+    }
+}
+
+// every list of the reading given back
+static void cli_jobs_given(void)
+{
+    cli_catalog_paths_given(&s_jobs->runs);
+    cli_catalog_entries_given(&s_jobs->parts);
+    cli_catalog_paths_given(&s_jobs->paths);
+    cli_catalog_entries_given(&s_jobs->subjects);
+    cli_catalog_entries_given(&s_jobs->inner);
+    cli_catalog_entries_given(&s_jobs->files);
+    for (unsigned int depth = 0u; depth < 17u; depth += 1u)
+    {
+        cli_catalog_entries_given(&s_jobs->dirs[depth]);
     }
 }
 
 void cli_catalog_read(const char *root, CliCatalog *catalog)
 {
     cli_lock_take(&s_lock);
-    s_jobs = cli_cell_taken(sizeof(*s_jobs), "a reading of the jobs");
+    s_jobs = cli_cell_taken_by(&g_cli_catalog_cells, sizeof(*s_jobs), "a reading of the jobs");
     if (s_jobs == NULL)
     {
         cli_lock_give(&s_lock);
         return;
     }
+    memor.set(&(MemoriaCfg){.dst = s_jobs, .val = 0, .bytes = sizeof(*s_jobs)});
     cli_catalog_builds(root, catalog);
     cli_executables_jobs(root, catalog);
     cli_deploy_jobs(root, catalog);
@@ -403,7 +413,8 @@ void cli_catalog_read(const char *root, CliCatalog *catalog)
     cli_views(root, catalog);
     cli_stages(root, catalog);
     cli_tests(root, catalog);
-    cli_cell_given(s_jobs);
+    cli_jobs_given();
+    cli_cell_given_by(&g_cli_catalog_cells, s_jobs);
     s_jobs = NULL;
     cli_lock_give(&s_lock);
 }

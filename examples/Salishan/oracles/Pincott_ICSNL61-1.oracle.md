@@ -3,7 +3,7 @@
 Extraction of Philology of Secwepemctsín: The Phonology of Studies on Shuswap by Ethan Pincott,
 Simon Fraser University, ICSNL 61.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -44,7 +44,7 @@ page-read correction. The check also puts back the space the inserted-space repa
 opening slash, t̓ /t̓/, where an even count of slashes before it on the line shows the slash opens a
 form.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 846
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 15436 distinct tokens in the paper, 0 language tokens are held by no row.

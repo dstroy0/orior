@@ -6,15 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-_Static_assert(ANCHOR_EXACT_LIMBS >= 2u, "cycle: a record constant is 64 bits and needs two limbs");
+_Static_assert(ORIOR_EXACT_LIMBS >= 2u, "cycle: a record constant is 64 bits and needs two limbs");
 
 #define CYCLE_CHECK(condition_, evacaddr_, error_, kind_)                                                              \
     engine_error_check((condition_), (kind_), ENGINE_MODULE_CYCLE, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
                        (error_))
 
-static int cycle_host_fits(const AnchorExactInteger *value, unsigned int limbs)
+static int cycle_host_fits(const OriorExactInteger *value, unsigned int limbs)
 {
-    for (unsigned int at = limbs; at < ANCHOR_EXACT_LIMBS; at += 1u)
+    for (unsigned int at = limbs; at < ORIOR_EXACT_LIMBS; at += 1u)
     {
         if (value->limb[at] != 0u)
         {
@@ -24,10 +24,10 @@ static int cycle_host_fits(const AnchorExactInteger *value, unsigned int limbs)
     return 1;
 }
 
-static void cycle_host_settle(AnchorExactInteger *value, int32_t sign)
+static void cycle_host_settle(OriorExactInteger *value, int32_t sign)
 {
     int zero = 1;
-    for (unsigned int at = 0u; at < ANCHOR_EXACT_LIMBS; at += 1u)
+    for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at += 1u)
     {
         zero = zero && (value->limb[at] == 0u);
     }
@@ -40,9 +40,9 @@ static unsigned int cycle_host_limb(const unsigned int *value, unsigned int limb
 }
 
 static void cycle_host_field(const unsigned int *atom, unsigned int in_limbs, unsigned int offset, unsigned int bits,
-                             unsigned int limbs, AnchorExactInteger *value)
+                             unsigned int limbs, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     for (unsigned int limb = 0u; limb < limbs; limb += 1u)
     {
         const unsigned int bit = offset + (32u * limb);
@@ -59,10 +59,10 @@ static void cycle_host_field(const unsigned int *atom, unsigned int in_limbs, un
     cycle_host_settle(value, 1);
 }
 
-static int cycle_host_ladder(const AnchorExactInteger *numerator, const AnchorExactInteger *denominator,
+static int cycle_host_ladder(const OriorExactInteger *numerator, const OriorExactInteger *denominator,
                              unsigned int *band)
 {
-    AnchorExactInteger magnitude = *numerator;
+    OriorExactInteger magnitude = *numerator;
     magnitude.sign = (numerator->sign != 0) ? 1 : 0;
     unsigned long long lower = 0ull;
     unsigned long long upper = 1ull;
@@ -70,17 +70,17 @@ static int cycle_host_ladder(const AnchorExactInteger *numerator, const AnchorEx
     int below = 1;
     for (unsigned int rung = 1u; (below != 0) && (rung < ENGINE_GOLDEN_RUNGS); rung += 1u)
     {
-        AnchorExactInteger step;
-        AnchorExactInteger reached;
-        anchor_exact_zero(&step);
+        OriorExactInteger step;
+        OriorExactInteger reached;
+        orior_exact_zero(&step);
         step.limb[0] = (uint32_t)(upper & 0xFFFFFFFFull);
         step.limb[1] = (uint32_t)(upper >> 32u);
         cycle_host_settle(&step, 1);
-        if (anchor_exact_multiply(&step, denominator, &reached) != ANCHOR_EXACT_OK)
+        if (orior_exact_multiply(&step, denominator, &reached) != ORIOR_EXACT_OK)
         {
             return 0;
         }
-        below = (anchor_exact_compare(&reached, &magnitude) <= 0) ? 1 : 0;
+        below = (orior_exact_compare(&reached, &magnitude) <= 0) ? 1 : 0;
         counted += (unsigned int)below;
         const unsigned long long next = lower + upper;
         lower = upper;
@@ -92,7 +92,7 @@ static int cycle_host_ladder(const AnchorExactInteger *numerator, const AnchorEx
 
 // limb `at` of an integer's two's complement, the device's cycle_record_complement: `carry` starts at 1 and the limbs
 // are taken from the lowest up
-static uint32_t cycle_host_complement(const AnchorExactInteger *value, unsigned int at, unsigned long long *carry)
+static uint32_t cycle_host_complement(const OriorExactInteger *value, unsigned int at, unsigned long long *carry)
 {
     if (value->sign >= 0)
     {
@@ -104,7 +104,7 @@ static uint32_t cycle_host_complement(const AnchorExactInteger *value, unsigned 
 }
 
 // the low `limbs` of a two's complement read back as a magnitude, masked to `bits`, and settled with `negative`
-static void cycle_host_uncomplement(AnchorExactInteger *value, unsigned int limbs, unsigned int bits, int negative)
+static void cycle_host_uncomplement(OriorExactInteger *value, unsigned int limbs, unsigned int bits, int negative)
 {
     unsigned long long carry = 1ull;
     for (unsigned int at = 0u; (negative != 0) && (at < limbs); at += 1u)
@@ -120,11 +120,11 @@ static void cycle_host_uncomplement(AnchorExactInteger *value, unsigned int limb
 
 // the xor or the and over the step's limbs, its sign the operands' (the xor negative where exactly one is, the and
 // where both are), as the device's cycle_record_bitwise
-static void cycle_host_bitwise(const DeviceRecordStep *step, const AnchorExactInteger *left,
-                               const AnchorExactInteger *right, AnchorExactInteger *value)
+static void cycle_host_bitwise(const DeviceRecordStep *step, const OriorExactInteger *left,
+                               const OriorExactInteger *right, OriorExactInteger *value)
 {
-    AnchorExactInteger result;
-    anchor_exact_zero(&result);
+    OriorExactInteger result;
+    orior_exact_zero(&result);
     unsigned long long left_carry = 1ull;
     unsigned long long right_carry = 1ull;
     for (unsigned int at = 0u; at < step->limbs; at += 1u)
@@ -142,15 +142,15 @@ static void cycle_host_bitwise(const DeviceRecordStep *step, const AnchorExactIn
 }
 
 // the two's complement wrap to the step's wrap_bits, as the device's cycle_record_wrap
-static void cycle_host_wrap(const DeviceRecordStep *step, const AnchorExactInteger *source, AnchorExactInteger *value)
+static void cycle_host_wrap(const DeviceRecordStep *step, const OriorExactInteger *source, OriorExactInteger *value)
 {
     if (step->wrap_bits > (32u * step->limbs))
     {
         *value = *source;
         return;
     }
-    AnchorExactInteger result;
-    anchor_exact_zero(&result);
+    OriorExactInteger result;
+    orior_exact_zero(&result);
     unsigned long long carry = 1ull;
     for (unsigned int at = 0u; at < step->limbs; at += 1u)
     {
@@ -165,13 +165,13 @@ static void cycle_host_wrap(const DeviceRecordStep *step, const AnchorExactInteg
 }
 
 static void cycle_host_put(unsigned int *record, unsigned int offset, unsigned int bits,
-                           const AnchorExactInteger *value)
+                           const OriorExactInteger *value)
 {
     unsigned int carry = 1u;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int bit_value =
-            (bit < (32u * ANCHOR_EXACT_LIMBS)) ? ((value->limb[bit / 32u] >> (bit % 32u)) & 1u) : 0u;
+            (bit < (32u * ORIOR_EXACT_LIMBS)) ? ((value->limb[bit / 32u] >> (bit % 32u)) & 1u) : 0u;
         unsigned int written = bit_value;
         if (value->sign < 0)
         {
@@ -185,12 +185,12 @@ static void cycle_host_put(unsigned int *record, unsigned int offset, unsigned i
 }
 
 static int cycle_host_step(const DeviceRecordStep *step, const unsigned int *atom, unsigned int in_limbs,
-                           const AnchorExactInteger *file, const unsigned int *tables, unsigned long long lane,
-                           AnchorExactInteger *value)
+                           const OriorExactInteger *file, const unsigned int *tables, unsigned long long lane,
+                           OriorExactInteger *value)
 {
     if (step->operation == ENGINE_RECORD_LANE)
     {
-        anchor_exact_zero(value);
+        orior_exact_zero(value);
         value->limb[0] = (uint32_t)(lane & 0xFFFFFFFFull);
         value->limb[1] = (uint32_t)(lane >> 32u);
         cycle_host_settle(value, 1);
@@ -220,7 +220,7 @@ static int cycle_host_step(const DeviceRecordStep *step, const unsigned int *ato
     }
     if (step->operation == ENGINE_RECORD_CONSTANT)
     {
-        anchor_exact_zero(value);
+        orior_exact_zero(value);
         value->limb[0] = step->left;
         value->limb[1] = (step->limbs > 1u) ? step->right : 0u;
         cycle_host_settle(value, 1);
@@ -228,10 +228,10 @@ static int cycle_host_step(const DeviceRecordStep *step, const unsigned int *ato
     }
     if (step->operation == ENGINE_RECORD_TABLE)
     {
-        const AnchorExactInteger *const source = &file[step->left];
+        const OriorExactInteger *const source = &file[step->left];
         const unsigned int index =
             (step->index_bits >= 32u) ? source->limb[0] : (source->limb[0] & ((1u << step->index_bits) - 1u));
-        anchor_exact_zero(value);
+        orior_exact_zero(value);
         const unsigned int *const entry = &tables[step->table_offset + (index * step->limbs)];
         for (unsigned int limb = 0u; limb < step->limbs; limb += 1u)
         {
@@ -240,19 +240,19 @@ static int cycle_host_step(const DeviceRecordStep *step, const unsigned int *ato
         cycle_host_settle(value, 1);
         return 1;
     }
-    const AnchorExactInteger *const left = &file[step->left];
-    const AnchorExactInteger *const right = &file[step->right];
+    const OriorExactInteger *const left = &file[step->left];
+    const OriorExactInteger *const right = &file[step->right];
     if (step->operation == ENGINE_RECORD_PRODUCT)
     {
-        return anchor_exact_multiply(left, right, value) == ANCHOR_EXACT_OK;
+        return orior_exact_multiply(left, right, value) == ORIOR_EXACT_OK;
     }
     if (step->operation == ENGINE_RECORD_SUM)
     {
-        return anchor_exact_add(left, right, value) == ANCHOR_EXACT_OK;
+        return orior_exact_add(left, right, value) == ORIOR_EXACT_OK;
     }
     if (step->operation == ENGINE_RECORD_DIFFERENCE)
     {
-        return anchor_exact_subtract(left, right, value) == ANCHOR_EXACT_OK;
+        return orior_exact_subtract(left, right, value) == ORIOR_EXACT_OK;
     }
     if (step->operation == ENGINE_RECORD_ABSOLUTE)
     {
@@ -262,29 +262,29 @@ static int cycle_host_step(const DeviceRecordStep *step, const unsigned int *ato
     }
     if (step->operation == ENGINE_RECORD_COMPARE)
     {
-        const int order = anchor_exact_compare(left, right);
-        anchor_exact_zero(value);
+        const int order = orior_exact_compare(left, right);
+        orior_exact_zero(value);
         value->limb[0] = (order != 0) ? 1u : 0u;
         value->sign = order;
         return 1;
     }
     if (step->operation == ENGINE_RECORD_QUOTIENT)
     {
-        AnchorExactInteger rest;
-        return anchor_exact_divide(left, right, value, &rest) == ANCHOR_EXACT_OK;
+        OriorExactInteger rest;
+        return orior_exact_divide(left, right, value, &rest) == ORIOR_EXACT_OK;
     }
     if (step->operation == ENGINE_RECORD_REMAINDER)
     {
-        AnchorExactInteger integer_part;
-        return anchor_exact_divide(left, right, &integer_part, value) == ANCHOR_EXACT_OK;
+        OriorExactInteger integer_part;
+        return orior_exact_divide(left, right, &integer_part, value) == ORIOR_EXACT_OK;
     }
     if (step->operation == ENGINE_RECORD_GCD)
     {
-        return anchor_exact_gcd(left, right, value) == ANCHOR_EXACT_OK;
+        return orior_exact_gcd(left, right, value) == ORIOR_EXACT_OK;
     }
     if (step->operation == ENGINE_RECORD_EXACT_QUOTIENT)
     {
-        return anchor_exact_divide_exact(left, right, value) == ANCHOR_EXACT_OK;
+        return orior_exact_divide_exact(left, right, value) == ORIOR_EXACT_OK;
     }
     if ((step->operation == ENGINE_RECORD_XOR) || (step->operation == ENGINE_RECORD_AND))
     {
@@ -303,7 +303,7 @@ static int cycle_host_step(const DeviceRecordStep *step, const unsigned int *ato
         {
             return 0;
         }
-        anchor_exact_zero(value);
+        orior_exact_zero(value);
         value->limb[0] = band;
         cycle_host_settle(value, left->sign);
         return 1;
@@ -340,13 +340,13 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
     for (unsigned int at = 0u; at < layout->steps; at += 1u)
     {
         // a step wider than the host's exact integer cannot be held on the host
-        if (!CYCLE_CHECK(layout->step_table[at].limbs <= ANCHOR_EXACT_LIMBS, &layout->step_table[at], error,
+        if (!CYCLE_CHECK(layout->step_table[at].limbs <= ORIOR_EXACT_LIMBS, &layout->step_table[at], error,
                          ENGINE_ERROR_REQUEST))
         {
             return CYCLE_ERROR;
         }
     }
-    AnchorExactInteger *const file = (AnchorExactInteger *)malloc((size_t)layout->steps * sizeof(AnchorExactInteger));
+    OriorExactInteger *const file = (OriorExactInteger *)malloc((size_t)layout->steps * sizeof(OriorExactInteger));
     if (!CYCLE_CHECK(file != NULL, layout, error, ENGINE_ERROR_RESOURCE))
     {
         return CYCLE_ERROR;

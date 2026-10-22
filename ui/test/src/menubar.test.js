@@ -289,11 +289,11 @@ test("a command given at a command line on the tree runs in this window, as its 
   newTerminal();
   const screen = () => document.getElementById("term-views").textContent;
   try {
-    runInTerminal("orior view word-wrap on");
+    runInTerminal("orior_gui view word-wrap on");
     await ui.waitFor(() => editing().wordWrap(), 30000, "the window to wrap its words").catch((error) => {
       throw new Error(`${error.message}; the terminal shows: ${screen().trim().slice(-600)}`);
     });
-    runInTerminal("orior view word-wrap off");
+    runInTerminal("orior_gui view word-wrap off");
     await ui.waitFor(() => !editing().wordWrap(), 30000, "the window to stop wrapping");
     assert.ok(document.querySelectorAll("#tabs .tab").length > 0, "the same window, its tabs still open");
   } finally {
@@ -2513,7 +2513,7 @@ test("the window is put back as the file found it", async () => {
     await invoke("tree_unmount", { name: mounted.name }).catch(() => {});
   }
   asFound();
-  // Key by key, as orior keeps each change in its own folder through the page's own setItem and
+  // Key by key, as orior_gui keeps each change in its own folder through the page's own setItem and
   // removeItem.
   const stored = new Map(STORED);
   for (const key of Object.keys(localStorage).filter((one) => !stored.has(one))) {
@@ -2523,7 +2523,7 @@ test("the window is put back as the file found it", async () => {
     localStorage.setItem(key, value);
   }
   assert.deepEqual(Object.entries(localStorage).sort(), [...STORED].sort());
-  // orior keeps the settings in its own folder once they rest, which the next page reads.
+  // orior_gui keeps the settings in its own folder once they rest, which the next page reads.
   await ui.rest(1500);
 });
 

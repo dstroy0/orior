@@ -329,7 +329,7 @@ void kdecode_blob(void *context, const char *name, unsigned int name_length, uns
 
 // the oracle at `path` from the top of the tree read into `oracle` as kdecode_oracle_parsed reads it: the one the run
 // read holds, the latest blob of its name, or where it holds none, the tree's, read from the top of the tree where
-// kdecode stands. 1, or 0 where neither could be read
+// orior_kdecode stands. 1, or 0 where neither could be read
 int kdecode_oracle_read(const KdecodeRun *run, const char *path, KdecodeOracle *oracle, int codes_only)
 {
     for (size_t at = 0u; at < run->helds; at += 1u)

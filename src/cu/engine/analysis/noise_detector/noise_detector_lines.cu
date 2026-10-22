@@ -99,16 +99,16 @@ static void noise_line_add(NoiseLineCell *cells, unsigned int kind, unsigned lon
 }
 
 // sum gains left times right, less square, exactly
-static int noise_exact_add_centerd(AnchorExactInteger *sum, unsigned long long left, unsigned long long right,
-                                   const AnchorExactInteger *square)
+static int noise_exact_add_centerd(OriorExactInteger *sum, unsigned long long left, unsigned long long right,
+                                   const OriorExactInteger *square)
 {
-    AnchorExactInteger term;
-    AnchorExactInteger factor;
+    OriorExactInteger term;
+    OriorExactInteger factor;
     noise_exact_word(&term, left);
     noise_exact_word(&factor, right);
-    return (anchor_exact_multiply(&term, &factor, &term) == ANCHOR_EXACT_OK) &&
-           (anchor_exact_subtract(&term, square, &term) == ANCHOR_EXACT_OK) &&
-           (anchor_exact_add(sum, &term, sum) == ANCHOR_EXACT_OK);
+    return (orior_exact_multiply(&term, &factor, &term) == ORIOR_EXACT_OK) &&
+           (orior_exact_subtract(&term, square, &term) == ORIOR_EXACT_OK) &&
+           (orior_exact_add(sum, &term, sum) == ORIOR_EXACT_OK);
 }
 
 static int noise_planes_pool(const NoisePlane *planes, unsigned long long count, unsigned long long height,
@@ -117,22 +117,22 @@ static int noise_planes_pool(const NoisePlane *planes, unsigned long long count,
     pool->planes = count;
     pool->height = height;
     pool->width = width;
-    anchor_exact_zero(&pool->spread);
-    anchor_exact_zero(&pool->rows);
-    anchor_exact_zero(&pool->columns);
-    anchor_exact_zero(&pool->plane_squares);
+    orior_exact_zero(&pool->spread);
+    orior_exact_zero(&pool->rows);
+    orior_exact_zero(&pool->columns);
+    orior_exact_zero(&pool->plane_squares);
     int ok = 1;
     for (unsigned long long plane = 0ull; ok && (plane < count); plane += 1ull)
     {
         const NoisePlane *const one = &planes[plane];
-        AnchorExactInteger square;
+        OriorExactInteger square;
         // a plane's sum is far from the most negative long long. Its negation is exact
         noise_exact_word(&square, (unsigned long long)((one->summed < 0ll) ? -one->summed : one->summed));
-        ok = (anchor_exact_multiply(&square, &square, &square) == ANCHOR_EXACT_OK) &&
+        ok = (orior_exact_multiply(&square, &square, &square) == ORIOR_EXACT_OK) &&
              noise_exact_add_centerd(&pool->spread, height * width, one->squared, &square) &&
              noise_exact_add_centerd(&pool->rows, height, one->row_squares, &square) &&
              noise_exact_add_centerd(&pool->columns, width, one->column_squares, &square) &&
-             (anchor_exact_add(&pool->plane_squares, &square, &pool->plane_squares) == ANCHOR_EXACT_OK);
+             (orior_exact_add(&pool->plane_squares, &square, &pool->plane_squares) == ORIOR_EXACT_OK);
     }
     return ok;
 }

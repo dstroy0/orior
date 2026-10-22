@@ -74,7 +74,7 @@ static int run_cfg_decimal(const RunCfg *cfg, unsigned int at, SimRational *valu
     const void *const point = memchr(text, '.', length);
     // the point lies inside the text. The places after it number fewer than the text's bytes
     const unsigned int places = (point != NULL) ? (unsigned int)(length - 1u - (size_t)((const char *)point - text)) : 0u;
-    if ((anchor_exact_from_decimal(text, length, places, &value->numerator) != ANCHOR_EXACT_OK) ||
+    if ((orior_exact_from_decimal(text, length, places, &value->numerator) != ORIOR_EXACT_OK) ||
         (sim_exact_power(10ull, places, &value->denominator) == 0))
     {
         return 0;

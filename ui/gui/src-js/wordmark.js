@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The name: "or", the eye in place of the i, "or". The eye is line art in the text's color and
-// follows the scheme, and the name still reads as orior to a screen reader. The bar along the top
+// follows the scheme, and the name still reads as orior_gui to a screen reader. The bar along the top
 // holds the eye alone, and an empty view holds the whole name large until it goes there. Either
 // opens orior's repository.
 

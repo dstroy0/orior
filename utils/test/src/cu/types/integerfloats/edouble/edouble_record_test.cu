@@ -84,10 +84,10 @@ static void edouble_check(EdoubleResults *results, int passed, const char *what)
 
 // `bits` of two's complement at bit `offset` of `words`, as an exact integer; an output wider than the integer holds
 // reads as sign 2, which equals no worked-out value
-static void edouble_at(const unsigned int *words, unsigned int offset, unsigned int bits, AnchorExactInteger *value)
+static void edouble_at(const unsigned int *words, unsigned int offset, unsigned int bits, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
-    if (bits > ANCHOR_EXACT_BITS)
+    orior_exact_zero(value);
+    if (bits > ORIOR_EXACT_BITS)
     {
         value->sign = 2;
         return;
@@ -121,30 +121,30 @@ static void edouble_at(const unsigned int *words, unsigned int offset, unsigned 
     value->sign = (negative != 0u) ? -1 : (any ? 1 : 0);
 }
 
-static void edouble_small(AnchorExactInteger *value, long long small)
+static void edouble_small(OriorExactInteger *value, long long small)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     const unsigned long long magnitude = (small < 0) ? (0ull - (unsigned long long)small) : (unsigned long long)small;
     value->limb[0] = (unsigned int)magnitude;
     value->limb[1] = (unsigned int)(magnitude >> 32u);
     value->sign = (small > 0) - (small < 0);
 }
 
-static long long edouble_word(const AnchorExactInteger *value)
+static long long edouble_word(const OriorExactInteger *value)
 {
     const long long magnitude = (long long)(((unsigned long long)value->limb[1] << 32u) | value->limb[0]);
     return (value->sign < 0) ? -magnitude : magnitude;
 }
 
 // m 2^(e + 64), e above -64; 1 where it fits
-static int edouble_lifted(const AnchorExactInteger *mantissa, long long exponent, AnchorExactInteger *out)
+static int edouble_lifted(const OriorExactInteger *mantissa, long long exponent, OriorExactInteger *out)
 {
-    AnchorExactInteger power;
-    anchor_exact_zero(&power);
+    OriorExactInteger power;
+    orior_exact_zero(&power);
     const unsigned long long place = (unsigned long long)(exponent + (long long)EDOUBLE_TEST_LIFT);
     power.limb[place / 32u] = 1u << (place % 32u);
     power.sign = 1;
-    return anchor_exact_multiply(mantissa, &power, out) == ANCHOR_EXACT_OK;
+    return orior_exact_multiply(mantissa, &power, out) == ORIOR_EXACT_OK;
 }
 
 typedef struct
@@ -183,7 +183,7 @@ static int edouble_load(ExactRecordProgram *program, const unsigned int *outputs
     return 1;
 }
 
-static AnchorExactInteger s_read[EDOUBLE_TEST_LANES * EDOUBLE_TEST_OUTPUTS];
+static OriorExactInteger s_read[EDOUBLE_TEST_LANES * EDOUBLE_TEST_OUTPUTS];
 static unsigned int s_atoms[EDOUBLE_TEST_LANES];
 
 // runs the program on the device and the host and reads every output of every lane; 1 where both ran and agree
@@ -272,24 +272,24 @@ static long long edouble_field(unsigned int atom, unsigned int offset, unsigned 
     return (raw >= (1ll << (bits - 1u))) ? (raw - (1ll << bits)) : raw;
 }
 
-static int edouble_order(const AnchorExactInteger *left, const AnchorExactInteger *right)
+static int edouble_order(const OriorExactInteger *left, const OriorExactInteger *right)
 {
-    return anchor_exact_compare(left, right);
+    return orior_exact_compare(left, right);
 }
 
 // S(m, e) S(n, f) against S(o, g) 2^64: the order of (m 2^e)(n 2^f) and o 2^g
-static int edouble_order_product(const AnchorExactInteger *m, long long e, const AnchorExactInteger *n, long long f,
-                                 const AnchorExactInteger *o, long long g, int *order)
+static int edouble_order_product(const OriorExactInteger *m, long long e, const OriorExactInteger *n, long long f,
+                                 const OriorExactInteger *o, long long g, int *order)
 {
-    AnchorExactInteger left_one;
-    AnchorExactInteger left_two;
-    AnchorExactInteger left;
-    AnchorExactInteger right_one;
-    AnchorExactInteger right;
+    OriorExactInteger left_one;
+    OriorExactInteger left_two;
+    OriorExactInteger left;
+    OriorExactInteger right_one;
+    OriorExactInteger right;
     const int ok = edouble_lifted(m, e, &left_one) && edouble_lifted(n, f, &left_two) &&
-                   (anchor_exact_multiply(&left_one, &left_two, &left) == ANCHOR_EXACT_OK) &&
+                   (orior_exact_multiply(&left_one, &left_two, &left) == ORIOR_EXACT_OK) &&
                    edouble_lifted(o, g, &right_one) && edouble_lifted(&right_one, 0ll, &right);
-    *order = ok ? anchor_exact_compare(&left, &right) : 0;
+    *order = ok ? orior_exact_compare(&left, &right) : 0;
     return ok;
 }
 
@@ -337,7 +337,7 @@ static void edouble_held_case(EdoubleResults *results)
     unsigned int ordered = 0u;
     for (unsigned int lane = 0u; (same != 0) && (lane < EDOUBLE_TEST_LANES); lane += 1u)
     {
-        const AnchorExactInteger *const read = &s_read[(size_t)lane * 13u];
+        const OriorExactInteger *const read = &s_read[(size_t)lane * 13u];
         long long m[2];
         long long top[2];
         long long e[2];
@@ -347,8 +347,8 @@ static void edouble_held_case(EdoubleResults *results)
             top[side] = m[side] + (long long)((s_atoms[lane] >> ((16u * side) + 10u)) & 7u);
             e[side] = edouble_field(s_atoms[lane], (16u * side) + 13u, 3u);
         }
-        AnchorExactInteger small;
-        AnchorExactInteger lifted[2][2];
+        OriorExactInteger small;
+        OriorExactInteger lifted[2][2];
         int ok = 1;
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
@@ -359,13 +359,13 @@ static void edouble_held_case(EdoubleResults *results)
         }
         // the sum's ends, exact
         {
-            AnchorExactInteger want;
-            AnchorExactInteger got;
+            OriorExactInteger want;
+            OriorExactInteger got;
             int held_sum = ok;
             for (unsigned int end = 0u; end < 2u; end += 1u)
             {
-                held_sum = held_sum && (anchor_exact_add(&lifted[0][end], &lifted[1][end], &want) == ANCHOR_EXACT_OK) &&
-                           edouble_lifted(&read[end], edouble_word(&read[2]), &got) && anchor_exact_equal(&want, &got);
+                held_sum = held_sum && (orior_exact_add(&lifted[0][end], &lifted[1][end], &want) == ORIOR_EXACT_OK) &&
+                           edouble_lifted(&read[end], edouble_word(&read[2]), &got) && orior_exact_equal(&want, &got);
             }
             sums += (unsigned int)held_sum;
         }
@@ -396,20 +396,20 @@ static void edouble_held_case(EdoubleResults *results)
         // the quotient: every corner a_i / b_j inside it, and its ends one unit in from them fall outside one corner
         {
             const long long at = edouble_word(&read[11]);
-            AnchorExactInteger ends[2];
-            AnchorExactInteger moved[2];
-            AnchorExactInteger one;
+            OriorExactInteger ends[2];
+            OriorExactInteger moved[2];
+            OriorExactInteger one;
             edouble_small(&one, 1);
-            int held_quotient = ok && (anchor_exact_add(&read[9], &one, &moved[0]) == ANCHOR_EXACT_OK) &&
-                                (anchor_exact_subtract(&read[10], &one, &moved[1]) == ANCHOR_EXACT_OK);
+            int held_quotient = ok && (orior_exact_add(&read[9], &one, &moved[0]) == ORIOR_EXACT_OK) &&
+                                (orior_exact_subtract(&read[10], &one, &moved[1]) == ORIOR_EXACT_OK);
             ends[0] = read[9];
             ends[1] = read[10];
             int down_tight = 0;
             int up_tight = 0;
             for (unsigned int corner = 0u; held_quotient && (corner < 4u); corner += 1u)
             {
-                AnchorExactInteger numerator;
-                AnchorExactInteger divisor;
+                OriorExactInteger numerator;
+                OriorExactInteger divisor;
                 edouble_small(&numerator, (corner / 2u) ? top[0] : m[0]);
                 edouble_small(&divisor, (corner % 2u) ? top[1] : m[1]);
                 const int positive = (divisor.sign > 0);
@@ -431,7 +431,7 @@ static void edouble_held_case(EdoubleResults *results)
         }
         // a above b: a's lower end above b's upper
         {
-            const int above = anchor_exact_compare(&lifted[0][0], &lifted[1][1]) > 0;
+            const int above = orior_exact_compare(&lifted[0][0], &lifted[1][1]) > 0;
             ordered += (unsigned int)(ok && (edouble_word(&read[12]) == (above ? 1ll : 0ll)));
         }
     }
@@ -505,7 +505,7 @@ static void edouble_known_case(EdoubleResults *results)
     unsigned int lanes = 0u;
     for (unsigned int lane_at = 0u; (same != 0) && (lane_at < EDOUBLE_TEST_LANES); lane_at += 1u)
     {
-        const AnchorExactInteger *const read = &s_read[(size_t)lane_at * 15u];
+        const OriorExactInteger *const read = &s_read[(size_t)lane_at * 15u];
         long long m[2];
         long long top[2];
         for (unsigned int side = 0u; side < 2u; side += 1u)
@@ -551,10 +551,10 @@ static void edouble_known_case(EdoubleResults *results)
 }
 
 // m 2^e times 2^64, an exact integer, or sign 2 where it does not fit
-static AnchorExactInteger edouble_value(long long m, long long e)
+static OriorExactInteger edouble_value(long long m, long long e)
 {
-    AnchorExactInteger small;
-    AnchorExactInteger out;
+    OriorExactInteger small;
+    OriorExactInteger out;
     edouble_small(&small, m);
     if (!edouble_lifted(&small, e, &out))
     {
@@ -563,37 +563,37 @@ static AnchorExactInteger edouble_value(long long m, long long e)
     return out;
 }
 
-static AnchorExactInteger edouble_plus(const AnchorExactInteger &a, const AnchorExactInteger &b)
+static OriorExactInteger edouble_plus(const OriorExactInteger &a, const OriorExactInteger &b)
 {
-    AnchorExactInteger out;
-    if (anchor_exact_add(&a, &b, &out) != ANCHOR_EXACT_OK)
+    OriorExactInteger out;
+    if (orior_exact_add(&a, &b, &out) != ORIOR_EXACT_OK)
     {
         out.sign = 2;
     }
     return out;
 }
 
-static AnchorExactInteger edouble_minus(const AnchorExactInteger &a, const AnchorExactInteger &b)
+static OriorExactInteger edouble_minus(const OriorExactInteger &a, const OriorExactInteger &b)
 {
-    AnchorExactInteger out;
-    if (anchor_exact_subtract(&a, &b, &out) != ANCHOR_EXACT_OK)
+    OriorExactInteger out;
+    if (orior_exact_subtract(&a, &b, &out) != ORIOR_EXACT_OK)
     {
         out.sign = 2;
     }
     return out;
 }
 
-static AnchorExactInteger edouble_times(const AnchorExactInteger &a, const AnchorExactInteger &b)
+static OriorExactInteger edouble_times(const OriorExactInteger &a, const OriorExactInteger &b)
 {
-    AnchorExactInteger out;
-    if (anchor_exact_multiply(&a, &b, &out) != ANCHOR_EXACT_OK)
+    OriorExactInteger out;
+    if (orior_exact_multiply(&a, &b, &out) != ORIOR_EXACT_OK)
     {
         out.sign = 2;
     }
     return out;
 }
 
-static AnchorExactInteger edouble_size(AnchorExactInteger a)
+static OriorExactInteger edouble_size(OriorExactInteger a)
 {
     a.sign = (a.sign < 0) ? 1 : a.sign;
     return a;
@@ -640,68 +640,68 @@ static void edouble_ball_case(EdoubleResults *results)
     unsigned int cleared = 0u;
     for (unsigned int lane = 0u; (same != 0) && (lane < EDOUBLE_TEST_LANES); lane += 1u)
     {
-        const AnchorExactInteger *const read = &s_read[(size_t)lane * 15u];
+        const OriorExactInteger *const read = &s_read[(size_t)lane * 15u];
         const unsigned int atom = s_atoms[lane];
         const long long ca = edouble_field(atom, 0u, 10u);
         const long long ra = (long long)((atom >> 10u) & 15u);
         const long long cb = edouble_field(atom, 14u, 10u);
         const long long rb = (long long)((atom >> 24u) & 7u);
-        const AnchorExactInteger center_a = edouble_value(ca, 2);
-        const AnchorExactInteger radius_a = edouble_value(ra, -1);
-        const AnchorExactInteger center_b = edouble_value(cb, -3);
-        const AnchorExactInteger radius_b = edouble_value(rb, -4);
+        const OriorExactInteger center_a = edouble_value(ca, 2);
+        const OriorExactInteger radius_a = edouble_value(ra, -1);
+        const OriorExactInteger center_b = edouble_value(cb, -3);
+        const OriorExactInteger radius_b = edouble_value(rb, -4);
         // the sum, exact
         {
-            const AnchorExactInteger center = edouble_value(edouble_word(&read[0]), edouble_word(&read[1]));
-            const AnchorExactInteger radius = edouble_value(edouble_word(&read[2]), edouble_word(&read[3]));
-            sums += (unsigned int)(anchor_exact_equal(&center, &edouble_plus(center_a, center_b)) &&
-                                   anchor_exact_equal(&radius, &edouble_plus(radius_a, radius_b)));
+            const OriorExactInteger center = edouble_value(edouble_word(&read[0]), edouble_word(&read[1]));
+            const OriorExactInteger radius = edouble_value(edouble_word(&read[2]), edouble_word(&read[3]));
+            sums += (unsigned int)(orior_exact_equal(&center, &edouble_plus(center_a, center_b)) &&
+                                   orior_exact_equal(&radius, &edouble_plus(radius_a, radius_b)));
         }
         // the product, exact: c_a c_b within |c_a| r_b + |c_b| r_a + r_a r_b
-        const AnchorExactInteger product_center = edouble_value(edouble_word(&read[4]), edouble_word(&read[5]));
-        const AnchorExactInteger product_radius = edouble_value(edouble_word(&read[6]), edouble_word(&read[7]));
+        const OriorExactInteger product_center = edouble_value(edouble_word(&read[4]), edouble_word(&read[5]));
+        const OriorExactInteger product_radius = edouble_value(edouble_word(&read[6]), edouble_word(&read[7]));
         {
             const long long size_a = (ca < 0) ? -ca : ca;
             const long long size_b = (cb < 0) ? -cb : cb;
-            const AnchorExactInteger want_center = edouble_value(ca * cb, -1);
-            const AnchorExactInteger want_radius = edouble_plus(
+            const OriorExactInteger want_center = edouble_value(ca * cb, -1);
+            const OriorExactInteger want_radius = edouble_plus(
                 edouble_plus(edouble_value(size_a * rb, -2), edouble_value(size_b * ra, -4)), edouble_value(ra * rb, -5));
-            products += (unsigned int)(anchor_exact_equal(&product_center, &want_center) &&
-                                       anchor_exact_equal(&product_radius, &want_radius));
+            products += (unsigned int)(orior_exact_equal(&product_center, &want_center) &&
+                                       orior_exact_equal(&product_radius, &want_radius));
         }
         // the read: it holds the product's ball, |c' - c| + r <= r', and r' <= r + 2^1 + 2^-2
         {
-            const AnchorExactInteger center = edouble_value(edouble_word(&read[8]), 1);
-            const AnchorExactInteger radius = edouble_value(edouble_word(&read[9]), -2);
-            const AnchorExactInteger reach = edouble_plus(edouble_size(edouble_minus(center, product_center)), product_radius);
-            const AnchorExactInteger most = edouble_plus(edouble_plus(product_radius, edouble_value(1, 1)), edouble_value(1, -2));
-            reads += (unsigned int)((anchor_exact_compare(&reach, &radius) <= 0) && (anchor_exact_compare(&radius, &most) <= 0) &&
+            const OriorExactInteger center = edouble_value(edouble_word(&read[8]), 1);
+            const OriorExactInteger radius = edouble_value(edouble_word(&read[9]), -2);
+            const OriorExactInteger reach = edouble_plus(edouble_size(edouble_minus(center, product_center)), product_radius);
+            const OriorExactInteger most = edouble_plus(edouble_plus(product_radius, edouble_value(1, 1)), edouble_value(1, -2));
+            reads += (unsigned int)((orior_exact_compare(&reach, &radius) <= 0) && (orior_exact_compare(&radius, &most) <= 0) &&
                                     (edouble_word(&read[10]) == 1));
         }
         // the quotient: where b's ball holds no 0, every corner x / y lies within r' of q, |x - q y| <= r' |y| at
         // 2^128; where it holds 0, the flag is 0
         {
             const int clear = (2 * ((cb < 0) ? -cb : cb)) > rb;
-            const AnchorExactInteger q = edouble_value(edouble_word(&read[11]), -6);
-            const AnchorExactInteger r = edouble_value(edouble_word(&read[12]), -8);
-            const AnchorExactInteger unit = edouble_value(1, 0);
+            const OriorExactInteger q = edouble_value(edouble_word(&read[11]), -6);
+            const OriorExactInteger r = edouble_value(edouble_word(&read[12]), -8);
+            const OriorExactInteger unit = edouble_value(1, 0);
             int held = clear ? (edouble_word(&read[13]) == 1) : (edouble_word(&read[13]) == 0);
             for (unsigned int corner = 0u; clear && held && (corner < 4u); corner += 1u)
             {
-                const AnchorExactInteger x =
+                const OriorExactInteger x =
                     (corner / 2u) ? edouble_plus(center_a, radius_a) : edouble_minus(center_a, radius_a);
-                const AnchorExactInteger y =
+                const OriorExactInteger y =
                     (corner % 2u) ? edouble_plus(center_b, radius_b) : edouble_minus(center_b, radius_b);
-                const AnchorExactInteger gap = edouble_size(edouble_minus(edouble_times(x, unit), edouble_times(q, y)));
-                const AnchorExactInteger allowed = edouble_times(r, edouble_size(y));
-                held = held && (gap.sign != 2) && (allowed.sign != 2) && (anchor_exact_compare(&gap, &allowed) <= 0);
+                const OriorExactInteger gap = edouble_size(edouble_minus(edouble_times(x, unit), edouble_times(q, y)));
+                const OriorExactInteger allowed = edouble_times(r, edouble_size(y));
+                held = held && (gap.sign != 2) && (allowed.sign != 2) && (orior_exact_compare(&gap, &allowed) <= 0);
             }
             quotients += (unsigned int)held;
             cleared += (unsigned int)clear;
         }
         // above: a's lower end over b's upper
         {
-            const int above = anchor_exact_compare(&edouble_minus(center_a, radius_a), &edouble_plus(center_b, radius_b)) > 0;
+            const int above = orior_exact_compare(&edouble_minus(center_a, radius_a), &edouble_plus(center_b, radius_b)) > 0;
             ordered += (unsigned int)(edouble_word(&read[14]) == (above ? 1ll : 0ll));
         }
     }
@@ -777,17 +777,17 @@ int main(int count, char **arguments)
         unsigned int quotient_held = 0u;
         for (unsigned int lane = 0u; (same != 0) && (lane < EDOUBLE_TEST_LANES); lane += 1u)
         {
-            const AnchorExactInteger *const read = &s_read[(size_t)lane * 11u];
+            const OriorExactInteger *const read = &s_read[(size_t)lane * 11u];
             const long long ma = edouble_field(s_atoms[lane], 0u, 12u);
             const long long ea = edouble_field(s_atoms[lane], 12u, 4u);
             const long long mb = edouble_field(s_atoms[lane], 16u, 12u);
             const long long eb = edouble_field(s_atoms[lane], 28u, 4u);
-            AnchorExactInteger value_a;
-            AnchorExactInteger value_b;
-            AnchorExactInteger small;
-            AnchorExactInteger want;
-            AnchorExactInteger got;
-            AnchorExactInteger other;
+            OriorExactInteger value_a;
+            OriorExactInteger value_b;
+            OriorExactInteger small;
+            OriorExactInteger want;
+            OriorExactInteger got;
+            OriorExactInteger other;
             edouble_small(&small, ma);
             int ok = edouble_lifted(&small, ea, &value_a);
             edouble_small(&small, mb);
@@ -795,48 +795,48 @@ int main(int count, char **arguments)
             // the product: (m_a m_b) 2^(e_a + e_b + 64)
             edouble_small(&small, ma * mb);
             ok = ok && edouble_lifted(&small, ea + eb, &want) && edouble_lifted(&read[0], edouble_word(&read[1]), &got);
-            exact_product += (unsigned int)(ok && anchor_exact_equal(&want, &got));
-            ok = ok && (anchor_exact_add(&value_a, &value_b, &want) == ANCHOR_EXACT_OK) &&
+            exact_product += (unsigned int)(ok && orior_exact_equal(&want, &got));
+            ok = ok && (orior_exact_add(&value_a, &value_b, &want) == ORIOR_EXACT_OK) &&
                  edouble_lifted(&read[2], edouble_word(&read[3]), &got);
-            exact_sum += (unsigned int)(ok && anchor_exact_equal(&want, &got));
+            exact_sum += (unsigned int)(ok && orior_exact_equal(&want, &got));
             ordered += (unsigned int)(ok && ((edouble_order(&value_a, &value_b) > 0) == (edouble_word(&read[4]) == 1ll)) &&
                                       ((edouble_word(&read[4]) == 0ll) || (edouble_word(&read[4]) == 1ll)));
             // the cut: down <= a b <= up at its exponent, up - down 0 or 1 and 0 only where a b is whole there
             {
-                AnchorExactInteger exact;
-                AnchorExactInteger low;
-                AnchorExactInteger high;
+                OriorExactInteger exact;
+                OriorExactInteger low;
+                OriorExactInteger high;
                 edouble_small(&small, ma * mb);
                 const long long down = edouble_word(&read[5]);
                 const long long up = edouble_word(&read[6]);
                 const long long at = edouble_word(&read[7]);
                 int held = ok && edouble_lifted(&small, ea + eb, &exact) && edouble_lifted(&read[5], at, &low) &&
                            edouble_lifted(&read[6], at, &high);
-                held = held && (anchor_exact_compare(&low, &exact) <= 0) && (anchor_exact_compare(&exact, &high) <= 0);
-                held = held && ((up - down) == ((anchor_exact_equal(&low, &exact) != 0) ? 0ll : 1ll));
+                held = held && (orior_exact_compare(&low, &exact) <= 0) && (orior_exact_compare(&exact, &high) <= 0);
+                held = held && ((up - down) == ((orior_exact_equal(&low, &exact) != 0) ? 0ll : 1ll));
                 held = held && (down >= -(1ll << EDOUBLE_TEST_CUT)) && (up <= (1ll << EDOUBLE_TEST_CUT));
                 cut_held += (unsigned int)held;
             }
             // the quotient: down b <= a <= up b where b > 0, turned where b < 0, at q's exponent; each side times 2^64
             {
-                AnchorExactInteger low;
-                AnchorExactInteger high;
-                AnchorExactInteger lifted_a;
-                AnchorExactInteger unit;
+                OriorExactInteger low;
+                OriorExactInteger high;
+                OriorExactInteger lifted_a;
+                OriorExactInteger unit;
                 const long long down = edouble_word(&read[8]);
                 const long long up = edouble_word(&read[9]);
                 const long long at = edouble_word(&read[10]);
                 edouble_small(&unit, 1);
                 int held = ok && edouble_lifted(&read[8], at, &got) &&
-                           (anchor_exact_multiply(&got, &value_b, &low) == ANCHOR_EXACT_OK) &&
+                           (orior_exact_multiply(&got, &value_b, &low) == ORIOR_EXACT_OK) &&
                            edouble_lifted(&read[9], at, &other) &&
-                           (anchor_exact_multiply(&other, &value_b, &high) == ANCHOR_EXACT_OK) &&
+                           (orior_exact_multiply(&other, &value_b, &high) == ORIOR_EXACT_OK) &&
                            edouble_lifted(&value_a, 0ll, &lifted_a);
                 const int turned = (mb < 0);
-                const AnchorExactInteger *const below = turned ? &high : &low;
-                const AnchorExactInteger *const above = turned ? &low : &high;
-                held = held && (anchor_exact_compare(below, &lifted_a) <= 0) && (anchor_exact_compare(&lifted_a, above) <= 0);
-                held = held && ((up - down) == ((anchor_exact_equal(&low, &lifted_a) != 0) ? 0ll : 1ll));
+                const OriorExactInteger *const below = turned ? &high : &low;
+                const OriorExactInteger *const above = turned ? &low : &high;
+                held = held && (orior_exact_compare(below, &lifted_a) <= 0) && (orior_exact_compare(&lifted_a, above) <= 0);
+                held = held && ((up - down) == ((orior_exact_equal(&low, &lifted_a) != 0) ? 0ll : 1ll));
                 quotient_held += (unsigned int)held;
             }
         }

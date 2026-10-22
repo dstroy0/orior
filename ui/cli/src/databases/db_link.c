@@ -86,7 +86,7 @@ int cli_db_link_open(CliDbLink *link, const char *root, const CliDbConnection *c
     char said[CLI_NAME_LONGEST + 64u];
     CliLine line = {said, sizeof(said), 0ull};
     cli_line_text(&line, config->kind);
-    cli_line_text(&line, " is no kind of database orior speaks");
+    cli_line_text(&line, " is no kind of database orior_cli speaks");
     cli_line_closed(&line);
     cli_db_failure_said(failure, said);
     return 0;

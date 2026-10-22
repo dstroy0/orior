@@ -5,76 +5,76 @@
 
 static int s_plane_error = 0;
 
-static void plane_took(AnchorExactStatus status)
+static void plane_took(OriorExactStatus status)
 {
-    if (status != ANCHOR_EXACT_OK)
+    if (status != ORIOR_EXACT_OK)
     {
         s_plane_error = 1;
     }
 }
 
-static AnchorExactInteger plane_exact_unsigned(unsigned long long number)
+static OriorExactInteger plane_exact_unsigned(unsigned long long number)
 {
-    AnchorExactInteger value;
+    OriorExactInteger value;
     sim_exact_unsigned(&value, number);
     return value;
 }
 
-static AnchorExactInteger plane_power_two(unsigned int bits)
+static OriorExactInteger plane_power_two(unsigned int bits)
 {
-    AnchorExactInteger value;
-    anchor_exact_zero(&value);
+    OriorExactInteger value;
+    orior_exact_zero(&value);
     value.limb[bits / 32u] = 1u << (bits % 32u);
     value.sign = 1;
     return value;
 }
 
-static AnchorExactInteger plane_sum(const AnchorExactInteger &left, const AnchorExactInteger &right)
+static OriorExactInteger plane_sum(const OriorExactInteger &left, const OriorExactInteger &right)
 {
-    AnchorExactInteger value;
-    anchor_exact_zero(&value);
-    plane_took(anchor_exact_add(&left, &right, &value));
+    OriorExactInteger value;
+    orior_exact_zero(&value);
+    plane_took(orior_exact_add(&left, &right, &value));
     return value;
 }
 
-static AnchorExactInteger plane_difference(const AnchorExactInteger &left, const AnchorExactInteger &right)
+static OriorExactInteger plane_difference(const OriorExactInteger &left, const OriorExactInteger &right)
 {
-    AnchorExactInteger value;
-    anchor_exact_zero(&value);
-    plane_took(anchor_exact_subtract(&left, &right, &value));
+    OriorExactInteger value;
+    orior_exact_zero(&value);
+    plane_took(orior_exact_subtract(&left, &right, &value));
     return value;
 }
 
-static AnchorExactInteger plane_product(const AnchorExactInteger &left, const AnchorExactInteger &right)
+static OriorExactInteger plane_product(const OriorExactInteger &left, const OriorExactInteger &right)
 {
-    AnchorExactInteger value;
-    anchor_exact_zero(&value);
-    plane_took(anchor_exact_multiply(&left, &right, &value));
+    OriorExactInteger value;
+    orior_exact_zero(&value);
+    plane_took(orior_exact_multiply(&left, &right, &value));
     return value;
 }
 
 // the floor of a quotient of two non-negative integers
-static AnchorExactInteger plane_quotient(const AnchorExactInteger &numerator, const AnchorExactInteger &divisor)
+static OriorExactInteger plane_quotient(const OriorExactInteger &numerator, const OriorExactInteger &divisor)
 {
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
-    anchor_exact_zero(&quotient);
-    anchor_exact_zero(&remainder);
-    plane_took(anchor_exact_divide(&numerator, &divisor, &quotient, &remainder));
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
+    orior_exact_zero(&quotient);
+    orior_exact_zero(&remainder);
+    plane_took(orior_exact_divide(&numerator, &divisor, &quotient, &remainder));
     return quotient;
 }
 
 // 2^bits . arctan(1 / x) within terms + 1: the alternating series, each term floored
-static AnchorExactInteger plane_arctan(unsigned long long x, unsigned int bits, unsigned long long *terms)
+static OriorExactInteger plane_arctan(unsigned long long x, unsigned int bits, unsigned long long *terms)
 {
-    const AnchorExactInteger square = plane_exact_unsigned(x * x);
-    AnchorExactInteger power = plane_quotient(plane_power_two(bits), plane_exact_unsigned(x));
-    AnchorExactInteger total = plane_exact_unsigned(0ull);
+    const OriorExactInteger square = plane_exact_unsigned(x * x);
+    OriorExactInteger power = plane_quotient(plane_power_two(bits), plane_exact_unsigned(x));
+    OriorExactInteger total = plane_exact_unsigned(0ull);
     unsigned long long index = 0ull;
     *terms = 0ull;
     while (power.sign != 0)
     {
-        const AnchorExactInteger term = plane_quotient(power, plane_exact_unsigned((2ull * index) + 1ull));
+        const OriorExactInteger term = plane_quotient(power, plane_exact_unsigned((2ull * index) + 1ull));
         total = ((index & 1ull) == 0ull) ? plane_sum(total, term) : plane_difference(total, term);
         *terms += 1ull;
         power = plane_quotient(power, square);
@@ -89,17 +89,17 @@ int plane_bits(SimResults *results, unsigned int count, std::vector<unsigned cha
     const unsigned int precision = count + PLANE_GUARD;
     unsigned long long fifth_terms = 0ull;
     unsigned long long far_terms = 0ull;
-    const AnchorExactInteger fifth = plane_arctan(5ull, precision, &fifth_terms);
-    const AnchorExactInteger far = plane_arctan(239ull, precision, &far_terms);
-    const AnchorExactInteger middle = plane_difference(plane_product(fifth, plane_exact_unsigned(16ull)),
+    const OriorExactInteger fifth = plane_arctan(5ull, precision, &fifth_terms);
+    const OriorExactInteger far = plane_arctan(239ull, precision, &far_terms);
+    const OriorExactInteger middle = plane_difference(plane_product(fifth, plane_exact_unsigned(16ull)),
                                                        plane_product(far, plane_exact_unsigned(4ull)));
-    const AnchorExactInteger spread =
+    const OriorExactInteger spread =
         plane_exact_unsigned((16ull * (fifth_terms + 1ull)) + (4ull * (far_terms + 1ull)));
-    const AnchorExactInteger guard = plane_power_two(PLANE_GUARD);
-    const AnchorExactInteger below = plane_quotient(plane_difference(middle, spread), guard);
-    const AnchorExactInteger above = plane_quotient(plane_sum(middle, spread), guard);
-    const int agree = (s_plane_error == 0) && (anchor_exact_compare(&below, &above) == 0);
-    const AnchorExactInteger turn =
+    const OriorExactInteger guard = plane_power_two(PLANE_GUARD);
+    const OriorExactInteger below = plane_quotient(plane_difference(middle, spread), guard);
+    const OriorExactInteger above = plane_quotient(plane_sum(middle, spread), guard);
+    const int agree = (s_plane_error == 0) && (orior_exact_compare(&below, &above) == 0);
+    const OriorExactInteger turn =
         plane_difference(below, plane_product(plane_exact_unsigned(3ull), plane_power_two(count)));
     bits->assign(count, 0u);
     for (unsigned int place = 1u; place <= count; place += 1u)

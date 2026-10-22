@@ -7,11 +7,11 @@
 // once, each answered to its own blob as it is carried: a part that refuses one takes the process with it, every
 // answer written before it stands, and the questions after it are left for the channel to carry again.
 //
-//     cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <slot> [<launches> [<threads> <blocks>]]
-//     cubin_run <machine file> <layout> --list <list>      a line a question, <code> <registers> <cases> <answers>
+//     orior_cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <slot> [<launches> [<threads> <blocks>]]
+//     orior_cubin_run <machine file> <layout> --list <list>      a line a question, <code> <registers> <cases> <answers>
 //     <slot>
 //     [<launches>]
-//     cubin_run --dry <machine file> <layout> ...          either of the above, with the part taken out
+//     orior_cubin_run --dry <machine file> <layout> ...          either of the above, with the part taken out
 //
 // The carrier runs only where a run's writer runs, the .qry QRY names (qry_member.h): every input named, the code, the
 // cases, the list and the held list, is the latest blob of that name in the run, and every answer, dry record
@@ -97,7 +97,7 @@ int main(int count, char **words)
     s_run = qry_member_run();
     if (s_run == NULL)
     {
-        fprintf(stderr, "cubin_run: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        fprintf(stderr, "orior_cubin_run: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
         return 2;
     }
     // `--dry` before the machine file runs every question as ever up to the driver, and none past it
@@ -175,10 +175,10 @@ int main(int count, char **words)
     if (!listed && (count != 8) && (count != 9) && (count != 11))
     {
         fprintf(stderr,
-                "cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <slot> [<launches> [<threads> "
+                "orior_cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <slot> [<launches> [<threads> "
                 "<blocks>]]\n"
-                "cubin_run <machine file> <layout> --list <list>\n"
-                "cubin_run [--dry [--full|--query|--gate-check|--diff-output-against-vendor]...] [--held <file>] "
+                "orior_cubin_run <machine file> <layout> --list <list>\n"
+                "orior_cubin_run [--dry [--full|--query|--gate-check|--diff-output-against-vendor]...] [--held <file>] "
                 "<machine file> ...\n");
         return 2;
     }

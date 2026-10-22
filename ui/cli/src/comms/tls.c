@@ -1,7 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tls.c: a whole write over whichever TLS the system gives, its pieces written in turn
+// tls.c: a whole write over whichever TLS the system gives, its pieces written in turn, and the count of the cells the
+// sessions hold
 #include "tls.h"
+
+CliCellsTally g_cli_tls_cells = CLI_CELLS_TALLY("cli_tls");
 
 int cli_tls_written(CliTls *tls, const void *data, unsigned long long size, CliLine *said)
 {

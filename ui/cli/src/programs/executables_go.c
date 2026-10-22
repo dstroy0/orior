@@ -5,10 +5,6 @@
 #include "executables_internal.h"
 #include "sea.h"
 
-// the walk of a Go module's folders, and a Go file read, under the lock of the read they are made for
-static CliWalk s_go_walk;
-static char s_more[CLI_EXECUTABLES_BYTES];
-
 // an entry of a folder of a Go module: a folder to look in after, where it is no module of its own, or a Go file other
 // than a test that says `package main`
 static void cli_go_each(void *context, const char *name, int is_folder)
@@ -26,13 +22,9 @@ static void cli_go_each(void *context, const char *name, int is_folder)
         const int own_module = cli_executables_joined(path, "go.mod", module) && query_is_file(module);
         if (((walk->at_depth + 1u) < CLI_EXECUTABLES_DEEP) && !own_module && (name[0] != '.') && (name[0] != '_') &&
             (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "testdata", .cap = CLI_CELLS_POOL})) &&
-            !cli_executables_passed(name) && (walk->pending_count < CLI_EXECUTABLES_PENDING))
+            !cli_executables_passed(name))
         {
-            memor.cpy(&(MemoriaCfg){.dst = walk->pending[walk->pending_count],
-                                    .src = path,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-            walk->depth[walk->pending_count] = walk->at_depth + 1u;
-            walk->pending_count += 1u;
+            (void)cli_executables_pending_put(walk, path, walk->at_depth + 1u);
         }
     }
     else if (!walk->main && (length > 3ull) &&
@@ -41,8 +33,10 @@ static void cli_go_each(void *context, const char *name, int is_folder)
                                       .src = name + length - 8ull, .other = "_test.go", .cap = CLI_CELLS_POOL}))))
     {
         char package[CLI_NAME_LONGEST];
-        walk->main = cli_text_read(path, s_more, sizeof(s_more)) && cli_go_package(s_more, package) &&
+        char *const text = cli_text_taken(path);
+        walk->main = (text != NULL) && cli_go_package(text, package) &&
                      (cellul.eq(&(CatenaFinitaCfg){.src = package, .other = "main", .cap = CLI_CELLS_POOL}));
+        cli_cell_given_by(&g_cli_executables_cells, text);
     }
 }
 
@@ -75,8 +69,8 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
         memor.cpy(&(MemoriaCfg){
             .dst = top, .src = ".", .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
     }
-    CliWalk *const walk = &s_go_walk;
-    walk->found_count = 0u;
+    CliWalk go_walk = {NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
+    CliWalk *const walk = &go_walk;
     cli_executables_walked(walk, top, cli_go_each);
     const unsigned long long top_length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
     for (unsigned int at = 0u; at < walk->found_count; at += 1u)
@@ -112,6 +106,7 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
             mains->count += 1u;
         }
     }
+    cli_executables_walk_given(walk);
     // the mains in the order of their names, then their folders
     for (unsigned int at = 1u; at < mains->count; at += 1u)
     {

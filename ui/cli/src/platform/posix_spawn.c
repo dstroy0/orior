@@ -4,15 +4,17 @@
 // program, its output and errors piped back apart, and, detached, in a process group of its own, which a signal to the
 // window's group does not reach and which a stop ends whole
 #if !defined(_WIN32)
-// fork, setenv, setpgid and kill are POSIX, outside strict C11
-#define _POSIX_C_SOURCE 200809L
+// fork, setenv, setpgid and kill are POSIX, outside strict C11, and SCHED_IDLE is GNU's
+#define _GNU_SOURCE
 #endif
 #include "../command_line/cli_internal.h"
 
 #if !defined(_WIN32)
 #include <fcntl.h>
+#include <sched.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -55,9 +57,28 @@ int cli_spawn_shared(const char *const *words, const CliSetting *settings, unsig
     return 1;
 }
 
-// a process started, its standard input a pipe this process feeds where `fed`, else /dev/null
-static int cli_spawn_with(CliSpawned *spawned, const char *const *words, const char *folder, const CliSetting *settings,
-                          unsigned int count, int detached, int fed, CliLine *said)
+// the child put at `priority` before it runs its program: a guest or an idle one niced, an idle one on the idle policy
+// where the system has it; a run's process keeps the level it was started at, as raising one takes a privilege orior
+// does not ask for
+static void cli_spawn_lowered(unsigned int priority)
+{
+    if ((priority != CLI_PRIORITY_GUEST) && (priority != CLI_PRIORITY_IDLE))
+    {
+        return;
+    }
+    setpriority(PRIO_PROCESS, 0, (priority == CLI_PRIORITY_IDLE) ? 19 : 9);
+#if defined(__linux__)
+    if (priority == CLI_PRIORITY_IDLE)
+    {
+        const struct sched_param none = {0};
+        sched_setscheduler(0, SCHED_IDLE, &none);
+    }
+#endif
+}
+
+// a process started, its standard input a pipe this process feeds where `fed`, else /dev/null, at `priority`
+static int cli_spawn_with(unsigned int priority, CliSpawned *spawned, const char *const *words, const char *folder,
+                          const CliSetting *settings, unsigned int count, int detached, int fed, CliLine *said)
 {
     memor.set(&(MemoriaCfg){.dst = spawned, .val = 0, .bytes = sizeof(*spawned)});
     int out[2] = {-1, -1};
@@ -113,6 +134,7 @@ static int cli_spawn_with(CliSpawned *spawned, const char *const *words, const c
         {
             setpgid(0, 0);
         }
+        cli_spawn_lowered(priority);
         cli_spawn_settings(settings, count);
         if ((folder != NULL) && (chdir(folder) != 0))
         {
@@ -140,15 +162,27 @@ static int cli_spawn_with(CliSpawned *spawned, const char *const *words, const c
 int cli_spawn(CliSpawned *spawned, const char *const *words, const char *folder, const CliSetting *settings,
               unsigned int count, int detached, CliLine *said)
 {
-    return cli_spawn_with(spawned, words, folder, settings, count, detached, 0, said);
+    return cli_spawn_with(CLI_PRIORITY_WORK, spawned, words, folder, settings, count, detached, 0, said);
+}
+
+int cli_spawn_as(unsigned int priority, CliSpawned *spawned, const char *const *words, const char *folder,
+                 const CliSetting *settings, unsigned int count, int detached, CliLine *said)
+{
+    return cli_spawn_with(priority, spawned, words, folder, settings, count, detached, 0, said);
 }
 
 int cli_spawn_fed(CliSpawned *spawned, const char *const *words, const char *folder, const CliSetting *settings,
                   unsigned int count, int detached, CliLine *said)
 {
+    return cli_spawn_fed_as(CLI_PRIORITY_WORK, spawned, words, folder, settings, count, detached, said);
+}
+
+int cli_spawn_fed_as(unsigned int priority, CliSpawned *spawned, const char *const *words, const char *folder,
+                     const CliSetting *settings, unsigned int count, int detached, CliLine *said)
+{
     // a write to a pipe whose reader has gone fails, and does not end this process
     signal(SIGPIPE, SIG_IGN);
-    return cli_spawn_with(spawned, words, folder, settings, count, detached, 1, said);
+    return cli_spawn_with(priority, spawned, words, folder, settings, count, detached, 1, said);
 }
 
 int cli_spawn_written(unsigned long long pipe_held, const void *bytes, unsigned long long size)

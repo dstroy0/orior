@@ -3,13 +3,40 @@
 // regexp_match.c: a pattern matched at one place by backtracking. Each node takes the text where it can and hands the
 // place it stops at to what comes after it, a chain of frames on the stack: the rest of a sequence, a group's end, a
 // lookahead's true, a repetition's next pass, or the match's end. A repeat over what takes the text one way at a place
-// or not at all steps along without going deeper, its passes' ends kept in an arena that grows and shrinks as the
-// matches above it do
+// or not at all steps along without going deeper, its passes' ends kept in the match's own arena, on its stack until
+// they outgrow it and then in a cell twice as large each time they fill theirs, given back as the match ends
 #include "regexp_match_internal.h"
 
-// the passes' ends of the one-way repeats standing on the stack, each repeat's from where it began
-static unsigned int s_ends[CLI_REGEXP_ENDS_MOST];
-static unsigned long long s_ends_top;
+#include "../command_line/cells.h"
+
+// room for one more end in the run's ends, moved to a cell of twice the room where they fill theirs: 1, or 0 where they
+// hold the most or the cellblock cannot meet the cell
+static int match_end_room(CliRegexpRun *run)
+{
+    if (run->ends_top < run->ends_room)
+    {
+        return 1;
+    }
+    if (run->ends_room >= CLI_REGEXP_ENDS_MOST)
+    {
+        return 0;
+    }
+    const unsigned long long room = run->ends_room * 2ull;
+    unsigned int *const grown = cli_cell_taken(room * sizeof(unsigned int), "a match's repeats' ends");
+    if (grown == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = grown, .src = run->ends, .bytes = (size_t)(run->ends_top * sizeof(unsigned int))});
+    if (run->ends_held)
+    {
+        cli_cell_given(run->ends);
+    }
+    run->ends = grown;
+    run->ends_room = room;
+    run->ends_held = 1;
+    return 1;
+}
 
 int cli_regexp_word(unsigned int letter)
 {
@@ -77,6 +104,10 @@ static int cli_class_holds(const CliRegexp *regexp, const CliRegexpNode *node, u
 int cli_regexp_one(const CliRegexp *regexp, unsigned int index, unsigned int letter)
 {
     const CliRegexpNode *const node = &regexp->node[index];
+    if (node->ascii_known && (letter < 128u))
+    {
+        return (int)((node->ascii[letter / 64u] >> (letter % 64u)) & 1ull);
+    }
     switch (node->kind)
     {
     case CLI_REGEXP_CHAR:
@@ -209,41 +240,41 @@ int cli_regexp_counted(const CliRegexp *regexp, const CliRegexpNode *repeat, uns
 int cli_regexp_passed(const CliRegexp *regexp, const CliRegexpNode *repeat, unsigned long long at, CliRegexpRun *run,
                       const CliRegexpThen *then)
 {
-    const unsigned long long begun = s_ends_top;
-    if (begun >= CLI_REGEXP_ENDS_MOST)
+    const unsigned long long begun = run->ends_top;
+    if (!match_end_room(run))
     {
         run->steps = CLI_REGEXP_STEPS + 1ull;
         return 0;
     }
     // a place in the text far below what an unsigned int counts
-    s_ends[begun] = (unsigned int)at;
-    s_ends_top = begun + 1ull;
-    while (((s_ends_top - begun - 1ull) < repeat->max) || (repeat->max == CLI_REGEXP_UNBOUNDED))
+    run->ends[begun] = (unsigned int)at;
+    run->ends_top = begun + 1ull;
+    while (((run->ends_top - begun - 1ull) < repeat->max) || (repeat->max == CLI_REGEXP_UNBOUNDED))
     {
         run->steps += 1ull;
-        if ((run->steps > CLI_REGEXP_STEPS) || (s_ends_top >= CLI_REGEXP_ENDS_MOST))
+        if ((run->steps > CLI_REGEXP_STEPS) || !match_end_room(run))
         {
-            s_ends_top = begun;
+            run->ends_top = begun;
             run->steps = CLI_REGEXP_STEPS + 1ull;
             return 0;
         }
-        const unsigned long long from = s_ends[s_ends_top - 1u];
+        const unsigned long long from = run->ends[run->ends_top - 1u];
         const unsigned long long to = cli_regexp_pass(regexp, repeat->child, run, from);
         if ((to == CLI_REGEXP_NO_PASS) || (to <= from))
         {
             break;
         }
-        s_ends[s_ends_top] = (unsigned int)to;
-        s_ends_top += 1ull;
+        run->ends[run->ends_top] = (unsigned int)to;
+        run->ends_top += 1ull;
     }
-    const unsigned long long passes = s_ends_top - begun - 1ull;
+    const unsigned long long passes = run->ends_top - begun - 1ull;
     int found = 0;
     for (unsigned long long step = 0ull; !found && (passes >= repeat->min) && (step <= (passes - repeat->min));
          step += 1ull)
     {
         const unsigned long long count = repeat->greedy ? (passes - step) : (repeat->min + step);
-        found = cli_regexp_then(regexp, then, s_ends[begun + count], run);
+        found = cli_regexp_then(regexp, then, run->ends[begun + count], run);
     }
-    s_ends_top = begun;
+    run->ends_top = begun;
     return found;
 }

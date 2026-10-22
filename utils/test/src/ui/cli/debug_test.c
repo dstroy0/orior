@@ -6,6 +6,7 @@
 // rules and lldb's patterns; and C, Rust and Python each have a debugger, and C and Rust a build. The checks that start
 // a debugger's adapter are each marked ignored where they are written and are not brought
 #include "../../../../../ui/cli/src/debug/debug_internal.h"
+#include "../../../../../ui/cli/src/debug/debug_start.h"
 #include "../../../../../ui/cli/src/runs/runner.h"
 #include "../../../../../ui/cli/src/toolchains/toolchains.h"
 #include "cli_check.h"
@@ -131,9 +132,12 @@ static void debug_processes(void)
     char line[4096];
     CliLine said = {why, sizeof(why), 0ull};
     cli_check(cli_spawn(&child, words, NULL, NULL, 0u, 1, &said), "a process is started");
+    const unsigned long long held = g_cli_debug_processes_cells.holds;
     const unsigned long long began = cli_clock_milliseconds();
     int listed = debug_listed(child.id, line, sizeof(line));
     const unsigned long long took = cli_clock_milliseconds() - began;
+    cli_check((g_cli_debug_processes_cells.holds == held) && (g_cli_debug_processes_cells.hw > 0ull),
+              "the processes are listed in cells of their own, given back once written");
     // on Linux a process takes its name as its program starts and its line an instant after, once the system has laid
     // the program out: the list is read again until the line shows
     for (unsigned int tries = 0u; !listed && (tries < 40u); tries += 1u)
@@ -240,6 +244,43 @@ static void debug_stepping(void)
               "lldb avoids the patterns it is told");
 }
 
+// a place's breakpoints grow in a cell as they come, the tree it starts with is a cell of its own, and both go back
+// as the place is freed
+static void debug_places(void)
+{
+    CliDebugSession *const place = cli_debug_place();
+    cli_check(place != NULL, "a session's place is taken");
+    for (long long number = 0ll; (place != NULL) && (number < 100ll); number += 1ll)
+    {
+        place->placed = cli_debug_grown(place->placed, place->placed_count, &place->placed_room, sizeof(*place->placed),
+                                        CLI_DEBUG_PLACED);
+        place->placed[place->placed_count] = number;
+        place->placed_count += 1u;
+    }
+    static const char s_start[] = "{\"name\":\"x\"}";
+    static CliDebugPlan s_plan;
+    unsigned int read = CLI_JSON_NONE;
+    const CliJson *const json = cli_check_parsed(s_start, sizeof(s_start) - 1u, &read);
+    char why[256];
+    CliLine said = {why, sizeof(why), 0ull};
+    if (place != NULL)
+    {
+        (void)cli_debug_planned(place, ".", json, read, CLI_JSON_NONE, &s_plan, &said);
+    }
+    cli_check((place != NULL) && (place->placed_count == 100u) && (place->placed_room == 128u) &&
+                  (place->placed[99] == 99ll) && (place->start.nodes_most != 0u) && (g_cli_debug_cells.holds != 0ull),
+              "its breakpoints grow as they come, and its start is a tree of its own");
+    cli_lock_take(&g_cli_debug.lock);
+    if (place != NULL)
+    {
+        cli_debug_place_freed(place);
+    }
+    cli_lock_give(&g_cli_debug.lock);
+    cli_check((place != NULL) && !place->taken && (place->placed == NULL) && (place->start.nodes_most == 0u) &&
+                  (g_cli_debug_cells.holds == 0ull),
+              "and all of it goes back as the place is freed");
+}
+
 // whether a tool of the manifest debugs `language`, or builds `kind`
 static int debug_tool_has(const CliJson *json, unsigned int manifest, const char *language, const char *kind)
 {
@@ -288,6 +329,7 @@ int main(void)
     debug_arguments();
     debug_breakpoints();
     debug_stepping();
+    debug_places();
     debug_manifest();
     return cli_checked();
 }

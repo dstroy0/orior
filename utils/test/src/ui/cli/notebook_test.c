@@ -198,6 +198,10 @@ static void notebook_merge(void)
     const unsigned int changed_c = notebook_of(s_changed_c, 4u);
     notebook_shown(cli_notebook_merge(&s_json, base, changed_c, deleted),
                    "a = 1;b = 2\nprint(b);<c = 33\nprint(c)|gone>", "and a cell one changed and the other deleted");
+    // the room of three sides of five cells and less, and two cells' lines, is far below a kilobyte
+    cli_check((g_cli_notebook_cells.holds == 0ull) && (g_cli_notebook_cells.hw != 0ull) &&
+                  (g_cli_notebook_cells.hw < 1024ull),
+              "a merge's room is sized to its books and given back");
 }
 
 int main(void)

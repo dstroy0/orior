@@ -3,7 +3,7 @@
 Extraction of Locative Demonstratives in nɬeʔkepmxcín by Reed Steiner, University of British
 Columbia, ICSNL 61.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -45,7 +45,7 @@ as h, and the pictograms of the iconographic variables as single glyphs of a pic
 the basket. Pages 2, 3, 4 and 40 were read at 200 to 300 dpi for the spaces the page prints and the
 text layer drops.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 2323
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 26910 distinct tokens in the paper, 0 language tokens are held by no row.

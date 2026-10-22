@@ -45,6 +45,31 @@ static void sea_outside(void)
     cli_check(cli_sea_outside("console.log(require('os').cpus().length);", found, 8u) == 0u, "and Node's own are not");
 }
 
+// a script that asks for a module from outside Node is refused before node runs, its text read into a cell of its
+// size and given back
+static void sea_refused(void)
+{
+    static const char s_text[] = "const pad = require('left-pad');\n";
+    char dir[CLI_PATH_LONGEST];
+    char path[CLI_PATH_LONGEST];
+    char out[CLI_PATH_LONGEST];
+    char made[CLI_PATH_LONGEST];
+    cli_check_folder("sea", dir);
+    cli_full(dir, "main.js", path);
+    cli_full(dir, "main", out);
+    (void)query_file_written(path, s_text, sizeof(s_text) - 1u);
+    char why[512];
+    CliLine said = {why, sizeof(why), 0ull};
+    const QuerySink say = {NULL, NULL};
+    cli_check(
+        !cli_sea_build("node", path, out, 0, say, made, &said) && (cli_line_closed(&said) != 0ull) &&
+            (cellul.find(&(CatenaFinitaCfg){
+                 .src = why, .cap = sizeof(why), .other = "asks for left-pad", .other_cap = CLI_CELLS_POOL}) != NULL) &&
+            (g_cli_sea_cells.holds == 0ull) && (g_cli_sea_cells.hw != 0ull) &&
+            (g_cli_sea_cells.hw < (sizeof(s_text) * 4u)),
+        "a script that asks for a module outside Node is refused, read into a cell of its size");
+}
+
 // the fuse turns once
 static void sea_fuse(void)
 {
@@ -127,6 +152,7 @@ static void sea_note(void)
 int main(void)
 {
     sea_outside();
+    sea_refused();
     sea_fuse();
     sea_signature();
     sea_note();

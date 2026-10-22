@@ -165,7 +165,7 @@ int cli_pg_start(CliPg *pg, const char *sql, unsigned long long size, CliDbFailu
         }
         else if (kind == 'G')
         {
-            static const char s_reason[] = "orior sends no data to COPY FROM STDIN";
+            static const char s_reason[] = "orior_cli sends no data to COPY FROM STDIN";
             const void *const reason[1] = {s_reason};
             const unsigned long long reason_size[1] = {sizeof(s_reason)};
             if (!cli_pg_sent(pg, 'f', reason, reason_size, 1u, failure))

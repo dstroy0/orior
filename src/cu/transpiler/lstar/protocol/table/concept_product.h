@@ -8,8 +8,8 @@
 // write one value and apart where they write two, and the product is what came back at each combination of the values
 // read. The links of a carrier before the form and after it are deltas of their own, and enter no product. A product
 // is a concept once it is whole, a row at every combination of the values the cases are made of: two pairs of one
-// product are one concept, whatever forms name them and whatever carriers held them. klq_identity puts a pair until
-// its product is whole, and klq_decoder writes the concept beneath the pair
+// product are one concept, whatever forms name them and whatever carriers held them. orior_klq_identity puts a pair until
+// its product is whole, and orior_klq_decoder writes the concept beneath the pair
 #ifndef CONCEPT_PRODUCT_H
 #define CONCEPT_PRODUCT_H
 

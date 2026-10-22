@@ -1043,9 +1043,9 @@ static const unsigned int KNEE_SPACING_WANT[KNEE_SPACING_ELEMENTS] = {1u, 2u};
 
 static const unsigned int KNEE_SPACING_AXIS[KNEE_SPACING_ELEMENTS] = {0u, 1u};
 
-static void knee_exact_of(unsigned long long value, AnchorExactInteger *out)
+static void knee_exact_of(unsigned long long value, OriorExactInteger *out)
 {
-    anchor_exact_zero(out);
+    orior_exact_zero(out);
     out->limb[0] = (uint32_t)(value & 0xFFFFFFFFull);
     out->limb[1] = (uint32_t)(value >> 32u);
     out->sign = (value != 0ull) ? 1 : 0;
@@ -1061,9 +1061,9 @@ static int knee_decimal_align(const DicomDecimal *one, const DicomDecimal *other
     DicomDecimal *const wide = (left->exponent > right->exponent) ? left : right;
     const long long low = (left->exponent < right->exponent) ? left->exponent : right->exponent;
     const long long gap = wide->exponent - low;
-    // the gap is at most ANCHOR_EXACT_DIGITS here, and fits a uint32_t exactly
-    if ((gap > (long long)ANCHOR_EXACT_DIGITS) ||
-        (anchor_exact_scale_by_ten(&wide->mantissa, (uint32_t)gap) != ANCHOR_EXACT_OK))
+    // the gap is at most ORIOR_EXACT_DIGITS here, and fits a uint32_t exactly
+    if ((gap > (long long)ORIOR_EXACT_DIGITS) ||
+        (orior_exact_scale_by_ten(&wide->mantissa, (uint32_t)gap) != ORIOR_EXACT_OK))
     {
         return 0;
     }
@@ -1080,7 +1080,7 @@ static int knee_decimal_order(const DicomDecimal *one, const DicomDecimal *other
     {
         return 0;
     }
-    *order = anchor_exact_compare(&left.mantissa, &right.mantissa);
+    *order = orior_exact_compare(&left.mantissa, &right.mantissa);
     return 1;
 }
 
@@ -1094,7 +1094,7 @@ static int knee_decimal_difference(const DicomDecimal *one, const DicomDecimal *
         return 0;
     }
     out->exponent = left.exponent;
-    return anchor_exact_subtract(&left.mantissa, &right.mantissa, &out->mantissa) == ANCHOR_EXACT_OK;
+    return orior_exact_subtract(&left.mantissa, &right.mantissa, &out->mantissa) == ORIOR_EXACT_OK;
 }
 
 // one plus the other times itself, exactly: the sum of squares a distance is read from
@@ -1102,7 +1102,7 @@ static int knee_decimal_square_into(DicomDecimal *sum, const DicomDecimal *value
 {
     DicomDecimal square;
     square.exponent = 2ll * value->exponent;
-    if (anchor_exact_multiply(&value->mantissa, &value->mantissa, &square.mantissa) != ANCHOR_EXACT_OK)
+    if (orior_exact_multiply(&value->mantissa, &value->mantissa, &square.mantissa) != ORIOR_EXACT_OK)
     {
         return 0;
     }
@@ -1118,7 +1118,7 @@ static int knee_decimal_square_into(DicomDecimal *sum, const DicomDecimal *value
         return 0;
     }
     sum->exponent = left.exponent;
-    return anchor_exact_add(&left.mantissa, &right.mantissa, &sum->mantissa) == ANCHOR_EXACT_OK;
+    return orior_exact_add(&left.mantissa, &right.mantissa, &sum->mantissa) == ORIOR_EXACT_OK;
 }
 
 // a positive decimal as its mantissa's digits, e, and its exponent: 0.3125 is 3125e-4. The digits come nine at a time,
@@ -1129,16 +1129,16 @@ static int knee_decimal_add(KneeText *text, const DicomDecimal *value)
     {
         return 0;
     }
-    AnchorExactInteger rest = value->mantissa;
-    AnchorExactInteger billion;
+    OriorExactInteger rest = value->mantissa;
+    OriorExactInteger billion;
     knee_exact_of(1000000000ull, &billion);
-    unsigned int groups[(ANCHOR_EXACT_DIGITS / 9u) + 2u];
+    unsigned int groups[(ORIOR_EXACT_DIGITS / 9u) + 2u];
     unsigned int count = 0u;
-    while ((rest.sign != 0) && (count < ((ANCHOR_EXACT_DIGITS / 9u) + 2u)))
+    while ((rest.sign != 0) && (count < ((ORIOR_EXACT_DIGITS / 9u) + 2u)))
     {
-        AnchorExactInteger quotient;
-        AnchorExactInteger remainder;
-        if (anchor_exact_divide(&rest, &billion, &quotient, &remainder) != ANCHOR_EXACT_OK)
+        OriorExactInteger quotient;
+        OriorExactInteger remainder;
+        if (orior_exact_divide(&rest, &billion, &quotient, &remainder) != ORIOR_EXACT_OK)
         {
             return 0;
         }
@@ -1389,7 +1389,7 @@ static int knee_spacing_field(const char *field, DicomDecimal *value, unsigned i
     char *end = NULL;
     const long long exponent = strtoll(mark + 1, &end, 10);
     if ((end == (mark + 1)) || (*end != '\0') ||
-        (anchor_exact_from_decimal(field, (size_t)(mark - field), 0u, &value->mantissa) != ANCHOR_EXACT_OK) ||
+        (orior_exact_from_decimal(field, (size_t)(mark - field), 0u, &value->mantissa) != ORIOR_EXACT_OK) ||
         (value->mantissa.sign <= 0))
     {
         return 0;
@@ -1589,23 +1589,23 @@ static int knee_rung_orders(const KneeSpacing *spacing, unsigned int n, const un
         }
         finest = (order < 0) ? axis : finest;
     }
-    AnchorExactInteger width;
+    OriorExactInteger width;
     knee_exact_of(n, &width);
     for (unsigned int axis = 0u; axis < KNEE_RANK; axis += 1u)
     {
         DicomDecimal finest_square;
         DicomDecimal axis_square;
-        AnchorExactInteger numerator;
-        AnchorExactInteger quotient;
-        AnchorExactInteger remainder;
+        OriorExactInteger numerator;
+        OriorExactInteger quotient;
+        OriorExactInteger remainder;
         if (!knee_decimal_align(&spacing->square[finest], &spacing->square[axis], &finest_square, &axis_square) ||
-            (anchor_exact_multiply(&finest_square.mantissa, &width, &numerator) != ANCHOR_EXACT_OK) ||
-            (anchor_exact_divide(&numerator, &axis_square.mantissa, &quotient, &remainder) != ANCHOR_EXACT_OK))
+            (orior_exact_multiply(&finest_square.mantissa, &width, &numerator) != ORIOR_EXACT_OK) ||
+            (orior_exact_divide(&numerator, &axis_square.mantissa, &quotient, &remainder) != ORIOR_EXACT_OK))
         {
             return 0;
         }
         // the quotient is at most n, which fits one limb
-        for (unsigned int limb = 1u; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+        for (unsigned int limb = 1u; limb < ORIOR_EXACT_LIMBS; limb += 1u)
         {
             if (quotient.limb[limb] != 0u)
             {

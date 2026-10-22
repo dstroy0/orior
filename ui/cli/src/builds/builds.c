@@ -8,12 +8,8 @@
 #include "scons_internal.h"
 #include "version_catalog_internal.h"
 
-// the most lines of a build file indexed for its findings' places
-#define CLI_BUILD_LINES (1u << 20u)
-
 static CliLock s_builds_lock = CLI_LOCK_INIT;
 static CliBuildFindings s_found;
-static unsigned int s_starts[CLI_BUILD_LINES];
 
 unsigned int cli_build_kind_of(const char *path)
 {
@@ -57,7 +53,7 @@ void cli_build_check(const char *root, const char *path, const char *text, unsig
     cli_lock_take(&s_builds_lock);
     cli_build_findings_begun(&s_found);
     CliBuildLines lines;
-    cli_build_lines_of(text, size, s_starts, CLI_BUILD_LINES, &lines);
+    unsigned int *const starts = cli_build_lines_taken(text, size, &lines);
     const unsigned int kind = cli_build_kind_of(path);
     if (kind == CLI_BUILD_GRADLE)
     {
@@ -76,6 +72,8 @@ void cli_build_check(const char *root, const char *path, const char *text, unsig
         cli_scons_check(root, path, text, size, &lines, &s_found);
     }
     cli_build_findings_written(&s_found, out);
+    cli_build_findings_given(&s_found);
+    cli_cell_given_by(&g_cli_build_cells, starts);
     cli_lock_give(&s_builds_lock);
 }
 

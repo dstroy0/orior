@@ -15,13 +15,13 @@
 #   who_check        holds a who to what the who table gives, and every write to the who the run records of it
 #   qry_rows_check   holds a row of a table of the run to its who and its columns as handed, and a text of the table
 #                    of texts to its number, handed once
-#   kdecode_check    holds kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
+#   kdecode_check    holds orior_kdecode's select over a run's tables to what the run holds, on the run the checks above wrote
 #   ksc_check        holds the .ksc's reader and writer to what its users read of it, a question's rows replaced under
 #                    a who line, the rows let go handed back, and the part's cost rows put again as it was
 #   krf_check        holds the .krf's reader and writer to what its users read of it: a row a k-file let go kept with
 #                    its type, the run's name, the reason and its text, under a who line
-#   frame_check      holds the frame's walk, krs_write's head and fixed lines, the kernel mode's place and a
-#                    register's reading at the slot to the .ksc's rows, and krs_write's frame lines to the table of
+#   frame_check      holds the frame's walk, orior_krs_write's head and fixed lines, the kernel mode's place and a
+#                    register's reading at the slot to the .ksc's rows, and orior_krs_write's frame lines to the table of
 #                    frame forms and the named ruleset
 #   frame_relation_check  holds the frame relations' host answers, their tuple places and the thread their fields are
 #                    read at, and the channel's fill word and block to the carrier's own
@@ -219,7 +219,7 @@ else
     echo "  the file the run held is NOT in its place now the run has ended"
     exit 1
 fi
-# kdecode's select over the tables of that run, read once it has ended
+# orior_kdecode's select over the tables of that run, read once it has ended
 bash "$TOP/utils/test/src/cu/types/file_defs/kdecode_check.sh" "$newest_run" || exit 1
 "$OUT/survivors_check" || exit 1
 # the scheduler's check in a run of its own, ended with the subshell

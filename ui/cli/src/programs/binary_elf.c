@@ -16,10 +16,19 @@ typedef struct
     char paths[CLI_PATH_LONGEST * 2u];
 } CliElfQueued;
 
-static CliElfQueued s_queue[CLI_BINARY_LIBRARIES];
-static char s_seen[CLI_BINARY_LIBRARIES][CLI_NAME_LONGEST];
-static char s_folders[CLI_BINARY_LINUX_FOLDERS][CLI_PATH_LONGEST];
-static CliDynamic s_dynamic;
+// the libraries a reading's queue is begun with, doubling as they are found
+#define CLI_ELF_QUEUE_FIRST 16u
+
+// A reading of a program's libraries, one cell for the call: the program's dynamic section and a library's, and the
+// folders the loader's settings name; and the libraries queued, a cell of `room` grown as they are
+typedef struct
+{
+    CliDynamic *dynamic;
+    CliDynamic *more;
+    char (*folders)[CLI_PATH_LONGEST];
+    CliElfQueued *queue;
+    unsigned int room;
+} CliElfReading;
 
 // a glibc version's numbers compared: below 0 where `a` is older
 static int cli_glibc_order(const char *a, const char *b)
@@ -67,7 +76,7 @@ int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDyna
     memor.set(&(MemoriaCfg){.dst = found, .val = 0, .bytes = sizeof(*found)});
     if ((size < 6u) || (bytes[4] != 2u) || (bytes[5] != 1u))
     {
-        cli_line_text(said, "orior reads 64-bit little-endian Linux programs");
+        cli_line_text(said, "orior_cli reads 64-bit little-endian Linux programs");
         return 0;
     }
     if (size < 0x28u)
@@ -211,14 +220,30 @@ static void cli_folder_of(const char *path, char *out)
 }
 
 // a library queued with the run paths its loader names, its RUNPATH where it has one, else its RPATH
-static unsigned int cli_queued(unsigned int queued, const char *name, const char *by, const char *origin,
-                               const CliDynamic *dynamic)
+static unsigned int cli_queued(CliElfReading *reading, unsigned int queued, const char *name, const char *by,
+                               const char *origin, const CliDynamic *dynamic)
 {
-    if (queued >= CLI_BINARY_LIBRARIES)
+    if ((queued == reading->room) && (reading->room < CLI_BINARY_LIBRARIES))
+    {
+        const unsigned int doubled = (reading->room == 0u) ? CLI_ELF_QUEUE_FIRST : (reading->room * 2u);
+        const unsigned int room = (doubled < CLI_BINARY_LIBRARIES) ? doubled : CLI_BINARY_LIBRARIES;
+        CliElfQueued *const grown = cli_cell_taken(room * sizeof(*grown), "the libraries a program loads");
+        if (grown != NULL)
+        {
+            if (queued != 0u)
+            {
+                memor.cpy(&(MemoriaCfg){.dst = grown, .src = reading->queue, .bytes = queued * sizeof(*grown)});
+            }
+            cli_cell_given(reading->queue);
+            reading->queue = grown;
+            reading->room = room;
+        }
+    }
+    if (queued >= reading->room)
     {
         return queued;
     }
-    CliElfQueued *const one = &s_queue[queued];
+    CliElfQueued *const one = &reading->queue[queued];
     memor.cpy(&(MemoriaCfg){.dst = one->name,
                             .src = name,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
@@ -302,34 +327,13 @@ static int cli_in_paths(const CliElfQueued *one, char *at, int *beside)
     }
 }
 
-int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, const char *path, CliBinaryReport *report,
-                        CliLine *said)
+// the run paths of the program's dynamic section that name no $ORIGIN, folders of the machine that built it, put in
+// the report
+static void cli_build_paths(const CliDynamic *dynamic, CliBinaryReport *report)
 {
-    const unsigned int folders = cli_binary_linux_folders(s_folders);
-    if (!cli_elf_dynamic(bytes, size, &s_dynamic, said))
-    {
-        return 0;
-    }
-    report->has_glibc = s_dynamic.has_glibc;
-    memor.cpy(
-        &(MemoriaCfg){.dst = report->glibc,
-                      .src = s_dynamic.glibc,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_dynamic.glibc, .cap = CLI_CELLS_POOL}) + 1u});
-    char origin[CLI_PATH_LONGEST];
-    cli_folder_of(path, origin);
-    const char *const program =
-        (cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/') != NULL)
-            ? (cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/') + 1)
-            : path;
-    unsigned int queued = 0u;
-    for (unsigned int at = 0u; at < s_dynamic.count; at += 1u)
-    {
-        queued = cli_queued(queued, s_dynamic.needed[at], program, origin, &s_dynamic);
-    }
-    // each run path of the program and its RUNPATH that names no $ORIGIN, a folder of the machine that built it
     for (unsigned int list = 0u; list < 2u; list += 1u)
     {
-        const char *const text = (list == 0u) ? s_dynamic.rpath : s_dynamic.runpath;
+        const char *const text = (list == 0u) ? dynamic->rpath : dynamic->runpath;
         const char *from = text;
         for (const char *place = text;; place += 1)
         {
@@ -353,23 +357,57 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
             }
         }
     }
-    unsigned int seen = 0u;
+}
+
+// whether a library queued at `next` was queued before it, by its name
+static int cli_queued_before(const CliElfReading *reading, unsigned int next)
+{
+    for (unsigned int at = 0u; at < next; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){
+                .src = reading->queue[at].name, .other = reading->queue[next].name, .cap = CLI_CELLS_POOL}))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the libraries the program loads read into the report, the reading's cells held: as cli_binary_elf_read says
+static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsigned long long size, const char *path,
+                        CliBinaryReport *report, CliLine *said)
+{
+    const unsigned int folders = cli_binary_linux_folders(reading->folders);
+    CliDynamic *const dynamic = reading->dynamic;
+    if (!cli_elf_dynamic(bytes, size, dynamic, said))
+    {
+        return 0;
+    }
+    report->has_glibc = dynamic->has_glibc;
+    memor.cpy(
+        &(MemoriaCfg){.dst = report->glibc,
+                      .src = dynamic->glibc,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = dynamic->glibc, .cap = CLI_CELLS_POOL}) + 1u});
+    char origin[CLI_PATH_LONGEST];
+    cli_folder_of(path, origin);
+    const char *const program =
+        (cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/') != NULL)
+            ? (cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/') + 1)
+            : path;
+    unsigned int queued = 0u;
+    for (unsigned int at = 0u; at < dynamic->count; at += 1u)
+    {
+        queued = cli_queued(reading, queued, dynamic->needed[at], program, origin, dynamic);
+    }
+    cli_build_paths(dynamic, report);
     for (unsigned int next = 0u; next < queued; next += 1u)
     {
-        const CliElfQueued *const one = &s_queue[next];
-        int known = 0;
-        for (unsigned int at = 0u; !known && (at < seen); at += 1u)
-        {
-            known = cellul.eq(&(CatenaFinitaCfg){.src = s_seen[at], .other = one->name, .cap = CLI_CELLS_POOL});
-        }
-        if (known || (seen >= CLI_BINARY_LIBRARIES) || (report->libraries >= CLI_BINARY_LIBRARIES))
+        // the queue is read again at each library, as a library's own may move it into a larger cell
+        const CliElfQueued *const one = &reading->queue[next];
+        if (cli_queued_before(reading, next) || (report->libraries >= CLI_BINARY_LIBRARIES))
         {
             continue;
         }
-        memor.cpy(&(MemoriaCfg){.dst = s_seen[seen],
-                                .src = one->name,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->name, .cap = CLI_CELLS_POOL}) + 1u});
-        seen += 1u;
         CliLibrary *const library = &report->library[report->libraries];
         report->libraries += 1u;
         memor.cpy(&(MemoriaCfg){.dst = library->name,
@@ -391,7 +429,7 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
             for (unsigned int at = 0u; !library->has_at && (at < folders); at += 1u)
             {
                 CliLine line = {library->at, CLI_PATH_LONGEST, 0ull};
-                cli_line_text(&line, s_folders[at]);
+                cli_line_text(&line, reading->folders[at]);
                 cli_line_character(&line, '/');
                 cli_line_text(&line, one->name);
                 library->has_at = (cli_line_closed(&line) != 0ull) && query_is_file(library->at);
@@ -403,31 +441,48 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
             continue;
         }
         unsigned long long more_size = 0ull;
-        const unsigned char *const more = qry_member_file_mapped(library->at, &more_size);
+        const unsigned char *const more = cli_file_held(library->at, &more_size);
         char unsaid[CLI_PATH_LONGEST];
         CliLine ignored = {unsaid, sizeof(unsaid), 0ull};
-        static CliDynamic s_more;
-        if ((more != NULL) && cli_elf_dynamic(more, more_size, &s_more, &ignored))
+        CliDynamic *const loaded = reading->more;
+        if ((more != NULL) && cli_elf_dynamic(more, more_size, loaded, &ignored))
         {
-            if (s_more.has_glibc && (!report->has_glibc || (cli_glibc_order(s_more.glibc, report->glibc) > 0)))
+            if (loaded->has_glibc && (!report->has_glibc || (cli_glibc_order(loaded->glibc, report->glibc) > 0)))
             {
                 memor.cpy(&(MemoriaCfg){
                     .dst = report->glibc,
-                    .src = s_more.glibc,
-                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_more.glibc, .cap = CLI_CELLS_POOL}) + 1u});
+                    .src = loaded->glibc,
+                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = loaded->glibc, .cap = CLI_CELLS_POOL}) + 1u});
                 report->has_glibc = 1;
             }
             char more_origin[CLI_PATH_LONGEST];
             cli_folder_of(library->at, more_origin);
-            for (unsigned int at = 0u; at < s_more.count; at += 1u)
+            for (unsigned int at = 0u; at < loaded->count; at += 1u)
             {
-                queued = cli_queued(queued, s_more.needed[at], library->name, more_origin, &s_more);
+                queued = cli_queued(reading, queued, loaded->needed[at], library->name, more_origin, loaded);
             }
         }
-        if (more != NULL)
-        {
-            qry_member_file_unmapped(more, more_size);
-        }
+        cli_file_let_go(more, more_size);
     }
     return 1;
+}
+
+int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, const char *path, CliBinaryReport *report,
+                        CliLine *said)
+{
+    // the two dynamic sections on the cell's boundary, then the folders
+    const unsigned long long dynamics = 2ull * sizeof(CliDynamic);
+    char *const cell = cli_cell_taken(dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_LONGEST),
+                                      "a reading of a program's libraries");
+    if (cell == NULL)
+    {
+        cli_line_text(said, "a reading of a program's libraries could not be given a cell");
+        return 0;
+    }
+    CliElfReading reading = {(CliDynamic *)(void *)cell, ((CliDynamic *)(void *)cell) + 1,
+                             (char (*)[CLI_PATH_LONGEST])(void *)(cell + dynamics), NULL, 0u};
+    const int read = cli_elf_read(&reading, bytes, size, path, report, said);
+    cli_cell_given(reading.queue);
+    cli_cell_given(cell);
+    return read;
 }

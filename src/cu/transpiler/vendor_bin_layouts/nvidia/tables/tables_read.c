@@ -4,8 +4,8 @@
 // its constant operand's bank, byte offset and bytes read, and rule 13's verdict against a bank size; or the spans
 // of the constant address fields every class of the set uses, counted
 //
-//     tables_read <instructions.txt> class [--bank <size>] <low> <high>...
-//     tables_read <instructions.txt> spans
+//     orior_tables_read <instructions.txt> class [--bank <size>] <low> <high>...
+//     orior_tables_read <instructions.txt> spans
 //
 // `class` prints one line an encoding, `<low> <high> <class> [bank <n> offset 0x<bytes> reads <bytes> <verdict>]`,
 // the verdict `held` where rule 13 holds the read against the bank of `--bank` bytes, `passes` where it does not,
@@ -122,8 +122,8 @@ int main(int count, char **words)
 {
     if ((count < 3) || ((strcmp(words[2], "class") != 0) && (strcmp(words[2], "spans") != 0)))
     {
-        fprintf(stderr, "tables_read <instructions.txt> class [--bank <size>] <low> <high>...\n"
-                        "tables_read <instructions.txt> spans\n");
+        fprintf(stderr, "orior_tables_read <instructions.txt> class [--bank <size>] <low> <high>...\n"
+                        "orior_tables_read <instructions.txt> spans\n");
         return 2;
     }
     size_t size = 0u;
@@ -131,7 +131,7 @@ int main(int count, char **words)
     TablesSet set = {NULL, 0u, 0u};
     if ((text == NULL) || !tables_set_read(&set, text, size) || (set.count == 0u))
     {
-        fprintf(stderr, "tables_read: %s holds no instruction set\n", words[1]);
+        fprintf(stderr, "orior_tables_read: %s holds no instruction set\n", words[1]);
         free(text);
         return 1;
     }

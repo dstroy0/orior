@@ -191,7 +191,7 @@ size_t orior_free(const uint8_t *corpus, size_t corpus_len, const uint8_t *needl
 OriorEngine orior_choose(const OriorPlan *plan)
 {
     // No plan is no statistics, and the engine that needs none is the naive one. BOTH POINTERS ARE
-    // TESTED HERE and neither test is delegated to the callee. anchor_steer_prefers_free returns 0
+    // TESTED HERE and neither test is delegated to the callee. orior_steer_prefers_free returns 0
     // on a null census. Delegating would work and would leave this function reading as though it
     // dereferences an unchecked pointer. The next person to read it could not tell it is safe
     // without opening another file.
@@ -215,9 +215,9 @@ OriorEngine orior_choose(const OriorPlan *plan)
     // which is a comparison between two exact integers, carried in the limb form where it outgrows
     // 64 bits. No logarithm is taken, no series is evaluated, and the threshold is the exact rational
     // 85/100. Every threshold from 0.34 to 0.96 scores identically on the corpora, which read 0.96,
-    // 0.33 and 1.00 with nothing between. anchor_steer_prefers_free holds the comparison, and the
+    // 0.33 and 1.00 with nothing between. orior_steer_prefers_free holds the comparison, and the
     // sweep in test_steer grades it.
-    return anchor_steer_prefers_free(plan->census) ? orior_free : orior_inorder;
+    return orior_steer_prefers_free(plan->census) ? orior_free : orior_inorder;
 }
 
 size_t orior_anchors_for(const OriorPlan *plan)
@@ -265,11 +265,11 @@ const char *orior_engine_name(OriorEngine engine)
     }
     if (engine == orior_inorder)
     {
-        return "anchor_inorder";
+        return "orior_inorder";
     }
     if (engine == orior_free)
     {
-        return "anchor_free";
+        return "orior_free";
     }
     return "unknown";
 }

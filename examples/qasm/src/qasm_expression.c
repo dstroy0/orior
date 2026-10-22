@@ -165,9 +165,9 @@ int qasm_expression(QasmParser *parser, const QasmScope *scope, QasmAngle *value
 // ---------------------------------------------------------------------------------------------------------------
 // the bound
 
-void qasm_wide_to_exact(const unsigned int wide[QASM_WIDE_LIMBS], AnchorExactInteger *value)
+void qasm_wide_to_exact(const unsigned int wide[QASM_WIDE_LIMBS], OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     int any = 0;
     for (unsigned int limb = 0u; limb < QASM_WIDE_LIMBS; limb += 1u)
     {
@@ -177,9 +177,9 @@ void qasm_wide_to_exact(const unsigned int wide[QASM_WIDE_LIMBS], AnchorExactInt
     value->sign = any ? 1 : 0;
 }
 
-static int qasm_exact_to_wide(const AnchorExactInteger *value, unsigned int wide[QASM_WIDE_LIMBS])
+static int qasm_exact_to_wide(const OriorExactInteger *value, unsigned int wide[QASM_WIDE_LIMBS])
 {
-    for (unsigned int limb = QASM_WIDE_LIMBS; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+    for (unsigned int limb = QASM_WIDE_LIMBS; limb < ORIOR_EXACT_LIMBS; limb += 1u)
     {
         if (value->limb[limb] != 0u)
         {
@@ -209,44 +209,44 @@ static int qasm_bound_gate(QasmParser *parser, const QasmGate *gate)
         (gate->exact_entries != 0u) ? 0ull : ((gate->kind == QASM_GATE_PAIR) ? 3ull : 2ull);
     const unsigned int m = parser->circuit->qubits - gate->control_count;
     const unsigned int t_bits = (m + 2u) / 2u;
-    AnchorExactInteger bound;
-    AnchorExactInteger grown;
-    AnchorExactInteger scale;
-    AnchorExactInteger remainder;
-    AnchorExactInteger local;
-    AnchorExactInteger by;
+    OriorExactInteger bound;
+    OriorExactInteger grown;
+    OriorExactInteger scale;
+    OriorExactInteger remainder;
+    OriorExactInteger local;
+    OriorExactInteger by;
     qasm_wide_to_exact(parser->circuit->bound, &bound);
     qasm_exact_power_of_two(&scale, QASM_FRACTION_BITS);
     qasm_exact_set(&by, delta, 0);
-    if (!qasm_exact_ok(parser, anchor_exact_multiply(&bound, &by, &grown)) ||
-        !qasm_exact_ok(parser, anchor_exact_divide(&grown, &scale, &grown, &remainder)))
+    if (!qasm_exact_ok(parser, orior_exact_multiply(&bound, &by, &grown)) ||
+        !qasm_exact_ok(parser, orior_exact_divide(&grown, &scale, &grown, &remainder)))
     {
         return 0;
     }
     if (!qasm_exact_is_zero(&remainder))
     {
-        AnchorExactInteger one;
+        OriorExactInteger one;
         qasm_exact_set(&one, 1ull, 0);
-        if (!qasm_exact_ok(parser, anchor_exact_add(&grown, &one, &grown)))
+        if (!qasm_exact_ok(parser, orior_exact_add(&grown, &one, &grown)))
         {
             return 0;
         }
     }
-    AnchorExactInteger t;
+    OriorExactInteger t;
     qasm_exact_power_of_two(&t, t_bits);
-    AnchorExactInteger delta_exact;
+    OriorExactInteger delta_exact;
     qasm_exact_set(&delta_exact, delta, 0);
-    if (!qasm_exact_ok(parser, anchor_exact_add(&t, &delta_exact, &local)) ||
-        !qasm_exact_ok(parser, anchor_exact_multiply(&local, &scale, &local)) ||
-        !qasm_exact_ok(parser, anchor_exact_add(&bound, &grown, &bound)) ||
-        !qasm_exact_ok(parser, anchor_exact_add(&bound, &local, &bound)))
+    if (!qasm_exact_ok(parser, orior_exact_add(&t, &delta_exact, &local)) ||
+        !qasm_exact_ok(parser, orior_exact_multiply(&local, &scale, &local)) ||
+        !qasm_exact_ok(parser, orior_exact_add(&bound, &grown, &bound)) ||
+        !qasm_exact_ok(parser, orior_exact_add(&bound, &local, &bound)))
     {
         return 0;
     }
     // E past 1/2: nothing can be proved, and an amplitude could outgrow its 62-bit field
-    AnchorExactInteger half;
+    OriorExactInteger half;
     qasm_exact_power_of_two(&half, (2u * QASM_FRACTION_BITS) - 1u);
-    if ((anchor_exact_compare(&bound, &half) >= 0) || !qasm_exact_to_wide(&bound, parser->circuit->bound))
+    if ((orior_exact_compare(&bound, &half) >= 0) || !qasm_exact_to_wide(&bound, parser->circuit->bound))
     {
         qasm_error(parser, &parser->tokens[parser->at],
                     "the proved error bound reaches 1/2 at this gate (%u rounded gates at F = %u): no bitstring could "

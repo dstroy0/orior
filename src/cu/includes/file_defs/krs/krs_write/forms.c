@@ -59,7 +59,7 @@ int krs_vendor_run(char *const *word)
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
-        printf("  krs_write: the vendor's writer did not end clean (%s, code %llx)\n",
+        printf("  orior_krs_write: the vendor's writer did not end clean (%s, code %llx)\n",
                interface_ending_name(answer.ending), answer.code);
         return 0;
     }

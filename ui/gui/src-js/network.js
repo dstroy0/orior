@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The network, as net.rs in the command line's crate holds it: orior reaches an address only for
+// The network, as net.rs in the command line's crate holds it: orior_gui reaches an address only for
 // what the reader asked of it, and sends nothing about the reader. Help, Off the Network holds it off
 // the network entirely, kept as the setting `network`, which a tree's settings file does not set; each
-// reach is then refused, saying what it was for. Help, Network… lists every address orior has
+// reach is then refused, saying what it was for. Help, Network… lists every address orior_gui has
 // reached, when and what for, this machine's own left out.
 
 import { invoke } from "./bridge.js";
@@ -18,7 +18,7 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// Whether orior is held off the network.
+// Whether orior_gui is held off the network.
 export function offNetwork() {
   return localStorage.getItem(KEY) === "off";
 }
@@ -42,7 +42,7 @@ export async function showNetwork(sheet) {
   const said = element("p", { className: "network-said" });
   const rows = element("div", { className: "network-rows" });
   const draw = async () => {
-    said.textContent = offNetwork() ? "orior is held off the network: each address it would reach is refused, saying what for." : "orior reaches an address only for what you ask of it.";
+    said.textContent = offNetwork() ? "orior_gui is held off the network: each address it would reach is refused, saying what for." : "orior_gui reaches an address only for what you ask of it.";
     const reached = await invoke("network_reached").catch(() => []);
     rows.replaceChildren(
       ...(reached.length
@@ -57,7 +57,7 @@ export async function showNetwork(sheet) {
             row.dataset.address = one.address;
             return row;
           })
-        : [element("p", { className: "network-none", textContent: "orior has reached no address off this machine." })]),
+        : [element("p", { className: "network-none", textContent: "orior_gui has reached no address off this machine." })]),
     );
   };
   off.addEventListener("change", async () => {

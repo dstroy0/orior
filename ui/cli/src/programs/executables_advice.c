@@ -1,14 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables_advice.c: what a build that failed can be told of its cause, where its lines show one orior knows, and
-// what a run of the program a build made can be told of how it ended: on Windows, the codes the system ends a program
-// with that cannot load its DLLs; and a frozen Python program's module that is not in it, as one PyInstaller found
-// nowhere or as one the program imports by its name as it runs, which PyInstaller cannot see
+// executables_advice.c: what a build that failed can be told of its cause, where its lines show one orior_cli knows,
+// and what a run of the program a build made can be told of how it ended: on Windows, the codes the system ends a
+// program with that cannot load its DLLs; and a frozen Python program's module that is not in it, as one PyInstaller
+// found nowhere or as one the program imports by its name as it runs, which PyInstaller cannot see
 #include "../text/text.h"
 #include "executables_internal.h"
-
-// the most bytes of a warnings file and of a Python file read for a module's name
-#define CLI_ADVICE_BYTES (1u << 22u)
 
 // a line said through `say`
 static void cli_say(QuerySink say, const char *text)
@@ -144,7 +141,7 @@ void cli_executables_advice(const char *id, const CliLines *lines, QuerySink say
     }
 }
 
-void cli_pyinstaller_warn(const char *spec, char *folder, char *bytes, unsigned long long room)
+char *cli_pyinstaller_warn(const char *spec, char *folder)
 {
     if (!cli_path_parent(spec, folder))
     {
@@ -177,10 +174,7 @@ void cli_pyinstaller_warn(const char *spec, char *folder, char *bytes, unsigned 
     cli_line_text(&line, "/warn-");
     cli_line_text(&line, stem);
     cli_line_text(&line, ".txt");
-    if ((cli_line_closed(&line) == 0ull) || !cli_text_read(path, bytes, room))
-    {
-        bytes[0] = '\0';
-    }
+    return (cli_line_closed(&line) != 0ull) ? cli_text_taken(path) : NULL;
 }
 
 void cli_pyinstaller_missing(const char *text,
@@ -263,7 +257,6 @@ typedef struct
     const char *module;
     unsigned long long length;
     char best[CLI_NAME_LONGEST];
-    char text[CLI_ADVICE_BYTES];
 } CliFullest;
 
 static void cli_fullest_each(void *context, const char *name, int is_folder)
@@ -273,8 +266,12 @@ static void cli_fullest_each(void *context, const char *name, int is_folder)
     char path[CLI_PATH_LONGEST];
     if (is_folder || (name_length < 3ull) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = name + name_length - 3ull, .other = ".py", .cap = CLI_CELLS_POOL})) ||
-        !cli_executables_joined(fullest->folder, name, path) ||
-        !cli_text_read(path, fullest->text, sizeof(fullest->text)))
+        !cli_executables_joined(fullest->folder, name, path))
+    {
+        return;
+    }
+    char *const text = cli_text_taken(path);
+    if (text == NULL)
     {
         return;
     }
@@ -282,8 +279,7 @@ static void cli_fullest_each(void *context, const char *name, int is_folder)
     for (unsigned int quote = 0u; quote < 2u; quote += 1u)
     {
         // the pieces between each opening quote and the one that closes it
-        const char *at =
-            cellul.chr(&(CatenaFinitaCfg){.src = fullest->text, .cap = CLI_CELLS_POOL, .byte = s_quotes[quote]});
+        const char *at = cellul.chr(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .byte = s_quotes[quote]});
         while (at != NULL)
         {
             const char *const piece = at + 1;
@@ -315,12 +311,12 @@ static void cli_fullest_each(void *context, const char *name, int is_folder)
                      : NULL;
         }
     }
+    cli_cell_given_by(&g_cli_executables_cells, text);
 }
 
 void cli_executables_ran_advice(const char *root, const char *id, int has_code, long long code, const CliLines *lines,
                                 QuerySink say)
 {
-    static char s_warn[CLI_ADVICE_BYTES];
     static CliFullest s_fullest;
     static CliLock s_lock = CLI_LOCK_INIT;
     char said[CLI_PATH_LONGEST * 2u];
@@ -358,7 +354,8 @@ void cli_executables_ran_advice(const char *root, const char *id, int has_code, 
     char folder[CLI_PATH_LONGEST];
     cli_executables_joined(root, spec, path);
     cli_lock_take(&s_lock);
-    cli_pyinstaller_warn(path, folder, s_warn, sizeof(s_warn));
+    char *const warned = cli_pyinstaller_warn(path, folder);
+    const char *const warn = (warned != NULL) ? warned : "";
     for (unsigned int at = 0u; at < lines->count; at += 1u)
     {
         const char *const rest = cellul.find(&(CatenaFinitaCfg){.src = cli_lines_at(lines, at),
@@ -400,7 +397,7 @@ void cli_executables_ran_advice(const char *root, const char *id, int has_code, 
             top += 1ull;
         }
         CliUnfound unfound = {module, length, module, top, 0};
-        cli_pyinstaller_missing(s_warn, cli_unfound_each, &unfound);
+        cli_pyinstaller_missing(warn, cli_unfound_each, &unfound);
         CliLine line = {said, sizeof(said), 0ull};
         if (unfound.found)
         {
@@ -428,5 +425,6 @@ void cli_executables_ran_advice(const char *root, const char *id, int has_code, 
         cli_line_closed(&line);
         cli_say(say, said);
     }
+    cli_cell_given_by(&g_cli_executables_cells, warned);
     cli_lock_give(&s_lock);
 }

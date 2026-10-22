@@ -134,7 +134,7 @@ static int sign_startup(CliPg *pg, const char *user, const char *database, CliDb
     cli_line_character(&body, '\0');
     if (!cli_line_fits(&body))
     {
-        cli_db_failure_said(failure, "the user's and the database's names are longer than orior sends");
+        cli_db_failure_said(failure, "the user's and the database's names are longer than orior_cli sends");
         return 0;
     }
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
@@ -209,7 +209,7 @@ static int sign_answered(CliPg *pg, const char *user, const char *password, char
             CliLine said = {why, sizeof(why), 0ull};
             cli_line_text(&said, "the server signs in only by ");
             cli_line_counted(&said, offered.out, offered.at);
-            cli_line_text(&said, ", which orior does not speak");
+            cli_line_text(&said, ", which orior_cli does not speak");
             cli_line_closed(&said);
             cli_db_failure_said(failure, why);
             return 0;
@@ -287,7 +287,7 @@ static int sign_answered(CliPg *pg, const char *user, const char *password, char
         }
         return proved;
     }
-    cli_line_text(&line, "the server asks for a sign-in orior does not speak (");
+    cli_line_text(&line, "the server asks for a sign-in orior_cli does not speak (");
     cli_line_decimal(&line, code, 1u);
     cli_line_text(&line, "): SCRAM-SHA-256, md5 and a password in the clear are spoken");
     cli_line_closed(&line);
@@ -354,10 +354,10 @@ int cli_pg_signed_in(CliPg *pg, const char *host, unsigned int port, const char 
             {
                 memor.cpy(&(MemoriaCfg){
                     .dst = failure->hint,
-                    .src = "The server takes only encrypted connections; orior reaches such a server "
+                    .src = "The server takes only encrypted connections; orior_cli reaches such a server "
                            "through an ssh tunnel to a machine beside it.",
                     .bytes = cellul.len(&(CatenaFinitaCfg){
-                                 .src = "The server takes only encrypted connections; orior reaches such a server "
+                                 .src = "The server takes only encrypted connections; orior_cli reaches such a server "
                                         "through an ssh tunnel to a machine beside it.",
                                  .cap = CLI_CELLS_POOL}) +
                              1u});

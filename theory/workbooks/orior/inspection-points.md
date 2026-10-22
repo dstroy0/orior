@@ -3,8 +3,8 @@
 **Purpose:** Name every place the engine exposes its own internal process to an observer, say what
 can be inferred from each, and say what cannot be seen at all.
 **Scope:** `src/engine/c/portable/orior.h`, `src/engine/c/portable/orior.c`,
-`src/engine/c/portable/anchor_raster.h`, `src/engine/c/portable/anchor_raster.c`.
-**The device volume renderer exists and is graded.** `render_volume` and `anchor_volume_device` are in `src/engine/c/render/raster_cuda.cu`, and the probe returns 1 where a device is present and the build carries the kernel; `bench_raster` grades the device volume against the host voxel for voxel. See `docs/rendering.md` and the README.
+`src/engine/c/portable/orior_raster.h`, `src/engine/c/portable/orior_raster.c`.
+**The device volume renderer exists and is graded.** `render_volume` and `orior_volume_device` are in `src/engine/c/render/raster_cuda.cu`, and the probe returns 1 where a device is present and the build carries the kernel; `bench_raster` grades the device volume against the host voxel for voxel. See `docs/rendering.md` and the README.
 
 Every point below was read in the declaration, and the ones marked **run** were exercised
 against the tree. Points marked **declared** were read and not exercised.
@@ -14,7 +14,7 @@ against the tree. Points marked **declared** were read and not exercised.
 A single descent over a fixed corpus and needle is a finite automaton with data dependent control
 flow. The destroy test reads the corpus and can end the descent early. Corpus content decides the
 depth downward. `while (placed < count)` bounds it above, and `count` is at most
-`ANCHOR_STEER_ANCHORS`. Depth is therefore a steer, not a constant, and the bound above is a
+`ORIOR_STEER_ANCHORS`. Depth is therefore a steer, not a constant, and the bound above is a
 constant.
 
 Most of this document rests on that single fact. A machine whose depth the data can
@@ -25,9 +25,9 @@ somebody wanted to know what the data did to a particular run.
 
 | point                                         | where                | what it says                                               |
 | --------------------------------------------- | -------------------- | ---------------------------------------------------------- |
-| return value of `anchor_steer_plan_recursive` | `orior.h` | offsets actually placed |
-| return value of `anchor_steer_spawn_coarms` | `orior.h` | the same, for the spawning descent |
-| `force_full_depth`                            | `AnchorSteerDescent` | non-zero descends every level and ignores the destroy rule |
+| return value of `orior_steer_plan_recursive` | `orior.h` | offsets actually placed |
+| return value of `orior_steer_spawn_coarms` | `orior.h` | the same, for the spawning descent |
+| `force_full_depth`                            | `OriorSteerDescent` | non-zero descends every level and ignores the destroy rule |
 
 **The inference.** `placed` below `count` means the destroy test fired and the descent stopped
 early. `placed` equal to `count` means it ran to the requested depth. The declaration at
@@ -69,9 +69,9 @@ Any table putting cycles and reads in the same row is reporting two runs, and sh
 
 | point                              | where               | what it says                         |
 | ---------------------------------- | ------------------- | ------------------------------------ |
-| `anchor_steer_scan_calls` | `orior.h` | scans performed since the last reset |
-| `anchor_steer_wide_calls` | `orior.h` | scans served by a vectorized engine |
-| `anchor_steer_scan_counters_reset` | `orior.h` | sets both to zero |
+| `orior_steer_scan_calls` | `orior.h` | scans performed since the last reset |
+| `orior_steer_wide_calls` | `orior.h` | scans served by a vectorized engine |
+| `orior_steer_scan_counters_reset` | `orior.h` | sets both to zero |
 
 **The inference, and it is not the one a differential gives.** A differential proves two engines
 agree. These two prove the engine the machine carries actually ran. The header records the case that
@@ -85,8 +85,8 @@ the ratio is 1 and the claim is not vacuous.
 
 ## 4. What it decided the field looks like
 
-`anchor_field_project`, `orior.h`, writes four observables through the
-`AnchorFieldProjection` args.
+`orior_field_project`, `orior.h`, writes four observables through the
+`OriorFieldProjection` args.
 
 | point                   | what it says                                                                                          |
 | ----------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -110,15 +110,15 @@ reports `distinct` 1 and writes exactly 1 rank value across 1200 positions.
 
 ## 5. Where every alignment died, the execution trace
 
-`anchor_raster.h` names five channels. The volume renderer writes one voxel per alignment.
+`orior_raster.h` names five channels. The volume renderer writes one voxel per alignment.
 
 | channel                      | what it says                                                   |
 | ---------------------------- | -------------------------------------------------------------- |
-| `ANCHOR_CHANNEL_DEATH_LEVEL` | the probe index that rejected the alignment, brighter is later |
-| `ANCHOR_CHANNEL_SURVIVED`    | binary, bright where every probe agreed                        |
-| `ANCHOR_CHANNEL_RARITY`      | rarity rank of the corpus byte at the alignment                |
-| `ANCHOR_CHANNEL_BYTE`        | the corpus byte itself, which renders the object raw           |
-| `ANCHOR_CHANNEL_PROVEN`      | two valued: proven to hold no occurrence, or undetermined      |
+| `ORIOR_CHANNEL_DEATH_LEVEL` | the probe index that rejected the alignment, brighter is later |
+| `ORIOR_CHANNEL_SURVIVED`    | binary, bright where every probe agreed                        |
+| `ORIOR_CHANNEL_RARITY`      | rarity rank of the corpus byte at the alignment                |
+| `ORIOR_CHANNEL_BYTE`        | the corpus byte itself, which renders the object raw           |
+| `ORIOR_CHANNEL_PROVEN`      | two valued: proven to hold no occurrence, or undetermined      |
 
 **`DEATH_LEVEL` is the per-alignment execution trace and it is the strongest inspection point here.**
 Every other counter is an aggregate over the run. This one records, for each alignment separately,
@@ -133,7 +133,7 @@ rests on that asymmetry. The channel makes the asymmetry visible instead of leav
 collisions. Each layout is a bijection from alignments onto voxels and nothing is overwritten or
 skipped.
 
-**One thing this renderer does NOT let you inspect, recorded as R9.** `anchor_volume_render_host`
+**One thing this renderer does NOT let you inspect, recorded as R9.** `orior_volume_render_host`
 takes a `census` parameter and discards it, building its own from `corpus`. A caller supplying a
 census over a reference distribution does not get it used. The declaration now says so.
 
@@ -141,10 +141,10 @@ census over a reference distribution does not get it used. The declaration now s
 
 | point                       | where               | what it says                                             |
 | --------------------------- | ------------------- | -------------------------------------------------------- |
-| `anchor_field_census` | `orior.h` | occurrences per symbol and the total, for a byte field |
-| `anchor_steer_probe_order` | `orior.h` | needle offsets in rarity order |
-| `anchor_steer_prefers_free` | `orior.h` | which arm the kernel picks for this census |
-| `anchor_steer_probe_fits` | `orior.h` | whether one probe shape is legal against a needle length |
+| `orior_field_census` | `orior.h` | occurrences per symbol and the total, for a byte field |
+| `orior_steer_probe_order` | `orior.h` | needle offsets in rarity order |
+| `orior_steer_prefers_free` | `orior.h` | which arm the kernel picks for this census |
+| `orior_steer_probe_fits` | `orior.h` | whether one probe shape is legal against a needle length |
 
 **The inference.** These are the planner's inputs and its decision, exposed before the run instead
 of after. `probe_fits` is the boundary function. Enumerating it maps the whole legal probe set
@@ -158,8 +158,8 @@ scores disagree, and both are printed for that reason.
 
 | point                                          | where                                        | what it says                                             |
 | ---------------------------------------------- | -------------------------------------------- | -------------------------------------------------------- |
-| `anchor_steer_avx2_engine` and the arm getters | `orior.h`, `exact_arm.h` onward | a pointer, or NULL where the processor does not carry it |
-| `anchor_volume_device_available` | `anchor_raster.h` | 0 on every build |
+| `orior_steer_avx2_engine` and the arm getters | `orior.h`, `exact_arm.h` onward | a pointer, or NULL where the processor does not carry it |
+| `orior_volume_device_available` | `orior_raster.h` | 0 on every build |
 
 **The inference.** These ask the processor instead of trusting the build. A NULL means absent and is
 distinguishable from present and broken, and a capability probe answering 0 honestly keeps a
@@ -167,7 +167,7 @@ stub from reporting itself present.
 
 ## 8. What cannot be inspected, and why
 
-**The symbol.** `AnchorField` carries an `AnchorSameAt` oracle and an opaque `const void *field`
+**The symbol.** `OriorField` carries an `OriorSameAt` oracle and an opaque `const void *field`
 pointer the engine never dereferences. Equality is the whole interface: no order, no hash, no element
 size, no alphabet enumeration. An observer holding the engine's state cannot recover what any symbol
 was.

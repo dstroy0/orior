@@ -104,7 +104,7 @@ unsigned int cli_json_file_taken(CliJson *json, const char *path, unsigned int n
                                  CliLine *said)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
     if (bytes == NULL)
     {
         cli_json_begun(json, NULL, 0u, NULL, 0ull);
@@ -114,7 +114,7 @@ unsigned int cli_json_file_taken(CliJson *json, const char *path, unsigned int n
     }
     // the tree keeps its texts of its own, so the file is let go as the read ends
     const unsigned int root = cli_json_taken(json, (const char *)bytes, size, nodes_more, text_more, said);
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     return root;
 }
 

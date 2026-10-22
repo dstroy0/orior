@@ -6,8 +6,9 @@
 // the lines of its quotes that are not blank; plain text's the lines that are not blank. One fill runs at a time
 #include "fill_internal.h"
 
-const char *g_cli_fill_slice[CLI_FILL_SLICES];
-unsigned long long g_cli_fill_slice_size[CLI_FILL_SLICES];
+const char **g_cli_fill_slice;
+unsigned long long *g_cli_fill_slice_size;
+unsigned int g_cli_fill_slices;
 
 static CliLock s_fill_lock = CLI_LOCK_INIT;
 
@@ -246,7 +247,7 @@ static int fill_comment_lines(const char *text, unsigned long long size, const C
         last = after;
     }
     unsigned int count = 0u;
-    for (CliFillLine line = first; count < CLI_FILL_SLICES;)
+    for (CliFillLine line = first; count < g_cli_fill_slices;)
     {
         if (!fill_body_of(text, &line, prefix, prefix_size, &g_cli_fill_slice[count], &g_cli_fill_slice_size[count]))
         {
@@ -295,7 +296,7 @@ static int fill_plain(const char *text, unsigned long long size, const CliFillLi
         last = after;
     }
     unsigned int count = 0u;
-    for (CliFillLine line = first; count < CLI_FILL_SLICES;)
+    for (CliFillLine line = first; count < g_cli_fill_slices;)
     {
         g_cli_fill_slice[count] = text + line.start;
         g_cli_fill_slice_size[count] = line.end - line.start;
@@ -321,6 +322,24 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
         cli_lock_give(&s_fill_lock);
         return 0;
     }
+    // a slice is a line of the text, and one place is left after the lines, so its newlines and two hold them
+    unsigned long long slices = 2ull;
+    for (unsigned long long at = 0ull; (at < size) && (slices < CLI_FILL_SLICES); at += 1ull)
+    {
+        slices += (text[at] == '\n') ? 1ull : 0ull;
+    }
+    // the slices are under CLI_FILL_SLICES, which an unsigned int holds
+    g_cli_fill_slices = (unsigned int)slices;
+    g_cli_fill_slice =
+        cli_cell_taken(slices * (sizeof(const char *) + sizeof(unsigned long long)), "the texts a fill fills");
+    if (g_cli_fill_slice == NULL)
+    {
+        cli_fill_comment_released();
+        cli_lock_give(&s_fill_lock);
+        cli_line_text(said, "the texts a fill fills could not be taken");
+        return 0;
+    }
+    g_cli_fill_slice_size = (unsigned long long *)(void *)(g_cli_fill_slice + slices);
     CliFilled filled = {written, 0ull, 0u};
     written->at = 0ull;
     CliFillLine here = {0ull, 0ull, 0u};
@@ -351,6 +370,10 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
         }
     }
     done = done && cli_line_fits(written);
+    cli_cell_given(g_cli_fill_slice);
+    g_cli_fill_slice = NULL;
+    g_cli_fill_slice_size = NULL;
+    g_cli_fill_slices = 0u;
     cli_fill_comment_released();
     cli_lock_give(&s_fill_lock);
     return done;

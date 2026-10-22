@@ -222,6 +222,41 @@ static unsigned long long cli_window_on(unsigned int path, const unsigned char *
                                  context);
 }
 
+unsigned long long cli_sift_horspool(const unsigned char *text, unsigned long long length, const unsigned char *needle,
+                                     unsigned long long needle_length, int fold,
+                                     void (*found)(void *context, unsigned long long at), void *context)
+{
+    if ((needle_length == 0ull) || (needle_length > length))
+    {
+        return 0ull;
+    }
+    // how far the needle moves on when the byte under its last stands nowhere in it but its last: its length; and for
+    // each byte it holds before its last, the distance from that byte's last place to the end
+    unsigned long long shift[256];
+    for (unsigned int byte = 0u; byte < 256u; byte += 1u)
+    {
+        shift[byte] = needle_length;
+    }
+    for (unsigned long long at = 0ull; (at + 1ull) < needle_length; at += 1ull)
+    {
+        shift[cli_sift_folded(needle[at], fold)] = needle_length - 1ull - at;
+    }
+    const unsigned char last = cli_sift_folded(needle[needle_length - 1ull], fold);
+    unsigned long long count = 0ull;
+    unsigned long long at = 0ull;
+    while ((at + needle_length) <= length)
+    {
+        const unsigned char under = cli_sift_folded(text[at + needle_length - 1ull], fold);
+        if ((under == last) && cli_stands_at(text, needle, needle_length, at, fold))
+        {
+            found(context, at);
+            count += 1ull;
+        }
+        at += shift[under];
+    }
+    return count;
+}
+
 unsigned long long cli_sift_find_all_on(unsigned int path, const unsigned char *text, unsigned long long length,
                                         const unsigned char *needle, unsigned long long needle_length, int fold,
                                         void (*found)(void *context, unsigned long long at), void *context)
@@ -229,6 +264,11 @@ unsigned long long cli_sift_find_all_on(unsigned int path, const unsigned char *
     if ((needle_length == 0ull) || (needle_length > length))
     {
         return 0ull;
+    }
+    // a text within one window is too small for a plan to pay for itself: the needle's own shifts find it faster
+    if (length < CLI_SIFT_WINDOW)
+    {
+        return cli_sift_horspool(text, length, needle, needle_length, fold, found, context);
     }
     const unsigned long long reach =
         (CLI_SIFT_WINDOW > (needle_length * 2ull)) ? CLI_SIFT_WINDOW : (needle_length * 2ull);

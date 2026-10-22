@@ -15,7 +15,7 @@
 // http-client.env.json and the reader's own http-client.private.env.json, each the nearest beside the file or in a
 // folder above it within the tree, the private values over the shared ones and `$shared` giving values to every
 // environment; or it is one of `{{$uuid}}`, `{{$timestamp}}`, `{{$isoTimestamp}}` and `{{$randomInt}}`. The private
-// file is the reader's alone: orior adds its name to the tree's .gitignore as it makes it.
+// file is the reader's alone: orior_cli adds its name to the tree's .gitignore as it makes it.
 //
 // A request goes out over HTTP/1.1 from this process, through the system's TLS for https (tls.h), and its answer is
 // read whole: chunked, gzip and deflate are undone, and a redirect is followed up to ten times. Each request's last

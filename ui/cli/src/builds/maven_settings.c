@@ -10,7 +10,7 @@
 #include "maven_internal.h"
 
 // the most bytes of a settings file read
-#define CLI_MAVEN_SETTINGS_TEXT (1u << 20u)
+#define CLI_MAVEN_SETTINGS_TEXT (1ull << 20u)
 
 const char *const g_cli_maven_compiler[4][4] = {
     {"release", "Java release", "maven.compiler.release", "release"},
@@ -90,6 +90,7 @@ static void settings_pom(const char *pom, const char *text, unsigned long long s
     const unsigned int project = cli_xml_root(&s_xml);
     if ((project == CLI_XML_NONE) || !cli_xml_named(&s_xml, project, "project"))
     {
+        cli_xml_given(&s_xml);
         return;
     }
     cli_maven_model_of(pom, text, size, &s_model);
@@ -134,13 +135,17 @@ static void settings_pom(const char *pom, const char *text, unsigned long long s
         }
     }
     settings_row(out, 0, "compiler-args", "pom", "Compiler arguments", s_value, arguments.at, shown, 0);
+    cli_xml_given(&s_xml);
+    cli_maven_model_given(&s_model);
 }
 
-// The settings files read: the user's and the global one, each its text and its XML, and whether it was read
+// The settings files read: the user's and the global one, each its bytes mapped and their size, its XML, and whether
+// it was read
 typedef struct
 {
     CliXml xml[2];
-    char text[2][CLI_MAVEN_SETTINGS_TEXT];
+    const unsigned char *bytes[2];
+    unsigned long long size[2];
     int read[2];
 } CliMavenSettingsFiles;
 
@@ -193,14 +198,31 @@ static void settings_listed(const char *list, const char *each, const char *cons
     }
 }
 
-// a settings file read into its place among those read
+// a settings file mapped and read into its place among those read, one larger than CLI_MAVEN_SETTINGS_TEXT read as
+// empty
 static void settings_read(unsigned int at, const char *path)
 {
-    const unsigned long long size =
-        (path[0] != '\0') ? qry_member_file_read(path, (unsigned char *)s_files.text[at], CLI_MAVEN_SETTINGS_TEXT)
-                          : QRY_MEMBER_UNREAD;
-    s_files.read[at] = (size != QRY_MEMBER_UNREAD);
-    cli_xml_parse(s_files.text[at], s_files.read[at] ? size : 0ull, &s_files.xml[at]);
+    s_files.size[at] = 0ull;
+    s_files.bytes[at] = (path[0] != '\0') ? cli_file_held(path, &s_files.size[at]) : NULL;
+    s_files.read[at] = (s_files.bytes[at] != NULL) && (s_files.size[at] <= CLI_MAVEN_SETTINGS_TEXT);
+    // the file's bytes are read as its text
+    cli_xml_parse(s_files.read[at] ? (const char *)s_files.bytes[at] : "", s_files.read[at] ? s_files.size[at] : 0ull,
+                  &s_files.xml[at]);
+}
+
+// the settings files read let go: each one's XML given back and its bytes unmapped
+static void settings_let_go(void)
+{
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        cli_xml_given(&s_files.xml[at]);
+        if (s_files.bytes[at] != NULL)
+        {
+            cli_file_let_go(s_files.bytes[at], s_files.size[at]);
+        }
+        s_files.bytes[at] = NULL;
+        s_files.read[at] = 0;
+    }
 }
 
 void cli_maven_settings(const char *root, const char *pom, const char *text, unsigned long long size, CliLine *out)
@@ -264,5 +286,6 @@ void cli_maven_settings(const char *root, const char *pom, const char *text, uns
     settings_listed("activeProfiles", "activeProfile", NULL, 0u, NULL, &value);
     settings_row(out, 0, "active-profiles", "settings", "Active profiles", s_value, value.at, user_file, 0);
     cli_line_character(out, ']');
+    settings_let_go();
     cli_lock_give(&s_settings_lock);
 }

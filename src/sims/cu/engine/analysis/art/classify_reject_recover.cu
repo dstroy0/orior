@@ -235,11 +235,11 @@ static void classify_fixed_pattern(SimResults *results, ClassifyWork *work, cons
         exact +=
             (((members * work->stack[at]) - batch[at % CLASSIFY_FRAME]) == (members * work->truth[at])) ? 1ull : 0ull;
     }
-    AnchorExactInteger share_numerator;
-    AnchorExactInteger share_denominator;
+    OriorExactInteger share_numerator;
+    OriorExactInteger share_denominator;
     ok = ok && energy_reduction(work->stack, work->truth, CLASSIFY_LENGTH, CLASSIFY_FRAME, batch, &share_numerator,
                                 &share_denominator);
-    AnchorExactInteger percent;
+    OriorExactInteger percent;
     scriptura_text(line, "                              reject per-pixel mean: subject equals truth on ");
     scriptura_decimal(line, exact, 1u);
     scriptura_text(line, " of ");

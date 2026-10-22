@@ -96,7 +96,7 @@ static int run_places(const char *root, CliLine *said)
         cli_deploy_placed(&run->pool, ((unsigned long long)run->deployment.excludes + 1u) * sizeof(run->pattern[0]));
     if (run->pool.refused)
     {
-        cli_line_text(said, "deploy.json: to names more than orior holds");
+        cli_line_text(said, "deploy.json: to names more than orior_cli holds");
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = run->changed_list, .bytes = tos * sizeof(run->changed_list[0]), .val = 0u});
@@ -305,6 +305,7 @@ static int run_turned(const char *release, int replace, int remove, CliLine *sai
             CliLine told_line = {told, sizeof(told), 0ull};
             cli_line_text(&told_line, " now runs release ");
             cli_line_text(&told_line, release);
+            (void)cli_line_closed(&told_line);
             run_said("", index, told);
         }
         else

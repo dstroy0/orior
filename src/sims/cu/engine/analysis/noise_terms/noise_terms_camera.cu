@@ -199,8 +199,8 @@ void terms_shot_law(SimResults *results, const unsigned short *lanes, unsigned l
 // numerator / denominator, the denominator positive, within range_numerator / range_denominator of expected_numerator
 // / expected_denominator: the difference cross-multiplied, |numerator ed rd - en denominator rd| against rn
 // denominator ed
-void terms_ratio_within(SimResults *results, const char *what, const AnchorExactInteger *numerator,
-                        const AnchorExactInteger *denominator, long long expected_numerator,
+void terms_ratio_within(SimResults *results, const char *what, const OriorExactInteger *numerator,
+                        const OriorExactInteger *denominator, long long expected_numerator,
                         unsigned long long expected_denominator, unsigned long long range_numerator,
                         unsigned long long range_denominator)
 {
@@ -236,15 +236,15 @@ void terms_ratio_within(SimResults *results, const char *what, const AnchorExact
         scriptura_decimal(line, range_denominator, 1u);
     }
     scriptura_character(line, '\n');
-    AnchorExactInteger left;
-    AnchorExactInteger right;
-    AnchorExactInteger term;
+    OriorExactInteger left;
+    OriorExactInteger right;
+    OriorExactInteger term;
     sim_exact_signed(&term, expected_numerator);
     int ok = sim_exact_scaled(numerator, expected_denominator, &left) &&
              sim_exact_scaled(&left, range_denominator, &left) && sim_exact_product(&term, denominator, &right) &&
              sim_exact_scaled(&right, range_denominator, &right) && sim_exact_less(&left, &right, &left);
     left.sign = (left.sign < 0) ? 1 : left.sign;
     ok = ok && sim_exact_scaled(denominator, range_numerator, &right) &&
-         sim_exact_scaled(&right, expected_denominator, &right) && (anchor_exact_compare(&left, &right) <= 0);
+         sim_exact_scaled(&right, expected_denominator, &right) && (orior_exact_compare(&left, &right) <= 0);
     sim_check(results, ok, what);
 }

@@ -114,11 +114,15 @@ static void history_graph(void)
     memor.cpy(&(MemoriaCfg){.dst = second,
                             .src = s_out,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_CELLS_POOL}) + 1u});
+    cli_git_text_given(&s_touched.text);
     cli_check(cli_git_touched(root, second, &s_touched, &said) && (s_touched.count == 3u) &&
                   history_touched("b.txt D") && history_touched("c.txt R a.txt") && history_touched("d.txt A"),
               "a commit lists the files it changed, a rename with the name it had");
+    cli_git_text_given(&s_touched.text);
     cli_check(cli_git_touched(root, first, &s_touched, &said) && (s_touched.count == 2u), "the first, from nothing");
+    cli_git_text_given(&s_touched.text);
     cli_check(!cli_git_touched(root, "not-hex", &s_touched, &said), "an id that is none is refused");
+    cli_git_text_given(&s_graph.text);
     cli_git_graph(root, "", 0, &s_graph);
     int main_ref = 0;
     for (unsigned int at = 0u; (s_graph.count > 0u) && (at < s_graph.item[0].refs); at += 1u)
@@ -141,16 +145,20 @@ static void history_graph(void)
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = cli_git_text_of(&s_graph.text, s_graph.item[0].author), .other = "Ada", .cap = CLI_CELLS_POOL})),
         "the graph holds every commit, its branch and its author");
+    cli_git_text_given(&s_graph.text);
     cli_git_graph(root, "RENAMED ada", 1, &s_graph);
     cli_check(
         (s_graph.count == 1u) &&
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = cli_git_text_of(&s_graph.text, s_graph.item[0].id), .other = second, .cap = CLI_CELLS_POOL})),
         "a search finds it, each word in any case");
+    cli_git_text_given(&s_graph.text);
     cli_git_graph(root, "RENAMED ada", 0, &s_graph);
     cli_check(s_graph.count == 0u, "an author is matched only where authors show");
+    cli_git_text_given(&s_graph.text);
     cli_git_graph(root, "RENAMED", 0, &s_graph);
     cli_check(s_graph.count == 1u, "its subject alone");
+    cli_git_text_given(&s_graph.text);
     cli_git_graph(root, "nowhere", 0, &s_graph);
     cli_check(s_graph.count == 0u, "and nothing where nothing holds it");
 }
@@ -183,6 +191,7 @@ static void history_lines(void)
     memor.cpy(&(MemoriaCfg){
         .dst = first, .src = s_out, .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_CELLS_POOL}) + 1u});
     static const char s_text[] = "one\nsecond\nnew\n";
+    cli_git_text_given(&s_lines.text);
     cli_check(
         cli_git_line_history(root, "a.txt", s_text, sizeof(s_text) - 1u, &s_lines, &said) && (s_lines.lines >= 3u) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = history_line_subject(0u), .other = "first", .cap = CLI_CELLS_POOL})) &&
@@ -203,6 +212,7 @@ static void history_lines(void)
                   (cellul.eq(&(CatenaFinitaCfg){
                       .src = cli_git_text_of(&s_lines.text, second->was), .other = "a.txt", .cap = CLI_CELLS_POOL})),
               "its author, its path, and the commit before it with the path there");
+    cli_git_text_given(&s_lines.text);
     cli_check(!cli_git_line_history(root, "missing.txt", "", 0ull, &s_lines, &said), "a file git has not is refused");
 }
 
@@ -235,6 +245,7 @@ static void history_repositories(void)
     history_started(root, "main", "t", "a.txt", "one\n");
     cli_full(root, "libs/inner", inner);
     history_started(inner, "trunk", "t", "b.txt", "two\n");
+    cli_git_text_given(&s_repos.text);
     cli_git_repositories(root, &s_repos);
     for (unsigned int at = 0u; at < s_repos.count; at += 1u)
     {
@@ -247,6 +258,7 @@ static void history_repositories(void)
     cli_check_text(out, line.at, ":main|libs/inner:trunk", "the tree's repositories and their branches");
     history_written(root, "a.txt", "one more\n");
     history_written(inner, "b.txt", "two more\n");
+    cli_git_text_given(&s_changed.text);
     cli_git_changed(root, NULL, 0u, 0, &s_changed);
     cli_check((s_changed.count == 2u) && history_changed("a.txt", 'M') && history_changed("libs/inner/b.txt", 'M'),
               "each repository's changes by their paths in the tree");
@@ -258,11 +270,13 @@ static void history_repositories(void)
                   history_git(inner, "log", "-1", "--format=%s", NULL) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_out, .other = "both", .cap = CLI_CELLS_POOL})),
               "a commit to each repository");
+    cli_git_text_given(&s_changed.text);
     cli_git_changed(root, NULL, 0u, 0, &s_changed);
     cli_check(s_changed.count == 0u, "and nothing is left changed");
     line.at = 0ull;
     cli_check(cli_git_head_text(root, "libs/inner/b.txt", &line), "a file's text as the last commit left it");
     cli_check_text(out, line.at, "two more\n", "read from its own repository");
+    cli_git_text_given(&s_commits.text);
     cli_check(cli_git_commits(root, "libs/inner/b.txt", &s_commits, &said) && (s_commits.count == 2u),
               "the commits that touched it");
     line.at = 0ull;
@@ -270,6 +284,7 @@ static void history_repositories(void)
         cli_git_text_at(root, "libs/inner/b.txt", cli_git_text_of(&s_commits.text, s_commits.item[1].id), &line, &said),
         "its text as a commit left it");
     cli_check_text(out, line.at, "two\n", "the first");
+    cli_git_text_given(&s_lines.text);
     cli_check(cli_git_line_history(root, "libs/inner/b.txt", "two more\n", 9ull, &s_lines, &said) &&
                   (s_lines.commits > 0u) && s_lines.commit[0].has_path &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = cli_git_text_of(&s_lines.text, s_lines.commit[0].path),
@@ -305,6 +320,7 @@ static void history_stashing(void)
     cli_check(history_stash(root, "push", "", "half done") && history_git(root, "status", "--porcelain", NULL, NULL) &&
                   (s_out[0] == '\0'),
               "every change is put aside, new files with them");
+    cli_git_text_given(&s_stashes.text);
     cli_git_stashes(root, &s_stashes);
     const char *const subject =
         (s_stashes.count > 0u) ? cli_git_text_of(&s_stashes.text, s_stashes.item[0].subject) : "";
@@ -321,16 +337,19 @@ static void history_stashing(void)
     cli_full(root, "a.txt", path);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_out, sizeof(s_out) - 1u);
     cli_check_text(s_out, (size != QRY_MEMBER_UNREAD) ? size : 0ull, "changed\n", "its changes");
+    cli_git_text_given(&s_stashes.text);
     cli_git_stashes(root, &s_stashes);
     cli_check(history_there(root, "b.txt") && (s_stashes.count == 1u), "its new files, and kept");
     (void)history_git(root, "checkout", "--", "a.txt", NULL);
     cli_full(root, "b.txt", path);
     (void)query_removed(path);
     const int popped = history_stash(root, "pop", "stash@{0}", "");
+    cli_git_text_given(&s_stashes.text);
     cli_git_stashes(root, &s_stashes);
     cli_check(popped && (s_stashes.count == 0u), "a pop drops it");
     cli_check(history_stash(root, "push", "", "") && history_stash(root, "drop", "stash@{0}", ""),
               "a stash is thrown away");
+    cli_git_text_given(&s_stashes.text);
     cli_git_stashes(root, &s_stashes);
     cli_check(s_stashes.count == 0u, "and gone");
     cli_check(!history_stash(root, "apply", "HEAD", "") && !history_stash(root, "clear", "stash@{0}", ""),
@@ -344,6 +363,7 @@ static void history_stashing(void)
                             .src = s_out,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_CELLS_POOL}) + 1u});
     (void)history_git(root, "switch", "-q", "main", NULL);
+    cli_git_text_given(&s_commits.text);
     cli_git_elsewhere(root, &s_commits);
     cli_check((s_commits.count == 1u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = cli_git_text_of(&s_commits.text, s_commits.item[0].id),
@@ -354,10 +374,34 @@ static void history_stashing(void)
                   history_git(root, "log", "-1", "--format=%s", NULL) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_out, .other = "on topic", .cap = CLI_CELLS_POOL})),
               "is picked onto this one");
+    cli_git_text_given(&s_commits.text);
     cli_git_elsewhere(root, &s_commits);
     cli_check(s_commits.count == 0u, "and is no longer elsewhere");
     line.at = 0ull;
     cli_check(!cli_git_cherry_pick(root, "--abort", &line, &said), "a word that is no commit is refused");
+}
+
+// a repository just made inside the tree, with no commit yet, takes the first commit of its own file named by its
+// path in the tree
+static void history_fresh(void)
+{
+    char root[CLI_PATH_LONGEST];
+    char inner[CLI_PATH_LONGEST];
+    char why[1024];
+    char out[1024];
+    CliLine said = {why, sizeof(why), 0ull};
+    CliLine line = {out, sizeof(out), 0ull};
+    cli_check_folder("git_fresh", root);
+    history_started(root, "main", "t", "a.txt", "one\n");
+    cli_full(root, "held", inner);
+    history_started(inner, "main", "t", NULL, NULL);
+    history_written(inner, "held.py", "x = 1\n");
+    const char *const paths[1] = {"held/held.py"};
+    const int committed = cli_git_commit(root, "held", paths, 1u, &line, &said);
+    (void)cli_line_closed(&said);
+    cli_check(committed && history_git(inner, "log", "-1", "--format=%s", NULL) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = s_out, .other = "held", .cap = CLI_CELLS_POOL}),
+              committed ? "a fresh inner repository takes its own file's first commit" : why);
 }
 
 int main(void)
@@ -365,6 +409,16 @@ int main(void)
     history_graph();
     history_lines();
     history_repositories();
+    history_fresh();
     history_stashing();
+    cli_git_text_given(&s_touched.text);
+    cli_git_text_given(&s_graph.text);
+    cli_git_text_given(&s_lines.text);
+    cli_git_text_given(&s_repos.text);
+    cli_git_text_given(&s_changed.text);
+    cli_git_text_given(&s_commits.text);
+    cli_git_text_given(&s_stashes.text);
+    cli_check((g_cli_git_cells.holds == 0ull) && (g_cli_git_cells.hw != 0ull),
+              "each list's texts are kept in a cell grown as they are put, and given back");
     return cli_checked();
 }

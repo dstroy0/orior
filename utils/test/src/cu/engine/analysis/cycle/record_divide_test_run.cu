@@ -107,7 +107,7 @@ void divide_run(DivideLoaded *loaded, const unsigned int *atoms, unsigned int co
 }
 
 // write value into `bits` of the atom at offset, two's complement when negative
-void divide_put(unsigned int *atom, unsigned int offset, unsigned int bits, const AnchorExactInteger *value)
+void divide_put(unsigned int *atom, unsigned int offset, unsigned int bits, const OriorExactInteger *value)
 {
     unsigned int carry = 1u;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
@@ -126,9 +126,9 @@ void divide_put(unsigned int *atom, unsigned int offset, unsigned int bits, cons
 }
 
 // read `bits` at offset as two's complement
-void divide_take(const unsigned int *record, unsigned int offset, unsigned int bits, AnchorExactInteger *value)
+void divide_take(const unsigned int *record, unsigned int offset, unsigned int bits, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int from = offset + bit;
@@ -149,17 +149,17 @@ void divide_take(const unsigned int *record, unsigned int offset, unsigned int b
         value->limb[(bits - 1u) / 32u] &= (left == 0u) ? 0xFFFFFFFFu : ((1u << left) - 1u);
     }
     int zero = 1;
-    for (unsigned int limb = 0u; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+    for (unsigned int limb = 0u; limb < ORIOR_EXACT_LIMBS; limb += 1u)
     {
         zero = zero && (value->limb[limb] == 0u);
     }
     value->sign = (zero != 0) ? 0 : ((negative != 0) ? -1 : 1);
 }
 
-void divide_settle(AnchorExactInteger *value, int sign)
+void divide_settle(OriorExactInteger *value, int sign)
 {
     int zero = 1;
-    for (unsigned int limb = 0u; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+    for (unsigned int limb = 0u; limb < ORIOR_EXACT_LIMBS; limb += 1u)
     {
         zero = zero && (value->limb[limb] == 0u);
     }
@@ -168,9 +168,9 @@ void divide_settle(AnchorExactInteger *value, int sign)
 
 // a magnitude below 2^bits, in an edge case picked by `pattern`: random words over a random length, all ones, a
 // lone top bit, or a top limb of 0x80000000 over random words
-void divide_magnitude(AnchorExactInteger *value, unsigned int bits, unsigned int pattern)
+void divide_magnitude(OriorExactInteger *value, unsigned int bits, unsigned int pattern)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     const unsigned int limbs = (bits + 31u) / 32u;
     const unsigned int used = 1u + (divide_random() % limbs);
     for (unsigned int limb = 0u; limb < used; limb += 1u)
@@ -192,29 +192,29 @@ void divide_magnitude(AnchorExactInteger *value, unsigned int bits, unsigned int
 }
 
 // the registers of one lane meet the division's identities and agree with the library on the operands
-int divide_valid(const AnchorExactInteger *numerator, const AnchorExactInteger *divisor,
-                 const AnchorExactInteger *quotient, const AnchorExactInteger *remainder,
-                 const AnchorExactInteger *common)
+int divide_valid(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
+                 const OriorExactInteger *quotient, const OriorExactInteger *remainder,
+                 const OriorExactInteger *common)
 {
-    AnchorExactInteger product;
-    AnchorExactInteger rebuilt;
-    int passed = (anchor_exact_multiply(quotient, divisor, &product) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_add(&product, remainder, &rebuilt) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_equal(&rebuilt, numerator) != 0);
-    AnchorExactInteger remainder_size = *remainder;
-    AnchorExactInteger divisor_size = *divisor;
+    OriorExactInteger product;
+    OriorExactInteger rebuilt;
+    int passed = (orior_exact_multiply(quotient, divisor, &product) == ORIOR_EXACT_OK) &&
+                 (orior_exact_add(&product, remainder, &rebuilt) == ORIOR_EXACT_OK) &&
+                 (orior_exact_equal(&rebuilt, numerator) != 0);
+    OriorExactInteger remainder_size = *remainder;
+    OriorExactInteger divisor_size = *divisor;
     remainder_size.sign = (remainder->sign != 0) ? 1 : 0;
     divisor_size.sign = 1;
-    passed = passed && (anchor_exact_compare(&remainder_size, &divisor_size) < 0) &&
+    passed = passed && (orior_exact_compare(&remainder_size, &divisor_size) < 0) &&
              ((remainder->sign == 0) || (remainder->sign == numerator->sign));
-    AnchorExactInteger integer_part;
-    AnchorExactInteger rest;
+    OriorExactInteger integer_part;
+    OriorExactInteger rest;
     passed = passed && (common->sign >= 0) &&
-             (anchor_exact_divide(numerator, common, &integer_part, &rest) == ANCHOR_EXACT_OK) && (rest.sign == 0) &&
-             (anchor_exact_divide(divisor, common, &integer_part, &rest) == ANCHOR_EXACT_OK) && (rest.sign == 0);
-    AnchorExactInteger library;
-    passed = passed && (anchor_exact_gcd(numerator, divisor, &library) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_equal(&library, common) != 0);
+             (orior_exact_divide(numerator, common, &integer_part, &rest) == ORIOR_EXACT_OK) && (rest.sign == 0) &&
+             (orior_exact_divide(divisor, common, &integer_part, &rest) == ORIOR_EXACT_OK) && (rest.sign == 0);
+    OriorExactInteger library;
+    passed = passed && (orior_exact_gcd(numerator, divisor, &library) == ORIOR_EXACT_OK) &&
+             (orior_exact_equal(&library, common) != 0);
     return passed;
 }
 
@@ -256,7 +256,7 @@ void divide_narrow(DivideResults *results)
     const unsigned int in_limbs = program.in_limbs[0];
     const unsigned int out_limbs = loaded.layout.out_limbs;
     unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * in_limbs, sizeof(unsigned int));
-    AnchorExactInteger *const operand = (AnchorExactInteger *)malloc((size_t)lanes * 3u * sizeof(AnchorExactInteger));
+    OriorExactInteger *const operand = (OriorExactInteger *)malloc((size_t)lanes * 3u * sizeof(OriorExactInteger));
     unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
     unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
     if ((atoms == NULL) || (operand == NULL) || (host_out == NULL) || (device_out == NULL))
@@ -271,9 +271,9 @@ void divide_narrow(DivideResults *results)
     }
     for (unsigned int lane = 0u; lane < lanes; lane += 1u)
     {
-        AnchorExactInteger *const numerator = &operand[(3u * lane) + 0u];
-        AnchorExactInteger *const divisor = &operand[(3u * lane) + 1u];
-        AnchorExactInteger *const factor = &operand[(3u * lane) + 2u];
+        OriorExactInteger *const numerator = &operand[(3u * lane) + 0u];
+        OriorExactInteger *const divisor = &operand[(3u * lane) + 1u];
+        OriorExactInteger *const factor = &operand[(3u * lane) + 2u];
         const unsigned int pattern = divide_random();
         divide_magnitude(numerator, 159u, pattern);
         divide_magnitude(divisor, 127u, pattern >> 2u);
@@ -282,25 +282,25 @@ void divide_narrow(DivideResults *results)
         if (form == 1u)
         {
             // a numerator one small step off a multiple. The guessed quotient digits run near their bounds
-            AnchorExactInteger small;
-            AnchorExactInteger product;
+            OriorExactInteger small;
+            OriorExactInteger product;
             divide_magnitude(&small, 31u, pattern >> 6u);
-            anchor_exact_zero(factor);
+            orior_exact_zero(factor);
             factor->limb[0] = divide_random() | 1u;
             divide_settle(factor, 1);
-            anchor_exact_multiply(divisor, &small, &product);
-            anchor_exact_add(&product, factor, numerator);
+            orior_exact_multiply(divisor, &small, &product);
+            orior_exact_add(&product, factor, numerator);
             divide_magnitude(factor, 63u, pattern >> 4u);
         }
         else if (form == 2u)
         {
-            anchor_exact_zero(divisor);
+            orior_exact_zero(divisor);
             divisor->limb[0] = 1u;
             divide_settle(divisor, 1);
         }
         else if (form == 3u)
         {
-            anchor_exact_zero(numerator);
+            orior_exact_zero(numerator);
         }
         else if (form == 4u)
         {
@@ -313,11 +313,11 @@ void divide_narrow(DivideResults *results)
         else if ((form == 6u) && (lane == 6u))
         {
             // Knuth's add-back step: the guessed digit is one too many
-            anchor_exact_zero(numerator);
+            orior_exact_zero(numerator);
             numerator->limb[2] = 0x80000000u;
             numerator->limb[3] = 0x7FFFFFFFu;
             divide_settle(numerator, 1);
-            anchor_exact_zero(divisor);
+            orior_exact_zero(divisor);
             divisor->limb[0] = 1u;
             divisor->limb[2] = 0x80000000u;
             divide_settle(divisor, 1);
@@ -347,16 +347,16 @@ void divide_narrow(DivideResults *results)
     for (unsigned int lane = 0u; (identities != 0) && (lane < lanes); lane += 1u)
     {
         const unsigned int *const record = &host_out[lane * out_limbs];
-        AnchorExactInteger quotient;
-        AnchorExactInteger remainder;
-        AnchorExactInteger common;
-        AnchorExactInteger exact;
+        OriorExactInteger quotient;
+        OriorExactInteger remainder;
+        OriorExactInteger common;
+        OriorExactInteger exact;
         divide_take(record, table[3].out_offset, table[3].out_bits, &quotient);
         divide_take(record, table[4].out_offset, table[4].out_bits, &remainder);
         divide_take(record, table[5].out_offset, table[5].out_bits, &common);
         divide_take(record, table[7].out_offset, table[7].out_bits, &exact);
         identities = divide_valid(&operand[3u * lane], &operand[(3u * lane) + 1u], &quotient, &remainder, &common);
-        factors = factors && (anchor_exact_equal(&exact, &operand[(3u * lane) + 2u]) != 0);
+        factors = factors && (orior_exact_equal(&exact, &operand[(3u * lane) + 2u]) != 0);
     }
     divide_check(results, identities,
                  "narrow: numerator = quotient . divisor + remainder, the remainder below the divisor with the "
@@ -364,8 +364,8 @@ void divide_narrow(DivideResults *results)
     divide_check(results, factors, "narrow: the exact quotient of divisor . factor by the divisor is the factor");
 
     // a zero divisor and an inexact division error on both sides
-    AnchorExactInteger zero;
-    anchor_exact_zero(&zero);
+    OriorExactInteger zero;
+    orior_exact_zero(&zero);
     memset(atoms, 0, (size_t)in_limbs * sizeof(unsigned int));
     divide_put(atoms, 0u, 160u, &operand[0]);
     divide_put(atoms, 160u, 128u, &zero);

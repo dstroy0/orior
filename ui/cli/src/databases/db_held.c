@@ -249,7 +249,7 @@ void cli_db_held_lines(CliDbHeld *held, unsigned long long start, unsigned long 
 {
     (void)held_flushed(held);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = (start < end) ? qry_member_file_mapped(held->path, &size) : NULL;
+    const unsigned char *const bytes = (start < end) ? cli_file_held(held->path, &size) : NULL;
     if (bytes == NULL)
     {
         return;
@@ -269,7 +269,7 @@ void cli_db_held_lines(CliDbHeld *held, unsigned long long start, unsigned long 
         row += 1ull;
         at = line_end + 1ull;
     }
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
 }
 
 // a held row's line written into the page after those before it

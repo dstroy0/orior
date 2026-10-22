@@ -224,7 +224,7 @@ void terms_crosstalk(SimResults *results, const unsigned short *lanes, unsigned 
         scriptura_text(&results->line, ", over ");
         scriptura_decimal(&results->line, measurement.pairs[axis], 1u);
         scriptura_text(&results->line, " frame differences\n");
-        AnchorExactInteger twice;
+        OriorExactInteger twice;
         const int doubled = sim_exact_scaled(&measurement.spread[axis], 2ull, &twice);
         sim_check(results, doubled && (measurement.spread[axis].sign > 0), "V is positive");
         if ((doubled == 0) || (measurement.spread[axis].sign <= 0))

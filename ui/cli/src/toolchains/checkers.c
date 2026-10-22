@@ -381,14 +381,14 @@ int cli_checkers_check_file(const char *id, const char *root, const char *path, 
     const unsigned int spec = cli_json_member(&s_room->json, tool, "checker");
     const int stdin_read = cli_json_is(&s_room->json, cli_json_member(&s_room->json, spec, "stdin"), CFG_JSON_TRUE);
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = (stdin_read && (text == NULL)) ? qry_member_file_mapped(path, &size) : NULL;
+    const unsigned char *const mapped = (stdin_read && (text == NULL)) ? cli_file_held(path, &size) : NULL;
     const char *const input =
         stdin_read ? ((text != NULL) ? text : ((mapped != NULL) ? (const char *)mapped : "")) : NULL;
     const unsigned long long input_length = (text != NULL) ? length : size;
     const int checked = cli_checked(tool, "args", path, root, input, input_length, said);
     if (mapped != NULL)
     {
-        qry_member_file_unmapped(mapped, size);
+        cli_file_let_go(mapped, size);
     }
     if (checked)
     {

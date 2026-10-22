@@ -13,6 +13,10 @@
 #include "command_line_internal.h"
 #include "commands.h"
 
+// the bytes what a command run at the terminal writes and the help are begun to be written in, doubling as they fill
+#define CLI_RUN_OUT_FIRST 4096u
+#define CLI_RUN_HELP_FIRST 16384u
+
 static char s_said[1u << 14u];
 static const char *s_words[CLI_LAUNCH_ARGS];
 
@@ -130,24 +134,24 @@ static void run_window(CliOutcome *outcome, const char *named, const char *remot
     {
         if (!found && !cli_folder_current(s_found, sizeof(s_found)))
         {
-            cli_err("orior finds no folder to run in");
+            cli_err("orior_cli finds no folder to run in");
             run_exit(outcome, CLI_WRONG);
             return;
         }
-        static char s_out[1u << 20u];
-        CliLine out = {s_out, sizeof(s_out), 0ull};
+        CliLine out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+        (void)cli_line_growing(&out, CLI_RUN_OUT_FIRST, "what a command run at the terminal writes");
         said.at = 0ull;
-        if (!cli_at_terminal_run(s_found, command, args, count, &out, &said))
+        const int ran = cli_at_terminal_run(s_found, command, args, count, &out, &said);
+        if (!ran)
         {
             cli_err_line(s_said, cli_line_fits(&said) ? said.at : 0ull);
-            run_exit(outcome, CLI_WRONG);
-            return;
         }
-        if (cli_line_fits(&out) && (out.at > 0ull))
+        if (ran && cli_line_fits(&out) && (out.at > 0ull))
         {
-            cli_out_line(s_out, out.at);
+            cli_out_line(out.out, out.at);
         }
-        run_exit(outcome, 0);
+        cli_cell_given(out.out);
+        run_exit(outcome, ran ? 0 : CLI_WRONG);
         return;
     }
     static char s_root[CLI_PATH_LONGEST];
@@ -164,11 +168,12 @@ static void run_window(CliOutcome *outcome, const char *named, const char *remot
 // the help written to the output, its spaces at the end not
 static void run_help(void)
 {
-    static char s_help[1u << 18u];
-    CliLine help = {s_help, sizeof(s_help), 0ull};
+    CliLine help = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_line_growing(&help, CLI_RUN_HELP_FIRST, "the help");
     cli_help(&help);
     const unsigned long long size = cli_line_fits(&help) ? help.at : 0ull;
-    cli_out_line(s_help, cli_text_trimmed_end(s_help, size));
+    cli_out_line(help.out, (help.out != NULL) ? cli_text_trimmed_end(help.out, size) : 0ull);
+    cli_cell_given(help.out);
 }
 
 // the words run as the menus run them, a command that acts in the window opened on the tree `remote` names where it
@@ -205,9 +210,9 @@ static void run_menus(CliOutcome *outcome, const char *named, const char *remote
             return;
         }
         CliLine line = {s_said, sizeof(s_said), 0ull};
-        cli_line_text(&line, "orior takes no ");
+        cli_line_text(&line, "orior_cli takes no ");
         cli_line_text(&line, first);
-        cli_line_text(&line, ": orior help names what it takes");
+        cli_line_text(&line, ": orior_cli help names what it takes");
         cli_err_line(s_said, cli_line_fits(&line) ? line.at : 0ull);
         run_exit(outcome, CLI_WRONG);
         return;
@@ -227,6 +232,19 @@ static void run_menus(CliOutcome *outcome, const char *named, const char *remote
         if (s_item.console)
         {
             run_exit(outcome, cli_console(s_item.command, named, words + 2, count - 2u));
+            return;
+        }
+        // a command the window runs is given the words it needs, else it is refused here and never said there
+        if ((count - 2u) < cli_item_words_needed(&s_item))
+        {
+            CliLine line = {s_said, sizeof(s_said), 0ull};
+            cli_line_text(&line, word);
+            cli_line_character(&line, ' ');
+            cli_line_text(&line, s_item.command);
+            cli_line_text(&line, " takes ");
+            cli_line_text(&line, s_item.args);
+            cli_err_line(s_said, cli_line_fits(&line) ? line.at : 0ull);
+            run_exit(outcome, CLI_WRONG);
             return;
         }
         run_window(outcome, named, remote, word, s_item.command, words + 2, count - 2u);
@@ -249,7 +267,7 @@ static void run_menus(CliOutcome *outcome, const char *named, const char *remote
     cli_line_text(&line, title);
     cli_line_text(&line, " has no ");
     cli_line_text(&line, words[1]);
-    cli_line_text(&line, ": orior ");
+    cli_line_text(&line, ": orior_cli ");
     cli_line_text(&line, first);
     cli_line_text(&line, " names what it has");
     cli_err_line(s_said, cli_line_fits(&line) ? line.at : 0ull);
@@ -295,7 +313,7 @@ static int run_own(CliOutcome *outcome, const char *named, const char *const *wo
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "--version", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "-V", .cap = CLI_CELLS_POOL})))
     {
-        cli_out("orior " CLI_VERSION);
+        cli_out("orior_cli " CLI_VERSION);
         run_exit(outcome, 0);
         return 1;
     }

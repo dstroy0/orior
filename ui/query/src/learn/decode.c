@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // decode.c: a run's tables and blobs read from the command line through the decoder (kdecode.c): `decode` hands its
 // words to the decoder as they stand, `--table <table> <run.qry>`, `--blob <name> <run.qry>` and the rest, the decoder
-// a member of a run of its own, and says what the decoder handed that run as `kdecode`
+// a member of a run of its own, and says what the decoder handed that run as `orior_kdecode`
 #include "../query_loops.h"
 
 // the record the decoder hands its text in (KDECODE_SHOWN, kdecode_internal.h)
-#define QUERY_DECODE_SHOWN "kdecode"
+#define QUERY_DECODE_SHOWN "orior_kdecode"
 
 int query_decode_run(QueryContext *context, const char *const *words, unsigned int count, CliLine *said)
 {
@@ -17,7 +17,7 @@ int query_decode_run(QueryContext *context, const char *const *words, unsigned i
         return -1;
     }
     static char s_decoder[QUERY_PATH_LONGEST];
-    if (!query_context_tool(context, "kdecode", s_decoder, said))
+    if (!query_context_tool(context, "orior_kdecode", s_decoder, said))
     {
         return -1;
     }

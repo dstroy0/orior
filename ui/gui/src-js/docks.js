@@ -37,6 +37,7 @@ const SIDES = ["left", "right", "bottom"];
 // The icons of the strip and the bar, each by its name, and the tool window it opens.
 const ICONS = {
   explorer: "explorer",
+  search: "explorer",
   structure: "explorer",
   commit: "explorer",
   problems: "explorer",
@@ -52,7 +53,7 @@ const ICONS = {
   definitions: "definitions",
 };
 
-const ICON_LABELS = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", containers: "Containers", database: "Database", comms: "Comms", definitions: "Definitions" };
+const ICON_LABELS = { explorer: "Explorer", search: "Search", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", containers: "Containers", database: "Database", comms: "Comms", definitions: "Definitions" };
 
 // The smallest a docked window is made, and the share of its place it can take at most.
 const LEAST = 120;

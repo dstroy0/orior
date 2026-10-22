@@ -4,7 +4,7 @@
 // Content-Length header and a JSON body, as the Debug Adapter Protocol frames them, the same framing a language server
 // uses. A request is answered by a response that names its sequence number; an event goes to the function the adapter
 // was started with. The adapter is a program started for the session, one listening at an address that the client
-// connects to, or one that runs in orior itself, framed the same way. A request from the adapter, such as one to run
+// connects to, or one that runs in orior_cli itself, framed the same way. A request from the adapter, such as one to run
 // the program in a terminal, is refused, and the adapter then runs it itself (dap.c, dap_start.c,
 // dap_waiters.c)
 #ifndef DAP_H
@@ -28,7 +28,7 @@ typedef int (*CliDapServe)(void *context, CliDap *dap, const char *request, unsi
 
 // `program` started with `args`, `count` of them, in `folder`, its PATH `path`, as the adapter, `heard` taking its
 // events, ending the session ending the program where `ends_program`; the adapter listening at `host`:`port` connected
-// to, within 5 s; and an adapter that runs in orior started on a thread of its own, `serve` handed each request. Each
+// to, within 5 s; and an adapter that runs in orior_cli started on a thread of its own, `serve` handed each request. Each
 // held once for its starter, or NULL with why said. An adapter held once more, and a hold given back, the adapter ended
 // with the last (dap_start.c, dap_within.c, dap.c)
 CliDap *cli_dap_started(const char *program, const char *const *args, unsigned int count, const char *folder,
@@ -39,7 +39,7 @@ CliDap *cli_dap_within(CliDapServe serve, void *serve_context, CliDapHeard heard
 void cli_dap_held(CliDap *dap);
 void cli_dap_given(CliDap *dap);
 
-// what an adapter in orior says to the client, and hands itself, `size` bytes of a message's JSON: 1, or 0 where it
+// what an adapter in orior_cli says to the client, and hands itself, `size` bytes of a message's JSON: 1, or 0 where it
 // could not, as where the client let it go (dap_within.c)
 int cli_dap_told(CliDap *dap, const char *message, unsigned long long size);
 int cli_dap_itself(CliDap *dap, const char *message, unsigned long long size);

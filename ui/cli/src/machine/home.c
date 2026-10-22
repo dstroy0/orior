@@ -7,18 +7,18 @@
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
 
-// what menus.json holds when orior makes it: a note on what each part is for, and nothing laid out
+// what menus.json holds when orior_cli makes it: a note on what each part is for, and nothing laid out
 #define CLI_MENUS                                                                                                      \
-    "{\n  \"about\": \"Each item is a command's name, as orior <menu> <command> names it, or { \\\"command\\\": "      \
+    "{\n  \"about\": \"Each item is a command's name, as orior_cli <menu> <command> names it, or { \\\"command\\\": "      \
     "name, "                                                                                                           \
     "\\\"label\\\": text, \\\"icon\\\": name }, or \\\"-\\\" for a line; { \\\"label\\\": text, \\\"items\\\": [...] " \
     "} "                                                                                                               \
     "holds more. A menu named as one of orior's stands in its place, the others stand before Help, and hide takes "    \
     "orior's away by name.\",\n  \"menus\": [],\n  \"hide\": [],\n  \"toolbar\": []\n}\n"
 
-// what user.css holds when orior makes it: a note on what it is for
+// what user.css holds when orior_cli makes it: a note on what it is for
 #define CLI_USER_CSS                                                                                                   \
-    "/* orior lays this stylesheet over its own, last, and reads it again each time the window\n"                      \
+    "/* orior_cli lays this stylesheet over its own, last, and reads it again each time the window\n"                      \
     "   comes back to the front. Every color and font the app uses is a variable, named as\n"                          \
     "   Preferences lists them. This rule sets two of them for both schemes:\n\n"                                      \
     "   :root[data-scheme] { --fuse-fire: #ff7a1a; --code: \"Fira Code\", monospace; }\n\n"                            \
@@ -59,7 +59,7 @@ int cli_home_folder(char *folder)
     return cli_line_closed(&line) != 0ull;
 }
 
-// `name` in orior's own folder into `path`: 1, or 0 where orior has no folder of its own
+// `name` in orior's own folder into `path`: 1, or 0 where orior_cli has no folder of its own
 static int cli_home_named(const char *name, char *path)
 {
     char folder[CLI_PATH_LONGEST];
@@ -131,7 +131,7 @@ int cli_home_ensure_menus(char *path, CliLine *said)
 {
     if (!cli_home_menus(path))
     {
-        cli_line_text(said, "orior has no folder of its own to keep menus in");
+        cli_line_text(said, "orior_cli has no folder of its own to keep menus in");
         return 0;
     }
     return cli_home_ensured(path, CLI_MENUS, said);
@@ -141,7 +141,7 @@ int cli_home_ensure_user_css(char *path, CliLine *said)
 {
     if (!cli_home_user_css(path))
     {
-        cli_line_text(said, "orior has no folder of its own to keep a stylesheet in");
+        cli_line_text(said, "orior_cli has no folder of its own to keep a stylesheet in");
         return 0;
     }
     return cli_home_ensured(path, CLI_USER_CSS, said);
@@ -156,7 +156,7 @@ int cli_home_reveal(const char *path, CliLine *said)
 #else
     const char *const words[3] = {"xdg-open", path, NULL};
 #endif
-    // the file manager or the program it opens in is the reader's, and stays as orior ends
+    // the file manager or the program it opens in is the reader's, and stays as orior_cli ends
     unsigned int id = 0u;
     if (!cli_started_outside(words, &id))
     {

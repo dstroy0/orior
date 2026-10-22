@@ -7,11 +7,27 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-// the most one answer kept takes, written
+// the most one answer kept takes, written, and the bytes the answers are held in before each piece is added to the file
 #define CLI_REQUESTS_PIECE (16u << 20u)
+#define CLI_REQUESTS_ROOM 16384u
 
-static char s_piece[CLI_REQUESTS_PIECE];
 static CliLock s_keeping = CLI_LOCK_INIT;
+
+// The file the answers are added to as their line fills: its path, and whether the next piece makes it anew
+typedef struct
+{
+    const char *path;
+    int fresh;
+} CliKeptWriting;
+
+// a piece added to the file the answers are written in, the first made anew: 1, or 0 where it could not be
+static int kept_appended(void *context, const char *bytes, unsigned long long size)
+{
+    CliKeptWriting *const writing = context;
+    const int put = cli_file_appended(writing->path, bytes, size, writing->fresh);
+    writing->fresh = 0;
+    return put;
+}
 
 // the first 16 hex digits of the SHA-256 of `size` bytes written into `out`
 static void kept_named(const char *bytes, unsigned long long size, CliLine *out)
@@ -79,7 +95,7 @@ static int kept_white(unsigned char byte)
 // its first item may start into `*first`: 1, or 0 where there is none or it holds no array, nothing then mapped
 static int kept_read(const char *file, const unsigned char **bytes, unsigned long long *size, unsigned long long *first)
 {
-    *bytes = qry_member_file_mapped(file, size);
+    *bytes = cli_file_held(file, size);
     CliLine none = {NULL, 0ull, 0ull};
     unsigned long long at = 0ull;
     while ((*bytes != NULL) && (at < *size) && kept_white((*bytes)[at]))
@@ -89,23 +105,16 @@ static int kept_read(const char *file, const unsigned char **bytes, unsigned lon
     if ((*bytes != NULL) &&
         ((at == *size) || ((*bytes)[at] != '[') || !cli_json_compacted((const char *)*bytes, *size, &none)))
     {
-        qry_member_file_unmapped(*bytes, *size);
+        cli_file_let_go(*bytes, *size);
         *bytes = NULL;
     }
     *first = at + 1u;
     return *bytes != NULL;
 }
 
-// a piece added to the file at `path`, made anew first where `fresh` is 1: 1, or 0 where it could not be or the piece
-// ran out of room
-static int kept_put(const char *path, const CliLine *piece, int fresh)
-{
-    return cli_line_fits(piece) && cli_file_appended(path, piece->out, piece->at, fresh);
-}
-
-// the answers kept before, from `at` of `size` bytes, the first CLI_REQUESTS_KEEP - 1 of them added to the file at
-// `writing`, each after a comma: 1, or 0 where one could not be
-static int kept_before(const char *writing, const unsigned char *bytes, unsigned long long size, unsigned long long at)
+// the answers kept before, from `at` of `size` bytes, the first CLI_REQUESTS_KEEP - 1 of them written into `piece`,
+// each after a comma: 1, or 0 where one could not be
+static int kept_before(CliLine *piece, const unsigned char *bytes, unsigned long long size, unsigned long long at)
 {
     for (unsigned int kept = 1u; kept < CLI_REQUESTS_KEEP; kept += 1u)
     {
@@ -114,9 +123,8 @@ static int kept_before(const char *writing, const unsigned char *bytes, unsigned
         {
             return 1;
         }
-        CliLine piece = {s_piece, sizeof(s_piece), 0ull};
-        cli_line_character(&piece, ',');
-        if (!cli_json_compacted((const char *)bytes + at, end - at, &piece) || !kept_put(writing, &piece, 0))
+        cli_line_character(piece, ',');
+        if (!cli_json_compacted((const char *)bytes + at, end - at, piece) || !cli_line_fits(piece))
         {
             return 0;
         }
@@ -152,17 +160,24 @@ int cli_requests_keep(const char *root, const char *path, const char *key, unsig
     unsigned long long size = 0ull;
     unsigned long long first = 0ull;
     const int before = made && kept_read(file, &bytes, &size, &first);
-    CliLine piece = {s_piece, sizeof(s_piece), 0ull};
-    cli_line_character(&piece, '[');
-    cli_requests_answer_written(answer, sent, CLI_REQUESTS_KEPT_BODY, &piece);
-    int done = made && kept_put(writing, &piece, 1) && (!before || kept_before(writing, bytes, size, first));
+    // the answers written into a room of their own, each piece added to the file as the room fills
+    char room[CLI_REQUESTS_ROOM];
+    CliKeptWriting target = {writing, 1};
+    CliLine piece = {room, sizeof(room), 0ull, kept_appended, &target, 0ull};
+    int done = made;
+    if (done)
+    {
+        cli_line_character(&piece, '[');
+        cli_requests_answer_written(answer, sent, CLI_REQUESTS_KEPT_BODY, &piece);
+        done = cli_line_fits(&piece) && ((piece.flushed + piece.at) <= CLI_REQUESTS_PIECE) &&
+               (!before || kept_before(&piece, bytes, size, first));
+    }
     if (before)
     {
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
-    piece.at = 0ull;
     cli_line_character(&piece, ']');
-    done = done && kept_put(writing, &piece, 0) && cli_moved(writing, file);
+    done = done && cli_line_flushed(&piece) && cli_moved(writing, file);
     cli_lock_give(&s_keeping);
     if (!done)
     {
@@ -186,7 +201,7 @@ int cli_requests_answers(const char *root, const char *path, const char *text, u
     }
     if (!cli_line_fits(&key_line) || !kept_file(folder, key, key_line.at, file, writing))
     {
-        cli_line_text(said, "the request is larger than orior holds");
+        cli_line_text(said, "the request is larger than orior_cli holds");
         return 0;
     }
     cli_line_text(out, "{\"key\":");
@@ -199,7 +214,7 @@ int cli_requests_answers(const char *root, const char *path, const char *text, u
     if (kept_read(file, &bytes, &held, &first))
     {
         (void)cli_json_compacted((const char *)bytes, held, out);
-        qry_member_file_unmapped(bytes, held);
+        cli_file_let_go(bytes, held);
     }
     else
     {

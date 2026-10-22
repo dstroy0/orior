@@ -17,13 +17,13 @@ int knf_wide_equal(const KnfWide *left, const KnfWide *right)
     return (left->low == right->low) && (left->high == right->high);
 }
 
-void knf_wide_exact(const KnfWide *wide, AnchorExactInteger *value)
+void knf_wide_exact(const KnfWide *wide, OriorExactInteger *value)
 {
     const int negative = (wide->high >> 63u) != 0ull;
     // the magnitude of a negative sum is its two's complement negation across both words
     const unsigned long long low = negative ? (0ull - wide->low) : wide->low;
     const unsigned long long high = negative ? ((~wide->high) + ((wide->low == 0ull) ? 1ull : 0ull)) : wide->high;
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     // each 64-bit word splits into two 32-bit limbs, low half first
     value->limb[0] = (uint32_t)(low & 0xFFFFFFFFull);
     value->limb[1] = (uint32_t)(low >> 32u);
@@ -32,19 +32,19 @@ void knf_wide_exact(const KnfWide *wide, AnchorExactInteger *value)
     value->sign = ((low | high) == 0ull) ? 0 : (negative ? -1 : 1);
 }
 
-void knf_exact_total(const KnfEntangled *entangled, AnchorExactInteger *total)
+void knf_exact_total(const KnfEntangled *entangled, OriorExactInteger *total)
 {
-    AnchorExactInteger inside;
-    AnchorExactInteger seam;
+    OriorExactInteger inside;
+    OriorExactInteger seam;
     knf_wide_exact(&entangled->inside, &inside);
     knf_wide_exact(&entangled->seam, &seam);
     sim_exact_sum(&inside, &seam, total);
 }
 
-void knf_departure_of(const AnchorExactInteger *truth, const AnchorExactInteger *drawn_sum,
-                      AnchorExactInteger *departure)
+void knf_departure_of(const OriorExactInteger *truth, const OriorExactInteger *drawn_sum,
+                      OriorExactInteger *departure)
 {
-    AnchorExactInteger scaled;
+    OriorExactInteger scaled;
     sim_exact_scaled(truth, KNF_DRAWS, &scaled);
     sim_exact_less(&scaled, drawn_sum, departure);
 }

@@ -1,53 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// catalog_scan.c: a folder's entries in order, and what a file says of itself: its opening paragraph, the names a case
-// accepts, the parts a driver's usage names, and a README's first paragraph
+// catalog_scan.c: a path joined and a path's stem, and what a file says of itself: its opening paragraph, the names a
+// case accepts, the parts a driver's usage names, and a README's first paragraph
 #include "../text/text.h"
 #include "catalog_internal.h"
-
-// the most bytes of a file read for what it says of itself
-#define CLI_SCAN_BYTES (1u << 22u)
-
-static char s_text[CLI_SCAN_BYTES];
-static CliLock s_lock = CLI_LOCK_INIT;
-
-// What a folder's walk keeps: its entries and what it keeps of them
-typedef struct
-{
-    CliEntries *entries;
-    int folders;
-    int (*keep)(const char *name);
-} CliEntryWalk;
-
-static void cli_entry_each(void *context, const char *name, int is_folder)
-{
-    CliEntryWalk *const walk = (CliEntryWalk *)context;
-    CliEntries *const entries = walk->entries;
-    const int kept = walk->folders ? is_folder : (!is_folder && (walk->keep != NULL) && walk->keep(name));
-    if (!kept || (entries->count >= CLI_ENTRIES_MOST) ||
-        (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) >= CLI_NAME_LONGEST))
-    {
-        return;
-    }
-    unsigned int place = entries->count;
-    while ((place > 0u) && (cli_text_order(entries->name[place - 1u], name) > 0))
-    {
-        memor.cpy(
-            &(MemoriaCfg){.dst = entries->name[place], .bytes = CLI_NAME_LONGEST, .src = entries->name[place - 1u]});
-        place -= 1u;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = entries->name[place],
-                            .src = name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-    entries->count += 1u;
-}
-
-void cli_catalog_entries(const char *folder, int folders, int (*keep)(const char *name), CliEntries *entries)
-{
-    entries->count = 0u;
-    CliEntryWalk walk = {entries, folders, keep};
-    query_folder_each(folder, cli_entry_each, &walk);
-}
 
 void cli_catalog_join(const char *folder, const char *name, char *path)
 {
@@ -186,18 +142,11 @@ static void cli_docstring(const char *open, const char *end, CliLine *out)
     }
 }
 
-void cli_catalog_about(const char *path, CliLine *out)
+// the end of the first 120 lines of the `size` bytes at `text`, the lines what a file says of itself is read from
+static const char *cli_about_end(const char *text, unsigned long long size)
 {
-    cli_lock_take(&s_lock);
-    const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text));
-    if (size == QRY_MEMBER_UNREAD)
-    {
-        cli_lock_give(&s_lock);
-        return;
-    }
-    // the first 120 lines are read
-    const char *end = s_text;
-    const char *const whole = s_text + size;
+    const char *end = text;
+    const char *const whole = text + size;
     for (unsigned int lines = 0u; (lines < 120u) && (end < whole); lines += 1u)
     {
         while ((end < whole) && (end[0] != '\n'))
@@ -206,11 +155,17 @@ void cli_catalog_about(const char *path, CliLine *out)
         }
         end += (end < whole) ? 1 : 0;
     }
+    return end;
+}
+
+// what the file at `path`, its text from `text` to `end`, says of itself into `out`
+static void cli_about_said(const char *path, const char *text, const char *end, CliLine *out)
+{
     const char *const dot =
         cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '.');
     const char *const extension = (dot != NULL) ? (dot + 1) : "";
     CatalogTextLine line;
-    const char *at = s_text;
+    const char *at = text;
     if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "py", .cap = CLI_CELLS_POOL}))
     {
         while (cli_line(&at, end, &line))
@@ -218,11 +173,10 @@ void cli_catalog_about(const char *path, CliLine *out)
             if (cli_starts(cli_trimmed(line), "\"\"\""))
             {
                 cli_docstring(line.at, end, out);
-                cli_lock_give(&s_lock);
                 return;
             }
         }
-        at = s_text;
+        at = text;
     }
     const char *const mark = ((cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "sh", .cap = CLI_CELLS_POOL})) ||
                               (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "py", .cap = CLI_CELLS_POOL})) ||
@@ -272,7 +226,45 @@ void cli_catalog_about(const char *path, CliLine *out)
         }
         cli_kept(out, &count, said.at, said.length);
     }
-    cli_lock_give(&s_lock);
+}
+
+void cli_catalog_about(const char *path, CliLine *out)
+{
+    unsigned long long size = 0ull;
+    const unsigned char *const bytes = cli_file_held(path, &size);
+    if (bytes == NULL)
+    {
+        return;
+    }
+    // the file's bytes read as its text
+    const char *const text = (const char *)bytes;
+    cli_about_said(path, text, cli_about_end(text, size), out);
+    cli_file_let_go(bytes, size);
+}
+
+// what a file says of itself is the text of the lines it is read from, a space put for each line's end it passes, so
+// it is no longer than those lines
+char *cli_catalog_about_taken(const char *path)
+{
+    unsigned long long size = 0ull;
+    const unsigned char *const bytes = cli_file_held(path, &size);
+    if (bytes == NULL)
+    {
+        return NULL;
+    }
+    // the file's bytes read as its text
+    const char *const text = (const char *)bytes;
+    const char *const end = cli_about_end(text, size);
+    const unsigned long long room = (unsigned long long)(end - text) + 1ull;
+    char *const about = cli_cell_taken_by(&g_cli_catalog_cells, room, "what a file says of itself");
+    if (about != NULL)
+    {
+        CliLine line = {about, room, 0ull};
+        cli_about_said(path, text, end, &line);
+        cli_line_closed(&line);
+    }
+    cli_file_let_go(bytes, size);
+    return about;
 }
 
 unsigned int cli_catalog_case_names(const char *text, const char *variable, char (*names)[CLI_NAME_LONGEST],
@@ -320,7 +312,12 @@ unsigned int cli_catalog_case_names(const char *text, const char *variable, char
         {
             CatalogTextLine name = {first.at + from, cut - from};
             name = cli_trimmed(name);
-            if ((name.length != 0ull) && !((name.length == 1u) && (name.at[0] == '*')) && (count < room))
+            const int named = (name.length != 0ull) && !((name.length == 1u) && (name.at[0] == '*'));
+            if (named && (names == NULL))
+            {
+                count += 1u;
+            }
+            else if (named && (count < room))
             {
                 CliLine kept = {names[count], CLI_NAME_LONGEST, 0ull};
                 cli_line_counted(&kept, name.at, name.length);
@@ -332,20 +329,14 @@ unsigned int cli_catalog_case_names(const char *text, const char *variable, char
     return count;
 }
 
-unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME_LONGEST], unsigned int room)
+// the text of the literals from `from` up to the first `\n` written in them, joined into `joined` where it is not
+// NULL: its length
+static unsigned long long cli_driver_joined(const char *from, char *joined)
 {
-    static const char s_marker[] = "in the order given:";
-    const char *const found = cellul.find(
-        &(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL, .other = s_marker, .other_cap = CLI_CELLS_POOL});
-    if (found == NULL)
-    {
-        return 0u;
-    }
-    static char s_joined[1u << 16u];
-    CliLine joined = {s_joined, sizeof(s_joined), 0ull};
+    unsigned long long length = 0ull;
+    char previous = '\0';
     int inside = 1;
-    for (const char *at = found + cellul.len(&(CatenaFinitaCfg){.src = s_marker, .cap = CLI_CELLS_POOL}); at[0] != '\0';
-         at += 1)
+    for (const char *at = from; at[0] != '\0'; at += 1)
     {
         if (at[0] == '"')
         {
@@ -356,24 +347,50 @@ unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME
         {
             continue;
         }
-        cli_line_character(&joined, at[0]);
-        if (cli_line_fits(&joined) && (joined.at >= 2u) && (s_joined[joined.at - 2u] == '\\') &&
-            (s_joined[joined.at - 1u] == 'n'))
+        if ((previous == '\\') && (at[0] == 'n'))
         {
-            joined.at -= 2u;
-            break;
+            return length - 1ull;
         }
+        if (joined != NULL)
+        {
+            joined[length] = at[0];
+        }
+        length += 1ull;
+        previous = at[0];
     }
-    const unsigned long long length = cli_line_fits(&joined) ? joined.at : 0ull;
+    return length;
+}
+
+unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME_LONGEST], unsigned int room)
+{
+    static const char s_marker[] = "in the order given:";
+    const char *const found = cellul.find(
+        &(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL, .other = s_marker, .other_cap = CLI_CELLS_POOL});
+    if (found == NULL)
+    {
+        return 0u;
+    }
+    const char *const literals = found + cellul.len(&(CatenaFinitaCfg){.src = s_marker, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cli_driver_joined(literals, NULL);
+    char *const joined = cli_cell_taken_by(&g_cli_catalog_cells, length + 1ull, "the driver's parts joined");
+    if (joined == NULL)
+    {
+        return 0u;
+    }
+    (void)cli_driver_joined(literals, joined);
     unsigned int count = 0u;
     unsigned long long from = 0ull;
     for (unsigned long long cut = 0ull; cut <= length; cut += 1ull)
     {
-        if ((cut == length) || (s_joined[cut] == ','))
+        if ((cut == length) || (joined[cut] == ','))
         {
-            CatalogTextLine part = {s_joined + from, cut - from};
+            CatalogTextLine part = {joined + from, cut - from};
             part = cli_trimmed(part);
-            if ((part.length != 0ull) && (count < room))
+            if ((part.length != 0ull) && (parts == NULL))
+            {
+                count += 1u;
+            }
+            else if ((part.length != 0ull) && (count < room))
             {
                 CliLine kept = {parts[count], CLI_NAME_LONGEST, 0ull};
                 cli_line_counted(&kept, part.at, part.length);
@@ -382,15 +399,30 @@ unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME
             from = cut + 1ull;
         }
     }
+    cli_cell_given_by(&g_cli_catalog_cells, joined);
     return count;
 }
 
-void cli_catalog_markdown_opening(const char *path, CliLine *out)
+// a README's first paragraph is the text of its lines, a space put for each line's end it passes, so it is no longer
+// than the README
+char *cli_catalog_markdown_taken(const char *path)
 {
-    cli_lock_take(&s_lock);
-    const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text));
-    const char *at = s_text;
-    const char *const end = s_text + ((size == QRY_MEMBER_UNREAD) ? 0ull : size);
+    unsigned long long size = 0ull;
+    const unsigned char *const bytes = cli_file_held(path, &size);
+    if (bytes == NULL)
+    {
+        return NULL;
+    }
+    char *const opening = cli_cell_taken_by(&g_cli_catalog_cells, size + 1ull, "a README's first paragraph");
+    if (opening == NULL)
+    {
+        cli_file_let_go(bytes, size);
+        return NULL;
+    }
+    CliLine opened = {opening, size + 1ull, 0ull};
+    // the file's bytes read as its text
+    const char *at = (const char *)bytes;
+    const char *const end = at + size;
     int count = 0;
     CatalogTextLine line;
     while (cli_line(&at, end, &line))
@@ -404,7 +436,9 @@ void cli_catalog_markdown_opening(const char *path, CliLine *out)
             }
             continue;
         }
-        cli_kept(out, &count, line.at, line.length);
+        cli_kept(&opened, &count, line.at, line.length);
     }
-    cli_lock_give(&s_lock);
+    cli_line_closed(&opened);
+    cli_file_let_go(bytes, size);
+    return opening;
 }

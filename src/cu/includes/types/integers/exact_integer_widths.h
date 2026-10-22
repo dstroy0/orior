@@ -17,14 +17,14 @@ extern "C"
 /**
  * @brief Limbs per exact integer, at 32 bits each, a power of two for a power-of-two width.
  *
- * @note Given as limbs here or as bits in ANCHOR_EXACT_BITS. The one not given follows from the
+ * @note Given as limbs here or as bits in ORIOR_EXACT_BITS. The one not given follows from the
  *       other, and both given must agree. The widths are written without casts so #if can weigh
  *       them.
  * @note 128 limbs is 4096 bits, which holds 1024 decimal digits with room over. That is the scale
  *       representation/exact.py ingests at, and the two forms have to agree on the same values or
  *       a cross check between them means nothing.
  * @note The value a limb array carries is the expansion sum(limb[i] * (2^32)^i), whose top
- *       coefficient is the width 2^ANCHOR_EXACT_BITS. A power of two limb count makes that width a
+ *       coefficient is the width 2^ORIOR_EXACT_BITS. A power of two limb count makes that width a
  *       power of two. The top magnitude bit then lands at a fixed position, and the width scales by
  *       doubling, 4096 to 8192 to 16384 bits, with the position fixed at each. The guard below
  *       errors on a width that is not a power of two.
@@ -32,22 +32,22 @@ extern "C"
  *       graded from 1 limb to 32768 by utils/maint/engine/check_exact_widths.sh, and the portable
  *       reference to 4194304 bits by utils/test/src/cu/includes/types/integers/exact_transform_test.sh.
  * @note A width below 4096 bits cannot hold the 1024 digit floor. A build selecting one declares
- *       its own ANCHOR_EXACT_DIGITS, and the floor assert below errors on it by name where it does not.
+ *       its own ORIOR_EXACT_DIGITS, and the floor assert below errors on it by name where it does not.
  * @note Defined on both arms so #if always has a value and an unset build is never a silent false.
  */
-#if defined(ANCHOR_EXACT_BITS) && !defined(ANCHOR_EXACT_LIMBS)
-#define ANCHOR_EXACT_LIMBS ((ANCHOR_EXACT_BITS) / 32ull)
+#if defined(ORIOR_EXACT_BITS) && !defined(ORIOR_EXACT_LIMBS)
+#define ORIOR_EXACT_LIMBS ((ORIOR_EXACT_BITS) / 32ull)
 #endif
 
-#ifndef ANCHOR_EXACT_LIMBS
-#define ANCHOR_EXACT_LIMBS 128u
+#ifndef ORIOR_EXACT_LIMBS
+#define ORIOR_EXACT_LIMBS 128u
 #endif
 
 /**
  * @brief Bits the fixed width actually carries. Every size is taken from this or from the limbs.
  */
-#ifndef ANCHOR_EXACT_BITS
-#define ANCHOR_EXACT_BITS ((ANCHOR_EXACT_LIMBS) * 32ull)
+#ifndef ORIOR_EXACT_BITS
+#define ORIOR_EXACT_BITS ((ORIOR_EXACT_LIMBS) * 32ull)
 #endif
 
 /**
@@ -62,18 +62,18 @@ extern "C"
  *       which this width holds and the earlier 3456-bit width errored.
  * @warning Never size a buffer from this. A width computed from digits is short the moment anybody
  *          raises the floor toward the real capacity, and a device allocation sized that way would
- *          be short by exactly the amount nobody was watching. Size from ANCHOR_EXACT_LIMBS or from
- *          sizeof(AnchorExactInteger), which cannot drift apart from the array they describe.
+ *          be short by exactly the amount nobody was watching. Size from ORIOR_EXACT_LIMBS or from
+ *          sizeof(OriorExactInteger), which cannot drift apart from the array they describe.
  * @note Defined on both arms, like the limb count. A build can then raise the floor and the assert
  *       below decides whether the width holds it. A knob the build cannot set is a knob whose guard
  *       has never been exercised.
  */
-#ifndef ANCHOR_EXACT_DIGITS
-#define ANCHOR_EXACT_DIGITS 1024u
+#ifndef ORIOR_EXACT_DIGITS
+#define ORIOR_EXACT_DIGITS 1024u
 #endif
 
 /* The width is a power of two of at least one limb. The expansion's top coefficient
- * 2^ANCHOR_EXACT_BITS is then a power of two and the top magnitude bit sits at a fixed position at
+ * 2^ORIOR_EXACT_BITS is then a power of two and the top magnitude bit sits at a fixed position at
  * every size the build selects. Scaling is by doubling the limb count, 128 to 256 to 512, holding
  * 4096, 8192, 16384 bits. A width that is not a power of two, an override such as the earlier 108
  * limbs, fails compilation here. The power of two test alone passes a width of zero, because
@@ -89,34 +89,34 @@ extern "C"
  * bench binary carrying no CUDA symbols went on reporting a "cuda" arm that agreed with the portable
  * one. It agreed because it WAS the portable one. */
 #if defined(__cplusplus)
-    static_assert(((unsigned long long)(ANCHOR_EXACT_BITS) >= 32ull) &&
-                      (((unsigned long long)(ANCHOR_EXACT_BITS) & ((unsigned long long)(ANCHOR_EXACT_BITS)-1ull)) ==
+    static_assert(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ull) &&
+                      (((unsigned long long)(ORIOR_EXACT_BITS) & ((unsigned long long)(ORIOR_EXACT_BITS)-1ull)) ==
                        0ull),
-                  "ANCHOR_EXACT_BITS must be a power of two of at least 32, so the width scales by doubling");
-    static_assert((unsigned long long)(ANCHOR_EXACT_BITS) == ((unsigned long long)(ANCHOR_EXACT_LIMBS) * 32ull),
-                  "ANCHOR_EXACT_BITS and ANCHOR_EXACT_LIMBS must name the same width");
-    static_assert(((((unsigned long long)(ANCHOR_EXACT_DIGITS) * 3322ull) / 1000ull) + 1ull) <=
-                      (unsigned long long)(ANCHOR_EXACT_BITS),
-                  "ANCHOR_EXACT_DIGITS declares more decimal digits than ANCHOR_EXACT_LIMBS holds");
+                  "ORIOR_EXACT_BITS must be a power of two of at least 32, so the width scales by doubling");
+    static_assert((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(ORIOR_EXACT_LIMBS) * 32ull),
+                  "ORIOR_EXACT_BITS and ORIOR_EXACT_LIMBS must name the same width");
+    static_assert(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ull) / 1000ull) + 1ull) <=
+                      (unsigned long long)(ORIOR_EXACT_BITS),
+                  "ORIOR_EXACT_DIGITS declares more decimal digits than ORIOR_EXACT_LIMBS holds");
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-_Static_assert(((unsigned long long)(ANCHOR_EXACT_BITS) >= 32ull) &&
-                   (((unsigned long long)(ANCHOR_EXACT_BITS) & ((unsigned long long)(ANCHOR_EXACT_BITS)-1ull)) == 0ull),
-               "ANCHOR_EXACT_BITS must be a power of two of at least 32, so the width scales by doubling");
-_Static_assert((unsigned long long)(ANCHOR_EXACT_BITS) == ((unsigned long long)(ANCHOR_EXACT_LIMBS) * 32ull),
-               "ANCHOR_EXACT_BITS and ANCHOR_EXACT_LIMBS must name the same width");
-_Static_assert(((((unsigned long long)(ANCHOR_EXACT_DIGITS) * 3322ull) / 1000ull) + 1ull) <=
-                   (unsigned long long)(ANCHOR_EXACT_BITS),
-               "ANCHOR_EXACT_DIGITS declares more decimal digits than ANCHOR_EXACT_LIMBS holds");
+_Static_assert(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ull) &&
+                   (((unsigned long long)(ORIOR_EXACT_BITS) & ((unsigned long long)(ORIOR_EXACT_BITS)-1ull)) == 0ull),
+               "ORIOR_EXACT_BITS must be a power of two of at least 32, so the width scales by doubling");
+_Static_assert((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(ORIOR_EXACT_LIMBS) * 32ull),
+               "ORIOR_EXACT_BITS and ORIOR_EXACT_LIMBS must name the same width");
+_Static_assert(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ull) / 1000ull) + 1ull) <=
+                   (unsigned long long)(ORIOR_EXACT_BITS),
+               "ORIOR_EXACT_DIGITS declares more decimal digits than ORIOR_EXACT_LIMBS holds");
 #else
-typedef char anchor_exact_bits_are_a_power_of_two[(((unsigned long long)(ANCHOR_EXACT_BITS) >= 32ull) &&
-                                                   (((unsigned long long)(ANCHOR_EXACT_BITS) &
-                                                     ((unsigned long long)(ANCHOR_EXACT_BITS)-1ull)) == 0ull))
+typedef char orior_exact_bits_are_a_power_of_two[(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ull) &&
+                                                   (((unsigned long long)(ORIOR_EXACT_BITS) &
+                                                     ((unsigned long long)(ORIOR_EXACT_BITS)-1ull)) == 0ull))
                                                       ? 1
                                                       : -1];
-typedef char anchor_exact_bits_and_limbs_agree
-    [((unsigned long long)(ANCHOR_EXACT_BITS) == ((unsigned long long)(ANCHOR_EXACT_LIMBS) * 32ull)) ? 1 : -1];
-typedef char anchor_exact_digits_fit_the_width[(((((unsigned long long)(ANCHOR_EXACT_DIGITS) * 3322ull) / 1000ull) +
-                                                 1ull) <= (unsigned long long)(ANCHOR_EXACT_BITS))
+typedef char orior_exact_bits_and_limbs_agree
+    [((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(ORIOR_EXACT_LIMBS) * 32ull)) ? 1 : -1];
+typedef char orior_exact_digits_fit_the_width[(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ull) / 1000ull) +
+                                                 1ull) <= (unsigned long long)(ORIOR_EXACT_BITS))
                                                    ? 1
                                                    : -1];
 #endif
@@ -127,8 +127,8 @@ typedef char anchor_exact_digits_fit_the_width[(((((unsigned long long)(ANCHOR_E
  * @note Past it every width-sized working copy is allocated from the heap. 4096 limbs is 16 KiB a copy,
  *       and the widest call, the gcd, holds nine of them.
  */
-#ifndef ANCHOR_EXACT_STACK_LIMBS
-#define ANCHOR_EXACT_STACK_LIMBS 4096u
+#ifndef ORIOR_EXACT_STACK_LIMBS
+#define ORIOR_EXACT_STACK_LIMBS 4096u
 #endif
 
 /**
@@ -138,8 +138,8 @@ typedef char anchor_exact_digits_fit_the_width[(((((unsigned long long)(ANCHOR_E
  * @note Karatsuba splits each factor in halves and recurses into three half products. Its cost
  *       grows as n^1.585 against the long multiplication's n^2.
  */
-#ifndef ANCHOR_EXACT_KARATSUBA_LIMBS
-#define ANCHOR_EXACT_KARATSUBA_LIMBS 32u
+#ifndef ORIOR_EXACT_KARATSUBA_LIMBS
+#define ORIOR_EXACT_KARATSUBA_LIMBS 32u
 #endif
 
 /**
@@ -154,8 +154,8 @@ typedef char anchor_exact_digits_fit_the_width[(((((unsigned long long)(ANCHOR_E
  * @note Those ratios are one reading. Repeated readings of the same code on the same host differ by up
  *       to about 1.3x, and 16384 has read 1.02x and 1.32x. The crossover at 8192 held on every run.
  */
-#ifndef ANCHOR_EXACT_TRANSFORM_LIMBS
-#define ANCHOR_EXACT_TRANSFORM_LIMBS 8192u
+#ifndef ORIOR_EXACT_TRANSFORM_LIMBS
+#define ORIOR_EXACT_TRANSFORM_LIMBS 8192u
 #endif
 
 /**
@@ -170,24 +170,24 @@ typedef char anchor_exact_digits_fit_the_width[(((((unsigned long long)(ANCHOR_E
  * @note One reading as well. Another run read 1.09x at 8192 and 1.45x at 16384. Ratios within about
  *       1.3x are not settled by one reading, and the crossover at 8192 held on every run.
  */
-#ifndef ANCHOR_EXACT_NEWTON_LIMBS
-#define ANCHOR_EXACT_NEWTON_LIMBS 8192u
+#ifndef ORIOR_EXACT_NEWTON_LIMBS
+#define ORIOR_EXACT_NEWTON_LIMBS 8192u
 #endif
 
 #if defined(__cplusplus)
-    static_assert((ANCHOR_EXACT_NEWTON_LIMBS) >= 1u, "Newton's division needs a divisor of at least one limb");
-    static_assert((ANCHOR_EXACT_KARATSUBA_LIMBS) >= 4u, "Karatsuba splits in halves of at least two limbs");
-    static_assert((ANCHOR_EXACT_TRANSFORM_LIMBS) >= (ANCHOR_EXACT_KARATSUBA_LIMBS),
+    static_assert((ORIOR_EXACT_NEWTON_LIMBS) >= 1u, "Newton's division needs a divisor of at least one limb");
+    static_assert((ORIOR_EXACT_KARATSUBA_LIMBS) >= 4u, "Karatsuba splits in halves of at least two limbs");
+    static_assert((ORIOR_EXACT_TRANSFORM_LIMBS) >= (ORIOR_EXACT_KARATSUBA_LIMBS),
                   "the transform's rung sits at or above Karatsuba's");
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-_Static_assert((ANCHOR_EXACT_NEWTON_LIMBS) >= 1u, "Newton's division needs a divisor of at least one limb");
-_Static_assert((ANCHOR_EXACT_KARATSUBA_LIMBS) >= 4u, "Karatsuba splits in halves of at least two limbs");
-_Static_assert((ANCHOR_EXACT_TRANSFORM_LIMBS) >= (ANCHOR_EXACT_KARATSUBA_LIMBS),
+_Static_assert((ORIOR_EXACT_NEWTON_LIMBS) >= 1u, "Newton's division needs a divisor of at least one limb");
+_Static_assert((ORIOR_EXACT_KARATSUBA_LIMBS) >= 4u, "Karatsuba splits in halves of at least two limbs");
+_Static_assert((ORIOR_EXACT_TRANSFORM_LIMBS) >= (ORIOR_EXACT_KARATSUBA_LIMBS),
                "the transform's rung sits at or above Karatsuba's");
 #else
-typedef char anchor_exact_newton_has_a_divisor[((ANCHOR_EXACT_NEWTON_LIMBS) >= 1u) ? 1 : -1];
-typedef char anchor_exact_karatsuba_splits[((ANCHOR_EXACT_KARATSUBA_LIMBS) >= 4u) ? 1 : -1];
-typedef char anchor_exact_rungs_in_order[((ANCHOR_EXACT_TRANSFORM_LIMBS) >= (ANCHOR_EXACT_KARATSUBA_LIMBS)) ? 1 : -1];
+typedef char orior_exact_newton_has_a_divisor[((ORIOR_EXACT_NEWTON_LIMBS) >= 1u) ? 1 : -1];
+typedef char orior_exact_karatsuba_splits[((ORIOR_EXACT_KARATSUBA_LIMBS) >= 4u) ? 1 : -1];
+typedef char orior_exact_rungs_in_order[((ORIOR_EXACT_TRANSFORM_LIMBS) >= (ORIOR_EXACT_KARATSUBA_LIMBS)) ? 1 : -1];
 #endif
 
 #ifdef __cplusplus

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lsp_start.c: a language server started at a tree, its readers started, and asked to initialize with what orior can do
+// lsp_start.c: a language server started at a tree, its readers started, and asked to initialize with what orior_cli can do
 #include "../command_line/cells.h"
 #include "../text/pieces.h"
 #include "lsp_internal.h"
@@ -8,7 +8,7 @@
 // how long the server has to answer that it started, in milliseconds
 #define CLI_LSP_STARTING 30000ull
 
-// what orior can do, as it tells a server it starts
+// what orior_cli can do, as it tells a server it starts
 static const char s_capabilities[] =
     "{\"general\":{\"positionEncodings\":[\"utf-16\"]},"
     "\"textDocument\":{"

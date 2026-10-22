@@ -39,7 +39,7 @@ int main(void)
     char why[1024];
     CliLine said = {why, sizeof(why), 0ull};
     const long long made = cli_stand_ins_written(folder, "git\nflatpak-spawn\norior\n../x\n\n", &said);
-    cli_check(made == 1ll, "orior and the program that reaches the machine keep running inside");
+    cli_check(made == 1ll, "orior_cli and the program that reaches the machine keep running inside");
     cli_full(folder, "git", path);
     const int git = query_is_file(path);
     cli_full(folder, "flatpak-spawn", path);

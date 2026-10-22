@@ -154,7 +154,7 @@ int cli_serve_open_to_command_line(CliLine *said)
         static const char *const s_listen[1] = {"answer/*"};
         static const char *const s_speak[1] = {"command"};
         g_cli_serve.has_command_line =
-            cli_comms_register_held("command line", s_listen, 1u, s_speak, 1u, g_cli_serve.command_line, said);
+            cli_comms_register_kept("command line", s_listen, 1u, s_speak, 1u, g_cli_serve.command_line, said);
     }
     const int held = g_cli_serve.has_command_line;
     char key[CLI_COMMS_KEY];
@@ -247,6 +247,8 @@ int cli_serve_root_set(const char *path, CliLine *out, CliLine *said)
         cli_unmounted_all();
         cli_servers_let_go();
         cli_symbols_forget();
+        // the pool made anew for the tree: its files' bytes over the fixed pool, where no cell is held across the move
+        (void)cli_cells_made(cli_tree_bytes(full) + CLI_CELLS_POOL);
         cli_serve_watch();
         cli_files_warm(full);
         if (command_line)

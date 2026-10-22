@@ -3,7 +3,7 @@
 Extraction of Reduce, Reuse, Reduplicate: “Wrong Side” Reduplication in Twana by Gloria Mellesmoen,
 University of British Columbia, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -48,7 +48,7 @@ its source in kt̓ə́keʔəs and qəbə́qsəd; the text layer breaks kt̓ə́k
 C1C2 in its translation as C 1C2. Figures 1 and 2 are drawings, and only their captions are in the
 text layer.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 461
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 11994 distinct tokens in the paper, 0 language tokens are held by no row.

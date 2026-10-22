@@ -18,6 +18,8 @@ static void gather_cells_given(void)
     cli_cell_given(g_cli_gather.tokens);
     cli_cell_given(g_cli_gather.text);
     cli_cell_given(g_cli_gather.nodes);
+    cli_cell_given(g_cli_gather.flags_text.out);
+    g_cli_gather.flags_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     g_cli_gather.written = NULL;
     g_cli_gather.reply_text = NULL;
     g_cli_gather.reply_nodes = NULL;
@@ -34,9 +36,11 @@ static int gather_cells_taken(void)
     g_cli_gather.reply_nodes = cli_cell_taken(CLI_REPLY_NODES * sizeof(CliJsonNode), "a CMake reply's nodes");
     g_cli_gather.reply_text = cli_cell_taken(CLI_REPLY_TEXT, "a CMake reply's texts");
     g_cli_gather.written = cli_cell_taken(CLI_GATHER_WRITTEN, "the compile database written");
+    g_cli_gather.flags_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    const int flags = cli_line_growing(&g_cli_gather.flags_text, CLI_GATHER_FLAGS_FIRST, "a compile group's flags");
     const int taken = (g_cli_gather.nodes != NULL) && (g_cli_gather.text != NULL) && (g_cli_gather.tokens != NULL) &&
                       (g_cli_gather.reply_nodes != NULL) && (g_cli_gather.reply_text != NULL) &&
-                      (g_cli_gather.written != NULL);
+                      (g_cli_gather.written != NULL) && flags;
     if (!taken)
     {
         gather_cells_given();
@@ -150,12 +154,12 @@ static void cli_written(const char *path, unsigned int entries)
         return;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const there = qry_member_file_mapped(path, &size);
+    const unsigned char *const there = cli_file_held(path, &size);
     const int same = (there != NULL) && (size == out.at) &&
                      (memor.cmp(&(MemoriaCfg){.src = there, .other = g_cli_gather.written, .bytes = size}) == 0);
     if (there != NULL)
     {
-        qry_member_file_unmapped(there, size);
+        cli_file_let_go(there, size);
     }
     char folder[CLI_PATH_LONGEST];
     if (!same && cli_path_parent(path, folder))

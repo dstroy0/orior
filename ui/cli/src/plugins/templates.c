@@ -7,10 +7,7 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
-// the most templates listed and the bytes of their names, and the most times a file's text names the project
-#define CLI_TEMPLATES_MOST 4096u
-#define CLI_TEMPLATES_TEXT (1u << 20u)
-#define CLI_TEMPLATE_PIECES 65536u
+CliCellsTally g_cli_templates_cells = CLI_CELLS_TALLY("cli_templates");
 
 int cli_templates_folder(char *folder)
 {
@@ -23,63 +20,78 @@ int cli_templates_folder(char *folder)
     return 1;
 }
 
-// The names listed as a folder is read
+// The names listed as a folder is read: counted with their bytes where `name` is NULL, and else put in the cell a
+// count took, `most` names and `text_most` bytes of them at the most
 typedef struct
 {
-    char text[CLI_TEMPLATES_TEXT];
-    unsigned int used;
-    const char *name[CLI_TEMPLATES_MOST];
+    const char **name;
+    char *text;
     unsigned int count;
+    unsigned int most;
+    unsigned long long used;
+    unsigned long long text_most;
 } CliTemplateNames;
-
-static CliTemplateNames s_names;
 
 static void cli_name_each(void *context, const char *name, int is_folder)
 {
-    (void)context;
+    CliTemplateNames *const names = (CliTemplateNames *)context;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1ull;
-    if (!is_folder || (s_names.count >= CLI_TEMPLATES_MOST) || ((s_names.used + length) > CLI_TEMPLATES_TEXT))
+    if (!is_folder ||
+        ((names->name != NULL) && ((names->count >= names->most) || ((names->used + length) > names->text_most))))
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = s_names.text + s_names.used, .src = name, .bytes = length});
-    s_names.name[s_names.count] = s_names.text + s_names.used;
-    s_names.count += 1u;
-    // the names are below CLI_TEMPLATES_TEXT bytes, which an unsigned int holds
-    s_names.used += (unsigned int)length;
+    if (names->name != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = names->text + names->used, .src = name, .bytes = length});
+        names->name[names->count] = names->text + names->used;
+    }
+    names->count += 1u;
+    names->used += length;
 }
 
 void cli_templates_list(CliLine *out)
 {
-    static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    s_names.used = 0u;
-    s_names.count = 0u;
     char folder[CLI_PATH_LONGEST];
-    if (cli_templates_folder(folder))
+    CliTemplateNames names = {NULL, NULL, 0u, 0u, 0ull, 0ull};
+    const int has_folder = cli_templates_folder(folder);
+    if (has_folder)
     {
-        query_folder_each(folder, cli_name_each, NULL);
+        query_folder_each(folder, cli_name_each, &names);
     }
-    for (unsigned int at = 1u; at < s_names.count; at += 1u)
+    // the names in a cell of the count and bytes a first reading found, read again into it
+    const unsigned int most = names.count;
+    const unsigned long long text_most = names.used;
+    names = (CliTemplateNames){NULL, NULL, 0u, most, 0ull, text_most};
+    names.name = (has_folder && (most != 0u))
+                     ? cli_cell_taken_by(&g_cli_templates_cells, (most * sizeof(*names.name)) + text_most,
+                                         "the templates' names")
+                     : NULL;
+    if (names.name != NULL)
     {
-        const char *const held = s_names.name[at];
+        names.text = (char *)(names.name + most);
+        query_folder_each(folder, cli_name_each, &names);
+    }
+    for (unsigned int at = 1u; at < names.count; at += 1u)
+    {
+        const char *const held = names.name[at];
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(s_names.name[place - 1u], held) > 0))
+        while ((place > 0u) && (cli_text_order(names.name[place - 1u], held) > 0))
         {
-            s_names.name[place] = s_names.name[place - 1u];
+            names.name[place] = names.name[place - 1u];
             place -= 1u;
         }
-        s_names.name[place] = held;
+        names.name[place] = held;
     }
     cli_line_character(out, '[');
-    for (unsigned int at = 0u; at < s_names.count; at += 1u)
+    for (unsigned int at = 0u; at < names.count; at += 1u)
     {
         cli_line_text(out, (at != 0u) ? "," : "");
-        cli_json_quoted(out, s_names.name[at],
-                        cellul.len(&(CatenaFinitaCfg){.src = s_names.name[at], .cap = CLI_CELLS_POOL}));
+        cli_json_quoted(out, names.name[at],
+                        cellul.len(&(CatenaFinitaCfg){.src = names.name[at], .cap = CLI_CELLS_POOL}));
     }
     cli_line_character(out, ']');
-    cli_lock_give(&s_lock);
+    cli_cell_given_by(&g_cli_templates_cells, names.name);
 }
 
 // whether a name is one a folder may take: not blank, no separator, no `..`, and none of the characters a path reads
@@ -145,9 +157,8 @@ static int cli_uncopied(const char *path, CliLine *said)
 // a file copied with `{{name}}` written as the name in its text where it is UTF-8
 static int cli_file_copied(const char *from, const char *to, const char *name, CliLine *said)
 {
-    static CliFilePiece s_pieces[CLI_TEMPLATE_PIECES];
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(from, &size);
+    const unsigned char *const bytes = cli_file_held(from, &size);
     if (bytes == NULL)
     {
         return cli_uncopied(from, said);
@@ -160,27 +171,42 @@ static int cli_file_copied(const char *from, const char *to, const char *name, C
         text = !((step == 1ull) && (bytes[at] >= 0x80u));
         at += step;
     }
+    // the times the text names the project, each a piece before it and the name, and the piece after the last
+    unsigned long long named = 0ull;
+    for (unsigned long long at = 0ull; text && ((at + 8ull) <= size);)
+    {
+        const int names = memor.cmp(&(MemoriaCfg){.src = bytes + at, .other = "{{name}}", .bytes = 8u}) == 0;
+        named += names ? 1ull : 0ull;
+        at += names ? 8ull : 1ull;
+    }
+    CliFilePiece *const piece =
+        cli_cell_taken_by(&g_cli_templates_cells, ((2ull * named) + 1ull) * sizeof(*piece), "a template file's pieces");
+    if (piece == NULL)
+    {
+        cli_file_let_go(bytes, size);
+        return cli_uncopied(from, said);
+    }
     unsigned int pieces = 0u;
     unsigned long long start = 0ull;
-    for (unsigned long long at = 0ull; text && ((at + 8ull) <= size) && (pieces < (CLI_TEMPLATE_PIECES - 2u));)
+    for (unsigned long long at = 0ull; text && ((at + 8ull) <= size);)
     {
         if (memor.cmp(&(MemoriaCfg){.src = bytes + at, .other = "{{name}}", .bytes = 8u}) != 0)
         {
             at += 1ull;
             continue;
         }
-        s_pieces[pieces] = (CliFilePiece){bytes + start, at - start};
-        s_pieces[pieces + 1u] =
-            (CliFilePiece){name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL})};
+        piece[pieces] = (CliFilePiece){bytes + start, at - start};
+        piece[pieces + 1u] = (CliFilePiece){name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL})};
         pieces += 2u;
         at += 8ull;
         start = at;
     }
-    s_pieces[pieces] = (CliFilePiece){bytes + start, size - start};
+    piece[pieces] = (CliFilePiece){bytes + start, size - start};
     pieces += 1u;
     // a piece of no bytes holds no zeros either
-    const int written = cli_file_pieces_written(to, s_pieces, pieces);
-    qry_member_file_unmapped(bytes, size);
+    const int written = cli_file_pieces_written(to, piece, pieces);
+    cli_cell_given_by(&g_cli_templates_cells, piece);
+    cli_file_let_go(bytes, size);
     return written || cli_uncopied(to, said);
 }
 
@@ -226,7 +252,7 @@ int cli_templates_create(const char *template_name, const char *parent, const ch
     char folder[CLI_PATH_LONGEST];
     if (!cli_templates_folder(folder))
     {
-        cli_line_text(said, "orior has no folder of its own to keep templates in");
+        cli_line_text(said, "orior_cli has no folder of its own to keep templates in");
         return 0;
     }
     if (!cli_plain(name))
@@ -269,7 +295,7 @@ int cli_templates_keep(const char *root, const char *name, char *made, CliLine *
     char folder[CLI_PATH_LONGEST];
     if (!cli_templates_folder(folder))
     {
-        cli_line_text(said, "orior has no folder of its own to keep templates in");
+        cli_line_text(said, "orior_cli has no folder of its own to keep templates in");
         return 0;
     }
     cli_full(folder, name, made);

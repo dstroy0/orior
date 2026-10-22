@@ -134,7 +134,7 @@ int cli_serve_runs_kept(const CliServeArgs *args, CliLine *out, CliLine *said)
         }
         cli_serve_kept_file(base, "said", path);
         unsigned long long said_size = 0ull;
-        const unsigned char *const mapped = qry_member_file_mapped(path, &said_size);
+        const unsigned char *const mapped = cli_file_held(path, &said_size);
         unsigned long long end = said_size;
         while ((end > 0ull) && ((mapped[end - 1ull] == '\n') || (mapped[end - 1ull] == '\r')))
         {
@@ -149,7 +149,7 @@ int cli_serve_runs_kept(const CliServeArgs *args, CliLine *out, CliLine *said)
                           (memor.cmp(&(MemoriaCfg){.src = mapped + start, .other = "{\"end\"", .bytes = 6u}) == 0);
         if (mapped != NULL)
         {
-            qry_member_file_unmapped(mapped, said_size);
+            cli_file_let_go(mapped, said_size);
         }
         cli_line_text(out, written ? ",{\"run\":" : "{\"run\":");
         cli_line_decimal(out, s_kept->list.run[at], 1u);

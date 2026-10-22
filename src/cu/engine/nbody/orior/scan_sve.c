@@ -18,7 +18,7 @@
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
  * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract AnchorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
+ * the contract OriorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
  *
  * @note No part in this project has SVE. The Raspberry Pi 5 is a Cortex-A76, NEON only. This arm
  *       has never been run. It is compiled for armv8.2-a+sve and its emitted instructions are read by
@@ -41,13 +41,13 @@
 #if defined(__linux__)
 #include <sys/auxv.h>
 /** @brief Set where this translation unit can ask the kernel about SVE. */
-#define ANCHOR_STEER_SVE_CAN_DETECT 1
+#define ORIOR_STEER_SVE_CAN_DETECT 1
 #ifndef HWCAP_SVE
 /** @brief The SVE bit in AT_HWCAP, defined here where the running headers predate it. */
 #define HWCAP_SVE (1 << 22)
 #endif
 #else
-#define ANCHOR_STEER_SVE_CAN_DETECT 0
+#define ORIOR_STEER_SVE_CAN_DETECT 0
 #endif
 
 /**
@@ -57,20 +57,20 @@
  */
 static int steer_sve_present(void)
 {
-#if ANCHOR_STEER_SVE_CAN_DETECT
+#if ORIOR_STEER_SVE_CAN_DETECT
     return ((getauxval(AT_HWCAP) & (unsigned long)HWCAP_SVE) != 0ul) ? 1 : 0;
 #else
     return 0;
 #endif
 }
 
-size_t anchor_steer_truthy_after_sve(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
+size_t orior_steer_truthy_after_sve(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
                                      size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm
      * was the one asked. The claim the counters carry is which arm RAN and not what it returned. */
-    anchor_steer_scan_calls += 1u;
-    anchor_steer_wide_calls += 1u;
+    orior_steer_scan_calls += 1u;
+    orior_steer_wide_calls += 1u;
 
     if ((corpus == NULL) || (alive == NULL) || (alignments == 0u))
     {
@@ -101,9 +101,9 @@ size_t anchor_steer_truthy_after_sve(const uint8_t *corpus, size_t alignments, c
     return (size_t)standing;
 }
 
-const AnchorSteerEngine *anchor_steer_sve_engine(void)
+const OriorSteerEngine *orior_steer_sve_engine(void)
 {
-    static const AnchorSteerEngine engine = {"sve-unrun", anchor_steer_truthy_after_sve};
+    static const OriorSteerEngine engine = {"sve-unrun", orior_steer_truthy_after_sve};
 
     if (steer_sve_present() == 0)
     {

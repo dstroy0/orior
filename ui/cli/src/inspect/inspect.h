@@ -179,6 +179,8 @@ typedef struct
     unsigned int used;
     unsigned int text_most;
     int full;
+    // counting: each put counts what it would keep and keeps nothing, so a walk sizes the room the next walk fills
+    int counting;
 } CliFacts;
 
 // A span: from where to where
@@ -229,8 +231,10 @@ extern const char *const g_cli_inspect_docstring_forms[4];
 const char *cli_inspect_language_of(const char *path);
 const char *cli_inspect_text(const char *pool, CliInspectText text);
 
-// facts made empty over the storage handed them; and the facts of `size` bytes of a file's text in `language`, where
-// the inspections read the language: 1, or 0 where they do not
+// facts made empty over the storage handed them; facts that count what a walk would keep and keep nothing, so the
+// walk sizes the room the next one fills; and the facts of `size` bytes of a file's text in `language`, where the
+// inspections read the language: 1, or 0 where they do not
+void cli_facts_counting(CliFacts *facts);
 void cli_facts_begun(CliFacts *facts, CliInspectImport *imports, unsigned int imports_most, CliInspectClass *classes,
                      unsigned int classes_most, CliInspectFunction *functions, unsigned int functions_most,
                      CliInspectFinding *findings, unsigned int findings_most, CliInspectFix *fixes,

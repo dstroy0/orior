@@ -137,7 +137,7 @@ fi
 # SIM_EXACT_LIMBS sets the exact integer's width in 32-bit limbs, a power of two, for every object the sim links
 WIDTH=()
 if [ -n "${SIM_EXACT_LIMBS:-}" ]; then
-    WIDTH=(-DANCHOR_EXACT_LIMBS="${SIM_EXACT_LIMBS}u")
+    WIDTH=(-DORIOR_EXACT_LIMBS="${SIM_EXACT_LIMBS}u")
 fi
 rm -f "$BINARY"
 build_object()

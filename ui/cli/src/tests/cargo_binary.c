@@ -8,14 +8,10 @@
 #include "cargo_report.h"
 #include "cargo_tests.h"
 
-// the most nodes and bytes of one line of Cargo's words read
-#define CLI_CARGO_LINE_NODES 65536u
-#define CLI_CARGO_LINE_TEXT (1u << 20u)
+// the most bytes of one line of Cargo's words read
+#define CLI_CARGO_LINE_TEXT (1ull << 20u)
 
 static CliCargoTests s_binary_tests;
-static CliJsonNode s_nodes[CLI_CARGO_LINE_NODES];
-static CfgJsonToken s_tokens[CLI_CARGO_LINE_NODES];
-static char s_text[CLI_CARGO_LINE_TEXT];
 static char s_path[CLI_PATH_TEXT];
 static CliLock s_binary_lock = CLI_LOCK_INIT;
 
@@ -46,6 +42,37 @@ static int binary_is(const CliCargoTarget *target, const CliJson *json, unsigned
                   (cellul.eq(&(CatenaFinitaCfg){.src = target->name, .other = name, .cap = CLI_CELLS_POOL})));
 }
 
+// the program one line of Cargo's words, `size` bytes of `line`, names for the test into `program`, the line read
+// into a tree sized to it and given back: 1, or 0 where it names none
+static int binary_line(const CliCargoFound *one, const char *line, unsigned long long size, char *program)
+{
+    CliJson json;
+    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
+    char why[CLI_SAID_LONGEST];
+    CliLine unread = {why, sizeof(why), 0ull};
+    const unsigned int said =
+        (size <= CLI_CARGO_LINE_TEXT) ? cli_json_taken(&json, line, size, 0u, 0ull, &unread) : CLI_JSON_NONE;
+    const char *const reason = cli_json_string(&json, cli_json_member(&json, said, "reason"), NULL);
+    const unsigned int test = cli_json_member(&json, cli_json_member(&json, said, "profile"), "test");
+    const unsigned int target = cli_json_member(&json, said, "target");
+    const char *const name = cli_json_string(&json, cli_json_member(&json, target, "name"), NULL);
+    const char *const executable = cli_json_string(&json, cli_json_member(&json, said, "executable"), NULL);
+    const int named =
+        (reason != NULL) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "compiler-artifact", .cap = CLI_CELLS_POOL})) &&
+        cli_json_is(&json, test, CFG_JSON_TRUE) && (executable != NULL) &&
+        binary_is(&one->target, &json, cli_json_member(&json, target, "kind"), (name != NULL) ? name : "");
+    if (named)
+    {
+        memor.cpy(
+            &(MemoriaCfg){.dst = program,
+                          .src = executable,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = executable, .cap = CLI_CELLS_POOL}) + 1u});
+    }
+    cli_json_given(&json);
+    return named;
+}
+
 // the program Cargo's words name for the test, read line by line from what it wrote: 1, or 0 where none does
 static int binary_read(const CliCargoFound *one, const char *out, unsigned long long size, char *program)
 {
@@ -56,30 +83,8 @@ static int binary_read(const CliCargoFound *one, const char *out, unsigned long 
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - out) : size;
         const unsigned long long start = at;
         at = (newline != NULL) ? end + 1ull : size;
-        CliJson json;
-        cli_json_begun(&json, s_nodes, CLI_CARGO_LINE_NODES, s_text, CLI_CARGO_LINE_TEXT);
-        char why[CLI_SAID_LONGEST];
-        CliLine unread = {why, sizeof(why), 0ull};
-        const unsigned int said =
-            cli_json_read(&json, out + start, end - start, s_tokens, CLI_CARGO_LINE_NODES, &unread);
-        const char *const reason = cli_json_string(&json, cli_json_member(&json, said, "reason"), NULL);
-        const unsigned int test = cli_json_member(&json, cli_json_member(&json, said, "profile"), "test");
-        if ((reason == NULL) ||
-            (!cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "compiler-artifact", .cap = CLI_CELLS_POOL})) ||
-            !cli_json_is(&json, test, CFG_JSON_TRUE))
+        if (binary_line(one, out + start, end - start, program))
         {
-            continue;
-        }
-        const unsigned int target = cli_json_member(&json, said, "target");
-        const char *const name = cli_json_string(&json, cli_json_member(&json, target, "name"), NULL);
-        const char *const executable = cli_json_string(&json, cli_json_member(&json, said, "executable"), NULL);
-        if ((executable != NULL) &&
-            binary_is(&one->target, &json, cli_json_member(&json, target, "kind"), (name != NULL) ? name : ""))
-        {
-            memor.cpy(
-                &(MemoriaCfg){.dst = program,
-                              .src = executable,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = executable, .cap = CLI_CELLS_POOL}) + 1u});
             return 1;
         }
     }
@@ -175,6 +180,7 @@ int cli_cargo_binary(const char *root, const char *id, char *program, char *full
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_CELLS_POOL}) + 1u});
         }
     }
+    cli_cargo_tests_given(&s_binary_tests);
     cli_lock_give(&s_binary_lock);
     return built;
 }

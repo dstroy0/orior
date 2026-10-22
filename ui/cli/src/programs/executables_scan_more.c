@@ -6,11 +6,6 @@
 #include "../text/text.h"
 #include "executables_internal.h"
 
-// the most calls of one command read, and the most nodes of a package.json read
-#define CLI_SCAN_CALLS 1024u
-
-#define CLI_SCAN_NODES 16384u
-
 int cli_go_package(const char *text, char *out)
 {
     int in_comment = 0;
@@ -213,13 +208,15 @@ int cli_keyword(const char *call, unsigned long long length, const char *key, ch
 
 void cli_zig_exes(const char *text, CliNames *names)
 {
-    static char s_code[CLI_EXECUTABLES_BYTES];
-    static CliCall s_calls[CLI_SCAN_CALLS];
-    static CliLock s_lock = CLI_LOCK_INIT;
     names->count = 0u;
-    cli_lock_take(&s_lock);
-    // each line up to its `//`, the lines joined by a newline
-    CliLine code = {s_code, sizeof(s_code), 0ull};
+    // each line up to its `//`, the lines joined by a newline, no longer than the text
+    const unsigned long long room = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
+    char *const kept = cli_cell_taken_by(&g_cli_executables_cells, room, "a build.zig's code");
+    if (kept == NULL)
+    {
+        return;
+    }
+    CliLine code = {kept, room, 0ull};
     const char *line = text;
     for (int first = 1; line[0] != '\0'; first = 0)
     {
@@ -242,11 +239,12 @@ void cli_zig_exes(const char *text, CliNames *names)
         line = (stop[0] != '\0') ? (stop + 1) : stop;
     }
     cli_line_closed(&code);
-    const unsigned int count = cli_calls(s_code, "addExecutable", s_calls, CLI_SCAN_CALLS);
+    CliCall *calls = NULL;
+    const unsigned int count = cli_calls_taken(kept, "addExecutable", &calls);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const char *call = s_calls[at].text;
-        unsigned long long length = s_calls[at].length;
+        const char *call = calls[at].text;
+        unsigned long long length = calls[at].length;
         while ((length > 0ull) && cli_scan_white(call[0]))
         {
             call += 1;
@@ -272,32 +270,37 @@ void cli_zig_exes(const char *text, CliNames *names)
             cli_names_put(names, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), NULL);
         }
     }
-    cli_lock_give(&s_lock);
+    cli_cell_given_by(&g_cli_executables_cells, calls);
+    cli_cell_given_by(&g_cli_executables_cells, kept);
 }
 
 int cli_spec_made(const char *text, char *exe, char *path)
 {
-    static char s_code[CLI_EXECUTABLES_BYTES];
-    static CliCall s_calls[CLI_SCAN_CALLS];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    cli_uncommented(text, '\'', s_code, sizeof(s_code));
-    int found = cli_calls(s_code, "Analysis", s_calls, CLI_SCAN_CALLS) != 0u;
+    char *const code = cli_uncommented_taken(text, '\'');
+    if (code == NULL)
+    {
+        return 0;
+    }
+    int found = cli_calls(code, "Analysis", NULL, 0u) != 0u;
     int named = 0;
-    const unsigned int exes = found ? cli_calls(s_code, "EXE", s_calls, CLI_SCAN_CALLS) : 0u;
+    CliCall *calls = NULL;
+    const unsigned int exes = found ? cli_calls_taken(code, "EXE", &calls) : 0u;
     for (unsigned int at = 0u; !named && (at < exes); at += 1u)
     {
-        named = cli_keyword(s_calls[at].text, s_calls[at].length, "name", exe);
+        named = cli_keyword(calls[at].text, calls[at].length, "name", exe);
     }
+    cli_cell_given_by(&g_cli_executables_cells, calls);
+    calls = NULL;
     found = found && named;
     char folder[CLI_NAME_LONGEST];
     int collected = 0;
-    const unsigned int collects = found ? cli_calls(s_code, "COLLECT", s_calls, CLI_SCAN_CALLS) : 0u;
+    const unsigned int collects = found ? cli_calls_taken(code, "COLLECT", &calls) : 0u;
     for (unsigned int at = 0u; !collected && (at < collects); at += 1u)
     {
-        collected = cli_keyword(s_calls[at].text, s_calls[at].length, "name", folder);
+        collected = cli_keyword(calls[at].text, calls[at].length, "name", folder);
     }
-    cli_lock_give(&s_lock);
+    cli_cell_given_by(&g_cli_executables_cells, calls);
+    cli_cell_given_by(&g_cli_executables_cells, code);
     if (!found)
     {
         return 0;
@@ -324,23 +327,17 @@ int cli_spec_made(const char *text, char *exe, char *path)
 
 void cli_npm_bins(const char *text, CliNames *names, int *module)
 {
-    static CliJsonNode s_nodes[CLI_SCAN_NODES];
-    static CfgJsonToken s_tokens[CLI_SCAN_NODES];
-    static char s_text[CLI_EXECUTABLES_BYTES];
-    static CliLock s_lock = CLI_LOCK_INIT;
     names->count = 0u;
     *module = 0;
-    cli_lock_take(&s_lock);
     CliJson json;
-    cli_json_begun(&json, s_nodes, CLI_SCAN_NODES, s_text, sizeof(s_text));
+    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_NAME_LONGEST];
     CliLine said = {why, sizeof(why), 0ull};
-    const unsigned int package =
-        cli_json_read(&json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), s_tokens,
-                      CLI_SCAN_NODES, &said);
-    if (!cli_json_is(&json, package, CFG_JSON_OBJECT))
+    const unsigned int package = cli_json_taken(
+        &json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), 0u, 0ull, &said);
+    if ((package == CLI_JSON_NONE) || !cli_json_is(&json, package, CFG_JSON_OBJECT))
     {
-        cli_lock_give(&s_lock);
+        cli_json_given(&json);
         return;
     }
     const char *const kind = cli_json_string(&json, cli_json_member(&json, package, "type"), NULL);
@@ -369,5 +366,5 @@ void cli_npm_bins(const char *text, CliNames *names, int *module)
             }
         }
     }
-    cli_lock_give(&s_lock);
+    cli_json_given(&json);
 }

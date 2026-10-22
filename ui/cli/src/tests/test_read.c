@@ -128,10 +128,10 @@ void cli_test_errors_waited(CliTestWorker *worker)
 const char *cli_test_file_read(const char *path, unsigned long long *size)
 {
     *size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, size);
+    const unsigned char *const bytes = cli_file_held(path, size);
     if ((bytes != NULL) && !cli_utf8_whole((const char *)bytes, *size))
     {
-        qry_member_file_unmapped(bytes, *size);
+        cli_file_let_go(bytes, *size);
         *size = 0ull;
         return NULL;
     }
@@ -142,6 +142,6 @@ void cli_test_file_let_go(const char *text, unsigned long long size)
 {
     if (text != NULL)
     {
-        qry_member_file_unmapped((const unsigned char *)text, size);
+        cli_file_let_go((const unsigned char *)text, size);
     }
 }

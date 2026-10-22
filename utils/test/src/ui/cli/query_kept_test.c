@@ -98,12 +98,12 @@ static void kept_account(void)
 // a process of the tree on the part is found whichever way its path is written; and the part's allowed use is read
 static void kept_part(void)
 {
-    static const char s_root_given[] = "C:/Users/x/anchor_sift";
-    cli_check(query_on_the_part("C:\\Users\\x\\anchor_sift\\build\\engine\\cubin_run.exe\n", s_root_given),
+    static const char s_root_given[] = "C:/Users/x/orior-engine";
+    cli_check(query_on_the_part("C:\\Users\\x\\orior-engine\\build\\engine\\orior_cubin_run.exe\n", s_root_given),
               "nvidia-smi writes the host's separators");
-    cli_check(query_on_the_part("c:/users/x/anchor_sift/build/engine/khw_write.exe\n", s_root_given),
+    cli_check(query_on_the_part("c:/users/x/orior-engine/build/engine/khw_write.exe\n", s_root_given),
               "and either case");
-    cli_check(!query_on_the_part("C:\\Users\\x\\other_tree\\build\\engine\\cubin_run.exe\n", s_root_given) &&
+    cli_check(!query_on_the_part("C:\\Users\\x\\other_tree\\build\\engine\\orior_cubin_run.exe\n", s_root_given) &&
                   !query_on_the_part("", s_root_given),
               "another tree's process is not the tree's");
     cli_check((query_part_used_most(NULL) == 10ll) && (query_part_used_most("25") == 25ll), "the part's allowed use");
@@ -140,7 +140,7 @@ static void kept_folders(void)
     (void)query_removed(base);
 }
 
-// the part held used is said on a line of its own; and the median rate names the runs under half of it
+// the part kept used is said on a line of its own; and the median rate names the runs under half of it
 static void kept_said_lines(QueryContext *context)
 {
     s_heard_count = 0u;

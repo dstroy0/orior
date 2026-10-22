@@ -6,12 +6,6 @@
 #include "../text/json_tree.h"
 #include "python_paths_internal.h"
 
-// the most logical lines of a script and the bytes they take
-#define CLI_PY_LINES 65536u
-#define CLI_PY_LINE_TEXT (2u << 20u)
-
-CliPy g_cli_py;
-
 // A span of a text: where it starts and its bytes
 typedef struct
 {
@@ -99,22 +93,31 @@ static int cli_wordy_all(CliSpan span)
     return 1;
 }
 
-// The logical lines of a script: a line whose brackets stay open goes on with the next
+// The logical lines of a script: a line whose brackets stay open goes on with the next, in the reading's cell, the
+// text no longer than the script with a space joining each line, and no more lines than its bytes and one
 typedef struct
 {
-    char text[CLI_PY_LINE_TEXT];
+    char *text;
     unsigned int used;
-    unsigned int start[CLI_PY_LINES];
-    unsigned int length[CLI_PY_LINES];
+    unsigned int text_most;
+    unsigned int *start;
+    unsigned int *length;
     unsigned int count;
+    unsigned int lines_most;
 } CliPyLines;
 
 static CliPyLines s_lines;
 
+void cli_py_lines_placed(char *text, unsigned int text_most, unsigned int *start, unsigned int *length,
+                         unsigned int lines_most)
+{
+    s_lines = (CliPyLines){text, 0u, text_most, start, length, 0u, lines_most};
+}
+
 // the line being made ended, as one of the logical lines
 static void cli_line_ended(unsigned int *line_start)
 {
-    if (s_lines.count < CLI_PY_LINES)
+    if (s_lines.count < s_lines.lines_most)
     {
         s_lines.start[s_lines.count] = *line_start;
         s_lines.length[s_lines.count] = s_lines.used - *line_start;
@@ -144,7 +147,7 @@ static void cli_logical_lines(const char *text, unsigned long long size)
         at = end + 1ull;
         const CliSpan code = {raw.at, cli_found(raw, " #")};
         const CliSpan kept = cli_trimmed_of(code, '\\');
-        if ((s_lines.used + kept.length + 1ull) > CLI_PY_LINE_TEXT)
+        if ((s_lines.used + kept.length + 1ull) > s_lines.text_most)
         {
             return;
         }
@@ -154,7 +157,7 @@ static void cli_logical_lines(const char *text, unsigned long long size)
             s_lines.used += 1u;
         }
         memor.cpy(&(MemoriaCfg){.dst = s_lines.text + s_lines.used, .src = kept.at, .bytes = kept.length});
-        // a line is below CLI_PY_LINE_TEXT bytes, which an unsigned int holds
+        // a line is below the lines' room, which an unsigned int holds
         s_lines.used += (unsigned int)kept.length;
         for (unsigned long long place = 0ull; place < code.length; place += 1ull)
         {
@@ -389,13 +392,10 @@ static void cli_set_read(CliSpan code)
 // the folders the script at `file`, `size` bytes of `text`, puts on `sys.path`, as it may write them, into the found
 void cli_py_paths_in(const char *file, const char *text, unsigned long long size)
 {
-    g_cli_py.exprs = 0u;
-    g_cli_py.items = 0u;
-    g_cli_py.used = 0u;
-    g_cli_py.values = 0u;
-    g_cli_py.ranged = 0u;
-    g_cli_py.names = 0u;
-    g_cli_py.founds = 0u;
+    if (!cli_py_reading_taken(size))
+    {
+        return;
+    }
     // `__file__` is written with the system's separator, as Python gives it
     memor.cpy(&(MemoriaCfg){.dst = g_cli_py.file,
                             .src = file,

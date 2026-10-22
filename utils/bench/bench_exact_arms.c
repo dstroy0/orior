@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../src/cu/includes/types/integers/arm.h"
-#if defined(ANCHOR_EXACT_HAVE_CUDA) && ANCHOR_EXACT_HAVE_CUDA
+#if defined(ORIOR_EXACT_HAVE_CUDA) && ORIOR_EXACT_HAVE_CUDA
 #include "../../src/cu/includes/types/integers/arm_cuda.h"
 #endif
 
@@ -16,7 +16,7 @@
 
 #define RUN_CYCLE 4u
 
-#define PLACES_HELD ((((unsigned long long)ANCHOR_EXACT_BITS - 15ull) * 30102ull) / 100000ull)
+#define PLACES_HELD ((((unsigned long long)ORIOR_EXACT_BITS - 15ull) * 30102ull) / 100000ull)
 
 #define PLACES ((PLACES_HELD < 24ull) ? (uint32_t)PLACES_HELD : 24u)
 
@@ -32,13 +32,13 @@ typedef char bench_exact_arms_places_hold_a_quarter[(PLACES_HELD >= 2ull) ? 1 : 
 
 #define REPEATS 3u
 
-static int plant(AnchorExactInteger *positions, uint64_t *values, unsigned int places)
+static int plant(OriorExactInteger *positions, uint64_t *values, unsigned int places)
 {
     for (unsigned int at = 0u; at < places; at++)
     {
         char text[64];
         (void)snprintf(text, sizeof(text), "%u.%02u", at / 4u, (at % 4u) * 25u);
-        if (anchor_exact_from_decimal(text, strlen(text), PLACES, &positions[at]) != ANCHOR_EXACT_OK)
+        if (orior_exact_from_decimal(text, strlen(text), PLACES, &positions[at]) != ORIOR_EXACT_OK)
         {
             return 0;
         }
@@ -47,8 +47,8 @@ static int plant(AnchorExactInteger *positions, uint64_t *values, unsigned int p
     return 1;
 }
 
-static double sweep(const AnchorExactArm *arm, const AnchorExactInteger *positions,
-                    const uint64_t *values, const AnchorExactInteger *lags, size_t *answers,
+static double sweep(const OriorExactArm *arm, const OriorExactInteger *positions,
+                    const uint64_t *values, const OriorExactInteger *lags, size_t *answers,
                     unsigned int places)
 {
     const clock_t started = clock();
@@ -62,15 +62,15 @@ static double sweep(const AnchorExactArm *arm, const AnchorExactInteger *positio
     return (double)(clock() - started) / (double)CLOCKS_PER_SEC;
 }
 
-static int grade_arms(const AnchorExactArm *const *arms, unsigned int count,
-                      const AnchorExactInteger *positions, const uint64_t *values,
-                      const AnchorExactInteger *lags, const size_t *reference, size_t *held,
+static int grade_arms(const OriorExactArm *const *arms, unsigned int count,
+                      const OriorExactInteger *positions, const uint64_t *values,
+                      const OriorExactInteger *lags, const size_t *reference, size_t *held,
                       unsigned int places, double portable_seconds, const char *portable_name)
 {
     int wrong = 0;
     for (unsigned int which = 0u; which < count; which++)
     {
-        const AnchorExactArm *arm = arms[which];
+        const OriorExactArm *arm = arms[which];
         const double seconds = sweep(arm, positions, values, lags, held, places);
 
         unsigned int differs = 0u;
@@ -107,7 +107,7 @@ static int grade_arms(const AnchorExactArm *const *arms, unsigned int count,
 int main(int argc, char **argv)
 {
     static uint64_t values[RUN_PLACES];
-    static AnchorExactInteger lags[LAGS];
+    static OriorExactInteger lags[LAGS];
     static size_t reference[LAGS];
     static size_t held[LAGS];
 
@@ -123,12 +123,12 @@ int main(int argc, char **argv)
         places = (unsigned int)asked;
     }
 
-    AnchorExactInteger *const positions =
-        (AnchorExactInteger *)malloc((size_t)places * sizeof(AnchorExactInteger));
+    OriorExactInteger *const positions =
+        (OriorExactInteger *)malloc((size_t)places * sizeof(OriorExactInteger));
     if (positions == NULL)
     {
         printf("  %u positions of %u limbs could not be allocated\n", places,
-               (unsigned int)ANCHOR_EXACT_LIMBS);
+               (unsigned int)ORIOR_EXACT_LIMBS);
         return 1;
     }
 
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
     {
         char text[64];
         (void)snprintf(text, sizeof(text), "%u.%02u", (at + 1u) / 4u, ((at + 1u) % 4u) * 25u);
-        if (anchor_exact_from_decimal(text, strlen(text), PLACES, &lags[at]) != ANCHOR_EXACT_OK)
+        if (orior_exact_from_decimal(text, strlen(text), PLACES, &lags[at]) != ORIOR_EXACT_OK)
         {
             printf("  lag %u would not fit the scale\n", at);
             free(positions);
@@ -151,46 +151,46 @@ int main(int argc, char **argv)
     }
 
     printf("\n  %u positions, %u lags, %u limbs of 32 bits, %u decimal places\n\n", places,
-           LAGS, (unsigned int)ANCHOR_EXACT_LIMBS, (unsigned int)PLACES);
+           LAGS, (unsigned int)ORIOR_EXACT_LIMBS, (unsigned int)PLACES);
 
-    const AnchorExactArm *portable = anchor_exact_portable_arm();
+    const OriorExactArm *portable = orior_exact_portable_arm();
     const double portable_seconds = sweep(portable, positions, values, lags, reference, places);
     printf("  %-14s %-10s %-12s %s\n", "arm", "seconds", "against", "verdict");
     printf("  %-14s %-10.3f %-12s %s\n", portable->name, portable_seconds, "itself",
            "the reference");
 
-    const AnchorExactArm *arms[6];
+    const OriorExactArm *arms[6];
     unsigned int count = 0u;
-#if defined(ANCHOR_EXACT_HAVE_AVX2) && ANCHOR_EXACT_HAVE_AVX2
-    arms[count] = anchor_exact_avx2_arm();
+#if defined(ORIOR_EXACT_HAVE_AVX2) && ORIOR_EXACT_HAVE_AVX2
+    arms[count] = orior_exact_avx2_arm();
     if (arms[count] != NULL)
     {
         count++;
     }
 #endif
-#if defined(ANCHOR_EXACT_HAVE_AVX512) && ANCHOR_EXACT_HAVE_AVX512
-    arms[count] = anchor_exact_avx512_arm();
+#if defined(ORIOR_EXACT_HAVE_AVX512) && ORIOR_EXACT_HAVE_AVX512
+    arms[count] = orior_exact_avx512_arm();
     if (arms[count] != NULL)
     {
         count++;
     }
 #endif
-#if defined(ANCHOR_EXACT_HAVE_SVE) && ANCHOR_EXACT_HAVE_SVE
-    arms[count] = anchor_exact_sve_arm();
+#if defined(ORIOR_EXACT_HAVE_SVE) && ORIOR_EXACT_HAVE_SVE
+    arms[count] = orior_exact_sve_arm();
     if (arms[count] != NULL)
     {
         count++;
     }
 #endif
-#if defined(ANCHOR_EXACT_HAVE_NEON) && ANCHOR_EXACT_HAVE_NEON
-    arms[count] = anchor_exact_neon_arm();
+#if defined(ORIOR_EXACT_HAVE_NEON) && ORIOR_EXACT_HAVE_NEON
+    arms[count] = orior_exact_neon_arm();
     if (arms[count] != NULL)
     {
         count++;
     }
 #endif
-#if defined(ANCHOR_EXACT_HAVE_CUDA) && ANCHOR_EXACT_HAVE_CUDA
-    arms[count] = anchor_exact_cuda_arm();
+#if defined(ORIOR_EXACT_HAVE_CUDA) && ORIOR_EXACT_HAVE_CUDA
+    arms[count] = orior_exact_cuda_arm();
     if (arms[count] != NULL)
     {
         count++;
@@ -228,15 +228,15 @@ int main(int argc, char **argv)
         wrong = 1;
     }
 
-#if defined(ANCHOR_EXACT_HAVE_CUDA) && ANCHOR_EXACT_HAVE_CUDA
-    if (anchor_exact_cuda_available() != 0)
+#if defined(ORIOR_EXACT_HAVE_CUDA) && ORIOR_EXACT_HAVE_CUDA
+    if (orior_exact_cuda_available() != 0)
     {
         const size_t device_answer =
-            anchor_exact_agreement_cuda(positions, values, (size_t)places, &lags[3]);
+            orior_exact_agreement_cuda(positions, values, (size_t)places, &lags[3]);
         if (device_answer == (size_t)-1)
         {
             printf("\n  the device errored on the run at %u limbs. The cuda row is the portable arm\n",
-                   (unsigned int)ANCHOR_EXACT_LIMBS);
+                   (unsigned int)ORIOR_EXACT_LIMBS);
             wrong = 1;
         }
         else

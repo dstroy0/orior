@@ -41,7 +41,7 @@ extern "C"
      * @warning Must be a pure function of the two positions for the duration of a call. The engine
      *          reads the same position more than once and assumes the answer does not move under it.
      */
-    typedef int (*AnchorSameAt)(const void *field, size_t corpus_at, size_t needle_at);
+    typedef int (*OriorSameAt)(const void *field, size_t corpus_at, size_t needle_at);
 
     /**
      * @brief A field of any symbol type, reached only through equality.
@@ -55,7 +55,7 @@ extern "C"
      */
     typedef struct
     {
-        AnchorSameAt same; /**< Equality oracle. Never null. */
+        OriorSameAt same; /**< Equality oracle. Never null. */
         const void *field; /**< Passed to the oracle untouched, never dereferenced here [BORROWS]. May
                             *   be null ONLY where the ORACLE does not dereference it either, which
                             *   means an oracle reaching its data some other way. The engine never uses
@@ -64,7 +64,7 @@ extern "C"
                             *   the oracle, where the engine cannot see it coming. */
         size_t alignments; /**< Positions that can host the pattern. Non-zero. */
         size_t needle_len; /**< Positions the pattern holds. Non-zero. */
-    } AnchorField;
+    } OriorField;
 
     /**
      * @brief Projects a field of any symbol type onto a field of rarity ranks.
@@ -95,7 +95,7 @@ extern "C"
      *          file an ordering decision is a null: a wrong order costs reads and leaves the count
      *          unchanged. Here a wrong order loses a true occurrence.
      *
-     *          Use anchor_field_pair_project to search one field for another. It numbers both in one
+     *          Use orior_field_pair_project to search one field for another. It numbers both in one
      *          call, which gives one population and one rarity order, and the ranks it writes are
      *          comparable by construction. This entry remains the one to call for describing a single
      *          field.
@@ -126,8 +126,8 @@ extern "C"
      *          sound, since a probe that rejects nothing is still a necessary condition. Tighten the
      *          predicate where it happens; the symptom is `distinct` coming back as one on a field the
      *          caller expects to be varied.
-     * @warning TAKES A DIFFERENT ORACLE FROM AnchorField's, AND THE DISTINCTION IS NOT COSMETIC.
-     *          AnchorSameAt as used by a descent answers about a CORPUS position against a NEEDLE
+     * @warning TAKES A DIFFERENT ORACLE FROM OriorField's, AND THE DISTINCTION IS NOT COSMETIC.
+     *          OriorSameAt as used by a descent answers about a CORPUS position against a NEEDLE
      *          position, which are two index spaces. Grouping a field into classes compares two
      *          positions of the FIELD. Passing a descent's oracle here indexes the needle with a field
      *          position and reads off the end of it. This signature keeps the two apart.
@@ -174,7 +174,7 @@ extern "C"
      */
     typedef struct
     {
-        AnchorSameAt same_in_field;      /**< Equality between two positions OF THE FIELD. Never null. */
+        OriorSameAt same_in_field;      /**< Equality between two positions OF THE FIELD. Never null. */
         const void *field;               /**< Passed to the oracle untouched, never dereferenced here
                                           *   [BORROWS]. May be null ONLY where the oracle does not
                                           *   dereference it either, which means an oracle reaching its
@@ -192,14 +192,14 @@ extern "C"
         size_t classes_length;           /**< Entries each of the three above holds. Must reach
                                           *   `length`, since every position can be its own class. */
         size_t *distinct;                /**< Where the class count is written, or NULL [BORROWS]. */
-    } AnchorFieldProjection;
+    } OriorFieldProjection;
 
-    int anchor_field_project(const AnchorFieldProjection *args);
+    int orior_field_project(const OriorFieldProjection *args);
 
     /**
      * @brief Numbers a corpus and a needle in ONE population. Their ranks can be compared.
      *
-     * @note WHY THIS EXISTS AT ALL. anchor_field_project projects one field and its ranks mean something
+     * @note WHY THIS EXISTS AT ALL. orior_field_project projects one field and its ranks mean something
      *       only inside it. Two separate calls produce two rarity orders over two populations, and a
      *       rank probe run across them refutes alignments whose symbols agree. The other ordering
      *       decisions in this file cost reads when they are wrong. This one loses true occurrences. A
@@ -214,14 +214,14 @@ extern "C"
      *       field and does not care.
      *
      * @note THE ORACLE HERE IS FIELD AGAINST FIELD INSTEAD OF CORPUS AGAINST NEEDLE. It takes two joint
-     *       positions drawn from one space. `AnchorField.same` in a descent takes a CORPUS position and
+     *       positions drawn from one space. `OriorField.same` in a descent takes a CORPUS position and
      *       a NEEDLE position, which are two spaces. The two have the same C type and different
      *       meanings. The compiler cannot catch the swap and passing one where the other belongs
      *       reads off the end of something.
      */
     typedef struct
     {
-        AnchorSameAt same_in_field;      /**< Equality between two positions of the JOINT field. Never
+        OriorSameAt same_in_field;      /**< Equality between two positions of the JOINT field. Never
                                           *   null. Asked about joint positions, never about a corpus
                                           *   position paired with a needle position. */
         const void *field;               /**< Passed to the oracle untouched, never dereferenced here
@@ -243,7 +243,7 @@ extern "C"
                                           *   position can be its own class. */
         size_t *distinct;                /**< Where the class count over the JOINT field is written, or
                                           *   NULL [BORROWS]. */
-    } AnchorFieldPairProjection;
+    } OriorFieldPairProjection;
 
     /**
      * @brief Projects a corpus and a needle onto one rarity order, writing each side its own ranks.
@@ -252,7 +252,7 @@ extern "C"
      * @return         1 where both rank arrays were written, 0 where the call errored.
      *
      * @note WHAT THE CALLER DOES WITH THE RESULT. `corpus_ranks` and `needle_ranks` are byte fields
-     *       numbered by one rule. They can go to anchor_steer_count or to any entry here that takes
+     *       numbered by one rule. They can go to orior_steer_count or to any entry here that takes
      *       bytes. What the count means depends on how many classes the joint field holds, and
      *       `distinct` tells the caller which case applies.
      *
@@ -274,14 +274,14 @@ extern "C"
      *       `corpus_length + needle_length` would wrap `size_t`, where that joint length exceeds
      *       `UINT32_MAX` (class labels are stored as 32 bit positions and a wider field would alias two
      *       of them onto one label), or where `classes_length` does not reach the joint length. The
-     *       return value is the whole report, as it is for anchor_field_project.
+     *       return value is the whole report, as it is for orior_field_project.
      *
      * @warning COSTS THE SAME CLOSURE THE SINGLE FIELD ENTRY DOES, over a longer field. The pairwise
      *          closure is quadratic in `corpus_length + needle_length`. This is for fields small
      *          enough to project at all. A descent takes the oracle directly, needs no closure, and
      *          costs nothing extra.
      */
-    int anchor_field_pair_project(const AnchorFieldPairProjection *args);
+    int orior_field_pair_project(const OriorFieldPairProjection *args);
 
 #ifdef __cplusplus
 }

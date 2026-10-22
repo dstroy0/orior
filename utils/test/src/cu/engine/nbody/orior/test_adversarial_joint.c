@@ -62,14 +62,14 @@ int adversarial_case_trichotomy(void)
     struct
     {
         const char *what;
-        AnchorSteerDescent args;
+        OriorSteerDescent args;
     } errors[6];
 
-    size_t offsets[ANCHOR_STEER_ANCHORS];
+    size_t offsets[ORIOR_STEER_ANCHORS];
 
     errors[0].what = "null offsets";
-    errors[0].args = (AnchorSteerDescent){.offsets = NULL,
-                                            .count = ANCHOR_STEER_ANCHORS,
+    errors[0].args = (OriorSteerDescent){.offsets = NULL,
+                                            .count = ORIOR_STEER_ANCHORS,
                                             .corpus = corpus,
                                             .corpus_len = ADVERSARIAL_CORPUS,
                                             .needle = needle,
@@ -77,8 +77,8 @@ int adversarial_case_trichotomy(void)
                                             .survivors = survivors,
                                             .survivors_length = alignments};
     errors[1].what = "null corpus";
-    errors[1].args = (AnchorSteerDescent){.offsets = offsets,
-                                            .count = ANCHOR_STEER_ANCHORS,
+    errors[1].args = (OriorSteerDescent){.offsets = offsets,
+                                            .count = ORIOR_STEER_ANCHORS,
                                             .corpus = NULL,
                                             .corpus_len = ADVERSARIAL_CORPUS,
                                             .needle = needle,
@@ -86,8 +86,8 @@ int adversarial_case_trichotomy(void)
                                             .survivors = survivors,
                                             .survivors_length = alignments};
     errors[2].what = "count over the bound";
-    errors[2].args = (AnchorSteerDescent){.offsets = offsets,
-                                            .count = ANCHOR_STEER_ANCHORS + 1u,
+    errors[2].args = (OriorSteerDescent){.offsets = offsets,
+                                            .count = ORIOR_STEER_ANCHORS + 1u,
                                             .corpus = corpus,
                                             .corpus_len = ADVERSARIAL_CORPUS,
                                             .needle = needle,
@@ -95,8 +95,8 @@ int adversarial_case_trichotomy(void)
                                             .survivors = survivors,
                                             .survivors_length = alignments};
     errors[3].what = "needle length zero";
-    errors[3].args = (AnchorSteerDescent){.offsets = offsets,
-                                            .count = ANCHOR_STEER_ANCHORS,
+    errors[3].args = (OriorSteerDescent){.offsets = offsets,
+                                            .count = ORIOR_STEER_ANCHORS,
                                             .corpus = corpus,
                                             .corpus_len = ADVERSARIAL_CORPUS,
                                             .needle = needle,
@@ -104,8 +104,8 @@ int adversarial_case_trichotomy(void)
                                             .survivors = survivors,
                                             .survivors_length = alignments};
     errors[4].what = "needle longer than corpus";
-    errors[4].args = (AnchorSteerDescent){.offsets = offsets,
-                                            .count = ANCHOR_STEER_ANCHORS,
+    errors[4].args = (OriorSteerDescent){.offsets = offsets,
+                                            .count = ORIOR_STEER_ANCHORS,
                                             .corpus = corpus,
                                             .corpus_len = 8u,
                                             .needle = needle,
@@ -113,8 +113,8 @@ int adversarial_case_trichotomy(void)
                                             .survivors = survivors,
                                             .survivors_length = alignments};
     errors[5].what = "survivor buffer short by one";
-    errors[5].args = (AnchorSteerDescent){.offsets = offsets,
-                                            .count = ANCHOR_STEER_ANCHORS,
+    errors[5].args = (OriorSteerDescent){.offsets = offsets,
+                                            .count = ORIOR_STEER_ANCHORS,
                                             .corpus = corpus,
                                             .corpus_len = ADVERSARIAL_CORPUS,
                                             .needle = needle,
@@ -124,18 +124,18 @@ int adversarial_case_trichotomy(void)
 
     for (size_t which = 0u; which < 6u; which += 1u)
     {
-        for (size_t slot = 0u; slot < ANCHOR_STEER_ANCHORS; slot += 1u)
+        for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
         {
             offsets[slot] = sentinel;
         }
 
-        const size_t placed = anchor_steer_spawn_coarms(&errors[which].args);
+        const size_t placed = orior_steer_spawn_coarms(&errors[which].args);
         if (placed != 0u)
         {
             printf("    %s ran and placed %zu: FAILS\n", errors[which].what, placed);
             failed += 1;
         }
-        for (size_t slot = 0u; slot < ANCHOR_STEER_ANCHORS; slot += 1u)
+        for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
         {
             if (offsets[slot] != sentinel)
             {
@@ -147,7 +147,7 @@ int adversarial_case_trichotomy(void)
     }
 
     // A null argument pointer is the seventh error and cannot be expressed in the table above.
-    if (anchor_steer_spawn_coarms(NULL) != 0u)
+    if (orior_steer_spawn_coarms(NULL) != 0u)
     {
         printf("    a null argument pointer ran: FAILS\n");
         failed += 1;
@@ -155,8 +155,8 @@ int adversarial_case_trichotomy(void)
 
     // RECURSES, and NEVER REVISITS. A well formed call places distinct offsets. Forcing full depth
     // takes the branch that ignores the destroy test, the recursing branch by construction.
-    const size_t forced = ANCHOR_STEER_CALL(
-        anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets, .count = ANCHOR_STEER_ANCHORS,
+    const size_t forced = ORIOR_STEER_CALL(
+        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS,
         .corpus = corpus, .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle),
         .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u, .force_full_depth = 1);
 
@@ -178,8 +178,8 @@ int adversarial_case_trichotomy(void)
     }
 
     // STOPS. Honoring the destroy test can only place fewer, never more.
-    const size_t stopped = ANCHOR_STEER_CALL(
-        anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets, .count = ANCHOR_STEER_ANCHORS,
+    const size_t stopped = ORIOR_STEER_CALL(
+        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS,
         .corpus = corpus, .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle),
         .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u);
 
@@ -188,7 +188,7 @@ int adversarial_case_trichotomy(void)
         printf("    stopping placed more than forcing: FAILS\n");
         failed += 1;
     }
-    if (forced > ANCHOR_STEER_ANCHORS)
+    if (forced > ORIOR_STEER_ANCHORS)
     {
         printf("    forcing exceeded the compile time bound: FAILS\n");
         failed += 1;
@@ -219,7 +219,7 @@ static uint32_t adversarial_joint_symbol(const AdversarialJointSymbols *joint, s
     return joint->needle[position - joint->corpus_length];
 }
 
-/** @brief Equality between two joint positions, the oracle anchor_field_pair_project asks. */
+/** @brief Equality between two joint positions, the oracle orior_field_pair_project asks. */
 static int adversarial_same_joint(const void *field, size_t left, size_t right)
 {
     const AdversarialJointSymbols *const joint = (const AdversarialJointSymbols *)field;
@@ -278,7 +278,7 @@ int adversarial_count_apart(const uint32_t *corpus, size_t corpus_length, const 
                             uint8_t *corpus_ranks, uint8_t *needle_ranks, const AdversarialClassBuffers *buffers,
                             size_t *count)
 {
-    const AnchorFieldProjection corpus_side = {.same_in_field = adversarial_same_symbol,
+    const OriorFieldProjection corpus_side = {.same_in_field = adversarial_same_symbol,
                                                .field = corpus,
                                                .length = corpus_length,
                                                .ranks = corpus_ranks,
@@ -286,7 +286,7 @@ int adversarial_count_apart(const uint32_t *corpus, size_t corpus_length, const 
                                                .members_in_class = buffers->members_in_class,
                                                .rarity_place_of_class = buffers->rarity_place_of_class,
                                                .classes_length = buffers->classes_length};
-    const AnchorFieldProjection needle_side = {.same_in_field = adversarial_same_symbol,
+    const OriorFieldProjection needle_side = {.same_in_field = adversarial_same_symbol,
                                                .field = needle,
                                                .length = needle_length,
                                                .ranks = needle_ranks,
@@ -295,19 +295,19 @@ int adversarial_count_apart(const uint32_t *corpus, size_t corpus_length, const 
                                                .rarity_place_of_class = buffers->rarity_place_of_class,
                                                .classes_length = buffers->classes_length};
 
-    const int corpus_projected = anchor_field_project(&corpus_side);
-    const int needle_projected = anchor_field_project(&needle_side);
+    const int corpus_projected = orior_field_project(&corpus_side);
+    const int needle_projected = orior_field_project(&needle_side);
 
     if ((corpus_projected == 0) || (needle_projected == 0))
     {
         return 0;
     }
-    *count = anchor_steer_count(corpus_ranks, corpus_length, needle_ranks, needle_length, 1);
+    *count = orior_steer_count(corpus_ranks, corpus_length, needle_ranks, needle_length, 1);
     return 1;
 }
 
 /**
- * @brief Counts through anchor_field_pair_project, which numbers both sides in one population.
+ * @brief Counts through orior_field_pair_project, which numbers both sides in one population.
  *
  * @return 1 where the projection ran and `count` and `distinct` were written, 0 where it errored.
  */
@@ -316,7 +316,7 @@ int adversarial_count_together(const uint32_t *corpus, size_t corpus_length, con
                                const AdversarialClassBuffers *buffers, size_t *count, size_t *distinct)
 {
     const AdversarialJointSymbols joint = {.corpus = corpus, .corpus_length = corpus_length, .needle = needle};
-    const AnchorFieldPairProjection both = {.same_in_field = adversarial_same_joint,
+    const OriorFieldPairProjection both = {.same_in_field = adversarial_same_joint,
                                             .field = &joint,
                                             .corpus_length = corpus_length,
                                             .needle_length = needle_length,
@@ -328,12 +328,12 @@ int adversarial_count_together(const uint32_t *corpus, size_t corpus_length, con
                                             .classes_length = buffers->classes_length,
                                             .distinct = distinct};
 
-    const int projected = anchor_field_pair_project(&both);
+    const int projected = orior_field_pair_project(&both);
 
     if (projected == 0)
     {
         return 0;
     }
-    *count = anchor_steer_count(corpus_ranks, corpus_length, needle_ranks, needle_length, 1);
+    *count = orior_steer_count(corpus_ranks, corpus_length, needle_ranks, needle_length, 1);
     return 1;
 }

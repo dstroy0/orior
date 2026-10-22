@@ -169,7 +169,7 @@ static int db_save(const CliServeArgs *args, CliLine *out, CliLine *said)
         CliLine named = {account, sizeof(account), 0ull};
         cli_db_account(&s_connection, &named);
         (void)cli_line_closed(&named);
-        done = cli_keychain_keep(account, password, said);
+        done = cli_keychain_keep("database", account, password, said);
     }
     cli_lock_give(&s_connection_lock);
     cli_line_text(out, done ? "null" : "");
@@ -208,7 +208,7 @@ static int db_forget_password(const CliServeArgs *args, CliLine *out, CliLine *s
         CliLine named = {account, sizeof(account), 0ull};
         cli_db_account(&s_connection, &named);
         (void)cli_line_closed(&named);
-        done = cli_keychain_forget(account, said);
+        done = cli_keychain_forget("database", account, said);
     }
     cli_lock_give(&s_connection_lock);
     cli_line_text(out, done ? "null" : "");
@@ -248,7 +248,7 @@ static int db_connect(const CliServeArgs *args, CliLine *out, CliLine *said)
         CliLine named = {account, sizeof(account), 0ull};
         cli_db_account(&s_connection, &named);
         (void)cli_line_closed(&named);
-        done = cli_keychain_keep(account, password, said);
+        done = cli_keychain_keep("database", account, password, said);
     }
     cli_lock_give(&s_connection_lock);
     if (!done)

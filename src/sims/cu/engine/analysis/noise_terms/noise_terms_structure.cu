@@ -145,7 +145,7 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
         // each factor is small here: the product stays far below 2^63, the denominator below 2^64
         const long long expected = (long long)(1000000ull * TERMS_FRAMES * TERMS_FRAMES * steps);
         const unsigned long long expected_denominator = frame_pairs * (unsigned long long)(level * level);
-        AnchorExactInteger millionths;
+        OriorExactInteger millionths;
         const int scaled = sim_exact_scaled(&measurement->slope[lag], 1000000ull, &millionths);
         sim_check(results, scaled, "the slope in millionths");
         if (scaled)
@@ -240,17 +240,17 @@ void terms_halves_line(SimResults *results, const SimCamera *camera, const Noise
     // S2^2 - S1^2 is positive, the high light above the low
     const unsigned long long low_square = low_light * low_light;
     const unsigned long long high_square = high_light * high_light;
-    AnchorExactInteger cross_low;
-    AnchorExactInteger cross_high;
-    AnchorExactInteger denominator;
-    AnchorExactInteger intercept;
-    AnchorExactInteger slope;
+    OriorExactInteger cross_low;
+    OriorExactInteger cross_high;
+    OriorExactInteger denominator;
+    OriorExactInteger intercept;
+    OriorExactInteger slope;
     int ok = sim_exact_product(&low->covariance, &high->covariance_denominator, &cross_low) &&
              sim_exact_product(&high->covariance, &low->covariance_denominator, &cross_high) &&
              sim_exact_product(&low->covariance_denominator, &high->covariance_denominator, &denominator) &&
              sim_exact_scaled(&denominator, high_square - low_square, &denominator);
-    AnchorExactInteger low_part;
-    AnchorExactInteger high_part;
+    OriorExactInteger low_part;
+    OriorExactInteger high_part;
     ok = ok && sim_exact_scaled(&cross_low, high_square, &low_part) &&
          sim_exact_scaled(&cross_high, low_square, &high_part) && sim_exact_less(&low_part, &high_part, &intercept) &&
          sim_exact_less(&cross_high, &cross_low, &slope);

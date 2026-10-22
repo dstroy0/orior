@@ -4,7 +4,7 @@ Extraction of Acoustic Correlates of Word Stress in Haisla by Grace Baleno, Cana
 Linguistics; Jonathan Janzen, Nicola Valley Institute of Technology; and Brendon Yoder, Canada
 Institute of Linguistics and SIL International, ICSNL 59.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -37,7 +37,7 @@ correction. The text layer ran the tables and the figure captions into the prose
 its own here, the numeric cells kept in reading order. It set a space inside ’Wùik̓ala on page 8,
 which the glyph positions and the page set whole.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 122
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 7594
 distinct tokens in the paper, 0 language tokens are held by no row.

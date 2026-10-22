@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pg.h: PostgreSQL, spoken by orior itself in the frontend and backend protocol 3.0 over TCP, with no driver: the
+// pg.h: PostgreSQL, spoken by orior_cli itself in the frontend and backend protocol 3.0 over TCP, with no driver: the
 // startup, a password by SCRAM-SHA-256, md5 or in the clear as the server asks, a statement by the simple query
 // protocol, and its rows read off the socket a page at a time, the rest left to wait in the server until they are
 // asked for. A statement running is stopped by a cancel request on a connection of its own, by the key the server gave

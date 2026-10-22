@@ -61,7 +61,7 @@ while [ "$EXACT_LIMBS" -lt "$QUESTION_LIMBS" ]; do
 done
 EXACT_DIGITS=$(( (EXACT_LIMBS * 32 * 1000 - 1) / 3322 ))
 [ "$EXACT_DIGITS" -gt 1024 ] && EXACT_DIGITS=1024
-EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_EXACT_DIGITS=${EXACT_DIGITS}u")
+EXACT_FLAGS=(-I "$EXACT_ROOT" "-DORIOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DORIOR_EXACT_DIGITS=${EXACT_DIGITS}u")
 
 MODULES=(cu/includes/formats/stack cu/includes/file_defs/krep cu/engine/analysis/compression cu/engine/analysis/tower
          cu/engine/runtime/device_pool cu/engine/analysis/entropy_history cu/engine/analysis/noise_detector

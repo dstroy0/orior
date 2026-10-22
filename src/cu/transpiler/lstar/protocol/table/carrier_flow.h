@@ -9,7 +9,7 @@
 // carries the cases where it loads one of their operands or reads a register one of them reaches: every other link is
 // the carrier's own, the thread's index, the case's index, the bound and the addresses, and a form put there moves the
 // case each thread reads. The links between a case's load and the link are the carrier's delta, apart from the form's.
-// klq_identity puts a form only where the link carries the cases, the least delta first, and klq_decoder reads each
+// orior_klq_identity puts a form only where the link carries the cases, the least delta first, and orior_klq_decoder reads each
 // put's operands back to the case words through the same links
 #ifndef CARRIER_FLOW_H
 #define CARRIER_FLOW_H

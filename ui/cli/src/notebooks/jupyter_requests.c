@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// jupyter_requests.c: what orior asks of a running kernel: requests sent and their replies waited for, code run, what
+// jupyter_requests.c: what orior_cli asks of a running kernel: requests sent and their replies waited for, code run, what
 // it runs interrupted, whether it still runs, and the kernel stopped, its process ended where it does not stop
 #include "jupyter_internal.h"
 
@@ -117,7 +117,7 @@ int cli_jupyter_executed(CliKernel *kernel, const char *code, unsigned long long
     int sent = 0;
     if (!cli_line_fits(&content))
     {
-        cli_line_text(said, "the code is larger than orior holds");
+        cli_line_text(said, "the code is larger than orior_cli holds");
     }
     else
     {

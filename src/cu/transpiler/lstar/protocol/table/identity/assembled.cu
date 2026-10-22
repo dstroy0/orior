@@ -54,7 +54,7 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     qry_member_rings_settled();
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
-        printf("klq_identity: the vendor's writer did not assemble: %s\n", s_writer_output);
+        printf("orior_klq_identity: the vendor's writer did not assemble: %s\n", s_writer_output);
         return codes;
     }
     const unsigned char *bytes = NULL;
@@ -69,7 +69,7 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     memcpy(&count, bytes + sizeof(call), sizeof(count));
     if ((call != s_call) || (count != texts.size()))
     {
-        printf("klq_identity: the vendor's writer handed call %llu of %u texts for call %llu of %zu\n", call, count,
+        printf("orior_klq_identity: the vendor's writer handed call %llu of %u texts for call %llu of %zu\n", call, count,
                s_call, texts.size());
         return codes;
     }

@@ -18,7 +18,9 @@
 //!
 //! The window is driven through its debugging port where its web view is WebView2, on Windows, and
 //! through WebDriver where it is WebKitGTK, on Linux (driven.rs). --docker runs the window's tests in
-//! the harness's own Docker image on this machine, driven through WebDriver (docker.rs).
+//! the harness's own Docker image on this machine, driven through WebDriver, or, where Docker runs
+//! Windows containers, in its Windows image, the window and the harness built here and driven
+//! through the debugging port (docker.rs).
 //!
 //! cargo run --manifest-path test/Cargo.toml --release -- [--only TEXT] [--monitor N] [--monitors]
 //!     [--no-servers] [--no-rust] [--no-window] [--keep-window] [--stop-servers]
@@ -205,34 +207,29 @@ impl Report {
     }
 }
 
-/// The time now as year-month-day-hourminutesecond, UTC.
 /// The query run's writer of src/cu built with the system's C compiler where its sources are newer, for the
 /// window's tests of runs to start runs with apart from the window; None where its sources or a compiler are
 /// missing.
-fn qry_writer(ui: &Path, here: &Path) -> Option<PathBuf> {
-    let cu = ui.parent()?.join("cu");
-    let protocol = cu.join("transpiler").join("lstar").join("protocol");
-    let writer = protocol.join("writer");
-    if !protocol.join("qry_writer.c").exists() {
+fn orior_qry_writer(ui: &Path, here: &Path) -> Option<PathBuf> {
+    let defs = ui.parent()?.join("src").join("cu").join("includes").join("file_defs");
+    let qry = defs.join("qry");
+    let writer = qry.join("writer");
+    if !qry.join("qry_writer.c").exists() {
         return None;
     }
-    // the writer's sources: its own file, its member and platform files and the .qry reader; and the headers they
-    // read, which date the binary too
-    let mut compiled = vec![protocol.join("qry_writer.c"), cu.join("includes").join("parsers").join("qry_read.c")];
+    // the writer's sources, as qry_run.sh builds it: its own file, its member and platform files, the .qry reader
+    // and the seal it writes with; and the headers they read, which date the binary too
+    let mut compiled = vec![qry.join("qry_writer.c"), qry.join("qry_read.c"), defs.join("ksg").join("ksg_seal.c"), defs.join("ksg").join("ksg_writing.c")];
     compiled.extend(files_under(&writer, ".c").into_iter().map(|file| writer.join(file)));
-    let mut read = vec![
-        cu.join("includes").join("file_defs").join("qry").join("qry.h"),
-        cu.join("includes").join("parsers").join("qry_read.h"),
-        cu.join("includes").join("codecs").join("crc").join("crc_key.h"),
-    ];
+    let mut read = vec![qry.join("qry.h"), qry.join("qry_read.h")];
     read.extend(files_under(&writer, ".h").into_iter().map(|file| writer.join(file)));
     let out = here.join("target").join("qry");
     std::fs::create_dir_all(&out).ok()?;
-    let binary = out.join(if cfg!(windows) { "qry_writer.exe" } else { "qry_writer" });
+    let binary = out.join(format!("{}{}", bin_named(ui, "qry_writer"), if cfg!(windows) { ".exe" } else { "" }));
     let newest = compiled.iter().chain(read.iter()).filter_map(|file| file.metadata().ok()?.modified().ok()).max();
     let built = binary.metadata().ok().and_then(|meta| meta.modified().ok());
     if built.is_none() || newest > built {
-        let made = Command::new("cc").args(["-std=c11", "-O2", "-Wall", "-Wextra", "-o"]).arg(&binary).args(&compiled).status().ok()?;
+        let made = guest("cc").args(["-std=c11", "-O2", "-Wall", "-Wextra", "-o"]).arg(&binary).args(&compiled).status().ok()?;
         if !made.success() {
             return None;
         }
@@ -240,6 +237,7 @@ fn qry_writer(ui: &Path, here: &Path) -> Option<PathBuf> {
     Some(binary)
 }
 
+/// The time now as year-month-day-hourminutesecond, UTC.
 fn stamp() -> String {
     let seconds = SystemTime::now().duration_since(UNIX_EPOCH).map(|since| since.as_secs()).unwrap_or(0);
     let (days, rest) = ((seconds / 86_400) as i64, seconds % 86_400);
@@ -319,12 +317,38 @@ fn own_repository(tree: &Path) -> Result<(), String> {
     git(&["commit", "-q", "-m", "The run's tree."])
 }
 
+/// The name of a program the tree builds, by its id in bin_names.tsv at the top of the tree, where
+/// every name is picked; `ui` is the tree's ui folder, under the top.
+pub fn bin_named(ui: &Path, id: &str) -> String {
+    let table = ui.parent().map(|top| top.join("bin_names.tsv")).and_then(|path| std::fs::read_to_string(path).ok()).unwrap_or_default();
+    table.lines().filter_map(|line| line.split_once('\t')).find(|(first, _)| *first == id).map(|(_, rest)| rest.split('\t').next().unwrap_or("").to_string()).unwrap_or_else(|| format!("orior_{id}"))
+}
+
+/// A command of a guest of the machine, a build or a test run: started below the window and the
+/// host's own work, which take the processor back from it the moment they want it.
+pub fn guest(program: &str) -> Command {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut command = Command::new(program);
+        // BELOW_NORMAL_PRIORITY_CLASS
+        command.creation_flags(0x4000);
+        command
+    }
+    #[cfg(not(windows))]
+    {
+        let mut command = Command::new("nice");
+        command.args(["-n", "9", program]);
+        command
+    }
+}
+
 // ---- Rust ----
 
 /// Runs cargo test for the crate at `manifest` and gives each test's outcome and the output of
 /// those that failed.
 fn cargo_test(manifest: &Path, target: Option<&Path>, env: &[(String, String)]) -> (Vec<Outcome>, String) {
-    let mut command = Command::new("cargo");
+    let mut command = guest("cargo");
     command.args(["test", "--no-fail-fast", "--manifest-path"]).arg(manifest);
     if let Some(target) = target {
         command.arg("--target-dir").arg(target);
@@ -687,7 +711,9 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let here = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    // The harness's own folder: where it was built from, or where ORIOR_TEST_HERE says the tree stands, as a
+    // container handed the harness built elsewhere says it.
+    let here = std::env::var_os("ORIOR_TEST_HERE").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")));
     let ui = here.parent().map(Path::to_path_buf).unwrap_or_else(|| here.clone());
     // the top of the tree's build/, two folders above the app's, where the run and the app built for it go
     let built = ui.parent().map(|top| top.join("build")).unwrap_or_else(|| here.join("build"));
@@ -732,7 +758,7 @@ fn main() -> ExitCode {
     if let Some(address) = servers::http() {
         env.push(("ORIOR_TEST_HTTP".into(), address));
     }
-    if let Some(writer) = qry_writer(&ui, &here) {
+    if let Some(writer) = orior_qry_writer(&ui, &here) {
         env.push(("ORIOR_TEST_QRY_WRITER".into(), writer.to_string_lossy().replace('\\', "/")));
     }
     // The files the window is measured on, fetched once and checked whole, and named to its tests by
@@ -852,7 +878,7 @@ fn main() -> ExitCode {
                 println!("  {error}");
                 report.files.push(("the window".into(), vec![Outcome { name: "it starts".into(), ok: false, ms: 0, error }], Vec::new()));
             }
-            Ok(shown) => match Connection::open(&shown.page) {
+            Ok(mut shown) => match Connection::open(&shown.page) {
                 Err(error) => report.said.push(format!("the window's debugging port: {error}")),
                 Ok(conn) => {
                     let conn = Arc::new(conn);
@@ -869,6 +895,9 @@ fn main() -> ExitCode {
                             window::keep_placed(&shown, options.monitor);
                             run_files(&conn, &page, &ui, &tests, &told, &mut report);
                             input::stop_started();
+                            if page.closed.load(Ordering::SeqCst) {
+                                report.said.push(window::ended(&mut shown));
+                            }
                         }
                     }
                     if options.keep_window {
@@ -941,7 +970,7 @@ mod tests {
 
     #[test]
     fn a_verdict_pushed_off_its_line_is_read_from_cargo_s_list_of_failures() {
-        let file = std::env::temp_dir().join(format!("orior-harness-cargo-{}.txt", std::process::id()));
+        let file = std::env::temp_dir().join(format!("orior_harness-cargo-{}.txt", std::process::id()));
         let said = "test a::one ... ok\ntest a::two ... said by a child\nok\ntest a::three ... printed\nFAILED\n\nfailures:\n\n---- a::three stdout ----\nit broke\n\nfailures:\n    a::three\n\ntest result: FAILED. 2 passed; 1 failed\n";
         std::fs::write(&file, said).unwrap();
         let mut command = Command::new(if cfg!(windows) { "cmd" } else { "cat" });
@@ -970,7 +999,7 @@ mod tests {
 
     #[test]
     fn the_run_s_tree_is_a_repository_of_its_own() {
-        let tree = std::env::temp_dir().join(format!("orior-harness-tree-{}", std::process::id()));
+        let tree = std::env::temp_dir().join(format!("orior_harness-tree-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tree);
         std::fs::create_dir_all(tree.join("bench")).unwrap();
         std::fs::write(tree.join("hello.py"), "print('hello')\n").unwrap();
@@ -993,7 +1022,7 @@ mod tests {
 
     #[test]
     fn a_file_of_rust_with_code_and_no_test_is_untested() {
-        let dir = std::env::temp_dir().join(format!("orior-harness-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("orior_harness-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("code.rs"), "fn a() {}\n").unwrap();
         std::fs::write(dir.join("tested.rs"), "fn a() {}\n#[test]\nfn b() {}\n").unwrap();

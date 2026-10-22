@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zmtp.c: ZeroMQ's wire protocol, ZMTP 3.0 with its NULL mechanism, as a Jupyter kernel speaks it on the machine's own
-// loopback: the greeting, the READY command that names a socket's type, and messages of one or more frames. orior is
+// loopback: the greeting, the READY command that names a socket's type, and messages of one or more frames. orior_cli is
 // the connecting side of each of a kernel's sockets, a DEALER to its ROUTERs, a SUB to its PUB and a REQ to its REP. A
 // SUB subscribes as ZMTP 3.0 has it, by a message whose first byte is 1, which a peer that speaks 3.1 takes from a 3.0
 // peer as well
@@ -124,7 +124,7 @@ static int cli_zmtp_greeted(const CliSocket *socket, const char *kind, CliLine *
             length += 1u;
         }
         cli_line_counted(said, (const char *)&theirs[12], length);
-        cli_line_text(said, " mechanism, where orior speaks NULL");
+        cli_line_text(said, " mechanism, where orior_cli speaks NULL");
         return 0;
     }
     unsigned char ready[64];

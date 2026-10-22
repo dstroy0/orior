@@ -11,8 +11,8 @@ typedef struct
 {
     int found;
     unsigned long long period;
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
 } EnergyMeasurement;
 
 typedef struct
@@ -86,8 +86,8 @@ static inline unsigned long long energy_members(unsigned long long length, unsig
 }
 
 static inline int energy_ratio(const long long *values, unsigned long long length, const long long *sums,
-                               unsigned long long period, AnchorExactInteger *numerator,
-                               AnchorExactInteger *denominator)
+                               unsigned long long period, OriorExactInteger *numerator,
+                               OriorExactInteger *denominator)
 {
     if ((period < 2ull) || (period >= length))
     {
@@ -95,19 +95,19 @@ static inline int energy_ratio(const long long *values, unsigned long long lengt
     }
     const unsigned long long fewer = length / period;
     const unsigned long long more = fewer + 1ull;
-    AnchorExactInteger fewer_squares;
-    AnchorExactInteger more_squares;
-    AnchorExactInteger integer_sum;
-    AnchorExactInteger integer_squares;
-    AnchorExactInteger term;
-    anchor_exact_zero(&fewer_squares);
-    anchor_exact_zero(&more_squares);
-    anchor_exact_zero(&integer_sum);
-    anchor_exact_zero(&integer_squares);
+    OriorExactInteger fewer_squares;
+    OriorExactInteger more_squares;
+    OriorExactInteger integer_sum;
+    OriorExactInteger integer_squares;
+    OriorExactInteger term;
+    orior_exact_zero(&fewer_squares);
+    orior_exact_zero(&more_squares);
+    orior_exact_zero(&integer_sum);
+    orior_exact_zero(&integer_squares);
     int ok = 1;
     for (unsigned long long phase = 0ull; ok && (phase < period); phase += 1ull)
     {
-        AnchorExactInteger sum;
+        OriorExactInteger sum;
         sim_exact_signed(&sum, sums[energy_phase_base(period) + phase]);
         ok = sim_exact_sum(&integer_sum, &sum, &integer_sum) && sim_exact_product(&sum, &sum, &term);
         if (energy_members(length, period, phase) == more)
@@ -124,16 +124,16 @@ static inline int energy_ratio(const long long *values, unsigned long long lengt
         sim_exact_signed(&term, values[at]);
         ok = sim_exact_product(&term, &term, &term) && sim_exact_sum(&integer_squares, &term, &integer_squares);
     }
-    AnchorExactInteger length_exact;
-    AnchorExactInteger fewer_exact;
-    AnchorExactInteger more_exact;
+    OriorExactInteger length_exact;
+    OriorExactInteger fewer_exact;
+    OriorExactInteger more_exact;
     sim_exact_unsigned(&length_exact, length);
     sim_exact_unsigned(&fewer_exact, fewer);
     sim_exact_unsigned(&more_exact, more);
-    AnchorExactInteger counts;
-    AnchorExactInteger between;
-    AnchorExactInteger total;
-    AnchorExactInteger part;
+    OriorExactInteger counts;
+    OriorExactInteger between;
+    OriorExactInteger total;
+    OriorExactInteger part;
     ok = ok && sim_exact_product(&fewer_exact, &more_exact, &counts);
     ok = ok && sim_exact_product(&length_exact, &more_exact, &part) &&
          sim_exact_product(&part, &fewer_squares, &between);
@@ -143,7 +143,7 @@ static inline int energy_ratio(const long long *values, unsigned long long lengt
          sim_exact_less(&between, &term, &between);
     ok = ok && sim_exact_product(&length_exact, &integer_squares, &total) && sim_exact_less(&total, &part, &total) &&
          sim_exact_product(&total, &counts, &total);
-    AnchorExactInteger within;
+    OriorExactInteger within;
     ok = ok && sim_exact_less(&total, &between, &within);
     if ((ok == 0) || (within.sign <= 0))
     {
@@ -171,8 +171,8 @@ static inline int energy_recover(SimResults *results, const long long *values, u
     }
     for (unsigned long long period = 2ull; period <= top; period += 1ull)
     {
-        AnchorExactInteger numerator;
-        AnchorExactInteger denominator;
+        OriorExactInteger numerator;
+        OriorExactInteger denominator;
         if (energy_ratio(values, length, sums, period, &numerator, &denominator) == 0)
         {
             continue;
@@ -350,16 +350,16 @@ static inline int energy_welford(SimResults *results, const long long *values, u
 
 static inline int energy_reduction(const long long *noisy, const long long *target, unsigned long long length,
                                    unsigned long long period, const long long *phase_sums,
-                                   AnchorExactInteger *numerator, AnchorExactInteger *denominator)
+                                   OriorExactInteger *numerator, OriorExactInteger *denominator)
 {
     const unsigned long long fewer = length / period;
     const unsigned long long more = fewer + 1ull;
     unsigned long long injected = 0ull;
-    AnchorExactInteger left_fewer;
-    AnchorExactInteger left_more;
-    AnchorExactInteger term;
-    anchor_exact_zero(&left_fewer);
-    anchor_exact_zero(&left_more);
+    OriorExactInteger left_fewer;
+    OriorExactInteger left_more;
+    OriorExactInteger term;
+    orior_exact_zero(&left_fewer);
+    orior_exact_zero(&left_more);
     int ok = 1;
     for (unsigned long long at = 0ull; ok && (at < length); at += 1ull)
     {
@@ -381,15 +381,15 @@ static inline int energy_reduction(const long long *noisy, const long long *targ
         sim_exact_unsigned(denominator, 1ull);
         return ok;
     }
-    AnchorExactInteger fewer_square;
-    AnchorExactInteger more_square;
-    AnchorExactInteger energy;
+    OriorExactInteger fewer_square;
+    OriorExactInteger more_square;
+    OriorExactInteger energy;
     sim_exact_unsigned(&fewer_square, fewer * fewer);
     sim_exact_unsigned(&more_square, more * more);
     ok = ok && sim_exact_product(&left_fewer, &more_square, &left_fewer);
     ok = ok && sim_exact_product(&left_more, &fewer_square, &left_more);
     ok = ok && sim_exact_sum(&left_fewer, &left_more, &energy);
-    AnchorExactInteger scale;
+    OriorExactInteger scale;
     ok =
         ok && sim_exact_product(&fewer_square, &more_square, &scale) && sim_exact_scaled(&scale, injected, denominator);
     ok = ok && sim_exact_less(denominator, &energy, numerator);

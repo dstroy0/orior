@@ -2,18 +2,18 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 [package]
-name = "orior-ui"
+name = "orior_gui"
 version = "0.1.0"
 edition = "2024"
 license = "AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational"
 rust-version = "1.85"
 
 [lib]
-name = "orior_ui_lib"
+name = "orior_gui_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "orior"
+name = "orior_gui"
 path = "src/main.rs"
 
 # A plain cargo build, run or install builds the app as released, with the page inside it; cargo

@@ -8,7 +8,7 @@
 // compiler wrote is a seed of its own. Which instructions to ask is the choice here and no fact of the part: a form
 // enters the machine file only where the part answers for it (P8, Q17).
 //
-//     sass_listing_seeds <listing.sass> [--modifiers]
+//     orior_sass_listing_seeds <listing.sass> [--modifiers]
 //
 // Exit 0 with the seeds on the standard output; 1 where the listing did not read; 2 where the words are not these
 #include <stdio.h>
@@ -81,13 +81,13 @@ int main(int count, char **word)
     const int modifiers = (count == 3) && (strcmp(word[2], "--modifiers") == 0);
     if ((count < 2) || (count > 3) || ((count == 3) && !modifiers))
     {
-        printf("sass_listing_seeds <listing.sass> [--modifiers]\n");
+        printf("orior_sass_listing_seeds <listing.sass> [--modifiers]\n");
         return 2;
     }
     FILE *const listing = fopen(word[1], "rb");
     if (listing == NULL)
     {
-        printf("sass_listing_seeds: %s did not open\n", word[1]);
+        printf("orior_sass_listing_seeds: %s did not open\n", word[1]);
         return 1;
     }
     // each instruction's words come as a pair of `/* 0x<16 hex digits> */`, the low word first
@@ -117,7 +117,7 @@ int main(int count, char **word)
     fclose(listing);
     if (!kept)
     {
-        printf("sass_listing_seeds: no memory for the seeds\n");
+        printf("orior_sass_listing_seeds: no memory for the seeds\n");
         return 1;
     }
     for (unsigned int at = 0u; at < s_seeds; at += 1u)

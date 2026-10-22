@@ -63,11 +63,14 @@ typedef struct
     unsigned int count;
 } CliHighlightToken;
 
-// One case of a token, or one group's token: the case's text, none for a group, and its token
+// One case of a token, or one group's token: the case's text, none for a group, and its token; the word list the
+// case's text names with `@`, none where it names none; and whether the case is `@default`
 typedef struct
 {
     unsigned int key;
     unsigned int token;
+    unsigned int list;
+    int fallback;
 } CliHighlightCase;
 
 // A rule: its pattern, its arrays at the grammar's places, its token and the state it goes to, each none where it has
@@ -84,6 +87,7 @@ typedef struct
     unsigned int groups;
     int fold;
     CliRegexpFirst first;
+    int anchored;
     unsigned int token;
     unsigned int next;
 } CliHighlightRule;

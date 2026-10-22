@@ -21,7 +21,7 @@
 #define CLI_KERNEL_HEADER_NODES 512u
 #define CLI_KERNEL_HEADER_TEXT (1u << 14u)
 
-// the most bytes of content a request orior makes carries, and how long a kernel's readers are waited for as it is let
+// the most bytes of content a request orior_cli makes carries, and how long a kernel's readers are waited for as it is let
 // go, in milliseconds
 #define CLI_KERNEL_CONTENT (1u << 22u)
 #define CLI_KERNEL_READERS_WAIT 5000ull

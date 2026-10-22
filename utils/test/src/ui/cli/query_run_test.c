@@ -95,7 +95,7 @@ static void run_folders(void)
     (void)query_removed(folder);
 }
 
-// a folder's runs listed are held counted to the query, and given back the query holds none of them, its mark standing
+// a folder's runs listed are kept counted to the query, and given back the query holds none of them, its mark standing
 static void run_cells(void)
 {
     char folder[QUERY_PATH_LONGEST];
@@ -103,12 +103,12 @@ static void run_cells(void)
     run_folder("build/query_test/cells", folder);
     cli_full(folder, "query1-20260101T000000.qry", path);
     (void)query_file_written(path, "", 0ull);
-    const unsigned long long before = g_query_cells.held;
+    const unsigned long long before = g_query_cells.holds;
     QueryRuns runs;
     const int taken = query_runs_taken(folder, &runs);
-    const unsigned long long holding = g_query_cells.held;
+    const unsigned long long holding = g_query_cells.holds;
     query_runs_given(&runs);
-    cli_check(taken && (runs.count == 0u) && (holding > before) && (g_query_cells.held == before) &&
+    cli_check(taken && (runs.count == 0u) && (holding > before) && (g_query_cells.holds == before) &&
                   (g_query_cells.hw >= holding),
               "a folder's runs are counted to the query while held, and its count falls back as they are given");
     (void)query_removed(folder);
@@ -172,7 +172,7 @@ static int run_latest_is(const QueryRun *run, const char *name, const char *text
            (memor.cmp(&(MemoriaCfg){.src = bytes, .other = text, .bytes = size}) == 0);
 }
 
-// a failed loop still stops its writer; and a step joins the run held open and its end leaves the writer running
+// a failed loop still stops its writer; and a step joins the run kept open and its end leaves the writer running
 static void run_writers(void)
 {
     char folder[QUERY_PATH_LONGEST];
@@ -261,19 +261,23 @@ static void run_read(void)
     cli_full(base, "absent.khw", absent);
     cli_full(base, "left.txt", left);
     (void)query_file_written(file, "forms\n", 6ull);
+    const unsigned long long before = g_query_cells.holds;
     cli_check(run_started(&s_run, "build/query_test/read/qry"), "a run starts");
     const char *const read[2] = {file, absent};
     cli_check(query_run_read(&s_run, read, 2u, &said) &&
                   run_latest_is(&s_run, "build/query_test/read/sm_86.khw", "forms\n"),
               "a file read is handed under its path");
-    cli_check((s_run.reads == 1u) &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = s_run.read[0], .other = file, .cap = CLI_CELLS_POOL})),
+    cli_check((s_run.read.count == 1u) &&
+                  (cellul.eq(&(CatenaFinitaCfg){.src = s_run.read.path[0], .other = file, .cap = CLI_CELLS_POOL})),
               "and remembered as a leaf, one not there not");
     const char *const lefts[2] = {file, left};
     query_run_left(&s_run, lefts, 2u);
-    cli_check((s_run.lefts == 2u) &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = s_run.left[1], .other = left, .cap = CLI_CELLS_POOL})),
+    cli_check((s_run.left.count == 2u) &&
+                  (cellul.eq(&(CatenaFinitaCfg){.src = s_run.left.path[1], .other = left, .cap = CLI_CELLS_POOL})),
               "a file left is remembered too");
+    cli_check((s_run.read.room == QUERY_PATHS_FIRST) && (s_run.left.room == QUERY_PATHS_FIRST) &&
+                  (g_query_cells.holds >= before + (2ull * QUERY_PATHS_FIRST * QUERY_PATH_LONGEST)),
+              "the files read and left are held in cells of the query's, a first room each");
     said.at = 0ull;
     (void)query_writer_append(&s_run.writer, "build/query_test/read/sm_86.khw", "forms an earlier step wrote\n", 28ull,
                               QRY_ORDINARY, &said);
@@ -284,6 +288,8 @@ static void run_read(void)
                   run_latest_is(&s_run, "build/query_test/read/sm_86.khw", "forms an earlier step wrote\n"),
               "a later step reads the run's own, not the disk's older copy");
     run_ended(&s_run);
+    cli_check((s_run.read.path == NULL) && (s_run.left.path == NULL) && (g_query_cells.holds == before),
+              "and the run's end gives their cells back");
     (void)query_removed(base);
 }
 

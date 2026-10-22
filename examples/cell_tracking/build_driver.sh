@@ -44,7 +44,7 @@ for one in $ARCHES; do
 done
 echo "  architectures: $ARCHES"
 
-EXACT_ROOT="${ANCHOR_EXACT_ROOT:-$ENGINE/../types/integers}"
+EXACT_ROOT="${ORIOR_EXACT_ROOT:-$ENGINE/../types/integers}"
 RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$ENGINE"/engine_config_*.h)"
 [ -n "$RESIDUAL_LIMBS" ] || { echo "  build failed: no ENGINE_RESIDUAL_LIMBS in engine_config_*.h"; exit 1; }
 QUESTION_LIMBS=$((RESIDUAL_LIMBS + 1))
@@ -55,13 +55,13 @@ FITTED_LIMBS=1
 while [ "$FITTED_LIMBS" -lt "$QUESTION_LIMBS" ]; do
     FITTED_LIMBS=$((FITTED_LIMBS * 2))
 done
-EXACT_LIMBS="${ANCHOR_EXACT_LIMBS:-$FITTED_LIMBS}"
+EXACT_LIMBS="${ORIOR_EXACT_LIMBS:-$FITTED_LIMBS}"
 EXACT_DIGITS=$(( (EXACT_LIMBS * 32 * 1000 - 1) / 3322 ))
 if [ "$EXACT_DIGITS" -gt 1024 ]; then
     EXACT_DIGITS=1024
 fi
 [ -f "$EXACT_ROOT/exact_integer.h" ] || { echo "  build failed: no exact_integer.h under $EXACT_ROOT"; exit 1; }
-EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_EXACT_DIGITS=${EXACT_DIGITS}u")
+EXACT_FLAGS=(-I "$EXACT_ROOT" "-DORIOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DORIOR_EXACT_DIGITS=${EXACT_DIGITS}u")
 echo "  exact integer: $((EXACT_LIMBS * 32)) bits, $EXACT_DIGITS digits, for a question of $QUESTION_LIMBS limbs, from $EXACT_ROOT"
 
 FUNCTIONALS=(cell_tracking/src/run_cfg cu/includes/formats/cfg_json cell_tracking/src/run_log

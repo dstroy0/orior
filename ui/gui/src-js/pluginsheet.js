@@ -9,7 +9,7 @@
 // installed by Install and let run as it asks, and updated only by Update, an update that asks for
 // more waiting to be let again. The second asks what a language plugin needs, shows a sample colored
 // by the plugin those answers make and the plugin's file as it would be written, both changing as the
-// answers do, and writes it to the reader's plugins folder, as `orior file new-plugin` does.
+// answers do, and writes it to the reader's plugins folder, as `orior_gui file new-plugin` does.
 
 import { invoke } from "./bridge.js";
 import { tokenize } from "./editor/tokens.js";

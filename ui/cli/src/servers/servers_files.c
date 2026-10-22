@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_files.c: the files the editor holds: a file handed to its language's server and its text to the inspections
-// and the checkers as it opens, each new text given, and the file let go as the editor closes it, the inspections and
-// orior's own reading reading it again as the disk holds it. Where the tree's check is on, a file the editor closes is
-// checked as the disk holds it before its server lets it go. A file the check held is the editor's once it opens, and
-// a file its server holds already hears the diagnostics it last gave
+// servers_files.c: the files the editor holds: a file handed to its language's server, to the plugins' servers of its
+// language and its text to the inspections and the checkers as it opens, each new text given, and the file let go as
+// the editor closes it, the inspections and orior's own reading reading it again as the disk holds it. Where the tree's
+// check is on, a file the editor closes is checked as the disk holds it before its server lets it go. A file the check
+// held is the editor's once it opens, and a file its server holds already hears the diagnostics it last gave
 #include "servers_internal.h"
 
 // the most files the editor holds
@@ -55,16 +55,19 @@ int cli_servers_open(const char *root, const char *path, const char *language, c
     cli_lock_give(&g_cli_servers.lock);
     cli_servers_run_checkers(root, path, text, size, 1, emit);
     cli_servers_check_own(root, path, text, size, emit);
+    const int plugged = cli_servers_plugins_opened(path, language, text, size);
     static CliServerSpec s_spec;
     const unsigned long long before = said->at;
     CliLsp *const server = cli_servers_server(root, language, emit, &s_spec, said);
     if (server == NULL)
     {
-        if (said->at > before)
+        // a file a plugin's server took is the editor's to tell of its changes and its closing, its language's own
+        // server or none
+        if ((said->at > before) && !plugged)
         {
             return 0;
         }
-        cli_line_text(out, "false");
+        cli_line_text(out, plugged ? "true" : "false");
         return 1;
     }
     char id[CLI_NAME_LONGEST];
@@ -114,6 +117,7 @@ int cli_servers_change(const char *path, const char *text, unsigned long long si
         cli_servers_check_own(root, path, text, size, &s_told);
     }
     cli_lock_give(&s_told_lock);
+    cli_servers_plugins_changed(path, text, size);
     cli_lock_take(&g_cli_servers_held_lock);
     CliLsp *const server = cli_servers_holding(path);
     const int done = (server == NULL) || cli_lsp_changed(server, path, text, size, said);
@@ -135,7 +139,7 @@ int cli_servers_close(const char *path, CliLine *said)
     cli_lock_give(&g_cli_servers_texts_lock);
     cli_lock_take(&s_disk_lock);
     unsigned long long read = 0ull;
-    const unsigned char *const mapped = qry_member_file_mapped(path, &read);
+    const unsigned char *const mapped = cli_file_held(path, &read);
     const char *const disk = (const char *)mapped;
     const int whole = (mapped != NULL) && cli_utf8_whole(disk, read);
     cli_servers_inspect_again(path, whole ? disk : NULL, whole ? read : 0ull);
@@ -147,9 +151,10 @@ int cli_servers_close(const char *path, CliLine *said)
     }
     if (mapped != NULL)
     {
-        qry_member_file_unmapped(mapped, read);
+        cli_file_let_go(mapped, read);
     }
     cli_lock_give(&s_disk_lock);
+    cli_servers_plugins_closed(path);
     CliLsp *const server = cli_servers_holding(path);
     if (server == NULL)
     {

@@ -163,15 +163,15 @@ void qasm_outcome_close(const QasmResults *results, QasmOutcome *outcome)
                                                                  : results->top.second_key);
     qasm_wide_units(&results->top.best, outcome->peak_units);
     qasm_wide_units(&results->top.second, outcome->runner_up_units);
-    AnchorExactInteger bound;
-    AnchorExactInteger square;
-    AnchorExactInteger scale;
-    AnchorExactInteger rest;
-    AnchorExactInteger slack;
-    AnchorExactInteger one;
-    anchor_exact_zero(&bound);
-    anchor_exact_zero(&scale);
-    anchor_exact_zero(&one);
+    OriorExactInteger bound;
+    OriorExactInteger square;
+    OriorExactInteger scale;
+    OriorExactInteger rest;
+    OriorExactInteger slack;
+    OriorExactInteger one;
+    orior_exact_zero(&bound);
+    orior_exact_zero(&scale);
+    orior_exact_zero(&one);
     int any = 0;
     for (unsigned int limb = 0u; limb < QASM_WIDE_LIMBS; limb += 1u)
     {
@@ -184,25 +184,25 @@ void qasm_outcome_close(const QasmResults *results, QasmOutcome *outcome)
     one.limb[0] = 1u;
     one.sign = 1;
     // E^2 / 2^2F rounded up, then 2E added
-    anchor_exact_multiply(&bound, &bound, &square);
-    anchor_exact_divide(&square, &scale, &slack, &rest);
+    orior_exact_multiply(&bound, &bound, &square);
+    orior_exact_divide(&square, &scale, &slack, &rest);
     if (rest.sign != 0)
     {
-        anchor_exact_add(&slack, &one, &slack);
+        orior_exact_add(&slack, &one, &slack);
     }
-    anchor_exact_add(&slack, &bound, &slack);
-    anchor_exact_add(&slack, &bound, &slack);
+    orior_exact_add(&slack, &bound, &slack);
+    orior_exact_add(&slack, &bound, &slack);
     for (unsigned int limb = 0u; limb < QASM_WIDE_LIMBS; limb += 1u)
     {
         outcome->slack_units[limb] = slack.limb[limb];
     }
     // proved when p'(peak) - p'(runner-up) > 2 slack
-    AnchorExactInteger best;
-    AnchorExactInteger second;
-    AnchorExactInteger gap;
-    AnchorExactInteger twice;
-    anchor_exact_zero(&best);
-    anchor_exact_zero(&second);
+    OriorExactInteger best;
+    OriorExactInteger second;
+    OriorExactInteger gap;
+    OriorExactInteger twice;
+    orior_exact_zero(&best);
+    orior_exact_zero(&second);
     for (unsigned int limb = 0u; limb < QASM_WIDE_LIMBS; limb += 1u)
     {
         best.limb[limb] = outcome->peak_units[limb];
@@ -210,9 +210,9 @@ void qasm_outcome_close(const QasmResults *results, QasmOutcome *outcome)
     }
     best.sign = ((results->top.best.low | results->top.best.high) != 0ull) ? 1 : 0;
     second.sign = ((results->top.second.low | results->top.second.high) != 0ull) ? 1 : 0;
-    anchor_exact_subtract(&best, &second, &gap);
-    anchor_exact_add(&slack, &slack, &twice);
-    outcome->proved = (anchor_exact_compare(&gap, &twice) > 0) ? 1u : 0u;
+    orior_exact_subtract(&best, &second, &gap);
+    orior_exact_add(&slack, &slack, &twice);
+    outcome->proved = (orior_exact_compare(&gap, &twice) > 0) ? 1u : 0u;
 }
 
 // ---------------------------------------------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The Comms window, driven as a person drives it: the parts of orior's container and the channels
-// they speak on, a terminal joining as a part while its shell runs, and a run that orior starts in
+// they speak on, a terminal joining as a part while its shell runs, and a run that orior_gui starts in
 // that terminal told to the window on a channel of its own.
 
 import { invoke } from "../../gui/src-js/bridge.js";
@@ -60,7 +60,7 @@ test("what the server tells the window goes over channels the window counts, eac
   assert.ok(commsShown().out.startsWith("orior: "), commsShown().out);
 });
 
-test("a terminal is a part while its shell runs, and a run orior starts in it is told on a channel of its own", async () => {
+test("a terminal is a part while its shell runs, and a run orior_gui starts in it is told on a channel of its own", async () => {
   await openWindow();
   const before = named("terminal").length;
   const channelsBefore = new Set(commsShown().channels.map((one) => one.name));
@@ -70,7 +70,7 @@ test("a terminal is a part while its shell runs, and a run orior starts in it is
   const terminal = named("terminal").at(-1);
   const shell = terminal.detail.match(/process (\d+)/)?.[1];
   assert.ok(/process \d+/.test(terminal.detail) && /listens on runs\/\*; speaks on runs\/\*/.test(terminal.detail), terminal.detail);
-  runInTerminal("orior run run-file hello.py");
+  runInTerminal("orior_gui run run-file hello.py");
   await openWindow();
   const ran = () => commsShown().channels.find((one) => one.name.startsWith("runs/") && !channelsBefore.has(one.name));
   // orior's first run in a home asks once whether to file the errors it meets; the test says no.

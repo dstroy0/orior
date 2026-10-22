@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-_Static_assert(MARGINAL_LIMBS <= ANCHOR_EXACT_LIMBS, "marginal: the host's exact integer must hold every sum");
+_Static_assert(MARGINAL_LIMBS <= ORIOR_EXACT_LIMBS, "marginal: the host's exact integer must hold every sum");
 
 long marginal_arrangements(const MarginalRequest *request, const MarginalQuestion *asked)
 {
@@ -41,16 +41,16 @@ long marginal_arrangements(const MarginalRequest *request, const MarginalQuestio
     return (long)arrangements;
 }
 
-static void marginal_host_word(AnchorExactInteger *value, unsigned int word)
+static void marginal_host_word(OriorExactInteger *value, unsigned int word)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     value->limb[0] = word;
     value->sign = (word != 0u) ? 1 : 0;
 }
 
-static int marginal_host_put(const AnchorExactInteger *value, unsigned int *limbs)
+static int marginal_host_put(const OriorExactInteger *value, unsigned int *limbs)
 {
-    for (unsigned int limb = MARGINAL_LIMBS; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+    for (unsigned int limb = MARGINAL_LIMBS; limb < ORIOR_EXACT_LIMBS; limb += 1u)
     {
         if (value->limb[limb] != 0u)
         {
@@ -68,17 +68,17 @@ static int marginal_host_question(const MarginalRequest *request, unsigned int q
 {
     const MarginalQuestion *const asked = &request->questions[question];
     const MarginalSource *const sources = &request->sources[asked->source_first];
-    AnchorExactInteger *const totals =
-        (AnchorExactInteger *)malloc(((size_t)sources[0].options + MARGINAL_SUMS) * sizeof(AnchorExactInteger));
+    OriorExactInteger *const totals =
+        (OriorExactInteger *)malloc(((size_t)sources[0].options + MARGINAL_SUMS) * sizeof(OriorExactInteger));
     if (totals == NULL)
     {
         return 0;
     }
     for (unsigned int outcome = 0u; outcome < (sources[0].options + MARGINAL_SUMS); outcome += 1u)
     {
-        anchor_exact_zero(&totals[outcome]);
+        orior_exact_zero(&totals[outcome]);
     }
-    AnchorExactInteger product[MARGINAL_SOURCES_MAX + 1u];
+    OriorExactInteger product[MARGINAL_SOURCES_MAX + 1u];
     unsigned long long taken[MARGINAL_SOURCES_MAX + 1u];
     unsigned int choice[MARGINAL_SOURCES_MAX + 1u];
     marginal_host_word(&product[0], 1u);
@@ -90,11 +90,11 @@ static int marginal_host_question(const MarginalRequest *request, unsigned int q
     {
         if (depth == asked->sources)
         {
-            AnchorExactInteger sum;
+            OriorExactInteger sum;
             const unsigned int outcome = (choice[0] == 0u) ? MARGINAL_ABSENT : (MARGINAL_SUMS + choice[0] - 1u);
-            ok = (anchor_exact_add(&totals[MARGINAL_TOTAL], &product[depth], &sum) == ANCHOR_EXACT_OK);
+            ok = (orior_exact_add(&totals[MARGINAL_TOTAL], &product[depth], &sum) == ORIOR_EXACT_OK);
             totals[MARGINAL_TOTAL] = sum;
-            ok = ok && (anchor_exact_add(&totals[outcome], &product[depth], &sum) == ANCHOR_EXACT_OK);
+            ok = ok && (orior_exact_add(&totals[outcome], &product[depth], &sum) == ORIOR_EXACT_OK);
             totals[outcome] = sum;
             depth -= 1u;
             choice[depth] += 1u;
@@ -124,9 +124,9 @@ static int marginal_host_question(const MarginalRequest *request, unsigned int q
             choice[depth] += 1u;
             continue;
         }
-        AnchorExactInteger factor;
+        OriorExactInteger factor;
         marginal_host_word(&factor, weight);
-        ok = (anchor_exact_multiply(&product[depth], &factor, &product[depth + 1u]) == ANCHOR_EXACT_OK);
+        ok = (orior_exact_multiply(&product[depth], &factor, &product[depth + 1u]) == ORIOR_EXACT_OK);
         taken[depth + 1u] = taken[depth] | mark;
         depth += 1u;
         choice[depth] = 0u;

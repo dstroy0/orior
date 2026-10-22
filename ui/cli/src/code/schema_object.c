@@ -159,7 +159,7 @@ static void object_name(CliSchemaCheck *check, unsigned int member, unsigned int
                         unsigned int depth)
 {
     CliSchemaRead *const read = check->read;
-    if (read->nodes == CLI_SCHEMA_NODES)
+    if (read->nodes == read->nodes_most)
     {
         return;
     }

@@ -158,7 +158,7 @@ static int cli_codes(CliBits *bits, unsigned char *out, unsigned long long room,
         {
             if (*size >= room)
             {
-                cli_line_text(said, "the inflated data is larger than orior holds");
+                cli_line_text(said, "the inflated data is larger than orior_cli holds");
                 return 0;
             }
             // a literal is below 256, a byte
@@ -197,7 +197,7 @@ static int cli_codes(CliBits *bits, unsigned char *out, unsigned long long room,
         }
         if ((*size + length) > room)
         {
-            cli_line_text(said, "the inflated data is larger than orior holds");
+            cli_line_text(said, "the inflated data is larger than orior_cli holds");
             return 0;
         }
         const unsigned long long from = *size - distance;
@@ -252,7 +252,7 @@ int cli_inflate(const unsigned char *data, unsigned long long size, unsigned cha
             if (done && (((at + 4ull + length) > size) || ((*out_size + length) > room)))
             {
                 cli_line_text(said, ((at + 4ull + length) > size) ? "a stored block is cut"
-                                                                  : "the inflated data is larger than orior holds");
+                                                                  : "the inflated data is larger than orior_cli holds");
                 done = 0;
             }
             if (done)

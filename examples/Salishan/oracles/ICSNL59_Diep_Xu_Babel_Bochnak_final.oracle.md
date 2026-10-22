@@ -3,7 +3,7 @@
 Extraction of Prosody in Ktunaxa Interrogatives: An Initial Examination of Acoustics and Perception
 by Brian Diep, Chenxi Xu, Molly Babel and M. Ryan Bochnak, University of British Columbia, ICSNL 59.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -35,7 +35,7 @@ gloss a line; they are read a tier a row. The text layer ran the eight tables an
 captions into the prose, and codes the [ɬ] of footnote 1 as ì and drops the tie bar of [t͡s]; the
 footnote is read off the page at 400 dpi.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 255
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 11258 distinct tokens in the paper, 0 language tokens are held by no row.

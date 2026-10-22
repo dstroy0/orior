@@ -130,7 +130,9 @@ static int watch_set(CliDebugSession *session, const char *data, CliLine *said)
 {
     CliDebugAnswer *const answer = cli_debug_answer_taken();
     cli_lock_take(&g_cli_debug.lock);
-    const int room = (session->data_count < CLI_DEBUG_DATA);
+    session->data = cli_debug_grown(session->data, session->data_count, &session->data_room, sizeof(*session->data),
+                                    CLI_DEBUG_DATA);
+    const int room = (session->data_count < session->data_room);
     if (room)
     {
         memor.cpy(&(MemoriaCfg){.dst = session->data[session->data_count],

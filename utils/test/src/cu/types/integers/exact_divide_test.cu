@@ -60,48 +60,48 @@ static unsigned int divide_edge_limb(void)
     return (pick < 6u) ? shaped[pick] : divide_draw();
 }
 
-static void divide_value(AnchorExactInteger *value, unsigned int limbs, int shaped)
+static void divide_value(OriorExactInteger *value, unsigned int limbs, int shaped)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     for (unsigned int at = 0u; at < limbs; at++)
     {
         value->limb[at] = (shaped != 0) ? divide_edge_limb() : divide_draw();
     }
     int nonzero = 0;
-    for (unsigned int at = 0u; at < ANCHOR_EXACT_LIMBS; at++)
+    for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
         nonzero |= (value->limb[at] != 0u) ? 1 : 0;
     }
     value->sign = (nonzero == 0) ? 0 : (((divide_draw() & 1u) != 0u) ? -1 : 1);
 }
 
-static int divide_magnitude_below(const AnchorExactInteger *small, const AnchorExactInteger *large)
+static int divide_magnitude_below(const OriorExactInteger *small, const OriorExactInteger *large)
 {
-    AnchorExactInteger left = *small;
-    AnchorExactInteger right = *large;
+    OriorExactInteger left = *small;
+    OriorExactInteger right = *large;
     left.sign = (left.sign == 0) ? 0 : 1;
     right.sign = (right.sign == 0) ? 0 : 1;
-    return anchor_exact_compare(&left, &right) < 0;
+    return orior_exact_compare(&left, &right) < 0;
 }
 
 // numerator = quotient . divisor + remainder, |remainder| < |divisor|, the remainder's sign the numerator's or zero
-static int divide_valid(const AnchorExactInteger *numerator, const AnchorExactInteger *divisor)
+static int divide_valid(const OriorExactInteger *numerator, const OriorExactInteger *divisor)
 {
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
-    AnchorExactInteger product;
-    AnchorExactInteger rebuilt;
-    if (anchor_exact_divide(numerator, divisor, &quotient, &remainder) != ANCHOR_EXACT_OK)
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
+    OriorExactInteger product;
+    OriorExactInteger rebuilt;
+    if (orior_exact_divide(numerator, divisor, &quotient, &remainder) != ORIOR_EXACT_OK)
     {
         return 0;
     }
-    if ((anchor_exact_multiply(&quotient, divisor, &product) != ANCHOR_EXACT_OK) ||
-        (anchor_exact_add(&product, &remainder, &rebuilt) != ANCHOR_EXACT_OK))
+    if ((orior_exact_multiply(&quotient, divisor, &product) != ORIOR_EXACT_OK) ||
+        (orior_exact_add(&product, &remainder, &rebuilt) != ORIOR_EXACT_OK))
     {
         return 0;
     }
     const int signed_right = (remainder.sign == 0) || (remainder.sign == numerator->sign);
-    return anchor_exact_equal(&rebuilt, numerator) && divide_magnitude_below(&remainder, divisor) && signed_right;
+    return orior_exact_equal(&rebuilt, numerator) && divide_magnitude_below(&remainder, divisor) && signed_right;
 }
 
 static unsigned int divide_width(unsigned int maximum)
@@ -116,8 +116,8 @@ int main(void)
     unsigned int passed_trials = 0u;
     for (unsigned int trial = 0u; trial < DIVIDE_TRIALS; trial++)
     {
-        AnchorExactInteger numerator;
-        AnchorExactInteger divisor;
+        OriorExactInteger numerator;
+        OriorExactInteger divisor;
         const unsigned int top = divide_width(8u);
         divide_value(&numerator, top, 1);
         do
@@ -131,10 +131,10 @@ int main(void)
     passed_trials = 0u;
     for (unsigned int trial = 0u; trial < DIVIDE_WIDE_TRIALS; trial++)
     {
-        AnchorExactInteger numerator;
-        AnchorExactInteger divisor;
+        OriorExactInteger numerator;
+        OriorExactInteger divisor;
         // the product check needs quotient . divisor inside the width, which the numerator bounds
-        const unsigned int top = divide_width(ANCHOR_EXACT_LIMBS - 1u);
+        const unsigned int top = divide_width(ORIOR_EXACT_LIMBS - 1u);
         divide_value(&numerator, top, (int)(trial & 1u));
         do
         {
@@ -146,10 +146,10 @@ int main(void)
 
     // the add-back case of algorithm D: the estimate from the top limbs is one high
     {
-        AnchorExactInteger numerator;
-        AnchorExactInteger divisor;
-        anchor_exact_zero(&numerator);
-        anchor_exact_zero(&divisor);
+        OriorExactInteger numerator;
+        OriorExactInteger divisor;
+        orior_exact_zero(&numerator);
+        orior_exact_zero(&divisor);
         numerator.limb[0] = 0u;
         numerator.limb[1] = 0u;
         numerator.limb[2] = 0x80000000u;
@@ -163,30 +163,30 @@ int main(void)
     }
 
     {
-        AnchorExactInteger numerator;
-        AnchorExactInteger zero;
-        AnchorExactInteger quotient;
-        AnchorExactInteger remainder;
+        OriorExactInteger numerator;
+        OriorExactInteger zero;
+        OriorExactInteger quotient;
+        OriorExactInteger remainder;
         divide_value(&numerator, 4u, 0);
-        anchor_exact_zero(&zero);
+        orior_exact_zero(&zero);
         check("a zero divisor errors",
-              (anchor_exact_divide(&numerator, &zero, &quotient, &remainder) == ANCHOR_EXACT_BY_ZERO) &&
-                  (anchor_exact_divide_exact(&numerator, &zero, &quotient) == ANCHOR_EXACT_BY_ZERO));
+              (orior_exact_divide(&numerator, &zero, &quotient, &remainder) == ORIOR_EXACT_BY_ZERO) &&
+                  (orior_exact_divide_exact(&numerator, &zero, &quotient) == ORIOR_EXACT_BY_ZERO));
     }
 
     passed_trials = 0u;
     unsigned int error = 0u;
     for (unsigned int trial = 0u; trial < EXACT_TRIALS; trial++)
     {
-        AnchorExactInteger quotient;
-        AnchorExactInteger divisor;
-        AnchorExactInteger product;
-        AnchorExactInteger found;
-        const unsigned int quotient_limbs = divide_width(ANCHOR_EXACT_LIMBS / 2u);
+        OriorExactInteger quotient;
+        OriorExactInteger divisor;
+        OriorExactInteger product;
+        OriorExactInteger found;
+        const unsigned int quotient_limbs = divide_width(ORIOR_EXACT_LIMBS / 2u);
         divide_value(&quotient, quotient_limbs, (int)(trial & 1u));
         do
         {
-            divide_value(&divisor, divide_width(ANCHOR_EXACT_LIMBS / 2u), (int)(trial & 1u));
+            divide_value(&divisor, divide_width(ORIOR_EXACT_LIMBS / 2u), (int)(trial & 1u));
         } while (divisor.sign == 0);
         // a divisor with twos in it half the time
         if ((trial & 2u) != 0u)
@@ -198,26 +198,26 @@ int main(void)
                 divisor.sign = (divisor.sign == 0) ? 1 : divisor.sign;
             }
         }
-        if (anchor_exact_multiply(&quotient, &divisor, &product) != ANCHOR_EXACT_OK)
+        if (orior_exact_multiply(&quotient, &divisor, &product) != ORIOR_EXACT_OK)
         {
             continue;
         }
-        passed_trials += ((anchor_exact_divide_exact(&product, &divisor, &found) == ANCHOR_EXACT_OK) &&
-                          anchor_exact_equal(&found, &quotient))
+        passed_trials += ((orior_exact_divide_exact(&product, &divisor, &found) == ORIOR_EXACT_OK) &&
+                          orior_exact_equal(&found, &quotient))
                              ? 1u
                              : 0u;
         // one more than a nonzero product is not a multiple of a divisor above one
-        AnchorExactInteger one;
-        AnchorExactInteger off;
-        AnchorExactInteger magnitude = divisor;
+        OriorExactInteger one;
+        OriorExactInteger off;
+        OriorExactInteger magnitude = divisor;
         magnitude.sign = 1;
-        anchor_exact_zero(&one);
+        orior_exact_zero(&one);
         one.limb[0] = 1u;
         one.sign = 1;
-        if ((product.sign != 0) && (anchor_exact_compare(&magnitude, &one) > 0) &&
-            (anchor_exact_add(&product, &one, &off) == ANCHOR_EXACT_OK))
+        if ((product.sign != 0) && (orior_exact_compare(&magnitude, &one) > 0) &&
+            (orior_exact_add(&product, &one, &off) == ORIOR_EXACT_OK))
         {
-            error += (anchor_exact_divide_exact(&off, &divisor, &found) == ANCHOR_EXACT_NOT_EXACT) ? 1u : 0u;
+            error += (orior_exact_divide_exact(&off, &divisor, &found) == ORIOR_EXACT_NOT_EXACT) ? 1u : 0u;
         }
         else
         {
@@ -230,41 +230,41 @@ int main(void)
     passed_trials = 0u;
     for (unsigned int trial = 0u; trial < GCD_TRIALS; trial++)
     {
-        AnchorExactInteger shared;
-        AnchorExactInteger first;
-        AnchorExactInteger second;
-        AnchorExactInteger left;
-        AnchorExactInteger right;
-        AnchorExactInteger common;
-        divide_value(&shared, divide_width(ANCHOR_EXACT_LIMBS / 4u), 0);
-        divide_value(&first, divide_width(ANCHOR_EXACT_LIMBS / 4u), (int)(trial & 1u));
-        divide_value(&second, divide_width(ANCHOR_EXACT_LIMBS / 4u), (int)(trial & 1u));
-        if ((shared.sign == 0) || (anchor_exact_multiply(&shared, &first, &left) != ANCHOR_EXACT_OK) ||
-            (anchor_exact_multiply(&shared, &second, &right) != ANCHOR_EXACT_OK))
+        OriorExactInteger shared;
+        OriorExactInteger first;
+        OriorExactInteger second;
+        OriorExactInteger left;
+        OriorExactInteger right;
+        OriorExactInteger common;
+        divide_value(&shared, divide_width(ORIOR_EXACT_LIMBS / 4u), 0);
+        divide_value(&first, divide_width(ORIOR_EXACT_LIMBS / 4u), (int)(trial & 1u));
+        divide_value(&second, divide_width(ORIOR_EXACT_LIMBS / 4u), (int)(trial & 1u));
+        if ((shared.sign == 0) || (orior_exact_multiply(&shared, &first, &left) != ORIOR_EXACT_OK) ||
+            (orior_exact_multiply(&shared, &second, &right) != ORIOR_EXACT_OK))
         {
             passed_trials += 1u;
             continue;
         }
-        anchor_exact_gcd(&left, &right, &common);
-        AnchorExactInteger left_part;
-        AnchorExactInteger right_part;
-        AnchorExactInteger again;
-        AnchorExactInteger one;
-        AnchorExactInteger quotient;
-        AnchorExactInteger remainder;
-        anchor_exact_zero(&one);
+        orior_exact_gcd(&left, &right, &common);
+        OriorExactInteger left_part;
+        OriorExactInteger right_part;
+        OriorExactInteger again;
+        OriorExactInteger one;
+        OriorExactInteger quotient;
+        OriorExactInteger remainder;
+        orior_exact_zero(&one);
         one.limb[0] = 1u;
         one.sign = 1;
         int ok = (common.sign > 0);
-        ok = ok && (anchor_exact_divide_exact(&left, &common, &left_part) == ANCHOR_EXACT_OK);
-        ok = ok && (anchor_exact_divide_exact(&right, &common, &right_part) == ANCHOR_EXACT_OK);
+        ok = ok && (orior_exact_divide_exact(&left, &common, &left_part) == ORIOR_EXACT_OK);
+        ok = ok && (orior_exact_divide_exact(&right, &common, &right_part) == ORIOR_EXACT_OK);
         if (ok && (left_part.sign != 0) && (right_part.sign != 0))
         {
-            anchor_exact_gcd(&left_part, &right_part, &again);
-            ok = anchor_exact_equal(&again, &one);
+            orior_exact_gcd(&left_part, &right_part, &again);
+            ok = orior_exact_equal(&again, &one);
         }
         // the shared factor divides the gcd
-        ok = ok && (anchor_exact_divide(&common, &shared, &quotient, &remainder) == ANCHOR_EXACT_OK) &&
+        ok = ok && (orior_exact_divide(&common, &shared, &quotient, &remainder) == ORIOR_EXACT_OK) &&
              (remainder.sign == 0);
         passed_trials += ok ? 1u : 0u;
     }
@@ -274,51 +274,51 @@ int main(void)
     passed_trials = 0u;
     for (unsigned int trial = 0u; trial < GCD_TRIALS; trial++)
     {
-        AnchorExactInteger shared;
-        AnchorExactInteger first;
-        AnchorExactInteger second;
-        AnchorExactInteger left;
-        AnchorExactInteger right;
-        AnchorExactInteger common;
-        divide_value(&shared, divide_width(ANCHOR_EXACT_LIMBS / 4u), (int)(trial & 1u));
-        divide_value(&first, divide_width(ANCHOR_EXACT_LIMBS / 4u), (int)(trial & 1u));
-        divide_value(&second, divide_width(ANCHOR_EXACT_LIMBS / 4u), 0);
-        if ((anchor_exact_multiply(&shared, &first, &left) != ANCHOR_EXACT_OK) ||
-            (anchor_exact_multiply(&shared, &second, &right) != ANCHOR_EXACT_OK))
+        OriorExactInteger shared;
+        OriorExactInteger first;
+        OriorExactInteger second;
+        OriorExactInteger left;
+        OriorExactInteger right;
+        OriorExactInteger common;
+        divide_value(&shared, divide_width(ORIOR_EXACT_LIMBS / 4u), (int)(trial & 1u));
+        divide_value(&first, divide_width(ORIOR_EXACT_LIMBS / 4u), (int)(trial & 1u));
+        divide_value(&second, divide_width(ORIOR_EXACT_LIMBS / 4u), 0);
+        if ((orior_exact_multiply(&shared, &first, &left) != ORIOR_EXACT_OK) ||
+            (orior_exact_multiply(&shared, &second, &right) != ORIOR_EXACT_OK))
         {
             passed_trials += 1u;
             continue;
         }
-        AnchorExactInteger larger = left;
-        AnchorExactInteger smaller = right;
+        OriorExactInteger larger = left;
+        OriorExactInteger smaller = right;
         larger.sign = (larger.sign == 0) ? 0 : 1;
         smaller.sign = (smaller.sign == 0) ? 0 : 1;
         while (smaller.sign != 0)
         {
-            AnchorExactInteger quotient;
-            AnchorExactInteger remainder;
-            (void)anchor_exact_divide(&larger, &smaller, &quotient, &remainder);
+            OriorExactInteger quotient;
+            OriorExactInteger remainder;
+            (void)orior_exact_divide(&larger, &smaller, &quotient, &remainder);
             larger = smaller;
             smaller = remainder;
         }
         passed_trials +=
-            ((anchor_exact_gcd(&left, &right, &common) == ANCHOR_EXACT_OK) && anchor_exact_equal(&common, &larger))
+            ((orior_exact_gcd(&left, &right, &common) == ORIOR_EXACT_OK) && orior_exact_equal(&common, &larger))
                 ? 1u
                 : 0u;
     }
     check("the gcd equals Euclid's on the long division", passed_trials == GCD_TRIALS);
 
     {
-        AnchorExactInteger zero;
-        AnchorExactInteger value;
-        AnchorExactInteger common;
-        anchor_exact_zero(&zero);
+        OriorExactInteger zero;
+        OriorExactInteger value;
+        OriorExactInteger common;
+        orior_exact_zero(&zero);
         divide_value(&value, 5u, 0);
-        anchor_exact_gcd(&zero, &value, &common);
-        AnchorExactInteger magnitude = value;
+        orior_exact_gcd(&zero, &value, &common);
+        OriorExactInteger magnitude = value;
         magnitude.sign = (value.sign == 0) ? 0 : 1;
-        const int with_zero = anchor_exact_equal(&common, &magnitude);
-        anchor_exact_gcd(&zero, &zero, &common);
+        const int with_zero = orior_exact_equal(&common, &magnitude);
+        orior_exact_gcd(&zero, &zero, &common);
         check("gcd(0, x) = |x| and gcd(0, 0) = 0", with_zero && (common.sign == 0));
     }
 

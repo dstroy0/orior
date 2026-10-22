@@ -26,23 +26,17 @@ static void heard_cleared(void *context)
     session->users -= 1u;
     if (!session->listed && session->heard_end && (session->users == 0u))
     {
-        session->taken = 0;
+        cli_debug_place_freed(session);
     }
     cli_lock_give(&g_cli_debug.lock);
 }
 
-// a stop's body told as a data breakpoint's where the session's data breakpoints are lldb's watchpoints and the stop
-// is at a breakpoint none of whose numbers the reader placed: 1 with the body written into the session's room, or 0
-// where it is told as it came
-static int heard_data_stop(CliDebugSession *session, const char *body, unsigned long long size, CliLine *out)
+// a stop read into `json` at `root` told as a data breakpoint's where the session's data breakpoints are lldb's
+// watchpoints and the stop is at a breakpoint none of whose numbers the reader placed: 1 with it written into `out`,
+// or 0 where it is told as it came
+static int heard_rewritten(CliDebugSession *session, CliJson *json, unsigned int root, CliLine *out)
 {
-    CliJson json;
-    char why[CLI_SAID_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_json_begun(&json, session->event_nodes, CLI_DEBUG_EVENT_NODES, session->event_text,
-                   sizeof(session->event_text));
-    const unsigned int root = cli_json_read(&json, body, size, session->event_tokens, CLI_DEBUG_EVENT_NODES, &said);
-    const char *const reason = cli_json_string(&json, cli_json_member(&json, root, "reason"), NULL);
+    const char *const reason = cli_json_string(json, cli_json_member(json, root, "reason"), NULL);
     cli_lock_take(&g_cli_debug.lock);
     const int watching = session->watching;
     cli_lock_give(&g_cli_debug.lock);
@@ -51,14 +45,14 @@ static int heard_data_stop(CliDebugSession *session, const char *body, unsigned 
     {
         return 0;
     }
-    const unsigned int hit = cli_json_member(&json, root, "hitBreakpointIds");
+    const unsigned int hit = cli_json_member(json, root, "hitBreakpointIds");
     int any = 0;
     int placed = 0;
     cli_lock_take(&g_cli_debug.lock);
-    for (unsigned int at = 0u; cli_json_item(&json, hit, at) != CLI_JSON_NONE; at += 1u)
+    for (unsigned int at = 0u; cli_json_item(json, hit, at) != CLI_JSON_NONE; at += 1u)
     {
         long long number = 0ll;
-        if (!cli_debug_signed(&json, cli_json_item(&json, hit, at), &number))
+        if (!cli_debug_signed(json, cli_json_item(json, hit, at), &number))
         {
             continue;
         }
@@ -73,10 +67,24 @@ static int heard_data_stop(CliDebugSession *session, const char *body, unsigned 
     {
         return 0;
     }
-    cli_json_set(&json, root, "reason", cli_json_string_made(&json, "data breakpoint", 15ull));
-    cli_json_set(&json, root, "description", cli_json_string_made(&json, "data changed", 12ull));
-    cli_json_write(&json, root, out, 0u, 0);
-    return !json.full && cli_line_fits(out);
+    cli_json_set(json, root, "reason", cli_json_string_made(json, "data breakpoint", 15ull));
+    cli_json_set(json, root, "description", cli_json_string_made(json, "data changed", 12ull));
+    cli_json_write(json, root, out, 0u, 0);
+    return !json->full && cli_line_fits(out);
+}
+
+// a stop's body told as a data breakpoint's, as heard_rewritten tells it, the body read into a tree taken to its size
+// and given back: 1 with the body written into `out`, or 0 where it is told as it came
+static int heard_data_stop(CliDebugSession *session, const char *body, unsigned long long size, CliLine *out)
+{
+    CliJson json = {0};
+    char why[CLI_SAID_LONGEST];
+    CliLine said = {why, sizeof(why), 0ull};
+    const unsigned int root =
+        cli_json_taken(&json, body, size, CLI_DEBUG_EVENT_MORE_NODES, CLI_DEBUG_EVENT_MORE_TEXT, &said);
+    const int written = heard_rewritten(session, &json, root, out);
+    cli_json_given(&json);
+    return written;
 }
 
 void cli_debug_heard(void *context, const char *event, const char *body, unsigned long long size)
@@ -91,19 +99,18 @@ void cli_debug_heard(void *context, const char *event, const char *body, unsigne
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "process", .cap = CLI_CELLS_POOL}))
     {
-        CliJson json;
+        CliJson json = {0};
         char why[CLI_SAID_LONGEST];
         CliLine said = {why, sizeof(why), 0ull};
         unsigned long long pid = 0ull;
-        cli_json_begun(&json, session->event_nodes, CLI_DEBUG_EVENT_NODES, session->event_text,
-                       sizeof(session->event_text));
-        const unsigned int root = cli_json_read(&json, body, size, session->event_tokens, CLI_DEBUG_EVENT_NODES, &said);
+        const unsigned int root = cli_json_taken(&json, body, size, 0u, 0ull, &said);
         if (cli_debug_unsigned(&json, cli_json_member(&json, root, "systemProcessId"), &pid))
         {
             cli_lock_take(&g_cli_debug.lock);
             session->pid = pid;
             cli_lock_give(&g_cli_debug.lock);
         }
+        cli_json_given(&json);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL}))
     {
@@ -124,11 +131,18 @@ void cli_debug_heard(void *context, const char *event, const char *body, unsigne
             heard_cleared(session);
         }
     }
-    CliLine told = {session->event_out, sizeof(session->event_out), 0ull};
-    const int rewritten = (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL})) &&
-                          heard_data_stop(session, body, size, &told);
+    // a stop rewritten is the body with two members said again, in a cell of the body's size and some over, grown where
+    // it is longer
+    CliLine told = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    const int stopped = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL});
+    if (stopped)
+    {
+        (void)cli_line_growing(&told, size + CLI_DEBUG_EVENT_MORE_TEXT, "a stop told as a data breakpoint's");
+    }
+    const int rewritten = stopped && heard_data_stop(session, body, size, &told);
     session->emit.told(session->emit.context, session->info.id, event, rewritten ? told.out : body,
                        rewritten ? told.at : size);
+    cli_cell_given(told.out);
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_CELLS_POOL}))
     {
         // the adapter's last event: its place may be freed once nothing else uses it
@@ -136,7 +150,7 @@ void cli_debug_heard(void *context, const char *event, const char *body, unsigne
         session->heard_end = 1;
         if (!session->listed && (session->users == 0u))
         {
-            session->taken = 0;
+            cli_debug_place_freed(session);
         }
         cli_lock_give(&g_cli_debug.lock);
     }

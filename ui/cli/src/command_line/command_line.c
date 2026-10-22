@@ -7,19 +7,8 @@
 #include "../toolchains/toolchains.h"
 #include "command_line_internal.h"
 
-// the most params, steps, arguments, list items and bytes of text the catalog the command line reads holds
-#define CLI_LINE_PARAMS 16384u
-#define CLI_LINE_STEPS 16384u
-#define CLI_LINE_ARGS 65536u
-#define CLI_LINE_LISTS 65536u
-#define CLI_LINE_CATALOG_TEXT (4u << 20u)
-
-static CliJob s_jobs[CLI_LINE_JOBS];
-static CliParam s_params[CLI_LINE_PARAMS];
-static CliStep s_steps[CLI_LINE_STEPS];
-static CliArg s_args[CLI_LINE_ARGS];
-static unsigned int s_lists[CLI_LINE_LISTS];
-static char s_text[CLI_LINE_CATALOG_TEXT];
+// the catalog the command line reads, in cells of its size, held until it is read again
+CliCellsTally g_cli_line_catalog_cells = CLI_CELLS_TALLY("cli_line_catalog");
 static CliCatalog s_catalog;
 
 void cli_out_line(const char *text, unsigned long long size)
@@ -148,8 +137,8 @@ void cli_quoted_word(const char *word, CliLine *out)
 
 CliCatalog *cli_command_line_catalog(const char *root)
 {
-    cli_catalog_begun(&s_catalog, s_jobs, CLI_LINE_JOBS, s_params, CLI_LINE_PARAMS, s_steps, CLI_LINE_STEPS, s_args,
-                      CLI_LINE_ARGS, s_lists, CLI_LINE_LISTS, s_text, CLI_LINE_CATALOG_TEXT);
+    cli_catalog_given(&s_catalog);
+    cli_catalog_growing(&s_catalog, &g_cli_line_catalog_cells, CLI_LINE_JOBS);
     cli_catalog_read(root, &s_catalog);
     return &s_catalog;
 }
@@ -195,7 +184,7 @@ unsigned int cli_job_named(const CliCatalog *catalog, const unsigned int *among,
     {
         cli_line_text(said, "no job ");
         cli_line_text(said, name);
-        cli_line_text(said, ": orior list names them");
+        cli_line_text(said, ": orior_cli list names them");
         return CLI_CATALOG_NONE;
     }
     cli_line_text(said, name);

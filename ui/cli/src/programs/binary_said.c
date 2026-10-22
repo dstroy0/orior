@@ -31,7 +31,7 @@ void cli_binary_report_said(const CliBinaryReport *report, QuerySink say)
         switch (one->found)
         {
         case CLI_FOUND_ORIOR_PATH:
-            cli_said_line(say, "", one->name, one->by, "is found through the folders orior puts on its PATH, at ",
+            cli_said_line(say, "", one->name, one->by, "is found through the folders orior_cli puts on its PATH, at ",
                           where,
                           ", and not where the program is opened on its own: Copy Libraries Beside It puts it beside "
                           "the program");

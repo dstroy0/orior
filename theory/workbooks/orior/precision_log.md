@@ -16,9 +16,9 @@ The constants come from the engine's `no_rounding` module and from the private p
 
 ### Where the constants live
 
-- Bignum, C side: `src/engine/c/no_rounding/exact_integer.h`. `AnchorExactInteger` is 108 `uint32`
-  limbs (`ANCHOR_EXACT_LIMBS = 108`, line 49), base `2^32` with a 64-bit accumulator, schoolbook
-  multiply. `ANCHOR_EXACT_DIGITS = 1024` (line 66) is a declared floor instead of the capacity: 108 limbs
+- Bignum, C side: `src/engine/c/no_rounding/exact_integer.h`. `OriorExactInteger` is 108 `uint32`
+  limbs (`ORIOR_EXACT_LIMBS = 108`, line 49), base `2^32` with a 64-bit accumulator, schoolbook
+  multiply. `ORIOR_EXACT_DIGITS = 1024` (line 66) is a declared floor instead of the capacity: 108 limbs
   is 3456 bits and holds 1040 decimal digits. 16 are headroom the constant does not promise (lines
   55 to 60). Schoolbook is correct at this width because Karatsuba crosses over in the thousands of
   limbs and this is a hundred (line 179).
@@ -255,10 +255,10 @@ Sound, exact, unconditional; claims only the rank upper bound and the exhibited 
   None of it touches the image_transforms NTT, which works on integer views modulo `p`, not on decimal
   constant ingestion.
   **Note.** The header is `src/engine/base/no_rounding/exact_integer.{h,c}`.
-  `anchor_exact_from_measured` is on main, landed by "src exact bugfix"; it is called in
-  `bench/bench_exact.c` and in no test. The type divides: `anchor_exact_divide`,
-  `anchor_exact_divide_newton` and `anchor_exact_divide_exact`, with `test/exact_divide_test` passing 9/0
-  (`workbooks/engine/build_plan.md`). `ANCHOR_EXACT_LIMBS` is 128 by default, and the
+  `orior_exact_from_measured` is on main, landed by "src exact bugfix"; it is called in
+  `bench/bench_exact.c` and in no test. The type divides: `orior_exact_divide`,
+  `orior_exact_divide_newton` and `orior_exact_divide_exact`, with `test/exact_divide_test` passing 9/0
+  (`workbooks/engine/build_plan.md`). `ORIOR_EXACT_LIMBS` is 128 by default, and the
   multiply is long multiplication, then Karatsuba from 32 limbs, then the Schönhage-Strassen
   transform from 8,192 limbs. Entry one's figures (108 limbs, schoolbook) are a different header from
   this one. The three examples above, `exact_navier_stokes_on_torus.py`,

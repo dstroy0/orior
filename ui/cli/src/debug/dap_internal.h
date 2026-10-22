@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dap_internal.h: what the debug adapter sources share: the adapters held, each with its process or connection, its
-// readers and the requests waiting on answers, and the queues an adapter in orior is spoken to through
+// readers and the requests waiting on answers, and the queues an adapter in orior_cli is spoken to through
 #ifndef DAP_INTERNAL_H
 #define DAP_INTERNAL_H
 
@@ -69,9 +69,9 @@ extern CliLock g_cli_daps_lock;
 // each request of its refused, and, for a program, what it writes to its errors kept (dap.c)
 CliDap *cli_dap_place_taken(void);
 void cli_dap_readers_started(CliDap *dap, int complaints);
-// the adapter ended: its connection ended, its process ended and waited on, an adapter in orior told no more comes
+// the adapter ended: its connection ended, its process ended and waited on, an adapter in orior_cli told no more comes
 void cli_dap_ended(CliDap *dap);
-// what an adapter in orior is spoken to through let go, as it is (dap_within.c)
+// what an adapter in orior_cli is spoken to through let go, as it is (dap_within.c)
 void cli_dap_within_let_go(CliDap *dap);
 
 #endif

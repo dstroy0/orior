@@ -6,29 +6,23 @@
 #include "report.h"
 #include "../text/json_tree.h"
 
-// the most recent errors kept for a report that asks for them, the most bytes of each, the most bytes of settings.json
-// and its nodes, and the most bytes a text struck holds
+// the most recent errors kept for a report that asks for them, and the most bytes of each; the nodes and the bytes of
+// texts a tree of the settings holds over for the answer, beyond its copy of the settings; and the bytes the settings
+// written and a text struck are begun with, each growing past them
 #define CLI_REPORT_KEPT 20u
-
 #define CLI_REPORT_ERROR (1u << 16u)
+#define CLI_REPORT_ANSWER_NODES 4u
+#define CLI_REPORT_ANSWER_TEXT 64ull
+#define CLI_REPORT_WRITTEN_FIRST 4096ull
+#define CLI_REPORT_STRUCK_MORE 64ull
 
-#define CLI_REPORT_SETTINGS (1u << 20u)
-
-#define CLI_REPORT_NODES 16384u
-
-#define CLI_REPORT_TEXT (1u << 20u)
-
-// the run's recent errors, a ring, the oldest at `first`, under the lock
-static char s_errors[CLI_REPORT_KEPT][CLI_REPORT_ERROR];
+// the run's recent errors, a ring of cells each of its error's size, the oldest at `first`, under the lock
+static char *s_errors[CLI_REPORT_KEPT];
 static unsigned int s_first;
 static unsigned int s_count;
 static CliLock s_errors_lock = CLI_LOCK_INIT;
 
-// settings.json read into a tree, under its lock
-static char s_file[CLI_REPORT_SETTINGS];
-static char s_text[CLI_REPORT_SETTINGS];
-static CliJsonNode s_nodes[CLI_REPORT_NODES];
-static CfgJsonToken s_tokens[CLI_REPORT_NODES];
+// settings.json read and written whole under its lock
 static CliLock s_settings_lock = CLI_LOCK_INIT;
 
 int cli_report_category_known(const char *category)
@@ -44,7 +38,7 @@ int cli_report_category_known(const char *category)
     return 0;
 }
 
-// settings.json's path into `path`, which holds CLI_PATH_LONGEST: 1, or 0 where orior has no folder of its own
+// settings.json's path into `path`, which holds CLI_PATH_LONGEST: 1, or 0 where orior_cli has no folder of its own
 static int cli_settings_path(char *path)
 {
     char home[CLI_PATH_LONGEST];
@@ -58,22 +52,35 @@ static int cli_settings_path(char *path)
     return cli_line_closed(&line) != 0ull;
 }
 
-// settings.json read into the tree, the lock held: its object, or CLI_JSON_NONE where it is not there or does not read
-static unsigned int cli_settings(CliJson *json)
+// settings.json read, the lock held, into a tree of its own sized to it, with room over for a copy of it and the
+// answer where `copied` is 1: its object, or CLI_JSON_NONE where it is not there or does not read, the tree then
+// holding room for the answer alone where `copied` is 1; the tree given back with cli_json_given
+static unsigned int cli_settings(CliJson *json, int copied)
 {
-    cli_json_begun(json, s_nodes, CLI_REPORT_NODES, s_text, sizeof(s_text));
+    cli_json_begun(json, NULL, 0u, NULL, 0ull);
     char path[CLI_PATH_LONGEST];
-    if (!cli_settings_path(path))
-    {
-        return CLI_JSON_NONE;
-    }
-    const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_file, sizeof(s_file));
+    unsigned long long size = 0ull;
+    const unsigned char *const bytes = cli_settings_path(path) ? cli_file_held(path, &size) : NULL;
+    // the file's bytes are read as its text
+    const char *const text = (const char *)bytes;
+    const unsigned int tokens = (copied && (bytes != NULL)) ? cli_json_tokens_counted(text, size) : 0u;
     char why[CLI_NAME_LONGEST];
     CliLine reason = {why, sizeof(why), 0ull};
-    const unsigned int root = (size != QRY_MEMBER_UNREAD)
-                                  ? cli_json_read(json, s_file, size, s_tokens, CLI_REPORT_NODES, &reason)
+    const unsigned int read = (bytes != NULL)
+                                  ? cli_json_taken(json, text, size, copied ? (tokens + CLI_REPORT_ANSWER_NODES) : 0u,
+                                                   copied ? (size + CLI_REPORT_ANSWER_TEXT) : 0ull, &reason)
                                   : CLI_JSON_NONE;
-    return cli_json_is(json, root, CFG_JSON_OBJECT) ? root : CLI_JSON_NONE;
+    if (bytes != NULL)
+    {
+        cli_file_let_go(bytes, size);
+    }
+    const unsigned int root = cli_json_is(json, read, CFG_JSON_OBJECT) ? read : CLI_JSON_NONE;
+    if (copied && (root == CLI_JSON_NONE))
+    {
+        cli_json_given(json);
+        (void)cli_json_held(json, CLI_REPORT_ANSWER_NODES, CLI_REPORT_ANSWER_TEXT, "the settings");
+    }
+    return root;
 }
 
 // the reporter's answer: 1 with it into `on`, or 0 where they have not answered
@@ -81,10 +88,11 @@ static int cli_answer(int *on)
 {
     cli_lock_take(&s_settings_lock);
     CliJson json;
-    const unsigned int root = cli_settings(&json);
+    const unsigned int root = cli_settings(&json, 0);
     const unsigned int answer = cli_json_member(&json, root, "auto_report");
     const int answered = cli_json_is(&json, answer, CFG_JSON_TRUE) || cli_json_is(&json, answer, CFG_JSON_FALSE);
     *on = cli_json_is(&json, answer, CFG_JSON_TRUE);
+    cli_json_given(&json);
     cli_lock_give(&s_settings_lock);
     return answered;
 }
@@ -135,11 +143,10 @@ void cli_report_ask_once(void)
 
 int cli_report_set_auto(int on, CliLine *said)
 {
-    static char s_written[CLI_REPORT_SETTINGS];
     char path[CLI_PATH_LONGEST];
     if (!cli_settings_path(path))
     {
-        cli_line_text(said, "orior has no folder of its own to keep settings in");
+        cli_line_text(said, "orior_cli has no folder of its own to keep settings in");
         return 0;
     }
     char folder[CLI_PATH_LONGEST];
@@ -151,7 +158,7 @@ int cli_report_set_auto(int on, CliLine *said)
     }
     cli_lock_take(&s_settings_lock);
     CliJson json;
-    const unsigned int kept = cli_settings(&json);
+    const unsigned int kept = cli_settings(&json, 1);
     // the answer first, then the window's own settings as they are
     const unsigned int made = cli_json_made(&json, CFG_JSON_OBJECT);
     cli_json_set(&json, made, "auto_report", cli_json_made(&json, on ? CFG_JSON_TRUE : CFG_JSON_FALSE));
@@ -164,9 +171,12 @@ int cli_report_set_auto(int on, CliLine *said)
             cli_json_set(&json, made, key, cli_json_copy(&json, member));
         }
     }
-    CliLine out = {s_written, sizeof(s_written), 0ull};
+    CliLine out;
+    const int begun = cli_line_growing(&out, CLI_REPORT_WRITTEN_FIRST, "the settings written");
     cli_json_write(&json, made, &out, 2u, 0);
-    const int written = !json.full && cli_line_fits(&out) && query_file_written(path, s_written, out.at);
+    const int written = begun && !json.full && cli_line_fits(&out) && query_file_written(path, out.out, out.at);
+    cli_cell_given(out.out);
+    cli_json_given(&json);
     cli_lock_give(&s_settings_lock);
     if (!written)
     {
@@ -207,19 +217,10 @@ static void cli_replaced(const char *text, const char *found, const char *put, C
     cli_line_closed(out);
 }
 
-// The text being struck, in one of two rooms in turn, under the lock
-typedef struct
-{
-    char room[2][CLI_REPORT_TEXT];
-    unsigned int at;
-} CliStruck;
-
-static CliStruck s_struck;
-static CliLock s_struck_lock = CLI_LOCK_INIT;
-
-// `found`, three letters or more, struck from the text as `put`, as it is, with its slashes leaning forward, and with
-// them leaning back
-static void cli_strike(const char *found, const char *put)
+// `found`, three letters or more, struck from the text `*struck` holds as `put`, as it is, with its slashes leaning
+// forward, and with them leaning back, each pass into a cell of its own grown to the text and the one before given
+// back; where a cell is refused the text is let go whole, so nothing it held goes out unstruck
+static void cli_strike(char **struck, const char *found, const char *put)
 {
     if (cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL}) < 3u)
     {
@@ -235,23 +236,35 @@ static void cli_strike(const char *found, const char *put)
         {
             at[0] = ((form == 1u) && (at[0] == '\\')) ? '/' : ((form == 2u) && (at[0] == '/')) ? '\\' : at[0];
         }
-        const unsigned int next = 1u - s_struck.at;
-        CliLine out = {s_struck.room[next], CLI_REPORT_TEXT, 0ull};
-        cli_replaced(s_struck.room[s_struck.at], forms[form], put, &out);
-        s_struck.at = next;
+        const char *const text = (*struck != NULL) ? *struck : "";
+        CliLine out;
+        const int begun = cli_line_growing(
+            &out, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + CLI_REPORT_STRUCK_MORE,
+            "a report's text struck");
+        if (begun)
+        {
+            cli_replaced(text, forms[form], put, &out);
+        }
+        cli_cell_given(*struck);
+        *struck = (begun && cli_line_fits(&out)) ? out.out : NULL;
+        if (begun && (*struck == NULL))
+        {
+            cli_cell_given(out.out);
+        }
     }
 }
 
 void cli_report_scrub(const char *text, const char *root, CliLine *out)
 {
-    cli_lock_take(&s_struck_lock);
-    s_struck.at = 0u;
-    memor.cpy(&(MemoriaCfg){.dst = s_struck.room[0],
-                            .src = text,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    char *struck = cli_cell_taken(length + 1ull, "a report's text struck");
+    if (struck != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = struck, .src = text, .bytes = length + 1u});
+    }
     if (root != NULL)
     {
-        cli_strike(root, "<tree>");
+        cli_strike(&struck, root, "<tree>");
     }
     static const char *const s_homes[2] = {"USERPROFILE", "HOME"};
     for (unsigned int at = 0u; at < 2u; at += 1u)
@@ -259,7 +272,7 @@ void cli_report_scrub(const char *text, const char *root, CliLine *out)
         char home[CLI_PATH_LONGEST];
         if (query_environment_read(s_homes[at], home, sizeof(home)))
         {
-            cli_strike(home, "~");
+            cli_strike(&struck, home, "~");
         }
     }
     static const char *const s_users[2] = {"USERNAME", "USER"};
@@ -285,11 +298,11 @@ void cli_report_scrub(const char *text, const char *root, CliLine *out)
             cli_line_text(&user, "<user>");
             cli_line_text(&user, s_slashes[slash]);
             cli_line_closed(&user);
-            cli_strike(found, put);
+            cli_strike(&struck, found, put);
         }
     }
-    cli_line_text(out, s_struck.room[s_struck.at]);
-    cli_lock_give(&s_struck_lock);
+    cli_line_text(out, (struck != NULL) ? struck : "");
+    cli_cell_given(struck);
 }
 
 void cli_report_fingerprint(const char *category, const char *text, char *out)
@@ -313,15 +326,20 @@ void cli_report_fingerprint(const char *category, const char *text, char *out)
 
 void cli_report_keep(const char *text, const char *root)
 {
-    static char s_scrubbed[CLI_REPORT_ERROR];
-    cli_lock_take(&s_errors_lock);
-    CliLine line = {s_scrubbed, sizeof(s_scrubbed), 0ull};
+    CliLine line;
+    if (!cli_line_growing(&line, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull,
+                          "an error kept"))
+    {
+        return;
+    }
     cli_report_scrub(text, root, &line);
-    cli_line_closed(&line);
+    // an error kept is its first CLI_REPORT_ERROR bytes at the most
+    line.at = (line.at < CLI_REPORT_ERROR) ? line.at : (CLI_REPORT_ERROR - 1u);
+    line.out[(line.at < line.capacity) ? line.at : (line.capacity - 1u)] = '\0';
+    cli_lock_take(&s_errors_lock);
     const unsigned int place = (s_first + s_count) % CLI_REPORT_KEPT;
-    memor.cpy(&(MemoriaCfg){.dst = s_errors[place],
-                            .src = s_scrubbed,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_scrubbed, .cap = CLI_CELLS_POOL}) + 1u});
+    cli_cell_given(s_errors[place]);
+    s_errors[place] = line.out;
     if (s_count < CLI_REPORT_KEPT)
     {
         s_count += 1u;
@@ -359,7 +377,7 @@ const char *cli_report_panic_category(const char *trace)
         cli_line_closed(&kept);
         line = (stop[0] != '\0') ? (stop + 1) : stop;
         if (cellul.find(&(CatenaFinitaCfg){
-                .src = held, .cap = CLI_CELLS_POOL, .other = "orior_ui_lib::", .other_cap = CLI_CELLS_POOL}) != NULL)
+                .src = held, .cap = CLI_CELLS_POOL, .other = "orior_gui_lib::", .other_cap = CLI_CELLS_POOL}) != NULL)
         {
             return "ui";
         }

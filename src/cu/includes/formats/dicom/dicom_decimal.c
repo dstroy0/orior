@@ -22,7 +22,7 @@ static int dicom_decimal_parse(const unsigned char *text, unsigned long long len
         negative = (text[at] == '-') ? 1 : 0;
         at += 1ull;
     }
-    anchor_exact_zero(&out->mantissa);
+    orior_exact_zero(&out->mantissa);
     unsigned long long count = 0ull;
     long long fraction = 0ll;
     int seen_point = 0;
@@ -36,12 +36,12 @@ static int dicom_decimal_parse(const unsigned char *text, unsigned long long len
         {
             // a decimal digit character fits in a char
             const char digit_text = (char)text[at];
-            AnchorExactInteger digit;
-            AnchorExactInteger next;
+            OriorExactInteger digit;
+            OriorExactInteger next;
             if (!DICOM_CHECK((fraction < LLONG_MAX) &&
-                                 (anchor_exact_scale_by_ten(&out->mantissa, 1u) == ANCHOR_EXACT_OK) &&
-                                 (anchor_exact_from_decimal(&digit_text, 1u, 0u, &digit) == ANCHOR_EXACT_OK) &&
-                                 (anchor_exact_add(&out->mantissa, &digit, &next) == ANCHOR_EXACT_OK),
+                                 (orior_exact_scale_by_ten(&out->mantissa, 1u) == ORIOR_EXACT_OK) &&
+                                 (orior_exact_from_decimal(&digit_text, 1u, 0u, &digit) == ORIOR_EXACT_OK) &&
+                                 (orior_exact_add(&out->mantissa, &digit, &next) == ORIOR_EXACT_OK),
                              text, error, ENGINE_ERROR_REQUEST))
             {
                 return 0;
@@ -112,14 +112,14 @@ int dicom_decimal_list(const unsigned char *text, unsigned long long length, uns
 
 int dicom_decimal_align(DicomDecimal *value, long long exponent, EngineError *error)
 {
-    if (!DICOM_CHECK((exponent <= value->exponent) && ((value->exponent - exponent) <= (long long)ANCHOR_EXACT_DIGITS),
+    if (!DICOM_CHECK((exponent <= value->exponent) && ((value->exponent - exponent) <= (long long)ORIOR_EXACT_DIGITS),
                      value, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
-    // the gap is at most ANCHOR_EXACT_DIGITS. It fits a uint32_t exactly
+    // the gap is at most ORIOR_EXACT_DIGITS. It fits a uint32_t exactly
     const uint32_t power = (uint32_t)(value->exponent - exponent);
-    if (!DICOM_CHECK(anchor_exact_scale_by_ten(&value->mantissa, power) == ANCHOR_EXACT_OK, value, error,
+    if (!DICOM_CHECK(orior_exact_scale_by_ten(&value->mantissa, power) == ORIOR_EXACT_OK, value, error,
                      ENGINE_ERROR_REQUEST))
     {
         return 0;
@@ -132,7 +132,7 @@ static int dicom_decimal_multiply(const DicomDecimal *left, const DicomDecimal *
                                   EngineError *error)
 {
     out->exponent = left->exponent + right->exponent;
-    return DICOM_CHECK(anchor_exact_multiply(&left->mantissa, &right->mantissa, &out->mantissa) == ANCHOR_EXACT_OK,
+    return DICOM_CHECK(orior_exact_multiply(&left->mantissa, &right->mantissa, &out->mantissa) == ORIOR_EXACT_OK,
                        left, error, ENGINE_ERROR_REQUEST);
 }
 
@@ -147,10 +147,10 @@ static int dicom_decimal_combine(const DicomDecimal *left, const DicomDecimal *r
         return 0;
     }
     out->exponent = exponent;
-    const AnchorExactStatus status = (subtract != 0)
-                                         ? anchor_exact_subtract(&one.mantissa, &other.mantissa, &out->mantissa)
-                                         : anchor_exact_add(&one.mantissa, &other.mantissa, &out->mantissa);
-    return DICOM_CHECK(status == ANCHOR_EXACT_OK, left, error, ENGINE_ERROR_REQUEST);
+    const OriorExactStatus status = (subtract != 0)
+                                         ? orior_exact_subtract(&one.mantissa, &other.mantissa, &out->mantissa)
+                                         : orior_exact_add(&one.mantissa, &other.mantissa, &out->mantissa);
+    return DICOM_CHECK(status == ORIOR_EXACT_OK, left, error, ENGINE_ERROR_REQUEST);
 }
 
 static int dicom_cross_term(const DicomDecimal *orientation, unsigned int first, unsigned int second, DicomDecimal *out,
@@ -240,7 +240,7 @@ int dicom_order_slices(const void *left, const void *right)
     const DicomSlice *const other = &g_dicom_sorting[*(const unsigned long long *)right];
     if (g_dicom_keyed != 0u)
     {
-        const int keyed = anchor_exact_compare(&one->key.mantissa, &other->key.mantissa);
+        const int keyed = orior_exact_compare(&one->key.mantissa, &other->key.mantissa);
         if (keyed != 0)
         {
             return keyed;
@@ -252,7 +252,7 @@ int dicom_order_slices(const void *left, const void *right)
     }
     if (one->has_instance != 0u)
     {
-        const int instance = anchor_exact_compare(&one->instance.mantissa, &other->instance.mantissa);
+        const int instance = orior_exact_compare(&one->instance.mantissa, &other->instance.mantissa);
         if (instance != 0)
         {
             return instance;

@@ -5,17 +5,23 @@
 // with whether it is open
 #include "db_internal.h"
 
-// the most connections a tree names that are read, and the nodes and bytes databases.json is read in
+// the most connections a tree names that are read, and the bytes databases.json is begun to be written in, doubling
+// as it is
 #define CLI_DB_CONNECTIONS 256u
-#define CLI_DB_CONFIG_NODES 16384u
-#define CLI_DB_CONFIG_TEXT (1u << 20u)
+#define CLI_DB_CONFIG_FIRST 4096u
 
-static CliDbConnection s_connections[CLI_DB_CONNECTIONS];
-static CliJsonNode s_nodes[CLI_DB_CONFIG_NODES];
-static CfgJsonToken s_tokens[CLI_DB_CONFIG_NODES];
-static char s_text[CLI_DB_CONFIG_TEXT];
-static char s_written[CLI_DB_CONFIG_TEXT];
+// the connections read, a cell of their count and one more for one saved, held under the lock from the read to
+// config_released
+static CliDbConnection *s_connections;
 static CliLock s_lock = CLI_LOCK_INIT;
+
+// the connections read given back, and the lock with them
+static void config_released(void)
+{
+    cli_cell_given_by(&g_cli_db_cells, s_connections);
+    s_connections = NULL;
+    cli_lock_give(&s_lock);
+}
 
 unsigned int cli_db_port(const CliDbConnection *connection)
 {
@@ -97,26 +103,41 @@ int cli_db_connection_of(const CliJson *json, unsigned int node, CliDbConnection
     return 1;
 }
 
-// the connections databases.json at the tree's top folder names, under the lock: their count, 0 where it is not
-// there; -1 with why said where it does not read
+// the connections databases.json at the tree's top folder names, under the lock, in a cell of their count and one
+// more, given back with config_released either way: their count, 0 where it is not there; -1 with why said where it
+// does not read or the cellblock could not meet them
 static int config_read(const char *root, CliLine *said)
 {
     char path[CLI_PATH_LONGEST];
     cli_full(root, "databases.json", path);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
+    CliJson json = {0};
+    char why[CLI_SAID_LONGEST];
+    CliLine read_said = {why, sizeof(why), 0ull};
+    // the file's bytes read as the text they are
+    const unsigned int root_node =
+        (bytes != NULL) ? cli_json_taken(&json, (const char *)bytes, size, 0u, 0ull, &read_said) : CLI_JSON_NONE;
+    cli_file_let_go(bytes, size);
+    const unsigned int connections = cli_json_member(&json, root_node, "connections");
+    unsigned int named = 0u;
+    while ((root_node != CLI_JSON_NONE) && (named < CLI_DB_CONNECTIONS) &&
+           (cli_json_item(&json, connections, named) != CLI_JSON_NONE))
+    {
+        named += 1u;
+    }
+    s_connections =
+        cli_cell_taken_by(&g_cli_db_cells, (named + 1ull) * sizeof(*s_connections), "the connections a tree names");
+    if (s_connections == NULL)
+    {
+        cli_json_given(&json);
+        cli_line_text(said, "databases.json: the cells cannot meet its connections");
+        return -1;
+    }
     if (bytes == NULL)
     {
         return 0;
     }
-    CliJson json;
-    char why[CLI_SAID_LONGEST];
-    CliLine read_said = {why, sizeof(why), 0ull};
-    cli_json_begun(&json, s_nodes, CLI_DB_CONFIG_NODES, s_text, sizeof(s_text));
-    const unsigned int root_node =
-        cli_json_read(&json, (const char *)bytes, size, s_tokens, CLI_DB_CONFIG_NODES, &read_said);
-    qry_member_file_unmapped(bytes, size);
-    const unsigned int connections = cli_json_member(&json, root_node, "connections");
     int count = 0;
     for (unsigned int at = 0u; (root_node != CLI_JSON_NONE) && (cli_json_item(&json, connections, at) != CLI_JSON_NONE);
          at += 1u)
@@ -128,8 +149,10 @@ static int config_read(const char *root, CliLine *said)
         }
         count += (count < (int)CLI_DB_CONNECTIONS) ? 1 : 0;
     }
-    if ((root_node == CLI_JSON_NONE) || !cli_json_is(&json, root_node, CFG_JSON_OBJECT) ||
-        ((connections != CLI_JSON_NONE) && !cli_json_is(&json, connections, CFG_JSON_ARRAY)) || (read_said.at > 0ull))
+    const int object = (root_node != CLI_JSON_NONE) && cli_json_is(&json, root_node, CFG_JSON_OBJECT) &&
+                       ((connections == CLI_JSON_NONE) || cli_json_is(&json, connections, CFG_JSON_ARRAY));
+    cli_json_given(&json);
+    if (!object || (read_said.at > 0ull))
     {
         cli_line_text(said, "databases.json: ");
         cli_line_counted(said, read_said.out, read_said.at);
@@ -208,7 +231,8 @@ static int config_write(const char *root, unsigned int count, CliLine *said)
 {
     char path[CLI_PATH_LONGEST];
     cli_full(root, "databases.json", path);
-    CliLine out = {s_written, sizeof(s_written), 0ull};
+    CliLine out;
+    (void)cli_line_growing(&out, CLI_DB_CONFIG_FIRST, "databases.json written");
     cli_line_text(&out, (count == 0u) ? "{\n  \"connections\": []\n}\n" : "{\n  \"connections\": [\n");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -216,7 +240,9 @@ static int config_write(const char *root, unsigned int count, CliLine *said)
         config_written(&s_connections[at], 1, "    ", &out);
         cli_line_text(&out, (at + 1u < count) ? ",\n" : "\n  ]\n}\n");
     }
-    if (!cli_line_fits(&out) || !query_file_written(path, out.out, out.at))
+    const int written = cli_line_fits(&out) && query_file_written(path, out.out, out.at);
+    cli_cell_given(out.out);
+    if (!written)
     {
         cli_line_text(said, "databases.json: it could not be written");
         return 0;
@@ -233,11 +259,11 @@ int cli_db_named(const char *root, const char *name, CliDbConnection *connection
         if (cellul.eq(&(CatenaFinitaCfg){.src = s_connections[at].name, .other = name, .cap = CLI_CELLS_POOL}))
         {
             *connection = s_connections[at];
-            cli_lock_give(&s_lock);
+            config_released();
             return 1;
         }
     }
-    cli_lock_give(&s_lock);
+    config_released();
     if (count >= 0)
     {
         cli_line_text(said, "databases.json names no connection ");
@@ -266,14 +292,14 @@ int cli_db_save(const char *root, const CliDbConnection *connection, const char 
         (!cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = "sqlite", .cap = CLI_CELLS_POOL})))
     {
         cli_line_text(said, connection->kind);
-        cli_line_text(said, " is no kind of database orior speaks: postgres, mysql or sqlite");
+        cli_line_text(said, " is no kind of database orior_cli speaks: postgres, mysql or sqlite");
         return 0;
     }
     cli_lock_take(&s_lock);
     const int count = config_read(root, said);
     if (count < 0)
     {
-        cli_lock_give(&s_lock);
+        config_released();
         return 0;
     }
     const char *const old = (was != NULL) ? was : connection->name;
@@ -284,7 +310,7 @@ int cli_db_save(const char *root, const CliDbConnection *connection, const char 
             (cellul.eq(
                 &(CatenaFinitaCfg){.src = s_connections[at].name, .other = connection->name, .cap = CLI_CELLS_POOL})))
         {
-            cli_lock_give(&s_lock);
+            config_released();
             cli_line_text(said, "the tree names a connection ");
             cli_line_text(said, connection->name);
             cli_line_text(said, " already");
@@ -297,13 +323,13 @@ int cli_db_save(const char *root, const CliDbConnection *connection, const char 
     }
     if ((found < 0) && (count == (int)CLI_DB_CONNECTIONS))
     {
-        cli_lock_give(&s_lock);
-        cli_line_text(said, "databases.json names as many connections as orior reads");
+        config_released();
+        cli_line_text(said, "databases.json names as many connections as orior_cli reads");
         return 0;
     }
     s_connections[(found >= 0) ? found : count] = *connection;
     const int written = config_write(root, (found >= 0) ? (unsigned int)count : (unsigned int)count + 1u, said);
-    cli_lock_give(&s_lock);
+    config_released();
     return written;
 }
 
@@ -313,7 +339,7 @@ int cli_db_remove(const char *root, const char *name, CliLine *said)
     const int count = config_read(root, said);
     if (count < 0)
     {
-        cli_lock_give(&s_lock);
+        config_released();
         return 0;
     }
     unsigned int kept = 0u;
@@ -327,14 +353,14 @@ int cli_db_remove(const char *root, const char *name, CliLine *said)
             CliLine forgot = {why, sizeof(why), 0ull};
             cli_db_account(&s_connections[at], &account_line);
             cli_line_closed(&account_line);
-            (void)cli_keychain_forget(account, &forgot);
+            (void)cli_keychain_forget("database", account, &forgot);
             continue;
         }
         s_connections[kept] = s_connections[at];
         kept += 1u;
     }
     const int written = config_write(root, kept, said);
-    cli_lock_give(&s_lock);
+    config_released();
     return written;
 }
 
@@ -344,7 +370,7 @@ int cli_db_listed(const char *root, CliDbOpen *const *opens, unsigned int count,
     const int read = config_read(root, said);
     if (read < 0)
     {
-        cli_lock_give(&s_lock);
+        config_released();
         return 0;
     }
     cli_line_character(out, '[');
@@ -366,7 +392,7 @@ int cli_db_listed(const char *root, CliDbOpen *const *opens, unsigned int count,
         cli_line_closed(&account_line);
         const int kept =
             (!cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = "sqlite", .cap = CLI_CELLS_POOL})) &&
-            cli_keychain_read(account, password, sizeof(password));
+            cli_keychain_read("database", account, password, sizeof(password));
         cli_line_text(out, (at > 0) ? ",{\"connection\":" : "{\"connection\":");
         config_written(connection, 0, "", out);
         cli_line_text(out, (opened != NULL) ? ",\"open\":true,\"version\":" : ",\"open\":false,\"version\":null");
@@ -391,6 +417,6 @@ int cli_db_listed(const char *root, CliDbOpen *const *opens, unsigned int count,
         cli_line_text(out, kept ? ",\"passwordKept\":true}" : ",\"passwordKept\":false}");
     }
     cli_line_character(out, ']');
-    cli_lock_give(&s_lock);
+    config_released();
     return 1;
 }

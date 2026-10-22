@@ -37,6 +37,7 @@ static void complete_properties(const char *path, const char *text, unsigned lon
         cli_build_relative(items, token, token_size, s_model.text + s_model.name_at[at], s_model.name_size[at],
                            "constant", s_model.text + s_model.value_at[at], s_model.value_size[at]);
     }
+    cli_maven_model_given(&s_model);
     for (unsigned int at = 0u; at < 11u; at += 1u)
     {
         cli_build_relative(
@@ -57,6 +58,7 @@ static void complete_properties(const char *path, const char *text, unsigned lon
 static void complete_elements(const char *text, unsigned long long end, const char *token,
                               unsigned long long token_size, int follows, CliCompletions *items)
 {
+    cli_xml_given(&s_xml);
     cli_xml_parse(text, end, &s_xml);
     if (s_xml.opens == 0u)
     {
@@ -196,6 +198,7 @@ static void complete_coordinates(const char *text, unsigned long long tag_end, c
     {
         return;
     }
+    cli_xml_given(&s_xml);
     cli_xml_parse(text, tag_end, &s_xml);
     const unsigned int open = (s_xml.opens > 0u) ? s_xml.open[s_xml.opens - 1u] : CLI_XML_NONE;
     static char s_group[1u << 12u];
@@ -307,6 +310,7 @@ void cli_maven_complete(const char *path, const char *text, unsigned long long s
     }
     else if (cli_text_ends(lead, lead_size, "</"))
     {
+        cli_xml_given(&s_xml);
         cli_xml_parse(text, token - 2u, &s_xml);
         if (s_xml.opens > 0u)
         {
@@ -356,5 +360,6 @@ void cli_maven_complete(const char *path, const char *text, unsigned long long s
             }
         }
     }
+    cli_xml_given(&s_xml);
     cli_lock_give(&s_complete_lock);
 }

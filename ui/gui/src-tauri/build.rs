@@ -33,7 +33,7 @@ fn main() {
         panic!("ui/cli/build.sh library {target} did not build");
     }
     println!("cargo:rustc-link-search=native={}", top.join("build/cli").join(&target).display());
-    println!("cargo:rustc-link-lib=static=orior");
+    println!("cargo:rustc-link-lib=static=orior_cli");
     let system: &[&str] = if target.contains("windows") {
         &["ws2_32", "secur32", "crypt32", "shell32", "advapi32", "user32"]
     } else if target.contains("apple") {

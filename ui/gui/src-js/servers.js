@@ -8,7 +8,8 @@
 // orior's own inspections read is handed over, told of its changes and let go the same way where no
 // server serves it, and hears the inspections' findings.
 
-import { invoke, listen } from "./bridge.js";
+import { asked, invoke, listen } from "./bridge.js";
+import { wordAt } from "./editor/document.js";
 
 let tabsOf = () => [];
 let painted = () => {};
@@ -35,7 +36,7 @@ export function hintsShown(tab, from, to) {
     const high = Math.min(s.doc.count - 1, to + HINTS_AROUND);
     const asked = (tab.hintsAsked = (tab.hintsAsked ?? 0) + 1);
     const version = s.doc.id;
-    const found = await invoke("lsp_hints", { path: tab.file, from: s.base + low, to: s.base + high }).catch(() => null);
+    const found = await asked("lsp_hints", { path: tab.file, from: s.base + low, to: s.base + high }).catch(() => null);
     if (!found || asked !== tab.hintsAsked || s.doc.id !== version) {
       return;
     }
@@ -107,7 +108,7 @@ async function parseNow(tab, from, to) {
   const low = Math.max(0, from - PARSE_AROUND);
   const high = Math.min(s.doc.count - 1, to + PARSE_AROUND);
   // A parse that fails, as a server still reading the tree's fails, is asked for again after a moment.
-  const found = await invoke("parse_colors", { path: tab.file, from: low, to: high }).catch(() => undefined);
+  const found = await asked("parse_colors", { path: tab.file, from: low, to: high }).catch(() => undefined);
   if (found === undefined) {
     tab.parseAgain = Date.now() + PARSE_AGAIN;
     return;
@@ -136,7 +137,7 @@ export async function spansOf(tab, from, to) {
     return [];
   }
   await flush(tab);
-  const found = await invoke("parse_spans", { path: tab.file, from: { line: s.base + from.line, col: from.col }, to: { line: s.base + to.line, col: to.col } }).catch(() => []);
+  const found = await asked("parse_spans", { path: tab.file, from: { line: s.base + from.line, col: from.col }, to: { line: s.base + to.line, col: to.col } }).catch(() => []);
   return found.map(([start, end]) => [{ line: start.line - s.base, col: start.col }, { line: end.line - s.base, col: end.col }]);
 }
 
@@ -273,7 +274,7 @@ export async function serve(tab) {
     wrap(tab);
     // A question asked now, its answer let go, has the server read the file through before the
     // reader asks one: the first Go to Definition answers as quickly as the next.
-    invoke("lsp_hover", { path: tab.file, line: 0, col: 0 }).catch(() => {});
+    asked("lsp_hover", { path: tab.file, line: 0, col: 0 }).catch(() => {});
   } else if (took) {
     invoke("lsp_close", { path: tab.file }).catch(() => {});
   } else if ((inspected.has(language) || tab.readHere) && tabsOf().includes(tab)) {
@@ -299,8 +300,20 @@ export function serveAgain() {
 }
 
 // Gives a served tab's language the server's hover and completion, over the language's own, and the
-// tab of a file orior reads itself, a build file or JSON, the completions orior gives it. A language
+// tab of a file orior_gui reads itself, a build file or JSON, the completions orior_gui gives it. A language
 // set again, as a plugin read again sets it, is given them again.
+// What the tree's index of declarations says of a word: each declaration of that name, its kind and
+// where it is, as a hover's parts; none where the word is not declared in the tree.
+const TREE_HOVER_MOST = 6;
+async function treeHover(word) {
+  if (!word) {
+    return [];
+  }
+  const found = await invoke("symbols_find", { query: word.text }).catch(() => null);
+  const same = (found?.symbols ?? []).filter((one) => one.name === word.text).slice(0, TREE_HOVER_MOST);
+  return same.map((one) => `**${one.name}** ${one.kind}\n\n\`${one.path}:${one.line}\``);
+}
+
 export function wrap(tab) {
   const s = tab.session;
   if (!(tab.served || tab.readHere) || !s?.language || s.language.served) {
@@ -310,33 +323,27 @@ export function wrap(tab) {
   const at = (p) => ({ path: tab.file, line: s.base + p.line, col: p.col });
   s.language = Object.assign(Object.create(own), {
     served: true,
+    // The tree answers first and at once: the language's own hover, else the declarations of the word
+    // under the pointer that the tree's index holds. The server's answer, where a server holds the file,
+    // comes later as `more`, and nothing waits on it.
     async hover(doc, p) {
-      const parts = [];
-      await flush(tab);
-      const said = await invoke("lsp_hover", at(p)).catch(() => null);
-      if (said) {
-        parts.push(said);
-      } else if (own.hover) {
-        const found = await own.hover(doc, p);
-        parts.push(...(found?.parts ?? []));
+      const later = flush(tab)
+        .then(() => asked("lsp_hover", at(p)))
+        .then((said) => (said ? [said] : null))
+        .catch(() => null);
+      const word = wordAt(doc, p);
+      const span = word ? { from: word.from, to: word.to } : { from: p, to: p };
+      const found = own.hover ? await own.hover(doc, p) : null;
+      const parts = found?.parts?.length ? [...found.parts] : await treeHover(word);
+      if (parts.length) {
+        return { ...span, ...(found?.from ? { from: found.from, to: found.to } : {}), parts, more: later };
       }
-      if (!parts.length) {
-        return null;
-      }
-      const text = doc.line(p.line);
-      let from = p.col;
-      let to = p.col;
-      while (from > 0 && /\w/.test(text[from - 1])) {
-        from -= 1;
-      }
-      while (to < text.length && /\w/.test(text[to])) {
-        to += 1;
-      }
-      return { from: { line: p.line, col: from }, to: { line: p.line, col: to }, parts };
+      const said = await later;
+      return said ? { ...span, parts: said } : null;
     },
     async complete(doc, p) {
       await flush(tab);
-      return invoke("lsp_complete", at(p)).catch(() => []);
+      return asked("lsp_complete", at(p)).catch(() => []);
     },
     completeNow(doc, p) {
       return own.complete?.(doc, p) ?? [];
@@ -441,7 +448,7 @@ export async function hoverAt(tab, p, text = null, named = false) {
     let empty = 0;
     for (let asked = 0; asked < ASKS; asked += 1) {
       try {
-        const said = await invoke("lsp_hover", { path: tab.file, line: tab.session.base + p.line, col: p.col });
+        const said = await asked("lsp_hover", { path: tab.file, line: tab.session.base + p.line, col: p.col });
         if (said) {
           return said;
         }
@@ -471,5 +478,5 @@ export async function definition(tab, p) {
     return [];
   }
   await flush(tab);
-  return invoke("lsp_definition", { path: tab.file, line: tab.session.base + p.line, col: p.col }).catch(() => []);
+  return asked("lsp_definition", { path: tab.file, line: tab.session.base + p.line, col: p.col }).catch(() => []);
 }

@@ -60,9 +60,9 @@ int run(const QasmCircuit *circuit, int on_host, QasmOutcome *outcome, unsigned 
     return 1;
 }
 
-static void units_exact(const unsigned int units[QASM_WIDE_LIMBS], AnchorExactInteger *value)
+static void units_exact(const unsigned int units[QASM_WIDE_LIMBS], OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     int any = 0;
     for (unsigned int limb = 0u; limb < QASM_WIDE_LIMBS; limb += 1u)
     {
@@ -76,22 +76,22 @@ static void units_exact(const unsigned int units[QASM_WIDE_LIMBS], AnchorExactIn
 int within(const unsigned int units[QASM_WIDE_LIMBS], unsigned int num, unsigned int shift,
            const unsigned int slack_units[QASM_WIDE_LIMBS])
 {
-    AnchorExactInteger value;
-    AnchorExactInteger target;
-    AnchorExactInteger slack;
-    AnchorExactInteger gap;
+    OriorExactInteger value;
+    OriorExactInteger target;
+    OriorExactInteger slack;
+    OriorExactInteger gap;
     units_exact(units, &value);
     units_exact(slack_units, &slack);
-    anchor_exact_zero(&target);
+    orior_exact_zero(&target);
     target.limb[shift / 32u] = num << (shift % 32u);
     if ((shift % 32u) != 0u)
     {
         target.limb[(shift / 32u) + 1u] = (unsigned int)((unsigned long long)num >> (32u - (shift % 32u)));
     }
     target.sign = (num != 0u) ? 1 : 0;
-    anchor_exact_subtract(&value, &target, &gap);
+    orior_exact_subtract(&value, &target, &gap);
     gap.sign = (gap.sign < 0) ? 1 : gap.sign;
-    return anchor_exact_compare(&gap, &slack) <= 0;
+    return orior_exact_compare(&gap, &slack) <= 0;
 }
 
 int units_are_power(const unsigned int units[QASM_WIDE_LIMBS], unsigned int shift)

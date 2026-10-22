@@ -96,13 +96,13 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     {
         run_closed(&table);
         run_channel_close();
-        printf("klq_identity frame: %s\n", dry ? "the run is dry, and nothing is written"
+        printf("orior_klq_identity frame: %s\n", dry ? "the run is dry, and nothing is written"
                                              : "the container was not returned from, and nothing is written");
         return dry ? 0 : 1;
     }
     if (!ksc_answers_write(ksc, "container", std::vector<std::string>{"run answers 00000001 container returned"}))
     {
-        printf("klq_identity frame: %s could not be written\n", ksc);
+        printf("orior_klq_identity frame: %s could not be written\n", ksc);
         run_channel_close();
         return 1;
     }
@@ -119,7 +119,7 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     const unsigned long long from = frame_greatest(frame_holds, &ask, 0ull, (unsigned long long)places);
     if (!run_closed(&table))
     {
-        printf("klq_identity frame: %s/frame.txt could not be written\n", folder.c_str());
+        printf("orior_klq_identity frame: %s/frame.txt could not be written\n", folder.c_str());
         run_channel_close();
         return 1;
     }
@@ -128,10 +128,10 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     snprintf(row, sizeof(row), "run answers %08llx opening least", from);
     if (!ksc_answers_write(ksc, "opening", std::vector<std::string>{row}))
     {
-        printf("klq_identity frame: %s could not be written\n", ksc);
+        printf("orior_klq_identity frame: %s could not be written\n", ksc);
         return 1;
     }
-    printf("klq_identity frame: the least opening begins at place %llu of %u, over %llu asks, written to %s\n", from,
+    printf("orior_klq_identity frame: the least opening begins at place %llu of %u, over %llu asks, written to %s\n", from,
            places, asks, ksc);
     return 0;
 }

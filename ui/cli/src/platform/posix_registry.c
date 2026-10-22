@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// posix_registry.c: off Windows there is no registry: the PATH is the one orior started with, and a folder added to the
+// posix_registry.c: off Windows there is no registry: the PATH is the one orior_cli started with, and a folder added to the
 // reader's PATH goes into their shell's profile instead
 #include "../command_line/cli_internal.h"
 

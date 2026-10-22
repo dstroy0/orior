@@ -142,15 +142,17 @@ void cli_servers_run_checkers(const char *root, const char *path, const char *te
                               const CliServersEmit *emit)
 {
     static char s_id[CLI_SERVERS_CHECKERS][CLI_NAME_LONGEST];
-    static CliLanguages s_languages;
     cli_lock_take(&s_job_lock);
     cli_lock_take(&g_cli_servers.lock);
     const unsigned int ids = g_cli_servers.checkers;
     memor.cpy(&(MemoriaCfg){.dst = s_id, .src = g_cli_servers.checker, .bytes = sizeof(s_id)});
     cli_lock_give(&g_cli_servers.lock);
     char language[CLI_NAME_LONGEST];
-    cli_plugins_languages(&s_languages);
-    if ((ids == 0u) || !cli_plugins_language_for(&s_languages, path, language))
+    CliLanguages languages;
+    cli_plugins_languages(&languages);
+    const int known = (ids != 0u) && cli_plugins_language_for(&languages, path, language);
+    cli_plugins_languages_given(&languages);
+    if (!known)
     {
         cli_lock_give(&s_job_lock);
         return;

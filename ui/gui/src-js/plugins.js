@@ -135,7 +135,9 @@ function build() {
       } else if (plugin.kind === "script") {
         // A script plugin opens no files: it runs code of its own (scripts.js).
         const list = (value) => (Array.isArray(value) ? value.map(String).filter(Boolean) : []);
-        Object.assign(reading, { kind: "script", api: Number(plugin.api ?? 1), about: String(plugin.about ?? ""), asks: { reads: list(plugin.reads), writes: list(plugin.writes), reaches: list(plugin.reaches) } });
+        // The commands it puts in the command palette, each by its id with its title.
+        const commands = Array.isArray(plugin.commands) ? plugin.commands.filter((one) => one?.id).map((one) => ({ id: String(one.id), title: String(one.title ?? one.id) })) : [];
+        Object.assign(reading, { kind: "script", api: Number(plugin.api ?? 1), about: String(plugin.about ?? ""), commands, asks: { reads: list(plugin.reads), writes: list(plugin.writes), reaches: list(plugin.reaches) } });
       } else {
         reading.language = languageOf(plugin);
       }

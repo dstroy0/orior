@@ -3,7 +3,7 @@
 Extraction of Variation in the ʔayʔaǰuθəm determiner system by Rachel Kelly, Marianne Huijsmans and
 Mary McCarthy, University of Alberta, ICSNL 61.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -46,7 +46,7 @@ after its S in footnote 9, and the page prints both whole. Those two are page-re
 the residue check. (14) prints a raised θ after χaƛ̓ that the text layer also holds, and (7) sets
 its second segmentation above its orthography, both read at 500 dpi and recorded as notations.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 349
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 13146 distinct tokens in the paper, 0 language tokens are held by no row.

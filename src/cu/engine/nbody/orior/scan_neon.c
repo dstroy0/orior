@@ -17,7 +17,7 @@
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
  * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract AnchorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
+ * the contract OriorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
  *
  * @note Written for the Raspberry Pi 5, a Cortex-A76 at aarch64. This arm runs and its name has
  *       no unrun tag. NEON is mandatory in the base aarch64 architecture. A build that reached
@@ -34,15 +34,15 @@
 #include <arm_neon.h>
 
 /** @brief Alignments one NEON register answers at once. */
-#define ANCHOR_STEER_LANES 16u
+#define ORIOR_STEER_LANES 16u
 
-size_t anchor_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
+size_t orior_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
                                       size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm
      * was the one asked. The claim the counters carry is which arm RAN and not what it returned. */
-    anchor_steer_scan_calls += 1u;
-    anchor_steer_wide_calls += 1u;
+    orior_steer_scan_calls += 1u;
+    orior_steer_wide_calls += 1u;
 
     if ((corpus == NULL) || (alive == NULL) || (alignments == 0u))
     {
@@ -54,7 +54,7 @@ size_t anchor_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, 
     size_t standing = 0u;
     size_t at = 0u;
 
-    for (; (at + ANCHOR_STEER_LANES) <= alignments; at += ANCHOR_STEER_LANES)
+    for (; (at + ORIOR_STEER_LANES) <= alignments; at += ORIOR_STEER_LANES)
     {
         const uint8x16_t window = vld1q_u8(corpus + at + offset);
         const uint8x16_t standing_bytes = vld1q_u8(alive + at);
@@ -87,9 +87,9 @@ size_t anchor_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, 
     return standing;
 }
 
-const AnchorSteerEngine *anchor_steer_neon_engine(void)
+const OriorSteerEngine *orior_steer_neon_engine(void)
 {
-    static const AnchorSteerEngine engine = {"neon", anchor_steer_truthy_after_neon};
+    static const OriorSteerEngine engine = {"neon", orior_steer_truthy_after_neon};
 
     /* NEON is part of the base aarch64 architecture. A build that got here can always run it. */
     return &engine;

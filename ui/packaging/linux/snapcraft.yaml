@@ -23,7 +23,7 @@ apps:
     command: bin/orior
     desktop: share/applications/com.dstroy0.orior.desktop
   cli:
-    command: bin/orior-cli
+    command: bin/orior_cli
 
 parts:
   orior:
@@ -47,6 +47,6 @@ parts:
       cargo +stable build --release --manifest-path gui/src-tauri/Cargo.toml
       bash cli/build.sh
       install -Dm755 gui/src-tauri/target/release/orior "$CRAFT_PART_INSTALL/bin/orior"
-      install -Dm755 "../../build/cli/$(uname -m)-unknown-linux-gnu/orior-cli" "$CRAFT_PART_INSTALL/bin/orior-cli"
+      install -Dm755 "../../build/cli/$(uname -m)-unknown-linux-gnu/orior_cli" "$CRAFT_PART_INSTALL/bin/orior_cli"
       install -Dm644 packaging/linux/com.dstroy0.orior.desktop "$CRAFT_PART_INSTALL/share/applications/com.dstroy0.orior.desktop"
       install -Dm644 gui/src-tauri/icons/128x128.png "$CRAFT_PART_INSTALL/share/icons/hicolor/128x128/apps/com.dstroy0.orior.png"

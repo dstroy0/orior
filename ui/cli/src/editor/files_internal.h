@@ -7,12 +7,14 @@
 #include "files.h"
 
 // A view of the tree: every file git tracks or would track, and every folder holding one, or for a tree git cannot
-// read every file walked from its top and no folders; whether git read the tree; and the milliseconds the clock that
-// only goes forward read as the view was read
+// read every file walked from its top and no folders; the name of every file, and every ending, `.lean` from its last
+// dot, each once; whether git read the tree; and the milliseconds the clock that only goes forward read as the view
+// was read
 typedef struct
 {
     CliFiles files;
     CliFiles dirs;
+    CliFiles kinds;
     int git;
     unsigned long long at;
 } CliSeen;
@@ -111,6 +113,11 @@ typedef int (*CliPasteEach)(void *context, const char *source, const char *targe
 // read; and a pair pasted written as `{"from", "to"}`, `from` null where it is not given (files_paste.c)
 int cli_paste_name(const char *path, char *name);
 int cli_paste_under(const char *folder, const char *path);
+// a paste or a bring begun: `into` inside the tree as `folder`, which holds CLI_PATH_LONGEST, a folder on the disk,
+// and the answer's list opened on `out`: 1, or 0 with why said; and a source's name into `name`: 1, or 0 with the
+// source said to have none
+int cli_paste_begun(const char *root, const char *into, char *folder, CliLine *out, CliLine *said);
+int cli_paste_named(const char *source, char *name, CliLine *said);
 void cli_paste_free(const char *folder, const char *name, char *path);
 int cli_paste_walked(const char *source, const char *target, CliPasteEach each, void *context, CliLine *said);
 void cli_pasted_written(CliLine *out, int first, const char *from, const char *to);

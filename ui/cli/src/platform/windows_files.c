@@ -7,6 +7,28 @@
 #define NOMINMAX
 #include <windows.h>
 
+unsigned int cli_system_error(void)
+{
+    // the system's error codes are below what an unsigned int holds
+    return (unsigned int)GetLastError();
+}
+
+void cli_system_reason(unsigned int error, CliLine *said)
+{
+    char reason[512];
+    DWORD size = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error, 0u, reason,
+                                sizeof(reason), NULL);
+    while ((size > 0u) && ((reason[size - 1u] == '\r') || (reason[size - 1u] == '\n') || (reason[size - 1u] == ' ')))
+    {
+        size -= 1u;
+    }
+    cli_line_text(said, ": ");
+    cli_line_counted(said, reason, size);
+    cli_line_text(said, (size > 0u) ? " (os error " : "(os error ");
+    cli_line_decimal(said, error, 1u);
+    cli_line_character(said, ')');
+}
+
 int cli_file_size(const char *path, unsigned long long *size)
 {
     WIN32_FILE_ATTRIBUTE_DATA found;
@@ -15,6 +37,78 @@ int cli_file_size(const char *path, unsigned long long *size)
         return 0;
     }
     *size = ((unsigned long long)found.nFileSizeHigh << 32u) | found.nFileSizeLow;
+    return 1;
+}
+
+// `count` bytes of the open `file` from `from` read into `bytes`, their count into `got`, fewer where the file ends
+static void file_read_from(HANDLE file, unsigned long long from, unsigned char *bytes, unsigned long long count,
+                           unsigned long long *got)
+{
+    *got = 0ull;
+    int reading = 1;
+    while (reading && (*got < count))
+    {
+        OVERLAPPED at;
+        memor.set(&(MemoriaCfg){.dst = &at, .val = 0, .bytes = sizeof(at)});
+        // the offset's low and high words, each what a DWORD holds
+        at.Offset = (DWORD)((from + *got) & 0xffffffffull);
+        at.OffsetHigh = (DWORD)((from + *got) >> 32u);
+        // one read takes at most what a DWORD counts
+        const DWORD asked = (DWORD)(((count - *got) < 0x40000000ull) ? (count - *got) : 0x40000000ull);
+        DWORD read = 0u;
+        const BOOL done = ReadFile(file, bytes + *got, asked, &read, &at);
+        // a read past the file's end is the file's end
+        reading = (done || (GetLastError() == ERROR_HANDLE_EOF)) && (read != 0u);
+        *got += read;
+    }
+}
+
+// the file at `path` opened to read, shared with every other opener, read once through
+static HANDLE file_opened(const char *path)
+{
+    return CreateFileA(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+}
+
+int cli_file_read_at(const char *path, unsigned long long from, unsigned char *bytes, unsigned long long count,
+                     unsigned long long *got)
+{
+    const HANDLE file = file_opened(path);
+    *got = 0ull;
+    if (file == INVALID_HANDLE_VALUE)
+    {
+        return 0;
+    }
+    file_read_from(file, from, bytes, count, got);
+    CloseHandle(file);
+    return 1;
+}
+
+int cli_file_read_whole(const char *path, unsigned char *(*room)(void *context, unsigned long long size), void *context,
+                        unsigned long long *got)
+{
+    *got = 0ull;
+    const HANDLE file = file_opened(path);
+    if (file == INVALID_HANDLE_VALUE)
+    {
+        return 0;
+    }
+    LARGE_INTEGER measured;
+    if (!GetFileSizeEx(file, &measured))
+    {
+        CloseHandle(file);
+        return 0;
+    }
+    // a file's size is not negative
+    const unsigned long long size = (unsigned long long)measured.QuadPart;
+    unsigned char *const bytes = room(context, size);
+    if (bytes == NULL)
+    {
+        CloseHandle(file);
+        return 0;
+    }
+    file_read_from(file, 0ull, bytes, size, got);
+    CloseHandle(file);
     return 1;
 }
 

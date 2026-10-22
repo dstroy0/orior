@@ -19,10 +19,10 @@
  *       argument pointer each and both call this.
  * @note THE POPULATION IS THE ARGUMENT. One call numbers one
  *       population. Every rank it produces is comparable with every other rank it produced and
- *       with none produced elsewhere. anchor_field_pair_project hands it a corpus and a needle
+ *       with none produced elsewhere. orior_field_pair_project hands it a corpus and a needle
  *       together for exactly that reason.
  */
-static size_t field_number_classes(AnchorSameAt same_in_field, const void *field, size_t length,
+static size_t field_number_classes(OriorSameAt same_in_field, const void *field, size_t length,
                                    uint32_t *class_of_position, uint32_t *members_in_class,
                                    uint32_t *rarity_place_of_class)
 {
@@ -152,7 +152,7 @@ static uint8_t field_rank_from_place(uint32_t place)
     return (uint8_t)((place < 255u) ? place : 255u);
 }
 
-int anchor_field_project(const AnchorFieldProjection *args)
+int orior_field_project(const OriorFieldProjection *args)
 {
     if (args == NULL)
     {
@@ -203,7 +203,7 @@ int anchor_field_project(const AnchorFieldProjection *args)
     return 1;
 }
 
-int anchor_field_pair_project(const AnchorFieldPairProjection *args)
+int orior_field_pair_project(const OriorFieldPairProjection *args)
 {
     if (args == NULL)
     {

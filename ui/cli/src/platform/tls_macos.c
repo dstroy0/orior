@@ -69,7 +69,7 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     cli_lock_give(&s_lock);
     if (tls == NULL)
     {
-        cli_line_text(said, "TLS: more sessions are open than orior holds");
+        cli_line_text(said, "TLS: more sessions are open than orior_cli holds");
         return NULL;
     }
     tls->socket = socket;

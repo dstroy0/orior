@@ -276,6 +276,7 @@ void cli_maven_check(const char *root, const char *path, const char *text, unsig
     const unsigned int project = cli_xml_root(&s_xml);
     if ((project == CLI_XML_NONE) || !cli_xml_named(&s_xml, project, "project"))
     {
+        cli_xml_given(&s_xml);
         cli_lock_give(&s_check_lock);
         return;
     }
@@ -322,5 +323,7 @@ void cli_maven_check(const char *root, const char *path, const char *text, unsig
             check_phase(&s_check, index);
         }
     }
+    cli_xml_given(&s_xml);
+    cli_maven_model_given(&s_model);
     cli_lock_give(&s_check_lock);
 }

@@ -115,7 +115,7 @@ static std::string placed_filled(const std::string &placed, const std::string &t
 // reading.
 // the run's blob cost.txt holds every arrangement with its link and what came of it.
 // The machine file's forms are costed the same way where `forms` names the blob the vendor's writer placed them in
-// (khw_machine_write, krs): a line `<relation> <signed> <low> <high> <text>`, the text with each operand of the
+// (orior_khw_machine_write, krs): a line `<relation> <signed> <low> <high> <text>`, the text with each operand of the
 // relation's tuple as its place. A form with the three places of a two-word relation is written at the first link any
 // operator's arrangements are put at, COST_REPEATS times over its own result between the clock reads, and asked its
 // clock alone; no host holds it, since the protocol classified it. Its cost is the least difference any case read less
@@ -129,7 +129,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     const Ruleset *const sass = identity_ruleset();
     if (sass == NULL)
     {
-        printf("klq_identity cost: the ruleset %s names is not read\n", IDENTITY_RULESET);
+        printf("orior_klq_identity cost: the ruleset %s names is not read\n", IDENTITY_RULESET);
         return 1;
     }
     Carriers carriers;
@@ -479,11 +479,11 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     }
     if (!cost_rows.empty() && !ksc_answers_write(ksc, "cost", cost_rows))
     {
-        printf("klq_identity cost: the forms' costs could not be written to %s\n", ksc);
+        printf("orior_klq_identity cost: the forms' costs could not be written to %s\n", ksc);
     }
     if (!run_closed(&table))
     {
-        printf("klq_identity cost: %s/cost.txt could not be written\n", folder.c_str());
+        printf("orior_klq_identity cost: %s/cost.txt could not be written\n", folder.c_str());
         run_channel_close();
         return 1;
     }
@@ -512,10 +512,10 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     kdm_free(&written);
     if (!held)
     {
-        printf("klq_identity cost: %s could not be written\n", kdm);
+        printf("orior_klq_identity cost: %s could not be written\n", kdm);
         return 1;
     }
-    printf("klq_identity cost: %zu arrangements, %u costed over %llu asks and written to %s; %zu forms, %u costed in "
+    printf("orior_klq_identity cost: %zu arrangements, %u costed over %llu asks and written to %s; %zu forms, %u costed in "
            "the part's clock and written to %s",
            rows.size(), costed, asks, kdm, costed_forms.size(), forms_costed, ksc);
     for (const auto &each : left)

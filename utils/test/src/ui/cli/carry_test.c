@@ -191,7 +191,7 @@ static void carry_by_file(void)
     (void)cli_line_closed(&said);
     cli_check(!other && (cellul.find(&(CatenaFinitaCfg){.src = why,
                                                         .cap = CLI_CELLS_POOL,
-                                                        .other = "no settings orior carried",
+                                                        .other = "no settings orior_cli carried",
                                                         .other_cap = CLI_CELLS_POOL}) != NULL),
               "a file that carries no settings is refused");
 }
@@ -237,7 +237,7 @@ static void carry_by_repository(void)
               "the folder holds what travels and no more");
     static const char *const s_log[2] = {"log", "--format=%s"};
     (void)carry_git(repo, s_log, 2u, &out);
-    // git's answer comes back trimmed, so a log that is not empty holds one line more than it holds line ends
+    // git's answer comes back trimmed; a log that is not empty therefore holds one line more than it holds line ends
     unsigned int lines = (out.at != 0ull) ? 1u : 0u;
     for (unsigned long long at = 0ull; at < out.at; at += 1ull)
     {

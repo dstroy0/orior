@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// mysql.h: MySQL and MariaDB, spoken by orior itself in the client/server protocol 4.1 over TCP, with no driver: the
+// mysql.h: MySQL and MariaDB, spoken by orior_cli itself in the client/server protocol 4.1 over TCP, with no driver: the
 // handshake, a password by mysql_native_password or caching_sha2_password as the account asks, a statement by
 // COM_QUERY, and its rows read off the socket a packet at a time, the rest left to wait in the server until they are
 // asked for. A statement running is stopped by KILL QUERY sent on a connection of its own.

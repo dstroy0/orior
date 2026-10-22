@@ -4,13 +4,13 @@
 //
 //   walk       the halving walk reads the greatest number a counted relation holds at, asking fewer times than the
 //              span, and 0 where nothing past 0 holds
-//   head       krs_write's two head lines come from the .ksc's rows, each left out where its row is missing and named
+//   head       orior_krs_write's two head lines come from the .ksc's rows, each left out where its row is missing and named
 //   opening    the kernel mode's place comes from the .ksc's row, 0 where none stands, and its slot from the slot's
 //              row, none where none stands
 //   fixed      a register's reading at the slot is classified from its values over the cases, each kind once, and
-//              krs_write's fixed lines come from the .ksc's rows, the ruleset's own line kept where no row stands,
+//              orior_krs_write's fixed lines come from the .ksc's rows, the ruleset's own line kept where no row stands,
 //              each left out where it has neither and named
-//   frame      krs_write's frame lines come from the table of frame forms and the named ruleset's parameters, the
+//   frame      orior_krs_write's frame lines come from the table of frame forms and the named ruleset's parameters, the
 //              writers of one placed text being one, the ruleset's own line kept where the run hands none and kept
 //              in the .krf where a written one replaces it
 //
@@ -178,7 +178,7 @@ int main(int count, char **words)
                    (fixed_kind_question(FIXED_NOTHING)[0] == '\0'),
                "a kind's row question names it, and nothing's is empty");
 
-    // krs_write's fixed lines from a .ksc with the four rows and the field, with the zero row alone and no field, and
+    // orior_krs_write's fixed lines from a .ksc with the four rows and the field, with the zero row alone and no field, and
     // with none
     snprintf(path, sizeof(path), "%s/frame_check_fixed.ksc", words[1]);
     const char *const four = "ksc part\nfield rd 16 8\nrun answers 000000ff fixed zero\nrun answers 00000000 fixed "

@@ -93,9 +93,9 @@ unsigned int ask_sweep_covers(unsigned int links, unsigned int seed, unsigned in
 }
 
 // `given` as an exact integer
-static void ask_exact(AnchorExactInteger *value, long long given)
+static void ask_exact(OriorExactInteger *value, long long given)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     // the magnitude of the most negative word is one past the most positive, which the unsigned word holds
     const unsigned long long magnitude = (given < 0) ? (0ull - (unsigned long long)given) : (unsigned long long)given;
     value->limb[0] = (uint32_t)(magnitude & 0xffffffffull);
@@ -104,30 +104,30 @@ static void ask_exact(AnchorExactInteger *value, long long given)
 }
 
 // `left` times `right` added into `sum`; 1, or 0 where the exact width could not hold it
-static int ask_exact_add_product(AnchorExactInteger *sum, const AnchorExactInteger *left,
-                                 const AnchorExactInteger *right)
+static int ask_exact_add_product(OriorExactInteger *sum, const OriorExactInteger *left,
+                                 const OriorExactInteger *right)
 {
-    AnchorExactInteger product;
-    if (anchor_exact_multiply(left, right, &product) != ANCHOR_EXACT_OK)
+    OriorExactInteger product;
+    if (orior_exact_multiply(left, right, &product) != ORIOR_EXACT_OK)
     {
         return 0;
     }
-    return (anchor_exact_add(sum, &product, sum) == ANCHOR_EXACT_OK) ? 1 : 0;
+    return (orior_exact_add(sum, &product, sum) == ORIOR_EXACT_OK) ? 1 : 0;
 }
 
 // `first` times `second` less `third` times `fourth`, into `out`; 1, or 0 where the exact width could not hold it
-static int ask_exact_difference(AnchorExactInteger *out, const AnchorExactInteger *first,
-                                const AnchorExactInteger *second, const AnchorExactInteger *third,
-                                const AnchorExactInteger *fourth)
+static int ask_exact_difference(OriorExactInteger *out, const OriorExactInteger *first,
+                                const OriorExactInteger *second, const OriorExactInteger *third,
+                                const OriorExactInteger *fourth)
 {
-    AnchorExactInteger kept;
-    AnchorExactInteger taken;
-    if ((anchor_exact_multiply(first, second, &kept) != ANCHOR_EXACT_OK) ||
-        (anchor_exact_multiply(third, fourth, &taken) != ANCHOR_EXACT_OK))
+    OriorExactInteger kept;
+    OriorExactInteger taken;
+    if ((orior_exact_multiply(first, second, &kept) != ORIOR_EXACT_OK) ||
+        (orior_exact_multiply(third, fourth, &taken) != ORIOR_EXACT_OK))
     {
         return 0;
     }
-    return (anchor_exact_subtract(&kept, &taken, out) == ANCHOR_EXACT_OK) ? 1 : 0;
+    return (orior_exact_subtract(&kept, &taken, out) == ORIOR_EXACT_OK) ? 1 : 0;
 }
 
 // the three things a sweep ask's leftover is read against, and the leftover, summed alone and in pairs
@@ -150,14 +150,14 @@ AskLinks ask_links_read(unsigned int links, const long long *scaled, unsigned in
     // each sweep cost is from one pass, and the solve's costs are scaled by the passes and by links + 1
     const long long scale = (long long)passes * (long long)(links + 1u);
 
-    AnchorExactInteger sum[ASK_TERMS];
-    AnchorExactInteger pair[ASK_TERMS][ASK_TERMS];
+    OriorExactInteger sum[ASK_TERMS];
+    OriorExactInteger pair[ASK_TERMS][ASK_TERMS];
     for (unsigned int term = 0u; term < ASK_TERMS; term += 1u)
     {
-        anchor_exact_zero(&sum[term]);
+        orior_exact_zero(&sum[term]);
         for (unsigned int other = 0u; other < ASK_TERMS; other += 1u)
         {
-            anchor_exact_zero(&pair[term][other]);
+            orior_exact_zero(&pair[term][other]);
         }
     }
 
@@ -173,13 +173,13 @@ AskLinks ask_links_read(unsigned int links, const long long *scaled, unsigned in
         }
         // what the solve's links leave of this ask's cost, at the solve's scale; a summed cost is under the
         // header's bound, which keeps the scaled cost inside a signed 64 bit word
-        AnchorExactInteger value[ASK_TERMS];
+        OriorExactInteger value[ASK_TERMS];
         ask_exact(&value[ASK_COUNT], (long long)count);
         ask_exact(&value[ASK_SQUARE], (long long)count * (long long)count);
         ask_exact(&value[ASK_LEFT], (scale * (long long)sweep_cost[ask]) - predicted);
         for (unsigned int term = 0u; term < ASK_TERMS; term += 1u)
         {
-            held = held && (anchor_exact_add(&sum[term], &value[term], &sum[term]) == ANCHOR_EXACT_OK);
+            held = held && (orior_exact_add(&sum[term], &value[term], &sum[term]) == ORIOR_EXACT_OK);
             for (unsigned int other = term; other < ASK_TERMS; other += 1u)
             {
                 held = held && ask_exact_add_product(&pair[term][other], &value[term], &value[other]);
@@ -192,8 +192,8 @@ AskLinks ask_links_read(unsigned int links, const long long *scaled, unsigned in
     }
 
     // Every sum centered and scaled by the ask count N, which keeps it an integer
-    AnchorExactInteger asks;
-    AnchorExactInteger centered[ASK_TERMS][ASK_TERMS];
+    OriorExactInteger asks;
+    OriorExactInteger centered[ASK_TERMS][ASK_TERMS];
     ask_exact(&asks, (long long)sweeps);
     for (unsigned int term = 0u; term < ASK_TERMS; term += 1u)
     {
@@ -214,10 +214,10 @@ AskLinks ask_links_read(unsigned int links, const long long *scaled, unsigned in
     // The count taken out of the square and of the leftover, each scaled by the count's own spread, which keeps
     // every one an integer. The constant takes the overhead every ask pays, and the count takes the share of it the
     // solve spreads over every link and therefore over every ask in proportion to the count it covers
-    AnchorExactInteger square_square;
-    AnchorExactInteger square_left;
-    AnchorExactInteger left_left;
-    const AnchorExactInteger *const count_count = &centered[ASK_COUNT][ASK_COUNT];
+    OriorExactInteger square_square;
+    OriorExactInteger square_left;
+    OriorExactInteger left_left;
+    const OriorExactInteger *const count_count = &centered[ASK_COUNT][ASK_COUNT];
     if ((ask_exact_difference(&square_square, count_count, &centered[ASK_SQUARE][ASK_SQUARE],
                               &centered[ASK_COUNT][ASK_SQUARE], &centered[ASK_COUNT][ASK_SQUARE]) == 0) ||
         (ask_exact_difference(&square_left, count_count, &centered[ASK_SQUARE][ASK_LEFT],
@@ -239,20 +239,20 @@ AskLinks ask_links_read(unsigned int links, const long long *scaled, unsigned in
 
     // With N - 3 left over, the square's slope clears twice its own spread exactly where
     // square_left^2 (N + 1) > 4 left_left square_square
-    AnchorExactInteger widened;
-    AnchorExactInteger four;
-    AnchorExactInteger cross_squared;
-    AnchorExactInteger cleared;
-    AnchorExactInteger spreads;
-    AnchorExactInteger bar;
+    OriorExactInteger widened;
+    OriorExactInteger four;
+    OriorExactInteger cross_squared;
+    OriorExactInteger cleared;
+    OriorExactInteger spreads;
+    OriorExactInteger bar;
     ask_exact(&widened, (long long)sweeps + 1);
     ask_exact(&four, 4);
-    if ((anchor_exact_multiply(&square_left, &square_left, &cross_squared) != ANCHOR_EXACT_OK) ||
-        (anchor_exact_multiply(&cross_squared, &widened, &cleared) != ANCHOR_EXACT_OK) ||
-        (anchor_exact_multiply(&left_left, &square_square, &spreads) != ANCHOR_EXACT_OK) ||
-        (anchor_exact_multiply(&spreads, &four, &bar) != ANCHOR_EXACT_OK))
+    if ((orior_exact_multiply(&square_left, &square_left, &cross_squared) != ORIOR_EXACT_OK) ||
+        (orior_exact_multiply(&cross_squared, &widened, &cleared) != ORIOR_EXACT_OK) ||
+        (orior_exact_multiply(&left_left, &square_square, &spreads) != ORIOR_EXACT_OK) ||
+        (orior_exact_multiply(&spreads, &four, &bar) != ORIOR_EXACT_OK))
     {
         return ASK_LINKS_UNREAD;
     }
-    return (anchor_exact_compare(&cleared, &bar) > 0) ? ASK_LINKS_CONTEND : ASK_LINKS_ADD;
+    return (orior_exact_compare(&cleared, &bar) > 0) ? ASK_LINKS_CONTEND : ASK_LINKS_ADD;
 }

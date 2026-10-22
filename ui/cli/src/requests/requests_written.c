@@ -68,7 +68,7 @@ static void parse_request_written(const CliRequestsParsed *parsed, const CliRequ
 // the reason a file of requests was not read whole
 void cli_requests_full_said(CliLine *said)
 {
-    cli_line_text(said, "the file of requests is larger than orior holds");
+    cli_line_text(said, "the file of requests is larger than orior_cli holds");
 }
 
 int cli_requests_parsed(const char *text, unsigned long long size, CliLine *out, CliLine *said)
@@ -88,6 +88,7 @@ int cli_requests_parsed(const char *text, unsigned long long size, CliLine *out,
         parse_pairs(parsed, parsed->variable_name, parsed->variable_value, parsed->variables, out);
         cli_line_character(out, '}');
     }
+    cli_requests_parsed_given(&g_cli_requests_parsed);
     cli_lock_give(&g_cli_requests_lock);
     if (!whole)
     {
@@ -117,6 +118,7 @@ int cli_requests_key_at(const char *text, unsigned long long size, unsigned long
     {
         cli_requests_key(&g_cli_requests_parsed, request, out);
     }
+    cli_requests_parsed_given(&g_cli_requests_parsed);
     cli_lock_give(&g_cli_requests_lock);
     if (!whole)
     {

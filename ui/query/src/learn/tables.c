@@ -4,7 +4,7 @@
 // pulled off its disassembler. For each architecture nvcc compiles a key kernel to a cubin, and the disassembler for
 // Linux, fetched once from the vendor's archive at the compiler's version, is run over the cubin in the test harness's
 // Ubuntu image with every copy and heap block it makes written out (tables_intercept.c, tables_capture.sh), and the
-// funnel reads the two tables off that capture (tables_funnel). An architecture whose two tables stand already is kept
+// funnel reads the two tables off that capture (orior_tables_funnel). An architecture whose two tables stand already is kept
 // as it is
 #include "../../../cli/src/text/text.h"
 #include "tables_internal.h"

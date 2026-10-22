@@ -9,13 +9,17 @@
 
 #include <stdint.h>
 
-// the most passes' ends the one-way repeats standing at once keep, and a pass that took nothing
+// the most passes' ends the one-way repeats standing at once keep, the ends a match keeps on its own stack before they
+// go to a cell, and a pass that took nothing
 #define CLI_REGEXP_ENDS_MOST (1u << 22u)
+#define CLI_REGEXP_ENDS_STACKED 256u
 
 #define CLI_REGEXP_NO_PASS 0xffffffffffffffffull
 
 // Where a match stands: the text and its length, each group's span, the steps taken, where the match's end was
-// handed, and the address its stack stood at as it began
+// handed, and the address its stack stood at as it began; and the passes' ends of the one-way repeats standing on the
+// stack, each repeat's from where it began, how many stand and the room they have, kept on the match's own stack until
+// they outgrow it and then in a cell of twice the room each time they fill it, `ends_held` 1 while they are in one
 typedef struct
 {
     const unsigned int *text;
@@ -24,6 +28,10 @@ typedef struct
     unsigned long long steps;
     unsigned long long end;
     uintptr_t base;
+    unsigned int *ends;
+    unsigned long long ends_top;
+    unsigned long long ends_room;
+    int ends_held;
 } CliRegexpRun;
 
 // What comes after a node, handed the place it stops at: the match's end; the rest of the sequence `node` from its

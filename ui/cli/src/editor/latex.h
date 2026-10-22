@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // latex.h: a LaTeX file made into pages for the live preview, from the text in the editor, saved or not.
 //
-// The text is written into a folder orior keeps for the file, under the file's own name where that name is a plain
+// The text is written into a folder orior_cli keeps for the file, under the file's own name where that name is a plain
 // one, and made there: each make finds the last one's .aux, and its references settle. The file's own folder is put on
 // TEXINPUTS after the make's; what the file inputs, the images it takes and a bibliography made beside it are found
 // where the file is, and nothing is written into the tree. The engine a `% !TEX program = ...` line at the top of the

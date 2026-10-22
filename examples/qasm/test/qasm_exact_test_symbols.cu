@@ -362,22 +362,22 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
     memset(&widest, 0, sizeof(widest));
     QasmNumber two = qasm_number_zero;
     QasmNumber evaluated = qasm_number_zero;
-    AnchorExactInteger top_bit;
-    anchor_exact_zero(&top_bit);
-    top_bit.limb[ANCHOR_EXACT_LIMBS - 1u] = 0x80000000u;
+    OriorExactInteger top_bit;
+    orior_exact_zero(&top_bit);
+    top_bit.limb[ORIOR_EXACT_LIMBS - 1u] = 0x80000000u;
     top_bit.sign = 1;
-    AnchorExactInteger unit;
-    anchor_exact_zero(&unit);
+    OriorExactInteger unit;
+    orior_exact_zero(&unit);
     unit.limb[0] = 1u;
     unit.sign = 1;
     // the width's bits are a power of two far below 2^31. Bits - 1 fits in an int
-    const int widest_power = (int)(ANCHOR_EXACT_BITS - 1ull);
+    const int widest_power = (int)(ORIOR_EXACT_BITS - 1ull);
     const int widest_read = (qasm_rational_set(&two.real.rational, 2LL, 1LL, &error) == 0L) &&
                             (qasm_rational_function_set(&widest, &qasm_number_one, widest_power, &error) == 0L) &&
                             (qasm_rational_function_evaluate(&widest, &two, &evaluated, &error) == 0L);
     qasm_test_check(results,
-                    widest_read && anchor_exact_equal(&evaluated.real.rational.numerator, &top_bit) &&
-                        anchor_exact_equal(&evaluated.real.rational.denominator, &unit) &&
+                    widest_read && orior_exact_equal(&evaluated.real.rational.numerator, &top_bit) &&
+                        orior_exact_equal(&evaluated.real.rational.denominator, &unit) &&
                         qasm_rational_is_zero(&evaluated.real.sqrt2) &&
                         qasm_rational_is_zero(&evaluated.imaginary.rational) &&
                         qasm_rational_is_zero(&evaluated.imaginary.sqrt2),

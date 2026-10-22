@@ -37,32 +37,27 @@ static void qry_shared_named(const char *path, char *name)
 }
 
 static char s_name[32];
+static unsigned long long s_bytes;
 
-QryShared *qry_writer_shared_made(const char *path)
+QryShared *qry_writer_shared_made(const char *path, unsigned long long bytes)
 {
     qry_shared_named(path, s_name);
     const int memory = shm_open(s_name, O_CREAT | O_EXCL | O_RDWR, 0600);
-    if ((memory < 0) || (ftruncate(memory, (off_t)QRY_WRITER_SHARED_BYTES) != 0))
+    // the region is sized whole, its bytes what the system holds
+    if ((memory < 0) || (ftruncate(memory, (off_t)bytes) != 0))
     {
         return NULL;
     }
-    void *const view = mmap(NULL, (size_t)QRY_WRITER_SHARED_BYTES, PROT_READ | PROT_WRITE, MAP_SHARED, memory, 0);
+    void *const view = mmap(NULL, (size_t)bytes, PROT_READ | PROT_WRITE, MAP_SHARED, memory, 0);
     close(memory);
+    s_bytes = bytes;
     return (view == MAP_FAILED) ? NULL : (QryShared *)view;
 }
 
 void qry_writer_shared_released(QryShared *shared)
 {
-    munmap(shared, (size_t)QRY_WRITER_SHARED_BYTES);
+    munmap(shared, (size_t)s_bytes);
     shm_unlink(s_name);
-}
-
-int qry_shared_committed(void *at, unsigned long long bytes)
-{
-    // the system gives a page of the object as it is first touched
-    (void)at;
-    (void)bytes;
-    return 1;
 }
 
 long long qry_writer_file_made(const char *path)
@@ -103,7 +98,7 @@ int qry_writer_file_closed(long long file)
     return (close((int)file) == 0) && flushed;
 }
 
-// the folder `path` is in made sure of on the disk, so a rename into it stands once the call returns
+// the folder `path` is in made sure of on the disk; a rename into it therefore stands once the call returns
 static void qry_writer_folder_synced(const char *path)
 {
     char folder[QRY_WRITER_TOP_LONGEST + QRY_NAME_LONGEST + 2u];
@@ -113,7 +108,7 @@ static void qry_writer_folder_synced(const char *path)
     {
         return;
     }
-    // the cut stands inside the path, so its place is not negative and below its length
+    // the cut stands inside the path; its place is therefore not negative and below its length
     const size_t kept = (cut == path) ? 1u : (size_t)(cut - path);
     memcpy(folder, path, kept);
     folder[kept] = '\0';
@@ -145,6 +140,11 @@ void qry_writer_paused(void)
 {
     const struct timespec pause = {0, 1000000};
     nanosleep(&pause, NULL);
+}
+
+// Raising a process takes a privilege the writer does not ask for: it keeps the level it was started at
+void qry_writer_raised(void)
+{
 }
 
 unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, unsigned long long room)
@@ -185,16 +185,28 @@ QryShared *qry_member_shared(const char *path)
     {
         return NULL;
     }
-    // the writer sizes the object after it names it; one not yet sized is no run yet, since a page past its end faults
+    // the writer sizes the object after it names it; one not yet sized, or whose whole the writer has not written yet,
+    // is no run yet
     struct stat held;
-    if ((fstat(memory, &held) != 0) || ((unsigned long long)held.st_size < QRY_WRITER_SHARED_BYTES))
+    if ((fstat(memory, &held) != 0) || ((unsigned long long)held.st_size < sizeof(QryShared)))
     {
         close(memory);
         return NULL;
     }
-    void *const view = mmap(NULL, (size_t)QRY_WRITER_SHARED_BYTES, PROT_READ | PROT_WRITE, MAP_SHARED, memory, 0);
+    // the region's bytes a size_t counts
+    void *const view = mmap(NULL, (size_t)held.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, memory, 0);
     close(memory);
-    return (view == MAP_FAILED) ? NULL : (QryShared *)view;
+    if (view == MAP_FAILED)
+    {
+        return NULL;
+    }
+    QryShared *const shared = (QryShared *)view;
+    if (atomic_load(&shared->whole) != (unsigned long long)held.st_size)
+    {
+        munmap(view, (size_t)held.st_size);
+        return NULL;
+    }
+    return shared;
 }
 
 int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_length, const unsigned char *bytes,
@@ -211,7 +223,8 @@ int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_l
 
 void qry_member_unshared(QryShared *run)
 {
-    munmap(run, (size_t)QRY_WRITER_SHARED_BYTES);
+    // the region's bytes, which its head holds, a size_t counts
+    munmap(run, (size_t)atomic_load(&run->whole));
 }
 
 unsigned long long qry_writer_input_read(unsigned char *bytes, unsigned long long room)

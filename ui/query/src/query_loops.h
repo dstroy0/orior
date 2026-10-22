@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// query_loops.h: the loops of `orior protocol`, each run under a context with its words, the context's calls they
+// query_loops.h: the loops of `orior_cli protocol`, each run under a context with its words, the context's calls they
 // share (commands.c), and the dispatch (commands_list.c). A loop gives its exit code, or -1 with why it could not run
 // said into `said`
 #ifndef QUERY_LOOPS_H
@@ -9,7 +9,7 @@
 #include "query_internal.h"
 
 #define QUERY_USAGE                                                                                                    \
-    "orior protocol takes one of course, tables, decode, query, learn, cross, write, pairs, stick, kept, sweep"
+    "orior_cli protocol takes one of course, tables, decode, query, learn, cross, write, pairs, stick, kept, sweep"
 
 // the folder the bridge, the rulesets and the part's files stand in
 #define QUERY_TABLE "src/cu/transpiler/lstar/protocol/table"
@@ -84,7 +84,7 @@ int query_pairs_pair(QueryContext *context, const char *part, const char *to, in
                      const char *trace, CliLine *said);
 
 // every `.bin` under `folder`, each the code of the kernel `<prefix><number>` of the cubin at `pattern`, read by the
-// vendor at one start (`cubin_listing`), and each code's listing, the run's `<number>.dis`, handed to the run's writer
+// vendor at one start (`orior_cubin_listing`), and each code's listing, the run's `<number>.dis`, handed to the run's writer
 // as the `.dis` beside it (stick.c)
 int query_listings_read(QueryContext *context, const QueryRun *run, const char *pattern, const char *prefix,
                         const char *architecture, const char *folder, CliLine *said);

@@ -17,13 +17,13 @@ int khw_kernel_read(const char *path)
     const unsigned int sections = cubin_code_sections(s_pattern, s_pattern_size, offsets, sizes, KHW_PLACES);
     if (sections == 0u)
     {
-        printf("  khw_machine_write: the container at %s holds no code the kernel is read from\n", path);
+        printf("  orior_khw_machine_write: the container at %s holds no code the kernel is read from\n", path);
         return 0;
     }
     if ((sizes[0] == 0ull) || ((sizes[0] % KHW_INSTRUCTION) != 0ull) ||
         (sizes[0] > (unsigned long long)sizeof(s_kernel_text)))
     {
-        printf("  khw_machine_write: the kernel is %llu bytes, which is no whole count of places\n", sizes[0]);
+        printf("  orior_khw_machine_write: the kernel is %llu bytes, which is no whole count of places\n", sizes[0]);
         return 0;
     }
     memcpy(s_kernel_text, &s_pattern[offsets[0]], (size_t)sizes[0]);
@@ -31,7 +31,7 @@ int khw_kernel_read(const char *path)
     s_registers = cubin_registers_read(s_pattern, s_pattern_size, s_kernel);
     if (s_registers == 0u)
     {
-        printf("  khw_machine_write: the container says how many registers no thread of %s holds\n", s_kernel);
+        printf("  orior_khw_machine_write: the container says how many registers no thread of %s holds\n", s_kernel);
         return 0;
     }
     return 1;
@@ -142,12 +142,12 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
     unsigned long long size = 0ull;
     if (run == NULL)
     {
-        printf("  khw_machine_write: no run's writer runs to read %s from\n", answers);
+        printf("  orior_khw_machine_write: no run's writer runs to read %s from\n", answers);
         return 0u;
     }
     if (!qry_member_blob(answers, &bytes, &size, NULL))
     {
-        printf("  khw_machine_write: the run's buffer holds no %s\n", answers);
+        printf("  orior_khw_machine_write: the run's buffer holds no %s\n", answers);
         return 0u;
     }
     char line[2048];

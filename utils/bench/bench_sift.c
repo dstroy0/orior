@@ -195,7 +195,7 @@ typedef enum
 static unsigned s_random_cost[256];
 
 // the census of the corpus a report is reading, which ANCHOR_BY_MAGNITUDE weighs a byte against
-static AnchorFieldCensus s_census;
+static OriorFieldCensus s_census;
 
 static void fill_random_costs(void)
 {
@@ -247,7 +247,7 @@ static unsigned anchor_cost(uint8_t byte, AnchorPolicy policy)
     default:
     {
         // the byte's own count in the corpus, at most CORPUS_BYTES, so narrowing to unsigned loses nothing
-        return (unsigned)(s_census.total - anchor_steer_magnitude(&s_census, byte));
+        return (unsigned)(s_census.total - orior_steer_magnitude(&s_census, byte));
     }
     }
 }
@@ -392,7 +392,7 @@ static void report_cascade(const char *name, const uint8_t *corpus, size_t corpu
 
     uint32_t counts[256];
     histogram(corpus, corpus_len, counts);
-    anchor_field_census(corpus, corpus_len, &s_census);
+    orior_field_census(corpus, corpus_len, &s_census);
 
     const size_t step = (corpus_len - needle_len) / NEEDLE_SAMPLES;
 
@@ -481,7 +481,7 @@ static void report_invariant(const char *name, const uint8_t *corpus, size_t cor
     {
         return;
     }
-    anchor_field_census(corpus, corpus_len, &s_census);
+    orior_field_census(corpus, corpus_len, &s_census);
 
     const size_t positions = (corpus_len - needle_len) + 1u;
 
@@ -528,7 +528,7 @@ static void report(const char *name, const uint8_t *corpus, size_t corpus_len, s
 
     uint32_t counts[256];
     histogram(corpus, corpus_len, counts);
-    anchor_field_census(corpus, corpus_len, &s_census);
+    orior_field_census(corpus, corpus_len, &s_census);
 
     double one_total = 0.0;
     double two_total = 0.0;
@@ -680,7 +680,7 @@ static void report_refutation(const char *name, const uint8_t *corpus, size_t co
 
     uint32_t counts[256];
     histogram(corpus, corpus_len, counts);
-    anchor_field_census(corpus, corpus_len, &s_census);
+    orior_field_census(corpus, corpus_len, &s_census);
 
     double collision = 0.0;
 

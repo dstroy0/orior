@@ -156,15 +156,10 @@ static void cli_sample_of(const CliJson *json, unsigned int plugin, CliLine *out
     cli_line_text(out, ", count = 0x2a + 1.5e3;\n");
 }
 
-int cli_plugins_create_in(const char *dir, CliJson *json, unsigned int spec, int replace, char *folder, CliLine *said)
+// the plugin `plugin` of `json` written under `dir` as cli_plugins_create_in writes one: 1, or 0 with why said
+static int plugins_written(const char *dir, const CliJson *json, unsigned int plugin, int replace, char *folder,
+                           CliLine *said)
 {
-    static char s_file[CLI_PLUGIN_FILE];
-    static CliLock s_writing = CLI_LOCK_INIT;
-    const unsigned int plugin = cli_plugins_draft(json, spec, said);
-    if (plugin == CLI_JSON_NONE)
-    {
-        return 0;
-    }
     const char *const id = cli_json_string(json, cli_json_member(json, plugin, "id"), NULL);
     char file[CLI_PATH_LONGEST];
     CliLine line = {folder, CLI_PATH_LONGEST, 0ull};
@@ -177,7 +172,7 @@ int cli_plugins_create_in(const char *dir, CliJson *json, unsigned int spec, int
     cli_line_text(&named, "/plugin.json");
     if (!folder_fits || (cli_line_closed(&named) == 0ull))
     {
-        cli_line_text(said, "the plugin's folder is a longer path than orior takes");
+        cli_line_text(said, "the plugin's folder is a longer path than orior_cli takes");
         return 0;
     }
     if (query_is_file(file) && !replace)
@@ -195,10 +190,11 @@ int cli_plugins_create_in(const char *dir, CliJson *json, unsigned int spec, int
         cli_line_text(said, ": it could not be made");
         return 0;
     }
-    cli_lock_take(&s_writing);
-    CliLine text = {s_file, sizeof(s_file), 0ull};
+    CliLine text;
+    (void)cli_line_growing(&text, CLI_PLUGIN_TEXT_FIRST, "a plugin's plugin.json written");
     cli_plugins_text_of(json, plugin, &text);
-    int written = cli_line_fits(&text) && query_file_written(file, s_file, text.at);
+    int written = cli_line_fits(&text) && query_file_written(file, text.out, text.at);
+    cli_cell_given(text.out);
     const char *const extension =
         cli_json_string(json, cli_json_item(json, cli_json_member(json, plugin, "extensions"), 0u), NULL);
     char sample[CLI_PATH_LONGEST];
@@ -206,16 +202,17 @@ int cli_plugins_create_in(const char *dir, CliJson *json, unsigned int spec, int
     cli_line_text(&sample_name, folder);
     cli_line_text(&sample_name, "/sample.");
     cli_line_text(&sample_name, (extension != NULL) ? extension : "txt");
-    CliLine sample_text = {s_file, sizeof(s_file), 0ull};
     // 1 where both are written, 0 where plugin.json is not, 2 where the sample is not
     if (written)
     {
+        CliLine sample_text;
+        (void)cli_line_growing(&sample_text, CLI_PLUGIN_TEXT_FIRST, "a plugin's sample written");
         cli_sample_of(json, plugin, &sample_text);
         const int sampled = (cli_line_closed(&sample_name) != 0ull) && cli_line_fits(&sample_text) &&
-                            query_file_written(sample, s_file, sample_text.at);
+                            query_file_written(sample, sample_text.out, sample_text.at);
+        cli_cell_given(sample_text.out);
         written = sampled ? 1 : 2;
     }
-    cli_lock_give(&s_writing);
     if (written != 1)
     {
         cli_line_text(said, (written == 0) ? file : sample);
@@ -225,12 +222,23 @@ int cli_plugins_create_in(const char *dir, CliJson *json, unsigned int spec, int
     return 1;
 }
 
-int cli_plugins_create(CliJson *json, unsigned int spec, int replace, char *folder, CliLine *said)
+int cli_plugins_create_in(const char *dir, const CliJson *json, unsigned int spec, int replace, char *folder,
+                          CliLine *said)
+{
+    CliJson draft = {0};
+    const unsigned int answers = cli_plugins_draft_tree(&draft, json, spec, said);
+    const unsigned int plugin = (answers != CLI_JSON_NONE) ? cli_plugins_draft(&draft, answers, said) : CLI_JSON_NONE;
+    const int written = (plugin != CLI_JSON_NONE) && plugins_written(dir, &draft, plugin, replace, folder, said);
+    cli_json_given(&draft);
+    return written;
+}
+
+int cli_plugins_create(const CliJson *json, unsigned int spec, int replace, char *folder, CliLine *said)
 {
     char dir[CLI_PATH_LONGEST];
     if (!cli_home_plugins(dir))
     {
-        cli_line_text(said, "orior has no folder of its own to keep plugins in");
+        cli_line_text(said, "orior_cli has no folder of its own to keep plugins in");
         return 0;
     }
     return cli_plugins_create_in(dir, json, spec, replace, folder, said);

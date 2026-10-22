@@ -148,7 +148,7 @@ int table_fill_from_ops(TableProgram *oracle, unsigned int value_bits, unsigned 
 {
     unsigned int *const atoms = (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int));
     unsigned int *const out =
-        (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * ANCHOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+        (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
     if ((atoms == NULL) || (out == NULL))
     {
         free(atoms);
@@ -179,13 +179,13 @@ void table_case(TableResults *results, const char *name, TableProgram *oracle, u
     unsigned int *const values = (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int));
     unsigned int *const atoms = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
     unsigned int *const oracle_device =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ANCHOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
     unsigned int *const oracle_host =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ANCHOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
     unsigned int *const table_device =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ANCHOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
     unsigned int *const table_host =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ANCHOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
     int ok = (values != NULL) && (atoms != NULL) && (oracle_device != NULL) && (oracle_host != NULL) &&
              (table_device != NULL) && (table_host != NULL);
     ok = ok && table_fill_from_ops(oracle, value_bits, values);

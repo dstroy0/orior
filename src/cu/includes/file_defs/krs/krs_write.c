@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // krs_write.c: a language's ruleset and its part's, written from the forms the part answered for
 //
-//     krs_write <language> <part> <path.khw> <layout> <mnemonics> <machine writer> <named ruleset>
+//     orior_krs_write <language> <part> <path.khw> <layout> <mnemonics> <machine writer> <named ruleset>
 //
 // Every form in the part's file this writes is there because the part answered for it (P8), and no name is matched
 // to an operation. The vendor's writer (`machine writer` above, run through the interface) reads the part's machine
@@ -10,7 +10,7 @@
 // the form's text with each operand that stands in the relation's tuple written as its place. Which word a form writes
 // is read off the word web (word_web.h): a word whose tree, each leaf reading one of the relation's words, answers the
 // relation on every case of it the ladder holds (ladder.h, precept_value.h) is a word the form writes. A word's form
-// takes the destination first and then the leaves by place: the answer's place is the form's first parameter, and the
+// takes the answer first and then the leaves by place: the answer's place is the form's first parameter, and the
 // word a leaf reads is the parameter of that leaf.
 //
 // The parameters are named as the ruleset at `named ruleset` names the same form; a word that ruleset names no form
@@ -30,7 +30,7 @@
 // The lane's structure, each form the schema gives as SCHEMA_FORM_STRUCTURE (schema_forms.h), is written `nop`: the
 // declarations, the notes, the lane's and the kernel's opening and close, the launch's and the shared memory's, the
 // states and the asks, and the unit name no operation and have no tree, and the kernel the system accepted is the
-// lane's frame on the part (The frame asked, Open 6.3). A slot whose relation holds of nothing has every form and
+// lane's frame on the part (The frame asked, Open 6.3). A position whose relation holds of nothing has every form and
 // the empty text as survivors, and P6 keeps the cheapest, the empty text. Every other form the part has not answered
 // for is left open, and the reader reads it so (P10).
 //
@@ -92,7 +92,7 @@ static unsigned int krs_structure_written(const char *named_ruleset)
         const unsigned int parameters = krs_parameters_named(named_ruleset, s_schema[at].name, parameter);
         if (parameters != s_schema[at].parameters)
         {
-            printf("  krs_write: %s names %s with %u parameters, where the schema gives it %u, and it is not written\n",
+            printf("  orior_krs_write: %s names %s with %u parameters, where the schema gives it %u, and it is not written\n",
                    named_ruleset, s_schema[at].name, parameters, s_schema[at].parameters);
             continue;
         }
@@ -113,7 +113,7 @@ int main(int count, char **word)
 {
     if (count != 8)
     {
-        printf("krs_write <language> <part> <path.khw> <layout> <mnemonics> <machine writer> <named ruleset>\n");
+        printf("orior_krs_write <language> <part> <path.khw> <layout> <mnemonics> <machine writer> <named ruleset>\n");
         return 2;
     }
     const char *const language = word[1];
@@ -123,11 +123,11 @@ int main(int count, char **word)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        printf("  krs_write: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        printf("  orior_krs_write: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
         return 1;
     }
     // the forms the vendor's writer appends, read where it appends them: the latest record of their name, one the
-    // writer took past every place the schedule held before the writer ran
+    // writer took past every place the schedule kept before the writer ran
     const unsigned long long before = qry_member_rings_settled();
     if (!krs_vendor_run(word))
     {
@@ -179,7 +179,7 @@ int main(int count, char **word)
                 forms_text(kept);
                 forms_text("\n");
                 given += 1u;
-                printf("  krs_write: no form answered for in this run writes %s; the ruleset keeps its form\n",
+                printf("  orior_krs_write: no form answered for in this run writes %s; the ruleset keeps its form\n",
                        each->name);
             }
             continue;
@@ -196,13 +196,13 @@ int main(int count, char **word)
                 forms_text(kept);
                 forms_text("\n");
                 given += 1u;
-                printf("  krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset keeps its form\n",
+                printf("  orior_krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset keeps its form\n",
                        writers, each->name);
                 continue;
             }
             ranked = krs_fewest_operands(s_writer, writers);
             printf(
-                "  krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset gave it none, and the "
+                "  orior_krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset gave it none, and the "
                 "one of the fewest operands is written\n",
                 writers, each->name);
         }
@@ -212,7 +212,7 @@ int main(int count, char **word)
         const unsigned int parameters = krs_parameters_named(named_ruleset, each->name, parameter);
         if (parameters != ((unsigned int)each->reads + 1u))
         {
-            printf("  krs_write: %s names %s with %u parameters, where the word takes a destination and %u, and it is "
+            printf("  orior_krs_write: %s names %s with %u parameters, where the word takes a destination and %u, and it is "
                    "not written\n",
                    named_ruleset, each->name, parameters, (unsigned int)each->reads);
             continue;
@@ -220,7 +220,7 @@ int main(int count, char **word)
         char text[KRS_LINE * 2u];
         if (!krs_text_named(&s_form[first], first_order, parameter, parameters, text, sizeof(text)))
         {
-            printf("  krs_write: %s is written by a form whose operands do not carry its words\n", each->name);
+            printf("  orior_krs_write: %s is written by a form whose operands do not carry its words\n", each->name);
             continue;
         }
         forms_text("form ");
@@ -239,16 +239,16 @@ int main(int count, char **word)
     // the run hands no form for keeps the line the ruleset gave its form before
     if (krs_frame_read(NULL) == 0u)
     {
-        printf("  krs_write: the table of frame forms could not be read, and no frame form is written\n");
+        printf("  orior_krs_write: the table of frame forms could not be read, and no frame form is written\n");
     }
     given += krs_frame_written(s_forms_bytes, sizeof(s_forms_bytes), &s_forms_at, s_frame_form, s_frame_forms,
                                named_ruleset, path, ksc);
     const unsigned int structure = krs_structure_written(named_ruleset);
-    printf("  krs_write: the lane's structure, %u forms, written nop\n", structure);
+    printf("  orior_krs_write: the lane's structure, %u forms, written nop\n", structure);
     if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_forms_bytes), .at = s_forms_at}) ||
         !qry_member_filed(path, s_forms_bytes, s_forms_at))
     {
-        printf("  krs_write: %s could not be written\n", path);
+        printf("  orior_krs_write: %s could not be written\n", path);
         return 1;
     }
     snprintf(path, sizeof(path), "%s/%s.krs", rulesets, language);
@@ -265,7 +265,7 @@ int main(int count, char **word)
         krs_head_written(s_head_bytes, sizeof(s_head_bytes), &s_head_at, ksc, missing, sizeof(missing));
         if (missing[0] != '\0')
         {
-            printf("  krs_write: the part has not answered for its %s; the line is left out, and the reader refuses "
+            printf("  orior_krs_write: the part has not answered for its %s; the line is left out, and the reader refuses "
                    "%s.krs without it\n",
                    missing, language);
         }
@@ -288,9 +288,9 @@ int main(int count, char **word)
         head_text("bank predicate = P{n}\n");
         head_text("bank member = R{n}\n");
         head_text("bank immediate = {n}\n");
-        // The fixed registers the kernel the system accepted leaves at its slot, each the part's answer in its .ksc
+        // The fixed registers the kernel the system accepted leaves at its position, each the part's answer in its .ksc
         // (The fixed registers asked, Open 6.2): zero, the register that reads 0 whatever is written to it, and the
-        // lane's number, the record and the index where a register holds each at the slot. A fixed register no row
+        // lane's number, the record and the index where a register holds each at the position. A fixed register no row
         // names keeps the line the ruleset gave it before this run, a hand line among them, since a line gives way
         // only to the part's row for its register; the ten the banks' asks place (Open 6.1) stand so until then. A
         // register with neither is left out, and the reader refuses the ruleset without it
@@ -298,7 +298,7 @@ int main(int count, char **word)
         krs_fixed_written(s_head_bytes, sizeof(s_head_bytes), &s_head_at, ksc, path, unanswered, sizeof(unanswered));
         if (unanswered[0] != '\0')
         {
-            printf("  krs_write: the part has not answered for its fixed %s, and the ruleset gave no line; each is "
+            printf("  orior_krs_write: the part has not answered for its fixed %s, and the ruleset gave no line; each is "
                    "left out, and the reader refuses %s.krs without it\n",
                    unanswered, language);
         }
@@ -306,10 +306,10 @@ int main(int count, char **word)
     if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_head_bytes), .at = s_head_at}) ||
         !qry_member_filed(path, s_head_bytes, s_head_at))
     {
-        printf("  krs_write: %s could not be written\n", path);
+        printf("  orior_krs_write: %s could not be written\n", path);
         return 1;
     }
-    printf("  krs_write: %u form lines, the web's %u words' and the frame's, written from the %u forms and %u frame "
+    printf("  orior_krs_write: %u form lines, the web's %u words' and the frame's, written from the %u forms and %u frame "
            "forms the part answered for, in %s/%s.krs beside %s.krs\n",
            given, KRS_WORDS, s_forms, s_frame_forms, rulesets, part, language);
     return 0;

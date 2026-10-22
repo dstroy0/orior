@@ -10,7 +10,7 @@
 # The workbook leaves the choice between rarity and separation open and names the term it waits on:
 # whether survivors are verified and discarded, or buffered and handed on. This file supplies that
 # term. A descent that resumes from a parent's survivors, through the resume field of
-# AnchorSteerDescent, is the second case: the child reads only what the parent stored.
+# OriorSteerDescent, is the second case: the child reads only what the parent stored.
 #
 # Discarded, a survivor costs one verification and is gone. The cost is the count of survivors. A
 # wrong size estimate costs nothing here, because nothing is allocated from it.

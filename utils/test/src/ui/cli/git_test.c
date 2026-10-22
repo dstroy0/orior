@@ -84,7 +84,13 @@ static void git_parts(void)
     (void)git_do(root, "add", "other.txt", NULL, NULL);
     static const char s_part[] = "one\nTWO\nthree\nfour\n";
     const CliGitPart part = {"a.txt", s_part, sizeof(s_part) - 1u};
+    const unsigned long long held = g_cli_git_cells.holds;
+    cli_check(!cli_git_commit_parts(root, "  \n", NULL, 0u, &part, 1u, &line, &said) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = why, .other = "a commit needs a message", .cap = sizeof(why)}),
+              "a commit with no message is refused");
+    said.at = 0ull;
     cli_check(cli_git_commit_parts(root, "part of a", NULL, 0u, &part, 1u, &line, &said), "a part is committed");
+    cli_check(g_cli_git_cells.holds == held, "a commit gives its room back, made or refused");
     cli_check(
         git_do(root, "show", "HEAD:a.txt", NULL, NULL) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = s_out, .other = "one\nTWO\nthree\nfour", .cap = CLI_CELLS_POOL})),
@@ -123,6 +129,7 @@ static void git_branching(void)
     cli_check(git_act(root, "create", "topic", ""), "a branch is made");
     git_written(root, "a.txt", "two");
     (void)git_do(root, "commit", "-q", "-am", "second");
+    cli_git_text_given(&s_branches.text);
     cli_git_branches(root, &s_branches);
     int current = 0;
     int subject = 0;
@@ -146,6 +153,7 @@ static void git_branching(void)
             (cellul.eq(&(CatenaFinitaCfg){.src = git_read(root, "a.txt"), .other = "two", .cap = CLI_CELLS_POOL})),
         "it is merged");
     cli_check(git_act(root, "delete", "feature", ""), "and then deleted");
+    cli_git_text_given(&s_branches.text);
     cli_git_branches(root, &s_branches);
     cli_check((s_branches.count == 1u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = cli_git_text_of(&s_branches.text, s_branches.item[0].name),
@@ -194,6 +202,7 @@ static const char *git_strokes(unsigned int index, char *out, unsigned long long
 // a merged branch takes a column of its own and joins where it began
 static void git_laid_out(void)
 {
+    cli_git_text_given(&s_graph.text);
     cli_git_text_begun(&s_graph.text);
     s_graph.count = 0u;
     s_graph.strokes = 0u;
@@ -268,5 +277,8 @@ int main(void)
                   (cli_git_state_of(' ', 'D') == 'D') && (cli_git_state_of('R', ' ') == 'R') &&
                   (cli_git_state_of('U', 'U') == 'C') && (cli_git_state_of('A', 'A') == 'C'),
               "each status has one letter");
+    cli_git_text_given(&s_branches.text);
+    cli_git_text_given(&s_graph.text);
+    cli_check((g_cli_git_cells.holds == 0ull) && (g_cli_git_cells.hw != 0ull), "each list's texts are given back");
     return cli_checked();
 }

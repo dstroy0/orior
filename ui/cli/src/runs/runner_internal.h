@@ -12,9 +12,10 @@
 #define CLI_RUN_STEPS 256u
 
 // A run: its number, sink and tree; its job, kept in a catalog of its own whose lists are one cell sized to the job,
-// and the values it runs with; its thread; whether it has ended and whether a reader stopped it; the process of its
-// step still running and the job it heads; the lines its steps wrote, a cell of the run's; when it began, and when the
-// step running began and wrote its first line. The cells are taken as the run starts and given back as it ends
+// and the values it runs with, in the same cell; its thread; whether it has ended and whether a reader stopped it; the
+// process of its step still running and the job it heads; the lines its steps wrote, a cell of the run's; when it
+// began, and when the step running began and wrote its first line. The cells are taken as the run starts and given back
+// as it ends
 typedef struct
 {
     int used;
@@ -23,7 +24,7 @@ typedef struct
     char root[CLI_PATH_LONGEST];
     CliCatalog catalog;
     void *job_cell;
-    CliValues values;
+    CliValues *values;
     CliThread thread;
     int ended;
     int stopped;

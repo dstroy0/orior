@@ -3,7 +3,7 @@
 // tables_funnel.c: the vendor's two tables written out of a capture of its disassembler: the instruction set and
 // the latencies
 //
-//     tables_funnel <capture> <instructions.txt> <latencies.txt>
+//     orior_tables_funnel <capture> <instructions.txt> <latencies.txt>
 //
 // Exit 0 where both tables were written, 1 where the capture could not be read or a table could not be written, 2
 // where the capture holds no instruction archive that unpacks whole, 3 where it holds no copies of the latencies.
@@ -63,14 +63,14 @@ int main(int count, char **words)
 {
     if (count != 4)
     {
-        fprintf(stderr, "tables_funnel <capture> <instructions.txt> <latencies.txt>\n");
+        fprintf(stderr, "orior_tables_funnel <capture> <instructions.txt> <latencies.txt>\n");
         return 1;
     }
     size_t size = 0u;
     unsigned char *const bytes = tables_file_read(words[1], &size);
     if (bytes == NULL)
     {
-        fprintf(stderr, "tables_funnel: %s could not be read\n", words[1]);
+        fprintf(stderr, "orior_tables_funnel: %s could not be read\n", words[1]);
         return 1;
     }
     TablesText instructions = {NULL, 0u, 0u};
@@ -80,22 +80,22 @@ int main(int count, char **words)
     int code = 0;
     if (instructions.length == 0u)
     {
-        fprintf(stderr, "tables_funnel: %s holds no instruction archive that unpacks whole\n", words[1]);
+        fprintf(stderr, "orior_tables_funnel: %s holds no instruction archive that unpacks whole\n", words[1]);
         code = 2;
     }
     else if (latencies.length == 0u)
     {
-        fprintf(stderr, "tables_funnel: %s holds no copies of the latencies\n", words[1]);
+        fprintf(stderr, "orior_tables_funnel: %s holds no copies of the latencies\n", words[1]);
         code = 3;
     }
     else if (!tables_file_written(words[2], &instructions) || !tables_file_written(words[3], &latencies))
     {
-        fprintf(stderr, "tables_funnel: %s or %s could not be written\n", words[2], words[3]);
+        fprintf(stderr, "orior_tables_funnel: %s or %s could not be written\n", words[2], words[3]);
         code = 1;
     }
     else
     {
-        printf("tables_funnel: %zu bytes of instructions, %zu of latencies\n", instructions.length, latencies.length);
+        printf("orior_tables_funnel: %zu bytes of instructions, %zu of latencies\n", instructions.length, latencies.length);
     }
     tables_text_freed(&instructions);
     tables_text_freed(&latencies);

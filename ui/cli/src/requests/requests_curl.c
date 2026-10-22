@@ -274,7 +274,7 @@ static int curl_flag(CurlRead *read, CurlText flag, CurlText joined, unsigned in
     }
     if (!fits)
     {
-        cli_line_text(said, "the curl line is larger than orior holds");
+        cli_line_text(said, "the curl line is larger than orior_cli holds");
     }
     return fits;
 }
@@ -429,7 +429,7 @@ static int curl_read(CliLine *said)
     }
     if (!cli_line_fits(&s_curl->made_line) || !cli_line_fits(&s_curl->body_line))
     {
-        cli_line_text(said, "the curl line is larger than orior holds");
+        cli_line_text(said, "the curl line is larger than orior_cli holds");
         return 0;
     }
     if (s_curl->read.url.at == NULL)
@@ -467,7 +467,7 @@ int cli_requests_from_curl(const char *line, unsigned long long size, CliLine *o
     int read = (!cmd || cli_line_fits(&uncareted)) && cli_requests_words(text, length, &s_curl->words, said);
     if (cmd && !cli_line_fits(&uncareted))
     {
-        cli_line_text(said, "the curl line is larger than orior holds");
+        cli_line_text(said, "the curl line is larger than orior_cli holds");
     }
     if (read && ((s_curl->words.count == 0u) ||
                  !curl_is(s_curl->words.text + s_curl->words.word[0].at, s_curl->words.word[0].size, "curl")))
@@ -483,7 +483,7 @@ int cli_requests_from_curl(const char *line, unsigned long long size, CliLine *o
         read = cli_line_fits(&written);
         if (!read)
         {
-            cli_line_text(said, "the curl line is larger than orior holds");
+            cli_line_text(said, "the curl line is larger than orior_cli holds");
         }
     }
     if (read)

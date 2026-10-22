@@ -93,7 +93,7 @@ static void fixed_closed(FixedAsk *ask)
 {
     if (!run_closed(&ask->table))
     {
-        printf("klq_identity fixed: %s could not be written\n", ask->table.path.c_str());
+        printf("orior_klq_identity fixed: %s could not be written\n", ask->table.path.c_str());
     }
     run_channel_close();
 }
@@ -130,7 +130,7 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
         (fields.count("rb") == 0u))
     {
-        printf("klq_identity fixed: %s gives no stall field or not every register field\n", ksc);
+        printf("orior_klq_identity fixed: %s gives no stall field or not every register field\n", ksc);
         return 1;
     }
     const StallField stall = fields["stall"];
@@ -182,13 +182,13 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     if (ask.dry)
     {
         fixed_closed(&ask);
-        printf("klq_identity fixed: the run is dry, and nothing is written\n");
+        printf("orior_klq_identity fixed: the run is dry, and nothing is written\n");
         return 0;
     }
     if (slot == places)
     {
         fixed_closed(&ask);
-        printf("klq_identity fixed: no place answers the case's second word, and nothing is written\n");
+        printf("orior_klq_identity fixed: no place answers the case's second word, and nothing is written\n");
         return 1;
     }
     char row[64];
@@ -196,7 +196,7 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     if (!ksc_answers_write(ksc, "slot", std::vector<std::string>{row}))
     {
         fixed_closed(&ask);
-        printf("klq_identity fixed: %s could not be written\n", ksc);
+        printf("orior_klq_identity fixed: %s could not be written\n", ksc);
         return 1;
     }
     printf("  the slot is place %u of %u\n", slot, places);
@@ -212,7 +212,7 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     if (!fixed_alike(&ask, zero_variant, second, what))
     {
         fixed_closed(&ask);
-        printf("klq_identity fixed: register %llu, the field's top, does not read 0 whatever is written to it, and "
+        printf("orior_klq_identity fixed: register %llu, the field's top, does not read 0 whatever is written to it, and "
                "nothing more is written\n",
                top);
         return 1;
@@ -258,10 +258,10 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     fixed_closed(&ask);
     if (!ksc_answers_write(ksc, "fixed", fixed_rows) || !ksc_answers_write(ksc, "case word", case_rows))
     {
-        printf("klq_identity fixed: %s could not be written\n", ksc);
+        printf("orior_klq_identity fixed: %s could not be written\n", ksc);
         return 1;
     }
-    printf("klq_identity fixed: the slot at place %u of %u, zero register %llu, %zu readings fixed at the slot, over "
+    printf("orior_klq_identity fixed: the slot at place %u of %u, zero register %llu, %zu readings fixed at the slot, over "
            "%llu asks, written to %s\n",
            slot, places, zero, given.size(), ask.asks, ksc);
     return 0;

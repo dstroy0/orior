@@ -185,7 +185,7 @@ int cli_requests_words(const char *line, unsigned long long size, CliRequestsWor
     }
     else if (read == 0)
     {
-        cli_line_text(said, "the curl line is larger than orior holds");
+        cli_line_text(said, "the curl line is larger than orior_cli holds");
     }
     return read == 1;
 }

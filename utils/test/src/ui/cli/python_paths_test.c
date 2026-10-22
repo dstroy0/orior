@@ -35,7 +35,8 @@ static void paths_checked(const char *text, int folders, const char *const *want
             (kept < count) && (cellul.eq(&(CatenaFinitaCfg){.src = full, .other = expected, .cap = CLI_CELLS_POOL}));
         kept += 1u;
     }
-    cli_check(same && (kept == count), what);
+    cli_py_reading_given();
+    cli_check(same && (kept == count) && (g_cli_python_cells.holds == 0ull), what);
 }
 
 // the parent of `path` checked against `wanted`
@@ -89,6 +90,7 @@ int main(void)
     static const char *const s_scanned_wanted[2] = {"tools/plugins/one", "tools/plugins/two"};
     paths_checked(s_scanned, 0, s_scanned_wanted, 2u, "the folders a scan of a folder finds are read");
     static const char s_call[] = "os.path.join(ROOT, 'a', \"b\")";
+    cli_check(cli_py_reading_taken(sizeof(s_call)), "a reading is taken in a cell sized to its script");
     unsigned int expr = cli_py_parse(s_call, sizeof(s_call) - 1u);
     cli_check((expr != CLI_PY_NONE) && (g_cli_py.expr[expr].kind == CLI_EXPR_CALL) && (g_cli_py.expr[expr].count == 3u),
               "a call reads with its three arguments");
@@ -96,6 +98,7 @@ int main(void)
     expr = cli_py_parse("(HERE, PROOFING)", 16ull);
     cli_check((expr != CLI_PY_NONE) && (g_cli_py.expr[expr].kind == CLI_EXPR_MANY) && (g_cli_py.expr[expr].count == 2u),
               "a tuple reads with its two items");
+    cli_py_reading_given();
     parent_checked("D:\\a\\b", "D:\\a");
     parent_checked("D:\\a", "D:\\");
     parent_checked("/a/b", "/a");

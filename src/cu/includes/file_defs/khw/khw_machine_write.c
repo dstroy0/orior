@@ -4,7 +4,7 @@
 // reads. The protocol asks and keeps the answers; this names them and lays them out in the vendor's own machine file
 // (P14). It is a program the protocol runs through the interface, and nothing of it reaches back into the protocol.
 //
-//     khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
+//     orior_khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
 //
 // Six modes; `assemble` assembles the texts the protocol hands and hands them back (assembled.c). What `krs` and
 // `kernel` write for the protocol is given as `answers`, and what `final` and `costs` read from the protocol is read
@@ -50,7 +50,7 @@ int main(int count, char **word)
 {
     if (count != 7)
     {
-        printf("khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>\n");
+        printf("orior_khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>\n");
         return 2;
     }
     const char *const part = word[1];
@@ -142,7 +142,7 @@ int main(int count, char **word)
     const int costs = strcmp(mode, "costs") == 0;
     if (!gate && !costs && (strcmp(mode, "final") != 0))
     {
-        printf("  khw_machine_write: %s is no mode this writes\n", mode);
+        printf("  orior_khw_machine_write: %s is no mode this writes\n", mode);
         return 2;
     }
     // the kernel's places, one form a place, where the gate reads questions against them
@@ -173,7 +173,7 @@ int main(int count, char **word)
             }
             if (!khw_form_kept(&s_machine, &s_form[at], text))
             {
-                printf("  khw_machine_write: %s holds no more forms\n", path);
+                printf("  orior_khw_machine_write: %s holds no more forms\n", path);
                 return 1;
             }
             named += 1u;
@@ -181,7 +181,7 @@ int main(int count, char **word)
     }
     if (!sass_machine_write(&s_machine, path))
     {
-        printf("  khw_machine_write: %s could not be written\n", path);
+        printf("  orior_khw_machine_write: %s could not be written\n", path);
         return 1;
     }
     if (gate)
@@ -196,7 +196,7 @@ int main(int count, char **word)
                kept, named, forms, path);
         return 0;
     }
-    printf("  khw_machine_write: %u of the %u forms the part answered for named by the vendor's table and written to "
+    printf("  orior_khw_machine_write: %u of the %u forms the part answered for named by the vendor's table and written to "
            "%s\n",
            named, forms, path);
     return 0;

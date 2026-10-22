@@ -10,11 +10,15 @@
 // and an environment chosen says which of them it has not installed.
 //
 // The environment chosen is the toolchains' own while it stands: its folders come first on the PATH of everything
-// orior starts, and its Python is the tree's Python (envs.c, envs_resolve.c)
+// orior_cli starts, and its Python is the tree's Python (envs.c, envs_found.c, envs_resolve.c)
 #ifndef ENVS_H
 #define ENVS_H
 
 #include "toolchains.h"
+
+// the cells the environments are found and their requirements read through, counted, each given back before the call
+// that took it returns (envs.c)
+extern CliCellsTally g_cli_envs_cells;
 
 // every environment the tree at `root` holds, nearest the top first, written as `[{"kind", "place", "requires"}]`;
 // the packages a folder's `setup.cfg`, Pipfile or `requirements.txt` requires, by name, in order, written as a JSON

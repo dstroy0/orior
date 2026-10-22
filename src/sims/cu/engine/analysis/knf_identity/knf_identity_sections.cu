@@ -138,7 +138,7 @@ int knf_identified(const KnfRecord *record, unsigned int *map, unsigned int *slo
 {
     KnfEntangled whole;
     knf_entangle(record, NULL, record->side, NULL, &whole);
-    AnchorExactInteger truth;
+    OriorExactInteger truth;
     knf_exact_total(&whole, &truth);
     int wins = 1;
     for (unsigned int draw = 0u; draw < KNF_DRAWS; draw += 1u)
@@ -146,9 +146,9 @@ int knf_identified(const KnfRecord *record, unsigned int *map, unsigned int *slo
         knf_inside_draw(map, slot, record->side, record->side, sim_draw(key_base, draw));
         KnfEntangled drawn;
         knf_entangle(record, map, record->side, NULL, &drawn);
-        AnchorExactInteger total;
+        OriorExactInteger total;
         knf_exact_total(&drawn, &total);
-        wins = wins && (anchor_exact_compare(&total, &truth) < 0);
+        wins = wins && (orior_exact_compare(&total, &truth) < 0);
     }
     return wins;
 }

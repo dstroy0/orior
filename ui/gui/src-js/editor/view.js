@@ -750,16 +750,12 @@ export class Editor {
   // Sizes the scrolling space to every row and the widest line.
   size() {
     const rows = this.rows();
-    // A file read a window at a time is scrolled as the whole file from the start: the lines above
-    // the window and below it, counted as the file opened, stand as padding. A line read in takes
-    // its place from the padding, and the scroll and the scrollbar stay where they are.
+    // A file held as pages is scrolled as the whole file: the lines above the window and below it
+    // stand as padding, and the scroll and the scrollbar stay where they are as the window slides.
     const s = this.s;
     if (s?.window?.paged) {
       this.pad = Math.min(s.base, PAGED_PAD) * LINE;
       this.below = Math.min(s.window.after, PAGED_PAD) * LINE;
-    } else if (s?.window) {
-      this.pad = s.base * LINE;
-      this.below = Math.max(0, this.linesInFile() - s.base - s.doc.count) * LINE;
     } else {
       this.pad = 0;
       this.below = 0;
@@ -2923,7 +2919,13 @@ export class Editor {
       }
       from = { line: p.line, col };
     }
-    this.hover.show({ from, to: value?.to ?? found?.to ?? p, parts });
+    const to = value?.to ?? found?.to ?? p;
+    this.hover.show({ from, to, parts });
+    // What a server adds comes later; it joins the hover where the pointer still rests on it.
+    const more = found?.more ? await found.more : null;
+    if (more?.length && asked === this.hoverAsked && this.s === session && this.hover.shown) {
+      this.hover.show({ from, to, parts: [...parts, ...more] });
+    }
   }
 
   // What the diagnostics under a place say, each in its severity's color: a language server's, or a
@@ -3597,10 +3599,7 @@ export class Editor {
     if (!s.window) {
       return s.base + s.doc.count;
     }
-    if (s.window.paged) {
-      return s.base + s.doc.count + s.window.after;
-    }
-    return Math.max(s.window.lines ?? 0, s.base + s.doc.count);
+    return s.base + s.doc.count + s.window.after;
   }
 
   // Where a row stands in the sheet, from the origin.
@@ -4029,11 +4028,10 @@ export class Editor {
       const chars = spans.reduce((sum, sel) => sum + (startOf(sel).line === endOfSel(sel).line ? endOfSel(sel).col - startOf(sel).col : 0), 0);
       picked = lines ? `${lines + spans.length} lines selected` : `${chars} selected`;
     }
-    const read = s.window && !s.window.paged ? `${Math.floor((100 * (s.window.end - s.window.start)) / Math.max(1, s.window.size))}% read` : "";
     const errors = (s.diagnostics ?? []).filter((diag) => diag.severity === 1).length;
     const warnings = (s.diagnostics ?? []).filter((diag) => diag.severity === 2).length;
     const mode = this.vim?.label() ?? "";
-    const said = [s.base + head.line, this.vcol(head) + this.pastEnd(primary), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings, s.readOnly, mode].join("|");
+    const said = [s.base + head.line, this.vcol(head) + this.pastEnd(primary), picked, s.selections.length, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings, s.readOnly, mode].join("|");
     if (said === this.statusSaid) {
       return;
     }
@@ -4057,9 +4055,6 @@ export class Editor {
     parts.push(where);
     if (picked) {
       parts.push(named("selection", { textContent: picked }));
-    }
-    if (read) {
-      parts.push(named("reading", { className: "reading", textContent: read }));
     }
     if (s.selections.length > 1) {
       parts.push(named("cursors", { textContent: `${s.selections.length} cursors` }));

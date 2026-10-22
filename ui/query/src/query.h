@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// query.h: the query: the run's lifecycle and every loop of the protocol, each a command of `orior protocol`. The
+// query.h: the query: the run's lifecycle and every loop of the protocol, each a command of `orior_cli protocol`. The
 // writer, the carrier, the cross and the teacher are C programs the query builds when their sources are newer and
 // runs as processes, the run a database they share; the query holds which program runs after which and with what
 // words. Every program it needs comes by role through QueryPrograms, which the command line gives over its
@@ -119,7 +119,7 @@ extern "C"
         const char *third;
     } QueryWord;
 
-    // One command of `orior protocol`
+    // One command of `orior_cli protocol`
     typedef struct
     {
         const char *id;

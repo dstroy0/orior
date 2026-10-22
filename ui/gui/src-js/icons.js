@@ -55,6 +55,20 @@ const SHAPES = {
   pipeline: ["M1.5 6h3.2v4H1.5zM6.4 6h3.2v4H6.4zM11.3 6h3.2v4h-3.2z", "M4.7 8h1.7M9.6 8h1.7"],
   stage: ["M8 2.3 14 5.3 8 8.3 2 5.3z", "M2 8.1l6 3 6-3", "M2 10.9l6 3 6-3"],
   runs: ["M1.5 8.5h2.8l1.6-4.2 2.7 7.4 1.6-3.2h4.3"],
+  // a magnifying glass: its lens and its handle
+  search: ["M6.8 2.4a4.4 4.4 0 1 1 0 8.8a4.4 4.4 0 0 1 0-8.8z", "M10 10l3.9 3.9"],
+  // a chip, a program built: its body and its pins on each side
+  program: ["M4.6 4.6h6.8v6.8H4.6z", "M6.6 2.2v2.4M9.4 2.2v2.4M6.6 11.4v2.4M9.4 11.4v2.4M2.2 6.6h2.4M2.2 9.4h2.4M11.4 6.6h2.4M11.4 9.4h2.4"],
+  // two chevrons forward, a run started
+  launch: ["M2.6 3.6 7 8l-4.4 4.4", "M8.4 3.6 12.8 8l-4.4 4.4"],
+  // an eye, a page viewed
+  view: ["M1.5 8C3.2 4.8 5.4 3.5 8 3.5s4.8 1.3 6.5 4.5c-1.7 3.2-3.9 4.5-6.5 4.5S3.2 11.2 1.5 8z"],
+  // a box ticked, a test that passes
+  check: ["M3.6 2.6h8.8a1 1 0 0 1 1 1v8.8a1 1 0 0 1-1 1H3.6a1 1 0 0 1-1-1V3.6a1 1 0 0 1 1-1z", "M5.4 8.3l1.9 1.9 3.5-4"],
+  // a hammer, a build: its head and its handle
+  hammer: ["M6.4 4.6 9.6 1.4l4.9 4.9-3.2 3.2z", "M8 6.2 2.2 12a1.1 1.1 0 0 0 1.6 1.6L9.6 7.8"],
+  // a wrench, the toolchains
+  wrench: ["M10.8 2.2a3.2 3.2 0 0 0-3.9 4.3L2.4 11a1.5 1.5 0 0 0 2.1 2.1l4.5-4.5a3.2 3.2 0 0 0 4.3-3.9l-2 2-1.9-.6-.6-1.9z"],
 };
 
 // The filled parts: dots and the like, as circles [cx, cy, r].
@@ -63,6 +77,7 @@ const FILLS = {
   problems: [[8, 11.1, 0.9]],
   git: [[5, 3, 1.5], [5, 13, 1.5], [11, 4.6, 1.5]],
   render: [[10.6, 6.1, 1.1]],
+  view: [[8, 8, 1.9]],
 };
 
 const SVG = "http://www.w3.org/2000/svg";

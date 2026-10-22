@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cells.h: the cells every module holds its work in: one cellblock, taken from under its lock and given back to as the
+// cells.h: the cells every module holds its work in: one cellblock over a block taken once for the bytes asked, taken
+// from under its lock and given back to as the
 // work ends, each cell starting on a CLI_CELL_ALIGN boundary; a take the cellblock cannot meet is refused and said,
 // with what it was for; each module's own mark of the most it held at once, raised as it takes; and the reports of the
 // cellblock and of each module to the telemetry (cells.c)
@@ -29,7 +30,7 @@ extern "C"
     typedef struct
     {
         const char *name;
-        unsigned long long held;
+        unsigned long long holds;
         unsigned long long hw;
         unsigned long long told;
     } CliCellsTally;
@@ -39,6 +40,14 @@ extern "C"
 
     // a cell of `bytes` for `what`, from the persistent end: its first byte, on a CLI_CELL_ALIGN boundary, or NULL,
     // said, where the cellblock cannot meet it; and a cell given back, NULL given back as nothing
+    // the pool made over a block of `bytes` taken from the system, in the place of the one before, which is given back
+    // whole: 1, or 0 where a cell is still held or the system gives no block. The first take with no pool made makes
+    // one of CLI_CELLS_POOL
+    int cli_cells_made(unsigned long long bytes);
+    // whether the pool stands as the system handed it out, no cell taken and every byte zero: a check's question
+    int cli_cells_zero(void);
+    // the pool's bytes and the cellblock's two peaks, read off its state, each 0 where the build keeps none
+    void cli_cells_report(unsigned long long *pool, unsigned long long *persistent, unsigned long long *temporary);
     void *cli_cell_taken(unsigned long long bytes, const char *what);
     void cli_cell_given(void *cell);
 

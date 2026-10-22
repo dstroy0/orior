@@ -22,16 +22,16 @@ static std::vector<TermKey> s_term_slots;
 static std::map<TermKey, unsigned int, TermKeyOrder> s_term_slot_of;
 static std::map<std::pair<unsigned int, unsigned int>, unsigned int> s_term_slot_product;
 
-AnchorExactInteger term_form_unit(void)
+OriorExactInteger term_form_unit(void)
 {
-    AnchorExactInteger one;
+    OriorExactInteger one;
     sim_exact_unsigned(&one, 1ull);
     return one;
 }
 
-static AnchorExactInteger term_form_nothing(void)
+static OriorExactInteger term_form_nothing(void)
 {
-    AnchorExactInteger zero;
+    OriorExactInteger zero;
     sim_exact_unsigned(&zero, 0ull);
     return zero;
 }
@@ -100,7 +100,7 @@ static unsigned int term_form_slot_product(unsigned int left, unsigned int right
 }
 
 // the entry at `slot`, the array grown to hold it
-static AnchorExactInteger *term_form_entry(TermForm *form, unsigned int slot)
+static OriorExactInteger *term_form_entry(TermForm *form, unsigned int slot)
 {
     if (form->magnitude.size() <= slot)
     {
@@ -116,36 +116,36 @@ static void term_form_settle(TermForm *form)
     {
         form->magnitude.pop_back();
     }
-    const AnchorExactInteger one = term_form_unit();
+    const OriorExactInteger one = term_form_unit();
     if (form->magnitude.empty())
     {
         form->denominator = one;
         return;
     }
-    AnchorExactInteger common = form->denominator;
-    for (const AnchorExactInteger &entry : form->magnitude)
+    OriorExactInteger common = form->denominator;
+    for (const OriorExactInteger &entry : form->magnitude)
     {
         if (entry.sign == 0)
         {
             continue;
         }
-        term_form_check(anchor_exact_gcd(&common, &entry, &common) == ANCHOR_EXACT_OK);
-        if (anchor_exact_compare(&common, &one) == 0)
+        term_form_check(orior_exact_gcd(&common, &entry, &common) == ORIOR_EXACT_OK);
+        if (orior_exact_compare(&common, &one) == 0)
         {
             return;
         }
     }
-    for (AnchorExactInteger &entry : form->magnitude)
+    for (OriorExactInteger &entry : form->magnitude)
     {
         if (entry.sign != 0)
         {
-            AnchorExactInteger quotient;
-            term_form_check(anchor_exact_divide_exact(&entry, &common, &quotient) == ANCHOR_EXACT_OK);
+            OriorExactInteger quotient;
+            term_form_check(orior_exact_divide_exact(&entry, &common, &quotient) == ORIOR_EXACT_OK);
             entry = quotient;
         }
     }
-    AnchorExactInteger quotient;
-    term_form_check(anchor_exact_divide_exact(&form->denominator, &common, &quotient) == ANCHOR_EXACT_OK);
+    OriorExactInteger quotient;
+    term_form_check(orior_exact_divide_exact(&form->denominator, &common, &quotient) == ORIOR_EXACT_OK);
     form->denominator = quotient;
 }
 
@@ -217,27 +217,27 @@ TermForm term_form_sum(const TermForm &left, const TermForm &right)
         return left;
     }
     TermForm sum;
-    AnchorExactInteger left_factor = term_form_unit();
-    AnchorExactInteger right_factor = term_form_unit();
-    if (anchor_exact_compare(&left.denominator, &right.denominator) == 0)
+    OriorExactInteger left_factor = term_form_unit();
+    OriorExactInteger right_factor = term_form_unit();
+    if (orior_exact_compare(&left.denominator, &right.denominator) == 0)
     {
         sum.denominator = left.denominator;
     }
     else
     {
         // the least common denominator, each side lifted to it
-        AnchorExactInteger common;
-        term_form_check(anchor_exact_gcd(&left.denominator, &right.denominator, &common) == ANCHOR_EXACT_OK);
-        term_form_check(anchor_exact_divide_exact(&right.denominator, &common, &left_factor) == ANCHOR_EXACT_OK);
-        term_form_check(anchor_exact_divide_exact(&left.denominator, &common, &right_factor) == ANCHOR_EXACT_OK);
+        OriorExactInteger common;
+        term_form_check(orior_exact_gcd(&left.denominator, &right.denominator, &common) == ORIOR_EXACT_OK);
+        term_form_check(orior_exact_divide_exact(&right.denominator, &common, &left_factor) == ORIOR_EXACT_OK);
+        term_form_check(orior_exact_divide_exact(&left.denominator, &common, &right_factor) == ORIOR_EXACT_OK);
         term_form_check(sim_exact_product(&left.denominator, &left_factor, &sum.denominator));
     }
     const size_t size = (left.magnitude.size() > right.magnitude.size()) ? left.magnitude.size() : right.magnitude.size();
     sum.magnitude.assign(size, term_form_nothing());
     for (size_t slot = 0u; slot < size; slot += 1u)
     {
-        AnchorExactInteger first = term_form_nothing();
-        AnchorExactInteger second = term_form_nothing();
+        OriorExactInteger first = term_form_nothing();
+        OriorExactInteger second = term_form_nothing();
         if ((slot < left.magnitude.size()) && (left.magnitude[slot].sign != 0))
         {
             term_form_check(sim_exact_product(&left.magnitude[slot], &left_factor, &first));
@@ -255,7 +255,7 @@ TermForm term_form_sum(const TermForm &left, const TermForm &right)
 TermForm term_form_difference(const TermForm &left, const TermForm &right)
 {
     TermForm negative = right;
-    for (AnchorExactInteger &entry : negative.magnitude)
+    for (OriorExactInteger &entry : negative.magnitude)
     {
         entry.sign = -entry.sign;
     }
@@ -302,10 +302,10 @@ TermForm term_form_product(const TermForm &left, const TermForm &right)
                 continue;
             }
             const unsigned int slot = term_form_slot_product((unsigned int)first, (unsigned int)second);
-            AnchorExactInteger part;
+            OriorExactInteger part;
             term_form_check(sim_exact_product(&left.magnitude[first], &right.magnitude[second], &part));
-            AnchorExactInteger *const entry = term_form_entry(&product, slot);
-            AnchorExactInteger total;
+            OriorExactInteger *const entry = term_form_entry(&product, slot);
+            OriorExactInteger total;
             term_form_check(sim_exact_sum(entry, &part, &total));
             *entry = total;
         }
@@ -350,7 +350,7 @@ TermForm term_form_unit_reduced(const TermForm &form, SimRational ratio, unsigne
             return reduced;
         }
         // e^ratio share -> 1 - share, over the same denominator
-        const AnchorExactInteger value = reduced.magnitude[mixed];
+        const OriorExactInteger value = reduced.magnitude[mixed];
         const SimRational lowered_e = sim_rational_difference(s_term_slots[mixed].e, ratio);
         TermPower lowered = s_term_slots[mixed].power;
         reduced.magnitude[mixed] = term_form_nothing();
@@ -359,7 +359,7 @@ TermForm term_form_unit_reduced(const TermForm &form, SimRational ratio, unsigne
         kept[share] += 1u;
         const unsigned int lowered_slot = term_form_slot(term_form_key(lowered_e, lowered));
         const unsigned int kept_slot = term_form_slot(term_form_key(lowered_e, kept));
-        AnchorExactInteger total;
+        OriorExactInteger total;
         term_form_check(sim_exact_sum(term_form_entry(&reduced, lowered_slot), &value, &total));
         *term_form_entry(&reduced, lowered_slot) = total;
         term_form_check(sim_exact_less(term_form_entry(&reduced, kept_slot), &value, &total));
@@ -405,7 +405,7 @@ unsigned int term_book_id(TermBook *book, const std::string &name)
 }
 
 // every limb in hex from the highest held; two values share a text only where they are equal
-static std::string term_book_limbs(const AnchorExactInteger &value)
+static std::string term_book_limbs(const OriorExactInteger &value)
 {
     static const char digits[] = "0123456789abcdef";
     std::string text = (value.sign < 0) ? "-0x" : "0x";
@@ -499,7 +499,7 @@ size_t term_form_e_count(const TermForm &form)
 }
 
 // one exact integer in decimal, its sign first
-static void term_form_write_integer(FILE *file, const AnchorExactInteger &value, std::vector<char> *buffer)
+static void term_form_write_integer(FILE *file, const OriorExactInteger &value, std::vector<char> *buffer)
 {
     ScripturaLine line;
     line.out = buffer->data();
@@ -551,7 +551,7 @@ void term_form_write(FILE *file, const TermForm &form, const std::vector<std::st
 size_t term_form_terms(const TermForm &form)
 {
     size_t count = 0u;
-    for (const AnchorExactInteger &entry : form.magnitude)
+    for (const OriorExactInteger &entry : form.magnitude)
     {
         count += (entry.sign != 0) ? 1u : 0u;
     }
@@ -614,7 +614,7 @@ size_t term_form_entries(const TermForm &form)
 unsigned long long term_form_bits(const TermForm &form)
 {
     unsigned long long most = sim_exact_bits(&form.denominator);
-    for (const AnchorExactInteger &entry : form.magnitude)
+    for (const OriorExactInteger &entry : form.magnitude)
     {
         const unsigned long long bits = sim_exact_bits(&entry);
         most = (bits > most) ? bits : most;

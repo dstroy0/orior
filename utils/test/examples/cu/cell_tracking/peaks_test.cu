@@ -31,7 +31,7 @@
 #define PEAKS_TEST_DECLARED                                                                                            \
     ((unsigned long long)PEAKS_TEST_VOXELS_MAX * ((2ull * PEAKS_TEST_LIMBS_MAX) + 4ull) * sizeof(unsigned int))
 
-static_assert(ANCHOR_EXACT_LIMBS >= PEAKS_TEST_LIMBS_MAX,
+static_assert(ORIOR_EXACT_LIMBS >= PEAKS_TEST_LIMBS_MAX,
               "peaks_test: the exact integer must hold the widest residual");
 
 static const unsigned int PEAKS_TEST_EXTENT[PEAKS_TEST_EXTENTS][3] = {
@@ -47,7 +47,7 @@ typedef struct
     unsigned int voxels;
     unsigned int limbs;
     unsigned int *residual;
-    AnchorExactInteger *values;
+    OriorExactInteger *values;
     unsigned int *expected;
     unsigned int expected_count;
 } PeaksTestField;
@@ -91,9 +91,9 @@ static void peaks_test_value(unsigned long long key, unsigned long long voxel, u
     }
 }
 
-static void peaks_test_exact(const unsigned int *residual, unsigned int limbs, AnchorExactInteger *value)
+static void peaks_test_exact(const unsigned int *residual, unsigned int limbs, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     const unsigned int negative = residual[limbs - 1u] >> 31u;
     unsigned int carry = negative;
     unsigned int any = 0u;
@@ -133,7 +133,7 @@ static unsigned int peaks_test_expected(const PeaksTestField *field, unsigned in
                                        (y >= 0ll) && (y < extent[1]) && (x >= 0ll) && (x < extent[2]);
                     // an inside neighbor's index is below the field's voxel count, which fits unsigned int
                     const unsigned int other = inside ? (unsigned int)((((z * extent[1]) + y) * extent[2]) + x) : 0u;
-                    const int order = inside ? anchor_exact_compare(&field->values[other], &field->values[voxel]) : -1;
+                    const int order = inside ? orior_exact_compare(&field->values[other], &field->values[voxel]) : -1;
                     peak = (order < 0) || ((order == 0) && (other > voxel));
                 }
             }
@@ -163,7 +163,7 @@ static int peaks_test_reserve(PeaksTestField *field, unsigned int depth, unsigne
     field->voxels = depth * height * width;
     field->limbs = limbs;
     field->residual = (unsigned int *)malloc(((size_t)field->voxels * limbs + 1u) * sizeof(unsigned int));
-    field->values = (AnchorExactInteger *)malloc(((size_t)field->voxels + 1u) * sizeof(AnchorExactInteger));
+    field->values = (OriorExactInteger *)malloc(((size_t)field->voxels + 1u) * sizeof(OriorExactInteger));
     field->expected = (unsigned int *)malloc(((size_t)field->voxels + 1u) * sizeof(unsigned int));
     return (field->residual != NULL) && (field->values != NULL) && (field->expected != NULL);
 }

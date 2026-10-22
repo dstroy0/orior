@@ -27,7 +27,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     std::map<std::string, StallField> fields = stall_fields(ksc);
     if ((fields.count("stall") == 0u) || (fields.count("write_barrier") == 0u))
     {
-        printf("klq_identity stall: %s gives no stall field or no write barrier field\n", ksc);
+        printf("orior_klq_identity stall: %s gives no stall field or no write barrier field\n", ksc);
         return 1;
     }
     const StallField stall = fields["stall"];
@@ -129,7 +129,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
             pairs[pair].push_back(StallProbe{chain_numbers[chain], code, place});
         }
     }
-    printf("klq_identity stall: %zu chains, %u not alike at the longest stalls, %zu pairs, carried by %s\n",
+    printf("orior_klq_identity stall: %zu chains, %u not alike at the longest stalls, %zu pairs, carried by %s\n",
            chain_codes.size(), unanswered, pairs.size(), run_channel_carrier());
     // the probes a pair is walked over at most, each from a chain of its own
     const size_t most = 3u;
@@ -277,7 +277,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     {
         stall_numbers.push_back(each.number);
     }
-    printf("klq_identity stall: %zu questions, every stall of every pair, put in one round\n", stall_codes.size());
+    printf("orior_klq_identity stall: %zu questions, every stall of every pair, put in one round\n", stall_codes.size());
     const std::string marks = asked_marks(stall_codes, stall_numbers);
     std::map<std::pair<std::string, std::string>, std::string> came_back;
     std::map<std::pair<std::string, std::string>, std::set<std::string>> asked_over;
@@ -343,16 +343,16 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     });
     if (!run_closed(&table))
     {
-        printf("klq_identity stall: %s/stall.txt could not be written\n", folder.c_str());
+        printf("orior_klq_identity stall: %s/stall.txt could not be written\n", folder.c_str());
         run_channel_close();
         return 1;
     }
     run_channel_close();
     if (!ksc_answers_write(ksc, "stall", rows))
     {
-        printf("klq_identity stall: %s could not be written\n", ksc);
+        printf("orior_klq_identity stall: %s could not be written\n", ksc);
         return 1;
     }
-    printf("klq_identity stall: %zu pairs over %llu asks, written to %s\n", pairs.size(), asks, ksc);
+    printf("orior_klq_identity stall: %zu pairs over %llu asks, written to %s\n", pairs.size(), asks, ksc);
     return 0;
 }

@@ -3,7 +3,7 @@
 // raster_entry.cu: the device entry points
 #include "raster_cuda_internal.h"
 
-extern "C" int anchor_volume_device_available(void)
+extern "C" int orior_volume_device_available(void)
 {
     int devices = 0;
     if ((cudaGetDeviceCount(&devices) != cudaSuccess) || (devices < 1))
@@ -13,9 +13,9 @@ extern "C" int anchor_volume_device_available(void)
     return 1;
 }
 
-extern "C" int anchor_volume_device(uint8_t *voxels, const AnchorVolumeConfig *config, const uint8_t *corpus,
+extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus,
                                     size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                                    const AnchorRasterProbe *probes, size_t probe_count, const void *census)
+                                    const OriorRasterProbe *probes, size_t probe_count, const void *census)
 {
     // RESERVED. Built from the corpus below exactly as the host arm does. The two
     // agree on rarity, and a caller supplied census is discarded on both.
@@ -30,7 +30,7 @@ extern "C" int anchor_volume_device(uint8_t *voxels, const AnchorVolumeConfig *c
     {
         return 0;
     }
-    if (anchor_volume_device_available() == 0)
+    if (orior_volume_device_available() == 0)
     {
         return 0;
     }
@@ -91,7 +91,7 @@ extern "C" int anchor_volume_device(uint8_t *voxels, const AnchorVolumeConfig *c
     {
         // The staging buffer starts at the reduction's identity and the narrowing pass turns any
         // untouched cell back into empty, the same bytes the host's first-arrival fill writes.
-        const unsigned int identity = (config->reduce == ANCHOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
+        const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
         unsigned int *seed = (unsigned int *)malloc(cells * sizeof(unsigned int));
         if (seed == NULL)
         {
@@ -156,10 +156,10 @@ extern "C" int anchor_volume_device(uint8_t *voxels, const AnchorVolumeConfig *c
                         cudaSuccess);
             if (ok != 0)
             {
-                const unsigned int identity = (config->reduce == ANCHOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
+                const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
                 for (size_t cell = 0u; cell < cells; cell += 1u)
                 {
-                    voxels[cell] = (result[cell] == identity) ? (uint8_t)ANCHOR_RASTER_EMPTY : (uint8_t)result[cell];
+                    voxels[cell] = (result[cell] == identity) ? (uint8_t)ORIOR_RASTER_EMPTY : (uint8_t)result[cell];
                 }
             }
             free(result);
@@ -175,9 +175,9 @@ extern "C" int anchor_volume_device(uint8_t *voxels, const AnchorVolumeConfig *c
     return ok;
 }
 
-extern "C" int anchor_raster_device(uint8_t *pixels, const AnchorRasterConfig *config, const uint8_t *corpus,
+extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus,
                                     size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                                    const AnchorRasterProbe *probes, size_t probe_count)
+                                    const OriorRasterProbe *probes, size_t probe_count)
 {
     if ((pixels == NULL) || (config == NULL) || (corpus == NULL) || (needle == NULL) || (config->width == 0u) ||
         (config->height == 0u) || (needle_len == 0u) || (needle_len > corpus_len))
@@ -188,7 +188,7 @@ extern "C" int anchor_raster_device(uint8_t *pixels, const AnchorRasterConfig *c
     {
         return 0;
     }
-    if (anchor_raster_device_available() == 0)
+    if (orior_raster_device_available() == 0)
     {
         return 0;
     }
@@ -249,7 +249,7 @@ extern "C" int anchor_raster_device(uint8_t *pixels, const AnchorRasterConfig *c
         /* An empty cell is the identity for whichever reduction runs. The fill differs by rule.
          * The host marks which cells an arrival has reached; here the staging buffer starts
          * at the identity and the narrowing pass below turns any untouched cell back into zero. */
-        const unsigned int identity = (config->reduce == ANCHOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
+        const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
         unsigned int *seed = (unsigned int *)malloc(cells * sizeof(unsigned int));
         if (seed == NULL)
         {
@@ -301,10 +301,10 @@ extern "C" int anchor_raster_device(uint8_t *pixels, const AnchorRasterConfig *c
                         cudaSuccess);
             if (ok != 0)
             {
-                const unsigned int identity = (config->reduce == ANCHOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
+                const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
                 for (size_t cell = 0u; cell < cells; cell += 1u)
                 {
-                    pixels[cell] = (result[cell] == identity) ? (uint8_t)ANCHOR_RASTER_EMPTY : (uint8_t)result[cell];
+                    pixels[cell] = (result[cell] == identity) ? (uint8_t)ORIOR_RASTER_EMPTY : (uint8_t)result[cell];
                 }
             }
             free(result);

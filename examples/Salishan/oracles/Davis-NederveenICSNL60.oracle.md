@@ -3,7 +3,7 @@
 Extraction of Intransitive -t in Salish by Henry Davis and Sander Nederveen, University of British
 Columbia, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -49,7 +49,7 @@ katakana ﾖ or the Latin Ǝ; each was read off the page at 600 dpi. The ɬɬ of
 nɬɬeʔkepmxcín, peɬɬt and e=n-ɬɬeɬɬúxʷ, the space in scwew̓ xmx and the k̓̓ of footnote 20 are
 printed so and kept.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 621
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 19322 distinct tokens in the paper, 0 language tokens are held by no row.

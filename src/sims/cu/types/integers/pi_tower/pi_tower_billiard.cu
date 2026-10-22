@@ -57,7 +57,7 @@ static void pi_tower_words_complement(const unsigned long long *words, unsigned 
 static PiWide pi_tower_words_wide(const unsigned long long *words)
 {
     PiWide value;
-    anchor_exact_zero(&value);
+    orior_exact_zero(&value);
     for (unsigned int word = 0u; word < PI_TOWER_WORDS; word += 1u)
     {
         // the low and high halves of a 64-bit word each fit one 32-bit limb

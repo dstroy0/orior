@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// compile_db_program.c: the program a CMake or Meson build orior configured makes from a source, read from CMake's
+// compile_db_program.c: the program a CMake or Meson build orior_cli configured makes from a source, read from CMake's
 // file API reply and from Meson's intro-targets.json
 #include "../command_line/cells.h"
 #include "../text/text.h"
@@ -407,6 +407,7 @@ int cli_compile_db_program_of(const char *root, const char *file, CliProgram *pr
     }
     cli_same(file, s_search->wanted);
     s_search->found = 0;
+    s_search->folders = (CliFoundFolders){NULL, 0u, 0u};
     char top[CLI_PATH_LONGEST];
     cli_full(root, "build/cmake", top);
     cli_compile_folders_named(top, s_reply, 4u, &s_search->folders);
@@ -425,6 +426,7 @@ int cli_compile_db_program_of(const char *root, const char *file, CliProgram *pr
     {
         *program = s_search->best;
     }
+    cli_compile_found_given(&s_search->folders);
     cli_cell_given(s_search);
     s_search = NULL;
     cli_lock_give(&s_lock);

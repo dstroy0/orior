@@ -60,13 +60,6 @@ int cli_db_save(const char *root, const CliDbConnection *connection, const char 
 int cli_db_remove(const char *root, const char *name, CliLine *said);
 int cli_db_listed(const char *root, CliDbOpen *const *opens, unsigned int count, CliLine *out, CliLine *said);
 
-// `password` kept for `account` in the system's keychain; the password kept for `account` into `out`, which holds
-// `room`: 1, or 0 where none is kept; and the password taken out (platform/windows_keychain.c,
-// platform/posix_keychain.c)
-int cli_keychain_keep(const char *account, const char *password, CliLine *said);
-int cli_keychain_read(const char *account, char *out, unsigned long long room);
-int cli_keychain_forget(const char *account, CliLine *said);
-
 // `config`'s two links opened, signed in with `password`, or with the one the keychain keeps where it is NULL: the
 // connection, or NULL with the failure into `failure`; and its links and its tunnel ended and the connection let go
 // (db_open.c)

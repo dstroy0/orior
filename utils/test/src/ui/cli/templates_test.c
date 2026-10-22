@@ -15,13 +15,15 @@ int main(void)
     cli_full(home, "templates/script/{{name}}", path);
     (void)query_folder_made(path);
     cli_full(home, "templates/script/{{name}}/main.py", path);
-    (void)query_file_written(path, "\"\"\"{{name}}.\"\"\"\n", 16ull);
+    (void)query_file_written(path, "\"\"\"{{name}}.\"\"\"\n{{name}}()\n", 27ull);
     cli_full(home, "templates/script/logo.bin", path);
     (void)query_file_written(path, "\xff\xfe\x00", 3ull);
+    cli_full(home, "templates/app", path);
+    (void)query_folder_made(path);
     char list[256];
     CliLine listed = {list, sizeof(list), 0ull};
     cli_templates_list(&listed);
-    cli_check_text(list, listed.at, "[\"script\"]", "the templates list");
+    cli_check_text(list, listed.at, "[\"app\",\"script\"]", "the templates list, in order");
     cli_full(home, "work", parent);
     (void)query_folder_made(parent);
     char why[1024];
@@ -30,7 +32,8 @@ int main(void)
     char text[64];
     cli_full(made, "tally/main.py", path);
     unsigned long long size = qry_member_file_read(path, (unsigned char *)text, sizeof(text));
-    cli_check_text(text, (size == QRY_MEMBER_UNREAD) ? 0ull : size, "\"\"\"tally.\"\"\"\n", "its name is written in");
+    cli_check_text(text, (size == QRY_MEMBER_UNREAD) ? 0ull : size, "\"\"\"tally.\"\"\"\ntally()\n",
+                   "its name is written in, each time the text names it");
     cli_full(made, "logo.bin", path);
     size = qry_member_file_read(path, (unsigned char *)text, sizeof(text));
     cli_check((size == 3ull) && (memor.cmp(&(MemoriaCfg){.src = text, .other = "\xff\xfe\x00", .bytes = 3u}) == 0),
@@ -43,5 +46,6 @@ int main(void)
     said.at = 0ull;
     cli_check(!climbs && !cli_templates_create("script", parent, "a/b", made, &said),
               "a template or a name that leaves its folder is refused");
+    cli_check(g_cli_templates_cells.holds == 0ull, "and every cell the templates took is given back");
     return cli_checked();
 }

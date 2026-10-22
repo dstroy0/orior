@@ -12,7 +12,7 @@
 // writes memory through registers the question set no address in, faults it with an illegal address. Nothing here runs
 // on the part.
 //
-//     measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds> [<read>]]
+//     orior_measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds> [<read>]]
 //
 // Every name but the disassembler's is a blob of the run, the .qry QRY names (qry_member.h): the list, a line
 // a question, `<code> <registers> <cases> <answers> <slot> [<launches>]` (run_channel.h), each question's code, and the
@@ -57,7 +57,7 @@ int main(int count, char **words)
 {
     if ((count < 6) || (count > 8))
     {
-        fprintf(stderr, "measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds> "
+        fprintf(stderr, "orior_measuring_stick_query <question list> <nvdisasm> <architecture> <report> <held> [<holds> "
                         "[<read>]]\n");
         return 2;
     }
@@ -71,7 +71,7 @@ int main(int count, char **words)
     s_run = qry_member_run();
     if (s_run == NULL)
     {
-        fprintf(stderr, "measuring_stick_query: no query writer runs: %s names no .qry a writer holds open\n",
+        fprintf(stderr, "orior_measuring_stick_query: no query writer runs: %s names no .qry a writer holds open\n",
                 QRY_ENVIRONMENT);
         return 2;
     }
@@ -79,7 +79,7 @@ int main(int count, char **words)
     unsigned long long list_size = 0ull;
     if (!qry_member_blob(list_name, &list, &list_size, NULL))
     {
-        fprintf(stderr, "measuring_stick_query: the run's buffer holds no %s\n", list_name);
+        fprintf(stderr, "orior_measuring_stick_query: the run's buffer holds no %s\n", list_name);
         return 2;
     }
     // a question with a slot is read by its slot instruction, among every other's; one with none, the kernel's own, is
@@ -306,7 +306,7 @@ int main(int count, char **words)
     free(frame_read);
     if (!whole)
     {
-        fprintf(stderr, "measuring_stick_query: the vendor's disassembler %s could not be run, or there was no memory: %s\n",
+        fprintf(stderr, "orior_measuring_stick_query: the vendor's disassembler %s could not be run, or there was no memory: %s\n",
                 s_nvdisasm, (pool.why != NULL) ? pool.why : "the work could not be queued");
         return 2;
     }
@@ -500,7 +500,7 @@ int main(int count, char **words)
     if (unread != 0u)
     {
         fprintf(stderr,
-                "measuring_stick_query: %zu questions' codes the vendor stopped in at no instruction it named\n",
+                "orior_measuring_stick_query: %zu questions' codes the vendor stopped in at no instruction it named\n",
                 unread);
         return 2;
     }

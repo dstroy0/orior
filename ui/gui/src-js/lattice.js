@@ -17,8 +17,9 @@ import { rgbOf } from "./colors.js";
 import { clock, idle, motionReduced, still as paused, whenMoving } from "./motion.js";
 import { onScheme } from "./scheme.js";
 
-// The spacing of the points, and how far the most disordered point goes from its place, in pixels.
-const STEP = 22 / Math.sqrt(3);
+// The spacing of the points, which lays eight times the points of the docs site's lattice in the same room,
+// and how far the most disordered point goes from its place, in pixels.
+const STEP = 22 / Math.sqrt(3) / Math.sqrt(8);
 const REACH = 22 * 2.4;
 const SEED = 1729;
 // The colors from ordered to disordered, the stylesheet's --lattice-1 to --lattice-3.
@@ -43,11 +44,16 @@ const LOOP = STAGES.reduce((sum, [, seconds]) => sum + seconds, 0);
 const ORDERED = 0.1;
 const RAMP = 0.54;
 
-// The shades a point takes, one a level of disorder.
+// The pens a point draws with, one a level of disorder, and the share of its ink each puts down. The
+// shader blends the two pens either side of a point's disorder, so its shade is continuous; the 2D
+// canvas draws each point with the nearest of LEVELS_DRAWN pens, which keeps a step of shade within
+// a dot or two of the lattice as the order spreads.
 const LEVELS = 24;
+const LEVELS_DRAWN = 96;
+const DIM = 0.85;
 
 // The longest between two frames of a moving lattice, in milliseconds.
-const FRAME = 33;
+const FRAME = 66;
 
 function random(seed) {
   let state = seed >>> 0;
@@ -68,19 +74,22 @@ function shade(loose) {
   return rgbOf(STOPS[low]).map((from, at) => Math.round(from + (to[at] - from) * part));
 }
 
-// The pen of each level, made again when the scheme or a theme changes.
-let pens = null;
-onScheme(() => {
-  pens = null;
-});
-function pensOf() {
-  pens ??= Array.from({ length: LEVELS }, (_, level) => {
-    const loose = level / (LEVELS - 1);
-    const kept = 1 - loose;
-    const [red, green, blue] = shade(loose);
-    return { color: `rgba(${red}, ${green}, ${blue}, ${(0.414 + 0.184 * kept).toFixed(3)})`, size: 0.59 + 0.16 * kept };
-  });
-  return pens;
+// The pen of each of `count` levels, made again when the scheme or a theme changes.
+const pens = new Map();
+onScheme(() => pens.clear());
+function pensOf(count = LEVELS) {
+  if (!pens.has(count)) {
+    pens.set(
+      count,
+      Array.from({ length: count }, (_, level) => {
+        const loose = level / (count - 1);
+        const kept = 1 - loose;
+        const [red, green, blue] = shade(loose);
+        return { color: `rgba(${red}, ${green}, ${blue}, ${((0.414 + 0.184 * kept) * DIM).toFixed(3)})`, size: 0.59 + 0.16 * kept };
+      }),
+    );
+  }
+  return pens.get(count);
 }
 
 const clamp = (value) => Math.max(0, Math.min(1, value));
@@ -147,7 +156,8 @@ function orderAt(seconds) {
   return (u, v) => sided(angle, u, v);
 }
 
-// Each lattice's points: place across, place down, and the way and share of the reach it moves.
+// Each lattice's points, four floats a point in one Float32Array the GPU takes as it is: place across,
+// place down, and the way and share of the reach it moves.
 const lattices = new Map();
 
 function layOut(canvas) {
@@ -159,7 +169,6 @@ function layOut(canvas) {
   canvas.width = Math.round(box.width * scale);
   canvas.height = Math.round(box.height * scale);
   const draw = random(SEED);
-  const points = [];
   // The points stand half a STEP in from every edge, and the spacing across and down each stretches
   // or shrinks from STEP by the least that lands the last point there.
   const spaced = (length) => {
@@ -168,13 +177,18 @@ function layOut(canvas) {
   };
   const across = spaced(box.width);
   const down = spaced(box.height);
+  const points = new Float32Array((down.gaps + 1) * (across.gaps + 1) * 4);
+  let at = 0;
   for (let row = 0; row <= down.gaps; row += 1) {
     const y = STEP / 2 + row * down.step;
     for (let col = 0; col <= across.gaps; col += 1) {
-      const x = STEP / 2 + col * across.step;
       const turn = draw() * Math.PI * 2;
       const reach = draw();
-      points.push(x, y, Math.cos(turn) * reach, Math.sin(turn) * reach);
+      points[at] = STEP / 2 + col * across.step;
+      points[at + 1] = y;
+      points[at + 2] = Math.cos(turn) * reach;
+      points[at + 3] = Math.sin(turn) * reach;
+      at += 4;
     }
   }
   const laid = { width: box.width, height: box.height, scale, points };
@@ -185,10 +199,10 @@ function layOut(canvas) {
 // The lattice drawn through WebGL: each point one vertex, its place and its way off it handed over
 // once as the lattice is laid out, and each frame only where the loop stands. The vertex shader reads
 // the disorder at the point as orderAt does, moves the point by its share of the reach, and takes its
-// level's pen, a round dot. A pixel's share of a dot is counted at sixteen places across the pixel,
-// and the radius taken at FITS of the pen's, which puts down the ink the page's own canvas puts down
-// for the same dots: a dot under a pixel wide stands as large and as soft as it did there. The page's
-// own work a frame is a handful of numbers and one draw.
+// level's pen, a round dot. A pixel's share of a dot is read in one step from how far the pixel's middle
+// stands from the dot's edge, a pixel wide ramp from all of it to none, so each pixel a dot touches costs
+// one length and one clamp; the radius is taken at FITS of the pen's, which puts down the ink the page's
+// own canvas puts down for the same dots. The page's own work a frame is a handful of numbers and one draw.
 const FITS = 0.955;
 const PI = Math.PI.toFixed(8);
 const VERTEX = `
@@ -224,9 +238,11 @@ void main() {
     loose = sided(angle, u, v);
   }
   vec2 placed = point.xy + point.zw * (loose * loose * ${REACH.toFixed(4)});
-  int level = int(floor(loose * ${(LEVELS - 1).toFixed(1)} + 0.5));
-  color = pens[level];
-  radius = radii[level] * scale * ${FITS};
+  float level = loose * ${(LEVELS - 1).toFixed(1)};
+  int low = int(floor(min(level, ${(LEVELS - 2).toFixed(1)})));
+  float between = level - float(low);
+  color = mix(pens[low], pens[low + 1], between);
+  radius = mix(radii[low], radii[low + 1], between) * scale * ${FITS};
   center = vec2(placed.x, size.y - placed.y) * scale;
   gl_Position = vec4(placed.x / size.x * 2.0 - 1.0, 1.0 - placed.y / size.y * 2.0, 0.0, 1.0);
   gl_PointSize = ceil(radius * 2.0) + 2.0;
@@ -237,14 +253,8 @@ varying vec4 color;
 varying vec2 center;
 varying float radius;
 void main() {
-  float inside = 0.0;
-  for (int across = 0; across < 4; across++) {
-    for (int down = 0; down < 4; down++) {
-      vec2 at = gl_FragCoord.xy - 0.5 + (vec2(float(across), float(down)) + 0.5) / 4.0;
-      inside += step(length(at - center), radius);
-    }
-  }
-  float alpha = color.a * inside / 16.0;
+  float inside = clamp(radius - length(gl_FragCoord.xy - center) + 0.5, 0.0, 1.0);
+  float alpha = color.a * inside;
   gl_FragColor = vec4(color.rgb * alpha, alpha);
 }`;
 
@@ -319,7 +329,7 @@ function paintGl(painter, laid, at) {
   const { width, height, scale, points } = laid;
   gl.bindBuffer(gl.ARRAY_BUFFER, painter.buffer);
   if (painter.laidFor !== laid) {
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, points, gl.STATIC_DRAW);
     painter.laidFor = laid;
   }
   gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
@@ -353,13 +363,13 @@ function paint(canvas, laid, seconds) {
   }
   const { width, height, scale, points } = laid;
   const order = orderAt(seconds);
-  const levels = Array.from({ length: LEVELS }, () => []);
+  const levels = Array.from({ length: LEVELS_DRAWN }, () => []);
   for (let at = 0; at < points.length; at += 4) {
     const x = points[at];
     const y = points[at + 1];
     const loose = order(x / width, y / height);
     const shift = loose * loose * REACH;
-    levels[Math.round(loose * (LEVELS - 1))].push(x + points[at + 2] * shift, y + points[at + 3] * shift);
+    levels[Math.round(loose * (LEVELS_DRAWN - 1))].push(x + points[at + 2] * shift, y + points[at + 3] * shift);
   }
   const pen = canvas.getContext("2d");
   pen.setTransform(scale, 0, 0, scale, 0, 0);
@@ -368,7 +378,7 @@ function paint(canvas, laid, seconds) {
     if (!placed.length) {
       return;
     }
-    const { color, size } = pensOf()[level];
+    const { color, size } = pensOf(LEVELS_DRAWN)[level];
     pen.fillStyle = color;
     pen.beginPath();
     for (let at = 0; at < placed.length; at += 2) {
@@ -384,33 +394,75 @@ const still = () => motionReduced();
 export function drawLattice(canvas) {
   const laid = layOut(canvas);
   if (laid) {
-    laid.drawnAt = still() ? 0 : clock() / 1000;
+    laid.drawnAt = still() ? 0 : latticeSeconds();
     paint(canvas, laid, laid.drawnAt);
   }
 }
 
-// The places across and down, each from 0 to 1, where the loop's change is read to judge a frame.
+// The places across and down, each from 0 to 1, where the loop's change is read to judge a frame, laid
+// once into typed arrays, and the disorder at each at the two moments compared.
 const PROBES = 24;
+const PROBE_COUNT = (PROBES + 1) * (PROBES + 1);
+const PROBE_U = new Float32Array(PROBE_COUNT);
+const PROBE_V = new Float32Array(PROBE_COUNT);
+for (let across = 0, at = 0; across <= PROBES; across += 1) {
+  for (let down = 0; down <= PROBES; down += 1, at += 1) {
+    PROBE_U[at] = across / PROBES;
+    PROBE_V[at] = down / PROBES;
+  }
+}
+const looseThen = new Float32Array(PROBE_COUNT);
+const looseNow = new Float32Array(PROBE_COUNT);
 
-// Whether the loop moved, from `then` to `now` in seconds, enough to be seen: some point moved by a
-// whole pixel of the page. No one follows the lattice's points one by one, a frame that moves none
-// of them by a pixel shows nothing a reader could see, and the shade a point takes changes by too
-// little between such frames to be seen on a dot a pixel wide. Over the whole loop, a frame offered
-// each FRAME is drawn about one time in three.
+// The disorder at every probe at `seconds` into `out`, one flat loop over the typed arrays with the
+// stage's numbers read once, as the vertex shader reads them at each point.
+function loosenessAt(seconds, out) {
+  const { kind, angle, front, part } = stageAt(seconds);
+  if (kind === WHOLE) {
+    out.fill(part);
+    return;
+  }
+  const dx = Math.cos(angle);
+  const dy = Math.sin(angle);
+  const across = 1 / (Math.abs(dx) + Math.abs(dy));
+  for (let at = 0; at < PROBE_COUNT; at += 1) {
+    if (kind === SPREAD) {
+      out[at] = clamp((PROBE_U[at] - front) / RAMP);
+      continue;
+    }
+    const along = 0.5 + ((PROBE_U[at] - 0.5) * dx + (PROBE_V[at] - 0.5) * dy) * across;
+    const loose = clamp((along - ORDERED) / RAMP);
+    out[at] = kind === GATHER ? Math.max(loose, 1 - part) : loose;
+  }
+}
+
+// The least a point moves, in pixels of the page, between one drawn frame and the next. The points are
+// drawn soft-edged, so a move of a quarter pixel shows as a shift of shade, and the slow ends of each
+// eased stage glide rather than step: a whole pixel there would be drawn as one jump after a long
+// still.
+const STEP_SHOWN = 0.25;
+
+// Whether the loop moved, from `then` to `now` in seconds, enough to be seen: some point moved by
+// STEP_SHOWN. No one follows the lattice's points one by one, and a frame that moves none of them
+// that far shows nothing a reader could see.
 export function shows(then, now) {
-  const before = orderAt(then);
-  const after = orderAt(now);
-  for (let across = 0; across <= PROBES; across += 1) {
-    for (let down = 0; down <= PROBES; down += 1) {
-      const [u, v] = [across / PROBES, down / PROBES];
-      const [was, is] = [before(u, v), after(u, v)];
-      if (Math.abs(is * is - was * was) * REACH >= 1) {
-        return true;
-      }
+  loosenessAt(then, looseThen);
+  loosenessAt(now, looseNow);
+  for (let at = 0; at < PROBE_COUNT; at += 1) {
+    const was = looseThen[at];
+    const is = looseNow[at];
+    if (Math.abs(is * is - was * was) * REACH >= STEP_SHOWN) {
+      return true;
     }
   }
   return false;
 }
+
+// The lattice's own time: the motion clock less every stretch the window held the lattice off, so the
+// loop pauses while the reader works in the window and takes up where it stood, rather than running on
+// unseen and jumping to catch up. `since` is when the stretch now holding it began, null where none is.
+const held = { lost: 0, since: null };
+const latticeSeconds = (now = performance.now()) => (clock(now) - held.lost) / 1000;
 
 // Moves every lattice in sight a frame, no faster than one each FRAME, only in a frame nothing else
 // wants, and only where the frame would show: the lattices are the window's lowest work, and their
@@ -423,11 +475,19 @@ function tick(now) {
   }
   requestAnimationFrame(tick);
   const free = idle(now);
-  if (now - last < FRAME || !free || document.hidden || still()) {
+  if (!free || document.hidden || still()) {
+    held.since ??= now;
+    return;
+  }
+  if (held.since !== null) {
+    held.lost += now - held.since;
+    held.since = null;
+  }
+  if (now - last < FRAME) {
     return;
   }
   last = now;
-  const seconds = clock(now) / 1000;
+  const seconds = latticeSeconds(now);
   for (const [canvas, laid] of lattices) {
     if (!canvas.isConnected) {
       lattices.delete(canvas);

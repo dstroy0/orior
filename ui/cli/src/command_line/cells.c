@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cells.c: the cells every module holds its work in: one cellblock over one pool, its persistent end taken from and
+// cells.c: the cells every module holds its work in: one cellblock over one pool, a block taken once for the bytes
+// asked and made anew for another ask while no cell is held, its persistent end taken from and
 // given back to cell by cell, every call of it under one lock. Each cell keeps its bytes ahead of its start, so a
 // module that counts what it holds takes them off as it gives the cell back; a module's mark is raised as its
 // cellblock's are, the larger of the mark and what is held. The cellblock reports its own peaks as they rise a step,
@@ -17,12 +18,24 @@ _Static_assert((CLI_CELL_ALIGN & (CLI_CELL_ALIGN - 1u)) == 0u, "CLI_CELL_ALIGN m
 _Static_assert((2u * CLI_CELL_ALIGN) <= 255u, "how far a cell's start moved must fit the byte ahead of it");
 _Static_assert(CLI_CELL_ALIGN >= 16u, "a cell's bytes, a word, sit 16 bytes ahead of its start, past the byte there");
 
-ParsMemoriaeInternae(cli_cells_pool, CLI_CELLS_POOL);
-LocusCarcerum(cli_cells_site, MMGR_MINIMUM_SECURITY(cli_cells_pool));
+// The pool: MMgr's host site, one block taken from the system for the bytes asked, zero as the system hands it out,
+// the cellblock's record at its start; made at the first take with CLI_CELLS_POOL where none was asked for, and made
+// anew for another ask, the block before given back whole, while no cell is held
+// maximum security: a cell is wiped to zero as it is given back, so every cell handed out is zero, the host block's
+// bytes being zero from the start, and no room reads the bytes of the one that held its cell before it
+LocusCarcerumHospes(cli_cells_site, MMGR_MAXIMUM_SECURITY(cli_cells_pool));
+
+// the pool's bytes, 0 while no block is held
+static unsigned long long cells_pool_bytes(void)
+{
+    const CarcerCellBlock *const cellblock = cli_cells_site_cellblock();
+    return (cellblock != NULL) ? (unsigned long long)cellblock->size : 0ull;
+}
 
 // a peak read off the cellblock's state, `member_` persistent_hw or temporary_hw, 0 where the build keeps none
 #if defined(MMGR_ENABLE_HW_MEM_CAPACITY_CB) && MMGR_ENABLE_HW_MEM_CAPACITY_CB
-#define CLI_CELLS_PEAK(member_) ((unsigned long long)cli_cells_site_cli_cells_pool_ctx.member_)
+#define CLI_CELLS_PEAK(member_)                                                                                        \
+    ((cli_cells_site_cellblock() != NULL) ? (unsigned long long)cli_cells_site_cellblock()->member_ : 0ull)
 #else
 #define CLI_CELLS_PEAK(member_) 0ull
 #endif
@@ -38,7 +51,7 @@ static unsigned long long s_told;
 // a report, `<pool's bytes> <persistent> <temporary>`, written into `out`
 static void cells_written(CliLine *out, unsigned long long persistent, unsigned long long temporary)
 {
-    cli_line_decimal(out, CLI_CELLS_POOL, 1u);
+    cli_line_decimal(out, cells_pool_bytes(), 1u);
     cli_line_character(out, ' ');
     cli_line_decimal(out, persistent, 1u);
     cli_line_character(out, ' ');
@@ -80,6 +93,34 @@ void cli_cells_told(const char *name, const CliLine *report)
     }
 }
 
+int cli_cells_made(unsigned long long bytes)
+{
+    cli_lock_take(&s_lock);
+    const CarcerCellBlock *const held = cli_cells_site_cellblock();
+    const int idle = (held == NULL) || ((held->persistent_end == 0u) && (held->temporary_top == held->size));
+    // the block's bytes are what the system can hand out at once, which a size_t counts
+    const int made = idle && cli_cells_site_made((size_t)bytes);
+    cli_lock_give(&s_lock);
+    return made;
+}
+
+void cli_cells_report(unsigned long long *pool, unsigned long long *persistent, unsigned long long *temporary)
+{
+    cli_lock_take(&s_lock);
+    *pool = cells_pool_bytes();
+    *persistent = CLI_CELLS_PEAK(persistent_hw);
+    *temporary = CLI_CELLS_PEAK(temporary_hw);
+    cli_lock_give(&s_lock);
+}
+
+int cli_cells_zero(void)
+{
+    cli_lock_take(&s_lock);
+    const int zero = mmgr_host_cellblock_zero(cli_cells_site_cellblock());
+    cli_lock_give(&s_lock);
+    return zero;
+}
+
 void cli_cells_said(CliLine *out)
 {
     cli_lock_take(&s_lock);
@@ -104,22 +145,23 @@ static void *cells_taken(CliCellsTally *tally, unsigned long long bytes, const c
     int rose = 0;
     int tally_rose = 0;
     unsigned long long tally_hw = 0ull;
-    // a request past the pool is refused before the boundaries' width is added to it, so the sum cannot wrap, and a
-    // request no larger than the pool fits a size_t
-    if (bytes <= CLI_CELLS_POOL)
+    cli_lock_take(&s_lock);
+    // the pool is made at the first take where none was asked for; a request past the pool is refused before the
+    // boundaries' width is added to it, so the sum cannot wrap, and a request no larger than the pool fits a size_t
+    const int pooled = (cli_cells_site_cellblock() != NULL) || cli_cells_site_made((size_t)CLI_CELLS_POOL);
+    if (pooled && (bytes <= cells_pool_bytes()))
     {
-        cli_lock_take(&s_lock);
         cell = cli_cells_site.cli_cells_pool.persistent_buf_alloc((size_t)(bytes + (2u * CLI_CELL_ALIGN)));
         rose = cells_risen(&s_told, CLI_CELLS_PEAK(persistent_hw) + CLI_CELLS_PEAK(temporary_hw));
         if ((cell != NULL) && (tally != NULL))
         {
-            tally->held += bytes;
-            cells_hw(&tally->hw, tally->held);
+            tally->holds += bytes;
+            cells_hw(&tally->hw, tally->holds);
             tally_rose = cells_risen(&tally->told, tally->hw);
             tally_hw = tally->hw;
         }
-        cli_lock_give(&s_lock);
     }
+    cli_lock_give(&s_lock);
     char report[96];
     CliLine line = {report, sizeof(report), 0ull};
     if (rose)
@@ -172,7 +214,7 @@ static void cells_given(CliCellsTally *tally, void *cell)
     cli_cells_site.cli_cells_pool.persistent_buf_release(first);
     if (tally != NULL)
     {
-        tally->held -= bytes;
+        tally->holds -= bytes;
     }
     cli_lock_give(&s_lock);
 }

@@ -85,7 +85,8 @@ int cli_prints_line(const char *path, const char *text, unsigned long long lengt
     for (const char *const *start = cli_starts(extension); start[0] != NULL; start += 1)
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = start[0], .cap = CLI_CELLS_POOL});
-        if (((length - from) < size) ||
+        // a start of no bytes has no last byte to read
+        if ((size == 0ull) || ((length - from) < size) ||
             (memor.cmp(&(MemoriaCfg){.src = text + from, .other = start[0], .bytes = size}) != 0))
         {
             continue;
@@ -239,7 +240,7 @@ static void cli_new_read(const char *root, const char *path)
     char full[CLI_PATH_LONGEST];
     cli_full(root, path, full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(full, &size);
+    const unsigned char *const bytes = cli_file_held(full, &size);
     if (bytes == NULL)
     {
         return;
@@ -275,7 +276,7 @@ static void cli_new_read(const char *root, const char *path)
         line += 1u;
         at = end + 1ull;
     }
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
 }
 
 // whether a print comes before another: by path, then by line
@@ -339,6 +340,7 @@ static int prints_held(CliLine *said)
     }
     s_prints->count = 0u;
     s_prints->used = 0u;
+    s_prints->repositories.text.bytes = NULL;
     return 1;
 }
 
@@ -346,6 +348,7 @@ static int prints_held(CliLine *said)
 static void prints_released(CliLine *out)
 {
     cli_prints_written(out);
+    cli_git_text_given(&s_prints->repositories.text);
     cli_cell_given(s_prints);
     s_prints = NULL;
     cli_lock_give(&s_lock);

@@ -6,6 +6,9 @@
 #include "../machine/report.h"
 #include "window_internal.h"
 
+// the bytes the recent errors a report takes are begun to be read in, doubling as they are
+#define CLI_WINDOW_REPORT_FIRST 4096u
+
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // where a report went written as the page reads it, `{kind, url}`
@@ -88,26 +91,26 @@ static int report_bug(const CliServeArgs *args, CliLine *out, CliLine *said)
         const char *const text = cli_json_string(args->json, cli_json_member(args->json, report, s_fields[at]), NULL);
         field[at] = (text != NULL) ? text : "";
     }
-    static char s_logs[1u << 20u];
-    static char s_recent[1u << 20u];
     static CliFiled s_filed;
+    // the recent errors and the logs with them in growing lines, given back once the report is filed
+    CliLine recent = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    CliLine logs = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
     cli_lock_take(&s_lock);
     if (with_errors)
     {
-        CliLine recent = {s_recent, sizeof(s_recent), 0ull};
+        (void)cli_line_growing(&recent, CLI_WINDOW_REPORT_FIRST, "the recent errors a report takes");
         cli_report_recent(&recent);
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
         unsigned long long errors_from = 0ull;
         unsigned long long errors_to = 0ull;
         cli_text_trimmed(field[4], cellul.len(&(CatenaFinitaCfg){.src = field[4], .cap = CLI_CELLS_POOL}), &from, &to);
-        cli_text_trimmed(s_recent, cli_line_fits(&recent) ? recent.at : 0ull, &errors_from, &errors_to);
-        CliLine logs = {s_logs, sizeof(s_logs), 0ull};
+        cli_text_trimmed(recent.out, cli_line_fits(&recent) ? recent.at : 0ull, &errors_from, &errors_to);
+        (void)cli_line_growing(&logs, (to - from) + (errors_to - errors_from) + 4ull, "the logs a report takes");
         cli_line_counted(&logs, field[4] + from, to - from);
         cli_line_text(&logs, ((to > from) && (errors_to > errors_from)) ? "\n\n" : "");
-        cli_line_counted(&logs, s_recent + errors_from, errors_to - errors_from);
-        (void)cli_line_closed(&logs);
-        field[4] = s_logs;
+        cli_line_counted(&logs, recent.out + errors_from, errors_to - errors_from);
+        field[4] = (cli_line_closed(&logs) != 0ull) ? logs.out : field[4];
     }
     const CliReport given = {field[0], field[1], field[2], field[3], field[4]};
     char root[CLI_PATH_LONGEST];
@@ -115,6 +118,8 @@ static int report_bug(const CliServeArgs *args, CliLine *out, CliLine *said)
     cli_report_file(&given, has_root ? root : NULL, &s_filed);
     report_filed_written(&s_filed, out);
     cli_lock_give(&s_lock);
+    cli_cell_given(logs.out);
+    cli_cell_given(recent.out);
     return 1;
 }
 

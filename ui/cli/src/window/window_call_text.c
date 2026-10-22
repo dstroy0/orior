@@ -11,50 +11,12 @@
 #include "../editor/highlight.h"
 #include "window_internal.h"
 
-// the most changes and edits one writing holds, and the most lines colored at once
-#define CLI_WINDOW_CHANGES 4096u
-#define CLI_WINDOW_EDITS 65536u
-#define CLI_WINDOW_LINES 65536u
+// the bytes the tree's answer is begun in before it grows
+#define CLI_WINDOW_TEXT_ANSWER (64ull << 10u)
 
-// A call's room, a cell taken with the lock and given back with it: the tree's answer and the tree it is read into,
-// one writing's edits and changes, the lines colored, and a workspace file made plain
-typedef struct
-{
-    char answer[16u << 20u];
-    CliJsonNode node[1u << 16u];
-    char tree_text[16u << 20u];
-    CfgJsonToken token[1u << 16u];
-    CliJson json;
-    CliEdit edit[CLI_WINDOW_EDITS];
-    const CliEdit *change[CLI_WINDOW_CHANGES];
-    unsigned int edits[CLI_WINDOW_CHANGES];
-    const char *lines[CLI_WINDOW_LINES];
-    char plain[16u << 20u];
-} CliTextRoom;
-
-static CliLock s_lock = CLI_LOCK_INIT;
-static CliTextRoom *s_room;
-
-// the lock taken and the room a cell under it: 1, or 0 with why said and the lock given back
-static int text_held(CliLine *said)
-{
-    cli_lock_take(&s_lock);
-    s_room = cli_cell_taken(sizeof(*s_room), "a call on a text");
-    if (s_room == NULL)
-    {
-        cli_lock_give(&s_lock);
-        cli_line_text(said, "a call on a text could not be taken");
-    }
-    return s_room != NULL;
-}
-
-// the room given back, and the lock with it
-static void text_released(void)
-{
-    cli_cell_given(s_room);
-    s_room = NULL;
-    cli_lock_give(&s_lock);
-}
+// the cells a call on a text holds while it answers: the tree's answer read, one writing's edits and changes, the
+// lines colored, and a workspace file made plain, each sized to what it holds
+CliCellsTally g_cli_window_text_cells = CLI_CELLS_TALLY("cli_window_text");
 
 // a text's shape written as the page reads it
 static void text_shape_written(const CliShape *shape, CliLine *out)
@@ -66,25 +28,30 @@ static void text_shape_written(const CliShape *shape, CliLine *out)
     cli_line_character(out, '}');
 }
 
-// the tree's call `name` with `{"path": path}` and `more` after it, its answer read into the tree, under the lock: its
-// node, or CLI_JSON_NONE with why said
-static unsigned int text_tree_called(const char *name, const char *path, const char *more, CliLine *said)
+// the tree's call `name` with `{"path": path}` and `more` after it, its answer read into `json`, a tree in a cell sized
+// to it, given back with cli_json_given either way: its node, or CLI_JSON_NONE with why said
+static unsigned int text_tree_called(CliJson *json, const char *name, const char *path, const char *more, CliLine *said)
 {
+    cli_json_begun(json, NULL, 0u, NULL, 0ull);
     char args[CLI_PATH_LONGEST * 2u];
     CliLine line = {args, sizeof(args), 0ull};
     cli_line_text(&line, "{\"path\":");
     cli_window_quoted(&line, path);
     cli_line_text(&line, more);
     cli_line_character(&line, '}');
-    CliLine answer = {s_room->answer, sizeof(s_room->answer), 0ull};
-    if (!cli_line_fits(&line) || !cli_window_tree_call(name, args, line.at, &answer, said))
+    CliLine answer;
+    if (!cli_line_growing(&answer, CLI_WINDOW_TEXT_ANSWER, "the tree's answer on a text"))
     {
+        cli_line_text(said, "the tree's answer on a text could not be taken");
         return CLI_JSON_NONE;
     }
-    cli_json_begun(&s_room->json, s_room->node, sizeof(s_room->node) / sizeof(s_room->node[0]), s_room->tree_text,
-                   sizeof(s_room->tree_text));
-    return cli_json_read(&s_room->json, s_room->answer, cli_line_fits(&answer) ? answer.at : 0ull, s_room->token,
-                         sizeof(s_room->token) / sizeof(s_room->token[0]), said);
+    unsigned int read = CLI_JSON_NONE;
+    if (cli_line_fits(&line) && cli_window_tree_call(name, args, line.at, &answer, said))
+    {
+        read = cli_json_taken(json, answer.out, cli_line_fits(&answer) ? answer.at : 0ull, 0u, 0ull, said);
+    }
+    cli_cell_given(answer.out);
+    return read;
 }
 
 // the file at `path` read from the tree as the page read it, whole or by its slices, held under `key`: its shape, or
@@ -93,35 +60,34 @@ static int text_document_read(const CliServeArgs *args, CliLine *out, CliLine *s
 {
     const char *const key = cli_serve_string(args, "key", said);
     const char *const path = (key != NULL) ? cli_serve_string(args, "path", said) : NULL;
-    if ((path == NULL) || !text_held(said))
+    if (path == NULL)
     {
         return 0;
     }
-    unsigned int opened = text_tree_called("file_read", path, "", said);
+    CliJson json;
+    unsigned int opened = text_tree_called(&json, "file_read", path, "", said);
     int done = (opened != CLI_JSON_NONE);
     unsigned long long length = 0ull;
-    const char *text =
-        done ? cli_json_string(&s_room->json, cli_json_member(&s_room->json, opened, "text"), &length) : NULL;
-    if (done && (text == NULL) &&
-        cli_json_is(&s_room->json, cli_json_member(&s_room->json, opened, "windowed"), CFG_JSON_TRUE))
+    const char *text = done ? cli_json_string(&json, cli_json_member(&json, opened, "text"), &length) : NULL;
+    if (done && (text == NULL) && cli_json_is(&json, cli_json_member(&json, opened, "windowed"), CFG_JSON_TRUE))
     {
-        const unsigned int size_node = cli_json_member(&s_room->json, opened, "size");
+        const unsigned int size_node = cli_json_member(&json, opened, "size");
         char more[128];
         CliLine slice = {more, sizeof(more), 0ull};
         cli_line_text(&slice, ",\"start\":0,\"end\":");
-        if (cli_json_is(&s_room->json, size_node, CFG_JSON_NUMBER))
+        if (cli_json_is(&json, size_node, CFG_JSON_NUMBER))
         {
-            cli_line_counted(&slice, s_room->json.text + s_room->json.node[size_node].text,
-                             s_room->json.node[size_node].length);
+            cli_line_counted(&slice, json.text + json.node[size_node].text, json.node[size_node].length);
         }
         else
         {
             cli_line_character(&slice, '0');
         }
         (void)cli_line_closed(&slice);
-        opened = text_tree_called("file_slice", path, more, said);
+        cli_json_given(&json);
+        opened = text_tree_called(&json, "file_slice", path, more, said);
         done = (opened != CLI_JSON_NONE);
-        text = done ? cli_json_string(&s_room->json, cli_json_member(&s_room->json, opened, "text"), &length) : NULL;
+        text = done ? cli_json_string(&json, cli_json_member(&json, opened, "text"), &length) : NULL;
     }
     CliShape shape;
     if (done && (text != NULL) && cli_document_hold(key, text, length, &shape))
@@ -132,7 +98,7 @@ static int text_document_read(const CliServeArgs *args, CliLine *out, CliLine *s
     {
         cli_line_text(out, "null");
     }
-    text_released();
+    cli_json_given(&json);
     return done;
 }
 
@@ -190,6 +156,18 @@ static CliPlace text_place(const CliJson *json, unsigned int edit, const char *n
     return read;
 }
 
+// the items of the array `node`, 0 where it is not one
+static unsigned int text_items(const CliJson *json, unsigned int node)
+{
+    unsigned int count = 0u;
+    const unsigned int first = cli_json_is(json, node, CFG_JSON_ARRAY) ? json->node[node].first : CLI_JSON_NONE;
+    for (unsigned int item = first; item != CLI_JSON_NONE; item = json->node[item].next)
+    {
+        count += 1u;
+    }
+    return count;
+}
+
 // the changes the page made to the text held under `key` written, in order: its shape
 static int text_document_edit(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
@@ -204,40 +182,60 @@ static int text_document_edit(const CliServeArgs *args, CliLine *out, CliLine *s
         cli_serve_refused(args, changes, "changes", "a sequence", said);
         return 0;
     }
-    if (!text_held(said))
+    const unsigned int changes_count = text_items(args->json, changes);
+    unsigned int edits_count = 0u;
+    for (unsigned int change = args->json->node[changes].first; change != CLI_JSON_NONE;
+         change = args->json->node[change].next)
     {
-        return 0;
+        edits_count += text_items(args->json, change);
     }
-    unsigned int count = 0u;
-    unsigned int used = 0u;
-    for (unsigned int change = args->json->node[changes].first;
-         (change != CLI_JSON_NONE) && (count < CLI_WINDOW_CHANGES); change = args->json->node[change].next)
+    // a cell is taken for one of each where the page sent none, so a taken cell is never of no bytes
+    CliEdit *const edit_of =
+        cli_cell_taken_by(&g_cli_window_text_cells, (edits_count + 1ull) * sizeof(*edit_of), "the edits of a writing");
+    const CliEdit **const change_of = cli_cell_taken_by(
+        &g_cli_window_text_cells, (changes_count + 1ull) * sizeof(*change_of), "the changes of a writing");
+    unsigned int *const edits_of = cli_cell_taken_by(
+        &g_cli_window_text_cells, (changes_count + 1ull) * sizeof(*edits_of), "the edits of each change");
+    int edited = 0;
+    if ((edit_of == NULL) || (change_of == NULL) || (edits_of == NULL))
     {
-        s_room->change[count] = &s_room->edit[used];
-        s_room->edits[count] = 0u;
-        const unsigned int first =
-            cli_json_is(args->json, change, CFG_JSON_ARRAY) ? args->json->node[change].first : CLI_JSON_NONE;
-        for (unsigned int edit = first; (edit != CLI_JSON_NONE) && (used < CLI_WINDOW_EDITS);
-             edit = args->json->node[edit].next)
+        cli_line_text(said, "the changes of a writing could not be given cells");
+    }
+    else
+    {
+        unsigned int count = 0u;
+        unsigned int used = 0u;
+        for (unsigned int change = args->json->node[changes].first; change != CLI_JSON_NONE;
+             change = args->json->node[change].next)
         {
-            unsigned long long length = 0ull;
-            const char *const text = cli_json_string(args->json, cli_json_member(args->json, edit, "text"), &length);
-            s_room->edit[used].from = text_place(args->json, edit, "from");
-            s_room->edit[used].to = text_place(args->json, edit, "to");
-            s_room->edit[used].text = (text != NULL) ? text : "";
-            s_room->edit[used].length = (text != NULL) ? length : 0ull;
-            used += 1u;
-            s_room->edits[count] += 1u;
+            change_of[count] = &edit_of[used];
+            edits_of[count] = 0u;
+            const unsigned int first =
+                cli_json_is(args->json, change, CFG_JSON_ARRAY) ? args->json->node[change].first : CLI_JSON_NONE;
+            for (unsigned int edit = first; edit != CLI_JSON_NONE; edit = args->json->node[edit].next)
+            {
+                unsigned long long length = 0ull;
+                const char *const text =
+                    cli_json_string(args->json, cli_json_member(args->json, edit, "text"), &length);
+                edit_of[used].from = text_place(args->json, edit, "from");
+                edit_of[used].to = text_place(args->json, edit, "to");
+                edit_of[used].text = (text != NULL) ? text : "";
+                edit_of[used].length = (text != NULL) ? length : 0ull;
+                used += 1u;
+                edits_of[count] += 1u;
+            }
+            count += 1u;
         }
-        count += 1u;
+        CliShape shape;
+        edited = cli_document_edit(key, change_of, edits_of, count, &shape, said);
+        if (edited)
+        {
+            text_shape_written(&shape, out);
+        }
     }
-    CliShape shape;
-    const int edited = cli_document_edit(key, s_room->change, s_room->edits, count, &shape, said);
-    if (edited)
-    {
-        text_shape_written(&shape, out);
-    }
-    text_released();
+    cli_cell_given_by(&g_cli_window_text_cells, edits_of);
+    cli_cell_given_by(&g_cli_window_text_cells, change_of);
+    cli_cell_given_by(&g_cli_window_text_cells, edit_of);
     return edited;
 }
 
@@ -275,20 +273,17 @@ static int text_document_changes(const CliServeArgs *args, CliLine *out, CliLine
         }
         return 1;
     }
-    if (!text_held(said))
-    {
-        return 0;
-    }
-    const unsigned int head = text_tree_called("file_head", path, "", said);
+    CliJson json;
+    const unsigned int head = text_tree_called(&json, "file_head", path, "", said);
     unsigned long long length = 0ull;
-    const char *const text = (head != CLI_JSON_NONE) ? cli_json_string(&s_room->json, head, &length) : NULL;
+    const char *const text = (head != CLI_JSON_NONE) ? cli_json_string(&json, head, &length) : NULL;
     const int read = (head != CLI_JSON_NONE);
     if (read && !cli_document_marks(key, 1, text, length, out))
     {
         out->at = start;
         cli_line_text(out, "null");
     }
-    text_released();
+    cli_json_given(&json);
     return read;
 }
 
@@ -344,13 +339,21 @@ static int text_highlight_lines(const CliServeArgs *args, CliLine *out, CliLine 
     unsigned int count = 0u;
     const char *const key = cli_serve_string(args, "key", said);
     const char *const state = (key != NULL) ? cli_serve_string(args, "state", said) : NULL;
-    if ((state == NULL) || !text_held(said))
+    if (state == NULL)
     {
         return 0;
     }
-    const int colored = cli_serve_strings(args, "lines", s_room->lines, CLI_WINDOW_LINES, &count, said) &&
-                        cli_highlight_color(key, state, s_room->lines, count, out, said);
-    text_released();
+    const unsigned int most = text_items(args->json, cli_serve_arg(args, "lines"));
+    const char **const lines =
+        cli_cell_taken_by(&g_cli_window_text_cells, (most + 1ull) * sizeof(*lines), "the lines colored");
+    if (lines == NULL)
+    {
+        cli_line_text(said, "the lines colored could not be given a cell");
+        return 0;
+    }
+    const int colored = cli_serve_strings(args, "lines", lines, most, &count, said) &&
+                        cli_highlight_color(key, state, lines, count, out, said);
+    cli_cell_given_by(&g_cli_window_text_cells, lines);
     return colored;
 }
 
@@ -358,17 +361,18 @@ static int text_highlight_lines(const CliServeArgs *args, CliLine *out, CliLine 
 static int text_file_read_any(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     const char *const path = cli_serve_string(args, "path", said);
-    if ((path == NULL) || !text_held(said))
+    if (path == NULL)
     {
         return 0;
     }
-    const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_room->answer, sizeof(s_room->answer));
-    const int read = (size != QRY_MEMBER_UNREAD) && cli_utf8_whole(s_room->answer, size);
+    unsigned long long size = 0ull;
+    const unsigned char *const mapped = cli_file_held(path, &size);
+    const int read = (mapped != NULL) && cli_utf8_whole((const char *)mapped, size);
     if (read)
     {
-        cli_json_quoted(out, s_room->answer, size);
+        cli_json_quoted(out, (const char *)mapped, size);
     }
-    text_released();
+    cli_file_let_go(mapped, size);
     if (!read)
     {
         cli_line_text(said, path);
@@ -413,29 +417,37 @@ static int text_file_write_any(const CliServeArgs *args, CliLine *out, CliLine *
 static int text_workspace_read(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     const char *const path = cli_serve_string(args, "path", said);
-    if ((path == NULL) || !text_held(said))
+    if (path == NULL)
     {
         return 0;
     }
-    const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_room->answer, sizeof(s_room->answer));
-    if (size == QRY_MEMBER_UNREAD)
+    unsigned long long size = 0ull;
+    const unsigned char *const mapped = cli_file_held(path, &size);
+    // a text made plain is never longer than the text, as it only leaves comments and commas out
+    char *const kept = (mapped != NULL)
+                           ? cli_cell_taken_by(&g_cli_window_text_cells, size + 1ull, "a workspace file made plain")
+                           : NULL;
+    CliLine plain = {kept, (kept != NULL) ? (size + 1ull) : 0ull, 0ull};
+    if (kept != NULL)
     {
-        text_released();
+        cli_plain_json((const char *)mapped, size, &plain);
+    }
+    cli_file_let_go(mapped, size);
+    if (kept == NULL)
+    {
         cli_line_text(said, path);
         cli_line_text(said, ": it could not be read");
         return 0;
     }
-    CliLine plain = {s_room->plain, sizeof(s_room->plain), 0ull};
-    cli_plain_json(s_room->answer, size, &plain);
-    cli_json_begun(&s_room->json, s_room->node, sizeof(s_room->node) / sizeof(s_room->node[0]), s_room->tree_text,
-                   sizeof(s_room->tree_text));
+    CliJson json;
+    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[1024];
     CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int value = cli_json_read(&s_room->json, s_room->plain, cli_line_fits(&plain) ? plain.at : 0ull,
-                                             s_room->token, sizeof(s_room->token) / sizeof(s_room->token[0]), &unread);
+    const unsigned int value = cli_json_taken(&json, kept, cli_line_fits(&plain) ? plain.at : 0ull, 0u, 0ull, &unread);
+    cli_cell_given_by(&g_cli_window_text_cells, kept);
     if (value == CLI_JSON_NONE)
     {
-        text_released();
+        cli_json_given(&json);
         cli_line_text(said, path);
         cli_line_text(said, ": ");
         cli_line_counted(said, why, cli_line_fits(&unread) ? unread.at : 0ull);
@@ -443,14 +455,13 @@ static int text_workspace_read(const CliServeArgs *args, CliLine *out, CliLine *
     }
     char base[CLI_PATH_LONGEST] = "";
     (void)cli_path_parent(path, base);
-    const unsigned int folders = cli_json_member(&s_room->json, value, "folders");
-    const unsigned int first =
-        cli_json_is(&s_room->json, folders, CFG_JSON_ARRAY) ? s_room->json.node[folders].first : CLI_JSON_NONE;
+    const unsigned int folders = cli_json_member(&json, value, "folders");
+    const unsigned int first = cli_json_is(&json, folders, CFG_JSON_ARRAY) ? json.node[folders].first : CLI_JSON_NONE;
     cli_line_character(out, '[');
     int any = 0;
-    for (unsigned int folder = first; folder != CLI_JSON_NONE; folder = s_room->json.node[folder].next)
+    for (unsigned int folder = first; folder != CLI_JSON_NONE; folder = json.node[folder].next)
     {
-        const char *const named = cli_json_string(&s_room->json, cli_json_member(&s_room->json, folder, "path"), NULL);
+        const char *const named = cli_json_string(&json, cli_json_member(&json, folder, "path"), NULL);
         if (named == NULL)
         {
             continue;
@@ -474,7 +485,7 @@ static int text_workspace_read(const CliServeArgs *args, CliLine *out, CliLine *
         any = 1;
     }
     cli_line_character(out, ']');
-    text_released();
+    cli_json_given(&json);
     return 1;
 }
 

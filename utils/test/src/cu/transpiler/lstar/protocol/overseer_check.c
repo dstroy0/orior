@@ -30,7 +30,7 @@
 //               count that clears it, read again and carried; one held for what no count clears keeps its count; each
 //               hold and each count given is a line of the teacher's trace
 //
-//     overseer_check <overseer_carrier> [<cubin_run> <machine file> <layout> <cross> <nvdisasm>]
+//     overseer_check <overseer_carrier> [<orior_cubin_run> <machine file> <layout> <cross> <nvdisasm>]
 //
 // The check runs in a run whose writer runs, QRY naming it (qry_run.sh): the teacher hands each round critical, and a
 // critical hand returns once the writer has it on disk
@@ -228,7 +228,7 @@ int main(int count, char **words)
 {
     if ((count != 2) && (count != 7))
     {
-        printf("overseer_check <overseer_carrier> [<cubin_run> <machine file> <layout> <cross> <nvdisasm>]\n");
+        printf("overseer_check <overseer_carrier> [<orior_cubin_run> <machine file> <layout> <cross> <nvdisasm>]\n");
         return 2;
     }
     QryShared *const run = qry_member_run();

@@ -3,8 +3,10 @@
 // posix.c: the query's calls on POSIX: a process forked and run, its output piped and waited on; the environment;
 // folders walked, made and removed; a file's time and the clock; a path made full; and the terminal
 #if !defined(_WIN32)
-// fork, exec, the environment, folders, the clock and nanosleep are POSIX, outside strict C11
+// fork, exec, the environment, folders, the clock and nanosleep are POSIX, outside strict C11, and realpath is an
+// X/Open extension glibc declares under _DEFAULT_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
 #endif
 #include "../query_internal.h"
 

@@ -47,17 +47,23 @@ static unsigned long long cli_reply_whole(unsigned int node)
 // a flag put after the compile group's flags
 static void cli_flag_put(const char *flag, unsigned long long size)
 {
-    if ((g_cli_gather.flags >= CLI_GATHER_FLAGS) ||
-        ((g_cli_gather.flags_used + size + 1ull) > sizeof(g_cli_gather.flags_text)))
+    CliLine *const text = &g_cli_gather.flags_text;
+    const unsigned long long mark = text->at;
+    if ((g_cli_gather.flags >= CLI_GATHER_FLAGS) || (mark > 0xffffffffull))
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = g_cli_gather.flags_text + g_cli_gather.flags_used, .src = flag, .bytes = size});
-    g_cli_gather.flags_text[g_cli_gather.flags_used + size] = '\0';
-    g_cli_gather.flag[g_cli_gather.flags] = g_cli_gather.flags_used;
+    cli_line_counted(text, flag, size);
+    cli_line_character(text, '\0');
+    // a flag whose room the cellblock cannot meet is left out, the flags before it kept
+    if (!cli_line_fits(text))
+    {
+        text->at = mark;
+        return;
+    }
+    // where the flag starts, below 4 GiB as the test above holds, which an unsigned int holds
+    g_cli_gather.flag[g_cli_gather.flags] = (unsigned int)mark;
     g_cli_gather.flags += 1u;
-    // the flags are below their room's bytes, which an unsigned int holds
-    g_cli_gather.flags_used += (unsigned int)size + 1u;
 }
 
 static void cli_fragment_word(void *context, const char *word, unsigned long long size)
@@ -96,7 +102,7 @@ static void cli_group_flags(unsigned int group, int msvc)
 {
     CliJson *const reply = &g_cli_gather.reply;
     g_cli_gather.flags = 0u;
-    g_cli_gather.flags_used = 0u;
+    g_cli_gather.flags_text.at = 0ull;
     const unsigned int fragments = cli_json_member(reply, group, "compileCommandFragments");
     for (unsigned int at = 0u; cli_json_item(reply, fragments, at) != CLI_JSON_NONE; at += 1u)
     {
@@ -199,7 +205,7 @@ static void cli_target_entries(unsigned int target, const char *source, const ch
             cli_json_append(json, arguments, cli_slashed_made(one->path));
             for (unsigned int flag = 0u; flag < g_cli_gather.flags; flag += 1u)
             {
-                const char *const text = g_cli_gather.flags_text + g_cli_gather.flag[flag];
+                const char *const text = g_cli_gather.flags_text.out + g_cli_gather.flag[flag];
                 cli_json_append(json, arguments,
                                 cli_json_string_made(
                                     json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})));
@@ -258,7 +264,7 @@ unsigned int cli_compile_cmake_entries(const char *index, char *source)
     {
         return CLI_JSON_NONE;
     }
-    // the configuration the build's folder is named for, as orior names it, or the first
+    // the configuration the build's folder is named for, as orior_cli names it, or the first
     const char *named = build;
     for (const char *at = build; at[0] != '\0'; at += 1)
     {

@@ -215,20 +215,20 @@ CoreRadiusWeights core_radius_turned_weights(const CoreRadiusWeights &g, SimRati
     return core_radius_sum(turned, core_radius_scaled(core_radius_eta(core_radius_d(g, scale, s)), core_radius_times(eight_h_j, scale->cut)));
 }
 
-SimRational core_radius_up(SimRational value, const AnchorExactInteger *unit)
+SimRational core_radius_up(SimRational value, const OriorExactInteger *unit)
 {
-    AnchorExactInteger scaled;
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
-    AnchorExactInteger zero;
-    AnchorExactInteger one;
+    OriorExactInteger scaled;
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
+    OriorExactInteger zero;
+    OriorExactInteger one;
     sim_exact_unsigned(&zero, 0ull);
     sim_exact_unsigned(&one, 1ull);
-    sim_rational_status_check((anchor_exact_multiply(&value.numerator, unit, &scaled) == ANCHOR_EXACT_OK) &&
-                              (anchor_exact_divide(&scaled, &value.denominator, &quotient, &remainder) == ANCHOR_EXACT_OK));
-    if (anchor_exact_compare(&remainder, &zero) != 0)
+    sim_rational_status_check((orior_exact_multiply(&value.numerator, unit, &scaled) == ORIOR_EXACT_OK) &&
+                              (orior_exact_divide(&scaled, &value.denominator, &quotient, &remainder) == ORIOR_EXACT_OK));
+    if (orior_exact_compare(&remainder, &zero) != 0)
     {
-        sim_rational_status_check(anchor_exact_add(&quotient, &one, &quotient) == ANCHOR_EXACT_OK);
+        sim_rational_status_check(orior_exact_add(&quotient, &one, &quotient) == ORIOR_EXACT_OK);
     }
     SimRational up;
     up.numerator = quotient;
@@ -237,13 +237,13 @@ SimRational core_radius_up(SimRational value, const AnchorExactInteger *unit)
     return up;
 }
 
-SimRational core_radius_down(SimRational value, const AnchorExactInteger *unit)
+SimRational core_radius_down(SimRational value, const OriorExactInteger *unit)
 {
-    AnchorExactInteger scaled;
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
-    sim_rational_status_check((anchor_exact_multiply(&value.numerator, unit, &scaled) == ANCHOR_EXACT_OK) &&
-                              (anchor_exact_divide(&scaled, &value.denominator, &quotient, &remainder) == ANCHOR_EXACT_OK));
+    OriorExactInteger scaled;
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
+    sim_rational_status_check((orior_exact_multiply(&value.numerator, unit, &scaled) == ORIOR_EXACT_OK) &&
+                              (orior_exact_divide(&scaled, &value.denominator, &quotient, &remainder) == ORIOR_EXACT_OK));
     SimRational down;
     down.numerator = quotient;
     down.denominator = *unit;
@@ -251,7 +251,7 @@ SimRational core_radius_down(SimRational value, const AnchorExactInteger *unit)
     return down;
 }
 
-void core_radius_round_up(CoreRadiusWeights *weights, const AnchorExactInteger *unit)
+void core_radius_round_up(CoreRadiusWeights *weights, const OriorExactInteger *unit)
 {
     for (SimRational &weight : *weights)
     {
@@ -368,7 +368,7 @@ static unsigned long long core_radius_power_mod(unsigned long long base, unsigne
 }
 
 // the bits of a magnitude, 0 for 0
-static unsigned int core_radius_bits(const AnchorExactInteger *value)
+static unsigned int core_radius_bits(const OriorExactInteger *value)
 {
     const unsigned long long used = sim_exact_limbs_used(value);
     if (used == 0ull)
@@ -444,7 +444,7 @@ void core_radius_device_close(CoreRadiusDevice *device)
     cudaFree(device->sums);
 }
 
-void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigned int k, const CoreRadiusWeights &weights, const AnchorExactInteger *unit)
+void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigned int k, const CoreRadiusWeights &weights, const OriorExactInteger *unit)
 {
     if (!device->held)
     {
@@ -458,15 +458,15 @@ void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigne
     std::vector<uint32_t> residues((size_t)device->primes_count * device->modes, 0u);
     for (size_t m = 0u; m < weights.size(); m += 1u)
     {
-        AnchorExactInteger scaled;
-        AnchorExactInteger whole;
-        AnchorExactInteger remainder;
-        AnchorExactInteger zero;
+        OriorExactInteger scaled;
+        OriorExactInteger whole;
+        OriorExactInteger remainder;
+        OriorExactInteger zero;
         sim_exact_unsigned(&zero, 0ull);
         // c 2^bits, whole where c is a multiple of 2^-bits and at least 0
-        const int read = (anchor_exact_multiply(&weights[m].numerator, unit, &scaled) == ANCHOR_EXACT_OK) &&
-                         (anchor_exact_divide(&scaled, &weights[m].denominator, &whole, &remainder) == ANCHOR_EXACT_OK) &&
-                         (anchor_exact_compare(&remainder, &zero) == 0) && (sim_rational_sign(weights[m]) >= 0);
+        const int read = (orior_exact_multiply(&weights[m].numerator, unit, &scaled) == ORIOR_EXACT_OK) &&
+                         (orior_exact_divide(&scaled, &weights[m].denominator, &whole, &remainder) == ORIOR_EXACT_OK) &&
+                         (orior_exact_compare(&remainder, &zero) == 0) && (sim_rational_sign(weights[m]) >= 0);
         if (!read)
         {
             device->held = 0;
@@ -494,7 +494,7 @@ void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigne
                    (cudaMemcpy(device->lengths_device + slot, &device->lengths[slot], sizeof(uint32_t), cudaMemcpyHostToDevice) == cudaSuccess);
 }
 
-void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const AnchorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS])
+void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const OriorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS])
 {
     for (unsigned int sum = 0u; sum < CORE_RADIUS_SUMS; sum += 1u)
     {
@@ -547,9 +547,9 @@ void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const Anc
         return;
     }
     // 2^(2 bits + 1)
-    AnchorExactInteger square;
-    AnchorExactInteger scale;
-    sim_rational_status_check((anchor_exact_multiply(unit, unit, &square) == ANCHOR_EXACT_OK) && sim_exact_scaled(&square, 2ull, &scale));
+    OriorExactInteger square;
+    OriorExactInteger scale;
+    sim_rational_status_check((orior_exact_multiply(unit, unit, &square) == ORIOR_EXACT_OK) && sim_exact_scaled(&square, 2ull, &scale));
     std::vector<unsigned long long> digits(device->primes_count);
     for (unsigned int sum = 0u; sum < CORE_RADIUS_SUMS; sum += 1u)
     {
@@ -566,12 +566,12 @@ void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const Anc
                 }
                 digits[t] = digit;
             }
-            AnchorExactInteger whole;
+            OriorExactInteger whole;
             sim_exact_unsigned(&whole, digits[device->primes_count - 1u]);
             for (unsigned int t = device->primes_count - 1u; t > 0u; t -= 1u)
             {
-                AnchorExactInteger digit;
-                AnchorExactInteger raised;
+                OriorExactInteger digit;
+                OriorExactInteger raised;
                 sim_exact_unsigned(&digit, digits[t - 1u]);
                 sim_rational_status_check(sim_exact_scaled(&whole, device->primes[t - 1u], &raised) && sim_exact_sum(&raised, &digit, &whole));
             }
@@ -588,7 +588,7 @@ void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const Anc
     }
 }
 
-void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned int order, const AnchorExactInteger *unit,
+void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned int order, const OriorExactInteger *unit,
                                CoreRadiusDevice *device, CoreRadiusOrders *orders)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
@@ -721,7 +721,7 @@ void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWeights &
 }
 
 void core_radius_continued(const CoreRadiusScale *scale, const CoreRadiusOrders *exact, unsigned int order, unsigned int last,
-                                  const AnchorExactInteger *unit, CoreRadiusDevice *device, CoreRadiusOrders *continued)
+                                  const OriorExactInteger *unit, CoreRadiusDevice *device, CoreRadiusOrders *continued)
 {
     continued->f.clear();
     continued->g.clear();

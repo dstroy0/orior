@@ -3,45 +3,45 @@
 // eta_function.cu: functions of eta held exactly (eta_function.h)
 #include "eta_function.h"
 
-AnchorExactInteger eta_function_whole(long long number)
+OriorExactInteger eta_function_whole(long long number)
 {
-    AnchorExactInteger value;
+    OriorExactInteger value;
     sim_exact_signed(&value, number);
     return value;
 }
 
-AnchorExactInteger eta_function_product(const AnchorExactInteger *left, const AnchorExactInteger *right)
+OriorExactInteger eta_function_product(const OriorExactInteger *left, const OriorExactInteger *right)
 {
-    AnchorExactInteger value;
+    OriorExactInteger value;
     sim_rational_status_check(sim_exact_product(left, right, &value));
     return value;
 }
 
-AnchorExactInteger eta_function_sum(const AnchorExactInteger *left, const AnchorExactInteger *right)
+OriorExactInteger eta_function_sum(const OriorExactInteger *left, const OriorExactInteger *right)
 {
-    AnchorExactInteger value;
+    OriorExactInteger value;
     sim_rational_status_check(sim_exact_sum(left, right, &value));
     return value;
 }
 
-AnchorExactInteger eta_function_difference(const AnchorExactInteger *left, const AnchorExactInteger *right)
+OriorExactInteger eta_function_difference(const OriorExactInteger *left, const OriorExactInteger *right)
 {
-    AnchorExactInteger value;
+    OriorExactInteger value;
     sim_rational_status_check(sim_exact_less(left, right, &value));
     return value;
 }
 
-AnchorExactInteger eta_function_divided(const AnchorExactInteger *numerator, const AnchorExactInteger *divisor)
+OriorExactInteger eta_function_divided(const OriorExactInteger *numerator, const OriorExactInteger *divisor)
 {
-    AnchorExactInteger value;
-    sim_rational_status_check(anchor_exact_divide_exact(numerator, divisor, &value) == ANCHOR_EXACT_OK);
+    OriorExactInteger value;
+    sim_rational_status_check(orior_exact_divide_exact(numerator, divisor, &value) == ORIOR_EXACT_OK);
     return value;
 }
 
-AnchorExactInteger eta_function_common(const AnchorExactInteger *left, const AnchorExactInteger *right)
+OriorExactInteger eta_function_common(const OriorExactInteger *left, const OriorExactInteger *right)
 {
-    AnchorExactInteger value;
-    sim_rational_status_check(anchor_exact_gcd(left, right, &value) == ANCHOR_EXACT_OK);
+    OriorExactInteger value;
+    sim_rational_status_check(orior_exact_gcd(left, right, &value) == ORIOR_EXACT_OK);
     value.sign = (value.sign != 0) ? 1 : 0;
     return value;
 }
@@ -66,18 +66,18 @@ void eta_function_settle(EtaFunction *function)
         eta_function_zero(function);
         return;
     }
-    AnchorExactInteger common = function->scale;
-    const AnchorExactInteger one = eta_function_whole(1ll);
-    for (const AnchorExactInteger &value : function->coefficient)
+    OriorExactInteger common = function->scale;
+    const OriorExactInteger one = eta_function_whole(1ll);
+    for (const OriorExactInteger &value : function->coefficient)
     {
-        if ((value.sign != 0) && (anchor_exact_compare(&common, &one) > 0))
+        if ((value.sign != 0) && (orior_exact_compare(&common, &one) > 0))
         {
             common = eta_function_common(&common, &value);
         }
     }
-    if (anchor_exact_compare(&common, &one) > 0)
+    if (orior_exact_compare(&common, &one) > 0)
     {
-        for (AnchorExactInteger &value : function->coefficient)
+        for (OriorExactInteger &value : function->coefficient)
         {
             if (value.sign != 0)
             {
@@ -92,18 +92,18 @@ void eta_function_settle(EtaFunction *function)
 void eta_function_raise(const EtaShape *shape, EtaFunction *function)
 {
     const size_t size = function->coefficient.size();
-    std::vector<AnchorExactInteger> raised(size + 2u);
-    const AnchorExactInteger twice = eta_function_sum(&shape->part, &shape->part);
+    std::vector<OriorExactInteger> raised(size + 2u);
+    const OriorExactInteger twice = eta_function_sum(&shape->part, &shape->part);
     for (size_t index = 0u; index < size + 2u; index += 1u)
     {
-        anchor_exact_zero(&raised[index]);
+        orior_exact_zero(&raised[index]);
         if (index < size)
         {
             raised[index] = eta_function_product(&shape->whole, &function->coefficient[index]);
         }
         if (index >= 2u)
         {
-            const AnchorExactInteger lowered = eta_function_product(&twice, &function->coefficient[index - 2u]);
+            const OriorExactInteger lowered = eta_function_product(&twice, &function->coefficient[index - 2u]);
             raised[index] = eta_function_difference(&raised[index], &lowered);
         }
     }
@@ -135,23 +135,23 @@ void eta_function_add(const EtaShape *shape, const EtaFunction *left,
     {
         eta_function_raise(shape, &second);
     }
-    const AnchorExactInteger common = eta_function_common(&first.scale, &second.scale);
-    const AnchorExactInteger first_factor = eta_function_divided(&second.scale, &common);
-    const AnchorExactInteger second_factor = eta_function_divided(&first.scale, &common);
+    const OriorExactInteger common = eta_function_common(&first.scale, &second.scale);
+    const OriorExactInteger first_factor = eta_function_divided(&second.scale, &common);
+    const OriorExactInteger second_factor = eta_function_divided(&first.scale, &common);
     const size_t size = (first.coefficient.size() > second.coefficient.size()) ? first.coefficient.size()
                                                                                 : second.coefficient.size();
     EtaFunction sum;
     sum.coefficient.resize(size);
     for (size_t index = 0u; index < size; index += 1u)
     {
-        anchor_exact_zero(&sum.coefficient[index]);
+        orior_exact_zero(&sum.coefficient[index]);
         if (index < first.coefficient.size())
         {
             sum.coefficient[index] = eta_function_product(&first.coefficient[index], &first_factor);
         }
         if (index < second.coefficient.size())
         {
-            const AnchorExactInteger other = eta_function_product(&second.coefficient[index], &second_factor);
+            const OriorExactInteger other = eta_function_product(&second.coefficient[index], &second_factor);
             sum.coefficient[index] = eta_function_sum(&sum.coefficient[index], &other);
         }
     }
@@ -173,9 +173,9 @@ void eta_function_multiply(const EtaFunction *left, const EtaFunction *right,
         return;
     }
     product.coefficient.resize(left->coefficient.size() + right->coefficient.size() - 1u);
-    for (AnchorExactInteger &value : product.coefficient)
+    for (OriorExactInteger &value : product.coefficient)
     {
-        anchor_exact_zero(&value);
+        orior_exact_zero(&value);
     }
     for (size_t first = 0u; first < left->coefficient.size(); first += 1u)
     {
@@ -189,7 +189,7 @@ void eta_function_multiply(const EtaFunction *left, const EtaFunction *right,
             {
                 continue;
             }
-            const AnchorExactInteger term = eta_function_product(&left->coefficient[first], &right->coefficient[second]);
+            const OriorExactInteger term = eta_function_product(&left->coefficient[first], &right->coefficient[second]);
             product.coefficient[first + second] = eta_function_sum(&product.coefficient[first + second], &term);
         }
     }
@@ -200,10 +200,10 @@ void eta_function_multiply(const EtaFunction *left, const EtaFunction *right,
 }
 
 // the function times numerator / denominator, the denominator positive
-void eta_function_scale(EtaFunction *function, const AnchorExactInteger *numerator,
-                              const AnchorExactInteger *denominator)
+void eta_function_scale(EtaFunction *function, const OriorExactInteger *numerator,
+                              const OriorExactInteger *denominator)
 {
-    for (AnchorExactInteger &value : function->coefficient)
+    for (OriorExactInteger &value : function->coefficient)
     {
         value = eta_function_product(&value, numerator);
     }
@@ -213,8 +213,8 @@ void eta_function_scale(EtaFunction *function, const AnchorExactInteger *numerat
 
 void eta_function_scale_word(EtaFunction *function, long long numerator, long long denominator)
 {
-    const AnchorExactInteger top = eta_function_whole(numerator);
-    const AnchorExactInteger bottom = eta_function_whole(denominator);
+    const OriorExactInteger top = eta_function_whole(numerator);
+    const OriorExactInteger bottom = eta_function_whole(denominator);
     eta_function_scale(function, &top, &bottom);
 }
 
@@ -235,10 +235,10 @@ void eta_function_end_factor(EtaFunction *function)
     {
         return;
     }
-    std::vector<AnchorExactInteger> product(size + 2u);
+    std::vector<OriorExactInteger> product(size + 2u);
     for (size_t index = 0u; index < size + 2u; index += 1u)
     {
-        anchor_exact_zero(&product[index]);
+        orior_exact_zero(&product[index]);
         if (index < size)
         {
             product[index] = function->coefficient[index];
@@ -255,7 +255,7 @@ void eta_function_end_factor(EtaFunction *function)
 // the function times L^-1 = whole / M
 void eta_function_over_l(const EtaShape *shape, EtaFunction *function)
 {
-    for (AnchorExactInteger &value : function->coefficient)
+    for (OriorExactInteger &value : function->coefficient)
     {
         value = eta_function_product(&value, &shape->whole);
     }
@@ -273,14 +273,14 @@ void eta_function_derivative(const EtaShape *shape, const EtaFunction *function,
     const size_t size = function->coefficient.size();
     for (size_t index = 1u; index < size; index += 1u)
     {
-        const AnchorExactInteger order = eta_function_whole((long long)index);
+        const OriorExactInteger order = eta_function_whole((long long)index);
         slope.coefficient.push_back(eta_function_product(&function->coefficient[index], &order));
     }
     eta_function_raise(shape, &slope);
     EtaFunction tilt = *function;
-    const AnchorExactInteger factor = eta_function_whole(4ll * (long long)function->power);
-    const AnchorExactInteger step = eta_function_product(&factor, &shape->part);
-    for (AnchorExactInteger &value : tilt.coefficient)
+    const OriorExactInteger factor = eta_function_whole(4ll * (long long)function->power);
+    const OriorExactInteger step = eta_function_product(&factor, &shape->part);
+    for (OriorExactInteger &value : tilt.coefficient)
     {
         value = eta_function_product(&value, &step);
     }
@@ -294,29 +294,29 @@ void eta_function_derivative(const EtaShape *shape, const EtaFunction *function,
 
 // result = result + function * numerator / (denominator whole), the rational a whole-number ratio over h's whole
 void eta_function_gather(const EtaShape *shape, EtaFunction *result,
-                               const EtaFunction *function, const AnchorExactInteger *numerator,
+                               const EtaFunction *function, const OriorExactInteger *numerator,
                                long long denominator)
 {
     EtaFunction term = *function;
-    const AnchorExactInteger bottom = eta_function_whole(denominator);
-    const AnchorExactInteger below = eta_function_product(&bottom, &shape->whole);
+    const OriorExactInteger bottom = eta_function_whole(denominator);
+    const OriorExactInteger below = eta_function_product(&bottom, &shape->whole);
     eta_function_scale(&term, numerator, &below);
     eta_function_add(shape, result, &term, result);
 }
 
 // a + b part + c whole, each a word
-AnchorExactInteger eta_function_mixed(const EtaShape *shape, long long part_count, long long whole_count)
+OriorExactInteger eta_function_mixed(const EtaShape *shape, long long part_count, long long whole_count)
 {
-    const AnchorExactInteger part_factor = eta_function_whole(part_count);
-    const AnchorExactInteger whole_factor = eta_function_whole(whole_count);
-    const AnchorExactInteger parts = eta_function_product(&part_factor, &shape->part);
-    const AnchorExactInteger wholes = eta_function_product(&whole_factor, &shape->whole);
+    const OriorExactInteger part_factor = eta_function_whole(part_count);
+    const OriorExactInteger whole_factor = eta_function_whole(whole_count);
+    const OriorExactInteger parts = eta_function_product(&part_factor, &shape->part);
+    const OriorExactInteger wholes = eta_function_product(&whole_factor, &shape->whole);
     return eta_function_sum(&parts, &wholes);
 }
 
 // (Z_b f)_j = L^-1 ((2 b - 2 j) eta f_j + d f_j'), 2 b - 2 j = numerator / whole
 void eta_function_z(const EtaShape *shape, const EtaFunction *function,
-                          const EtaFunction *slope, const AnchorExactInteger *numerator,
+                          const EtaFunction *slope, const OriorExactInteger *numerator,
                           EtaFunction *result)
 {
     EtaFunction tilted = *function;
@@ -340,26 +340,26 @@ SimRational eta_function_value_at(const EtaShape *shape, const EtaFunction *func
     {
         return sim_rational(0ll, 1ll);
     }
-    const AnchorExactInteger &above = eta.numerator;
-    const AnchorExactInteger &below = eta.denominator;
+    const OriorExactInteger &above = eta.numerator;
+    const OriorExactInteger &below = eta.denominator;
     const size_t degree = function->coefficient.size() - 1u;
-    AnchorExactInteger sum = function->coefficient[degree];
-    AnchorExactInteger lower = below;
-    AnchorExactInteger spread = eta_function_whole(1ll);
+    OriorExactInteger sum = function->coefficient[degree];
+    OriorExactInteger lower = below;
+    OriorExactInteger spread = eta_function_whole(1ll);
     for (size_t index = degree; index > 0u; index -= 1u)
     {
         sum = eta_function_product(&sum, &above);
-        const AnchorExactInteger term = eta_function_product(&function->coefficient[index - 1u], &lower);
+        const OriorExactInteger term = eta_function_product(&function->coefficient[index - 1u], &lower);
         sum = eta_function_sum(&sum, &term);
         lower = eta_function_product(&lower, &below);
         spread = eta_function_product(&spread, &below);
     }
-    const AnchorExactInteger squared_below = eta_function_product(&below, &below);
-    const AnchorExactInteger squared_above = eta_function_product(&above, &above);
-    const AnchorExactInteger twice = eta_function_sum(&shape->part, &shape->part);
-    const AnchorExactInteger first = eta_function_product(&shape->whole, &squared_below);
-    const AnchorExactInteger second = eta_function_product(&twice, &squared_above);
-    const AnchorExactInteger factor = eta_function_difference(&first, &second);
+    const OriorExactInteger squared_below = eta_function_product(&below, &below);
+    const OriorExactInteger squared_above = eta_function_product(&above, &above);
+    const OriorExactInteger twice = eta_function_sum(&shape->part, &shape->part);
+    const OriorExactInteger first = eta_function_product(&shape->whole, &squared_below);
+    const OriorExactInteger second = eta_function_product(&twice, &squared_above);
+    const OriorExactInteger factor = eta_function_difference(&first, &second);
     SimRational value;
     value.numerator = sum;
     sim_exact_unsigned(&value.denominator, 1ull);
@@ -409,22 +409,22 @@ void eta_function_chebyshev(const std::vector<SimRational> &weights, EtaFunction
             chebyshev[degree][index] -= chebyshev[degree - 2u][index];
         }
     }
-    AnchorExactInteger scale = eta_function_whole(1ll);
+    OriorExactInteger scale = eta_function_whole(1ll);
     for (const SimRational &value : weights)
     {
-        const AnchorExactInteger common = eta_function_common(&scale, &value.denominator);
-        const AnchorExactInteger factor = eta_function_divided(&value.denominator, &common);
+        const OriorExactInteger common = eta_function_common(&scale, &value.denominator);
+        const OriorExactInteger factor = eta_function_divided(&value.denominator, &common);
         scale = eta_function_product(&scale, &factor);
     }
     function->coefficient.assign(count, eta_function_whole(0ll));
     for (size_t degree = 0u; degree < count; degree += 1u)
     {
-        const AnchorExactInteger factor = eta_function_divided(&scale, &weights[degree].denominator);
-        const AnchorExactInteger lifted = eta_function_product(&weights[degree].numerator, &factor);
+        const OriorExactInteger factor = eta_function_divided(&scale, &weights[degree].denominator);
+        const OriorExactInteger lifted = eta_function_product(&weights[degree].numerator, &factor);
         for (size_t index = 0u; index <= degree; index += 1u)
         {
-            const AnchorExactInteger entry = eta_function_whole(chebyshev[degree][index]);
-            const AnchorExactInteger term = eta_function_product(&lifted, &entry);
+            const OriorExactInteger entry = eta_function_whole(chebyshev[degree][index]);
+            const OriorExactInteger term = eta_function_product(&lifted, &entry);
             function->coefficient[index] = eta_function_sum(&function->coefficient[index], &term);
         }
     }

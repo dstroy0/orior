@@ -7,19 +7,16 @@
 #include "../text/regexp.h"
 #include "python_paths_internal.h"
 
-// the most bytes of one string read
-#define CLI_PY_STRING (1u << 20u)
-
 unsigned int cli_py_text_put(const char *text, unsigned long long length)
 {
-    if ((g_cli_py.used + length + 1ull) > CLI_PY_TEXT)
+    if ((g_cli_py.used + length + 1ull) > g_cli_py.text_most)
     {
         return CLI_PY_NONE;
     }
     const unsigned int at = g_cli_py.used;
     memor.cpy(&(MemoriaCfg){.dst = g_cli_py.text + at, .src = text, .bytes = length});
     g_cli_py.text[at + length] = '\0';
-    // the texts are below CLI_PY_TEXT bytes, which an unsigned int holds
+    // the texts are below their most, CLI_PY_TEXT bytes at the most, which an unsigned int holds
     g_cli_py.used += (unsigned int)length + 1u;
     return at;
 }
@@ -29,23 +26,42 @@ const char *cli_py_text(unsigned int at)
     return g_cli_py.text + at;
 }
 
+// the room the texts have left, as a line a text is written in where it is put
+static CliLine cli_text_line(void)
+{
+    return (CliLine){g_cli_py.text + g_cli_py.used, g_cli_py.text_most - g_cli_py.used, 0ull};
+}
+
+// the text written in `line`, which cli_text_line gave, put: its place, or CLI_PY_NONE where it did not fit
+static unsigned int cli_text_line_put(const CliLine *line)
+{
+    if (!cli_line_fits(line))
+    {
+        return CLI_PY_NONE;
+    }
+    const unsigned int at = g_cli_py.used;
+    g_cli_py.text[at + line->at] = '\0';
+    // the line fit in the room the texts have left, below text_most, which an unsigned int holds
+    g_cli_py.used += (unsigned int)line->at + 1u;
+    return at;
+}
+
 // the letters from `from` to `to` put as a text: its place, or CLI_PY_NONE
 static unsigned int cli_letters_put(unsigned int from, unsigned int to)
 {
-    static char s_bytes[CLI_PY_STRING];
-    CliLine line = {s_bytes, sizeof(s_bytes), 0ull};
+    CliLine line = cli_text_line();
     for (unsigned int at = from; at < to; at += 1u)
     {
         cli_utf8_put(&line, g_cli_py.letter[at]);
     }
-    return cli_line_fits(&line) ? cli_py_text_put(s_bytes, line.at) : CLI_PY_NONE;
+    return cli_text_line_put(&line);
 }
 
 // an expression made: its place, or CLI_PY_NONE where the reading holds no more
 static unsigned int cli_expr_made(unsigned int kind, unsigned int text, long long number, unsigned int left,
                                   unsigned int right, unsigned int first, unsigned int count)
 {
-    if ((g_cli_py.exprs >= CLI_PY_EXPRS) || ((kind <= CLI_EXPR_TEXT) && (text == CLI_PY_NONE)))
+    if ((g_cli_py.exprs >= g_cli_py.exprs_most) || ((kind <= CLI_EXPR_TEXT) && (text == CLI_PY_NONE)))
     {
         return CLI_PY_NONE;
     }
@@ -99,7 +115,7 @@ static unsigned int cli_expr(void);
 static int cli_list_ended(unsigned int mark, unsigned int *first, unsigned int *count)
 {
     const unsigned int length = g_cli_py.stacked - mark;
-    if ((g_cli_py.items + length) > CLI_PY_ITEMS)
+    if ((g_cli_py.items + length) > g_cli_py.items_most)
     {
         g_cli_py.stacked = mark;
         return 0;
@@ -132,7 +148,7 @@ static int cli_list(unsigned int close, unsigned int *first, unsigned int *count
             g_cli_py.at = keyword ? (g_cli_py.at + 1u) : start;
         }
         const unsigned int item = cli_expr();
-        if ((item == CLI_PY_NONE) || (g_cli_py.stacked >= CLI_PY_ITEMS))
+        if ((item == CLI_PY_NONE) || (g_cli_py.stacked >= g_cli_py.items_most))
         {
             g_cli_py.stacked = mark;
             return 0;
@@ -155,8 +171,7 @@ static int cli_list(unsigned int close, unsigned int *first, unsigned int *count
 // where it does not end
 static unsigned int cli_string(unsigned int quote, int raw)
 {
-    static char s_bytes[CLI_PY_STRING];
-    CliLine line = {s_bytes, sizeof(s_bytes), 0ull};
+    CliLine line = cli_text_line();
     const unsigned int mark = g_cli_py.letter[quote];
     g_cli_py.at = quote + 1u;
     while (g_cli_py.at < g_cli_py.letters)
@@ -165,8 +180,7 @@ static unsigned int cli_string(unsigned int quote, int raw)
         g_cli_py.at += 1u;
         if (next == mark)
         {
-            const unsigned int text = cli_line_fits(&line) ? cli_py_text_put(s_bytes, line.at) : CLI_PY_NONE;
-            return cli_expr_made(CLI_EXPR_TEXT, text, 0ll, 0u, 0u, 0u, 0u);
+            return cli_expr_made(CLI_EXPR_TEXT, cli_text_line_put(&line), 0ll, 0u, 0u, 0u, 0u);
         }
         if ((next == '\\') && !raw)
         {
@@ -323,8 +337,8 @@ static unsigned int cli_expr(void)
 
 unsigned int cli_py_parse(const char *text, unsigned long long length)
 {
-    // a letter count is below CLI_PY_LETTERS, which an unsigned int holds
-    g_cli_py.letters = (unsigned int)cli_regexp_letters(text, length, g_cli_py.letter, CLI_PY_LETTERS);
+    // a letter count is below the reading's most, which an unsigned int holds
+    g_cli_py.letters = (unsigned int)cli_regexp_letters(text, length, g_cli_py.letter, g_cli_py.letters_most);
     g_cli_py.at = 0u;
     g_cli_py.stacked = 0u;
     const unsigned int expr = cli_expr();

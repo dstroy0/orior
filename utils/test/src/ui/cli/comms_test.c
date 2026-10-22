@@ -142,7 +142,7 @@ static void comms_keys(void)
               "and names its part");
 }
 
-// a listener hears what is said on its channels and nothing else, and a channel the key does not name is refused
+// a listener hears what is said on its channels alone, and a channel the key does not name is refused
 static void comms_channels(void)
 {
     static const char *const s_window_listens[2] = {"lsp/*", "runs"};
@@ -254,6 +254,17 @@ static void comms_traffic(void)
                                            .other = "[\"files window\"]",
                                            .cap = CLI_CELLS_POOL}),
               "and its listeners");
+    for (unsigned int at = 0u; at < CLI_COMMS_KEPT; at += 1u)
+    {
+        (void)comms_say(server, "files", "x", why);
+    }
+    const unsigned long long kept = g_cli_comms_cells.holds;
+    for (unsigned int at = 0u; at < CLI_COMMS_KEPT; at += 1u)
+    {
+        (void)comms_say(server, "files", "x", why);
+    }
+    cli_check((kept != 0ull) && (g_cli_comms_cells.holds == kept),
+              "each message kept is a cell of its own, the oldest given back as another is kept");
     char server_said[CLI_COMMS_KEY];
     char window_heard[CLI_COMMS_KEY];
     static CommsHeard s_order;
@@ -269,7 +280,7 @@ static void comms_traffic(void)
               "a listener by call hears in the speaker's call, in the order said");
 }
 
-// a part that leaves hears nothing more and its key opens nothing
+// a part that leaves hears no more and its key opens nothing
 static void comms_leave(void)
 {
     static const char *const s_all[1] = {"*"};
@@ -283,7 +294,7 @@ static void comms_leave(void)
     (void)comms_listen(window, "left", &s_heard, why);
     cli_comms_leave(window);
     cli_check((comms_say(server, "left", "1", why) == 0ll) && (s_heard.count == 0u),
-              "a part that leaves hears nothing more");
+              "a part that leaves hears no more");
     cli_check(!comms_listen(window, "left", &s_heard, why), "and its key opens nothing");
 }
 

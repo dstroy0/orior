@@ -10,22 +10,42 @@
 #include "watch_internal.h"
 
 // how long a batch waits for another change before it goes, the longest it gathers changes for, in milliseconds; the
-// most changes waiting and gathered in one batch; and the most bytes of a batch written
+// most changes waiting and gathered in one batch; the changes and the bytes of their paths a list of them is begun
+// with, doubling as they come; and the bytes a batch is begun to be written in, doubling as it is
 #define CLI_WATCH_QUIET 150ull
 #define CLI_WATCH_BATCH_MOST 1000ull
 #define CLI_WATCH_QUEUE 4096u
 #define CLI_WATCH_GATHERED 16384u
-#define CLI_WATCH_JSON (1u << 24u)
+#define CLI_WATCH_CHANGES_FIRST 64u
+#define CLI_WATCH_TEXT_FIRST 4096u
+#define CLI_WATCH_JSON_FIRST 4096u
 
-// The watch: the changes waiting, from `head`, `count` of them, and whether more came than they hold; whether it is
-// stopping, whether it reads the tree itself, how many of its threads have ended; the tree, who takes the batches, and
-// the threads
+CliCellsTally g_cli_watch_cells = CLI_CELLS_TALLY("cli_watch");
+
+// A change: its path's place in the list's texts, and its kind
 typedef struct
 {
-    char path[CLI_WATCH_QUEUE][CLI_PATH_LONGEST];
-    unsigned char kind[CLI_WATCH_QUEUE];
-    unsigned int head;
+    unsigned long long at;
+    unsigned int kind;
+} CliChange;
+
+// A list of changes: `count` of them in a cell of `change_bytes`, and their paths, `used` bytes in a cell of `bytes`;
+// each cell grown as changes are put and given back as the list is let go
+typedef struct
+{
+    CliChange *change;
     unsigned int count;
+    unsigned long long change_bytes;
+    char *text;
+    unsigned long long used;
+    unsigned long long bytes;
+} CliChanges;
+
+// The watch: the changes waiting, and whether more came than they hold; whether it is stopping, whether it reads the
+// tree itself, how many of its threads have ended; the tree, who takes the batches, and the threads
+typedef struct
+{
+    CliChanges waiting;
     int overflowed;
     int stop;
     int running;
@@ -39,23 +59,93 @@ typedef struct
     CliWake wake;
 } CliWatching;
 
-// One batch as it is gathered: its changes, the folders and files it tells of, lists of cells counted to the files made
-// at the batch's own size and given back as it is written, and the room it is written in; a cell the batcher holds
-// while it runs
+// One batch as it is gathered: its changes, and the folders and files it tells of, lists of cells counted to the files
+// made at the batch's own size and given back as it is written; a cell the batcher holds while it runs
 typedef struct
 {
-    char path[CLI_WATCH_GATHERED][CLI_PATH_LONGEST];
-    unsigned char kind[CLI_WATCH_GATHERED];
-    unsigned int count;
+    CliChanges changes;
     int lost;
     CliPatterns patterns;
     CliFiles folders;
     CliFiles written;
-    char json[CLI_WATCH_JSON];
 } CliBatch;
 
 static CliWatching s_watching = {.wake = CLI_WAKE_INIT};
 static CliLock s_lock = CLI_LOCK_INIT;
+
+// a cell of `*room` bytes, `held` of them in use, made to hold `wanted`: moved into a cell of twice its room, or of
+// `first` where it has none, doubled until it does, its bytes copied and the old cell given back. The cell after, or
+// NULL where the cellblock could not meet it, the old cell kept
+static void *cli_watch_grown(void *cell, unsigned long long held, unsigned long long *room, unsigned long long wanted,
+                             unsigned long long first)
+{
+    if (wanted <= *room)
+    {
+        return cell;
+    }
+    unsigned long long grown = (*room == 0ull) ? first : *room;
+    while (grown < wanted)
+    {
+        grown *= 2ull;
+    }
+    void *const larger = cli_cell_taken_by(&g_cli_watch_cells, grown, "the changes a watch holds");
+    if (larger == NULL)
+    {
+        return NULL;
+    }
+    if (held != 0ull)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = larger, .src = cell, .bytes = (size_t)held});
+    }
+    cli_cell_given_by(&g_cli_watch_cells, cell);
+    *room = grown;
+    return larger;
+}
+
+// the change of `kind` at `path` put after the list's: 1, or 0 where it holds `most` or the cellblock could not meet
+// the room for it
+static int cli_change_put(CliChanges *changes, const char *path, unsigned int kind, unsigned int most)
+{
+    if (changes->count >= most)
+    {
+        return 0;
+    }
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1ull;
+    char *const text =
+        cli_watch_grown(changes->text, changes->used, &changes->bytes, changes->used + length, CLI_WATCH_TEXT_FIRST);
+    if (text == NULL)
+    {
+        return 0;
+    }
+    changes->text = text;
+    CliChange *const change =
+        cli_watch_grown(changes->change, changes->count * sizeof(CliChange), &changes->change_bytes,
+                        (changes->count + 1ull) * sizeof(CliChange), CLI_WATCH_CHANGES_FIRST * sizeof(CliChange));
+    if (change == NULL)
+    {
+        return 0;
+    }
+    changes->change = change;
+    memor.cpy(&(MemoriaCfg){.dst = text + changes->used, .src = path, .bytes = (size_t)length});
+    change[changes->count] = (CliChange){changes->used, kind};
+    changes->used += length;
+    changes->count += 1u;
+    return 1;
+}
+
+// the path of change `index` of a list
+static const char *cli_change_path(const CliChanges *changes, unsigned int index)
+{
+    return changes->text + changes->change[index].at;
+}
+
+// a list's cells given back, the list holding none
+static void cli_changes_given(CliChanges *changes)
+{
+    cli_cell_given_by(&g_cli_watch_cells, changes->change);
+    cli_cell_given_by(&g_cli_watch_cells, changes->text);
+    *changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
+}
 
 int cli_watch_stopping(void)
 {
@@ -71,16 +161,7 @@ void cli_watch_told(void *context, const char *path, unsigned int kind)
     cli_lock_take(&s_lock);
     if (!s_watching.stop)
     {
-        if (s_watching.count < CLI_WATCH_QUEUE)
-        {
-            const unsigned int at = (s_watching.head + s_watching.count) % CLI_WATCH_QUEUE;
-            memor.cpy(&(MemoriaCfg){.dst = s_watching.path[at],
-                                    .src = path,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-            s_watching.kind[at] = (unsigned char)kind;
-            s_watching.count += 1u;
-        }
-        else
+        if (!cli_change_put(&s_watching.waiting, path, kind, CLI_WATCH_QUEUE))
         {
             s_watching.overflowed = 1;
         }
@@ -89,26 +170,18 @@ void cli_watch_told(void *context, const char *path, unsigned int kind)
     cli_lock_give(&s_lock);
 }
 
-// the changes waiting taken into the batch, the lock held
+// the changes waiting taken into the batch and their cells given back, the lock held
 static void cli_waiting_taken(CliBatch *batch)
 {
-    while (s_watching.count > 0u)
+    for (unsigned int at = 0u; at < s_watching.waiting.count; at += 1u)
     {
-        const unsigned int at = s_watching.head;
-        if (batch->count < CLI_WATCH_GATHERED)
-        {
-            memor.cpy(
-                &(MemoriaCfg){.dst = batch->path[batch->count], .bytes = CLI_PATH_LONGEST, .src = s_watching.path[at]});
-            batch->kind[batch->count] = s_watching.kind[at];
-            batch->count += 1u;
-        }
-        else
+        if (!cli_change_put(&batch->changes, cli_change_path(&s_watching.waiting, at),
+                            s_watching.waiting.change[at].kind, CLI_WATCH_GATHERED))
         {
             batch->lost = 1;
         }
-        s_watching.head = (s_watching.head + 1u) % CLI_WATCH_QUEUE;
-        s_watching.count -= 1u;
     }
+    cli_changes_given(&s_watching.waiting);
     batch->lost = batch->lost || s_watching.overflowed;
     s_watching.overflowed = 0;
 }
@@ -119,20 +192,16 @@ static int cli_gathered(CliBatch *batch, CliLine *out)
     const char *const root = s_watching.root;
     cli_patterns_of(CLI_PART_WATCHING, &batch->patterns);
     // each change puts at most its own path in one of the lists, so the batch's paths and their bytes are their size
-    unsigned long long bytes = 0ull;
-    for (unsigned int at = 0u; at < batch->count; at += 1u)
-    {
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = batch->path[at], .cap = CLI_CELLS_POOL}) + 1ull;
-    }
-    const int made =
-        cli_files_made(&batch->folders, batch->count, bytes) && cli_files_made(&batch->written, batch->count, bytes);
+    const unsigned int count = batch->changes.count;
+    const unsigned long long bytes = batch->changes.used;
+    const int made = cli_files_made(&batch->folders, count, bytes) && cli_files_made(&batch->written, count, bytes);
     batch->lost = batch->lost || !made;
     int git = batch->lost;
     int moved = 0;
-    for (unsigned int at = 0u; at < batch->count; at += 1u)
+    for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const char *const path = batch->path[at];
-        const unsigned int kind = batch->kind[at];
+        const char *const path = cli_change_path(&batch->changes, at);
+        const unsigned int kind = batch->changes.change[at].kind;
         if (kind == CLI_CHANGE_LOST)
         {
             batch->lost = 1;
@@ -202,6 +271,7 @@ static int cli_gathered(CliBatch *batch, CliLine *out)
     const int any = (batch->folders.count != 0u) || (batch->written.count != 0u) || git || batch->lost;
     cli_files_emptied(&batch->folders);
     cli_files_emptied(&batch->written);
+    cli_changes_given(&batch->changes);
     return any;
 }
 
@@ -210,11 +280,15 @@ static void cli_batched(void *context)
 {
     (void)context;
     // the batch a cell for as long as the batcher runs; with no room for it the batcher ends at once
-    CliBatch *const batch = cli_cell_taken(sizeof(CliBatch), "the watching's batch");
+    CliBatch *const batch = cli_cell_taken_by(&g_cli_watch_cells, sizeof(CliBatch), "the watching's batch");
     cli_lock_take(&s_lock);
+    if (batch != NULL)
+    {
+        batch->changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
+    }
     while (batch != NULL)
     {
-        while ((s_watching.count == 0u) && !s_watching.overflowed && !s_watching.stop)
+        while ((s_watching.waiting.count == 0u) && !s_watching.overflowed && !s_watching.stop)
         {
             cli_wake_wait(&s_watching.wake, &s_lock);
         }
@@ -222,7 +296,6 @@ static void cli_batched(void *context)
         {
             break;
         }
-        batch->count = 0u;
         batch->lost = 0;
         cli_waiting_taken(batch);
         // more changes taken while they come within CLI_WATCH_QUIET of one another, for at most CLI_WATCH_BATCH_MOST
@@ -237,35 +310,38 @@ static void cli_batched(void *context)
             const unsigned long long left = CLI_WATCH_BATCH_MOST - spent;
             const unsigned long long quiet = (left < CLI_WATCH_QUIET) ? left : CLI_WATCH_QUIET;
             const unsigned long long until = cli_clock_milliseconds() + quiet;
-            while ((s_watching.count == 0u) && !s_watching.overflowed && !s_watching.stop &&
+            while ((s_watching.waiting.count == 0u) && !s_watching.overflowed && !s_watching.stop &&
                    (cli_clock_milliseconds() < until))
             {
                 cli_wake_wait_for(&s_watching.wake, &s_lock, until - cli_clock_milliseconds());
             }
-            if ((s_watching.count == 0u) && !s_watching.overflowed)
+            if ((s_watching.waiting.count == 0u) && !s_watching.overflowed)
             {
                 break;
             }
             cli_waiting_taken(batch);
         }
         cli_lock_give(&s_lock);
-        CliLine out = {batch->json, sizeof(batch->json), 0ull};
+        CliLine out;
+        (void)cli_line_growing(&out, CLI_WATCH_JSON_FIRST, "a batch of changes written");
         const int any = cli_gathered(batch, &out);
-        if (cli_watch_stopping())
+        const int stopping = cli_watch_stopping();
+        if (!stopping && any && cli_line_fits(&out))
         {
-            cli_lock_take(&s_lock);
+            s_watching.take(s_watching.context, out.out, out.at);
+        }
+        cli_cell_given(out.out);
+        cli_lock_take(&s_lock);
+        if (stopping)
+        {
             break;
         }
-        if (any && cli_line_fits(&out))
-        {
-            s_watching.take(s_watching.context, batch->json, out.at);
-        }
-        cli_lock_take(&s_lock);
     }
+    cli_changes_given(&s_watching.waiting);
     s_watching.ended += 1u;
     cli_wake_all(&s_watching.wake);
     cli_lock_give(&s_lock);
-    cli_cell_given(batch);
+    cli_cell_given_by(&g_cli_watch_cells, batch);
 }
 
 void cli_watch_stop(void)
@@ -299,8 +375,7 @@ void cli_watch_start(const char *root, CliTake take, void *context)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
     s_watching.take = take;
     s_watching.context = context;
-    s_watching.head = 0u;
-    s_watching.count = 0u;
+    cli_changes_given(&s_watching.waiting);
     s_watching.overflowed = 0;
     s_watching.stop = 0;
     s_watching.ended = 0u;
@@ -342,23 +417,18 @@ int cli_watch_gathered_of(const char *root, const char *const *paths, const unsi
     memor.cpy(&(MemoriaCfg){.dst = s_watching.root,
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    CliBatch *const batch = cli_cell_taken(sizeof(CliBatch), "a batch gathered");
+    CliBatch *const batch = cli_cell_taken_by(&g_cli_watch_cells, sizeof(CliBatch), "a batch gathered");
     if (batch == NULL)
     {
         return 0;
     }
-    batch->count = 0u;
+    batch->changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
     batch->lost = 0;
-    for (unsigned int at = 0u; (at < count) && (at < CLI_WATCH_GATHERED); at += 1u)
+    for (unsigned int at = 0u; at < count; at += 1u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = batch->path[at],
-                                .src = paths[at],
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}) + 1u});
-        // a change's kind is one of the few CLI_CHANGE_ names, below 256
-        batch->kind[at] = (unsigned char)kinds[at];
-        batch->count += 1u;
+        batch->lost = batch->lost || !cli_change_put(&batch->changes, paths[at], kinds[at], CLI_WATCH_GATHERED);
     }
     const int any = cli_gathered(batch, out);
-    cli_cell_given(batch);
+    cli_cell_given_by(&g_cli_watch_cells, batch);
     return any;
 }

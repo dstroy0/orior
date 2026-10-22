@@ -75,8 +75,8 @@ enum
 };
 
 // What a step runs: a bash script or a Python script by its path in the tree; a program a build job writes under one
-// of the build folders, by its name; the program `program` of the toolchain `tool`; orior itself; or the program the
-// job's build made, found once the steps before it end, run with the PATH a program opened on its own gets where
+// of the build folders, by its name; the program `program` of the toolchain `tool`; orior_cli itself; or the program
+// the job's build made, found once the steps before it end, run with the PATH a program opened on its own gets where
 // `system`
 enum
 {
@@ -141,7 +141,8 @@ typedef struct
 } CliJob;
 
 // A catalog: its jobs, params, steps, arguments, lists of texts and texts in the storage handed it, each with how many
-// it holds and how many it may; 1 in `full` where one did not fit
+// it holds and how many it may; 1 in `full` where one did not fit; the count its cells are taken under where its
+// storage grows, NULL where it was handed; and the most jobs it takes
 typedef struct
 {
     CliJob *job;
@@ -163,6 +164,8 @@ typedef struct
     unsigned int used;
     unsigned int text_most;
     int full;
+    CliCellsTally *cells;
+    unsigned int jobs_cap;
 } CliCatalog;
 
 // The values a job is run with, by param: each key, and its values, `count` of the list from `first`, all texts in the
@@ -185,6 +188,10 @@ typedef struct
     unsigned int used;
 } CliValues;
 
+// a catalog made empty whose storage is taken in cells counted to `cells`, each list doubled as it is put, `jobs_most`
+// jobs at the most; and its cells given back, the catalog left empty and holding nothing
+void cli_catalog_growing(CliCatalog *catalog, CliCellsTally *cells, unsigned int jobs_most);
+void cli_catalog_given(CliCatalog *catalog);
 // a catalog made empty over the storage handed it
 void cli_catalog_begun(CliCatalog *catalog, CliJob *jobs, unsigned int jobs_most, CliParam *params,
                        unsigned int params_most, CliStep *steps, unsigned int steps_most, CliArg *args,

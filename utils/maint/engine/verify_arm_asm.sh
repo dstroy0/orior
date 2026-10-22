@@ -83,19 +83,19 @@ ARMS="$ROOT/src/cu/includes/types/integers"
 # The two arms that also have hardware here. Checked the same way so the grade is comparable, and
 # separately run against portable by bench_exact_arms.
 check "avx2 x86-64" gcc \
-    "-O2 -mavx2 -I$ARMS -DANCHOR_EXACT_HAVE_AVX2=1" \
+    "-O2 -mavx2 -I$ARMS -DORIOR_EXACT_HAVE_AVX2=1" \
     "$ARMS/arm_avx2.c" objdump \
     vpcmpeqd ymm
 
 # AVX-512: no hardware here. Emission is the grade.
 check "avx512 xeon" gcc \
-    "-O2 -mavx512f -mavx512bw -mavx512vl -I$ARMS -DANCHOR_EXACT_HAVE_AVX512=1" \
+    "-O2 -mavx512f -mavx512bw -mavx512vl -I$ARMS -DORIOR_EXACT_HAVE_AVX512=1" \
     "$ARMS/arm_avx512.c" objdump \
     vpcmpeqd zmm
 
 # NEON on aarch64, cross compiled. The Pi runs this arm natively and it is separately run there.
 check "neon aarch64" aarch64-linux-gnu-gcc \
-    "-O2 -I$ARMS -DANCHOR_EXACT_HAVE_NEON=1" \
+    "-O2 -I$ARMS -DORIOR_EXACT_HAVE_NEON=1" \
     "$ARMS/arm_neon.c" aarch64-linux-gnu-objdump \
     cmeq uminv
 
@@ -107,7 +107,7 @@ check "neon aarch64" aarch64-linux-gnu-gcc \
 # caught a wrong expectation and not wrong code, the case it is least likely to be
 # trusted on and the one worth writing down.
 check "sve neoverse" aarch64-linux-gnu-gcc \
-    "-O2 -march=armv8.2-a+sve -I$ARMS -DANCHOR_EXACT_HAVE_SVE=1" \
+    "-O2 -march=armv8.2-a+sve -I$ARMS -DORIOR_EXACT_HAVE_SVE=1" \
     "$ARMS/arm_sve.c" aarch64-linux-gnu-objdump \
     whilelo cmpne ptest ld1w
 
@@ -124,26 +124,26 @@ SCAN_INC="-I$ENGINE -I$ARMS"
 # AVX2 and NEON have hardware here and are run against portable by bench_steer_arms. Graded for
 # emission too. The row is comparable with the arms that have no hardware.
 check "scan avx2 x86-64" gcc \
-    "-O2 -mavx2 $SCAN_INC -DANCHOR_STEER_HAVE_AVX2=1" \
+    "-O2 -mavx2 $SCAN_INC -DORIOR_STEER_HAVE_AVX2=1" \
     "$ENGINE/scan_avx2.c" objdump \
     vpcmpeqb ymm
 
 # AVX-512: emission is the grade. The byte compare writes a mask register. The
 # instruction is vpcmpeqb against a zmm operand and not the vpcmpeqd the exact arm emits.
 check "scan avx512 xeon" gcc \
-    "-O2 -mavx512f -mavx512bw $SCAN_INC -DANCHOR_STEER_HAVE_AVX512=1" \
+    "-O2 -mavx512f -mavx512bw $SCAN_INC -DORIOR_STEER_HAVE_AVX512=1" \
     "$ENGINE/scan_avx512.c" objdump \
     vpcmpeqb zmm
 
 check "scan neon aarch64" aarch64-linux-gnu-gcc \
-    "-O2 $SCAN_INC -DANCHOR_STEER_HAVE_NEON=1" \
+    "-O2 $SCAN_INC -DORIOR_STEER_HAVE_NEON=1" \
     "$ENGINE/scan_neon.c" aarch64-linux-gnu-objdump \
     cmeq addv
 
 # SVE: emission is the grade. whilelo for the unsigned predicate, cmpeq for the byte
 # compare, cntp for the population count that replaces a movemask, ld1b for the predicated load.
 check "scan sve neoverse" aarch64-linux-gnu-gcc \
-    "-O2 -march=armv8.2-a+sve $SCAN_INC -DANCHOR_STEER_HAVE_SVE=1" \
+    "-O2 -march=armv8.2-a+sve $SCAN_INC -DORIOR_STEER_HAVE_SVE=1" \
     "$ENGINE/scan_sve.c" aarch64-linux-gnu-objdump \
     whilelo cmpeq cntp ld1b
 

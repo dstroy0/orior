@@ -36,22 +36,23 @@ static void debug_told(void *context, unsigned long long session, const char *ev
             cli_debug_process(session, (unsigned int)pid);
         }
     }
-    static char s_event[1u << 22u];
-    static CliLock s_event_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_event_lock);
-    CliLine line = {s_event, sizeof(s_event), 0ull};
+    // the event's line in a cell of its body and the words about it, the event's name quoted on top, grown where that
+    // name is quoted longer
+    const unsigned long long named = cellul.len(&(CatenaFinitaCfg){.src = event, .cap = CLI_CELLS_POOL});
+    CliLine line;
+    (void)cli_line_growing(&line, size + named + 64ull, "an adapter's event told");
     cli_line_text(&line, "{\"session\":");
     cli_line_decimal(&line, session, 1u);
     cli_line_text(&line, ",\"event\":");
-    cli_json_quoted(&line, event, cellul.len(&(CatenaFinitaCfg){.src = event, .cap = CLI_CELLS_POOL}));
+    cli_json_quoted(&line, event, named);
     cli_line_text(&line, ",\"body\":");
     cli_line_counted(&line, (size > 0ull) ? body : "null", (size > 0ull) ? size : 4ull);
     cli_line_character(&line, '}');
     if (cli_line_fits(&line))
     {
-        cli_serve_emitted("debug-event", s_event, line.at);
+        cli_serve_emitted("debug-event", line.out, line.at);
     }
-    cli_lock_give(&s_event_lock);
+    cli_cell_given(line.out);
 }
 
 // a path an adapter named written as it stands in the tree, the tree its context

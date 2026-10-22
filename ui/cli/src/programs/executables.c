@@ -343,17 +343,16 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
     {
         char exe[CLI_NAME_LONGEST];
         char under[CLI_PATH_LONGEST];
-        // the spec read, a cell taken for the reading
-        char *const spec = cli_cell_taken(CLI_EXECUTABLES_BYTES, "a PyInstaller spec");
-        if ((spec == NULL) || !cli_text_read(full, spec, CLI_EXECUTABLES_BYTES))
+        // the spec read, a cell of its size taken for the reading
+        char *const spec = cli_text_taken(full);
+        if (spec == NULL)
         {
-            cli_cell_given(spec);
             cli_line_text(said, script);
             cli_line_text(said, ": it could not be read");
             return 0;
         }
         found = cli_spec_made(spec, exe, under);
-        cli_cell_given(spec);
+        cli_cell_given_by(&g_cli_executables_cells, spec);
         if (!found)
         {
             cli_line_text(said, script);

@@ -9,6 +9,18 @@
 CliLevels *g_cli_archive_levels;
 CliLock g_cli_archive_lock = CLI_LOCK_INIT;
 
+// the rooms of the levels, in one list
+#define CLI_ARCHIVE_ROOMS ((3u * CLI_ARCHIVE_DEPTH) - 1u + 1u)
+
+static CliRoom *cli_archive_rooms(unsigned int at)
+{
+    CliLevels *const levels = g_cli_archive_levels;
+    return (at < CLI_ARCHIVE_DEPTH)                 ? &levels->unpacked[at]
+           : (at < ((2u * CLI_ARCHIVE_DEPTH) - 1u)) ? &levels->inner[at - CLI_ARCHIVE_DEPTH]
+           : (at < ((3u * CLI_ARCHIVE_DEPTH) - 1u)) ? &levels->written[at - ((2u * CLI_ARCHIVE_DEPTH) - 1u)]
+                                                    : &levels->tar;
+}
+
 int cli_archive_held(CliLine *said)
 {
     cli_lock_take(&g_cli_archive_lock);
@@ -17,15 +29,54 @@ int cli_archive_held(CliLine *said)
     {
         cli_lock_give(&g_cli_archive_lock);
         cli_line_text(said, "the archives a path runs through could not be taken");
+        return 0;
     }
-    return g_cli_archive_levels != NULL;
+    for (unsigned int at = 0u; at < CLI_ARCHIVE_ROOMS; at += 1u)
+    {
+        *cli_archive_rooms(at) = (CliRoom){NULL, 0ull};
+    }
+    return 1;
 }
 
 void cli_archive_released(void)
 {
+    for (unsigned int at = 0u; at < CLI_ARCHIVE_ROOMS; at += 1u)
+    {
+        cli_cell_given(cli_archive_rooms(at)->bytes);
+    }
     cli_cell_given(g_cli_archive_levels);
     g_cli_archive_levels = NULL;
     cli_lock_give(&g_cli_archive_lock);
+}
+
+int cli_archive_room(CliRoom *room, unsigned long long need, const char *what, CliLine *said)
+{
+    if (need <= room->room)
+    {
+        return 1;
+    }
+    if (need > CLI_ARCHIVE_MOST)
+    {
+        cli_line_text(said, what);
+        cli_line_text(said, " is larger than orior_cli holds");
+        return 0;
+    }
+    unsigned char *const cell = cli_cell_taken(need, what);
+    if (cell == NULL)
+    {
+        cli_line_text(said, what);
+        cli_line_text(said, " could not be taken");
+        return 0;
+    }
+    cli_cell_given(room->bytes);
+    room->bytes = cell;
+    room->room = need;
+    return 1;
+}
+
+unsigned long long cli_archive_grown(unsigned long long size)
+{
+    return size + (size / 8ull) + 4096ull;
 }
 
 void cli_archive_parts_of(const char *path, CliParts *parts)
@@ -127,7 +178,7 @@ int cli_archive_descend(CliDescent *descent, const CliParts *parts, CliLine *sai
         unsigned long long unpacked = 0ull;
         cli_gz_inner(descent->name, inner);
         if (!cli_members_of(descent->bytes, descent->size, descent->kind, inner, &g_cli_archive_levels->members[0],
-                            g_cli_archive_levels->unpacked[0], &unpacked, said))
+                            &g_cli_archive_levels->unpacked[0], &unpacked, said))
         {
             return 0;
         }
@@ -143,13 +194,13 @@ int cli_archive_descend(CliDescent *descent, const CliParts *parts, CliLine *sai
                 continue;
             }
             unsigned long long size = 0ull;
-            if (!cli_data_of(descent->bytes, descent->size, descent->kind, g_cli_archive_levels->unpacked[0], unpacked,
-                             &g_cli_archive_levels->members[0], member, g_cli_archive_levels->inner[buffer],
-                             CLI_ARCHIVE_BYTES, &size, said))
+            if (!cli_data_of(descent->bytes, descent->size, descent->kind, g_cli_archive_levels->unpacked[0].bytes,
+                             unpacked, &g_cli_archive_levels->members[0], member, &g_cli_archive_levels->inner[buffer],
+                             &size, said))
             {
                 return 0;
             }
-            descent->bytes = g_cli_archive_levels->inner[buffer];
+            descent->bytes = g_cli_archive_levels->inner[buffer].bytes;
             descent->size = size;
             descent->kind = nested;
             memor.cpy(&(MemoriaCfg){.dst = descent->name,
@@ -330,7 +381,7 @@ int cli_archive_opened(const char *root, const char *path, const char *missing, 
             ? (cli_text_last(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '\\') + 1)
             : file;
     descent->kind = cli_archive_kind_of(base);
-    descent->bytes = qry_member_file_mapped(file, &descent->size);
+    descent->bytes = cli_file_held(file, &descent->size);
     if (descent->bytes == NULL)
     {
         cli_line_text(said, file);
@@ -376,7 +427,7 @@ int cli_archive_list(const char *root, const char *path, CliChildren *found, Cli
         prefix[length] = '\0';
         cli_children(&descent, &s_parts, prefix, found);
     }
-    qry_member_file_unmapped(mapped, mapped_size);
+    cli_file_let_go(mapped, mapped_size);
     cli_archive_released();
     return done;
 }
@@ -404,7 +455,7 @@ int cli_archive_read(const char *root, const char *path, CliLine *out, CliLine *
     cli_gz_inner(descent.name, inner);
     unsigned long long unpacked = 0ull;
     done = done && cli_members_of(descent.bytes, descent.size, descent.kind, inner, &g_cli_archive_levels->members[0],
-                                  g_cli_archive_levels->unpacked[0], &unpacked, said);
+                                  &g_cli_archive_levels->unpacked[0], &unpacked, said);
     const CliMember *const member = done ? cli_archive_file_named(&g_cli_archive_levels->members[0], wanted) : NULL;
     if (done && (member == NULL))
     {
@@ -414,14 +465,14 @@ int cli_archive_read(const char *root, const char *path, CliLine *out, CliLine *
         done = 0;
     }
     unsigned long long size = 0ull;
-    done = done && cli_data_of(descent.bytes, descent.size, descent.kind, g_cli_archive_levels->unpacked[0], unpacked,
-                               &g_cli_archive_levels->members[0], member, g_cli_archive_levels->written[0],
-                               CLI_ARCHIVE_BYTES, &size, said);
+    done = done &&
+           cli_data_of(descent.bytes, descent.size, descent.kind, g_cli_archive_levels->unpacked[0].bytes, unpacked,
+                       &g_cli_archive_levels->members[0], member, &g_cli_archive_levels->written[0], &size, said);
     if (done)
     {
-        cli_line_counted(out, (const char *)g_cli_archive_levels->written[0], size);
+        cli_line_counted(out, (const char *)g_cli_archive_levels->written[0].bytes, size);
     }
-    qry_member_file_unmapped(mapped, mapped_size);
+    cli_file_let_go(mapped, mapped_size);
     cli_archive_released();
     return done;
 }

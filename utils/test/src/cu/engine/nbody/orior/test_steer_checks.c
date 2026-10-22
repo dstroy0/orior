@@ -45,7 +45,7 @@ void build_skewed_field(uint8_t *corpus, size_t length)
 }
 
 /** @brief Orders offsets commonest symbol first, the ordering that must lose. */
-static void order_worst_first(size_t *offsets, size_t count, const AnchorFieldCensus *census, const uint8_t *needle,
+static void order_worst_first(size_t *offsets, size_t count, const OriorFieldCensus *census, const uint8_t *needle,
                               size_t needle_len)
 {
     for (size_t placed = 1u; placed < count; placed += 1u)
@@ -55,14 +55,14 @@ static void order_worst_first(size_t *offsets, size_t count, const AnchorFieldCe
         {
             continue;
         }
-        const uint64_t moving = anchor_steer_magnitude(census, needle[moving_offset]);
+        const uint64_t moving = orior_steer_magnitude(census, needle[moving_offset]);
 
         size_t slot = placed;
         while (slot > 0u)
         {
             const size_t settled_offset = offsets[slot - 1u];
             const uint64_t settled =
-                (settled_offset < needle_len) ? anchor_steer_magnitude(census, needle[settled_offset]) : 0u;
+                (settled_offset < needle_len) ? orior_steer_magnitude(census, needle[settled_offset]) : 0u;
             if (settled <= moving)
             {
                 break;
@@ -86,8 +86,8 @@ int check_counts_agree(const uint8_t *corpus, size_t corpus_len, const uint8_t *
     {
         const size_t needle_len = lengths[which];
         const size_t want = orior_naive(corpus, corpus_len, needle, needle_len);
-        const size_t plain = anchor_steer_count(corpus, corpus_len, needle, needle_len, 0);
-        const size_t steered = anchor_steer_count(corpus, corpus_len, needle, needle_len, 1);
+        const size_t plain = orior_steer_count(corpus, corpus_len, needle, needle_len, 0);
+        const size_t steered = orior_steer_count(corpus, corpus_len, needle, needle_len, 1);
 
         const int ok = (plain == want) && (steered == want);
         printf("  %12zu %14zu %14zu %14zu %10s\n", needle_len, want, plain, steered, ok ? "ok" : "FAILS");
@@ -105,18 +105,18 @@ int check_ordering_pays(const uint8_t *corpus, size_t corpus_len, const uint8_t 
 
     printf("\n  THE ORDERING PAYS, corpus bytes read by the probes.\n\n");
 
-    anchor_steer_probes_reset();
-    (void)anchor_steer_count(corpus, corpus_len, needle, needle_len, 0);
-    const uint64_t plain_probes = anchor_steer_probes;
+    orior_steer_probes_reset();
+    (void)orior_steer_count(corpus, corpus_len, needle, needle_len, 0);
+    const uint64_t plain_probes = orior_steer_probes;
 
-    anchor_steer_probes_reset();
-    (void)anchor_steer_count(corpus, corpus_len, needle, needle_len, 1);
-    const uint64_t steered_probes = anchor_steer_probes;
+    orior_steer_probes_reset();
+    (void)orior_steer_count(corpus, corpus_len, needle, needle_len, 1);
+    const uint64_t steered_probes = orior_steer_probes;
 
     /* The negative control, run through the same kernel by ordering the offsets the wrong way and
      * driving the unsteered path. Nothing but the order differs. */
-    AnchorFieldCensus census;
-    anchor_field_census(corpus, corpus_len, &census);
+    OriorFieldCensus census;
+    orior_field_census(corpus, corpus_len, &census);
 
     /* The ratio is carried in hundredths as an exact integer division instead of a double. Both the
      * numerator and the denominator are printed beside it. The reader can check the division. */
@@ -190,7 +190,7 @@ int check_ordering_pays(const uint8_t *corpus, size_t corpus_len, const uint8_t 
 int check_dispatch_exact(void)
 {
     int failed = 0;
-    AnchorFieldCensus census;
+    OriorFieldCensus census;
 
     printf("\n  THE DISPATCH IS EXACT, integer rule against hand-derived answers.\n\n");
     printf("  %26s %10s %10s %10s\n", "field", "expected", "got", "verdict");
@@ -202,7 +202,7 @@ int check_dispatch_exact(void)
     }
     census.total = 65536u;
     census.distinct = 256u;
-    int got = anchor_steer_prefers_free(&census);
+    int got = orior_steer_prefers_free(&census);
     printf("  %26s %10d %10d %10s\n", "uniform over 256", 0, got, (got == 0) ? "ok" : "FAILS");
     failed += (got == 0) ? 0 : 1;
 
@@ -210,7 +210,7 @@ int check_dispatch_exact(void)
     census.occurrences[0x41] = 65536u;
     census.total = 65536u;
     census.distinct = 1u;
-    got = anchor_steer_prefers_free(&census);
+    got = orior_steer_prefers_free(&census);
     printf("  %26s %10d %10d %10s\n", "one symbol only", 0, got, (got == 0) ? "ok" : "FAILS");
     failed += (got == 0) ? 0 : 1;
 
@@ -219,14 +219,14 @@ int check_dispatch_exact(void)
     census.occurrences[0x42] = 1u;
     census.total = 100u;
     census.distinct = 2u;
-    got = anchor_steer_prefers_free(&census);
+    got = orior_steer_prefers_free(&census);
     printf("  %26s %10d %10d %10s\n", "two symbols, 99 to 1", 1, got, (got == 1) ? "ok" : "FAILS");
     failed += (got == 1) ? 0 : 1;
 
     /* An empty field has no structure and takes the short circuiting arm. Stated and not
      * discovered, because a caller with no corpus hands over a census of nothing. */
     memset(&census, 0, sizeof(census));
-    got = anchor_steer_prefers_free(&census);
+    got = orior_steer_prefers_free(&census);
     printf("  %26s %10d %10d %10s\n", "empty field", 0, got, (got == 0) ? "ok" : "FAILS");
     failed += (got == 0) ? 0 : 1;
 
@@ -268,7 +268,7 @@ int check_exact_matches_double(void)
 
     for (unsigned int skew = 0u; skew <= 10u; skew += 1u)
     {
-        AnchorFieldCensus census;
+        OriorFieldCensus census;
         memset(&census, 0, sizeof(census));
 
         /* Field shape sweeps from flat, every symbol equal, to concentrated, where one symbol takes
@@ -282,7 +282,7 @@ int check_exact_matches_double(void)
 
         census.total = 0u;
         census.distinct = 0u;
-        for (unsigned int symbol = 0u; symbol < ANCHOR_STEER_SYMBOLS; symbol += 1u)
+        for (unsigned int symbol = 0u; symbol < ORIOR_STEER_SYMBOLS; symbol += 1u)
         {
             census.total += census.occurrences[symbol];
             if (census.occurrences[symbol] != 0u)
@@ -291,10 +291,10 @@ int check_exact_matches_double(void)
             }
         }
 
-        const int exact = anchor_steer_prefers_free(&census);
+        const int exact = orior_steer_prefers_free(&census);
 
         double sum_of_squares = 0.0;
-        for (unsigned int symbol = 0u; symbol < ANCHOR_STEER_SYMBOLS; symbol += 1u)
+        for (unsigned int symbol = 0u; symbol < ORIOR_STEER_SYMBOLS; symbol += 1u)
         {
             const double count = (double)census.occurrences[symbol];
             sum_of_squares += count * count;

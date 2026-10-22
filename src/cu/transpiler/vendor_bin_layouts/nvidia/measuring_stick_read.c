@@ -13,7 +13,7 @@
 // Each operation is held as a number, the place of its name in the run's table of names, and compared as one. Every
 // file is read as the run holds it (kfile_lines.h), and the record is handed to the run's writer, which writes it.
 //
-//     measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]
+//     orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]
 #include "measuring_stick_read/stick_internal.h"
 #include "verba_scribo/verba_scribo.h"
 
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 {
     if ((argc != 5) && (argc != 7))
     {
-        fputs("measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]\n",
+        fputs("orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]\n",
               stderr);
         return 2;
     }
@@ -367,7 +367,7 @@ int main(int argc, char **argv)
     if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_record_bytes), .at = s_record_at}) ||
         !qry_member_filed(argv[4], s_record_bytes, s_record_at))
     {
-        fprintf(stderr, "measuring_stick_read: the record %s was not written\n", argv[4]);
+        fprintf(stderr, "orior_measuring_stick_read: the record %s was not written\n", argv[4]);
         return 1;
     }
     printf("measuring stick: %u kernels, %u instructions in nvcc's listing, %u operations, %u of them written by "

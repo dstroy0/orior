@@ -3,7 +3,7 @@
 Extraction of Good and bad news about Nicola Dene by David Douglas Robertson, PhD, consultant
 linguist, Spokane, WA; Tk’emlúps te Secwépemc, ICSNL 61.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -44,7 +44,7 @@ that space. A root mark stands a space before its root in / ʔéyk and / ɬəq�
 table keeps those rows without the slash. The first two columns of (4l) and (4m) wrap onto the next
 line, and each row is joined back before it is split into cells.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 431
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 10474 distinct tokens in the paper, 0 language tokens are held by no row.

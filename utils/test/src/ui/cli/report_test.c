@@ -16,6 +16,30 @@ int main(void)
     (void)cli_line_closed(&line);
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = struck, .other = "at <tree>\\x.rs", .cap = CLI_CELLS_POOL}),
               "a path is struck whatever its case");
+    for (unsigned int at = 0u; at < 21u; at += 1u)
+    {
+        char error[64];
+        CliLine error_line = {error, sizeof(error), 0ull};
+        cli_line_text(&error_line, "error ");
+        cli_line_decimal(&error_line, at, 2u);
+        cli_line_text(&error_line, " in D:\\Git\\Tree\\x.rs");
+        (void)cli_line_closed(&error_line);
+        cli_report_keep(error, "d:\\git\\tree");
+    }
+    char recent[4096];
+    CliLine recent_line = {recent, sizeof(recent), 0ull};
+    cli_report_recent(&recent_line);
+    (void)cli_line_closed(&recent_line);
+    cli_check(
+        (cellul.find(&(CatenaFinitaCfg){
+             .src = recent, .cap = CLI_CELLS_POOL, .other = "error 00", .other_cap = CLI_CELLS_POOL}) == NULL) &&
+            (cellul.find(&(CatenaFinitaCfg){.src = recent,
+                                            .cap = CLI_CELLS_POOL,
+                                            .other = "error 01 in <tree>\\x.rs\n\nerror 02",
+                                            .other_cap = CLI_CELLS_POOL}) != NULL) &&
+            (cellul.find(&(CatenaFinitaCfg){
+                 .src = recent, .cap = CLI_CELLS_POOL, .other = "error 20", .other_cap = CLI_CELLS_POOL}) != NULL),
+        "the newest twenty errors are kept struck, the oldest let go");
     char one[17];
     char other[17];
     cli_report_fingerprint("ui", "edit.js:12:3 broke", one);
@@ -27,7 +51,7 @@ int main(void)
     cli_check(!cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = CLI_CELLS_POOL}),
               "and another category's error is another");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
-                  .src = cli_report_panic_category("std::panicking\n  orior_cli::files::read\n  orior_ui_lib::run"),
+                  .src = cli_report_panic_category("std::panicking\n  orior_cli::files::read\n  orior_gui_lib::run"),
                   .other = "library",
                   .cap = CLI_CELLS_POOL}),
               "a panic in orior's library is the library's");
@@ -35,14 +59,14 @@ int main(void)
                                            .other = "cli",
                                            .cap = CLI_CELLS_POOL}),
               "one in the command line's own code is the command line's");
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = cli_report_panic_category("std::panicking\n  orior_ui_lib::start"),
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = cli_report_panic_category("std::panicking\n  orior_gui_lib::start"),
                                            .other = "ui",
                                            .cap = CLI_CELLS_POOL}),
               "one in the window's is the window's");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = cli_report_panic_category("std::panicking\n  core::option"),
                                            .other = "unknown",
                                            .cap = CLI_CELLS_POOL}),
-              "and one outside orior is unknown");
+              "and one outside orior_cli is unknown");
     memor.set(&(MemoriaCfg){.dst = s_logs, .val = 'x', .bytes = sizeof(s_logs) - 1u});
     const CliReport report = {"ui", "t", "w", "", s_logs};
     CliLine page = {s_page, sizeof(s_page), 0ull};

@@ -280,12 +280,12 @@ void cli_gradle_check(const char *root, const char *path, const char *text, unsi
         // each catalog read where it lies, mapped while its aliases are read and let go after; a catalog whose
         // aliases the cellblock could not meet is not checked against
         unsigned long long read = 0ull;
-        const unsigned char *const catalog = qry_member_file_mapped(s_catalogs.path[at], &read);
+        const unsigned char *const catalog = cli_file_held(s_catalogs.path[at], &read);
         CliVersionsAliases aliases;
         const int whole = (catalog != NULL) && (read <= CLI_GRADLE_CATALOG_TEXT) &&
                           cli_utf8_whole((const char *)catalog, read) &&
                           cli_versions_aliases((const char *)catalog, read, &aliases);
-        qry_member_file_unmapped(catalog, read);
+        cli_file_let_go(catalog, read);
         if (!whole)
         {
             continue;

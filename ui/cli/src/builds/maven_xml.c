@@ -16,11 +16,62 @@ int cli_xml_name_letter(unsigned int letter)
     return cli_text_alphanumeric(letter) || (letter == '_') || (letter == ':') || (letter == '.') || (letter == '-');
 }
 
+CliCellsTally g_cli_xml_cells = CLI_CELLS_TALLY("cli_xml");
+
+void cli_xml_given(CliXml *xml)
+{
+    cli_cell_given_by(&g_cli_xml_cells, xml->element);
+    *xml = (CliXml){xml->text, 0ull, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
+}
+
+// the room of a list a text holding `tags` `<`s can fill, no more than `most`
+static unsigned int xml_room(unsigned long long tags, unsigned int most)
+{
+    // a count no more than `most`, which an unsigned int holds
+    return (tags < most) ? (unsigned int)tags : most;
+}
+
+// `xml` made to read `size` bytes of `text`, its lists' rooms in one cell sized to the `<`s the text holds, each no
+// more than its most: 1, or 0 with nothing to be kept where the cell is refused
+static int xml_held(CliXml *xml, const char *text, unsigned long long size)
+{
+    unsigned long long tags = 0ull;
+    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    {
+        tags += (text[at] == '<') ? 1ull : 0ull;
+    }
+    const unsigned int elements = xml_room(tags, CLI_XML_ELEMENTS);
+    const unsigned int comments = xml_room(tags, CLI_XML_COMMENTS);
+    const unsigned int errors = xml_room(tags + 1ull, CLI_XML_ERRORS);
+    // the lists laid one after another, the widest first, so that each starts where its kind may stand
+    const unsigned long long element_bytes = (unsigned long long)elements * sizeof(CliXmlElement);
+    const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
+    const unsigned long long error_bytes = (unsigned long long)errors * sizeof(CliXmlError);
+    const unsigned long long open_bytes = (unsigned long long)elements * sizeof(unsigned int);
+    unsigned char *const cell = cli_cell_taken_by(
+        &g_cli_xml_cells, element_bytes + (2ull * comment_bytes) + error_bytes + open_bytes + 1ull, "an XML file read");
+    *xml = (CliXml){text, size, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    // each list's place in the cell is a multiple of its kind's width from the cell's start, as laid out above
+    xml->element = (CliXmlElement *)(void *)cell;
+    xml->element_room = elements;
+    xml->comment_from = (unsigned long long *)(void *)(cell + element_bytes);
+    xml->comment_to = (unsigned long long *)(void *)(cell + element_bytes + comment_bytes);
+    xml->comment_room = comments;
+    xml->error = (CliXmlError *)(void *)(cell + element_bytes + (2ull * comment_bytes));
+    xml->error_room = errors;
+    xml->open = (unsigned int *)(void *)(cell + element_bytes + (2ull * comment_bytes) + error_bytes);
+    return 1;
+}
+
 // what kept the file from reading kept
 static void xml_error(CliXml *xml, unsigned long long from, unsigned long long to, unsigned int kind,
                       unsigned int element, unsigned long long name_from, unsigned long long name_to)
 {
-    if (xml->errors < CLI_XML_ERRORS)
+    if (xml->errors < xml->error_room)
     {
         xml->error[xml->errors] = (CliXmlError){from, to, kind, element, name_from, name_to};
         xml->errors += 1u;
@@ -97,7 +148,7 @@ static void xml_closing(CliXml *xml, unsigned long long lt, unsigned long long f
 // an opening tag named `from` to `to`, ending at `gt`, an element under the one left open
 static void xml_opening(CliXml *xml, unsigned long long from, unsigned long long to, unsigned long long gt)
 {
-    if (xml->elements == CLI_XML_ELEMENTS)
+    if (xml->elements == xml->element_room)
     {
         return;
     }
@@ -131,12 +182,10 @@ static void xml_opening(CliXml *xml, unsigned long long from, unsigned long long
 
 void cli_xml_parse(const char *text, unsigned long long size, CliXml *xml)
 {
-    xml->text = text;
-    xml->size = size;
-    xml->elements = 0u;
-    xml->comments = 0u;
-    xml->errors = 0u;
-    xml->opens = 0u;
+    if (!xml_held(xml, text, size))
+    {
+        return;
+    }
     for (unsigned long long at = 0ull; at < size;)
     {
         const char *const found = memor.chr(&(MemoriaCfg){.src = text + at, .val = '<', .bytes = (size_t)(size - at)});
@@ -164,7 +213,7 @@ void cli_xml_parse(const char *text, unsigned long long size, CliXml *xml)
                 return;
             }
             at = lt + open + end + close;
-            if ((skip == 0u) && (xml->comments < CLI_XML_COMMENTS))
+            if ((skip == 0u) && (xml->comments < xml->comment_room))
             {
                 xml->comment_from[xml->comments] = lt;
                 xml->comment_to[xml->comments] = at;

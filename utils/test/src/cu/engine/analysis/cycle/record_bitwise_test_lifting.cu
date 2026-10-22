@@ -127,7 +127,7 @@ static void bitwise_stack(BitwiseResults *results)
             for (unsigned int output = 0u; output < output_count; output += 1u)
             {
                 const DeviceRecordStep *const tapped = &loaded.layout.step_table[outputs[output]];
-                AnchorExactInteger value;
+                OriorExactInteger value;
                 bitwise_take(&host_out[lane * out_limbs], tapped->out_offset, tapped->out_bits, &value);
                 // a floor's word lies in [-2^31, 2^31), one limb of magnitude
                 const long long read = (long long)value.sign * (long long)value.limb[0];
@@ -348,7 +348,7 @@ static void bitwise_lifting(BitwiseResults *results)
         for (unsigned int output = 0u; output < output_count; output += 1u)
         {
             const DeviceRecordStep *const step = &loaded.layout.step_table[outputs[output]];
-            AnchorExactInteger value;
+            OriorExactInteger value;
             bitwise_take(&device_out[(size_t)lane * out_limbs], step->out_offset, step->out_bits, &value);
             // every coefficient and sample lies below 2^20 in magnitude, one limb
             const long long read = (long long)value.sign * (long long)value.limb[0];

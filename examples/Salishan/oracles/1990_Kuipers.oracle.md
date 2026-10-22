@@ -3,7 +3,7 @@
 Extraction of Corrections and additions to "A report on Shuswap" (Paris 1989) by A. H. Kuipers,
 ICSNL 25.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -32,7 +32,7 @@ the orthography; the check reads the forms against a page text a person transcri
 line for each printed line. The page sets its corrections in two columns, read down the left and
 then the right; the marks over k, q and t and the acutes are written in by hand.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 35
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 724
 distinct tokens in the paper, 0 language tokens are held by no row.

@@ -83,6 +83,11 @@ static void ipp_message(void)
     cli_check((s_back.data_length == 8ull) &&
                   (memor.cmp(&(MemoriaCfg){.src = s_back.data, .other = "%PDF-1.4", .bytes = 8u}) == 0),
               "its document after it");
+    const unsigned long long holding = g_cli_ipp_cells.holds;
+    cli_ipp_given(&s_message);
+    cli_ipp_given(&s_back);
+    cli_check((holding != 0ull) && (g_cli_ipp_cells.holds == 0ull),
+              "a message's groups, attributes, values and bytes are held in cells, given back once it is done");
 }
 
 // whether `uri` reaches `host`, `port` and `path`
@@ -190,7 +195,7 @@ static void ipp_cups(const char *host, unsigned int port)
     unsigned long long pages = 0ull;
     cli_print_pdf(listing, &layout, &document, &pages);
     cli_print_give();
-    CliIppJob job = {"orior ipp test", "application/pdf", 1u, 0, 1, "iso_a4_210x297mm"};
+    CliIppJob job = {"orior_cli ipp test", "application/pdf", 1u, 0, 1, "iso_a4_210x297mm"};
     int id = 0;
     cli_check(cli_ipp_print(uri, &job, (const unsigned char *)s_pdf, document.at, &id, &said) && (id > 0),
               "a job is taken");
@@ -199,7 +204,7 @@ static void ipp_cups(const char *host, unsigned int port)
     CliLine reasons = {reasons_text, sizeof(reasons_text), 0ull};
     cli_check(cli_ipp_job_state(uri, id, &state, &reasons, &said) && (state >= 3) && (state <= 9),
               "and its state told");
-    job.name = "orior cancel test";
+    job.name = "orior_cli cancel test";
     int second = 0;
     (void)cli_ipp_print(uri, &job, (const unsigned char *)s_pdf, document.at, &second, &said);
     (void)cli_ipp_cancel(uri, second, &said);

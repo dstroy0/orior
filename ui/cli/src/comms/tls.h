@@ -17,6 +17,9 @@
 // A TLS session over a socket: what is written to it goes out sealed, and each read opens what came
 typedef struct CliTls CliTls;
 
+// the cells the sessions hold while open, counted (tls.c)
+extern CliCellsTally g_cli_tls_cells;
+
 // TLS opened to `host` over `socket`, which the session uses until it is closed, the peer's certificate checked where
 // `verify` is 1: the session, or NULL with why said
 CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine *said);

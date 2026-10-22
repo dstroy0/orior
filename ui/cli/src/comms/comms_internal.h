@@ -1,21 +1,28 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// comms_internal.h: what the comms sources share: the parts, the listeners and each channel's traffic, under one lock
+// comms_internal.h: what the comms sources share: the parts, the listeners and each channel's traffic, under one lock;
+// and what a grant names (comms_grants.c)
 #ifndef COMMS_INTERNAL_H
 #define COMMS_INTERNAL_H
 
+#include "../command_line/cells.h"
 #include "comms.h"
 
-// the most parts, listeners and channels; how many of each channel's last messages are kept, and the bytes of a body
-// kept whole among them
+// the most parts, listeners and channels, and the places each of their tables is first taken with; how many of each
+// channel's last messages are kept, and the bytes past which a body kept among them is said by its size
 #define CLI_COMMS_PARTS 256u
 #define CLI_COMMS_LISTENERS 512u
 #define CLI_COMMS_CHANNELS 256u
+#define CLI_COMMS_FIRST 8u
 #define CLI_COMMS_KEPT 20u
 #define CLI_COMMS_KEPT_BODY 2048u
 
+// the cells the comms layer holds: its tables, each part's grants, and each message kept (comms.c)
+extern CliCellsTally g_cli_comms_cells;
+
 // A part: whether the place is taken, its key, its name, the process it was given, whether the door takes its key
-// from any process, its grants to listen and to speak, and how many messages it said and had refused
+// from any process, its grants to listen and to speak, both in one cell of their count, `listen` its first byte and
+// `speak` past the grants to listen, and how many messages it said and had refused
 typedef struct
 {
     int taken;
@@ -24,9 +31,9 @@ typedef struct
     int has_process;
     unsigned int process;
     int held;
-    char listen[CLI_COMMS_GRANTS][CLI_NAME_LONGEST];
+    char (*listen)[CLI_NAME_LONGEST];
     unsigned int listens;
-    char speak[CLI_COMMS_GRANTS][CLI_NAME_LONGEST];
+    char (*speak)[CLI_NAME_LONGEST];
     unsigned int speaks;
     unsigned long long said;
     unsigned long long refused;
@@ -44,12 +51,12 @@ typedef struct
     void *context;
 } CliCommsListener;
 
-// A message kept as a channel's last: the part that said it, and its body, whole where it fits and else said by its
-// size
+// A message kept as a channel's last, in a cell of its size, `from` its first byte: the part that said it, ended by a
+// 0, and its body after, whole where it is shorter than CLI_COMMS_KEPT_BODY and else said by its size, `size` bytes
 typedef struct
 {
-    char from[CLI_NAME_LONGEST];
-    char body[CLI_COMMS_KEPT_BODY];
+    char *from;
+    const char *body;
     unsigned long long size;
 } CliCommsKept;
 
@@ -67,13 +74,17 @@ typedef struct
     unsigned int count;
 } CliCommsTraffic;
 
-// The comms layer: its parts, listeners and channels, and their lock
+// The comms layer: its parts, listeners and channels, each table in a cell of `*_room` places grown as it fills up to
+// its most, and their lock
 typedef struct
 {
-    CliCommsPart parts[CLI_COMMS_PARTS];
-    CliCommsListener listeners[CLI_COMMS_LISTENERS];
-    CliCommsTraffic traffic[CLI_COMMS_CHANNELS];
+    CliCommsPart *parts;
+    unsigned int parts_room;
+    CliCommsListener *listeners;
+    unsigned int listeners_room;
+    CliCommsTraffic *traffic;
     unsigned int channels;
+    unsigned int channels_room;
     CliLock lock;
 } CliCommsRoom;
 

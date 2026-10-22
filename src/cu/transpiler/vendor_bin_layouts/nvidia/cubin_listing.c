@@ -3,7 +3,7 @@
 // cubin_listing.c: the vendor's listing of many kernels' codes, read at one start of its disassembler: every code put
 // into one cubin, the kernels' own a toolchain made, and the listing cut into each kernel's
 //
-//     cubin_listing <pattern> <kernel prefix> <architecture> <nvdisasm> <codes>
+//     orior_cubin_listing <pattern> <kernel prefix> <architecture> <nvdisasm> <codes>
 //
 // <codes> is a blob of the run, a line a code: the path of a file of a kernel's encodings, its name
 // `<number>.bin`, the code of the kernel `<kernel prefix><number>` of the cubin at <pattern>. Each code is put into
@@ -184,7 +184,7 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
                 break;
             }
             codes[stopped].aside = 1;
-            printf("  cubin_listing: %s stops the vendor at byte %llu of it, and is read alone\n", codes[stopped].number,
+            printf("  orior_cubin_listing: %s stops the vendor at byte %llu of it, and is read alone\n", codes[stopped].number,
                    address - start[stopped]);
         }
     }
@@ -272,7 +272,7 @@ int main(int count, char **words)
 {
     if (count != 6)
     {
-        fprintf(stderr, "cubin_listing <pattern> <kernel prefix> <architecture> <nvdisasm> <codes>\n");
+        fprintf(stderr, "orior_cubin_listing <pattern> <kernel prefix> <architecture> <nvdisasm> <codes>\n");
         return 2;
     }
     const char *const pattern_path = words[1];
@@ -287,7 +287,7 @@ int main(int count, char **words)
     if ((run == NULL) || !qry_member_blob(words[5], &list, &list_size, NULL) ||
         !qry_member_file_blob(pattern_path, &pattern, &pattern_size))
     {
-        fprintf(stderr, "cubin_listing: no run, no list %s in it, or no pattern %s\n", words[5], pattern_path);
+        fprintf(stderr, "orior_cubin_listing: no run, no list %s in it, or no pattern %s\n", words[5], pattern_path);
         return 2;
     }
     unsigned int lines = 0u;
@@ -323,7 +323,7 @@ int main(int count, char **words)
         snprintf(code->kernel, sizeof(code->kernel), "%s%s", prefix, code->number);
         if (!qry_member_file_blob(line, &code->code, &code->size) || ((code->size % 16ull) != 0ull))
         {
-            fprintf(stderr, "cubin_listing: the code %s could not be read, or is no whole count of instructions\n",
+            fprintf(stderr, "orior_cubin_listing: the code %s could not be read, or is no whole count of instructions\n",
                     line);
             return 2;
         }
@@ -392,7 +392,7 @@ int main(int count, char **words)
             qry_member_append(name, s_output, s_output_size, QRY_ORDINARY);
         }
     }
-    printf("cubin_listing: %u codes read in %u starts of the vendor, %u of them read alone\n", code_count, s_starts,
+    printf("orior_cubin_listing: %u codes read in %u starts of the vendor, %u of them read alone\n", code_count, s_starts,
            aside);
     for (unsigned int one = 0u; one < code_count; one += 1u)
     {

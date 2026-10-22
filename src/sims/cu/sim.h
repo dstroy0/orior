@@ -172,9 +172,9 @@ static inline int sim_close(SimResults *results, const char *name)
     return (results->failures == 0ull) ? 0 : 1;
 }
 
-static inline void sim_exact_unsigned(AnchorExactInteger *value, unsigned long long number)
+static inline void sim_exact_unsigned(OriorExactInteger *value, unsigned long long number)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     // the low and high halves of a 64-bit word each fit one 32-bit limb
     value->limb[0] = (uint32_t)(number & 0xFFFFFFFFull);
     // the high half, shifted down, is below 2^32
@@ -182,7 +182,7 @@ static inline void sim_exact_unsigned(AnchorExactInteger *value, unsigned long l
     value->sign = (number == 0ull) ? 0 : 1;
 }
 
-static inline void sim_exact_signed(AnchorExactInteger *value, long long number)
+static inline void sim_exact_signed(OriorExactInteger *value, long long number)
 {
     // the magnitude of a negative 64-bit word is its two's complement negation, taken unsigned
     const unsigned long long magnitude =
@@ -194,59 +194,59 @@ static inline void sim_exact_signed(AnchorExactInteger *value, long long number)
     }
 }
 
-static inline int sim_exact_product(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                    AnchorExactInteger *result)
+static inline int sim_exact_product(const OriorExactInteger *left, const OriorExactInteger *right,
+                                    OriorExactInteger *result)
 {
-    return anchor_exact_multiply(left, right, result) == ANCHOR_EXACT_OK;
+    return orior_exact_multiply(left, right, result) == ORIOR_EXACT_OK;
 }
 
-static inline int sim_exact_scaled(const AnchorExactInteger *value, unsigned long long factor,
-                                   AnchorExactInteger *result)
+static inline int sim_exact_scaled(const OriorExactInteger *value, unsigned long long factor,
+                                   OriorExactInteger *result)
 {
-    AnchorExactInteger scale;
+    OriorExactInteger scale;
     sim_exact_unsigned(&scale, factor);
     return sim_exact_product(value, &scale, result);
 }
 
-static inline int sim_exact_sum(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                AnchorExactInteger *result)
+static inline int sim_exact_sum(const OriorExactInteger *left, const OriorExactInteger *right,
+                                OriorExactInteger *result)
 {
-    return anchor_exact_add(left, right, result) == ANCHOR_EXACT_OK;
+    return orior_exact_add(left, right, result) == ORIOR_EXACT_OK;
 }
 
-static inline int sim_exact_less(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                 AnchorExactInteger *result)
+static inline int sim_exact_less(const OriorExactInteger *left, const OriorExactInteger *right,
+                                 OriorExactInteger *result)
 {
-    return anchor_exact_subtract(left, right, result) == ANCHOR_EXACT_OK;
+    return orior_exact_subtract(left, right, result) == ORIOR_EXACT_OK;
 }
 
-static inline int sim_ratio_compare(const AnchorExactInteger *numerator, const AnchorExactInteger *denominator,
-                                    const AnchorExactInteger *other_numerator,
-                                    const AnchorExactInteger *other_denominator, int *order)
+static inline int sim_ratio_compare(const OriorExactInteger *numerator, const OriorExactInteger *denominator,
+                                    const OriorExactInteger *other_numerator,
+                                    const OriorExactInteger *other_denominator, int *order)
 {
-    AnchorExactInteger left;
-    AnchorExactInteger right;
+    OriorExactInteger left;
+    OriorExactInteger right;
     if ((sim_exact_product(numerator, other_denominator, &left) == 0) ||
         (sim_exact_product(other_numerator, denominator, &right) == 0))
     {
         return 0;
     }
-    *order = anchor_exact_compare(&left, &right);
+    *order = orior_exact_compare(&left, &right);
     return 1;
 }
 
 // the floor of numerator / denominator, both non-negative, by bisection below `bound`, which the caller knows the
 // quotient is under
-static inline unsigned long long sim_ratio_floor(const AnchorExactInteger *numerator,
-                                                 const AnchorExactInteger *denominator, unsigned long long bound)
+static inline unsigned long long sim_ratio_floor(const OriorExactInteger *numerator,
+                                                 const OriorExactInteger *denominator, unsigned long long bound)
 {
     unsigned long long below = 0ull;
     unsigned long long above = bound - 1ull;
-    AnchorExactInteger trial;
+    OriorExactInteger trial;
     while (below < above)
     {
         const unsigned long long middle = below + ((above - below) / 2ull) + ((above - below) & 1ull);
-        if ((sim_exact_scaled(denominator, middle, &trial) != 0) && (anchor_exact_compare(&trial, numerator) <= 0))
+        if ((sim_exact_scaled(denominator, middle, &trial) != 0) && (orior_exact_compare(&trial, numerator) <= 0))
         {
             below = middle;
         }
@@ -264,13 +264,13 @@ static inline unsigned long long sim_ratio_floor(const AnchorExactInteger *numer
 
 #define SIM_DECIMAL_GROUP_DIGITS 9u
 
-// 10^9 exceeds 2^29. A magnitude of ANCHOR_EXACT_BITS bits has at most ANCHOR_EXACT_BITS / 29 + 1 groups
-#define SIM_DECIMAL_GROUPS ((((unsigned long long)(ANCHOR_EXACT_BITS)) / 29ull) + 1ull)
+// 10^9 exceeds 2^29. A magnitude of ORIOR_EXACT_BITS bits has at most ORIOR_EXACT_BITS / 29 + 1 groups
+#define SIM_DECIMAL_GROUPS ((((unsigned long long)(ORIOR_EXACT_BITS)) / 29ull) + 1ull)
 
 // the count of limbs up to and including the top non-zero one; 0 for zero
-static inline unsigned long long sim_exact_limbs_used(const AnchorExactInteger *value)
+static inline unsigned long long sim_exact_limbs_used(const OriorExactInteger *value)
 {
-    unsigned long long used = ANCHOR_EXACT_LIMBS;
+    unsigned long long used = ORIOR_EXACT_LIMBS;
     while ((used > 0ull) && (value->limb[used - 1ull] == 0u))
     {
         used -= 1ull;
@@ -280,9 +280,9 @@ static inline unsigned long long sim_exact_limbs_used(const AnchorExactInteger *
 
 // the magnitude of `value` in decimal, every digit exact: each group of nine is the remainder of a short division of
 // the limbs by 10^9, taken from the top limb down
-static inline void sim_exact_decimal(ScripturaLine *line, const AnchorExactInteger *value)
+static inline void sim_exact_decimal(ScripturaLine *line, const OriorExactInteger *value)
 {
-    AnchorExactInteger work = *value;
+    OriorExactInteger work = *value;
     unsigned int groups[SIM_DECIMAL_GROUPS];
     unsigned long long count = 0ull;
     unsigned long long used = sim_exact_limbs_used(&work);
@@ -310,23 +310,23 @@ static inline void sim_exact_decimal(ScripturaLine *line, const AnchorExactInteg
 
 // the ratio truncated, not rounded, to `places`, at any width the exact integer holds: the whole part is printed exact,
 // and the fraction is the floor of the remainder times 10^places over the denominator, which is below 10^places
-static inline void sim_ratio_print(ScripturaLine *line, const AnchorExactInteger *numerator,
-                                   const AnchorExactInteger *denominator, unsigned int places)
+static inline void sim_ratio_print(ScripturaLine *line, const OriorExactInteger *numerator,
+                                   const OriorExactInteger *denominator, unsigned int places)
 {
     if ((denominator->sign == 0) || (places > 18u))
     {
         scriptura_text(line, "undefined");
         return;
     }
-    AnchorExactInteger top = *numerator;
-    AnchorExactInteger bottom = *denominator;
+    OriorExactInteger top = *numerator;
+    OriorExactInteger bottom = *denominator;
     const int negative = (top.sign * bottom.sign) < 0;
     top.sign = (top.sign == 0) ? 0 : 1;
     bottom.sign = 1;
-    AnchorExactInteger integer_part;
-    AnchorExactInteger rest;
-    if ((anchor_exact_divide(&top, &bottom, &integer_part, &rest) != ANCHOR_EXACT_OK) ||
-        ((places > 0u) && (anchor_exact_scale_by_ten(&rest, places) != ANCHOR_EXACT_OK)))
+    OriorExactInteger integer_part;
+    OriorExactInteger rest;
+    if ((orior_exact_divide(&top, &bottom, &integer_part, &rest) != ORIOR_EXACT_OK) ||
+        ((places > 0u) && (orior_exact_scale_by_ten(&rest, places) != ORIOR_EXACT_OK)))
     {
         scriptura_text(line, "too wide");
         return;
@@ -351,8 +351,8 @@ static inline void sim_ratio_print(ScripturaLine *line, const AnchorExactInteger
 static inline void sim_fraction_print(ScripturaLine *line, unsigned long long numerator, unsigned long long denominator,
                                       unsigned int places)
 {
-    AnchorExactInteger top;
-    AnchorExactInteger bottom;
+    OriorExactInteger top;
+    OriorExactInteger bottom;
     sim_exact_unsigned(&top, numerator);
     sim_exact_unsigned(&bottom, denominator);
     sim_ratio_print(line, &top, &bottom, places);

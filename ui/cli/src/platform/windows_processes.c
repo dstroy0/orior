@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // windows_processes.c: the processes of the machine as Windows lists them, read in one snapshot, and the line each was
 // started with, read from the process where it lets that be read
+#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
 
 #if defined(_WIN32)
@@ -18,11 +19,8 @@
 
 typedef LONG(NTAPI *CliQueryProcess)(HANDLE process, ULONG kind, PVOID info, ULONG length, PULONG returned);
 
-// the room the line is read in, as long as the most it may be and aligned for the string's header, and the texts the
-// name and the line are written in, under their lock
-static unsigned long long s_line[CLI_PROCESS_COMMAND_MOST / 8u];
+// the text the name is written in, under its lock
 static char s_name[MAX_PATH * 4u];
-static char s_command[CLI_PROCESS_COMMAND_MOST];
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // `count` UTF-16 units written as UTF-8 into `out`, which holds `room`, each unit that starts no whole letter as U+FFFD
@@ -33,10 +31,10 @@ static void processes_utf8(const wchar_t *text, int count, char *out, int room)
 }
 
 // the line process `pid` was started with, a counted string, its length in bytes first and the address of its text
-// after, the text following in the same room, into the command text: empty where it cannot be read
-static void processes_command_of(CliQueryProcess query, DWORD pid)
+// after, the text following in the same room, read into a cell of the bytes the system says it takes: the line as
+// UTF-8 in a cell of its own, given back with cli_cell_given, or NULL where it cannot be read
+static char *processes_command_of(CliQueryProcess query, DWORD pid)
 {
-    s_command[0] = '\0';
     const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, pid);
     if ((process == NULL) || (query == NULL))
     {
@@ -44,28 +42,39 @@ static void processes_command_of(CliQueryProcess query, DWORD pid)
         {
             CloseHandle(process);
         }
-        return;
+        return NULL;
     }
+    char *command = NULL;
     ULONG needed = 0u;
     (void)query(process, CLI_PROCESS_COMMAND_LINE, NULL, 0u, &needed);
-    if ((needed > 2u * sizeof(void *)) && (needed < CLI_PROCESS_COMMAND_MOST) &&
-        (query(process, CLI_PROCESS_COMMAND_LINE, s_line, needed, &needed) >= 0))
+    const ULONG room = needed;
+    // the room taken on a cell's boundary, aligned for the string's header
+    unsigned char *const base = ((room > 2u * sizeof(void *)) && (room < CLI_PROCESS_COMMAND_MOST))
+                                    ? cli_cell_taken(room, "the line a process was started with")
+                                    : NULL;
+    if ((base != NULL) && (query(process, CLI_PROCESS_COMMAND_LINE, base, room, &needed) >= 0))
     {
-        const unsigned char *const base = (const unsigned char *)s_line;
         unsigned short bytes = 0u;
         const wchar_t *start = NULL;
         memor.cpy(&(MemoriaCfg){.dst = &bytes, .src = base, .bytes = sizeof(bytes)});
         memor.cpy(&(MemoriaCfg){.dst = (void *)&start, .src = base + sizeof(void *), .bytes = sizeof(start)});
         const size_t length = (size_t)bytes / 2u;
-        const unsigned char *const end = base + sizeof(s_line);
-        // the text read lies within the room, as the system wrote it there
+        const unsigned char *const end = base + room;
+        // the text read lies within the room, as the system wrote it there, and each of its units is three bytes of
+        // UTF-8 at the most, below an int's reach as the room is
         if ((start != NULL) && ((const unsigned char *)start >= base) &&
             ((const unsigned char *)(start + length) <= end))
         {
-            processes_utf8(start, (int)length, s_command, (int)sizeof(s_command));
+            command = cli_cell_taken((3ull * length) + 1ull, "a process's line as UTF-8");
+        }
+        if (command != NULL)
+        {
+            processes_utf8(start, (int)length, command, (int)((3u * length) + 1u));
         }
     }
+    cli_cell_given(base);
     CloseHandle(process);
+    return command;
 }
 
 void cli_processes_each(void (*each)(void *context, unsigned int pid, const char *name, const char *command),
@@ -92,8 +101,9 @@ void cli_processes_each(void (*each)(void *context, unsigned int pid, const char
             end += 1;
         }
         processes_utf8(entry.szExeFile, end, s_name, (int)sizeof(s_name));
-        processes_command_of(query, entry.th32ProcessID);
-        each(context, (unsigned int)entry.th32ProcessID, s_name, s_command);
+        char *const command = processes_command_of(query, entry.th32ProcessID);
+        each(context, (unsigned int)entry.th32ProcessID, s_name, (command != NULL) ? command : "");
+        cli_cell_given(command);
     }
     cli_lock_give(&s_lock);
     CloseHandle(snapshot);

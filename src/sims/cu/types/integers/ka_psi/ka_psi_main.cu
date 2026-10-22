@@ -147,7 +147,7 @@ int main(void)
     psi_sprecher(&results, &planar);
 
     static PsiScale scale;
-    static AnchorExactInteger measured_widest[PSI_EXHAUSTIVE + 1u];
+    static OriorExactInteger measured_widest[PSI_EXHAUSTIVE + 1u];
     const PsiCase *const cases[2] = {&planar, &spatial};
     for (unsigned int shaped = 0u; shaped < 2u; shaped += 1u)
     {

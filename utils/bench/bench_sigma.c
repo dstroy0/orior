@@ -8,7 +8,7 @@
 #include <time.h>
 
 #define BENCH_NEEDLE_LEN 16u
-#define BENCH_CANDIDATES ANCHOR_STEER_ANCHORS
+#define BENCH_CANDIDATES ORIOR_STEER_ANCHORS
 #define BENCH_MIN_MILLISECONDS 60.0
 #define BENCH_MAX_RUNS 2000u
 
@@ -91,20 +91,20 @@ static size_t bench_oracle_once(const uint32_t *corpus, size_t corpus_len, const
     }
 
     const BenchSymbolField pair = {corpus, needle};
-    const AnchorField any = {
+    const OriorField any = {
         .same = bench_same_symbol,
         .field = &pair,
         .alignments = alignments,
         .needle_len = BENCH_NEEDLE_LEN};
 
-    const AnchorSteerDescent args = {
+    const OriorSteerDescent args = {
         .offsets = order_out,
         .count = BENCH_CANDIDATES,
         .survivors = survivors,
         .survivors_length = alignments,
         .any = &any};
 
-    return anchor_steer_plan_recursive(&args);
+    return orior_steer_plan_recursive(&args);
 }
 
 static double bench_time_table(const uint32_t *corpus, size_t corpus_len, const uint32_t *needle,

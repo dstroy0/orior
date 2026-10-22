@@ -50,7 +50,7 @@ void cli_facts_begun(CliFacts *facts, CliInspectImport *imports, unsigned int im
 {
     *facts = (CliFacts){imports,  0u, imports_most,  classes, 0u, classes_most, functions, 0u, functions_most,
                         findings, 0u, findings_most, fixes,   0u, fixes_most,   edits,     0u, edits_most,
-                        names,    0u, names_most,    text,    0u, text_most,    0};
+                        names,    0u, names_most,    text,    0u, text_most,    0,         0};
     if (text_most > 0u)
     {
         text[0] = '\0';
@@ -58,9 +58,24 @@ void cli_facts_begun(CliFacts *facts, CliInspectImport *imports, unsigned int im
     }
 }
 
+void cli_facts_counting(CliFacts *facts)
+{
+    // no room is ever full while counting: a count is an unsigned int's, which no text reaches
+    *facts = (CliFacts){NULL, 0u, 0xffffffffu, NULL, 0u, 0xffffffffu, NULL, 0u, 0xffffffffu, NULL, 0u, 0xffffffffu,
+                        NULL, 0u, 0xffffffffu, NULL, 0u, 0xffffffffu, NULL, 0u, 0xffffffffu, NULL, 1u, 0xffffffffu,
+                        0,    1};
+}
+
 CliInspectText cli_inspect_kept(CliFacts *facts, const char *text, unsigned long long size)
 {
     CliInspectText kept = {0u, 0u};
+    if (facts->counting)
+    {
+        // a text's places are an unsigned int's, so a text past one's reach counts as one that fills
+        const unsigned long long counted = (unsigned long long)facts->used + size + 1ull;
+        facts->used = (counted < 0xffffffffull) ? (unsigned int)counted : 0xffffffffu;
+        return kept;
+    }
     if (facts->used + size + 1u > facts->text_most)
     {
         facts->full = 1;
@@ -94,7 +109,10 @@ void cli_inspect_finding_put(CliFacts *facts, CliInspectPlace from, CliInspectPl
         return;
     }
     const CliInspectText kept = cli_inspect_line_kept(facts, message);
-    facts->finding[facts->findings] = (CliInspectFinding){from, to, severity, kept, code, href, facts->fixes, 0u};
+    if (!facts->counting)
+    {
+        facts->finding[facts->findings] = (CliInspectFinding){from, to, severity, kept, code, href, facts->fixes, 0u};
+    }
     facts->findings += 1u;
 }
 
@@ -105,9 +123,13 @@ void cli_inspect_fix_put(CliFacts *facts, const CliLine *title)
         facts->full = 1;
         return;
     }
-    facts->fix[facts->fixes] = (CliInspectFix){cli_inspect_line_kept(facts, title), facts->edits, 0u};
+    const CliInspectFix fix = {cli_inspect_line_kept(facts, title), facts->edits, 0u};
+    if (!facts->counting)
+    {
+        facts->fix[facts->fixes] = fix;
+        facts->finding[facts->findings - 1u].fixes += 1u;
+    }
     facts->fixes += 1u;
-    facts->finding[facts->findings - 1u].fixes += 1u;
 }
 
 void cli_inspect_fix_titled(CliFacts *facts, const char *title)
@@ -126,9 +148,13 @@ void cli_inspect_edit_put(CliFacts *facts, CliInspectPlace from, CliInspectPlace
         facts->full = 1;
         return;
     }
-    facts->edit[facts->edits] = (CliInspectEdit){from, to, cli_inspect_kept(facts, text, size)};
+    const CliInspectEdit edit = {from, to, cli_inspect_kept(facts, text, size)};
+    if (!facts->counting)
+    {
+        facts->edit[facts->edits] = edit;
+        facts->fix[facts->fixes - 1u].edits += 1u;
+    }
     facts->edits += 1u;
-    facts->fix[facts->fixes - 1u].edits += 1u;
 }
 
 unsigned int cli_inspect_name_put(CliFacts *facts, const char *name, unsigned long long size, const char *alias,
@@ -142,7 +168,10 @@ unsigned int cli_inspect_name_put(CliFacts *facts, const char *name, unsigned lo
     const CliInspectText kept = cli_inspect_kept(facts, name, size);
     const CliInspectText alias_kept =
         (alias != NULL) ? cli_inspect_kept(facts, alias, alias_size) : (CliInspectText){0u, 0u};
-    facts->name[facts->names] = (CliInspectName){kept, alias_kept, alias != NULL, from, to};
+    if (!facts->counting)
+    {
+        facts->name[facts->names] = (CliInspectName){kept, alias_kept, alias != NULL, from, to};
+    }
     facts->names += 1u;
     return facts->names - 1u;
 }
@@ -161,7 +190,7 @@ int cli_inspect_facts(const char *language, const char *text, unsigned long long
     facts->fixes = 0u;
     facts->edits = 0u;
     facts->names = 0u;
-    facts->used = (facts->text_most > 0u) ? 1u : 0u;
+    facts->used = ((facts->text_most > 0u) || facts->counting) ? 1u : 0u;
     facts->full = 0;
     cli_lock_take(&g_cli_inspect_lock);
     if (!cli_inspect_reading_held(language, text, size))

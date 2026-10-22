@@ -33,22 +33,22 @@
 #if defined(_MSC_VER)
 #include <intrin.h>
 /** @brief Set where this translation unit can ask the processor about AVX2. */
-#define ANCHOR_AVX2_CAN_DETECT 1
+#define ORIOR_AVX2_CAN_DETECT 1
 #elif defined(__GNUC__) || defined(__clang__)
-#define ANCHOR_AVX2_CAN_DETECT 1
+#define ORIOR_AVX2_CAN_DETECT 1
 #else
-#define ANCHOR_AVX2_CAN_DETECT 0
+#define ORIOR_AVX2_CAN_DETECT 0
 #endif
 
 #if defined(_WIN32)
 /** @brief What a row of results prints for this arm, which names the operating system that built it. */
-#define ANCHOR_AVX2_ARM_NAME "avx2-win"
+#define ORIOR_AVX2_ARM_NAME "avx2-win"
 #else
-#define ANCHOR_AVX2_ARM_NAME "avx2-linux"
+#define ORIOR_AVX2_ARM_NAME "avx2-linux"
 #endif
 
 /** @brief Limbs compared per AVX2 instruction. 256 bits holds eight 32 bit limbs. */
-#define ANCHOR_AVX2_LANES 8u
+#define ORIOR_AVX2_LANES 8u
 
 /**
  * @brief Whether the running processor carries AVX2.
@@ -59,7 +59,7 @@
  */
 static int avx2_present(void)
 {
-#if !ANCHOR_AVX2_CAN_DETECT
+#if !ORIOR_AVX2_CAN_DETECT
     return 0;
 #elif defined(_MSC_VER)
     int leaves[4] = {0, 0, 0, 0};
@@ -88,10 +88,10 @@ static int avx2_present(void)
  */
 static int avx2_magnitude_equal(const uint32_t *left, const uint32_t *right)
 {
-    size_t at = (size_t)ANCHOR_EXACT_LIMBS;
-    while (at >= (size_t)ANCHOR_AVX2_LANES)
+    size_t at = (size_t)ORIOR_EXACT_LIMBS;
+    while (at >= (size_t)ORIOR_AVX2_LANES)
     {
-        at -= (size_t)ANCHOR_AVX2_LANES;
+        at -= (size_t)ORIOR_AVX2_LANES;
         const __m256i one = _mm256_loadu_si256((const __m256i *)(left + at));
         const __m256i two = _mm256_loadu_si256((const __m256i *)(right + at));
         if (_mm256_movemask_epi8(_mm256_cmpeq_epi32(one, two)) != -1)
@@ -123,15 +123,15 @@ static int avx2_magnitude_equal(const uint32_t *left, const uint32_t *right)
  */
 static int avx2_magnitude_compare(const uint32_t *left, const uint32_t *right)
 {
-    size_t at = (size_t)ANCHOR_EXACT_LIMBS;
-    while (at >= (size_t)ANCHOR_AVX2_LANES)
+    size_t at = (size_t)ORIOR_EXACT_LIMBS;
+    while (at >= (size_t)ORIOR_AVX2_LANES)
     {
-        at -= (size_t)ANCHOR_AVX2_LANES;
+        at -= (size_t)ORIOR_AVX2_LANES;
         const __m256i one = _mm256_loadu_si256((const __m256i *)(left + at));
         const __m256i two = _mm256_loadu_si256((const __m256i *)(right + at));
         if (_mm256_movemask_epi8(_mm256_cmpeq_epi32(one, two)) != -1)
         {
-            size_t back = at + (size_t)ANCHOR_AVX2_LANES;
+            size_t back = at + (size_t)ORIOR_AVX2_LANES;
             while (back > at)
             {
                 back--;
@@ -160,7 +160,7 @@ static int avx2_magnitude_compare(const uint32_t *left, const uint32_t *right)
  * @param[in] right Second integer [BORROWS].
  * @return          1 where the values are equal, 0 otherwise.
  */
-static int arm_equal(const AnchorExactInteger *left, const AnchorExactInteger *right)
+static int arm_equal(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -174,9 +174,9 @@ static int arm_equal(const AnchorExactInteger *left, const AnchorExactInteger *r
  *
  * @param[in] left  First integer [BORROWS].
  * @param[in] right Second integer [BORROWS].
- * @return          -1, 1 or 0, matching anchor_exact_compare exactly.
+ * @return          -1, 1 or 0, matching orior_exact_compare exactly.
  */
-static int arm_compare(const AnchorExactInteger *left, const AnchorExactInteger *right)
+static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -200,25 +200,25 @@ static int arm_compare(const AnchorExactInteger *left, const AnchorExactInteger 
  * @param[in] lag       The offset to test [BORROWS].
  * @return              How many positions agree with the place one lag above them.
  */
-static size_t arm_agreement(const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                            const AnchorExactInteger *lag)
+static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                            const OriorExactInteger *lag)
 {
     // The shared search, with only the equality test swapped. This arm carried its own ordered
     // search once, and timing that against a portable arm doing a membership lookup measured the
     // difference between two algorithms and reported it as the difference between two instruction
     // sets. It read 3.44x that way and 1.75x this way.
-    return anchor_exact_agreement_using(arm_equal, positions, values, count, lag);
+    return orior_exact_agreement_using(arm_equal, positions, values, count, lag);
 }
 
 /** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
-static const AnchorExactArm AVX2_ARM = {
-    ANCHOR_AVX2_ARM_NAME,
+static const OriorExactArm AVX2_ARM = {
+    ORIOR_AVX2_ARM_NAME,
     arm_equal,
     arm_compare,
     arm_agreement,
 };
 
-const AnchorExactArm *anchor_exact_avx2_arm(void)
+const OriorExactArm *orior_exact_avx2_arm(void)
 {
     return avx2_present() ? &AVX2_ARM : NULL;
 }

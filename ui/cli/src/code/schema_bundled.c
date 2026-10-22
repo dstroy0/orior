@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schema_bundled.c: the meta-schemas orior holds, each by its URL with no scheme and no `#`, the text of
+// schema_bundled.c: the meta-schemas orior_cli holds, each by its URL with no scheme and no `#`, the text of
 // `schemas/draft-07.json`, `schemas/draft-04.json` and `schemas/2020-12.json` as they stand; draft 6 is read as
 // draft 7, and 2019-09 as 2020-12
 #include "schema_internal.h"

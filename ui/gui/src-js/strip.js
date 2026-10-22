@@ -6,15 +6,17 @@
 // The strip's icons each open a tool window, and a press on the one open closes it. In the edit view
 // the pointer over an icon of the explorer's panes opens the explorer on them, and the explorer stays
 // open while the pointer is on the strip or on it. At its top:
-// Explorer, the edit view with its files; Structure, the open file's outline; Commit, the files that
-// differ from the last commit; and more, a menu of the explorer's other panes. At its foot: Run, the
-// run view and its jobs; Debug and Terminal, the panels under the views; Problems, the open files'
+// Explorer, the edit view with its files; Search, a magnifying glass, the search of the tree's files;
+// Structure, the open file's outline; Commit, the files that differ from the last commit; and more, a
+// menu of the explorer's other panes. At its foot: Run, the run view with every category of its jobs;
+// Debug and Terminal, the panels under the views; Problems, the open files'
 // diagnostics, its icon marked while there are errors; Git, the branch's commits; and Runs, the tree's
 // query runs, its icon marked while one is live and in the error's color once one has panicked. The icon of
 // each window that shows is drawn in signal on a square of it. Under the top icons, a line apart, one
 // icon for each category of jobs the tree has, in the run view's order: a press shows the run view with
 // that category alone in its list, and the protocol's shows its one job, the course. The icon of the
-// category shown is drawn in signal.
+// category shown is drawn in signal, and Run's is not while one category shows alone. No icon of the
+// strip is drawn as another is, and each is as large as the eye on the bar.
 //
 // The top bar's tools: Preferences, Notifications, which lists what the status bar has said and is
 // marked while some of it is unread, Toolchains, and the definitions beside the editor. Past them the
@@ -42,6 +44,10 @@ function element(tag, props = {}, ...children) {
 
 const explorerShown = (group) => shownView() === "edit" && shownGroup() === group && paneNodeShown(document.getElementById("explorer"));
 
+// Whether the run view shows every category of jobs, which is Run's; with one category alone it is that
+// category's icon that is lit, so one view lights one icon.
+const runShown = () => shownView() === "run" && !shownCategory();
+
 // A window of the explorer: the edit view with the group's panes, or, where it shows, closed.
 function openGroup(group) {
   if (explorerShown(group)) {
@@ -57,12 +63,13 @@ function openGroup(group) {
 const STRIP = {
   top: [
     ["explorer", "folder", "Explorer", "Ctrl+Shift+E", () => openGroup("explorer"), () => explorerShown("explorer")],
+    ["search", "search", "Search", "Ctrl+Shift+F", () => openGroup("search"), () => explorerShown("search")],
     ["structure", "structure", "Structure", "", () => openGroup("structure"), () => explorerShown("structure")],
     ["commit", "commit", "Commit", "", () => openGroup("commit"), () => explorerShown("commit")],
     ["more", "more", "More Tool Windows", "", (button) => moreMenu(button), () => false],
   ],
   foot: [
-    ["run", "run", "Run", "Ctrl+Shift+D", () => (shownView() === "run" ? togglePane() : showView("run")), () => shownView() === "run"],
+    ["run", "run", "Run", "Ctrl+Shift+D", () => (runShown() ? togglePane() : showCategory(null)), () => runShown()],
     ["debug", "debug", "Debug", "Alt+5", () => state.hooks.run("debug-view"), () => !document.getElementById("debug").hidden],
     ["terminal", "terminal", "Terminal", "Ctrl+`", () => state.hooks.run("terminal-view"), () => !document.getElementById("term").hidden],
     ["profile", "profile", "Profile", "", () => state.hooks.run("profile-view"), () => !document.getElementById("profile").hidden],
@@ -77,9 +84,13 @@ const STRIP = {
 };
 
 // The strip's own command, by the name commands.json gives it: a pane of the explorer opened and
-// shown, as the strip's … menu opens it.
+// shown, as the strip's … menu opens it; a name that is no such pane is refused with the panes there are.
 export const stripCommands = {
   "pane-open": ([name]) => {
+    const panes = morePanes().map((one) => one.name);
+    if (!panes.includes(name)) {
+      throw new Error(`the window has no pane ${name}: its panes are ${panes.join(", ")}`);
+    }
     showView("edit");
     showPane(name);
     togglePane(true, { take: false });
@@ -139,6 +150,11 @@ export function refreshStrip() {
       button.classList.toggle("live", live > 0 && !panicked);
       button.title = live ? `Runs: ${live} live${panicked ? `, ${panicked} panicked` : ""}` : "Runs";
     }
+  }
+  for (const button of document.querySelectorAll("#strip-jobs .strip-job")) {
+    const on = shownView() === "run" && shownCategory() === button.dataset.category;
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-pressed", String(on));
   }
   const definitions = document.getElementById("tool-definitions");
   if (definitions) {
@@ -206,7 +222,7 @@ const showGroupPane = (group) => {
   togglePane(true, { take: false, pin: false });
 };
 const HOVERED = new Map([
-  ...["explorer", "structure", "commit", "problems", "tests", "git"].map((group) => [group, () => showGroupPane(group)]),
+  ...["explorer", "search", "structure", "commit", "problems", "tests", "git"].map((group) => [group, () => showGroupPane(group)]),
   [
     "run",
     () => {
@@ -303,7 +319,7 @@ function showNotices(bell) {
     list.append(element("div", { className: `notice${notice.failed ? " failed" : ""}` }, element("span", { className: "notice-text", textContent: notice.text }), element("span", { className: "notice-time", textContent: time(notice.at) })));
   }
   if (!said.length) {
-    list.append(element("p", { className: "notices-empty", textContent: "What orior says on the status bar is kept here." }));
+    list.append(element("p", { className: "notices-empty", textContent: "What orior_gui says on the status bar is kept here." }));
   }
   const clear = element("button", { className: "notices-clear", type: "button", textContent: "Clear" });
   clear.disabled = !said.length;
@@ -340,32 +356,39 @@ function toggleDefinitions() {
 
 // The menus of jobs on the strip, drawn again as the menu bar is.
 // The icon of each category of jobs.
+// The icon of each category of jobs, none drawn as another icon of the strip or the bar is.
 const CATEGORY_ICONS = {
-  build: "gear",
-  executable: "run",
+  build: "hammer",
+  executable: "program",
   deploy: "push",
   protocol: "protocol",
   ingest: "ingest",
-  run: "terminal",
+  run: "launch",
   render: "render",
   sim: "sim",
-  view: "render",
+  view: "view",
   pipeline: "pipeline",
   stage: "stage",
-  test: "tests",
+  test: "check",
 };
 
+// The categories' icons, drawn again only where the categories change: an icon put in place of one under
+// the pointer would leave the pointer's tooltip standing over nothing.
 function drawJobs() {
   const group = document.getElementById("strip-jobs");
   const jobs = listedJobs();
   const categories = ORDER.filter((name) => jobs.some((job) => job.group === name));
   group.hidden = !categories.length;
+  if (group.dataset.categories === categories.join(" ")) {
+    refreshStrip();
+    return;
+  }
+  group.dataset.categories = categories.join(" ");
   group.replaceChildren(
     ...categories.map((name) => {
-      const button = element("button", { className: `strip-button strip-job strip-category-${name}`, type: "button", title: name }, icon(CATEGORY_ICONS[name] ?? "run"));
+      const button = element("button", { className: `strip-button strip-job strip-category-${name}`, type: "button", title: name }, icon(CATEGORY_ICONS[name] ?? "launch"));
       button.setAttribute("aria-label", name);
       button.dataset.category = name;
-      button.classList.toggle("on", shownView() === "run" && shownCategory() === name);
       button.addEventListener("click", () => {
         showCategory(name);
         window.requestAnimationFrame(refreshStrip);
@@ -373,6 +396,7 @@ function drawJobs() {
       return button;
     }),
   );
+  refreshStrip();
 }
 
 // View, System Title Bar: the window drawn with the system's own title bar and its controls, in place
@@ -437,7 +461,7 @@ export function startStrip(hooks) {
     .replaceChildren(
       toolButton("tool-preferences", "gear", "Preferences (Ctrl+,)", () => hooks.run("preferences")),
       toolButton("tool-notifications", "bell", "Notifications", (button) => showNotices(button)),
-      toolButton("tool-toolchains", "database", "Toolchains", () => hooks.run("toolchains")),
+      toolButton("tool-toolchains", "wrench", "Toolchains", () => hooks.run("toolchains")),
       toolButton("tool-definitions", "m", "Definitions", () => toggleDefinitions()),
     );
   dockIcon("definitions", document.getElementById("tool-definitions"));

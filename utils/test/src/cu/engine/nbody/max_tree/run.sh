@@ -10,20 +10,20 @@ TOP="$(cd "$MODULE/../../../../.." && pwd)"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp max_tree_test
 
-EXACT_ROOT="${ANCHOR_EXACT_ROOT:-$TOP/src/cu/includes/types/integers}"
+EXACT_ROOT="${ORIOR_EXACT_ROOT:-$TOP/src/cu/includes/types/integers}"
 RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$TOP/src/cu/engine"/engine_config_*.h)"
 [ -n "$RESIDUAL_LIMBS" ] || { echo "  build failed: no ENGINE_RESIDUAL_LIMBS in engine_config_*.h"; exit 1; }
 FITTED_LIMBS=1
 while [ "$FITTED_LIMBS" -lt $((RESIDUAL_LIMBS + 1)) ]; do
     FITTED_LIMBS=$((FITTED_LIMBS * 2))
 done
-EXACT_LIMBS="${ANCHOR_EXACT_LIMBS:-$FITTED_LIMBS}"
+EXACT_LIMBS="${ORIOR_EXACT_LIMBS:-$FITTED_LIMBS}"
 EXACT_DIGITS=$(( (EXACT_LIMBS * 32 * 1000 - 1) / 3322 ))
 if [ "$EXACT_DIGITS" -gt 1024 ]; then
     EXACT_DIGITS=1024
 fi
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$MODULE" -I "$MODULE_CU" -I "$EXACT_ROOT"
-          "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_EXACT_DIGITS=${EXACT_DIGITS}u")
+          "-DORIOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DORIOR_EXACT_DIGITS=${EXACT_DIGITS}u")
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)

@@ -3,7 +3,7 @@
 // serve.h: the tree's side of the window: every command the page calls that reads or changes the tree, runs its jobs,
 // its tests and its profiles, or speaks to its language servers and its debugger, called by name with its arguments
 // as JSON and answered as JSON, with what each tells as it goes sent as an event by name. The window calls it in its
-// own process for a tree on this machine, and over a link for a tree on another, where `orior-cli serve` answers each
+// own process for a tree on this machine, and over a link for a tree on another, where `orior_cli serve` answers each
 // line of its input with a line of its output (serve*.c)
 #ifndef SERVE_H
 #define SERVE_H
@@ -56,7 +56,7 @@ typedef struct
 void cli_serve_over(const char *root, const CliServeLink *link);
 
 // the kept run `base` run as its job file says, every line it says added to its said file as it comes, and stopped
-// where its stop file is made; `orior-cli keep-run` runs this, a process of its own that outlives the server that
+// where its stop file is made; `orior_cli keep-run` runs this, a process of its own that outlives the server that
 // started it: the code to exit with (serve_kept_run.c)
 int cli_serve_keep_run(const char *base);
 

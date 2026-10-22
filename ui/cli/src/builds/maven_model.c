@@ -12,30 +12,37 @@
 
 // the most parents above a POM read, and the most bytes of each
 #define CLI_MAVEN_DEPTH 8u
-#define CLI_MAVEN_POM_TEXT (1u << 20u)
+#define CLI_MAVEN_POM_TEXT (1ull << 20u)
 
-// A model's reading, a cell taken with the model's lock and given back with it: the tree of each pom and the text of
-// each parent
-typedef struct
-{
-    CliXml xml[CLI_MAVEN_DEPTH + 1u];
-    char parent_text[CLI_MAVEN_DEPTH][CLI_MAVEN_POM_TEXT];
-} CliMavenModelRoom;
-
-static CliMavenModelRoom *s_model;
 static CliLock s_model_lock = CLI_LOCK_INIT;
 
-// `size` bytes of `bytes` kept in the model's text: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit
-static unsigned int model_kept(CliMavenModel *model, const char *bytes, unsigned long long size)
+// A POM read as a parent or as the user's settings: its bytes, mapped, and their size; the bytes NULL where it is not
+// there or is larger than CLI_MAVEN_POM_TEXT
+typedef struct
 {
-    if (size > CLI_MAVEN_MODEL_TEXT - model->used)
+    const unsigned char *bytes;
+    unsigned long long size;
+} CliMavenMapped;
+
+// the file at `path` mapped, where it is there and no larger than CLI_MAVEN_POM_TEXT
+static CliMavenMapped model_mapped(const char *path)
+{
+    CliMavenMapped mapped = {NULL, 0ull};
+    mapped.bytes = cli_file_held(path, &mapped.size);
+    if ((mapped.bytes != NULL) && (mapped.size > CLI_MAVEN_POM_TEXT))
     {
-        return CLI_MAVEN_MODEL_TEXT;
+        cli_file_let_go(mapped.bytes, mapped.size);
+        mapped.bytes = NULL;
     }
-    const unsigned int at = model->used;
-    memor.cpy(&(MemoriaCfg){.dst = model->text + at, .src = bytes, .bytes = (size_t)size});
-    model->used += (unsigned int)size;
-    return at;
+    return mapped;
+}
+
+static void model_unmapped(CliMavenMapped mapped)
+{
+    if (mapped.bytes != NULL)
+    {
+        cli_file_let_go(mapped.bytes, mapped.size);
+    }
 }
 
 const char *cli_maven_property(const CliMavenModel *model, const char *name, unsigned long long size,
@@ -71,18 +78,18 @@ static void model_set(CliMavenModel *model, const char *name, unsigned long long
     {
         return;
     }
-    if ((at == model->properties) && (at == CLI_MAVEN_PROPERTIES))
+    if ((at == model->properties) && !cli_maven_property_room(model))
     {
         return;
     }
-    const unsigned int value_at = model_kept(model, value, value_size);
+    const unsigned int value_at = cli_maven_model_kept(model, value, value_size);
     if (value_at == CLI_MAVEN_MODEL_TEXT)
     {
         return;
     }
     if (at == model->properties)
     {
-        const unsigned int name_at = model_kept(model, name, name_size);
+        const unsigned int name_at = cli_maven_model_kept(model, name, name_size);
         if (name_at == CLI_MAVEN_MODEL_TEXT)
         {
             return;
@@ -167,30 +174,25 @@ int cli_maven_user_settings(char *out)
 
 int cli_maven_local_repository(char *out)
 {
-    // the settings read and their tree, a cell taken for the reading; settings with no room left to read them in read
-    // as settings that are not there
-    typedef struct
-    {
-        CliXml settings;
-        char text[CLI_MAVEN_POM_TEXT];
-    } CliMavenSettingsRoom;
+    // the settings mapped and read into a tree; settings larger than a POM is read as are read as settings that are not
+    // there
     char path[CLI_PATH_LONGEST];
     if (cli_maven_user_settings(path))
     {
-        CliMavenSettingsRoom *const room = cli_cell_taken(sizeof(*room), "Maven's settings");
-        const unsigned long long size =
-            (room != NULL) ? qry_member_file_read(path, (unsigned char *)room->text, sizeof(room->text))
-                           : QRY_MEMBER_UNREAD;
+        const CliMavenMapped mapped = model_mapped(path);
         int named_one = 0;
-        if (size != QRY_MEMBER_UNREAD)
+        if (mapped.bytes != NULL)
         {
-            cli_xml_parse(room->text, size, &room->settings);
+            CliXml settings;
+            // the file's bytes are read as its text
+            cli_xml_parse((const char *)mapped.bytes, mapped.size, &settings);
             CliLine named = {out, CLI_PATH_LONGEST, 0ull};
-            const unsigned int root = cli_xml_root(&room->settings);
-            named_one = (root != CLI_XML_NONE) && cli_xml_text_of(&room->settings, root, "localRepository", &named) &&
+            const unsigned int root = cli_xml_root(&settings);
+            named_one = (root != CLI_XML_NONE) && cli_xml_text_of(&settings, root, "localRepository", &named) &&
                         (named.at > 0u) && (cli_line_closed(&named) > 0u);
+            cli_xml_given(&settings);
         }
-        cli_cell_given(room);
+        model_unmapped(mapped);
         if (named_one)
         {
             return 1;
@@ -217,10 +219,10 @@ static int model_text_of(const CliXml *xml, unsigned int of, const char *name, c
     return found;
 }
 
-// the POM the `<parent>` at `parent` of the POM at `path` names, read into the room at `depth`: 1 with its path and its
-// size, or 0 where none is found
-static int model_parent_pom(const char *path, const CliXml *xml, unsigned int parent, unsigned int depth, char *place,
-                            unsigned long long *size)
+// the POM the `<parent>` at `parent` of the POM at `path` names, mapped into `mapped`: 1 with its path, or 0 where none
+// is found
+static int model_parent_pom(const char *path, const CliXml *xml, unsigned int parent, char *place,
+                            CliMavenMapped *mapped)
 {
     char folder[CLI_PATH_LONGEST];
     if (!cli_path_parent(path, folder))
@@ -248,8 +250,8 @@ static int model_parent_pom(const char *path, const CliXml *xml, unsigned int pa
             memor.cpy(&(MemoriaCfg){.dst = folder_place, .src = place, .bytes = CLI_PATH_LONGEST});
             cli_full(folder_place, "pom.xml", place);
         }
-        *size = qry_member_file_read(place, (unsigned char *)s_model->parent_text[depth], CLI_MAVEN_POM_TEXT);
-        if (*size != QRY_MEMBER_UNREAD)
+        *mapped = model_mapped(place);
+        if (mapped->bytes != NULL)
         {
             return 1;
         }
@@ -288,8 +290,8 @@ static int model_parent_pom(const char *path, const CliXml *xml, unsigned int pa
     {
         return 0;
     }
-    *size = qry_member_file_read(place, (unsigned char *)s_model->parent_text[depth], CLI_MAVEN_POM_TEXT);
-    return *size != QRY_MEMBER_UNREAD;
+    *mapped = model_mapped(place);
+    return mapped->bytes != NULL;
 }
 
 // the properties and the managed dependencies of the holder at `holder` put in the model
@@ -323,13 +325,14 @@ static void model_holder(const CliXml *xml, unsigned int holder, CliMavenModel *
         unsigned long long artifact_size = 0ull;
         if (model_text_of(xml, one, "groupId", s_group, sizeof(s_group), &group_size) &&
             model_text_of(xml, one, "artifactId", s_artifact, sizeof(s_artifact), &artifact_size) &&
-            (model->managed < CLI_MAVEN_MANAGED))
+            cli_maven_managed_room(model))
         {
             CliLine key = {s_value, sizeof(s_value), 0ull};
             cli_maven_resolve(s_group, group_size, model, &key);
             cli_line_character(&key, ':');
             cli_maven_resolve(s_artifact, artifact_size, model, &key);
-            const unsigned int at = cli_line_fits(&key) ? model_kept(model, s_value, key.at) : CLI_MAVEN_MODEL_TEXT;
+            const unsigned int at =
+                cli_line_fits(&key) ? cli_maven_model_kept(model, s_value, key.at) : CLI_MAVEN_MODEL_TEXT;
             if (at != CLI_MAVEN_MODEL_TEXT)
             {
                 model->managed_at[model->managed] = at;
@@ -347,11 +350,15 @@ static void model_holder(const CliXml *xml, unsigned int holder, CliMavenModel *
 static void model_read(const char *path, const char *text, unsigned long long size, unsigned int depth,
                        CliMavenModel *model)
 {
-    CliXml *const xml = &s_model->xml[depth];
+    CliXml read;
+    CliXml *const xml = &read;
     cli_xml_parse(text, size, xml);
+    // a POM with no room left to read it in leaves the model not whole
+    model->whole = model->whole && ((xml->element != NULL) || (size == 0ull));
     const unsigned int root = cli_xml_root(xml);
     if (root == CLI_XML_NONE)
     {
+        cli_xml_given(xml);
         return;
     }
     const unsigned int parent = cli_xml_child(xml, root, "parent");
@@ -359,10 +366,12 @@ static void model_read(const char *path, const char *text, unsigned long long si
     if (parent != CLI_XML_NONE)
     {
         char place[CLI_PATH_LONGEST];
-        unsigned long long found = 0ull;
-        if ((depth < CLI_MAVEN_DEPTH) && model_parent_pom(path, xml, parent, depth, place, &found))
+        CliMavenMapped mapped = {NULL, 0ull};
+        if ((depth < CLI_MAVEN_DEPTH) && model_parent_pom(path, xml, parent, place, &mapped))
         {
-            model_read(place, s_model->parent_text[depth], found, depth + 1u, model);
+            // the parent's bytes are read as its text; what the model keeps of it is copied into the model's text
+            model_read(place, (const char *)mapped.bytes, mapped.size, depth + 1u, model);
+            model_unmapped(mapped);
         }
         else
         {
@@ -396,24 +405,15 @@ static void model_read(const char *path, const char *text, unsigned long long si
             model_holder(xml, one, model);
         }
     }
+    cli_xml_given(xml);
 }
 
 void cli_maven_model_of(const char *path, const char *text, unsigned long long size, CliMavenModel *model)
 {
     cli_lock_take(&s_model_lock);
-    model->properties = 0u;
-    model->managed = 0u;
-    model->imports = 0;
-    model->used = 0u;
-    s_model = cli_cell_taken(sizeof(*s_model), "a Maven model's reading");
-    // a model with no room left to read it in is not whole
-    model->whole = (s_model != NULL);
-    if (s_model != NULL)
-    {
-        model_read(path, text, size, 0u, model);
-    }
-    cli_cell_given(s_model);
-    s_model = NULL;
+    cli_maven_model_given(model);
+    model->whole = 1;
+    model_read(path, text, size, 0u, model);
     cli_lock_give(&s_model_lock);
 }
 

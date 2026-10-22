@@ -116,17 +116,17 @@ static void db_keychain(void)
     (void)cli_line_closed(&line);
     char why[256];
     CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_keychain_keep(account, "kept secret", &said))
+    if (!cli_keychain_keep("database", account, "kept secret", &said))
     {
         cli_check(1, "the machine has no keychain, and none is kept");
         return;
     }
     char read[64];
-    cli_check(cli_keychain_read(account, read, sizeof(read)) &&
+    cli_check(cli_keychain_read("database", account, read, sizeof(read)) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = read, .other = "kept secret", .cap = CLI_CELLS_POOL})),
               "the keychain keeps a password");
-    (void)cli_keychain_forget(account, &said);
-    cli_check(!cli_keychain_read(account, read, sizeof(read)), "and forgets it");
+    (void)cli_keychain_forget("database", account, &said);
+    cli_check(!cli_keychain_read("database", account, read, sizeof(read)), "and forgets it");
 }
 
 // `statement` run on `open`, its answer read into the shared tree: its node, CLI_JSON_NONE where it failed
@@ -295,6 +295,14 @@ static void db_sqlite_schema(CliDbOpen *open, const char *root)
     cli_check((lines == 1001u) &&
                   (cellul.starts(&(CatenaFinitaCfg){.src = s_csv, .other = "n,name\n1,n1\n", .cap = CLI_CELLS_POOL})),
               "with its head");
+    cli_full(root, "t.jsonl", path);
+    out.at = 0ull;
+    (void)cli_db_export(open, path, "json", NULL, NULL, &out, &s_failure);
+    const unsigned long long lines_size = qry_member_file_read(path, (unsigned char *)s_csv, sizeof(s_csv) - 1u);
+    s_csv[(lines_size == QRY_MEMBER_UNREAD) ? 0u : lines_size] = '\0';
+    cli_check(cellul.starts(
+                  &(CatenaFinitaCfg){.src = s_csv, .other = "{\"n\":\"1\",\"name\":\"n1\"}\n", .cap = CLI_CELLS_POOL}),
+              "and as JSON lines, each row an object of its columns");
     out.at = 0ull;
     cli_db_history(open, &out);
     (void)cli_line_closed(&out);
@@ -399,7 +407,7 @@ int main(void)
     db_sqlite();
     db_slow();
     char python[CLI_PATH_LONGEST];
-    cli_check((g_cli_db_cells.held == 0ull) && ((g_cli_db_cells.hw != 0ull) || !cli_test_python(python)),
+    cli_check((g_cli_db_cells.holds == 0ull) && ((g_cli_db_cells.hw != 0ull) || !cli_test_python(python)),
               "every connection and SQLite process closed is given back, the most they held marked");
     return cli_checked();
 }

@@ -56,7 +56,7 @@ static_assert(((NOISE_SUMMARY_FIRST_BIN << (NOISE_LEVEL_BIN_SHIFT - 1u)) == 40u)
 long noise_flicker_sample(const unsigned short *volume, const unsigned long long extent[4],
                           unsigned long long sums[NOISE_FLICKER_CELLS], EngineError *error);
 
-void noise_exact_word(AnchorExactInteger *value, unsigned long long word);
+void noise_exact_word(OriorExactInteger *value, unsigned long long word);
 
 int noise_per_mille(unsigned long long squares, unsigned long long pairs, unsigned long long first_squares,
                     unsigned long long first_pairs, unsigned long long *per_mille);
@@ -64,7 +64,7 @@ int noise_per_mille(unsigned long long squares, unsigned long long pairs, unsign
 void noise_flicker_pooled(const unsigned long long sums[NOISE_FLICKER_CELLS],
                           unsigned long long pooled[NOISE_FLICKER_LAGS][NOISE_FLICKER_SUMS]);
 
-static_assert(ANCHOR_EXACT_LIMBS >= 8u, "noise_detector: a 128 bit sum times 1000 fits the exact integer");
+static_assert(ORIOR_EXACT_LIMBS >= 8u, "noise_detector: a 128 bit sum times 1000 fits the exact integer");
 
 typedef struct
 {
@@ -112,10 +112,10 @@ typedef struct
     unsigned long long planes;
     unsigned long long height;
     unsigned long long width;
-    AnchorExactInteger spread;
-    AnchorExactInteger rows;
-    AnchorExactInteger columns;
-    AnchorExactInteger plane_squares;
+    OriorExactInteger spread;
+    OriorExactInteger rows;
+    OriorExactInteger columns;
+    OriorExactInteger plane_squares;
 } NoisePlanePool;
 
 // A sample's static voxels as an unbalanced layout, each line holding only its static members. For a line of n of
@@ -144,7 +144,7 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
                         NoiseLineCell cells[NOISE_LINE_CELLS], NoisePlanePool *pool, NoiseStaticPool *still,
                         FILE *plane_table, const char *name, EngineError *error);
 
-void noise_exact_wide(AnchorExactInteger *value, const NoiseWide *wide);
+void noise_exact_wide(OriorExactInteger *value, const NoiseWide *wide);
 
 // The pooled planes as three ratios against the independent part s, the variance of one voxel's frame difference
 // that nothing shares: rows 1 + W var_row / s, columns 1 + H var_col / s and the plane 1 + N var_plane / s, per mille,
@@ -267,7 +267,7 @@ typedef struct
 
 extern "C" void noise_line_sums_zero(NoiseLineSums *sums);
 
-int noise_exact_add_product(AnchorExactInteger *sum, const AnchorExactInteger *left, const AnchorExactInteger *right);
+int noise_exact_add_product(OriorExactInteger *sum, const OriorExactInteger *left, const OriorExactInteger *right);
 
 extern "C" long noise_line_fit(const NoiseLineSums *sums, unsigned long long level_scale,
                                unsigned long long measurement_scale, NoiseLine *line, EngineError *error);
@@ -281,7 +281,7 @@ typedef struct
 
 void noise_signed_wide_add(NoiseSignedWide *sum, unsigned long long place, long long measurement);
 
-int noise_exact_signed_wide(AnchorExactInteger *value, const NoiseSignedWide *wide);
+int noise_exact_signed_wide(OriorExactInteger *value, const NoiseSignedWide *wide);
 
 // The ladder's sums over the kept blocks: a block's place x is its voxel's frames summed over the voxel's other whole
 // blocks, and its measurements e2, e3 and e4 are its k-statistics' numerators, each k_j being e_j over n (n - 1) down
@@ -347,7 +347,7 @@ __device__ static inline void noise_wide_atomic_add(unsigned long long *cell, un
     }
 }
 
-void noise_exact_words(AnchorExactInteger *value, const unsigned long long *words);
+void noise_exact_words(OriorExactInteger *value, const unsigned long long *words);
 
 // the halves pass's sums: sum lo and sum hi, then sum lo hi as 128 bits, its low word then its high word
 #define NOISE_HALVES_LOWER 0u

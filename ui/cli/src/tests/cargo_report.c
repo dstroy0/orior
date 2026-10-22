@@ -6,9 +6,8 @@
 
 #include "../text/text.h"
 
-// the most failures one report names, and the bytes their messages take
+// the most failures one report names
 #define CLI_CARGO_FAILURES 4096u
-#define CLI_CARGO_FAILURE_TEXT (1u << 20u)
 
 // the next line of `size` bytes from `at`, a "\r" before its "\n" taken off, as its start and length: 1, or 0 where
 // none is left
@@ -171,9 +170,14 @@ typedef struct
     long long line;
 } CliCargoFailure;
 
-static CliCargoFailure s_failures[CLI_CARGO_FAILURES];
-static char s_failure_text[CLI_CARGO_FAILURE_TEXT];
-static CliLock s_failure_lock = CLI_LOCK_INIT;
+// whether the line `start`, `length` bytes of `out`, opens a failure's output: `---- name stdout ----`
+static int report_failure_named(const char *out, unsigned long long start, unsigned long long length)
+{
+    static const char s_tail[] = " stdout ----";
+    const unsigned long long tail = sizeof(s_tail) - 1ull;
+    return report_starts(out, start, length, "---- ") && (length >= 5ull + tail) &&
+           (memor.cmp(&(MemoriaCfg){.src = out + start + length - tail, .other = s_tail, .bytes = tail}) == 0);
+}
 
 // the failure the lines after a test's `---- name stdout ----` give: its message and place, the lines read past
 static void report_failure_read(const char *out, unsigned long long size, unsigned long long *at,
@@ -257,22 +261,31 @@ void cli_cargo_failures_each(const char *out, unsigned long long size,
                                           long long line),
                              void *context)
 {
-    cli_lock_take(&s_failure_lock);
-    CliLine text = {s_failure_text, sizeof(s_failure_text), 0ull};
-    unsigned int count = 0u;
+    // the failures in a cell of the count the report names, and their messages, each a part of the report, in a cell
+    // of its size
+    unsigned int named = 0u;
     unsigned long long at = 0ull;
     unsigned long long start = 0ull;
     unsigned long long length = 0ull;
-    while (report_line(out, size, &at, &start, &length) && (count < CLI_CARGO_FAILURES))
+    while (report_line(out, size, &at, &start, &length) && (named < CLI_CARGO_FAILURES))
     {
-        static const char s_tail[] = " stdout ----";
-        const unsigned long long tail = sizeof(s_tail) - 1ull;
-        if (!report_starts(out, start, length, "---- ") || (length < 5ull + tail) ||
-            (memor.cmp(&(MemoriaCfg){.src = out + start + length - tail, .other = s_tail, .bytes = tail}) != 0))
+        named += report_failure_named(out, start, length) ? 1u : 0u;
+    }
+    CliCargoFailure *const failures =
+        cli_cell_taken(((unsigned long long)named + 1ull) * sizeof(CliCargoFailure), "the failures a report names");
+    char *const texts = cli_cell_taken(size + 1ull, "the failures' messages");
+    CliLine text = {texts, (texts != NULL) ? (size + 1ull) : 0ull, 0ull};
+    unsigned int count = 0u;
+    at = 0ull;
+    while ((failures != NULL) && (texts != NULL) && report_line(out, size, &at, &start, &length) && (count < named))
+    {
+        if (!report_failure_named(out, start, length))
         {
             continue;
         }
-        CliCargoFailure *const failure = &s_failures[count];
+        static const char s_tail[] = " stdout ----";
+        const unsigned long long tail = sizeof(s_tail) - 1ull;
+        CliCargoFailure *const failure = &failures[count];
         failure->name = start + 5ull;
         failure->name_size = length - 5ull - tail;
         report_failure_read(out, size, &at, failure, &text);
@@ -280,22 +293,23 @@ void cli_cargo_failures_each(const char *out, unsigned long long size,
     }
     for (unsigned int one = 0u; one < count; one += 1u)
     {
-        const CliCargoFailure *const failure = &s_failures[one];
+        const CliCargoFailure *const failure = &failures[one];
         int later = 0;
         for (unsigned int other = one + 1u; !later && (other < count); other += 1u)
         {
-            later = (s_failures[other].name_size == failure->name_size) &&
-                    (memor.cmp(&(MemoriaCfg){.src = out + s_failures[other].name,
+            later = (failures[other].name_size == failure->name_size) &&
+                    (memor.cmp(&(MemoriaCfg){.src = out + failures[other].name,
                                              .other = out + failure->name,
                                              .bytes = failure->name_size}) == 0);
         }
         if (!later)
         {
-            each(context, out + failure->name, failure->name_size, s_failure_text + failure->message,
-                 failure->message_size, failure->placed ? failure->path : NULL, failure->line);
+            each(context, out + failure->name, failure->name_size, texts + failure->message, failure->message_size,
+                 failure->placed ? failure->path : NULL, failure->line);
         }
     }
-    cli_lock_give(&s_failure_lock);
+    cli_cell_given(texts);
+    cli_cell_given(failures);
 }
 
 int cli_cargo_build_error(const char *said, unsigned long long size, char *error, unsigned long long room,
@@ -385,7 +399,7 @@ void cli_cargo_workspace_of(const char *root, const char *package, char *workspa
         char manifest[CLI_PATH_LONGEST];
         cli_full(folder, "Cargo.toml", manifest);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = qry_member_file_mapped(manifest, &size);
+        const unsigned char *const bytes = cli_file_held(manifest, &size);
         unsigned long long at = 0ull;
         unsigned long long start = 0ull;
         unsigned long long length = 0ull;
@@ -399,7 +413,7 @@ void cli_cargo_workspace_of(const char *root, const char *package, char *workspa
         }
         if (bytes != NULL)
         {
-            qry_member_file_unmapped(bytes, size);
+            cli_file_let_go(bytes, size);
         }
         if (workspace_table)
         {

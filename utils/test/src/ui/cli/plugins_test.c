@@ -4,6 +4,7 @@
 // or its extension, a name becomes an id, a plugin from nothing holds what was asked, a plugin from another takes its
 // grammar, and creating writes once and replaces only when asked
 #include "../../../../../ui/cli/src/plugins/plugins.h"
+#include "../../../../../ui/cli/src/window/window.h"
 #include "cli_check.h"
 
 static CliJsonNode s_node[1u << 16u];
@@ -59,12 +60,18 @@ static void plugins_bundled(void)
             const unsigned int list = cli_json_member(&s_json, root, "languages");
             whole &= cli_json_is(&s_json, list, CFG_JSON_ARRAY) && (s_json.node[list].count > 0u);
         }
+        else if ((kind != NULL) &&
+                 (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "script", .cap = CLI_CELLS_POOL})))
+        {
+            // a script plugin that comes with orior runs the code built into the program beside its plugin.json
+            whole &= (g_cli_bundled[at].code != NULL) && (g_cli_bundled[at].code_size > 0ull);
+        }
         else
         {
             whole = 0;
         }
     }
-    cli_check(whole, "every bundled plugin reads and names itself");
+    cli_check(whole, "every bundled plugin reads and names itself, and a script plugin carries its code");
 }
 
 // the language `path` opens as, the empty text where none
@@ -174,8 +181,8 @@ static void plugins_creating(void)
     cli_check(cli_plugins_create_in(dir, &s_json, plugins_spec(), 0, folder, &said), "a plugin is created");
     cli_full(folder, "plugin.json", path);
     cli_check(query_is_file(path), "with its plugin.json");
-    // the room holds the largest sample a plugin is written with, and its 0
-    static char s_sample[CLI_PLUGIN_FILE + 1u];
+    // the room holds the sample a plugin of one language is written with, a few hundred bytes, and its 0
+    static char s_sample[1u << 16u];
     cli_full(folder, "sample.toy", path);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_sample, sizeof(s_sample) - 1u);
     s_sample[(size == QRY_MEMBER_UNREAD) ? 0u : size] = '\0';
@@ -186,11 +193,98 @@ static void plugins_creating(void)
     unsigned int count = 0u;
     (void)query_folder_each(dir, plugins_counted, &count);
     cli_check(count == 1u, "and is one plugin");
+    // answers read into a tree of their own size, starting from a plugin many times the room they take
+    static const char s_from[] = "{\"name\": \"Snake\", \"extensions\": [\"snk\"], \"from\": \"python\"}";
+    CliJson tight = {0};
+    const unsigned int answers = cli_json_taken(&tight, s_from, sizeof(s_from) - 1u, 0u, 0ull, &said);
+    said.at = 0ull;
+    cli_check(cli_plugins_create_in(dir, &tight, answers, 0, folder, &said),
+              "a plugin starts from another larger than the answers' own tree holds");
+    cli_json_given(&tight);
+}
+
+// the plugin of the id looked for, as the plugins are handed on, kept where it is the reader's
+static void plugins_reader_found(void *context, const CliPlugin *plugin)
+{
+    int *const found = context;
+    *found |= cellul.eq(&(CatenaFinitaCfg){.src = plugin->id, .other = "readers", .cap = CLI_CELLS_POOL}) &&
+              cellul.eq(&(CatenaFinitaCfg){.src = plugin->source, .other = "user", .cap = CLI_CELLS_POOL});
+}
+
+// a plugin just written in the plugins folder of orior's own folder is listed as the reader's, and the window's list
+// of plugins holds it
+static void plugins_reader(void)
+{
+    char home[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_LONGEST];
+    char manifest[CLI_PATH_LONGEST];
+    cli_check_folder("plugins_reader_home", home);
+    (void)query_environment_set("ORIOR_HOME", home);
+    cli_full(home, "plugins/readers", folder);
+    query_folder_made(folder);
+    cli_full(folder, "plugin.json", manifest);
+    static const char s_manifest[] = "{\"id\": \"readers\", \"name\": \"Readers\", \"version\": \"1.0.0\", \"kind\": "
+                                     "\"script\", \"api\": 1}";
+    (void)query_file_written(manifest, s_manifest, sizeof(s_manifest) - 1u);
+    int found = 0;
+    cli_plugins_each(plugins_reader_found, &found);
+    cli_check(found, "a plugin just written in the plugins folder of orior's own folder is listed as the reader's");
+    const unsigned int room = cli_window_called(1, "plugins_read", "{}", 2ull);
+    const char *text = NULL;
+    unsigned long long size = 0ull;
+    const int answered = cli_window_answer(room, &text, &size);
+    cli_check(answered &&
+                  (cellul.find(&(CatenaFinitaCfg){
+                       .src = text, .cap = size, .other = "\"id\":\"readers\"", .other_cap = CLI_CELLS_POOL}) != NULL),
+              "and the window's list of plugins holds it");
+    cli_window_given(room);
+}
+
+// a script plugin's code read from each file its `main` names, in order, and a name that leaves its folder refused
+static void plugins_code(void)
+{
+    char home[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_LONGEST];
+    char path[CLI_PATH_LONGEST];
+    cli_check_folder("plugins_code_home", home);
+    (void)query_environment_set("ORIOR_HOME", home);
+    cli_full(home, "plugins/parts", folder);
+    query_folder_made(folder);
+    cli_full(folder, "plugin.json", path);
+    static const char s_parts[] =
+        "{\"id\": \"parts\", \"name\": \"Parts\", \"version\": \"1.0.0\", \"kind\": \"script\", "
+        "\"main\": [\"one.js\", \"lib/two.js\"]}";
+    (void)query_file_written(path, s_parts, sizeof(s_parts) - 1u);
+    cli_full(folder, "one.js", path);
+    (void)query_file_written(path, "const one = 1;", 14ull);
+    cli_full(folder, "lib", path);
+    query_folder_made(path);
+    cli_full(folder, "lib/two.js", path);
+    (void)query_file_written(path, "const two = one + 1;", 20ull);
+    char code[256];
+    CliLine out = {code, sizeof(code), 0ull};
+    char why[CLI_PATH_LONGEST * 2u];
+    CliLine said = {why, sizeof(why), 0ull};
+    const int read = cli_plugins_code_of("parts", &out, &said);
+    (void)cli_line_closed(&out);
+    cli_check(read && cellul.eq(&(CatenaFinitaCfg){
+                          .src = code, .other = "const one = 1;\nconst two = one + 1;", .cap = sizeof(code)}),
+              "a plugin's code is each file its `main` names, in order");
+    static const char s_out[] =
+        "{\"id\": \"parts\", \"name\": \"Parts\", \"version\": \"1.0.0\", \"kind\": \"script\", "
+        "\"main\": [\"one.js\", \"../two.js\"]}";
+    cli_full(folder, "plugin.json", path);
+    (void)query_file_written(path, s_out, sizeof(s_out) - 1u);
+    out.at = 0ull;
+    said.at = 0ull;
+    cli_check(!cli_plugins_code_of("parts", &out, &said), "and a file it names outside its folder is refused");
 }
 
 int main(void)
 {
     plugins_bundled();
+    plugins_reader();
+    plugins_code();
     cli_plugins_languages(&s_languages);
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = plugins_of("src/SConscript"), .other = "python", .cap = CLI_CELLS_POOL}),
@@ -209,6 +303,12 @@ int main(void)
         "a file opens by its extension");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = plugins_of("build.zig"), .other = "zig", .cap = CLI_CELLS_POOL}),
               "of any language");
+    cli_check((s_languages.count > 0u) && (s_languages.room >= s_languages.count) &&
+                  (s_languages.room <= (2u * s_languages.count) + CLI_LANGUAGE_PAIRS_FIRST),
+              "the languages' keys are held in a room that grew to them and no further than twice");
+    cli_plugins_languages_given(&s_languages);
+    cli_check((g_cli_plugins_cells.holds == 0ull) && (g_cli_plugins_cells.hw != 0ull),
+              "the plugins are read in cells each given back");
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = plugins_slug("Toy Lang"), .other = "toy-lang", .cap = CLI_CELLS_POOL}),
         "a name becomes an id");

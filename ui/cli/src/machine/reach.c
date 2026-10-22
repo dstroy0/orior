@@ -106,7 +106,7 @@ int cli_reach_keep(const char *root, const char *address, const char *key, CliLi
     char home[CLI_PATH_LONGEST];
     if (!cli_home_folder(home))
     {
-        cli_line_text(said, "orior has no home folder");
+        cli_line_text(said, "orior_cli has no home folder");
         return 0;
     }
     return cli_reach_keep_in(home, cli_process_own(), root, address, key, said);
@@ -144,7 +144,7 @@ static void reach_entry(void *context, const char *name, int is_folder)
     CliLine said = {why, sizeof(why), 0ull};
     unsigned long long size = 0ull;
     cli_full(read->folder, name, path);
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
     if (bytes == NULL)
     {
         return;
@@ -152,7 +152,7 @@ static void reach_entry(void *context, const char *name, int is_folder)
     CliJson json;
     cli_json_begun(&json, s_nodes, CLI_REACH_NODES, s_text, sizeof(s_text));
     const unsigned int kept = cli_json_read(&json, (const char *)bytes, size, s_tokens, CLI_REACH_NODES, &said);
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     const char *const address = cli_json_string(&json, cli_json_member(&json, kept, "address"), NULL);
     const char *const key = cli_json_string(&json, cli_json_member(&json, kept, "key"), NULL);
     const char *const root = cli_json_string(&json, cli_json_member(&json, kept, "root"), NULL);

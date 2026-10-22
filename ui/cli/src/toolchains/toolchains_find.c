@@ -1,9 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// toolchains_find.c: each tool found, every tool written as the window reads it, a tool's version asked, and its
-// install line and page
+// toolchains_find.c: each tool found, as the search last found it where nothing it reads has changed, every tool
+// written as the window reads it, a tool's version asked, and its install line and page
 #include "../machine/report.h"
-#include "../text/json_tree.h"
 #include "toolchains_internal.h"
 
 // how long a program may take to say its version before it is stopped, in milliseconds
@@ -126,11 +125,15 @@ void cli_toolchains_find(const CliJson *json, unsigned int tool, const char (*pa
         cli_set(found, "tree", environment.python);
         return;
     }
+    if ((id == NULL) || cli_toolchains_found_kept(id, path, count, found))
+    {
+        return;
+    }
     char chosen[CLI_PATH_LONGEST];
-    if ((id != NULL) && cli_toolchains_chosen(id, chosen) &&
-        cli_toolchains_tool_program_in(json, tool, chosen, program))
+    if (cli_toolchains_chosen(id, chosen) && cli_toolchains_tool_program_in(json, tool, chosen, program))
     {
         cli_set(found, "chosen", program);
+        cli_toolchains_found_keep(id, path, count, found);
         return;
     }
     const unsigned int programs = cli_json_member(json, tool, "programs");
@@ -144,6 +147,7 @@ void cli_toolchains_find(const CliJson *json, unsigned int tool, const char (*pa
                 cli_toolchains_program_in(path[at], &name, 1u, program))
             {
                 cli_set(found, "path", program);
+                cli_toolchains_found_keep(id, path, count, found);
                 return;
             }
         }
@@ -156,9 +160,11 @@ void cli_toolchains_find(const CliJson *json, unsigned int tool, const char (*pa
             cli_toolchains_tool_program_in(json, tool, s_places[at], program))
         {
             cli_set(found, "found", program);
+            cli_toolchains_found_keep(id, path, count, found);
             return;
         }
     }
+    cli_toolchains_found_keep(id, path, count, found);
 }
 
 // a text written as a JSON string, or null where it is none
@@ -207,7 +213,7 @@ static int cli_version_of(const CliJson *json, unsigned int tool, const CliFound
     }
     words[count] = NULL;
     CliSpawned spawned;
-    if (!cli_spawn(&spawned, words, NULL, NULL, 0u, 1, said))
+    if (!cli_spawn_as(CLI_PRIORITY_GUEST, &spawned, words, NULL, NULL, 0u, 1, said))
     {
         return 0;
     }
@@ -335,12 +341,14 @@ static void cli_member_written(const CliJson *json, unsigned int tool, const cha
     cli_quoted_or_null(out, cli_json_string(json, value, NULL));
 }
 
-void cli_toolchains_check(int versions, CliLine *out)
+void cli_toolchains_check(int versions, int (*seen)(const void *context, const char *kind), const void *context,
+                          CliLine *out)
 {
     CliJson json;
     cli_lock_take(&g_cli_toolchains_find_lock);
     const unsigned int manifest = cli_toolchains_manifest(&json, 0u, 0ull);
     const unsigned int count = cli_toolchains_find_path();
+    cli_toolchains_found_held();
     cli_line_character(out, '[');
     int first = 1;
     for (unsigned int tool = cli_json_is(&json, manifest, CFG_JSON_ARRAY) ? json.node[manifest].first : CLI_JSON_NONE;
@@ -393,7 +401,18 @@ void cli_toolchains_check(int versions, CliLine *out)
         cli_line_text(out, cli_json_is(&json, cli_json_member(&json, tool, "needed"), CFG_JSON_TRUE)
                                ? ",\"needed\":true"
                                : ",\"needed\":false");
-        cli_line_text(out, ((id != NULL) && cli_toolchains_added(id)) ? ",\"added\":true" : ",\"added\":false");
+        const int added = (id != NULL) && cli_toolchains_added(id);
+        cli_line_text(out, added ? ",\"added\":true" : ",\"added\":false");
+        int used = cli_json_is(&json, cli_json_member(&json, tool, "needed"), CFG_JSON_TRUE) || added;
+        const unsigned int uses = cli_json_member(&json, tool, "uses");
+        for (unsigned int use = ((seen != NULL) && cli_json_is(&json, uses, CFG_JSON_ARRAY)) ? json.node[uses].first
+                                                                                             : CLI_JSON_NONE;
+             !used && (use != CLI_JSON_NONE); use = json.node[use].next)
+        {
+            const char *const kind = cli_json_string(&json, use, NULL);
+            used = (kind != NULL) && seen(context, (kind[0] == '*') ? (kind + 1) : kind);
+        }
+        cli_line_text(out, used ? ",\"used\":true" : ",\"used\":false");
         if (versions && versioned && found.has_program)
         {
             char line[512];
@@ -410,6 +429,7 @@ void cli_toolchains_check(int versions, CliLine *out)
         cli_line_character(out, '}');
     }
     cli_line_character(out, ']');
+    cli_toolchains_found_let();
     cli_toolchains_find_released(&json);
 }
 
@@ -425,7 +445,7 @@ int cli_toolchains_setup_line(const char *id, CliLine *out, CliLine *said)
     if ((tool != CLI_JSON_NONE) && (line == NULL))
     {
         const char *const name = cli_json_string(&json, cli_json_member(&json, tool, "name"), NULL);
-        cli_line_text(said, "orior has no way to install ");
+        cli_line_text(said, "orior_cli has no way to install ");
         cli_line_text(said, (name != NULL) ? name : id);
         cli_line_text(said, " on ");
         cli_line_text(said, cli_toolchains_system());

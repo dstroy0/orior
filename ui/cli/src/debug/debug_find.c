@@ -107,7 +107,7 @@ int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, un
     if (count == 0u)
     {
         find_released(&manifest_json);
-        cli_line_text(said, "orior has no debugger for ");
+        cli_line_text(said, "orior_cli has no debugger for ");
         cli_line_text(said, language);
         return 0;
     }

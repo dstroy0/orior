@@ -299,17 +299,20 @@ void cli_py_classes(const char *src, CliFacts *facts)
             return;
         }
         const CliInspectTok *const name = cli_py_tok(line, name_at);
-        facts->class_of[facts->classes] =
-            (CliInspectClass){cli_inspect_kept(facts, src + name->start, name->end - name->start),
-                              name->from,
-                              name->to,
-                              base_first,
-                              bases,
-                              has_first,
-                              read_first - has_first,
-                              read_first,
-                              facts->names - read_first,
-                              dynamic};
+        const CliInspectClass class_found = {cli_inspect_kept(facts, src + name->start, name->end - name->start),
+                                             name->from,
+                                             name->to,
+                                             base_first,
+                                             bases,
+                                             has_first,
+                                             read_first - has_first,
+                                             read_first,
+                                             facts->names - read_first,
+                                             dynamic};
+        if (!facts->counting)
+        {
+            facts->class_of[facts->classes] = class_found;
+        }
         facts->classes += 1u;
     }
 }

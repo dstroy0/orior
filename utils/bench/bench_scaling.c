@@ -38,15 +38,15 @@ static const size_t NEEDLE_LENGTHS[] = {4u, 8u, 16u, 32u, 64u, 128u, 256u};
 static uint64_t cycles_now(void)
 {
 #if CYCLES_ARE_REAL
-#if defined(_MSC_VER)
-    _ReadWriteBarrier();
+#if defined(__x86_64__) || defined(__i386__)
+    __asm__ __volatile__("" ::: "memory");
     const uint64_t taken = (uint64_t)__rdtsc();
-    _ReadWriteBarrier();
+    __asm__ __volatile__("" ::: "memory");
     return taken;
 #else
-    __asm__ __volatile__("" ::: "memory");
+    _ReadWriteBarrier();
     const uint64_t taken = (uint64_t)__rdtsc();
-    __asm__ __volatile__("" ::: "memory");
+    _ReadWriteBarrier();
     return taken;
 #endif
 #else
@@ -68,8 +68,8 @@ int main(void)
 {
     static const Arm ARMS[] = {
         {"exact_compare", orior_naive},
-        {"anchor_inorder", orior_inorder},
-        {"anchor_free", orior_free},
+        {"orior_inorder", orior_inorder},
+        {"orior_free", orior_free},
     };
     static const CorpusKind KINDS[] = {CORPUS_UNIFORM, CORPUS_SKEWED, CORPUS_PERIODIC};
 

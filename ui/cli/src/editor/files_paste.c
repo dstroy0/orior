@@ -316,10 +316,8 @@ static int cli_pasted_one(const char *source, const char *folder, const char *na
     return 1;
 }
 
-int cli_files_paste(const char *root, const char *into, const char *const *from, unsigned int count, int moving,
-                    CliLine *out, CliLine *said)
+int cli_paste_begun(const char *root, const char *into, char *folder, CliLine *out, CliLine *said)
 {
-    char folder[CLI_PATH_LONGEST];
     if (!cli_inside(root, into, folder, said))
     {
         return 0;
@@ -331,14 +329,34 @@ int cli_files_paste(const char *root, const char *into, const char *const *from,
         return 0;
     }
     cli_line_character(out, '[');
+    return 1;
+}
+
+int cli_paste_named(const char *source, char *name, CliLine *said)
+{
+    if (!cli_paste_name(source, name))
+    {
+        cli_line_text(said, source);
+        cli_line_text(said, " has no name");
+        return 0;
+    }
+    return 1;
+}
+
+int cli_files_paste(const char *root, const char *into, const char *const *from, unsigned int count, int moving,
+                    CliLine *out, CliLine *said)
+{
+    char folder[CLI_PATH_LONGEST];
+    if (!cli_paste_begun(root, into, folder, out, said))
+    {
+        return 0;
+    }
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         const char *const source = from[index];
         char name[CLI_PATH_LONGEST];
-        if (!cli_paste_name(source, name))
+        if (!cli_paste_named(source, name, said))
         {
-            cli_line_text(said, source);
-            cli_line_text(said, " has no name");
             return 0;
         }
         char was[CLI_PATH_LONGEST];

@@ -8,6 +8,7 @@
 #include "review_internal.h"
 
 CliReview g_cli_review;
+CliCellsTally g_cli_review_cells = CLI_CELLS_TALLY("cli_review");
 
 // The lists git gives a review, and the room the pieces are grouped in
 typedef struct
@@ -32,14 +33,25 @@ static CliLock s_lock = CLI_LOCK_INIT;
 // the review's room and texts given back, and the lock with them
 static void review_released(void)
 {
+    if (s_room != NULL)
+    {
+        cli_git_text_given(&s_room->repositories.text);
+        cli_git_text_given(&s_room->touched.text);
+    }
     cli_cell_given(s_room);
     cli_cell_given(g_cli_review.compared);
     cli_cell_given(g_cli_review.kept);
     cli_cell_given(g_cli_review.text);
+    cli_cell_given(g_cli_review.call);
     s_room = NULL;
     g_cli_review.compared = NULL;
     g_cli_review.kept = NULL;
     g_cli_review.text = NULL;
+    g_cli_review.kept_room = 0ull;
+    g_cli_review.text_room = 0ull;
+    g_cli_review.call = NULL;
+    g_cli_review.calls = 0u;
+    g_cli_review.call_room = 0u;
     cli_lock_give(&s_lock);
 }
 
@@ -49,45 +61,22 @@ static int review_held(void)
 {
     cli_lock_take(&s_lock);
     s_room = cli_cell_taken(sizeof(*s_room), "a review's walk");
-    g_cli_review.text = cli_cell_taken(CLI_REVIEW_TEXT, "a review's file texts");
-    g_cli_review.kept = cli_cell_taken(CLI_REVIEW_KEPT, "a review's piece texts");
+    if (s_room != NULL)
+    {
+        s_room->repositories.text.bytes = NULL;
+        s_room->touched.text.bytes = NULL;
+    }
+    // the texts' rooms are taken as their first texts are put
+    g_cli_review.text = NULL;
+    g_cli_review.kept = NULL;
+    g_cli_review.text_room = 0ull;
+    g_cli_review.kept_room = 0ull;
     g_cli_review.compared = cli_cell_taken(cli_review_compared_bytes(), "a review's comparison");
-    if ((s_room == NULL) || (g_cli_review.text == NULL) || (g_cli_review.kept == NULL) ||
-        (g_cli_review.compared == NULL))
+    if ((s_room == NULL) || (g_cli_review.compared == NULL))
     {
         review_released();
         return 0;
     }
-    return 1;
-}
-
-// `length` bytes put in the files' texts, a 0 after them: their place, 0 where they do not fit
-static unsigned int cli_text_put(const char *text, unsigned long long length)
-{
-    if ((g_cli_review.used + length + 1ull) > CLI_REVIEW_TEXT)
-    {
-        return 0u;
-    }
-    const unsigned int at = g_cli_review.used;
-    memor.cpy(&(MemoriaCfg){.dst = g_cli_review.text + at, .src = text, .bytes = length});
-    g_cli_review.text[at + length] = '\0';
-    // the texts are below CLI_REVIEW_TEXT bytes, which an unsigned int holds
-    g_cli_review.used += (unsigned int)length + 1u;
-    return at;
-}
-
-// a text written into the room after the files' texts, kept there where it was written whole: 1, or 0
-static int cli_text_kept(const CliLine *line, int written, unsigned int *at, unsigned long long *size)
-{
-    if (!written || !cli_line_fits(line) || ((g_cli_review.used + line->at + 1ull) > CLI_REVIEW_TEXT))
-    {
-        return 0;
-    }
-    *at = g_cli_review.used;
-    *size = line->at;
-    g_cli_review.text[g_cli_review.used + line->at] = '\0';
-    // the texts are below CLI_REVIEW_TEXT bytes, which an unsigned int holds
-    g_cli_review.used += (unsigned int)line->at + 1u;
     return 1;
 }
 
@@ -104,12 +93,12 @@ static CliReviewFile *cli_review_file_begun(const char *at, const char *path, co
     cli_line_text(&line, at);
     cli_line_text(&line, path);
     cli_line_closed(&line);
-    file->path = cli_text_put(joined, cellul.len(&(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL}));
+    file->path = cli_review_text_put(joined, cellul.len(&(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL}));
     line.at = 0ull;
     cli_line_text(&line, at);
     cli_line_text(&line, was_path);
     cli_line_closed(&line);
-    file->was_path = cli_text_put(joined, cellul.len(&(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL}));
+    file->was_path = cli_review_text_put(joined, cellul.len(&(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL}));
     file->has_was = 0;
     file->has_now = 0;
     g_cli_review.files += 1u;
@@ -163,16 +152,14 @@ static int cli_commit_read(const char *root, const char *id, CliLine *by, CliLin
         }
         char why[CLI_NAME_LONGEST];
         CliLine unread = {why, sizeof(why), 0ull};
-        CliLine before = {g_cli_review.text + g_cli_review.used, CLI_REVIEW_TEXT - g_cli_review.used, 0ull};
-        file->has_was =
-            (one->state != 'A') &&
-            cli_text_kept(&before, cli_git_text_before(root, g_cli_review.text + file->was_path, id, &before),
-                          &file->was, &file->was_size);
-        CliLine after = {g_cli_review.text + g_cli_review.used, CLI_REVIEW_TEXT - g_cli_review.used, 0ull};
-        file->has_now =
-            (one->state != 'D') &&
-            cli_text_kept(&after, cli_git_text_at(root, g_cli_review.text + file->path, id, &after, &unread),
-                          &file->now, &file->now_size);
+        CliLine before = cli_review_text_line();
+        const int read_before =
+            (one->state != 'A') && cli_git_text_before(root, g_cli_review.text + file->was_path, id, &before);
+        file->has_was = cli_review_text_kept(&before, read_before, &file->was, &file->was_size);
+        CliLine after = cli_review_text_line();
+        const int read_after =
+            (one->state != 'D') && cli_git_text_at(root, g_cli_review.text + file->path, id, &after, &unread);
+        file->has_now = cli_review_text_kept(&after, read_after, &file->now, &file->now_size);
     }
     return 1;
 }
@@ -194,12 +181,13 @@ static void cli_tree_read(const char *root)
         {
             break;
         }
-        CliLine before = {g_cli_review.text + g_cli_review.used, CLI_REVIEW_TEXT - g_cli_review.used, 0ull};
-        file->has_was = cli_text_kept(&before, cli_git_head_text(root, path, &before), &file->was, &file->was_size);
+        CliLine before = cli_review_text_line();
+        file->has_was =
+            cli_review_text_kept(&before, cli_git_head_text(root, path, &before), &file->was, &file->was_size);
         char full[CLI_PATH_LONGEST];
         cli_full(root, path, full);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = qry_member_file_mapped(full, &size);
+        const unsigned char *const bytes = cli_file_held(full, &size);
         int text = bytes != NULL;
         for (unsigned long long at = 0ull; text && (at < size);)
         {
@@ -210,13 +198,13 @@ static void cli_tree_read(const char *root)
         }
         if (text)
         {
-            file->now = cli_text_put((const char *)bytes, size);
+            file->now = cli_review_text_put((const char *)bytes, size);
             file->now_size = size;
             file->has_now = (file->now != 0u) || (size == 0ull);
         }
         if (bytes != NULL)
         {
-            qry_member_file_unmapped(bytes, size);
+            cli_file_let_go(bytes, size);
         }
     }
 }
@@ -470,13 +458,13 @@ void cli_review_files(const char *const *paths, const char *const *was, const ch
         if (was[at] != NULL)
         {
             file->was_size = cellul.len(&(CatenaFinitaCfg){.src = was[at], .cap = CLI_CELLS_POOL});
-            file->was = cli_text_put(was[at], file->was_size);
+            file->was = cli_review_text_put(was[at], file->was_size);
             file->has_was = (file->was != 0u);
         }
         if (now[at] != NULL)
         {
             file->now_size = cellul.len(&(CatenaFinitaCfg){.src = now[at], .cap = CLI_CELLS_POOL});
-            file->now = cli_text_put(now[at], file->now_size);
+            file->now = cli_review_text_put(now[at], file->now_size);
             file->has_now = (file->now != 0u);
         }
     }

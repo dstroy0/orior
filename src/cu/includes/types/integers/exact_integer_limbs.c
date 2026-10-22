@@ -145,7 +145,7 @@ int limbs_product(uint32_t *result, const uint32_t *left, size_t left_count, con
         left_count = right_count;
         right_count = count_swap;
     }
-    if (right_count < (size_t)ANCHOR_EXACT_KARATSUBA_LIMBS)
+    if (right_count < (size_t)ORIOR_EXACT_KARATSUBA_LIMBS)
     {
         limbs_long_product(result, left, left_count, right, right_count);
         return 1;

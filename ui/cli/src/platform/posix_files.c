@@ -11,9 +11,26 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+
+unsigned int cli_system_error(void)
+{
+    // errno is not negative after a call that failed
+    return (unsigned int)errno;
+}
+
+void cli_system_reason(unsigned int error, CliLine *said)
+{
+    cli_line_text(said, ": ");
+    // an error number from errno is a small int
+    cli_line_text(said, strerror((int)error));
+    cli_line_text(said, " (os error ");
+    cli_line_decimal(said, error, 1u);
+    cli_line_character(said, ')');
+}
 
 int cli_file_size(const char *path, unsigned long long *size)
 {
@@ -24,6 +41,64 @@ int cli_file_size(const char *path, unsigned long long *size)
     }
     // a file's size is not negative
     *size = (unsigned long long)found.st_size;
+    return 1;
+}
+
+// `count` bytes of the open `file` from `from` read into `bytes`, their count into `got`, fewer where the file ends
+static void file_read_from(int file, unsigned long long from, unsigned char *bytes, unsigned long long count,
+                           unsigned long long *got)
+{
+    *got = 0ull;
+    int reading = 1;
+    while (reading && (*got < count))
+    {
+        // a read's count and its place are what the system's types hold
+        const ssize_t read_now = pread(file, bytes + *got, (size_t)(count - *got), (off_t)(from + *got));
+        reading = read_now > 0;
+        // a count read is not negative where reading goes on
+        *got += reading ? (unsigned long long)read_now : 0ull;
+    }
+}
+
+int cli_file_read_at(const char *path, unsigned long long from, unsigned char *bytes, unsigned long long count,
+                     unsigned long long *got)
+{
+    const int file = open(path, O_RDONLY);
+    *got = 0ull;
+    if (file < 0)
+    {
+        return 0;
+    }
+    file_read_from(file, from, bytes, count, got);
+    close(file);
+    return 1;
+}
+
+int cli_file_read_whole(const char *path, unsigned char *(*room)(void *context, unsigned long long size), void *context,
+                        unsigned long long *got)
+{
+    *got = 0ull;
+    const int file = open(path, O_RDONLY);
+    if (file < 0)
+    {
+        return 0;
+    }
+    struct stat found;
+    if (fstat(file, &found) != 0)
+    {
+        close(file);
+        return 0;
+    }
+    // a file's size is not negative
+    const unsigned long long size = (unsigned long long)found.st_size;
+    unsigned char *const bytes = room(context, size);
+    if (bytes == NULL)
+    {
+        close(file);
+        return 0;
+    }
+    file_read_from(file, 0ull, bytes, size, got);
+    close(file);
     return 1;
 }
 

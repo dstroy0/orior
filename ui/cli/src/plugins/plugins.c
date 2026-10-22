@@ -1,53 +1,61 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// plugins.c: the plugins found, those that come with orior and the reader's; the language each file opens as; a
-// script plugin's code; and a name as an id
+// plugins.c: the plugins found, those that come with orior and the reader's; the language each file opens as; a script
+// plugin's code, read from its folder for the reader's and built into the program for one that comes with orior; and a
+// name as an id
 #include "plugins.h"
+#include "../command_line/cells.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
 
-// the most bytes of a reader's plugin.json, of a script's code, and of the tree a plugin is read into
-#define CLI_PLUGIN_BYTES (1u << 22u)
+CliCellsTally g_cli_plugins_cells = CLI_CELLS_TALLY("cli_plugins");
 
-#define CLI_PLUGIN_NODES 65536u
-
-#define CLI_PLUGIN_TEXT (1u << 22u)
-
-#define CLI_PLUGIN_TOKENS 65536u
-
-// the reader's plugins' ids in order, a plugin's text, and a plugin read as JSON, held under the lock
-static char s_user[CLI_USER_PLUGINS][CLI_NAME_LONGEST];
-static unsigned int s_user_count;
-static char s_text[CLI_PLUGIN_BYTES];
-static CliJsonNode s_nodes[CLI_PLUGIN_NODES];
-static char s_json_text[CLI_PLUGIN_TEXT];
-static CfgJsonToken s_tokens[CLI_PLUGIN_TOKENS];
 static CliLock s_lock = CLI_LOCK_INIT;
+
+// The reader's plugins' ids in order, in a cell of `room`, `count` of them
+typedef struct
+{
+    char (*name)[CLI_NAME_LONGEST];
+    unsigned int count;
+    unsigned int room;
+} CliUserPlugins;
+
+// whether a folder's entry is a plugin's folder the reader's list keeps
+static int cli_user_kept(const char *name, int is_folder)
+{
+    return is_folder && (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) < CLI_NAME_LONGEST);
+}
+
+static void cli_user_counted(void *context, const char *name, int is_folder)
+{
+    CliUserPlugins *const user = (CliUserPlugins *)context;
+    user->room += (cli_user_kept(name, is_folder) && (user->room < CLI_USER_PLUGINS)) ? 1u : 0u;
+}
 
 static void cli_user_each(void *context, const char *name, int is_folder)
 {
-    (void)context;
-    if (!is_folder || (s_user_count >= CLI_USER_PLUGINS) ||
-        (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) >= CLI_NAME_LONGEST))
+    CliUserPlugins *const user = (CliUserPlugins *)context;
+    if (!cli_user_kept(name, is_folder) || (user->count >= user->room))
     {
         return;
     }
-    unsigned int place = s_user_count;
-    while ((place > 0u) && (cli_text_order(s_user[place - 1u], name) > 0))
+    unsigned int place = user->count;
+    while ((place > 0u) && (cli_text_order(user->name[place - 1u], name) > 0))
     {
         memor.cpy(&(MemoriaCfg){
-            .dst = s_user[place],
-            .src = s_user[place - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_user[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+            .dst = user->name[place],
+            .src = user->name[place - 1u],
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = user->name[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
         place -= 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = s_user[place],
+    memor.cpy(&(MemoriaCfg){.dst = user->name[place],
                             .src = name,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-    s_user_count += 1u;
+    user->count += 1u;
 }
 
-// every plugin handed on, the lock held: the reader's read one at a time into the one text
+// every plugin handed on, the lock held: the reader's counted, their ids taken into a cell of their count, and each
+// plugin.json handed on mapped where it lies
 static void cli_each_held(void (*each)(void *context, const CliPlugin *plugin), void *context)
 {
     for (unsigned int at = 0u; at < g_cli_bundled_count; at += 1u)
@@ -62,32 +70,46 @@ static void cli_each_held(void (*each)(void *context, const CliPlugin *plugin), 
     {
         return;
     }
-    s_user_count = 0u;
-    query_folder_each(dir, cli_user_each, NULL);
-    for (unsigned int at = 0u; at < s_user_count; at += 1u)
+    CliUserPlugins user = {NULL, 0u, 0u};
+    query_folder_each(dir, cli_user_counted, &user);
+    user.name = (user.room != 0u)
+                    ? cli_cell_taken_by(&g_cli_plugins_cells, (unsigned long long)user.room * CLI_NAME_LONGEST,
+                                        "the reader's plugins' ids")
+                    : NULL;
+    user.room = (user.name != NULL) ? user.room : 0u;
+    query_folder_each(dir, cli_user_each, &user);
+    for (unsigned int at = 0u; at < user.count; at += 1u)
     {
         char folder[CLI_PATH_LONGEST];
         char file[CLI_PATH_LONGEST];
         CliLine line = {folder, sizeof(folder), 0ull};
         cli_line_text(&line, dir);
         cli_line_character(&line, '/');
-        cli_line_text(&line, s_user[at]);
+        cli_line_text(&line, user.name[at]);
+        // the folder's path ended before the file's is made from it
+        if (cli_line_closed(&line) == 0ull)
+        {
+            continue;
+        }
         CliLine named = {file, sizeof(file), 0ull};
         cli_line_text(&named, folder);
         cli_line_text(&named, "/plugin.json");
-        if ((cli_line_closed(&line) == 0ull) || (cli_line_closed(&named) == 0ull))
+        if (cli_line_closed(&named) == 0ull)
         {
             continue;
         }
-        const unsigned long long size = qry_member_file_read(file, (unsigned char *)s_text, sizeof(s_text) - 1u);
-        if (size == QRY_MEMBER_UNREAD)
+        unsigned long long size = 0ull;
+        const unsigned char *const bytes = cli_file_held(file, &size);
+        if (bytes == NULL)
         {
             continue;
         }
-        s_text[size] = '\0';
-        const CliPlugin plugin = {s_user[at], "user", folder, s_text, size};
+        // a plugin's bytes are its JSON's text
+        const CliPlugin plugin = {user.name[at], "user", folder, (const char *)bytes, size};
         each(context, &plugin);
+        cli_file_let_go(bytes, size);
     }
+    cli_cell_given_by(&g_cli_plugins_cells, user.name);
 }
 
 void cli_plugins_each(void (*each)(void *context, const CliPlugin *plugin), void *context)
@@ -109,24 +131,36 @@ static void cli_mapped(CliLanguages *languages, const char *key, unsigned long l
     }
     for (unsigned int at = 0u; at < languages->count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = languages->key[at], .other = held, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = languages->pair[at].key, .other = held, .cap = CLI_CELLS_POOL}))
         {
-            memor.cpy(&(MemoriaCfg){.dst = languages->id[at],
+            memor.cpy(&(MemoriaCfg){.dst = languages->pair[at].id,
                                     .src = id,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
             return;
         }
     }
-    if (languages->count < CLI_LANGUAGE_KEYS)
+    if (languages->count == languages->room)
     {
-        memor.cpy(&(MemoriaCfg){.dst = languages->key[languages->count],
-                                .src = held,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
-        memor.cpy(&(MemoriaCfg){.dst = languages->id[languages->count],
-                                .src = id,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
-        languages->count += 1u;
+        // the pairs' room doubled, the first CLI_LANGUAGE_PAIRS_FIRST of them
+        const unsigned int room = (languages->room == 0u) ? CLI_LANGUAGE_PAIRS_FIRST : (languages->room * 2u);
+        CliLanguagePair *const pair =
+            cli_cell_taken_by(&g_cli_plugins_cells, (unsigned long long)room * sizeof(*pair), "the languages' keys");
+        if (pair == NULL)
+        {
+            return;
+        }
+        memor.cpy(&(MemoriaCfg){.dst = pair, .src = languages->pair, .bytes = languages->count * sizeof(*pair)});
+        cli_cell_given_by(&g_cli_plugins_cells, languages->pair);
+        languages->pair = pair;
+        languages->room = room;
     }
+    memor.cpy(&(MemoriaCfg){.dst = languages->pair[languages->count].key,
+                            .src = held,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = languages->pair[languages->count].id,
+                            .src = id,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
+    languages->count += 1u;
 }
 
 // a text in lower case, letter by letter, put after `prefix` into `out`, which holds CLI_NAME_LONGEST: its length
@@ -148,17 +182,16 @@ static void cli_language_each(void *context, const CliPlugin *plugin)
 {
     CliLanguages *const languages = (CliLanguages *)context;
     CliJson json;
-    cli_json_begun(&json, s_nodes, CLI_PLUGIN_NODES, s_json_text, CLI_PLUGIN_TEXT);
+    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_PATH_LONGEST];
     CliLine said = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_read(&json, plugin->text, plugin->size, s_tokens, CLI_PLUGIN_TOKENS, &said);
-    if (root == CLI_JSON_NONE)
+    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &said);
+    const char *const kind =
+        (root != CLI_JSON_NONE) ? cli_json_string(&json, cli_json_member(&json, root, "kind"), NULL) : NULL;
+    if ((root == CLI_JSON_NONE) ||
+        ((kind != NULL) && (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "language", .cap = CLI_CELLS_POOL}))))
     {
-        return;
-    }
-    const char *const kind = cli_json_string(&json, cli_json_member(&json, root, "kind"), NULL);
-    if ((kind != NULL) && (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "language", .cap = CLI_CELLS_POOL})))
-    {
+        cli_json_given(&json);
         return;
     }
     const char *const named = cli_json_string(&json, cli_json_member(&json, root, "id"), NULL);
@@ -207,12 +240,19 @@ static void cli_language_each(void *context, const CliPlugin *plugin)
             }
         }
     }
+    cli_json_given(&json);
 }
 
 void cli_plugins_languages(CliLanguages *languages)
 {
-    languages->count = 0u;
+    *languages = (CliLanguages){NULL, 0u, 0u};
     cli_plugins_each(cli_language_each, languages);
+}
+
+void cli_plugins_languages_given(CliLanguages *languages)
+{
+    cli_cell_given_by(&g_cli_plugins_cells, languages->pair);
+    *languages = (CliLanguages){NULL, 0u, 0u};
 }
 
 int cli_plugins_language_for(const CliLanguages *languages, const char *path, char *id)
@@ -226,54 +266,69 @@ int cli_plugins_language_for(const CliLanguages *languages, const char *path, ch
     cli_lowered("/", name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), key);
     for (unsigned int at = 0u; at < languages->count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = languages->key[at], .other = key, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = languages->pair[at].key, .other = key, .cap = CLI_CELLS_POOL}))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = id,
-                .src = languages->id[at],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = languages->id[at], .cap = CLI_CELLS_POOL}) + 1u});
+                .src = languages->pair[at].id,
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = languages->pair[at].id, .cap = CLI_CELLS_POOL}) + 1u});
             return 1;
         }
     }
-    static CliRegexpRoom s_room;
-    static unsigned int s_slashed[CLI_PATH_LONGEST];
-    static CliLock s_matching = CLI_LOCK_INIT;
-    cli_lock_take(&s_matching);
-    const unsigned long long length = cli_regexp_letters(
-        path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), s_slashed, CLI_PATH_LONGEST);
+    // the path's letters are no more than its bytes, and the room a pattern is read into is taken only where a key is
+    // a pattern
+    int patterned = 0;
+    for (unsigned int at = 0u; (at < languages->count) && !patterned; at += 1u)
+    {
+        patterned = languages->pair[at].key[0] == '?';
+    }
+    const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+    unsigned int *const slashed =
+        patterned ? cli_cell_taken_by(&g_cli_plugins_cells, (bytes + 1ull) * sizeof(unsigned int), "a path's letters")
+                  : NULL;
+    CliRegexpRoom *const room =
+        (slashed != NULL) ? cli_cell_taken_by(&g_cli_plugins_cells, sizeof(CliRegexpRoom), "a language's pattern")
+                          : NULL;
+    const unsigned long long length = (room != NULL) ? cli_regexp_letters(path, bytes, slashed, bytes + 1ull) : 0ull;
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {
-        s_slashed[at] = (s_slashed[at] == '\\') ? '/' : s_slashed[at];
+        slashed[at] = (slashed[at] == '\\') ? '/' : slashed[at];
     }
-    for (unsigned int at = 0u; at < languages->count; at += 1u)
+    int matched = 0;
+    for (unsigned int at = 0u; (room != NULL) && (at < languages->count) && !matched; at += 1u)
     {
-        if (languages->key[at][0] != '?')
+        if (languages->pair[at].key[0] != '?')
         {
             continue;
         }
         CliRegexp pattern;
-        cli_regexp_roomed(&pattern, &s_room);
+        cli_regexp_roomed(&pattern, room);
         char why[CLI_PATH_LONGEST];
         CliLine said = {why, sizeof(why), 0ull};
-        if (!cli_regexp_read(&pattern, languages->key[at] + 1, "", &said))
+        if (!cli_regexp_read(&pattern, languages->pair[at].key + 1, "", &said))
         {
             continue;
         }
         CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
-        for (unsigned long long place = 0ull; place < length; place += 1ull)
+        for (unsigned long long place = 0ull; (place < length) && !matched; place += 1ull)
         {
-            if (cli_regexp_match_into(&pattern, s_slashed, length, place, groups))
+            if (cli_regexp_match_into(&pattern, slashed, length, place, groups))
             {
                 memor.cpy(&(MemoriaCfg){
                     .dst = id,
-                    .src = languages->id[at],
-                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = languages->id[at], .cap = CLI_CELLS_POOL}) + 1u});
-                cli_lock_give(&s_matching);
-                return 1;
+                    .src = languages->pair[at].id,
+                    .bytes =
+                        cellul.len(&(CatenaFinitaCfg){.src = languages->pair[at].id, .cap = CLI_CELLS_POOL}) + 1u});
+                matched = 1;
             }
         }
     }
-    cli_lock_give(&s_matching);
+    cli_cell_given_by(&g_cli_plugins_cells, room);
+    cli_cell_given_by(&g_cli_plugins_cells, slashed);
+    if (matched)
+    {
+        return 1;
+    }
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     if ((dot == NULL) || (dot == name))
@@ -283,31 +338,32 @@ int cli_plugins_language_for(const CliLanguages *languages, const char *path, ch
     cli_lowered("", dot + 1, cellul.len(&(CatenaFinitaCfg){.src = dot + 1, .cap = CLI_CELLS_POOL}), key);
     for (unsigned int at = 0u; at < languages->count; at += 1u)
     {
-        if ((languages->key[at][0] != '/') && (languages->key[at][0] != '?') &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = languages->key[at], .other = key, .cap = CLI_CELLS_POOL})))
+        if ((languages->pair[at].key[0] != '/') && (languages->pair[at].key[0] != '?') &&
+            (cellul.eq(&(CatenaFinitaCfg){.src = languages->pair[at].key, .other = key, .cap = CLI_CELLS_POOL})))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = id,
-                .src = languages->id[at],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = languages->id[at], .cap = CLI_CELLS_POOL}) + 1u});
+                .src = languages->pair[at].id,
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = languages->pair[at].id, .cap = CLI_CELLS_POOL}) + 1u});
             return 1;
         }
     }
     return 0;
 }
 
-// The last plugin of an id found: its folder and its plugin.json's `main`, kept while each is handed
+
+// The last plugin of an id found: whether it is the reader's, its folder, and its plugin.json in a cell of its size
 typedef struct
 {
     const char *id;
     int found;
     int user;
     char folder[CLI_PATH_LONGEST];
-    char main[CLI_PATH_LONGEST];
-    int read;
+    char *text;
+    unsigned long long size;
 } CliCodeFound;
 
-static void cli_code_each(void *context, const CliPlugin *plugin)
+static void plugins_code_each(void *context, const CliPlugin *plugin)
 {
     CliCodeFound *const code = (CliCodeFound *)context;
     if (!cellul.eq(&(CatenaFinitaCfg){.src = plugin->id, .other = code->id, .cap = CLI_CELLS_POOL}))
@@ -316,21 +372,33 @@ static void cli_code_each(void *context, const CliPlugin *plugin)
     }
     code->found = 1;
     code->user = plugin->folder != NULL;
-    memor.cpy(
-        &(MemoriaCfg){.dst = code->folder,
-                      .src = (plugin->folder != NULL) ? plugin->folder : "",
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = (plugin->folder != NULL) ? plugin->folder : "",
-                                                             .cap = CLI_CELLS_POOL}) +
-                               1u});
-    CliJson json;
-    cli_json_begun(&json, s_nodes, CLI_PLUGIN_NODES, s_json_text, CLI_PLUGIN_TEXT);
-    char why[CLI_PATH_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_read(&json, plugin->text, plugin->size, s_tokens, CLI_PLUGIN_TOKENS, &said);
-    code->read = root != CLI_JSON_NONE;
-    const char *const main = code->read ? cli_json_string(&json, cli_json_member(&json, root, "main"), NULL) : NULL;
-    memor.cpy(
-        &(MemoriaCfg){.dst = code->main, .bytes = sizeof(code->main), .src = (main != NULL) ? main : "plugin.js"});
+    const char *const folder = (plugin->folder != NULL) ? plugin->folder : "";
+    memor.cpy(&(MemoriaCfg){.dst = code->folder,
+                            .src = folder,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
+    cli_cell_given(code->text);
+    code->text = cli_cell_taken(plugin->size + 1ull, "a plugin.json whose code is read");
+    code->size = (code->text != NULL) ? plugin->size : 0ull;
+    if (code->text != NULL)
+    {
+        // a plugin.json's size fits a size_t, as it was read whole
+        memor.cpy(&(MemoriaCfg){.dst = code->text, .src = plugin->text, .bytes = (size_t)plugin->size});
+        code->text[plugin->size] = '\0';
+    }
+}
+
+// the code built into the program of the plugin `id` that comes with orior, or NULL where it runs none
+static const CliBundled *plugins_code_bundled(const char *id)
+{
+    for (unsigned int at = 0u; at < g_cli_bundled_count; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_bundled[at].id, .other = id, .cap = CLI_CELLS_POOL}) &&
+            (g_cli_bundled[at].code != NULL))
+        {
+            return &g_cli_bundled[at];
+        }
+    }
+    return NULL;
 }
 
 int cli_plugins_code_of(const char *id, CliLine *out, CliLine *said)
@@ -338,68 +406,31 @@ int cli_plugins_code_of(const char *id, CliLine *out, CliLine *said)
     CliCodeFound code;
     memor.set(&(MemoriaCfg){.dst = &code, .val = 0, .bytes = sizeof(code)});
     code.id = id;
-    cli_plugins_each(cli_code_each, &code);
+    cli_plugins_each(plugins_code_each, &code);
+    const CliBundled *const bundled = (code.found && !code.user) ? plugins_code_bundled(id) : NULL;
+    int done = 0;
     if (!code.found)
     {
         cli_line_text(said, "no plugin is named ");
         cli_line_text(said, id);
-        return 0;
     }
-    if (!code.read)
+    else if (code.user && (code.text != NULL))
+    {
+        done = cli_plugins_code_in(id, code.folder, code.text, code.size, out, said);
+    }
+    else if (bundled != NULL)
+    {
+        cli_line_counted(out, (const char *)bundled->code, bundled->code_size);
+        done = cli_line_fits(out);
+    }
+    else
     {
         cli_line_text(said, id);
-        cli_line_text(said, ": its plugin.json does not read");
-        return 0;
+        cli_line_text(said, code.user ? ": its plugin.json does not read" : " comes with orior and runs no code");
     }
-    // each part of the name a folder's own: none empty, `.` or `..`, and the name not whole
-    int own = (code.main[0] != '/') && (code.main[0] != '\\') &&
-              (cellul.chr(&(CatenaFinitaCfg){.src = code.main, .cap = CLI_CELLS_POOL, .byte = ':'}) == NULL);
-    const char *part = code.main;
-    while (own && (part[0] != '\0'))
-    {
-        const char *end = part;
-        while ((end[0] != '\0') && (end[0] != '/') && (end[0] != '\\'))
-        {
-            end += 1;
-        }
-        const unsigned long long length = (unsigned long long)(end - part);
-        own = (length != 0ull) && !((length == 1u) && (part[0] == '.')) &&
-              !((length == 2u) && (part[0] == '.') && (part[1] == '.'));
-        part = (end[0] != '\0') ? (end + 1) : end;
-    }
-    if (!own)
-    {
-        cli_line_text(said, id);
-        cli_line_text(said, " names ");
-        cli_line_text(said, code.main);
-        cli_line_text(said, ", which is not a file of its own folder");
-        return 0;
-    }
-    if (!code.user)
-    {
-        cli_line_text(said, id);
-        cli_line_text(said, " comes with orior and runs no code");
-        return 0;
-    }
-    char file[CLI_PATH_LONGEST];
-    CliLine line = {file, sizeof(file), 0ull};
-    cli_line_text(&line, code.folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, code.main);
-    const unsigned long long room = cli_line_fits(out) ? (out->capacity - out->at) : 0ull;
-    const unsigned long long size = (cli_line_closed(&line) != 0ull)
-                                        ? qry_member_file_read(file, (unsigned char *)(out->out + out->at), room)
-                                        : QRY_MEMBER_UNREAD;
-    if (size == QRY_MEMBER_UNREAD)
-    {
-        cli_line_text(said, file);
-        cli_line_text(said, ": it could not be read");
-        return 0;
-    }
-    out->at += size;
-    return 1;
+    cli_cell_given(code.text);
+    return done;
 }
-
 void cli_plugins_slug(const char *name, char *id)
 {
     const char *from = name;

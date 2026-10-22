@@ -155,7 +155,7 @@ static void cli_script_read(const char *root, const char *top, const char *file)
     {
         return;
     }
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
     if (bytes == NULL)
     {
         return;
@@ -174,9 +174,10 @@ static void cli_script_read(const char *root, const char *top, const char *file)
                 cli_counted(folder);
             }
         }
+        cli_py_reading_given();
         cli_seen_counted();
     }
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
 }
 
 unsigned int cli_python_paths(const char *root, unsigned int most, void (*each)(void *context, const char *path),

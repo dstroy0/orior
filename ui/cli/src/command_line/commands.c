@@ -8,15 +8,14 @@
 // with the scheme. The list is built into the program, as the window builds in the same one, and read once
 #include "commands.h"
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../text/json_tree.h"
+#include "cells.h"
 
-// the most tokens the list holds, and its longest text
-#define CLI_COMMANDS_TOKENS 16384u
-
-#define CLI_COMMANDS_BYTES (1u << 20u)
-
-static char s_text[CLI_COMMANDS_BYTES];
+// the list as it is built in, with a zero after it, read where it lies; and its tokens, a cell of their count held for
+// as long as the program runs
+static const char *s_text;
 static unsigned long long s_size;
-static CfgJsonToken s_tokens[CLI_COMMANDS_TOKENS];
+static CfgJsonToken *s_tokens;
 static unsigned int s_count;
 // the token of each menu, in the order the list holds them
 static unsigned int s_menu[CLI_MENUS_MOST];
@@ -28,17 +27,21 @@ int cli_commands_read(CliLine *said)
     {
         return 1;
     }
-    if (g_cli_commands_json_size >= sizeof(s_text))
+    // the list's bytes read as the text they are
+    s_text = (const char *)g_cli_commands_json;
+    s_size = g_cli_commands_json_size;
+    const unsigned int tokens = cli_json_tokens_counted(s_text, s_size) + 1u;
+    s_tokens = (s_tokens != NULL)
+                   ? s_tokens
+                   : cli_cell_taken((unsigned long long)tokens * sizeof(*s_tokens), "the commands' tokens");
+    if (s_tokens == NULL)
     {
-        cli_line_text(said, "commands.json: it could not be read");
+        cli_line_text(said, "commands.json: the cells cannot meet its tokens");
         return 0;
     }
-    s_size = g_cli_commands_json_size;
-    memor.cpy(&(MemoriaCfg){.dst = s_text, .src = g_cli_commands_json, .bytes = s_size});
-    s_text[s_size] = '\0';
     CfgJsonParse parse;
     // a list far below what a size_t counts
-    if (!cfg_json_parse_metadata(s_text, (size_t)s_size, s_tokens, CLI_COMMANDS_TOKENS, &parse))
+    if (!cfg_json_parse_metadata(s_text, (size_t)s_size, s_tokens, tokens, &parse))
     {
         cli_line_text(said, "commands.json: ");
         cli_line_text(said, parse.reason);
@@ -120,6 +123,48 @@ unsigned int cli_menu_groups(unsigned int menu, char (*groups)[CLI_LABEL_LONGEST
     return count;
 }
 
+// the item of the object at token `at` read into `item`
+static void cli_item_read(unsigned int at, CliItem *item)
+{
+    cli_member_text(at, "label", item->label, sizeof(item->label));
+    cli_member_text(at, "command", item->command, sizeof(item->command));
+    cli_member_text(at, "keys", item->keys, sizeof(item->keys));
+    cli_member_text(at, "args", item->args, sizeof(item->args));
+    const unsigned int console = cfg_json_member(s_text, s_tokens, at, "console");
+    item->console = (console != 0u) && (s_tokens[console].kind == CFG_JSON_TRUE);
+}
+
+// the item among the entries of the array at token `list`, those of its groups among them, whose command is `word`,
+// read into `item`: 1, or 0 where none is
+static int cli_flat_found(unsigned int list, const char *word, CliItem *item)
+{
+    unsigned int at = list + 1u;
+    for (unsigned int each = 0u; each < s_tokens[list].count; each += 1u)
+    {
+        if (s_tokens[at].kind == CFG_JSON_OBJECT)
+        {
+            const unsigned int command = cfg_json_member(s_text, s_tokens, at, "command");
+            const unsigned int nested = cfg_json_member(s_text, s_tokens, at, "items");
+            if (command != 0u)
+            {
+                char named[sizeof(item->command)];
+                cli_member_text(at, "command", named, sizeof(named));
+                if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = word, .cap = CLI_CELLS_POOL}))
+                {
+                    cli_item_read(at, item);
+                    return 1;
+                }
+            }
+            else if ((nested != 0u) && (s_tokens[nested].kind == CFG_JSON_ARRAY) && cli_flat_found(nested, word, item))
+            {
+                return 1;
+            }
+        }
+        at = s_tokens[at].next;
+    }
+    return 0;
+}
+
 // every item of the entries of the array at token `list`, those of its groups among them, in order, added to `items`
 // from `count`: the count after
 static unsigned int cli_flat(unsigned int list, CliItem *items, unsigned int count, unsigned int room)
@@ -133,13 +178,7 @@ static unsigned int cli_flat(unsigned int list, CliItem *items, unsigned int cou
             const unsigned int nested = cfg_json_member(s_text, s_tokens, at, "items");
             if ((command != 0u) && (count < room))
             {
-                CliItem *const item = &items[count];
-                cli_member_text(at, "label", item->label, sizeof(item->label));
-                cli_member_text(at, "command", item->command, sizeof(item->command));
-                cli_member_text(at, "keys", item->keys, sizeof(item->keys));
-                cli_member_text(at, "args", item->args, sizeof(item->args));
-                const unsigned int console = cfg_json_member(s_text, s_tokens, at, "console");
-                item->console = (console != 0u) && (s_tokens[console].kind == CFG_JSON_TRUE);
+                cli_item_read(at, &items[count]);
                 count += 1u;
             }
             else if ((command == 0u) && (nested != 0u) && (s_tokens[nested].kind == CFG_JSON_ARRAY))
@@ -160,17 +199,21 @@ unsigned int cli_menu_items(unsigned int menu, CliItem *items, unsigned int room
 
 int cli_menu_command(unsigned int menu, const char *word, CliItem *item)
 {
-    static CliItem s_items[CLI_ITEMS_MOST];
-    const unsigned int count = cli_menu_items(menu, s_items, CLI_ITEMS_MOST);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    const unsigned int list = cfg_json_member(s_text, s_tokens, s_menu[menu], "items");
+    return (list != 0u) && (s_tokens[list].kind == CFG_JSON_ARRAY) && cli_flat_found(list, word, item);
+}
+
+unsigned int cli_item_words_needed(const CliItem *item)
+{
+    unsigned int needed = 0u;
+    unsigned int depth = 0u;
+    for (const char *at = item->args; *at != '\0'; at += 1)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_items[at].command, .other = word, .cap = CLI_CELLS_POOL}))
-        {
-            *item = s_items[at];
-            return 1;
-        }
+        depth += (*at == '[') ? 1u : 0u;
+        depth -= ((*at == ']') && (depth > 0u)) ? 1u : 0u;
+        needed += ((*at == '<') && (depth == 0u)) ? 1u : 0u;
     }
-    return 0;
+    return needed;
 }
 
 int cli_menu_named(const char *word, unsigned int *menu)

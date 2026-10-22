@@ -15,12 +15,12 @@ EXPORTS
     orior_counters_reset
     orior_probes DATA
     orior_verifications DATA
-    anchor_field_census
-    anchor_steer_magnitude
-    anchor_steer_probe_order
-    anchor_steer_prefers_free
-    anchor_steer_count
-    anchor_steer_count_with_probes
-    anchor_steer_probe_fits
-    anchor_steer_probes_reset
-    anchor_steer_probes DATA
+    orior_field_census
+    orior_steer_magnitude
+    orior_steer_probe_order
+    orior_steer_prefers_free
+    orior_steer_count
+    orior_steer_count_with_probes
+    orior_steer_probe_fits
+    orior_steer_probes_reset
+    orior_steer_probes DATA

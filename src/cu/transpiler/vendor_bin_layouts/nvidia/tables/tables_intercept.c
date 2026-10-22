@@ -8,7 +8,7 @@
 // realloc, free and memcpy. It keeps each live block's size and writes a record to stdout as a block of at least
 // TABLES_LEAST bytes is freed, and for each such block still held as the program ends: a line `<ptr 0x0 size>` with
 // the block's address in hex and its byte count in decimal, then the block's `size` bytes. Each copy writes a record
-// the same way, `<dst src size>` and the bytes copied (tables_funnel). The C library's own routines are reached
+// the same way, `<dst src size>` and the bytes copied (orior_tables_funnel). The C library's own routines are reached
 // through dlsym, which allocates while they are found: those first allocations come off a static arena of its own,
 // never freed.
 #define _GNU_SOURCE

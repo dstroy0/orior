@@ -214,15 +214,55 @@ typedef struct
     CliPatterns patterns;
     unsigned int shown[CLI_FUZZY_LETTERS];
     unsigned int lower[CLI_FUZZY_LETTERS];
-    char found[CLI_FOUND_MOST][CLI_PATH_LONGEST];
+    char (*found)[CLI_PATH_LONGEST];
     unsigned int found_count;
-    char pending[CLI_FIND_PENDING][CLI_PATH_LONGEST];
+    unsigned int found_room;
+    char (*pending)[CLI_PATH_LONGEST];
     unsigned int pending_count;
+    unsigned int pending_room;
     const char *root;
     const char *folder;
 } CliFinding;
 
 static CliFinding s_finding;
+
+// the paths a list's room is begun with, doubling as they are put
+#define CLI_FIND_FIRST 16u
+
+// `*list`, `count` paths of `*room`, made to hold one more, `most` at the most: 1, or 0 where it holds the most or the
+// larger cell is refused
+static int cli_finding_room(char (**list)[CLI_PATH_LONGEST], unsigned int count, unsigned int *room, unsigned int most,
+                            const char *what)
+{
+    if (count < *room)
+    {
+        return 1;
+    }
+    const unsigned int doubled = (*room == 0u) ? CLI_FIND_FIRST : (*room * 2u);
+    const unsigned int grown = (doubled < most) ? doubled : most;
+    char (*const larger)[CLI_PATH_LONGEST] =
+        (count < most) ? cli_cell_taken((unsigned long long)grown * CLI_PATH_LONGEST, what) : NULL;
+    if (larger == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = larger, .src = *list, .bytes = (size_t)count * CLI_PATH_LONGEST});
+    cli_cell_given(*list);
+    *list = larger;
+    *room = grown;
+    return 1;
+}
+
+// the find's lists given back
+static void cli_finding_given(void)
+{
+    cli_cell_given(s_finding.found);
+    cli_cell_given(s_finding.pending);
+    s_finding.found = NULL;
+    s_finding.pending = NULL;
+    s_finding.found_room = 0u;
+    s_finding.pending_room = 0u;
+}
 
 // whether the path holds each word of the query, case aside, and the patterns leave it
 static int cli_finding_holds(const char *path)
@@ -266,7 +306,8 @@ static void cli_finding_each(void *context, const char *name, int is_folder)
     {
         const int skipped = (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".git", .cap = CLI_CELLS_POOL})) ||
                             (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "target", .cap = CLI_CELLS_POOL}));
-        if (!skipped && (s_finding.pending_count < CLI_FIND_PENDING))
+        if (!skipped && cli_finding_room(&s_finding.pending, s_finding.pending_count, &s_finding.pending_room,
+                                         CLI_FIND_PENDING, "the folders a find has still to look in"))
         {
             memor.cpy(&(MemoriaCfg){.dst = s_finding.pending[s_finding.pending_count],
                                     .src = full,
@@ -277,7 +318,8 @@ static void cli_finding_each(void *context, const char *name, int is_folder)
     }
     char path[CLI_PATH_LONGEST];
     cli_relative(s_finding.root, full, path);
-    if (cli_finding_holds(path))
+    if (cli_finding_holds(path) && cli_finding_room(&s_finding.found, s_finding.found_count, &s_finding.found_room,
+                                                    CLI_FOUND_MOST, "the paths a find found"))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_finding.found[s_finding.found_count],
                                 .src = path,
@@ -338,6 +380,13 @@ void cli_files_find(const char *root, const char *query, CliLine *out)
     }
     cli_seen_let(seen);
     s_finding.root = root;
+    if (!cli_finding_room(&s_finding.pending, 0u, &s_finding.pending_room, CLI_FIND_PENDING,
+                          "the folders a find has still to look in"))
+    {
+        cli_line_character(out, ']');
+        cli_lock_give(&s_lock);
+        return;
+    }
     memor.cpy(&(MemoriaCfg){.dst = s_finding.pending[0],
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
@@ -379,5 +428,6 @@ void cli_files_find(const char *root, const char *query, CliLine *out)
                         cellul.len(&(CatenaFinitaCfg){.src = s_finding.found[at], .cap = CLI_CELLS_POOL}));
     }
     cli_line_character(out, ']');
+    cli_finding_given();
     cli_lock_give(&s_lock);
 }

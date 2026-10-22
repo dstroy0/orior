@@ -22,9 +22,9 @@ static int query_order_to_edge(unsigned long long clock, unsigned long long turn
 }
 
 // `given`, a count, as an exact integer
-static void query_order_exact(AnchorExactInteger *value, unsigned long long given)
+static void query_order_exact(OriorExactInteger *value, unsigned long long given)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     value->limb[0] = (uint32_t)(given & 0xffffffffull);
     value->limb[1] = (uint32_t)(given >> 32);
     value->sign = (given != 0ull) ? 1 : 0;
@@ -32,7 +32,7 @@ static void query_order_exact(AnchorExactInteger *value, unsigned long long give
 
 // a run's cost multiplies two counts of 64 bits and takes one such product from another: four limbs hold every
 // term, and the exact calls below are given no width they can refuse
-_Static_assert((unsigned long long)(ANCHOR_EXACT_LIMBS) >= 4ull, "a run's cost holds two 64-bit counts multiplied");
+_Static_assert((unsigned long long)(ORIOR_EXACT_LIMBS) >= 4ull, "a run's cost holds two 64-bit counts multiplied");
 
 // The links `covered` marks, each put `repeat` times, timed on a clock that turns over now and then and read finely by
 // counting. The run starts on a turn of the clock. When it ends, the reads of the clock word until its next turn are
@@ -73,17 +73,17 @@ static int query_order_run(const QueryOrder *order, const unsigned char *covered
     // each advance in the clock word's own width, which holds one wrap of the counter
     const unsigned long long spanned = (unsigned long long)(after - start);
     const unsigned long long turn_span = (unsigned long long)(next - after);
-    AnchorExactInteger left;
-    AnchorExactInteger right;
-    AnchorExactInteger kept;
-    AnchorExactInteger taken;
+    OriorExactInteger left;
+    OriorExactInteger right;
+    OriorExactInteger kept;
+    OriorExactInteger taken;
     query_order_exact(&left, spanned);
     query_order_exact(&right, turn_reads);
-    anchor_exact_multiply(&left, &right, &kept);
+    orior_exact_multiply(&left, &right, &kept);
     query_order_exact(&left, tail);
     query_order_exact(&right, turn_span);
-    anchor_exact_multiply(&left, &right, &taken);
-    anchor_exact_subtract(&kept, &taken, &cost->numerator);
+    orior_exact_multiply(&left, &right, &taken);
+    orior_exact_subtract(&kept, &taken, &cost->numerator);
     query_order_exact(&cost->denominator, turn_reads);
     return 1;
 }
@@ -115,16 +115,16 @@ int query_order_put(const QueryOrder *order, QueryCost *cost)
     return 1;
 }
 
-int query_order_solve(unsigned int links, const QueryCost *cost, AnchorExactInteger *numerator,
-                      AnchorExactInteger *denominator)
+int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteger *numerator,
+                      OriorExactInteger *denominator)
 {
     if (ask_order_fits(links) == 0)
     {
         return 0;
     }
     // every ask's denominator but its own, multiplied together: the factor its numerator takes onto the common one
-    AnchorExactInteger others[ASK_ORDER_LINKS_MOST];
-    AnchorExactInteger factor;
+    OriorExactInteger others[ASK_ORDER_LINKS_MOST];
+    OriorExactInteger factor;
     for (unsigned int ask = 0u; ask < links; ask += 1u)
     {
         query_order_exact(&others[ask], 1ull);
@@ -134,8 +134,8 @@ int query_order_solve(unsigned int links, const QueryCost *cost, AnchorExactInte
             {
                 continue;
             }
-            AnchorExactInteger product;
-            if (anchor_exact_multiply(&others[ask], &cost[other].denominator, &product) != ANCHOR_EXACT_OK)
+            OriorExactInteger product;
+            if (orior_exact_multiply(&others[ask], &cost[other].denominator, &product) != ORIOR_EXACT_OK)
             {
                 return 0;
             }
@@ -143,13 +143,13 @@ int query_order_solve(unsigned int links, const QueryCost *cost, AnchorExactInte
         }
     }
     // the common denominator: links + 1 times every ask's denominator
-    AnchorExactInteger every;
-    if (anchor_exact_multiply(&others[0], &cost[0].denominator, &every) != ANCHOR_EXACT_OK)
+    OriorExactInteger every;
+    if (orior_exact_multiply(&others[0], &cost[0].denominator, &every) != ORIOR_EXACT_OK)
     {
         return 0;
     }
     query_order_exact(&factor, (unsigned long long)links + 1ull);
-    if (anchor_exact_multiply(&every, &factor, denominator) != ANCHOR_EXACT_OK)
+    if (orior_exact_multiply(&every, &factor, denominator) != ORIOR_EXACT_OK)
     {
         return 0;
     }
@@ -157,27 +157,27 @@ int query_order_solve(unsigned int links, const QueryCost *cost, AnchorExactInte
     // weight is 2 or -2, put as twice the term added or taken away
     for (unsigned int link = 0u; link < links; link += 1u)
     {
-        anchor_exact_zero(&numerator[link]);
+        orior_exact_zero(&numerator[link]);
         for (unsigned int ask = 0u; ask < links; ask += 1u)
         {
-            AnchorExactInteger term;
-            AnchorExactInteger twice;
-            AnchorExactInteger sum;
-            if ((anchor_exact_multiply(&cost[ask].numerator, &others[ask], &term) != ANCHOR_EXACT_OK) ||
-                (anchor_exact_add(&term, &term, &twice) != ANCHOR_EXACT_OK))
+            OriorExactInteger term;
+            OriorExactInteger twice;
+            OriorExactInteger sum;
+            if ((orior_exact_multiply(&cost[ask].numerator, &others[ask], &term) != ORIOR_EXACT_OK) ||
+                (orior_exact_add(&term, &term, &twice) != ORIOR_EXACT_OK))
             {
                 return 0;
             }
-            AnchorExactStatus moved = ANCHOR_EXACT_OK;
+            OriorExactStatus moved = ORIOR_EXACT_OK;
             if (ask_order_covers(links, ask, link) != 0)
             {
-                moved = anchor_exact_add(&numerator[link], &twice, &sum);
+                moved = orior_exact_add(&numerator[link], &twice, &sum);
             }
             else
             {
-                moved = anchor_exact_subtract(&numerator[link], &twice, &sum);
+                moved = orior_exact_subtract(&numerator[link], &twice, &sum);
             }
-            if (moved != ANCHOR_EXACT_OK)
+            if (moved != ORIOR_EXACT_OK)
             {
                 return 0;
             }

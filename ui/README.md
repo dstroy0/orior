@@ -47,6 +47,8 @@ Checks: the app's harness holding that the line's nodes are reached from a recor
 4. `test/harness.rs` runs every test, the crates' and the window's, and names each source file with no test of its own. The walker of the menus, `test/walk.py`, and the memory watcher, `test/memory.py`, run over every command.
 5. The feature is committed and pushed once all of it passes.
 
+Every program the tree builds is named orior_<thing>, and `bin_names.tsv` at the top of the tree is the one place the names are kept: a row an id, its name, what it is, where its sources are and where it is built to. A build script, the harness and the window's scripts read a name from there by its id and write none of their own.
+
 ## Testing it
 
 ```
@@ -91,7 +93,7 @@ there.
 cargo run --release --manifest-path ui/gui/src-tauri/Cargo.toml
 ```
 
-The program is `build/cargo/release/orior`. The installers come from the Tauri command, which cargo
+The program is `build/cargo/release/orior_gui`. The installers come from the Tauri command, which cargo
 installs once and which finds `src-tauri` under the folder it is run in:
 
 ```
@@ -102,8 +104,8 @@ cargo tauri build
 
 They land under `build/cargo/release/bundle/`, for the platform the build runs on. Each
 published release carries them for Windows, macOS and Linux, built by `.github/workflows/app.yml`.
-Without a clone, `cargo install --git https://github.com/dstroy0/orior orior-ui --locked` builds and
-installs the program `orior`. A plain cargo build puts the page inside the program, as the installers
+Without a clone, `cargo install --git https://github.com/dstroy0/orior orior_gui --locked` builds and
+installs the program `orior_gui`. A plain cargo build puts the page inside the program, as the installers
 do; `cargo tauri dev` serves it from `gui/src-js/` as it changes.
 
 orior files the errors it meets as issues on dstroy0/orior on its own, and asks once whether to,

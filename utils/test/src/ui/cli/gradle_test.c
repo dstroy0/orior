@@ -119,8 +119,10 @@ int main(void)
     gradle_script();
     gradle_braces();
     gradle_completes();
-    cli_check((g_cli_gradle_cells.held == 0ull) && (g_cli_gradle_cells.hw != 0ull),
+    cli_check((g_cli_gradle_cells.holds == 0ull) && (g_cli_gradle_cells.hw != 0ull),
               "every script read is given back, the most the scripts held marked");
-    cli_check(g_cli_versions_cells.held == 0ull, "and every catalog's aliases");
+    cli_check(g_cli_versions_cells.holds == 0ull, "and every catalog's aliases");
+    cli_check((g_cli_build_cells.holds == 0ull) && (g_cli_build_cells.hw != 0ull),
+              "and the findings and the lines indexed, once the findings are written");
     return cli_checked();
 }

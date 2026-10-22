@@ -37,7 +37,7 @@
 #include <string.h>
 
 /** @brief Threads per block. 256 suits every device this is built for and needs no tuning here. */
-#define ANCHOR_GPU_BLOCK 256u
+#define ORIOR_GPU_BLOCK 256u
 
 /**
  * @brief Orders two magnitudes on the device, ignoring sign.
@@ -50,7 +50,7 @@
  */
 __device__ static int device_magnitude_compare(const unsigned int *left, const unsigned int *right)
 {
-    for (int at = (int)ANCHOR_EXACT_LIMBS - 1; at >= 0; at--)
+    for (int at = (int)ORIOR_EXACT_LIMBS - 1; at >= 0; at--)
     {
         if (left[at] != right[at])
         {
@@ -65,9 +65,9 @@ __device__ static int device_magnitude_compare(const unsigned int *left, const u
  *
  * @param[in] left  First integer [BORROWS].
  * @param[in] right Second integer [BORROWS].
- * @return          -1, 1 or 0, matching anchor_exact_compare on the host.
+ * @return          -1, 1 or 0, matching orior_exact_compare on the host.
  */
-__device__ static int device_compare(const AnchorExactInteger *left, const AnchorExactInteger *right)
+__device__ static int device_compare(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -90,7 +90,7 @@ __device__ static int device_compare(const AnchorExactInteger *left, const Ancho
  */
 __device__ static int device_magnitude_is_zero(const unsigned int *value)
 {
-    for (unsigned int at = 0u; at < ANCHOR_EXACT_LIMBS; at++)
+    for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
         if (value[at] != 0u)
         {
@@ -111,7 +111,7 @@ __device__ static int device_magnitude_is_zero(const unsigned int *value)
 __device__ static int device_magnitude_add(const unsigned int *left, const unsigned int *right, unsigned int *result)
 {
     unsigned long long carry = 0ull;
-    for (unsigned int at = 0u; at < ANCHOR_EXACT_LIMBS; at++)
+    for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
         const unsigned long long total = (unsigned long long)left[at] + (unsigned long long)right[at] + carry;
         // Explicit narrowing to a limb. The high half is the carry and is kept.
@@ -132,7 +132,7 @@ __device__ static void device_magnitude_subtract(const unsigned int *left, const
                                                  unsigned int *result)
 {
     unsigned long long borrow = 0ull;
-    for (unsigned int at = 0u; at < ANCHOR_EXACT_LIMBS; at++)
+    for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
         // The base keeps the arithmetic non negative before the narrowing. No unsigned wrap has
         // to be reasoned about at the point the limb is stored.
@@ -151,8 +151,8 @@ __device__ static void device_magnitude_subtract(const unsigned int *left, const
  * @param[out] result Sum [BORROWS].
  * @return            1 where the sum fits the fixed width, 0 where it does not.
  */
-__device__ static int device_add(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                 AnchorExactInteger *result)
+__device__ static int device_add(const OriorExactInteger *left, const OriorExactInteger *right,
+                                 OriorExactInteger *result)
 {
     if (left->sign == 0)
     {
@@ -178,7 +178,7 @@ __device__ static int device_add(const AnchorExactInteger *left, const AnchorExa
     const int order = device_magnitude_compare(left->limb, right->limb);
     if (order == 0)
     {
-        for (unsigned int at = 0u; at < ANCHOR_EXACT_LIMBS; at++)
+        for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
         {
             result->limb[at] = 0u;
         }
@@ -217,8 +217,8 @@ __device__ static int device_add(const AnchorExactInteger *left, const AnchorExa
  *       reserved for every thread the device can hold resident. On the RTX 3070 here that is 1536
  *       threads on each of 46 SMs, 8.6 GiB, past the card's 8 GiB.
  */
-__global__ static void agreement_kernel(const AnchorExactInteger *positions, const unsigned long long *values,
-                                        size_t count, const AnchorExactInteger *lag, AnchorExactInteger *displaced,
+__global__ static void agreement_kernel(const OriorExactInteger *positions, const unsigned long long *values,
+                                        size_t count, const OriorExactInteger *lag, OriorExactInteger *displaced,
                                         unsigned int *agreed)
 {
     const size_t at = (size_t)blockIdx.x * (size_t)blockDim.x + (size_t)threadIdx.x;
@@ -231,7 +231,7 @@ __global__ static void agreement_kernel(const AnchorExactInteger *positions, con
         return;
     }
 
-    AnchorExactInteger *const moved = &displaced[at];
+    OriorExactInteger *const moved = &displaced[at];
     if (device_add(&positions[at], lag, moved) == 0)
     {
         return;
@@ -265,7 +265,7 @@ __global__ static void agreement_kernel(const AnchorExactInteger *positions, con
     }
 }
 
-extern "C" int anchor_exact_cuda_available(void)
+extern "C" int orior_exact_cuda_available(void)
 {
     int devices = 0;
     if (cudaGetDeviceCount(&devices) != cudaSuccess)
@@ -275,7 +275,7 @@ extern "C" int anchor_exact_cuda_available(void)
     return (devices > 0) ? 1 : 0;
 }
 
-extern "C" int anchor_exact_cuda_describe(char *text, size_t capacity)
+extern "C" int orior_exact_cuda_describe(char *text, size_t capacity)
 {
     int devices = 0;
     if ((cudaGetDeviceCount(&devices) != cudaSuccess) || (devices <= 0))
@@ -292,29 +292,29 @@ extern "C" int anchor_exact_cuda_describe(char *text, size_t capacity)
     return 1;
 }
 
-extern "C" size_t anchor_exact_agreement_cuda(const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                                              const AnchorExactInteger *lag)
+extern "C" size_t orior_exact_agreement_cuda(const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                                              const OriorExactInteger *lag)
 {
     if (count == 0u)
     {
         return 0u;
     }
 
-    AnchorExactInteger *device_positions = NULL;
+    OriorExactInteger *device_positions = NULL;
     unsigned long long *device_values = NULL;
-    AnchorExactInteger *device_lag = NULL;
-    AnchorExactInteger *device_displaced = NULL;
+    OriorExactInteger *device_lag = NULL;
+    OriorExactInteger *device_displaced = NULL;
     unsigned int *device_agreed = NULL;
     size_t answer = (size_t)-1;
 
-    const size_t position_bytes = count * sizeof(AnchorExactInteger);
+    const size_t position_bytes = count * sizeof(OriorExactInteger);
     const size_t value_bytes = count * sizeof(unsigned long long);
 
     // The displaced positions take as much device memory as the positions do. The kernel writes
     // them and nothing reads them back. They are never copied in either direction.
     if ((cudaMalloc((void **)&device_positions, position_bytes) != cudaSuccess) ||
         (cudaMalloc((void **)&device_values, value_bytes) != cudaSuccess) ||
-        (cudaMalloc((void **)&device_lag, sizeof(AnchorExactInteger)) != cudaSuccess) ||
+        (cudaMalloc((void **)&device_lag, sizeof(OriorExactInteger)) != cudaSuccess) ||
         (cudaMalloc((void **)&device_displaced, position_bytes) != cudaSuccess) ||
         (cudaMalloc((void **)&device_agreed, sizeof(unsigned int)) != cudaSuccess))
     {
@@ -323,15 +323,15 @@ extern "C" size_t anchor_exact_agreement_cuda(const AnchorExactInteger *position
 
     if ((cudaMemcpy(device_positions, positions, position_bytes, cudaMemcpyHostToDevice) != cudaSuccess) ||
         (cudaMemcpy(device_values, values, value_bytes, cudaMemcpyHostToDevice) != cudaSuccess) ||
-        (cudaMemcpy(device_lag, lag, sizeof(AnchorExactInteger), cudaMemcpyHostToDevice) != cudaSuccess) ||
+        (cudaMemcpy(device_lag, lag, sizeof(OriorExactInteger), cudaMemcpyHostToDevice) != cudaSuccess) ||
         (cudaMemset(device_agreed, 0, sizeof(unsigned int)) != cudaSuccess))
     {
         goto done;
     }
 
     {
-        const unsigned int blocks = (unsigned int)((count + (size_t)ANCHOR_GPU_BLOCK - 1u) / (size_t)ANCHOR_GPU_BLOCK);
-        agreement_kernel<<<blocks, ANCHOR_GPU_BLOCK>>>(device_positions, device_values, count, device_lag,
+        const unsigned int blocks = (unsigned int)((count + (size_t)ORIOR_GPU_BLOCK - 1u) / (size_t)ORIOR_GPU_BLOCK);
+        agreement_kernel<<<blocks, ORIOR_GPU_BLOCK>>>(device_positions, device_values, count, device_lag,
                                                        device_displaced, device_agreed);
         if ((cudaGetLastError() != cudaSuccess) || (cudaDeviceSynchronize() != cudaSuccess))
         {
@@ -369,13 +369,13 @@ done:
  *       A driver comparing arms would otherwise read the sentinel as a disagreement and blame the
  *       arithmetic for what was an allocation failure.
  */
-static size_t arm_agreement(const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                            const AnchorExactInteger *lag)
+static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                            const OriorExactInteger *lag)
 {
-    const size_t agreed = anchor_exact_agreement_cuda(positions, values, count, lag);
+    const size_t agreed = orior_exact_agreement_cuda(positions, values, count, lag);
     if (agreed == (size_t)-1)
     {
-        return anchor_exact_agreement(positions, values, count, lag);
+        return orior_exact_agreement(positions, values, count, lag);
     }
     return agreed;
 }
@@ -386,14 +386,14 @@ static size_t arm_agreement(const AnchorExactInteger *positions, const uint64_t 
  * @note equal and compare are the portable ones. One comparison is far too small to be
  *       worth a bus crossing, and only the whole sweep is handed to the device.
  */
-static const AnchorExactArm CUDA_ARM = {
+static const OriorExactArm CUDA_ARM = {
     "cuda",
-    anchor_exact_equal,
-    anchor_exact_compare,
+    orior_exact_equal,
+    orior_exact_compare,
     arm_agreement,
 };
 
-extern "C" const AnchorExactArm *anchor_exact_cuda_arm(void)
+extern "C" const OriorExactArm *orior_exact_cuda_arm(void)
 {
-    return anchor_exact_cuda_available() ? &CUDA_ARM : NULL;
+    return orior_exact_cuda_available() ? &CUDA_ARM : NULL;
 }

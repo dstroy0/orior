@@ -17,12 +17,20 @@ typedef struct
 static CliServeAnswer call_answer_of(const char *name)
 {
     static const CliServeTable s_tables[] = {
-        {g_cli_serve_tree_calls, &g_cli_serve_tree_count},   {g_cli_serve_files_calls, &g_cli_serve_files_count},
-        {g_cli_serve_git_calls, &g_cli_serve_git_count},     {g_cli_serve_run_calls, &g_cli_serve_run_count},
-        {g_cli_serve_lsp_calls, &g_cli_serve_lsp_count},     {g_cli_serve_debug_calls, &g_cli_serve_debug_count},
-        {g_cli_serve_db_calls, &g_cli_serve_db_count},       {g_cli_serve_kernel_calls, &g_cli_serve_kernel_count},
-        {g_cli_serve_tool_calls, &g_cli_serve_tool_count},   {g_cli_serve_page_calls, &g_cli_serve_page_count},
-        {g_cli_serve_build_calls, &g_cli_serve_build_count}, {g_cli_serve_shape_calls, &g_cli_serve_shape_count},
+        {g_cli_serve_tree_calls, &g_cli_serve_tree_count},
+        {g_cli_serve_files_calls, &g_cli_serve_files_count},
+        {g_cli_serve_git_calls, &g_cli_serve_git_count},
+        {g_cli_serve_run_calls, &g_cli_serve_run_count},
+        {g_cli_serve_lsp_calls, &g_cli_serve_lsp_count},
+        {g_cli_serve_debug_calls, &g_cli_serve_debug_count},
+        {g_cli_serve_db_calls, &g_cli_serve_db_count},
+        {g_cli_serve_kernel_calls, &g_cli_serve_kernel_count},
+        {g_cli_serve_tool_calls, &g_cli_serve_tool_count},
+        {g_cli_serve_page_calls, &g_cli_serve_page_count},
+        {g_cli_serve_notebook_calls, &g_cli_serve_notebook_count},
+        {g_cli_serve_build_calls, &g_cli_serve_build_count},
+        {g_cli_serve_shape_calls, &g_cli_serve_shape_count},
+        {g_cli_serve_git_acts_calls, &g_cli_serve_git_acts_count},
     };
     for (unsigned int table = 0u; table < sizeof(s_tables) / sizeof(s_tables[0]); table += 1u)
     {

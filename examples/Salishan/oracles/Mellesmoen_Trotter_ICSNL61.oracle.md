@@ -3,7 +3,7 @@
 Extraction of The Long and Short of Subject Clitics in ʔayʔaǰuθəm by Gloria Mellesmoen, University
 of Victoria, and Bailey Trotter, University of British Columbia, ICSNL 61.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -41,7 +41,7 @@ lose the gaps of the examples. The source here takes each line from whichever of
 spaces. 106 lines came from the glyph positions. Page 17 prints In press. χʷaχʷaǰɩm with a space
 both extractions lose, read at 400 dpi and entered as a page-read correction.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 375
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 11098 distinct tokens in the paper, 0 language tokens are held by no row.

@@ -51,7 +51,7 @@ const char *const g_query_mmgr[] = {"src/cu/includes/mmgr/src/ascii_persona_bito
 const char *const g_query_mmgr_includes[] = {"src/cu/includes/mmgr/include", "src/cu/includes/mmgr/src",
                                              "src/cu/includes/embedded_types/include", NULL};
 
-const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32",
+const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ENABLE_HOST=1", "-DMMGR_ALIGN_BYTES=32",
                                              NULL};
 
 // the folders the file definitions' headers stand in beyond their sources' own
@@ -214,7 +214,7 @@ static const char *const s_tables_read_headers[] = {"src/cu/transpiler/vendor_bi
 static const char *const s_kdecode[] = {"src/cu/transpiler/lstar/protocol/kdecode/kdecode.c",
                                         "src/cu/transpiler/lstar/protocol/kdecode/kdecode/*.c", NULL};
 
-static const char *const s_kdecode_headers[] = {"src/cu/transpiler/lstar/protocol/kdecode/kdecode",
+static const char *const s_kdecode_headers[] = {"src/cu/transpiler/lstar/protocol/kdecode/orior_kdecode",
                                                 "src/cu/transpiler/lstar/protocol", "src/cu/includes/file_defs/kqr",
                                                 NULL};
 
@@ -264,10 +264,10 @@ static const char *const s_stick_engine_headers[] = {"utils/test/src/cu/transpil
                                                      "src/cu/transpiler/lstar/interface", NULL};
 
 const QueryTool g_query_tools[] = {
-    {"bus_clock", {s_bus_clock, NULL}, {NULL}, s_none, 1, s_none, s_none, s_c11, s_none, s_none, s_bus_clock_headers},
-    {"qry_writer", {s_qry_writer, NULL}, {NULL}, s_none, 0, s_none, s_none, s_c11, s_none, s_none, s_protocol},
-    {"cubin_run", {s_cubin_run, NULL}, {NULL}, s_none, 1, s_none, s_none, s_c11_plain, s_none, s_none, s_none},
-    {"cubin_listing",
+    {"orior_bus_clock", {s_bus_clock, NULL}, {NULL}, s_none, 1, s_none, s_none, s_c11, s_none, s_none, s_bus_clock_headers},
+    {"orior_qry_writer", {s_qry_writer, NULL}, {NULL}, s_none, 0, s_none, s_none, s_c11, s_none, s_none, s_protocol},
+    {"orior_cubin_run", {s_cubin_run, NULL}, {NULL}, s_none, 1, s_none, s_none, s_c11_plain, s_none, s_none, s_none},
+    {"orior_cubin_listing",
      {s_cubin_listing, s_interface, NULL},
      {NULL},
      s_none,
@@ -278,7 +278,7 @@ const QueryTool g_query_tools[] = {
      s_none,
      s_none,
      s_none},
-    {"measuring_stick_query",
+    {"orior_measuring_stick_query",
      {s_stick_query, s_interface, NULL},
      {NULL},
      s_none,
@@ -289,7 +289,7 @@ const QueryTool g_query_tools[] = {
      s_none,
      s_pthread,
      s_none},
-    {"khw_learn",
+    {"orior_khw_learn",
      {s_khw_learn, s_interface, NULL},
      {NULL},
      s_none,
@@ -300,7 +300,7 @@ const QueryTool g_query_tools[] = {
      s_none,
      s_none,
      s_khw_learn_headers},
-    {"khw_machine_write",
+    {"orior_khw_machine_write",
      {s_khw_machine_write, NULL},
      {NULL},
      s_none,
@@ -311,7 +311,7 @@ const QueryTool g_query_tools[] = {
      s_none,
      s_none,
      s_none},
-    {"sass_listing_seeds",
+    {"orior_sass_listing_seeds",
      {s_sass_listing_seeds, NULL},
      {NULL},
      s_none,
@@ -322,9 +322,9 @@ const QueryTool g_query_tools[] = {
      s_none,
      s_none,
      s_none},
-    {"krs_write", {s_krs_write, s_interface, NULL}, {NULL}, s_none, 1, s_none, s_engine, s_c11, s_none, s_none, s_rmc},
-    {"gsm_write", {s_gsm_write, s_interface, NULL}, {NULL}, s_none, 1, s_none, s_engine, s_c11, s_none, s_none, s_none},
-    {"klq_write",
+    {"orior_krs_write", {s_krs_write, s_interface, NULL}, {NULL}, s_none, 1, s_none, s_engine, s_c11, s_none, s_none, s_rmc},
+    {"orior_gsm_write", {s_gsm_write, s_interface, NULL}, {NULL}, s_none, 1, s_none, s_engine, s_c11, s_none, s_none, s_none},
+    {"orior_klq_write",
      {s_member_c, NULL},
      {s_codegen, s_klq_write, NULL},
      s_none,
@@ -335,7 +335,7 @@ const QueryTool g_query_tools[] = {
      s_cxx17,
      s_static,
      s_klq_write_headers},
-    {"klq_identity",
+    {"orior_klq_identity",
      {s_klq_identity_c, s_interface, NULL},
      {s_codegen, s_klq_identity_cxx, NULL},
      s_none,
@@ -346,7 +346,7 @@ const QueryTool g_query_tools[] = {
      s_cxx17,
      s_static,
      s_klq_identity_headers},
-    {"klq_decoder",
+    {"orior_klq_decoder",
      {s_member_c, NULL},
      {s_klq_decoder_cxx, NULL},
      s_none,
@@ -357,8 +357,8 @@ const QueryTool g_query_tools[] = {
      s_cxx17,
      s_static,
      s_protocol},
-    {"tables_funnel", {s_tables_funnel, NULL}, {NULL}, s_none, 0, s_none, s_none, s_c11, s_none, s_none, s_none},
-    {"tables_read",
+    {"orior_tables_funnel", {s_tables_funnel, NULL}, {NULL}, s_none, 0, s_none, s_none, s_c11, s_none, s_none, s_none},
+    {"orior_tables_read",
      {s_tables_read, NULL},
      {NULL},
      s_none,
@@ -369,9 +369,9 @@ const QueryTool g_query_tools[] = {
      s_none,
      s_none,
      s_tables_read_headers},
-    {"kdecode", {s_kdecode, NULL}, {NULL}, s_none, 1, s_none, s_none, s_c11, s_none, s_none, s_kdecode_headers},
-    {"measuring_stick_read", {s_stick_read, NULL}, {NULL}, s_none, 1, s_none, s_none, s_c11, s_none, s_none, s_none},
-    {"measuring_stick_engine",
+    {"orior_kdecode", {s_kdecode, NULL}, {NULL}, s_none, 1, s_none, s_none, s_c11, s_none, s_none, s_kdecode_headers},
+    {"orior_measuring_stick_read", {s_stick_read, NULL}, {NULL}, s_none, 1, s_none, s_none, s_c11, s_none, s_none, s_none},
+    {"orior_measuring_stick_engine",
      {s_stick_engine_c, NULL},
      {s_stick_engine_keys, s_codegen, s_stick_engine_targets, NULL},
      s_stick_engine_tool,

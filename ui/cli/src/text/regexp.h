@@ -77,6 +77,9 @@ typedef struct
     int greedy;
     int one_way;
     int negated;
+    // the ASCII letters the node takes as one letter, as two words of bits, known once the pattern is read whole
+    unsigned long long ascii[2];
+    int ascii_known;
 } CliRegexpNode;
 
 // A pattern read and ready to match: its nodes, items and parts, the first characters of each alternative of an
@@ -96,6 +99,8 @@ typedef struct
     unsigned int groups;
     int fold;
     CliRegexpFirst first;
+    // whether the pattern starts with ^, so a match can start at the text's first letter alone
+    int anchored;
 } CliRegexp;
 
 // The room one pattern is read into: the most nodes, class items and child places a pattern holds

@@ -20,7 +20,7 @@ void *stick_held(void *pointer)
 {
     if (pointer == NULL)
     {
-        fputs("measuring_stick_read: the system gave no memory\n", stderr);
+        fputs("orior_measuring_stick_read: the system gave no memory\n", stderr);
         exit(2);
     }
     return pointer;
@@ -68,7 +68,7 @@ unsigned int stick_named(const char *text, size_t length)
     }
     if (s_names == (STICK_HASH / 2u))
     {
-        fputs("measuring_stick_read: more operations than the table holds\n", stderr);
+        fputs("orior_measuring_stick_read: more operations than the table holds\n", stderr);
         exit(2);
     }
     if (s_names == s_name_room)
@@ -87,7 +87,7 @@ void stick_read(const char *path)
 {
     if (!kfile_lines_read(&s_file, path))
     {
-        fputs("measuring_stick_read: the system gave no memory\n", stderr);
+        fputs("orior_measuring_stick_read: the system gave no memory\n", stderr);
         exit(2);
     }
 }

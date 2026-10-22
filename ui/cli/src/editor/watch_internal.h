@@ -5,10 +5,12 @@
 #ifndef WATCH_INTERNAL_H
 #define WATCH_INTERNAL_H
 
+#include "../command_line/cells.h"
 #include "watch.h"
 
-// a change put for the next batch, its path from the tree's top; whether the watch is stopping; and the end of the
-// thread that reads the tree told, so the watch can stop (watch.c)
+// a change put for the next batch, its path from the tree's top; whether the watch is stopping; the end of the thread
+// that reads the tree told, so the watch can stop; and the cells the changes waiting and a batch hold (watch.c)
+extern CliCellsTally g_cli_watch_cells;
 void cli_watch_told(void *context, const char *path, unsigned int kind);
 int cli_watch_stopping(void);
 void cli_watch_poll_ended(void);

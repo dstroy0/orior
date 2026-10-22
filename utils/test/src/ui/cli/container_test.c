@@ -3,7 +3,7 @@
 // container_test.c: orior's container's check: a group's end ends every process its first started and their output
 // with them, a process started in a group runs, a group's end ends a script's processes under git's bash launcher,
 // descendants are every process under a root and no other, a process stands under each process above it and no other,
-// a process dying too often is not started again, orior serve ends what it started as its input ends, and a
+// a process dying too often is not started again, orior_cli serve ends what it started as its input ends, and a
 // container's members end with it while what it starts outside does not. The last two run this program again as the
 // head of a container
 #include "../../../../../ui/cli/src/command_line/command_line.h"
@@ -107,6 +107,11 @@ static void container_groups(void)
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = s_said, .cap = CLI_CELLS_POOL, .other = "late", .other_cap = CLI_CELLS_POOL}) == NULL),
               "a group's end ends every process its first started and their output with them");
+    (void)cli_spawn(&spawned, s_late, NULL, NULL, 0u, 1, &said);
+    const unsigned int left = (unsigned int)spawned.id;
+    query_paused(800u);
+    cli_spawn_closed(&spawned);
+    cli_check(!container_still(left), "a group let go of, as when orior ends, ends every process in it");
     char bash[CLI_PATH_LONGEST];
     if (!cli_runner_bash(bash, &said))
     {

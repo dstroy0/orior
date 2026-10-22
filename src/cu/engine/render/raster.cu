@@ -38,13 +38,13 @@ __device__ static unsigned char device_value(unsigned long long level, int match
 {
     if (matched != 0)
     {
-        return (unsigned char)ANCHOR_RASTER_MATCH;
+        return (unsigned char)ORIOR_RASTER_MATCH;
     }
     const unsigned long long scaled = 1u + (level * RASTER_STEP);
     return (unsigned char)((scaled > RASTER_CEILING) ? RASTER_CEILING : scaled);
 }
 
-/** @brief Cell an alignment lands on, matching anchor_raster_cell on the host. */
+/** @brief Cell an alignment lands on, matching orior_raster_cell on the host. */
 __device__ static unsigned long long device_cell(const DeviceConfig *config, unsigned long long at,
                                                  unsigned long long alignments)
 {
@@ -53,12 +53,12 @@ __device__ static unsigned long long device_cell(const DeviceConfig *config, uns
     const unsigned long long row = linear / config->width;
     const unsigned long long column = linear % config->width;
 
-    if (config->layout == ANCHOR_LAYOUT_SERPENTINE)
+    if (config->layout == ORIOR_LAYOUT_SERPENTINE)
     {
         const unsigned long long flipped = ((row % 2u) == 0u) ? column : (config->width - 1u - column);
         return (row * config->width) + flipped;
     }
-    if (config->layout == ANCHOR_LAYOUT_COLUMNS)
+    if (config->layout == ORIOR_LAYOUT_COLUMNS)
     {
         const unsigned long long turned_row = linear % config->height;
         const unsigned long long turned_column = linear / config->height;
@@ -68,7 +68,7 @@ __device__ static unsigned long long device_cell(const DeviceConfig *config, uns
         }
         return (turned_row * config->width) + turned_column;
     }
-    if (config->layout == ANCHOR_LAYOUT_DIAGONAL)
+    if (config->layout == ORIOR_LAYOUT_DIAGONAL)
     {
         const unsigned long long shifted = (column + row) % config->width;
         return (row * config->width) + shifted;
@@ -76,7 +76,7 @@ __device__ static unsigned long long device_cell(const DeviceConfig *config, uns
     return linear;
 }
 
-/** @brief Value an alignment contributes, matching anchor_raster_sample on the host. */
+/** @brief Value an alignment contributes, matching orior_raster_sample on the host. */
 __device__ static unsigned char device_sample(const DeviceConfig *config, const unsigned char *corpus,
                                               const unsigned char *needle, unsigned long long needle_len,
                                               const DeviceProbe *probes, unsigned long long probe_count,
@@ -85,11 +85,11 @@ __device__ static unsigned char device_sample(const DeviceConfig *config, const 
 {
     const unsigned int gain = (config->gain == 0u) ? 1u : config->gain;
 
-    if (config->channel == ANCHOR_CHANNEL_BYTE)
+    if (config->channel == ORIOR_CHANNEL_BYTE)
     {
         return corpus[at];
     }
-    if (config->channel == ANCHOR_CHANNEL_RARITY)
+    if (config->channel == ORIOR_CHANNEL_RARITY)
     {
         if (total == 0u)
         {
@@ -101,13 +101,13 @@ __device__ static unsigned char device_sample(const DeviceConfig *config, const 
 
     int matched = 0;
     const unsigned long long level = device_death_level(corpus, needle, needle_len, probes, probe_count, at, &matched);
-    if (config->channel == ANCHOR_CHANNEL_PROVEN)
+    if (config->channel == ORIOR_CHANNEL_PROVEN)
     {
-        return (level < probe_count) ? (unsigned char)ANCHOR_RASTER_PROVEN : (unsigned char)ANCHOR_RASTER_UNDETERMINED;
+        return (level < probe_count) ? (unsigned char)ORIOR_RASTER_PROVEN : (unsigned char)ORIOR_RASTER_UNDETERMINED;
     }
-    if (config->channel == ANCHOR_CHANNEL_SURVIVED)
+    if (config->channel == ORIOR_CHANNEL_SURVIVED)
     {
-        return (level >= probe_count) ? (unsigned char)ANCHOR_RASTER_MATCH : (unsigned char)1u;
+        return (level >= probe_count) ? (unsigned char)ORIOR_RASTER_MATCH : (unsigned char)1u;
     }
     return device_value(level * (unsigned long long)gain, matched);
 }
@@ -136,7 +136,7 @@ __global__ void render_alignments(unsigned int *staging, DeviceConfig config, co
         device_sample(&config, corpus, needle, needle_len, probes, probe_count, at, occurrences, total);
     const unsigned long long cell = device_cell(&config, at, alignments);
 
-    if (config.reduce == ANCHOR_REDUCE_MAX)
+    if (config.reduce == ORIOR_REDUCE_MAX)
     {
         atomicMax(&staging[cell], (unsigned int)value);
     }
@@ -146,7 +146,7 @@ __global__ void render_alignments(unsigned int *staging, DeviceConfig config, co
     }
 }
 
-extern "C" int anchor_raster_device_available(void)
+extern "C" int orior_raster_device_available(void)
 {
     int devices = 0;
     if ((cudaGetDeviceCount(&devices) != cudaSuccess) || (devices < 1))
@@ -163,7 +163,7 @@ __device__ static int device_is_power_of_two(unsigned long long value)
 }
 
 /**
- * @brief Voxel an alignment lands on, matching anchor_volume_cell_for on the host.
+ * @brief Voxel an alignment lands on, matching orior_volume_cell_for on the host.
  *
  * @note Returns `cells` where the layout errors on the configuration, which is MORTON on extents that
  *       are not all powers of two and any unknown layout. The host returns the block size in the
@@ -179,11 +179,11 @@ __device__ static unsigned long long device_volume_cell(const DeviceVolumeConfig
     const unsigned long long at = alignment % cells;
     const unsigned long long sheet = width * height;
 
-    if (config->layout == ANCHOR_VOLUME_SLABS)
+    if (config->layout == ORIOR_VOLUME_SLABS)
     {
         return at;
     }
-    if (config->layout == ANCHOR_VOLUME_BOUSTRO)
+    if (config->layout == ORIOR_VOLUME_BOUSTRO)
     {
         const unsigned long long slab = at / sheet;
         const unsigned long long within = at % sheet;
@@ -199,7 +199,7 @@ __device__ static unsigned long long device_volume_cell(const DeviceVolumeConfig
         }
         return (slab * sheet) + (row * width) + column;
     }
-    if (config->layout == ANCHOR_VOLUME_MORTON)
+    if (config->layout == ORIOR_VOLUME_MORTON)
     {
         if ((device_is_power_of_two(width) == 0) || (device_is_power_of_two(height) == 0) ||
             (device_is_power_of_two(depth) == 0))
@@ -220,7 +220,7 @@ __device__ static unsigned long long device_volume_cell(const DeviceVolumeConfig
         z %= depth;
         return (z * sheet) + (y * width) + x;
     }
-    if (config->layout == ANCHOR_VOLUME_HELIX)
+    if (config->layout == ORIOR_VOLUME_HELIX)
     {
         const unsigned long long slab = at / sheet;
         const unsigned long long within = at % sheet;
@@ -256,7 +256,7 @@ __global__ void render_volume(unsigned int *staging, int *error, DeviceVolumeCon
     DeviceConfig sample_config;
     sample_config.width = vconfig.width;
     sample_config.height = vconfig.height;
-    sample_config.layout = ANCHOR_LAYOUT_ROWS;
+    sample_config.layout = ORIOR_LAYOUT_ROWS;
     sample_config.channel = vconfig.channel;
     sample_config.reduce = vconfig.reduce;
     sample_config.gain = vconfig.gain;
@@ -271,7 +271,7 @@ __global__ void render_volume(unsigned int *staging, int *error, DeviceVolumeCon
         return;
     }
 
-    if (vconfig.reduce == ANCHOR_REDUCE_MAX)
+    if (vconfig.reduce == ORIOR_REDUCE_MAX)
     {
         atomicMax(&staging[cell], (unsigned int)value);
     }

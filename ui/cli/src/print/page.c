@@ -124,7 +124,7 @@ int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListi
     }
     if (full)
     {
-        cli_line_text(said, "the listing holds more than orior prints");
+        cli_line_text(said, "the listing holds more than orior_cli prints");
         return 0;
     }
     *listing = held;

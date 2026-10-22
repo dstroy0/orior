@@ -10,6 +10,7 @@
 #include "../comms/link.h"
 #include "../machine/host.h"
 #include "../machine/reach.h"
+#include "serve_internal.h"
 #include "window_internal.h"
 
 // A room a call is answered in: whether it is taken, whether its call was answered, and its answer and why it failed,
@@ -166,7 +167,7 @@ void cli_window_launch_taken(CliLine *out)
 
 void cli_window_ended(void)
 {
-    // a language server orior started ends with it: on Windows a child outlives its parent
+    // a language server orior_cli started ends with it: on Windows a child outlives its parent
     cli_reach_forget();
     cli_serve_stop_all();
     CliLinkAddress address;
@@ -202,28 +203,6 @@ static CliServeAnswer window_answer_of(const char *name)
 
 // `answer` given `size` bytes of its arguments, read into a tree in a cell sized to them and given back once it has
 // answered: its answer into `out`, 1, or 0 with why said
-static int window_answered(CliServeAnswer answer, const char *args, unsigned long long size, CliLine *out,
-                           CliLine *said)
-{
-    CliJson json;
-    char quiet[256];
-    CliLine ignored = {quiet, sizeof(quiet), 0ull};
-    unsigned int object = cli_json_taken(&json, args, size, 1u, 0ull, &ignored);
-    object = cli_json_is(&json, object, CFG_JSON_OBJECT) ? object : cli_json_made(&json, CFG_JSON_OBJECT);
-    int answered = 0;
-    if (object == CLI_JSON_NONE)
-    {
-        cli_line_text(said, "the call's arguments could not be given cells");
-    }
-    else
-    {
-        const CliServeArgs read = {&json, object};
-        answered = answer(&read, out, said);
-    }
-    cli_json_given(&json);
-    return answered;
-}
-
 int cli_window_tree_call(const char *name, const char *args, unsigned long long size, CliLine *out, CliLine *said)
 {
     CliLinkAddress address;
@@ -257,7 +236,9 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
 {
     const unsigned int at = window_room_taken();
     CliWindowRoom *const room = &s_room[at];
-    room->answer = cli_cell_taken(CLI_WINDOW_ANSWER, "a window call's answer");
+    CliLine out;
+    (void)cli_line_growing(&out, CLI_WINDOW_ANSWER_FIRST, "a window call's answer");
+    room->answer = out.out;
     room->said = cli_cell_taken(CLI_WINDOW_SAID, "why a window call failed");
     if ((room->answer == NULL) || (room->said == NULL))
     {
@@ -267,7 +248,6 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
         room->said_size = sizeof(s_refused) - 1u;
         return at;
     }
-    CliLine out = {room->answer, CLI_WINDOW_ANSWER, 0ull};
     CliLine said = {room->said, CLI_WINDOW_SAID, 0ull};
     if (own)
     {
@@ -277,7 +257,7 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
             cli_line_text(&said, name);
             cli_line_text(&said, " is not a command of the window's");
         }
-        room->ok = (answer != NULL) && window_answered(answer, args, size, &out, &said);
+        room->ok = (answer != NULL) && cli_serve_answered(answer, args, size, &out, &said);
     }
     else
     {
@@ -293,6 +273,7 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
     {
         cli_line_text(&out, "null");
     }
+    room->answer = out.out;
     room->answer_size = out.at;
     room->said_size = cli_line_fits(&said) ? said.at : 0ull;
     return at;
@@ -367,7 +348,7 @@ int cli_window_home(char *folder, CliLine *said)
 {
     if (!cli_home_folder(folder))
     {
-        cli_line_text(said, "orior has no folder of its own");
+        cli_line_text(said, "orior_cli has no folder of its own");
         return 0;
     }
     return 1;

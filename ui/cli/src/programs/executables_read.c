@@ -9,15 +9,13 @@
 // folders a build writes into or a package manager fills, which hold no build scripts of the tree's
 static const char *const s_skipped[8] = {"target", "node_modules", "build", "out", "dist", "vendor", "bin", "obj"};
 
-// The scripts found, the script read and what is read of it, and a package's bin read, a cell taken with the lock and
-// given back with it
+// The scripts found and what is read of a script, a cell taken with the lock and given back with it; each script's
+// text is a cell of its own
 typedef struct
 {
     CliWalk walk;
-    char text[CLI_EXECUTABLES_BYTES];
     CliNames names;
     CliNames kept;
-    char bin[CLI_EXECUTABLES_BYTES];
 } CliScriptsRoom;
 
 static CliScriptsRoom *s_scripts;
@@ -67,6 +65,92 @@ int cli_text_read(const char *path, char *bytes, unsigned long long room)
     return 1;
 }
 
+char *cli_text_taken(const char *path)
+{
+    unsigned long long size = 0ull;
+    char *const text =
+        cli_file_size(path, &size) ? cli_cell_taken_by(&g_cli_executables_cells, size + 1ull, "a script's text") : NULL;
+    if ((text != NULL) && !cli_text_read(path, text, size + 1ull))
+    {
+        cli_cell_given_by(&g_cli_executables_cells, text);
+        return NULL;
+    }
+    return text;
+}
+
+// a walk's room of `count` paths, `*room` of them, doubled where it is full, the depths beside it where `depth` is
+// not NULL: 1, or 0 where it is at `most` or the cells are refused
+static int walk_grown(char (**paths)[CLI_PATH_LONGEST], unsigned int **depth, unsigned int count, unsigned int *room,
+                      unsigned int most)
+{
+    if (count < *room)
+    {
+        return 1;
+    }
+    if (count >= most)
+    {
+        return 0;
+    }
+    const unsigned int grown = (*room == 0u) ? CLI_EXECUTABLES_WALK_FIRST : ((*room * 2u < most) ? *room * 2u : most);
+    char (*const larger)[CLI_PATH_LONGEST] =
+        cli_cell_taken_by(&g_cli_executables_cells, (unsigned long long)grown * CLI_PATH_LONGEST, "a walk's paths");
+    unsigned int *const deeper = ((larger != NULL) && (depth != NULL))
+                                     ? cli_cell_taken_by(&g_cli_executables_cells,
+                                                         (unsigned long long)grown * sizeof(**depth), "a walk's depths")
+                                     : NULL;
+    if ((larger == NULL) || ((depth != NULL) && (deeper == NULL)))
+    {
+        cli_cell_given_by(&g_cli_executables_cells, larger);
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = larger, .src = *paths, .bytes = (size_t)count * CLI_PATH_LONGEST});
+    cli_cell_given_by(&g_cli_executables_cells, *paths);
+    *paths = larger;
+    if (depth != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = deeper, .src = *depth, .bytes = (size_t)count * sizeof(**depth)});
+        cli_cell_given_by(&g_cli_executables_cells, *depth);
+        *depth = deeper;
+    }
+    *room = grown;
+    return 1;
+}
+
+int cli_executables_pending_put(CliWalk *walk, const char *path, unsigned int depth)
+{
+    if (!walk_grown(&walk->pending, &walk->depth, walk->pending_count, &walk->pending_room, CLI_EXECUTABLES_PENDING))
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = walk->pending[walk->pending_count],
+                            .src = path,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+    walk->depth[walk->pending_count] = depth;
+    walk->pending_count += 1u;
+    return 1;
+}
+
+int cli_executables_found_put(CliWalk *walk, const char *path)
+{
+    if (!walk_grown(&walk->found, NULL, walk->found_count, &walk->found_room, CLI_EXECUTABLES_SCRIPTS))
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = walk->found[walk->found_count],
+                            .src = path,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+    walk->found_count += 1u;
+    return 1;
+}
+
+void cli_executables_walk_given(CliWalk *walk)
+{
+    cli_cell_given_by(&g_cli_executables_cells, walk->found);
+    cli_cell_given_by(&g_cli_executables_cells, walk->depth);
+    cli_cell_given_by(&g_cli_executables_cells, walk->pending);
+    *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
+}
+
 int cli_executables_joined(const char *folder, const char *name, char *out)
 {
     CliLine line = {out, CLI_PATH_LONGEST, 0ull};
@@ -99,33 +183,22 @@ static void cli_script_each(void *context, const char *name, int is_folder)
     }
     if (is_folder)
     {
-        if (((walk->at_depth + 1u) < CLI_EXECUTABLES_DEEP) && (name[0] != '.') && !cli_executables_passed(name) &&
-            (walk->pending_count < CLI_EXECUTABLES_PENDING))
+        if (((walk->at_depth + 1u) < CLI_EXECUTABLES_DEEP) && (name[0] != '.') && !cli_executables_passed(name))
         {
-            memor.cpy(&(MemoriaCfg){.dst = walk->pending[walk->pending_count],
-                                    .src = path,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-            walk->depth[walk->pending_count] = walk->at_depth + 1u;
-            walk->pending_count += 1u;
+            (void)cli_executables_pending_put(walk, path, walk->at_depth + 1u);
         }
     }
-    else if ((cli_executables_kind_of(name) != CLI_KIND_NONE) && (walk->found_count < CLI_EXECUTABLES_SCRIPTS))
+    else if (cli_executables_kind_of(name) != CLI_KIND_NONE)
     {
-        memor.cpy(&(MemoriaCfg){.dst = walk->found[walk->found_count],
-                                .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-        walk->found_count += 1u;
+        (void)cli_executables_found_put(walk, path);
     }
 }
 
 void cli_executables_walked(CliWalk *walk, const char *top,
                             void (*each)(void *context, const char *name, int is_folder))
 {
-    memor.cpy(&(MemoriaCfg){.dst = walk->pending[0],
-                            .src = top,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL}) + 1u});
-    walk->depth[0] = 0u;
-    walk->pending_count = 1u;
+    walk->pending_count = 0u;
+    (void)cli_executables_pending_put(walk, top, 0u);
     while (walk->pending_count > 0u)
     {
         walk->pending_count -= 1u;
@@ -139,38 +212,10 @@ void cli_executables_walked(CliWalk *walk, const char *top,
         walk->at_depth = walk->depth[walk->pending_count];
         walk->main = 0;
         query_folder_each(folder, each, walk);
-        if (walk->main && (walk->found_count < CLI_EXECUTABLES_SCRIPTS))
+        if (walk->main)
         {
-            memor.cpy(
-                &(MemoriaCfg){.dst = walk->found[walk->found_count],
-                              .src = folder,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
-            walk->found_count += 1u;
+            (void)cli_executables_found_put(walk, folder);
         }
-    }
-}
-
-// the paths found put in the order of their bytes
-static void cli_sorted(char (*paths)[CLI_PATH_LONGEST], unsigned int count)
-{
-    for (unsigned int at = 1u; at < count; at += 1u)
-    {
-        char held[CLI_PATH_LONGEST];
-        memor.cpy(&(MemoriaCfg){.dst = held,
-                                .src = paths[at],
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}) + 1u});
-        unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(paths[place - 1u], held) > 0))
-        {
-            memor.cpy(&(MemoriaCfg){
-                .dst = paths[place],
-                .src = paths[place - 1u],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
-            place -= 1u;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = paths[place],
-                                .src = held,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
     }
 }
 
@@ -196,7 +241,7 @@ static int cli_under(const char *path, const char *folder)
 // a program put after those found
 static void cli_found_put(CliExecutables *found, unsigned int kind, const char *script, const char *name)
 {
-    if (found->count >= CLI_EXECUTABLES_MOST)
+    if (!cli_executables_room(found))
     {
         return;
     }
@@ -236,9 +281,11 @@ static void cli_projects(const CliWalk *walk, const char *file, unsigned int kin
                     (!cellul.eq(&(CatenaFinitaCfg){.src = dir, .other = folder, .cap = CLI_CELLS_POOL}));
         }
         char project[CLI_NAME_LONGEST];
-        if (above || !cli_text_read(script, s_scripts->text, sizeof(s_scripts->text)) ||
-            !((kind == CLI_KIND_CMAKE) ? cli_cmake_project(s_scripts->text, project)
-                                       : cli_meson_project(s_scripts->text, project)))
+        char *const top_text = above ? NULL : cli_text_taken(script);
+        const int named = (top_text != NULL) && ((kind == CLI_KIND_CMAKE) ? cli_cmake_project(top_text, project)
+                                                                          : cli_meson_project(top_text, project));
+        cli_cell_given_by(&g_cli_executables_cells, top_text);
+        if (!named)
         {
             continue;
         }
@@ -251,17 +298,18 @@ static void cli_projects(const CliWalk *walk, const char *file, unsigned int kin
             {
                 continue;
             }
-            cli_text_read(walk->found[list], s_scripts->text, sizeof(s_scripts->text));
+            char *const taken = cli_text_taken(walk->found[list]);
+            const char *const text = (taken != NULL) ? taken : "";
             char own[CLI_NAME_LONGEST];
             if (kind == CLI_KIND_CMAKE)
             {
-                cli_cmake_targets(s_scripts->text, cli_cmake_project(s_scripts->text, own) ? own : project,
-                                  &s_scripts->names);
+                cli_cmake_targets(text, cli_cmake_project(text, own) ? own : project, &s_scripts->names);
             }
             else
             {
-                cli_meson_targets(s_scripts->text, &s_scripts->names);
+                cli_meson_targets(text, &s_scripts->names);
             }
+            cli_cell_given_by(&g_cli_executables_cells, taken);
             for (unsigned int at = 0u; at < s_scripts->names.count; at += 1u)
             {
                 cli_names_put(&s_scripts->kept, s_scripts->names.name[at],
@@ -276,14 +324,11 @@ static void cli_projects(const CliWalk *walk, const char *file, unsigned int kin
     }
 }
 
-// the programs a script of a kind other than CMake's and Meson's makes put after those found
-static void cli_script_read(const char *root, const char *script, unsigned int kind, CliExecutables *found)
+// the programs a script of a kind other than CMake's and Meson's, whose text is `text`, makes put after those found
+static void cli_script_text_read(const char *root, const char *script, const char *text, unsigned int kind,
+                                 CliExecutables *found)
 {
     char folder[CLI_PATH_LONGEST];
-    if (!cli_text_read(script, s_scripts->text, sizeof(s_scripts->text)))
-    {
-        return;
-    }
     if (!cli_path_parent(script, folder))
     {
         memor.cpy(&(MemoriaCfg){.dst = folder,
@@ -293,37 +338,37 @@ static void cli_script_read(const char *root, const char *script, unsigned int k
     int module = 0;
     if (kind == CLI_KIND_CARGO)
     {
-        cli_cargo_bins(script, s_scripts->text, &s_scripts->names);
+        cli_cargo_bins(script, text, &s_scripts->names);
     }
     else if (kind == CLI_KIND_GO)
     {
-        cli_go_mains(script, s_scripts->text, &s_scripts->names);
+        cli_go_mains(script, text, &s_scripts->names);
     }
     else if (kind == CLI_KIND_ZIG)
     {
-        cli_zig_exes(s_scripts->text, &s_scripts->names);
+        cli_zig_exes(text, &s_scripts->names);
     }
     else if (kind == CLI_KIND_NPM)
     {
-        cli_npm_bins(s_scripts->text, &s_scripts->names, &module);
+        cli_npm_bins(text, &s_scripts->names, &module);
     }
     else
     {
         s_scripts->names.count = 0u;
         char name[CLI_NAME_LONGEST];
         char path[CLI_PATH_LONGEST];
-        const int one = (kind == CLI_KIND_DOTNET) ? cli_dotnet_program(script, s_scripts->text, name)
-                                                  : cli_spec_made(s_scripts->text, name, path);
+        const int one =
+            (kind == CLI_KIND_DOTNET) ? cli_dotnet_program(script, text, name) : cli_spec_made(text, name, path);
         if (one)
         {
             cli_names_put(&s_scripts->names, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}),
                           (kind == CLI_KIND_DOTNET) ? NULL : path);
         }
     }
-    const int optimize = cellul.find(&(CatenaFinitaCfg){.src = s_scripts->text,
-                                                        .cap = CLI_CELLS_POOL,
-                                                        .other = "standardOptimizeOption",
-                                                        .other_cap = CLI_CELLS_POOL}) != NULL;
+    const int optimize =
+        cellul.find(&(CatenaFinitaCfg){
+            .src = text, .cap = CLI_CELLS_POOL, .other = "standardOptimizeOption", .other_cap = CLI_CELLS_POOL}) !=
+        NULL;
     for (unsigned int at = 0u; at < s_scripts->names.count; at += 1u)
     {
         const unsigned int before = found->count;
@@ -360,15 +405,28 @@ static void cli_script_read(const char *root, const char *script, unsigned int k
             char path[CLI_PATH_LONGEST];
             cli_executables_joined(folder, trimmed, path);
             cli_relative(root, path, one->detail);
-            cli_text_read(path, s_scripts->bin, sizeof(s_scripts->bin));
-            cli_npm_builders(folder, s_scripts->bin, one);
+            char *const bin = cli_text_taken(path);
+            cli_npm_builders(folder, (bin != NULL) ? bin : "", one);
+            cli_cell_given_by(&g_cli_executables_cells, bin);
         }
     }
 }
 
+// the programs a script of a kind other than CMake's and Meson's makes put after those found, its text read into a
+// cell of its size
+static void cli_script_read(const char *root, const char *script, unsigned int kind, CliExecutables *found)
+{
+    char *const text = cli_text_taken(script);
+    if (text != NULL)
+    {
+        cli_script_text_read(root, script, text, kind, found);
+    }
+    cli_cell_given_by(&g_cli_executables_cells, text);
+}
+
 void cli_executables_read(const char *root, CliExecutables *found)
 {
-    found->count = 0u;
+    cli_executables_given(found);
     cli_lock_take(&s_lock);
     s_scripts = cli_cell_taken(sizeof(*s_scripts), "a reading of the tree's build scripts");
     if (s_scripts == NULL)
@@ -377,9 +435,9 @@ void cli_executables_read(const char *root, CliExecutables *found)
         return;
     }
     CliWalk *const walk = &s_scripts->walk;
-    walk->found_count = 0u;
+    *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
     cli_executables_walked(walk, root, cli_script_each);
-    cli_sorted(walk->found, walk->found_count);
+    cli_paths_sorted(walk->found, walk->found_count);
     cli_projects(walk, "CMakeLists.txt", CLI_KIND_CMAKE, found);
     cli_projects(walk, "meson.build", CLI_KIND_MESON, found);
     for (unsigned int at = 0u; at < walk->found_count; at += 1u)
@@ -390,25 +448,9 @@ void cli_executables_read(const char *root, CliExecutables *found)
             cli_script_read(root, walk->found[at], kind, found);
         }
     }
+    cli_executables_walk_given(walk);
     cli_cell_given(s_scripts);
     s_scripts = NULL;
     cli_lock_give(&s_lock);
-    // the programs by script, then by name, their places sorted and the programs left where they are
-    for (unsigned int at = 0u; at < found->count; at += 1u)
-    {
-        unsigned int place = at;
-        while (place > 0u)
-        {
-            const CliExecutable *const before = &found->item[found->order[place - 1u]];
-            const CliExecutable *const one = &found->item[at];
-            const int order = cli_text_order(before->script, one->script);
-            if ((order < 0) || ((order == 0) && (cli_text_order(before->name, one->name) <= 0)))
-            {
-                break;
-            }
-            found->order[place] = found->order[place - 1u];
-            place -= 1u;
-        }
-        found->order[place] = at;
-    }
+    cli_executables_ordered(found);
 }

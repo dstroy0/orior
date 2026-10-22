@@ -49,15 +49,15 @@ static const size_t CEILINGS[] = {0u, 4u, 8u, 16u, 32u, 64u, 128u, 256u, SIZE_MA
 static uint64_t cycles_now(void)
 {
 #if CYCLES_ARE_REAL
-#if defined(_MSC_VER)
-    _ReadWriteBarrier();
+#if defined(__x86_64__) || defined(__i386__)
+    __asm__ __volatile__("" ::: "memory");
     const uint64_t taken = (uint64_t)__rdtsc();
-    _ReadWriteBarrier();
+    __asm__ __volatile__("" ::: "memory");
     return taken;
 #else
-    __asm__ __volatile__("" ::: "memory");
+    _ReadWriteBarrier();
     const uint64_t taken = (uint64_t)__rdtsc();
-    __asm__ __volatile__("" ::: "memory");
+    _ReadWriteBarrier();
     return taken;
 #endif
 #else
@@ -87,7 +87,7 @@ typedef struct
     CorpusKind kind;
     double entropy;
     size_t distinct;
-    AnchorFieldCensus census;
+    OriorFieldCensus census;
     size_t needle_len;
     unsigned present;
     uint64_t inorder;
@@ -214,7 +214,7 @@ static size_t measure_rows(Row *rows, uint8_t *corpus, uint8_t *absent)
                 rows[written].kind = KINDS[which];
                 rows[written].entropy = entropy;
                 rows[written].distinct = distinct;
-                anchor_field_census(corpus, CORPUS_BYTES, &rows[written].census);
+                orior_field_census(corpus, CORPUS_BYTES, &rows[written].census);
                 rows[written].needle_len = needle_len;
                 rows[written].present = present;
                 rows[written].inorder = inorder;
@@ -241,7 +241,7 @@ static void print_rows(const Row *rows, size_t count)
                (unsigned long long)rows[slot].needle_len,
                (rows[slot].present != 0u) ? "yes" : "no",
                (unsigned long long)rows[slot].inorder, (unsigned long long)rows[slot].freed,
-               inorder_wins ? "anchor_inorder" : "anchor_free",
+               inorder_wins ? "orior_inorder" : "orior_free",
                (double)slower / (double)quickest(&rows[slot]));
     }
 }
@@ -377,7 +377,7 @@ static void recommend_per_corpus(const Row *rows, size_t count)
         name_ceiling(ceiling_text, sizeof ceiling_text, best_ceiling);
 
         printf("  %-12s %-9.4f %-15s %-15s %-13.2f %.2fx\n", bench_corpus_name(KINDS[which]),
-               held_flatness, inorder_wins ? "anchor_inorder" : "anchor_free", ceiling_text, ratio,
+               held_flatness, inorder_wins ? "orior_inorder" : "orior_free", ceiling_text, ratio,
                widest);
     }
     printf("  The needle length column is fitted to that corpus alone, for a caller\n");

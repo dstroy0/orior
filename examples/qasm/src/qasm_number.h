@@ -22,8 +22,8 @@ extern "C"
     // 0/1.
     typedef struct
     {
-        AnchorExactInteger numerator;
-        AnchorExactInteger denominator;
+        OriorExactInteger numerator;
+        OriorExactInteger denominator;
     } QasmRational;
 
     // A number of Q(sqrt2): rational + sqrt2 x sqrt2.
@@ -54,7 +54,7 @@ extern "C"
 // Room for any number's text in either form, its terminator included: eight integers of the width's decimal digits
 // (log10 2 < 0.302), each with its sign and separator, and the form's own characters.
 #define QASM_NUMBER_TEXT_CAPACITY                                                                                      \
-    ((8ull * ((((unsigned long long)(ANCHOR_EXACT_BITS) * 302ull) / 1000ull) + 4ull)) + 32ull)
+    ((8ull * ((((unsigned long long)(ORIOR_EXACT_BITS) * 302ull) / 1000ull) + 4ull)) + 32ull)
 
     // The arithmetic below reads no pointer it is not given; `error` is never NULL.
 

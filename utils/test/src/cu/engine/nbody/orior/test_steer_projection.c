@@ -30,10 +30,10 @@ static int check_projection_closes(void)
     uint32_t place[5];
     size_t classes = 0u;
 
-    const AnchorFieldProjection loose = {
+    const OriorFieldProjection loose = {
         near_same_in_field, chain, length, ranks, class_of, members, place, length, &classes};
 
-    if (anchor_field_project(&loose) == 0)
+    if (orior_field_project(&loose) == 0)
     {
         printf("  the projection errored on the chain: FAILS\n");
         return 1;
@@ -90,10 +90,10 @@ static int check_projection_closes(void)
         }
 
         size_t wide_classes = 0u;
-        const AnchorFieldProjection wide_args = {sample_same_in_field, wide,          wide_len,
+        const OriorFieldProjection wide_args = {sample_same_in_field, wide,          wide_len,
                                                  wide_ranks,           wide_class_of, wide_members,
                                                  wide_place,           wide_len,      &wide_classes};
-        const int elapsed = anchor_field_project(&wide_args);
+        const int elapsed = orior_field_project(&wide_args);
 
         printf("  %38s %8zu %8s %10s\n", "400 classes, counted not capped", wide_classes, "400",
                ((elapsed != 0) && (wide_classes == wide_len)) ? "ok" : "FAILS");
@@ -137,10 +137,10 @@ static int check_projection_closes(void)
     {
         const size_t sentinel_count = 43981u;
         size_t planted = sentinel_count;
-        const AnchorFieldProjection undersize = {near_same_in_field, chain,   length, ranks, class_of, members, place,
+        const OriorFieldProjection undersize = {near_same_in_field, chain,   length, ranks, class_of, members, place,
                                                  length - 1u,        &planted};
 
-        const int error = anchor_field_project(&undersize);
+        const int error = orior_field_project(&undersize);
 
         printf("  %38s %8d %8s %10s\n", "buffers one short, errored", error, "0", (error == 0) ? "errored" : "RAN");
         failed += (error == 0) ? 0 : 1;
@@ -153,10 +153,10 @@ static int check_projection_closes(void)
     // The exact predicate on the same field must NOT collapse, or the check above would pass for
     // the wrong reason: a projection that always returned one class would satisfy it.
     size_t exact_classes = 0u;
-    const AnchorFieldProjection strict = {sample_same_in_field, chain, length, ranks, class_of, members, place, length,
+    const OriorFieldProjection strict = {sample_same_in_field, chain, length, ranks, class_of, members, place, length,
                                           &exact_classes};
 
-    if (anchor_field_project(&strict) == 0)
+    if (orior_field_project(&strict) == 0)
     {
         printf("  the projection errored on the exact predicate: FAILS\n");
         failed += 1;
@@ -218,18 +218,18 @@ static int check_any_type_agrees(void)
         return 1;
     }
 
-    size_t by_bytes[ANCHOR_STEER_ANCHORS];
-    const size_t placed_bytes = ANCHOR_STEER_CALL(
-        anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = by_bytes, .count = ANCHOR_STEER_ANCHORS,
+    size_t by_bytes[ORIOR_STEER_ANCHORS];
+    const size_t placed_bytes = ORIOR_STEER_CALL(
+        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = by_bytes, .count = ORIOR_STEER_ANCHORS,
         .corpus = corpus, .corpus_len = length, .needle = needle, .needle_len = sizeof(needle), .survivors = survivors,
         .survivors_length = alignments, .sample_stride = 1u);
 
     const ByteField byte_field = {corpus, needle};
-    const AnchorField as_any = {byte_same_at, &byte_field, alignments, sizeof(needle)};
+    const OriorField as_any = {byte_same_at, &byte_field, alignments, sizeof(needle)};
 
-    size_t by_oracle[ANCHOR_STEER_ANCHORS];
-    const size_t placed_oracle = ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = by_oracle,
-                                                   .count = ANCHOR_STEER_ANCHORS, .survivors = survivors,
+    size_t by_oracle[ORIOR_STEER_ANCHORS];
+    const size_t placed_oracle = ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = by_oracle,
+                                                   .count = ORIOR_STEER_ANCHORS, .survivors = survivors,
                                                    .survivors_length = alignments, .sample_stride = 1u, .any = &as_any);
 
     if (placed_bytes != placed_oracle)
@@ -304,7 +304,7 @@ static int check_any_type_agrees(void)
     const size_t sample_alignments = (sample_len - sample_needle_len) + 1u;
 
     const SampleField sample_field = {samples, sample_needle};
-    const AnchorField sample_any = {sample_same_at, &sample_field, sample_alignments, sample_needle_len};
+    const OriorField sample_any = {sample_same_at, &sample_field, sample_alignments, sample_needle_len};
 
     // The true count, taken through the oracle alone with no projection and no probes. This is what
     // the projected engine is graded against.
@@ -344,10 +344,10 @@ static int check_any_type_agrees(void)
         return 1;
     }
 
-    const AnchorFieldProjection sample_projection = {
+    const OriorFieldProjection sample_projection = {
         sample_same_in_field, samples, sample_len, ranks, class_of, members, place, sample_len, &classes};
 
-    if (anchor_field_project(&sample_projection) == 0)
+    if (orior_field_project(&sample_projection) == 0)
     {
         printf("  the projection errored on the sample field: FAILS\n");
         failed += 1;
@@ -400,10 +400,10 @@ int main(void)
     uint8_t needle[64];
     memcpy(needle, corpus + 4096u, sizeof(needle));
 
-    AnchorFieldCensus census;
-    anchor_field_census(corpus, STEER_CORPUS, &census);
+    OriorFieldCensus census;
+    orior_field_census(corpus, STEER_CORPUS, &census);
     printf("\n  field: %u bytes, %u distinct symbols, prefers %s arm\n", STEER_CORPUS, census.distinct,
-           anchor_steer_prefers_free(&census) ? "free order" : "short circuiting");
+           orior_steer_prefers_free(&census) ? "free order" : "short circuiting");
 
     int failed = 0;
     failed += check_counts_agree(corpus, STEER_CORPUS, needle);

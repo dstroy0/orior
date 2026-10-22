@@ -49,7 +49,7 @@ extern "C"
     typedef struct
     {
         size_t *offsets;         /**< Where the chosen offsets are written [BORROWS]. */
-        size_t count;            /**< Offsets to place. At most ANCHOR_STEER_ANCHORS. */
+        size_t count;            /**< Offsets to place. At most ORIOR_STEER_ANCHORS. */
         const uint8_t *corpus;   /**< Bytes the search will run over [BORROWS]. Unread where `any` is set. */
         size_t corpus_len;       /**< How many. Unread where `any` is set. */
         const uint8_t *needle;   /**< Bytes to find [BORROWS]. Unread where `any` is set. */
@@ -62,7 +62,7 @@ extern "C"
         size_t survivors_length; /**< How many. Must reach the alignment count or the call errors. */
         size_t sample_stride;    /**< Plan on every Nth alignment. Zero is read as one. */
         int force_full_depth;    /**< Non-zero descends every level, ignoring the destroy rule. */
-        const AnchorField *any;  /**< A field of any symbol type [BORROWS]. Null takes the byte path. */
+        const OriorField *any;  /**< A field of any symbol type [BORROWS]. Null takes the byte path. */
         int resume;              /**< Non-zero starts the descent from the survivors already in the buffer
                                   *   instead of resetting them to all standing. A caller uses it to
                                   *   compose a recursive spawn: descend, then descend again over the
@@ -71,7 +71,7 @@ extern "C"
                                   *   every existing caller gets. The engine does not check the incoming set
                                   *   is a valid superset; that is the caller's, and a lone survivor is
                                   *   verified against the conditions not yet asked before it is found. */
-    } AnchorSteerDescent;
+    } OriorSteerDescent;
 
 /**
  * @brief Calls an entry with its arguments built at the call site.
@@ -82,7 +82,7 @@ extern "C"
  *       not name is zero, the contract each structure above states. `__VA_ARGS__` is
  *       mentioned once. An argument carrying a side effect is evaluated once.
  */
-#define ANCHOR_STEER_CALL(entry_, type_, ...) entry_(&(type_){__VA_ARGS__})
+#define ORIOR_STEER_CALL(entry_, type_, ...) entry_(&(type_){__VA_ARGS__})
 
     /**
      * @brief Orders the anchors by conditional pruning, one level per anchor, and reports the depth.
@@ -90,20 +90,20 @@ extern "C"
      * @warning THIS REORDERS OFFSETS THE CALLER HAS ALREADY PLACED. IT DOES NOT CHOOSE THEM. `offsets`
      *          is read on the way in. A caller who leaves the array uninitialized expecting the
      *          descent to fill it gets whatever was in that memory ranked, and gets it silently.
-     *          anchor_steer_spawn_coarms is the entry that chooses the positions itself.
-     * @warning `count` ABOVE ANCHOR_STEER_ANCHORS RETURNS ZERO AND SAYS NOTHING. The zero is the
+     *          orior_steer_spawn_coarms is the entry that chooses the positions itself.
+     * @warning `count` ABOVE ORIOR_STEER_ANCHORS RETURNS ZERO AND SAYS NOTHING. The zero is the
      *          only report: zero is also what a null pointer and a zero needle length return. A caller
      *          reading the return value alone cannot tell which guard errored. Check the bound before
      *          the call, because the call will not tell you.
      *
-     * @param[in,out] args          The descent [BORROWS], each member as AnchorSteerDescent gives it:
+     * @param[in,out] args          The descent [BORROWS], each member as OriorSteerDescent gives it:
      *                              `offsets` reordered in place into evaluation order.
      * @return                      Levels actually descended, which is AT MOST `count` and is fewer
      *                              when the destroy rule ends the descent early. `count` on a valid call
      *                              is the ceiling the depth cannot exceed. Read the return to learn the
      *                              depth reached, and see the note below on `force_full_depth`.
      *
-     * WHY RECURSION BUYS ANYTHING OVER ONE PASS. anchor_steer_probe_order ranks the anchors once, by
+     * WHY RECURSION BUYS ANYTHING OVER ONE PASS. orior_steer_probe_order ranks the anchors once, by
      * the MARGINAL rarity of each symbol in the whole field. That is the right first question and the
      * wrong second one: once the first probe has rejected almost everything, the alignments still
      * standing are no longer a sample of the field. They are the subset that agreed with one specific
@@ -121,7 +121,7 @@ extern "C"
      *
      *   - exactly one anchor is placed per level, and a placed anchor is never reconsidered
      *   - the unplaced set therefore shrinks by exactly one each level and never grows
-     *   - the depth is AT MOST `count`, which is bounded by ANCHOR_STEER_ANCHORS, a compile-time
+     *   - the depth is AT MOST `count`, which is bounded by ORIOR_STEER_ANCHORS, a compile-time
      *     constant, and the loop cannot run past it whatever the corpus holds
      *
      * So the depth is bounded from ABOVE before the program runs, and that bound is what terminates it:
@@ -143,12 +143,12 @@ extern "C"
      * @note Does nothing and returns 0 where any pointer is null, where `count` is zero, or where
      *       `needle_len` is zero. A zero length needle has no symbol to rank.
      */
-    size_t anchor_steer_plan_recursive(const AnchorSteerDescent *args);
+    size_t orior_steer_plan_recursive(const OriorSteerDescent *args);
 
     /**
      * @brief Spawns coarms at the positions that prune most, one per level, and places them in order.
      *
-     * @param[in,out] args          The descent [BORROWS], each member as AnchorSteerDescent gives it:
+     * @param[in,out] args          The descent [BORROWS], each member as OriorSteerDescent gives it:
      *                              `offsets` written in evaluation order, and `count` the coarms
      *                              wanted, written `wanted` below.
      * @return                      Coarms actually placed, which is AT MOST `wanted` and is fewer when
@@ -156,7 +156,7 @@ extern "C"
      *                              the ceiling the count cannot exceed. Read the return to learn how many
      *                              were placed, and size any read of `offsets` by the return itself.
      *
-     * SPAWNING. anchor_steer_plan_recursive takes anchors somebody else placed
+     * SPAWNING. orior_steer_plan_recursive takes anchors somebody else placed
      * and decides the order to test them in. This decides WHERE THEY GO. At each level it asks every
      * position in the needle how many of the currently surviving alignments would still stand if a
      * coarm were placed there, and puts one at the position that leaves fewest. The arm is spawned at
@@ -184,7 +184,7 @@ extern "C"
      *
      * TERMINATION IS A BOUND FROM ABOVE AND NOT A FIXED DEPTH. One coarm per level, a placed position
      * never reconsidered, and depth AT MOST `wanted`, which the guard holds at or under
-     * ANCHOR_STEER_ANCHORS. The loop cannot run longer than that whatever the corpus holds, and
+     * ORIOR_STEER_ANCHORS. The loop cannot run longer than that whatever the corpus holds, and
      * it therefore terminates.
      *
      * IT CAN RUN SHORTER, AND CORPUS CONTENT DECIDES WHEN. The destroy test compares the best
@@ -212,7 +212,7 @@ extern "C"
      *          long needle that exceeds the scan it is planning for. `sample_stride` is the control,
      *          and test_steer measures where the trade turns over instead of asserting a default.
      */
-    size_t anchor_steer_spawn_coarms(const AnchorSteerDescent *args);
+    size_t orior_steer_spawn_coarms(const OriorSteerDescent *args);
 
     /**
      * @brief One probe placed on the needle. An arm is a point, an eye is a line.
@@ -226,7 +226,7 @@ extern "C"
      *       needle and not a run of adjacent bytes. A step that shares a period with the needle
      *       reads the same residue repeatedly and prunes badly, which is a real failure mode and is why
      *       the sweep measures steps instead of assuming one.
-     * @note Every position the probe touches must land inside the needle. anchor_steer_probe_fits is
+     * @note Every position the probe touches must land inside the needle. orior_steer_probe_fits is
      *       the test and the sweep applies it before a shape is ever scored.
      */
     typedef struct
@@ -234,24 +234,24 @@ extern "C"
         size_t origin; /**< First position in the needle this probe reads. */
         size_t step;   /**< Distance between successive positions. Unread where length is one. */
         size_t length; /**< Positions read. One is an arm, more is an eye. */
-    } AnchorProbe;
+    } OriorProbe;
 
     /**
      * @brief What the probe sweep reads, as one argument.
      *
-     * @note Separate from AnchorSteerDescent because it writes probes and not offsets, and carries a
+     * @note Separate from OriorSteerDescent because it writes probes and not offsets, and carries a
      *       length ceiling the offset descents have no use for. Sharing one struct would put a member
      *       in it that half the callers must leave zero and the other half must set.
-     * @note Declared here and not beside AnchorSteerDescent because it holds an AnchorProbe, which is
+     * @note Declared here and not beside OriorSteerDescent because it holds an OriorProbe, which is
      *       declared just above. A structure cannot name a type the compiler has not seen.
-     * @note An omitted member is zero, as it is for AnchorSteerDescent. `sample_stride` of zero is read
+     * @note An omitted member is zero, as it is for OriorSteerDescent. `sample_stride` of zero is read
      *       as one, and `max_length` of zero errors and not read as one, because a sweep that
      *       considers no probe shape is a caller error and not a default worth inventing.
      */
     typedef struct
     {
-        AnchorProbe *probes;     /**< Where the chosen probes are written [BORROWS]. */
-        size_t count;            /**< Probes to place. At most ANCHOR_STEER_ANCHORS. */
+        OriorProbe *probes;     /**< Where the chosen probes are written [BORROWS]. */
+        size_t count;            /**< Probes to place. At most ORIOR_STEER_ANCHORS. */
         const uint8_t *corpus;   /**< Bytes the search will run over [BORROWS]. */
         size_t corpus_len;       /**< How many. */
         const uint8_t *needle;   /**< Bytes to find [BORROWS]. */
@@ -259,11 +259,11 @@ extern "C"
         size_t max_length;       /**< Longest eye to consider. One restricts the sweep to arms. */
         uint8_t *survivors;      /**< One byte per alignment, written during the call [BORROWS]. THE
                                   *   SWEEP'S OUTPUT AND NOT A TEMPORARY, exactly as it is for
-                                  *   AnchorSteerDescent: it records which alignments the probes left
+                                  *   OriorSteerDescent: it records which alignments the probes left
                                   *   standing. */
         size_t survivors_length; /**< How many. Must reach the alignment count or the call errors. */
         size_t sample_stride;    /**< Plan on every Nth alignment. Zero is read as one. */
-    } AnchorSteerSweep;
+    } OriorSteerSweep;
 
     /**
      * @brief Whether every position a probe reads lands inside the needle.
@@ -274,12 +274,12 @@ extern "C"
      * @note Computed without forming the last position as a sum. A step and length that would
      *       overflow size_t error instead of wrapping into a position that looks valid.
      */
-    int anchor_steer_probe_fits(const AnchorProbe *probe, size_t needle_len);
+    int orior_steer_probe_fits(const OriorProbe *probe, size_t needle_len);
 
     /**
      * @brief Spawns probes anywhere on the needle, sweeping shapes, and orders them by pruning.
      *
-     * @param[in,out] args          The sweep [BORROWS], each member as AnchorSteerSweep gives it:
+     * @param[in,out] args          The sweep [BORROWS], each member as OriorSteerSweep gives it:
      *                              `probes` written in evaluation order, and `count` the probes
      *                              wanted, written `wanted` below.
      * @return                      Probes actually placed.
@@ -297,28 +297,28 @@ extern "C"
      * both, and the guide recommends measuring instead of reaching for the longest eye.
      *
      * TERMINATION, unchanged and for the same reason. One probe per level, `wanted` levels, bounded by
-     * ANCHOR_STEER_ANCHORS at compile time. The sweep inside a level is three nested bounded loops over
+     * ORIOR_STEER_ANCHORS at compile time. The sweep inside a level is three nested bounded loops over
      * needle_len, needle_len and max_length. Nothing in it is data dependent in its EXTENT.
      *
      * @note Every shape the sweep can spawn leaves the count unchanged. The whole sweep moves inside
      *       the null group and can be as wrong as it likes without costing an answer.
-     * @note Fails closed on the survivor buffer exactly as anchor_steer_spawn_coarms does.
+     * @note Fails closed on the survivor buffer exactly as orior_steer_spawn_coarms does.
      * @warning The sweep is `wanted * needle_len^2 * max_length^2 * alignments / sample_stride` byte
      *          comparisons at worst. One factor of max_length counts the lengths enumerated. The second
      *          comes from scoring: a candidate of length L costs up to L comparisons, and summing L
      *          from 1 to max_length averages about max_length/2.
-     *          anchor_steer_probe_fits rejects shapes that do not fit. The real count sits below
+     *          orior_steer_probe_fits rejects shapes that do not fit. The real count sits below
      *          this figure. It is still far more than the scan it plans on any but a tiny needle, and
      *          it is a planner for a search run many times against one needle and not for a
      *          single shot. `sample_stride` makes it affordable.
      */
-    size_t anchor_steer_sweep_probes(const AnchorSteerSweep *args);
+    size_t orior_steer_sweep_probes(const OriorSteerSweep *args);
 
     /** @brief Corpus bytes read by an anchor probe since the last reset. */
-    extern uint64_t anchor_steer_probes;
+    extern uint64_t orior_steer_probes;
 
     /** @brief Sets the probe counter to zero. */
-    void anchor_steer_probes_reset(void);
+    void orior_steer_probes_reset(void);
 
     /**
      * @brief Counts occurrences, steering the probe order off the corpus or leaving it alone.
@@ -339,13 +339,13 @@ extern "C"
      *       depend on the order of its terms, and the survivor is verified by a full memcmp either way.
      *       The bench grades it at a residual of exactly zero for that reason and not against a
      *       tolerance.
-     * @note `anchor_steer_probes` counts the corpus bytes the probes read, which is where the ordering
+     * @note `orior_steer_probes` counts the corpus bytes the probes read, which is where the ordering
      *       pays. Reset it before a run and read it after.
      * @warning Delegates to a full compare at `needle_len` zero instead of probing, because there is
      *          no symbol to probe and no offset that indexes one. That matches the reference engine,
      *          which reports an empty needle as occurring at every alignment.
      */
-    size_t anchor_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
+    size_t orior_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
                               int steered);
 
     /**
@@ -367,11 +367,11 @@ extern "C"
      * @note The empty probe set is the identity. Every alignment reaches the full compare, the answer
      *       is exactly right, and the cost is maximal. That is the cheapest total check of the whole
      *       guarantee and it is why `count` of zero is accepted and not errored.
-     * @note `anchor_steer_probes` counts the corpus bytes the probes read, as it does for
-     *       anchor_steer_count. Reset it before a run and read it after.
+     * @note `orior_steer_probes` counts the corpus bytes the probes read, as it does for
+     *       orior_steer_count. Reset it before a run and read it after.
      */
-    size_t anchor_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle,
-                                          size_t needle_len, const AnchorProbe *probes, size_t count);
+    size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle,
+                                          size_t needle_len, const OriorProbe *probes, size_t count);
 
 #ifdef __cplusplus
 }

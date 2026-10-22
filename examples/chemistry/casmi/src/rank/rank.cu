@@ -69,7 +69,7 @@
 
 typedef struct
 {
-    AnchorExactInteger part[RANK_ENVELOPE_FIELDS];
+    OriorExactInteger part[RANK_ENVELOPE_FIELDS];
 } RankEnvelope;
 
 // one isotope of an ion: the formula's and the adduct's counts of it
@@ -91,9 +91,9 @@ typedef struct
 
 // ---- reading ----
 
-static int rank_hex_read(const char *text, AnchorExactInteger *value)
+static int rank_hex_read(const char *text, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     const char *at = text;
     const int negative = (*at == '-');
     at += negative ? 1 : 0;
@@ -180,7 +180,7 @@ static unsigned int rank_magnitude_bits(long long value)
     return exact_record_bits_of((value < 0ll) ? (unsigned long long)(-value) : (unsigned long long)value);
 }
 
-static void rank_exact_signed(long long value, AnchorExactInteger *out)
+static void rank_exact_signed(long long value, OriorExactInteger *out)
 {
     rank_exact_of((value < 0ll) ? (unsigned long long)(-value) : (unsigned long long)value, out);
     out->sign = (value < 0ll) ? -out->sign : out->sign;
@@ -193,17 +193,17 @@ static void rank_exact_signed(long long value, AnchorExactInteger *out)
 // a pair's cosine squared in parts per million, floored: 10^6 M^2 over 16 Q R, exact; ~0 where it does not fit
 static unsigned long long rank_score_ppm(const unsigned int *record, RankField numerator, RankField denominator)
 {
-    AnchorExactInteger top;
-    AnchorExactInteger bottom;
-    AnchorExactInteger million;
-    AnchorExactInteger scaled;
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
+    OriorExactInteger top;
+    OriorExactInteger bottom;
+    OriorExactInteger million;
+    OriorExactInteger scaled;
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
     rank_field_read(record, numerator, &top);
     rank_field_read(record, denominator, &bottom);
     rank_exact_of(1000000ull / RANK_INSIDE_SQUARED, &million);
-    if ((anchor_exact_multiply(&top, &million, &scaled) != ANCHOR_EXACT_OK) ||
-        (anchor_exact_divide(&scaled, &bottom, &quotient, &remainder) != ANCHOR_EXACT_OK))
+    if ((orior_exact_multiply(&top, &million, &scaled) != ORIOR_EXACT_OK) ||
+        (orior_exact_divide(&scaled, &bottom, &quotient, &remainder) != ORIOR_EXACT_OK))
     {
         return ~0ull;
     }
@@ -1050,7 +1050,7 @@ int rank_run(SimResults *results, int count, char **arguments)
             unsigned int *const atom = &ion_atoms[each * ion_atom_limbs];
             RankTerm term[RANK_TERMS_MOST];
             const unsigned int terms = rank_terms_merge(&formula[each], &adduct[slot], term);
-            AnchorExactInteger value;
+            OriorExactInteger value;
             unsigned int at = 0u;
             rank_exact_signed(adduct[slot].molecules, &value);
             rank_field_put(atom, at, molecules_bits + 1u, &value);
@@ -1082,11 +1082,11 @@ int rank_run(SimResults *results, int count, char **arguments)
             const long long neutral = casmi_formula_mass(&formula[each]);
             const long long numerator = (neutral < 0ll) ? -1ll : casmi_ion_numerator(neutral, &adduct[slot]);
             const long long expected = (numerator < 0ll) ? -1ll : (numerator + (adduct[slot].charge * CASMI_ELECTRON_MASS));
-            AnchorExactInteger held;
+            OriorExactInteger held;
             rank_field_read(&ion_records[each * ion.layout.out_limbs], ion_sum, &held);
-            AnchorExactInteger wanted;
+            OriorExactInteger wanted;
             rank_exact_signed(expected, &wanted);
-            ion_against_c += ((expected >= 0ll) && !anchor_exact_equal(&held, &wanted)) ? 1ull : 0ull;
+            ion_against_c += ((expected >= 0ll) && !orior_exact_equal(&held, &wanted)) ? 1ull : 0ull;
         }
         // the queries of this adduct against every formula, as many at a time as fill a chunk
         unsigned long long each = 0ull;

@@ -73,16 +73,16 @@ static void reach_answers(void)
     char tree[CLI_PATH_LONGEST];
     char other[CLI_PATH_LONGEST];
     char address[CLI_PATH_LONGEST];
-    char held[CLI_COMMS_KEY];
+    char kept[CLI_COMMS_KEY];
     char why[512];
     CliLine said = {why, sizeof(why), 0ull};
     cli_check_folder("reach_answers", home);
     cli_check(cli_door_open(address, &said), "the door opens");
     cli_check(cli_comms_register("window", 0, 0u, s_command, 1u, s_answer, 1u, s_window, &said) &&
-                  cli_comms_register_held("command line", s_answer, 1u, s_command, 1u, held, &said),
+                  cli_comms_register_kept("command line", s_answer, 1u, s_command, 1u, kept, &said),
               "the window and the command line are parts");
     cli_full(home, "tree", tree);
-    cli_check(cli_reach_keep_in(home, 1u, tree, address, held, &said), "the window is kept");
+    cli_check(cli_reach_keep_in(home, 1u, tree, address, kept, &said), "the window is kept");
     unsigned int listener = 0u;
     (void)cli_comms_listen(s_window, "command", 0, reach_heard, NULL, &listener, &said);
     static const char *const s_on[1] = {"on"};

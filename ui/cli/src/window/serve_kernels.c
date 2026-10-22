@@ -14,6 +14,11 @@
 #define CLI_SERVE_KERNEL_ENDING 2000ull
 #define CLI_SERVE_KERNEL_ASKING 3000ull
 
+// the bytes a message's line is begun with beyond what it carries, and those a reply's is begun with, each growing
+// past them as it is written
+#define CLI_SERVE_KERNEL_MORE 4096ull
+#define CLI_SERVE_KERNEL_REPLY 16384ull
+
 // A kernel running: whether its place is taken, its key, and the kernel
 typedef struct
 {
@@ -105,10 +110,11 @@ static CliKernel *kernels_of(const CliServeArgs *args, CliLine *said)
 static void kernels_heard(void *context, const char *message, unsigned long long size)
 {
     const char *const key = context;
-    static char s_body[1u << 22u];
-    static CliLock s_body_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_body_lock);
-    CliLine body = {s_body, sizeof(s_body), 0ull};
+    CliLine body;
+    if (!cli_line_growing(&body, size + CLI_SERVE_KERNEL_MORE, "a kernel's message"))
+    {
+        return;
+    }
     cli_line_text(&body, "{\"key\":");
     cli_json_quoted(&body, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
     cli_line_text(&body, ",\"message\":");
@@ -116,9 +122,9 @@ static void kernels_heard(void *context, const char *message, unsigned long long
     cli_line_character(&body, '}');
     if (cli_line_fits(&body))
     {
-        cli_serve_emitted("kernel-message", s_body, body.at);
+        cli_serve_emitted("kernel-message", body.out, body.at);
     }
-    cli_lock_give(&s_body_lock);
+    cli_cell_given(body.out);
 }
 
 static int kernel_specs(const CliServeArgs *args, CliLine *out, CliLine *said)
@@ -300,31 +306,38 @@ static int kernels_asked(const CliServeArgs *args, const char *msg_type, int det
     {
         return 0;
     }
-    static char s_content[1u << 20u];
-    static char s_reply[1u << 22u];
-    static CliLock s_reply_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_reply_lock);
-    CliLine content = {s_content, sizeof(s_content), 0ull};
+    const unsigned long long code_length = cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL});
+    CliLine content;
+    CliLine reply;
+    const int content_begun = cli_line_growing(&content, code_length + CLI_SERVE_KERNEL_MORE, "a kernel's request");
+    const int reply_begun = cli_line_growing(&reply, CLI_SERVE_KERNEL_REPLY, "a kernel's reply");
+    const int begun = content_begun && reply_begun;
     cli_line_text(&content, "{\"code\":");
-    cli_json_quoted(&content, code, cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}));
+    cli_json_quoted(&content, code, code_length);
     cli_line_text(&content, ",\"cursor_pos\":");
     cli_line_decimal(&content, cursor, 1u);
     cli_line_text(&content, detail ? ",\"detail_level\":0}" : "}");
-    CliLine reply = {s_reply, sizeof(s_reply), 0ull};
-    int done = cli_line_fits(&content) && cli_jupyter_requested(kernel, "shell", msg_type, s_content, content.at,
-                                                                CLI_SERVE_KERNEL_ASKING, &reply, said);
+    if (!begun)
+    {
+        cli_line_text(said, "the kernel's request could not be held");
+    }
+    // the waiter writes the reply only while the request waits on it, so it is read here and given back after
+    const int done = begun && cli_line_fits(&content) &&
+                     cli_jupyter_requested(kernel, "shell", msg_type, content.out, content.at, CLI_SERVE_KERNEL_ASKING,
+                                           &reply, said);
     cli_jupyter_given(kernel);
     unsigned long long at = 0ull;
     unsigned long long length = 0ull;
-    if (done && cli_lsp_member(s_reply, reply.at, "content", &at, &length))
+    if (done && cli_lsp_member(reply.out, reply.at, "content", &at, &length))
     {
-        cli_line_counted(out, s_reply + at, length);
+        cli_line_counted(out, reply.out + at, length);
     }
     else if (done)
     {
         cli_line_text(out, "null");
     }
-    cli_lock_give(&s_reply_lock);
+    cli_cell_given(content.out);
+    cli_cell_given(reply.out);
     return done;
 }
 

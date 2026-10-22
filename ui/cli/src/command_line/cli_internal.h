@@ -61,11 +61,46 @@ unsigned long long cli_clock_milliseconds(void);
 int cli_file_size(const char *path, unsigned long long *size);
 // the size of the file at `path` and the milliseconds since 1970 it last changed at: 1, or 0 where it is not there
 int cli_file_stamp(const char *path, unsigned long long *size, unsigned long long *changed);
+// the whole file at `path` read in one opening: its size measured on the open file and handed to `room`, which gives
+// back where the bytes go, or NULL to refuse; the bytes read into it, their count into `got`: 1, or 0 where the file
+// could not be opened, measured or given room
+int cli_file_read_whole(const char *path, unsigned char *(*room)(void *context, unsigned long long size), void *context,
+                        unsigned long long *got);
+// `count` bytes of the file at `path` from its byte `from` read into `bytes`, their count into `got`, fewer where the
+// file ends first: 1, or 0 where the file could not be opened or read
+int cli_file_read_at(const char *path, unsigned long long from, unsigned char *bytes, unsigned long long count,
+                     unsigned long long *got);
+// The bytes of a file in a cell of the cellblock, where every read of them stays: the file at `path` read whole, its
+// size into `*size`, or `count` bytes of it from `from`, their count into `*size`, fewer where the file ends first; a
+// word past the bytes is readable and zero, as the walks that load whole words over a text's last bytes take it.
+// NULL where the file could not be read or the cells cannot meet it; a file of no bytes is bytes of none. And the
+// bytes let go (machine/file_held.c)
+const unsigned char *cli_file_held(const char *path, unsigned long long *size);
+// the file at `path` held as cli_file_held holds it where its bytes read as UTF-8 whole: its bytes, or NULL, the
+// cell given back, where a byte starts no letter (file_held.c)
+const unsigned char *cli_file_held_utf8(const char *path, unsigned long long *size);
+const unsigned char *cli_file_piece_held(const char *path, unsigned long long from, unsigned long long count,
+                                         unsigned long long *size);
+void cli_file_let_go(const unsigned char *bytes, unsigned long long size);
+// the bytes of every file under `root`, the folders of version control and of cargo's build passed over: the ask a
+// tree's pool is made for (machine/file_held.c)
+unsigned long long cli_tree_bytes(const char *root);
+// the system's number for why the call just made failed, read before any other call; and its reason written after
+// `said`, as ": Access is denied. (os error 5)" (platform/windows_files.c, platform/posix_files.c)
+unsigned int cli_system_error(void);
+void cli_system_reason(unsigned int error, CliLine *said);
+// `secret` kept for `account` of `service`, such as "database" or "plugin sonarqube", in the system's keychain, on
+// this machine alone, under the service's name "orior " and `service`; the secret kept for `account` of `service` into
+// `out`, which holds `room`: 1, or 0 where none is kept; and the secret taken out (platform/windows_keychain.c,
+// platform/posix_keychain.c)
+int cli_keychain_keep(const char *service, const char *account, const char *secret, CliLine *said);
+int cli_keychain_read(const char *service, const char *account, char *out, unsigned long long room);
+int cli_keychain_forget(const char *service, const char *account, CliLine *said);
 unsigned long long cli_wall_milliseconds(void);
 // one letter written in UTF-8 (words.c)
 void cli_utf8_put(CliLine *line, unsigned int letter);
 // the staged file `from` copied over `to` with the rights the system asks the reader for: on Windows orior's own
-// program run again as `orior write-raised`, raised; on Linux cp through pkexec; on macOS cp with the system's
+// program run again as `orior_cli write-raised`, raised; on Linux cp through pkexec; on macOS cp with the system's
 // authorization. 1, or 0 with why said
 int cli_raised_platform(const char *from, const char *to, CliLine *said);
 
@@ -138,6 +173,16 @@ typedef struct
     const char *value;
 } CliSetting;
 
+// The priority a thread or a program starts at, so that what must not wait does not, and what runs as the host's
+// guest gives the processor back the moment the host wants it. The window's own threads, which answer it, run at the
+// process's level and are not set here. Work is that level, and the default: language servers, git, formatters.
+// Run stands above it: a run's writer and the channels that hand to it. A guest stands below it: builds, tests,
+// checkers, clones, installs and scans. Idle runs only in time nothing else wants: caches warmed ahead
+#define CLI_PRIORITY_WORK 0u
+#define CLI_PRIORITY_RUN 1u
+#define CLI_PRIORITY_GUEST 2u
+#define CLI_PRIORITY_IDLE 3u
+
 // A process a run starts: the system's handle of it and its id, its output and its errors each piped back, the job it
 // was made the head of on Windows, 0 for none, and the pipe its standard input is fed by, 0 for none
 typedef struct
@@ -156,11 +201,17 @@ typedef struct
 // (platform/windows_spawn.c, platform/posix_spawn.c)
 int cli_spawn(CliSpawned *spawned, const char *const *words, const char *folder, const CliSetting *settings,
               unsigned int count, int detached, CliLine *said);
-// a process started as cli_spawn starts one, its standard input a pipe this process feeds through `in`; `size` bytes
-// written whole to that pipe: 1, or 0 where the process stopped reading; and the pipe closed, which the process reads
-// as its input's end
+// a process started as cli_spawn starts one, at `priority`, one of CLI_PRIORITY_WORK and the rest; cli_spawn starts
+// one at work
+int cli_spawn_as(unsigned int priority, CliSpawned *spawned, const char *const *words, const char *folder,
+                 const CliSetting *settings, unsigned int count, int detached, CliLine *said);
+// a process started as cli_spawn starts one, its standard input a pipe this process feeds through `in`, at work or at
+// `priority`; `size` bytes written whole to that pipe: 1, or 0 where the process stopped reading; and the pipe closed,
+// which the process reads as its input's end
 int cli_spawn_fed(CliSpawned *spawned, const char *const *words, const char *folder, const CliSetting *settings,
                   unsigned int count, int detached, CliLine *said);
+int cli_spawn_fed_as(unsigned int priority, CliSpawned *spawned, const char *const *words, const char *folder,
+                     const CliSetting *settings, unsigned int count, int detached, CliLine *said);
 int cli_spawn_written(unsigned long long pipe, const void *bytes, unsigned long long size);
 // a process started as cli_spawn starts one, sharing this process's console, its input, output and errors this
 // process's, and waited on: its exit code into `code`, -1 where a signal ended it, 1, or 0 with why it did not start
@@ -280,11 +331,13 @@ int cli_spawn_interrupted(const CliSpawned *spawned);
 unsigned int cli_path_folders(char (*folders)[CLI_PATH_LONGEST], unsigned int room);
 void cli_path_joined(const char (*folders)[CLI_PATH_LONGEST], unsigned int count, char *path, unsigned long long size);
 
-// What a thread runs: the function and its context, kept by its starter for as long as the thread lives
+// What a thread runs: the function and its context, kept by its starter for as long as the thread lives, and the
+// priority it runs at, one of CLI_PRIORITY_WORK and the rest, work where none is set
 typedef struct
 {
     void (*run)(void *context);
     void *context;
+    unsigned int priority;
 } CliThread;
 
 // the lock, which the caller holds, given back while the thread waits on the wake, and taken again as it wakes; every
@@ -311,6 +364,9 @@ typedef void (*CliChangeTold)(void *context, const char *path, unsigned int kind
 int cli_watch_system_start(const char *root, CliChangeTold told, void *context);
 void cli_watch_system_stop(void);
 int cli_thread_started(CliThread *thread);
+// the calling thread put at `priority`, one of CLI_PRIORITY_WORK and the rest (platform/windows_threads.c,
+// platform/posix_threads.c)
+void cli_priority_own(unsigned int priority);
 // the processors the machine has, one at the fewest
 unsigned int cli_processors(void);
 
@@ -381,7 +437,8 @@ void cli_event_closed(unsigned long long event);
 
 // the tree (root.c): 1 where `folder` holds the engine's tree; the tree ORIOR_ROOT names, else the one found walking up
 // from the working folder or the program; a folder mounted beside the tree under a name it is given; a mount taken
-// away, or all; a path inside the tree or a mount, refused where it climbs out; a path written relative to the tree
+// away, or all; a path inside the tree or a mount, refused where it climbs out; a path written relative to the tree, a
+// whole path kept as it is
 int cli_holds_tree(const char *folder);
 int cli_tree_at(const char *path, char *full, CliLine *said);
 int cli_tree_found(char *tree);

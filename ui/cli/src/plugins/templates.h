@@ -7,15 +7,18 @@
 #ifndef TEMPLATES_H
 #define TEMPLATES_H
 
+#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
 
-// the folder that holds the reader's templates into `folder`, which holds CLI_PATH_LONGEST: 1, or 0 where orior has no
-// folder of its own; the reader's templates, by name, in order, written as a JSON array of names; a project named
+// the folder that holds the reader's templates into `folder`, which holds CLI_PATH_LONGEST: 1, or 0 where orior_cli has
+// no folder of its own; the reader's templates, by name, in order, written as a JSON array of names; a project named
 // `name` begun in `parent` from the template `name_of_template`, its folder into `made`; and the tree at `root` kept
 // as the template `name`, the template's folder into `made`. Each of the last two 1, or 0 with why said
 int cli_templates_folder(char *folder);
 void cli_templates_list(CliLine *out);
 int cli_templates_create(const char *template_name, const char *parent, const char *name, char *made, CliLine *said);
 int cli_templates_keep(const char *root, const char *name, char *made, CliLine *said);
+// the cells the templates' names and a template file's pieces hold
+extern CliCellsTally g_cli_templates_cells;
 
 #endif

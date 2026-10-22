@@ -41,14 +41,28 @@ int cli_tar_with(const unsigned char *bytes, unsigned long long size, const CliM
                  const unsigned char *data, unsigned long long data_size, unsigned char *out, unsigned long long room,
                  unsigned long long *out_size, CliLine *said);
 
+// A room of the archives a path runs through: a cell of `room` bytes, or none
+typedef struct
+{
+    unsigned char *bytes;
+    unsigned long long room;
+} CliRoom;
+
+// `room` given `need` bytes for `what`: as it stands where it holds them, else in a cell of that many taken in the
+// old one's place, what the old one held let go; 1, or 0 with why said where the cells cannot meet it or `need` is
+// past CLI_ARCHIVE_MOST; and the bytes an archive written anew from `size` bytes may take, an eighth and a page over
+// (archive_path.c)
+int cli_archive_room(CliRoom *room, unsigned long long need, const char *what, CliLine *said);
+unsigned long long cli_archive_grown(unsigned long long size);
+
 // The members of an archive of `kind` whose bytes are `bytes`, read: what a gzipped archive holds, unzipped, into
-// `unpacked`, its count into `unpacked_size`; and a member's bytes, by the archive's kind, into `out`. Each 1, or 0
-// with why said (archive.c)
+// `unpacked`, given the room its trailer says, its count into `unpacked_size`; and a member's bytes, by the archive's
+// kind, into `out`, given the room the member takes. Each 1, or 0 with why said (archive.c)
 int cli_members_of(const unsigned char *bytes, unsigned long long size, unsigned int kind, const char *inner,
-                   CliMembers *members, unsigned char *unpacked, unsigned long long *unpacked_size, CliLine *said);
+                   CliMembers *members, CliRoom *unpacked, unsigned long long *unpacked_size, CliLine *said);
 int cli_data_of(const unsigned char *bytes, unsigned long long size, unsigned int kind, const unsigned char *unpacked,
-                unsigned long long unpacked_size, const CliMembers *members, const CliMember *member,
-                unsigned char *out, unsigned long long room, unsigned long long *out_size, CliLine *said);
+                unsigned long long unpacked_size, const CliMembers *members, const CliMember *member, CliRoom *out,
+                unsigned long long *out_size, CliLine *said);
 // the name a gzipped file's one member goes by, the file's own less its .gz, into `out`, which holds CLI_NAME_LONGEST
 void cli_gz_inner(const char *name, char *out);
 
@@ -59,14 +73,15 @@ void cli_gz_inner(const char *name, char *out);
 
 // The archives a path runs through, a cell taken with the lock and given back with it: each level's members, what it
 // holds unpacked, the bytes of the archive within it, and the level written anew; and a tar written before it is
-// gzipped
+// gzipped. Each room is a cell of its own, taken sized to what it holds as it is first written and given back with
+// the levels
 typedef struct
 {
     CliMembers members[CLI_ARCHIVE_DEPTH];
-    unsigned char unpacked[CLI_ARCHIVE_DEPTH][CLI_ARCHIVE_BYTES];
-    unsigned char inner[CLI_ARCHIVE_DEPTH - 1u][CLI_ARCHIVE_BYTES];
-    unsigned char written[CLI_ARCHIVE_DEPTH][CLI_ARCHIVE_BYTES];
-    unsigned char tar[CLI_ARCHIVE_BYTES];
+    CliRoom unpacked[CLI_ARCHIVE_DEPTH];
+    CliRoom inner[CLI_ARCHIVE_DEPTH - 1u];
+    CliRoom written[CLI_ARCHIVE_DEPTH];
+    CliRoom tar;
 } CliLevels;
 
 extern CliLevels *g_cli_archive_levels;

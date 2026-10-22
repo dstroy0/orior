@@ -92,7 +92,7 @@ def main():
                                                           re.search(r"ICSNL[_-]?(\d+)", stem).group(1))),
         "",
         wrapped(
-            "Drafted by the anchor_sift engine and read against the page by a person. The engine "
+            "Drafted by the orior-engine engine and read against the page by a person. The engine "
             "sorted every line of the text layer with english_sift.sorted_into, first against its "
             "English reference and the pure corpus, then against this paper's own English laid "
             "over that reference. What the paper's English did not account for became the example "
@@ -132,7 +132,7 @@ def main():
                if corrections else "", context.PAGE_NOTES)),
         "",
         wrapped(
-            "anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, "
+            "orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, "
             "leaving out the notation and symbol note rows, whose form is a label and not a string "
             "the paper prints. Of %d rows asked, %d hold a form the repaired paper does not, and %d "
             "a form the repair took out. Of the %d distinct tokens in the paper, %d language tokens "

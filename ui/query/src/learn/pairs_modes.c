@@ -28,7 +28,7 @@ void query_part_file(const QueryContext *context, const char *part, const char *
     query_at(context, name, path);
 }
 
-// the identity run with `words` teed as `klq_identity.console`: 1 where it ran and exited 0
+// the identity run with `words` teed as `orior_klq_identity.console`: 1 where it ran and exited 0
 int query_identity_ran(QueryContext *context, const QueryRun *run, const char *identity, const char *const *words,
                        unsigned int count, long long *code, CliLine *said)
 {
@@ -37,7 +37,7 @@ int query_identity_ran(QueryContext *context, const QueryRun *run, const char *i
     const unsigned int kept = (count < QUERY_WORDS_MOST) ? count : QUERY_WORDS_MOST;
     memor.cpy(&(MemoriaCfg){.dst = &s_words[1], .src = words, .bytes = (size_t)kept * sizeof(words[0])});
     s_words[kept + 1u] = NULL;
-    return query_context_teed(context, run, "klq_identity", s_words, code, said);
+    return query_context_teed(context, run, "orior_klq_identity", s_words, code, said);
 }
 
 int query_text_identity(QueryContext *context, const QueryPairsMode *mode, const char *identity, const char *folder,
@@ -48,7 +48,7 @@ int query_text_identity(QueryContext *context, const QueryPairsMode *mode, const
     static char s_nvcc[QUERY_PATH_LONGEST];
     static char s_cuobjdump[QUERY_PATH_LONGEST];
     const QueryPrograms *const programs = context->programs;
-    if (!query_context_tool(context, "measuring_stick_engine", s_engine, said) ||
+    if (!query_context_tool(context, "orior_measuring_stick_engine", s_engine, said) ||
         !programs->program(programs->context, QUERY_ROLE_PYTHON, s_python, sizeof(s_python), said) ||
         !programs->program(programs->context, QUERY_ROLE_NVCC, s_nvcc, sizeof(s_nvcc), said) ||
         !programs->program(programs->context, QUERY_ROLE_CUOBJDUMP, s_cuobjdump, sizeof(s_cuobjdump), said))

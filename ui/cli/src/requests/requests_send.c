@@ -153,7 +153,7 @@ int cli_requests_sent_at(const char *root, const char *path, const char *text, u
                                   &key_line, said);
     if (sent && !cli_line_fits(&key_line))
     {
-        cli_line_text(said, "the request is larger than orior holds");
+        cli_line_text(said, "the request is larger than orior_cli holds");
         sent = 0;
     }
     if (sent)
@@ -192,7 +192,7 @@ int cli_requests_get(const char *address, unsigned int *status, CliLine *reason,
     const int answered = fits && !answer->has_failed;
     if (!fits)
     {
-        cli_line_text(said, "the request is larger than orior holds");
+        cli_line_text(said, "the request is larger than orior_cli holds");
     }
     else if (!answered)
     {

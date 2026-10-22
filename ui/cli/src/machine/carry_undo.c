@@ -52,19 +52,14 @@ typedef struct
 static CliTakings s_takings;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// the lock taken and the room's cells with it: 1, or 0 with the lock given back where the cells cannot meet them
-static int undo_held(void)
+// the lock taken and the room begun empty under it
+static void undo_held(void)
 {
     cli_lock_take(&s_lock);
-    if (!cli_carry_room_taken(&s_takings.room))
-    {
-        cli_lock_give(&s_lock);
-        return 0;
-    }
-    return 1;
+    cli_carry_room_begun(&s_takings.room);
 }
 
-// the room's cells given back, and the lock
+// the room's tree given back, and the lock
 static void undo_released(void)
 {
     cli_carry_room_given(&s_takings.room);
@@ -76,17 +71,16 @@ static int cli_taking_read(const char *file, CliTaking *taking)
 {
     CliJson *const json = &s_takings.room.json;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(file, &size);
+    const unsigned char *const bytes = cli_file_held(file, &size);
     if (bytes == NULL)
     {
         return 0;
     }
-    cli_json_begun(json, s_takings.room.nodes, CLI_CARRY_NODES, s_takings.room.text, CLI_CARRY_JSON);
+    cli_json_given(json);
     char why[CLI_NAME_LONGEST];
     CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int root =
-        cli_json_read(json, (const char *)bytes, size, s_takings.room.tokens, CLI_CARRY_NODES, &unread);
-    qry_member_file_unmapped(bytes, size);
+    const unsigned int root = cli_json_taken(json, (const char *)bytes, size, 0u, 0ull, &unread);
+    cli_file_let_go(bytes, size);
     const char *const id = cli_json_string(json, cli_json_member(json, root, "id"), NULL);
     const char *const from = cli_json_string(json, cli_json_member(json, root, "from"), NULL);
     const unsigned int at = cli_json_member(json, root, "at");
@@ -187,11 +181,7 @@ static int cli_taking_of(const char *carried, const char *name)
 
 void cli_carry_takings(const char *home, CliLine *out)
 {
-    if (!undo_held())
-    {
-        cli_line_text(out, "[]");
-        return;
-    }
+    undo_held();
     char carried[CLI_PATH_LONGEST];
     cli_takings_read(home, carried);
     cli_line_character(out, '[');
@@ -211,11 +201,7 @@ void cli_carry_takings(const char *home, CliLine *out)
 
 int cli_carry_undo(const char *home, const char *id, CliLine *out, CliLine *said)
 {
-    if (!undo_held())
-    {
-        cli_line_text(said, "the takings' cells could not be taken");
-        return 0;
-    }
+    undo_held();
     char carried[CLI_PATH_LONGEST];
     cli_takings_read(home, carried);
     int found = 0;
@@ -244,11 +230,11 @@ int cli_carry_undo(const char *home, const char *id, CliLine *out, CliLine *said
         if (taking->stood[at])
         {
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = qry_member_file_mapped(saved, &size);
+            const unsigned char *const bytes = cli_file_held(saved, &size);
             const int back = (bytes != NULL) && query_file_written(path, bytes, size);
             if (bytes != NULL)
             {
-                qry_member_file_unmapped(bytes, size);
+                cli_file_let_go(bytes, size);
             }
             if (!back)
             {

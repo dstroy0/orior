@@ -1,9 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // review_test.c: the review's check: a change is the declarations it touches, a move is one piece and callers stand
-// before what they call; a declaration added or taken out is one and pieces that call none stand apart; and a commit is
-// reviewed against its parent with who made it
+// before what they call; a declaration added or taken out is one and pieces that call none stand apart; a commit is
+// reviewed against its parent with who made it; and the lines of each two texts compared are given back
 #include "../../../../../ui/cli/src/code/review.h"
+#include "../../../../../ui/cli/src/code/review_internal.h"
 #include "cli_check.h"
 
 static char s_out[1u << 16u];
@@ -188,5 +189,7 @@ int main(void)
     review_change();
     review_added();
     review_commit();
+    cli_check((g_cli_review_cells.holds == 0ull) && (g_cli_review_cells.hw != 0ull),
+              "every text's lines compared are given back, the most they held marked");
     return cli_checked();
 }

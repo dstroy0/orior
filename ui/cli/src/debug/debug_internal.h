@@ -13,18 +13,23 @@
 // the most requests asked of adapters at once
 #define CLI_DEBUG_ANSWERS 4u
 
-// the most sessions at once, one adapter each; the exceptions one adapter can stop on; the breakpoints the reader
-// placed that a session keeps, and its data breakpoints; and the bytes of an adapter's event read again as a tree, and
-// its nodes
+// the most sessions at once, one adapter each; the exceptions one adapter can stop on; the most breakpoints the reader
+// placed that a session keeps, and its data breakpoints, and those each list is begun with, doubling as they come; and
+// the nodes and bytes over an event's own its tree is read with, for what a stop rewritten adds
 #define CLI_DEBUG_SESSIONS CLI_DAPS_MOST
 #define CLI_DEBUG_FILTERS 32u
 #define CLI_DEBUG_PLACED 4096u
 #define CLI_DEBUG_DATA 256u
-#define CLI_DEBUG_EVENT (1u << 16u)
-#define CLI_DEBUG_EVENT_NODES 1024u
-// the nodes and bytes of the adapter's spec and the launch's arguments a session is started with
+#define CLI_DEBUG_LIST_FIRST 16u
+#define CLI_DEBUG_EVENT_MORE_NODES 8u
+#define CLI_DEBUG_EVENT_MORE_TEXT 64u
+// the most nodes and bytes of the adapter's spec and the launch's arguments a session is started with, the tree's cell
+// taken as the session is planned and given back as its place is freed
 #define CLI_DEBUG_START_NODES 8192u
 #define CLI_DEBUG_START_TEXT (1u << 18u)
+
+// the cells the sessions' places hold: their lists and the trees they start with (debug_place.c)
+extern CliCellsTally g_cli_debug_cells;
 
 // how long, in milliseconds, the adapter has to start, to be ready for breakpoints, and to launch the program; a
 // request about the stopped program may take; after it is initialized an adapter has to say it is ready before the
@@ -76,9 +81,9 @@ typedef struct
 // again whole with each one added; the breakpoints the reader placed, and whether a data breakpoint is set through
 // lldb's own watchpoints, whose stops come at breakpoints of no such number; whether orior's script is loaded into
 // lldb; the native session whose breakpoints of a step across go at the next stop; the process the adapter says it
-// debugs; whether the adapter said it is initialized; where its events go; the room an event is read again in; the
-// threads that let the adapter go and take a step across's breakpoints away, and the session whose breakpoints they
-// take; and the room the session's start is made in
+// debugs; whether the adapter said it is initialized; where its events go; the threads that let the adapter go and
+// take a step across's breakpoints away, and the session whose breakpoints they take; and the tree the session's
+// start is made in. The two lists are cells grown as they come, and they and the tree are given back with the place
 typedef struct
 {
     int taken;
@@ -88,10 +93,12 @@ typedef struct
     CliDebugInfo info;
     CliDap *dap;
     char program[CLI_PATH_LONGEST];
-    char data[CLI_DEBUG_DATA][CLI_NAME_LONGEST];
+    char (*data)[CLI_NAME_LONGEST];
     unsigned int data_count;
-    long long placed[CLI_DEBUG_PLACED];
+    unsigned int data_room;
+    long long *placed;
     unsigned int placed_count;
+    unsigned int placed_room;
     int watching;
     int scripted;
     int has_across;
@@ -99,19 +106,20 @@ typedef struct
     unsigned long long pid;
     int initialized;
     CliDebugEmit emit;
-    CliJsonNode event_nodes[CLI_DEBUG_EVENT_NODES];
-    CfgJsonToken event_tokens[CLI_DEBUG_EVENT_NODES];
-    char event_text[CLI_DEBUG_EVENT];
-    char event_out[CLI_DEBUG_EVENT];
     CliThread giver;
     int giving;
     CliThread clearer;
     int clearing;
     unsigned long long cleared;
-    CliJsonNode start_nodes[CLI_DEBUG_START_NODES];
-    char start_text[CLI_DEBUG_START_TEXT];
     CliJson start;
 } CliDebugSession;
+
+// a list of a place, `count` items of `size` bytes in a cell of `*room`, given room for one more below `most`: moved
+// into a cell of twice its room, CLI_DEBUG_LIST_FIRST where it has none, its items copied and its cell given back. The
+// list as it stands after, `count` below `*room` where there is room; and a place freed, its lists and its tree given
+// back, under the sessions' lock (debug_place.c)
+void *cli_debug_grown(void *list, unsigned int count, unsigned int *room, unsigned long long size, unsigned int most);
+void cli_debug_place_freed(CliDebugSession *place);
 
 // The sessions, the number the next takes, their lock and the wake of a session's adapter saying it is initialized
 typedef struct

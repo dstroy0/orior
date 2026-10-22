@@ -54,27 +54,27 @@ static int qasm_text_chunk(QasmText *builder, unsigned int chunk, unsigned int w
     return qasm_text_put(builder, &digits[QASM_TEXT_CHUNK_DIGITS - length]);
 }
 
-static long qasm_integer_text(const AnchorExactInteger *value, QasmText *builder, EngineError *error)
+static long qasm_integer_text(const OriorExactInteger *value, QasmText *builder, EngineError *error)
 {
     if (value->sign == 0)
     {
         return (qasm_text_put(builder, "0") != 0) ? 0L : QASM_ERROR;
     }
-    AnchorExactInteger chunk_divisor;
-    anchor_exact_zero(&chunk_divisor);
+    OriorExactInteger chunk_divisor;
+    orior_exact_zero(&chunk_divisor);
     chunk_divisor.limb[0] = QASM_TEXT_CHUNK;
     chunk_divisor.sign = 1;
-    AnchorExactInteger remaining = *value;
+    OriorExactInteger remaining = *value;
     remaining.sign = 1;
     unsigned int chunks[QASM_TEXT_CHUNKS];
     unsigned int count = 0u;
     int ok = 1;
     while ((ok != 0) && (remaining.sign != 0))
     {
-        AnchorExactInteger quotient;
-        AnchorExactInteger remainder;
+        OriorExactInteger quotient;
+        OriorExactInteger remainder;
         ok = QASM_CHECK(count < QASM_TEXT_CHUNKS, value, error, ENGINE_ERROR_LOGIC) &&
-             QASM_STATUS_CHECK(anchor_exact_divide(&remaining, &chunk_divisor, &quotient, &remainder), value, error);
+             QASM_STATUS_CHECK(orior_exact_divide(&remaining, &chunk_divisor, &quotient, &remainder), value, error);
         if (ok != 0)
         {
             chunks[count] = remainder.limb[0];
@@ -101,7 +101,7 @@ long qasm_rational_put_text(const QasmRational *value, QasmText *builder, Engine
     {
         return QASM_ERROR;
     }
-    if (anchor_exact_equal(&value->denominator, &qasm_rational_one.denominator) != 0)
+    if (orior_exact_equal(&value->denominator, &qasm_rational_one.denominator) != 0)
     {
         return 0L;
     }
@@ -110,20 +110,20 @@ long qasm_rational_put_text(const QasmRational *value, QasmText *builder, Engine
 }
 
 // numerator / denominator with no common factor and the denominator positive; a zero denominator errors
-static long qasm_rational_reduce(const AnchorExactInteger *numerator, const AnchorExactInteger *denominator,
+static long qasm_rational_reduce(const OriorExactInteger *numerator, const OriorExactInteger *denominator,
                                  QasmRational *value, EngineError *error)
 {
     if (QASM_CHECK(denominator->sign != 0, denominator, error, ENGINE_ERROR_REQUEST) == 0)
     {
         return QASM_ERROR;
     }
-    AnchorExactInteger common;
-    AnchorExactInteger reduced_numerator;
-    AnchorExactInteger reduced_denominator;
+    OriorExactInteger common;
+    OriorExactInteger reduced_numerator;
+    OriorExactInteger reduced_denominator;
     const int ok =
-        QASM_STATUS_CHECK(anchor_exact_gcd(numerator, denominator, &common), numerator, error) &&
-        QASM_STATUS_CHECK(anchor_exact_divide_exact(numerator, &common, &reduced_numerator), numerator, error) &&
-        QASM_STATUS_CHECK(anchor_exact_divide_exact(denominator, &common, &reduced_denominator), denominator, error);
+        QASM_STATUS_CHECK(orior_exact_gcd(numerator, denominator, &common), numerator, error) &&
+        QASM_STATUS_CHECK(orior_exact_divide_exact(numerator, &common, &reduced_numerator), numerator, error) &&
+        QASM_STATUS_CHECK(orior_exact_divide_exact(denominator, &common, &reduced_denominator), denominator, error);
     if (ok == 0)
     {
         return QASM_ERROR;
@@ -136,9 +136,9 @@ static long qasm_rational_reduce(const AnchorExactInteger *numerator, const Anch
     return 0L;
 }
 
-static void qasm_integer_set(AnchorExactInteger *value, long long signed_value)
+static void qasm_integer_set(OriorExactInteger *value, long long signed_value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     // the magnitude is taken in unsigned arithmetic, where negating LLONG_MIN is defined
     const unsigned long long magnitude =
         (signed_value < 0LL) ? (0ull - (unsigned long long)signed_value) : (unsigned long long)signed_value;
@@ -150,8 +150,8 @@ static void qasm_integer_set(AnchorExactInteger *value, long long signed_value)
 
 long qasm_rational_set(QasmRational *value, long long numerator, long long denominator, EngineError *error)
 {
-    AnchorExactInteger top;
-    AnchorExactInteger bottom;
+    OriorExactInteger top;
+    OriorExactInteger bottom;
     qasm_integer_set(&top, numerator);
     qasm_integer_set(&bottom, denominator);
     return qasm_rational_reduce(&top, &bottom, value, error);
@@ -169,14 +169,14 @@ long qasm_rational_add(const QasmRational *left, const QasmRational *right, Qasm
         *sum = *left;
         return 0L;
     }
-    AnchorExactInteger numerator;
-    AnchorExactInteger cross;
-    AnchorExactInteger denominator;
+    OriorExactInteger numerator;
+    OriorExactInteger cross;
+    OriorExactInteger denominator;
     const int ok =
-        QASM_STATUS_CHECK(anchor_exact_multiply(&left->numerator, &right->denominator, &numerator), left, error) &&
-        QASM_STATUS_CHECK(anchor_exact_multiply(&right->numerator, &left->denominator, &cross), right, error) &&
-        QASM_STATUS_CHECK(anchor_exact_add(&numerator, &cross, &numerator), left, error) &&
-        QASM_STATUS_CHECK(anchor_exact_multiply(&left->denominator, &right->denominator, &denominator), left, error);
+        QASM_STATUS_CHECK(orior_exact_multiply(&left->numerator, &right->denominator, &numerator), left, error) &&
+        QASM_STATUS_CHECK(orior_exact_multiply(&right->numerator, &left->denominator, &cross), right, error) &&
+        QASM_STATUS_CHECK(orior_exact_add(&numerator, &cross, &numerator), left, error) &&
+        QASM_STATUS_CHECK(orior_exact_multiply(&left->denominator, &right->denominator, &denominator), left, error);
     return (ok != 0) ? qasm_rational_reduce(&numerator, &denominator, sum, error) : QASM_ERROR;
 }
 
@@ -196,11 +196,11 @@ long qasm_rational_multiply(const QasmRational *left, const QasmRational *right,
         *product = qasm_rational_zero;
         return 0L;
     }
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
     const int ok =
-        QASM_STATUS_CHECK(anchor_exact_multiply(&left->numerator, &right->numerator, &numerator), left, error) &&
-        QASM_STATUS_CHECK(anchor_exact_multiply(&left->denominator, &right->denominator, &denominator), right, error);
+        QASM_STATUS_CHECK(orior_exact_multiply(&left->numerator, &right->numerator, &numerator), left, error) &&
+        QASM_STATUS_CHECK(orior_exact_multiply(&left->denominator, &right->denominator, &denominator), right, error);
     return (ok != 0) ? qasm_rational_reduce(&numerator, &denominator, product, error) : QASM_ERROR;
 }
 
@@ -211,12 +211,12 @@ long qasm_rational_divide(const QasmRational *numerator, const QasmRational *div
     {
         return QASM_ERROR;
     }
-    AnchorExactInteger top;
-    AnchorExactInteger bottom;
+    OriorExactInteger top;
+    OriorExactInteger bottom;
     const int ok =
-        QASM_STATUS_CHECK(anchor_exact_multiply(&numerator->numerator, &divisor->denominator, &top), numerator,
+        QASM_STATUS_CHECK(orior_exact_multiply(&numerator->numerator, &divisor->denominator, &top), numerator,
                           error) &&
-        QASM_STATUS_CHECK(anchor_exact_multiply(&numerator->denominator, &divisor->numerator, &bottom), divisor, error);
+        QASM_STATUS_CHECK(orior_exact_multiply(&numerator->denominator, &divisor->numerator, &bottom), divisor, error);
     return (ok != 0) ? qasm_rational_reduce(&top, &bottom, quotient, error) : QASM_ERROR;
 }
 
@@ -228,8 +228,8 @@ void qasm_rational_negate(const QasmRational *value, QasmRational *negated)
 
 int qasm_rational_equal(const QasmRational *left, const QasmRational *right)
 {
-    return anchor_exact_equal(&left->numerator, &right->numerator) &&
-           anchor_exact_equal(&left->denominator, &right->denominator);
+    return orior_exact_equal(&left->numerator, &right->numerator) &&
+           orior_exact_equal(&left->denominator, &right->denominator);
 }
 
 int qasm_rational_is_zero(const QasmRational *value)

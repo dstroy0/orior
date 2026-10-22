@@ -13,7 +13,7 @@
 #include <dlfcn.h>
 #include <errno.h>
 
-// the values of libssl's calls orior hands it: load the library's error strings and ciphers, a host's name as the
+// the values of libssl's calls orior_cli hands it: load the library's error strings and ciphers, a host's name as the
 // SSL_ctrl that sets the name it is reached by, the option that reads an end with no close as an end, and what
 // SSL_get_error says
 #define CLI_SSL_NOW 2
@@ -30,7 +30,7 @@
 
 #define CLI_SSL_ZERO_RETURN 6
 
-// The calls of libssl orior makes, found in the system's libssl as it runs; `set_options` and `verify_text` may be
+// The calls of libssl orior_cli makes, found in the system's libssl as it runs; `set_options` and `verify_text` may be
 // none
 typedef struct
 {
@@ -155,7 +155,7 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     }
     if (tls == NULL)
     {
-        cli_line_text(said, "TLS: more sessions are open than orior holds");
+        cli_line_text(said, "TLS: more sessions are open than orior_cli holds");
         return NULL;
     }
     tls->socket = socket;

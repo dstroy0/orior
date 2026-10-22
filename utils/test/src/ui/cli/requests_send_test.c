@@ -3,6 +3,7 @@
 // requests_send_test.c: Requests sent: a request is sent and its answer read whole, chunked and gzipped; a redirect is
 // followed, a 303 as a GET and not where the request says; an answer without a length is read to its end and one that
 // is not text kept as its bytes; and https goes through the system's TLS, a certificate no root signs refused
+#include "../../../../../ui/cli/src/comms/tls.h"
 #include "../../../../../ui/cli/src/editor/archive.h"
 #include "../../../../../ui/cli/src/requests/requests_internal.h"
 #include "../../../../../ui/cli/src/toolchains/toolchains.h"
@@ -277,7 +278,7 @@ static void requests_redirects(void)
     cli_check_text(joined, line.at, "http://h:1/a/d", "a location read from where it was given");
     line.at = 0ull;
     cli_requests_joined("https://h/a/b", "//o/p", &line);
-    cli_check_text(joined, line.at, "https://o/p", "and one with a host of its own");
+    cli_check_text(joined, line.at, "https://o/p", "and one with its own host");
 }
 
 // an answer without a length is read to its end and one that is not text kept as its bytes
@@ -367,6 +368,12 @@ static void requests_tls(void)
                   cli_requests_holds((const char *)answer->body, answer->size, "ciphers"),
               "by the server");
     cli_check(answer->times.tls > 0.0, "TLS timed");
+#if defined(_WIN32)
+    // Schannel's sessions hold what came, what is opened and what is sealed in cells; libssl and Secure Transport hold
+    // their own
+    cli_check((g_cli_tls_cells.holds == 0ull) && (g_cli_tls_cells.hw > 0ull),
+              "the session's room is held in cells while it is open, and given back as it closes");
+#endif
     cli_requests_send(requests_sent("GET", url, NULL, NULL, "", 1), 1, room);
     cli_check(answer->has_failed &&
                   (cellul.starts(&(CatenaFinitaCfg){.src = answer->failed, .other = "TLS:", .cap = CLI_CELLS_POOL})),

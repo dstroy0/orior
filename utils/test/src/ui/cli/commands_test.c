@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // commands_test.c: the menus' check: every word names one thing, a menu's word and a command's within its menu, a
-// command is one word, and no command of a menu of jobs reads as a job
+// command is one word, no command of a menu of jobs reads as a job, and an item needs each <word> of its args outside a
+// bracket
 #include "../../../../../ui/cli/src/command_line/commands.h"
 #include "cli_check.h"
 
@@ -46,5 +47,26 @@ int main(void)
     cli_check(commands_once, "no menu holds a command twice");
     cli_check(one_word, "every command is one word");
     cli_check(no_job, "no command of a menu of jobs reads as a job");
+    // the words an item needs are its <word>s outside brackets, a choice among them one
+    static const struct
+    {
+        const char *args;
+        unsigned int needed;
+    } s_needs[4] = {
+        {"<file> <line> [condition [hits [message]]]", 2u},
+        {"[folder]", 0u},
+        {"<bar|menu|pane> <percent>", 2u},
+        {"[<from> [<words>]] <slot>", 1u},
+    };
+    int counted = 1;
+    for (unsigned int at = 0u; at < 4u; at += 1u)
+    {
+        CliItem item = {0};
+        CliLine args = {item.args, sizeof(item.args), 0ull};
+        cli_line_text(&args, s_needs[at].args);
+        (void)cli_line_closed(&args);
+        counted &= cli_item_words_needed(&item) == s_needs[at].needed;
+    }
+    cli_check(counted, "an item needs each <word> of its args outside a bracket");
     return cli_checked();
 }

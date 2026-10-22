@@ -1,53 +1,31 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_search.c: every line in the tree's files that holds a query. The files are what git tracks or would track, or
-// the whole tree where git cannot read it. Text is found by the sift: one reader reads the files, with as many heads as
-// read faster, and a worker on each other core orior's work may take searches the next file read; a regular
-// expression is git's to search
+// the whole tree where git cannot read it. Text is found by the sift: a worker on each core orior's work may take
+// reads the next file into a cell of its own, grown as a larger file comes, and searches it there, so a search takes
+// one cell a worker and not two a file; a regular expression is git's to search
 #include "../machine/cores.h"
 #include "../text/regexp.h"
-#include "files_internal.h"
+#include "files_search_hits.h"
 
-// the most heads a search's reader reads with; the files read between two looks at whether another head reads faster;
-// how much faster the reads must come since the head started last for the reader to start another; the files a search's
-// reader reads ahead of each worker; and the bytes past which a search of a tree git cannot read passes a file over
-#define CLI_HEADS 8u
-#define CLI_HEAD_SPAN 64ull
-#define CLI_HEAD_GAIN 1.1
-#define CLI_READ_AHEAD 2u
+// the bytes past which a search of a tree git cannot read passes a file over; the most workers a search starts; the
+// bytes a worker's cell is first taken with, doubled as a larger file comes; and the bytes a file's start is looked
+// through for a 0 that marks it as no text
 #define CLI_SEARCHED_BYTES (4ull * 1024ull * 1024ull)
-
-// the most workers a search starts, the most hits held while it runs, and the bytes a file's start is looked through
-// for a 0 that marks it as no text
 #define CLI_WORKERS_MOST 256u
-#define CLI_POOL_MOST (CLI_HITS_MOST * 4u)
+#define CLI_WORKER_ROOM_FIRST (256ull * 1024ull)
 #define CLI_BINARY_LOOK 8192ull
 
-// A file read and handed to a worker: its place among the files and its bytes
+// One worker: the cell it reads each file into and that cell's bytes
 typedef struct
 {
-    unsigned int index;
-    const unsigned char *bytes;
-    unsigned long long size;
-} CliQueued;
-
-// A line found, held until the search ends: its file's place, its place among its file's, the line and column, and its
-// text's bytes
-typedef struct
-{
-    unsigned int file;
-    unsigned int order;
-    unsigned long long line;
-    unsigned long long col;
-    unsigned int size;
-    unsigned char text[CLI_HIT_BYTES];
-} CliHeldHit;
+    unsigned char *room;
+    unsigned long long room_size;
+} CliSearchWorker;
 
 // One search: the files searched, picked from the view of the tree held through the search, and the most bytes of one
-// read, what is looked for and its letters in lower case;
-// the next file to read and the files read; the files read and not yet taken, `queued` of them from `head`, at most
-// `room`; the heads reading and whether the reader starts no more; the workers searching; the lines found, each slot
-// of `live` in use, and the free slots
+// read, what is looked for and its letters in lower case; the next file to read; the workers searching; the lines
+// found; and each worker's thread and cell
 typedef struct
 {
     const char *root;
@@ -56,67 +34,15 @@ typedef struct
     CliSought sought;
     unsigned int lower[CLI_FUZZY_LETTERS];
     unsigned int next;
-    unsigned int read;
-    CliQueued queue[CLI_WORKERS_MOST * CLI_READ_AHEAD];
-    unsigned int head;
-    unsigned int queued;
-    unsigned int room;
-    unsigned int heads;
-    int heads_ended;
     unsigned int workers;
     CliWake wake;
-    CliHeldHit pool[CLI_POOL_MOST];
-    unsigned int live[CLI_POOL_MOST];
-    unsigned int lives;
-    unsigned int spare[CLI_POOL_MOST];
-    unsigned int free[CLI_POOL_MOST];
-    unsigned int frees;
-    CliThread head_thread[CLI_HEADS];
+    CliSearchHits hits;
     CliThread worker_thread[CLI_WORKERS_MOST];
+    CliSearchWorker worker[CLI_WORKERS_MOST];
 } CliSearch;
 
 static CliSearch s_search = {.wake = CLI_WAKE_INIT};
 static CliLock s_lock = CLI_LOCK_INIT;
-
-// whether the hit in slot `one` comes before the hit in slot `other`: by its file, then its place in it
-static int cli_hit_before(unsigned int one, unsigned int other)
-{
-    const CliHeldHit *const left = &s_search.pool[one];
-    const CliHeldHit *const right = &s_search.pool[other];
-    return (left->file < right->file) || ((left->file == right->file) && (left->order < right->order));
-}
-
-// the live slots sorted by their hits' order, the lock held
-static void cli_live_sorted(void)
-{
-    unsigned int *from = s_search.live;
-    unsigned int *into = s_search.spare;
-    const unsigned int count = s_search.lives;
-    for (unsigned int width = 1u; width < count; width *= 2u)
-    {
-        for (unsigned int start = 0u; start < count; start += 2u * width)
-        {
-            const unsigned int middle = ((start + width) < count) ? (start + width) : count;
-            const unsigned int end = ((middle + width) < count) ? (middle + width) : count;
-            unsigned int left = start;
-            unsigned int right = middle;
-            for (unsigned int at = start; at < end; at += 1u)
-            {
-                const int take_left = (left < middle) && ((right >= end) || !cli_hit_before(from[right], from[left]));
-                into[at] = take_left ? from[left] : from[right];
-                left += take_left ? 1u : 0u;
-                right += take_left ? 0u : 1u;
-            }
-        }
-        unsigned int *const turned = from;
-        from = into;
-        into = turned;
-    }
-    if (from != s_search.live)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = s_search.live, .src = from, .bytes = count * sizeof(unsigned int)});
-    }
-}
 
 // A file's hits as a worker finds them: the file and the hits it has given
 typedef struct
@@ -125,52 +51,60 @@ typedef struct
     unsigned int order;
 } CliFileHits;
 
-// a line found put among those held. Where they are full, those that come after the first CLI_HITS_MOST are let go:
-// no line found later can bring one of them back among the first
+// a line found put among those held (files_search_hits.c); where no room for it is given it is let go
 static void cli_hit_put(void *context, unsigned long long line, unsigned long long col, const unsigned char *text,
                         unsigned long long size)
 {
     CliFileHits *const file = (CliFileHits *)context;
     cli_lock_take(&s_lock);
-    if (s_search.lives == CLI_POOL_MOST)
+    CliHeldHit *const hit = cli_hits_slot(&s_search.hits);
+    if (hit != NULL)
     {
-        cli_live_sorted();
-        for (unsigned int at = CLI_HITS_MOST; at < s_search.lives; at += 1u)
-        {
-            s_search.free[s_search.frees] = s_search.live[at];
-            s_search.frees += 1u;
-        }
-        s_search.lives = CLI_HITS_MOST;
+        // a hit's bytes are at most CLI_HIT_BYTES, which an unsigned int holds
+        const unsigned int kept = (unsigned int)((size < CLI_HIT_BYTES) ? size : CLI_HIT_BYTES);
+        *hit = (CliHeldHit){file->file, file->order, line, col, kept, {0}};
+        memor.cpy(&(MemoriaCfg){.dst = hit->text, .src = text, .bytes = kept});
     }
-    s_search.frees -= 1u;
-    const unsigned int slot = s_search.free[s_search.frees];
-    CliHeldHit *const hit = &s_search.pool[slot];
-    // a hit's bytes are at most CLI_HIT_BYTES, which an unsigned int holds
-    const unsigned int kept = (unsigned int)((size < CLI_HIT_BYTES) ? size : CLI_HIT_BYTES);
-    *hit = (CliHeldHit){file->file, file->order, line, col, kept, {0}};
-    memor.cpy(&(MemoriaCfg){.dst = hit->text, .src = text, .bytes = kept});
-    s_search.live[s_search.lives] = slot;
-    s_search.lives += 1u;
     file->order += 1u;
     cli_lock_give(&s_lock);
 }
 
-// one file searched, its bytes let go after
-static void cli_searched(const CliQueued *queued)
+// a file read searched, where its start holds no 0 that marks it as no text
+static void cli_searched(const unsigned char *bytes, unsigned long long size, unsigned int index)
 {
-    const unsigned long long look = (queued->size < CLI_BINARY_LOOK) ? queued->size : CLI_BINARY_LOOK;
-    if ((look == 0ull) || (memor.chr(&(MemoriaCfg){.src = queued->bytes, .val = 0, .bytes = look}) == NULL))
+    const unsigned long long look = (size < CLI_BINARY_LOOK) ? size : CLI_BINARY_LOOK;
+    if ((look == 0ull) || (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = look}) == NULL))
     {
-        CliFileHits file = {queued->index, 0u};
-        cli_files_hits_in(queued->bytes, queued->size, &s_search.sought, cli_hit_put, &file);
+        CliFileHits file = {index, 0u};
+        cli_files_hits_in(bytes, size, &s_search.sought, cli_hit_put, &file);
     }
-    qry_member_file_unmapped(queued->bytes, queued->size);
 }
 
-// the next file read from the disk: 1 with it into `queued`, or 0 where none is left. A file too large or that cannot
-// be read is passed over
-static int cli_file_read(CliQueued *queued)
+// room for a file of `size` bytes in a worker's cell: the cell as it is where it holds them, else one taken anew of
+// twice the cell's bytes or the file's and one, the cell before given back; NULL, so the file is passed over, where it
+// is larger than the search reads or no cell is given
+static unsigned char *cli_worker_roomed(void *context, unsigned long long size)
 {
+    CliSearchWorker *const worker = context;
+    if (size > s_search.most)
+    {
+        return NULL;
+    }
+    if ((size + 1ull) > worker->room_size)
+    {
+        cli_cell_given(worker->room);
+        unsigned long long room = (worker->room_size * 2ull > size + 1ull) ? (worker->room_size * 2ull) : (size + 1ull);
+        room = (room < CLI_WORKER_ROOM_FIRST) ? CLI_WORKER_ROOM_FIRST : room;
+        worker->room = cli_cell_taken(room, "a search worker's room");
+        worker->room_size = (worker->room != NULL) ? room : 0ull;
+    }
+    return worker->room;
+}
+
+// a worker: each file left read into its cell and searched, until none is left; its cell given back as it ends
+static void cli_worker(void *context)
+{
+    CliSearchWorker *const worker = context;
     for (;;)
     {
         cli_lock_take(&s_lock);
@@ -179,7 +113,7 @@ static int cli_file_read(CliQueued *queued)
         cli_lock_give(&s_lock);
         if (index >= s_search.paths.count)
         {
-            return 0;
+            break;
         }
         char full[CLI_PATH_LONGEST];
         CliLine line = {full, sizeof(full), 0ull};
@@ -187,138 +121,17 @@ static int cli_file_read(CliQueued *queued)
         cli_line_character(&line, '/');
         cli_line_text(&line, cli_picked_at(&s_search.paths, index));
         unsigned long long size = 0ull;
-        const unsigned char *const bytes =
-            (cli_line_closed(&line) != 0ull) ? qry_member_file_mapped(full, &size) : NULL;
-        cli_lock_take(&s_lock);
-        s_search.read += 1u;
-        cli_lock_give(&s_lock);
-        if ((bytes != NULL) && (size > s_search.most))
+        if ((cli_line_closed(&line) != 0ull) && cli_file_read_whole(full, cli_worker_roomed, worker, &size) &&
+            (worker->room != NULL))
         {
-            qry_member_file_unmapped(bytes, size);
-            continue;
-        }
-        if (bytes != NULL)
-        {
-            *queued = (CliQueued){index, bytes, size};
-            return 1;
+            cli_searched(worker->room, size, index);
         }
     }
-}
-
-// a head: the files read and handed to the workers, waiting while the queue is full
-static void cli_head(void *context)
-{
-    (void)context;
-    CliQueued queued;
-    while (cli_file_read(&queued))
-    {
-        cli_lock_take(&s_lock);
-        while (s_search.queued == s_search.room)
-        {
-            cli_wake_wait(&s_search.wake, &s_lock);
-        }
-        s_search.queue[(s_search.head + s_search.queued) % s_search.room] = queued;
-        s_search.queued += 1u;
-        cli_wake_all(&s_search.wake);
-        cli_lock_give(&s_lock);
-    }
+    cli_cell_given(worker->room);
+    worker->room = NULL;
+    worker->room_size = 0ull;
     cli_lock_take(&s_lock);
-    s_search.heads -= 1u;
-    cli_wake_all(&s_search.wake);
-    cli_lock_give(&s_lock);
-}
-
-// a worker: each file handed it searched, until the heads have ended and none is left
-static void cli_worker(void *context)
-{
-    (void)context;
-    for (;;)
-    {
-        cli_lock_take(&s_lock);
-        while ((s_search.queued == 0u) && !(s_search.heads_ended && (s_search.heads == 0u)))
-        {
-            cli_wake_wait(&s_search.wake, &s_lock);
-        }
-        if (s_search.queued == 0u)
-        {
-            s_search.workers -= 1u;
-            cli_wake_all(&s_search.wake);
-            cli_lock_give(&s_lock);
-            return;
-        }
-        const CliQueued queued = s_search.queue[s_search.head];
-        s_search.head = (s_search.head + 1u) % s_search.room;
-        s_search.queued -= 1u;
-        cli_wake_all(&s_search.wake);
-        cli_lock_give(&s_lock);
-        cli_searched(&queued);
-    }
-}
-
-// a head started: 1, or 0 where it could not start
-static int cli_head_started(unsigned int at)
-{
-    cli_lock_take(&s_lock);
-    s_search.heads += 1u;
-    cli_lock_give(&s_lock);
-    s_search.head_thread[at] = (CliThread){cli_head, NULL};
-    if (cli_thread_started(&s_search.head_thread[at]))
-    {
-        return 1;
-    }
-    cli_lock_take(&s_lock);
-    s_search.heads -= 1u;
-    cli_lock_give(&s_lock);
-    return 0;
-}
-
-// the reader: one head, and another each span of files while the head started last raised the files read a
-// millisecond, at most `most` of them; the heads read on until the files are read
-static void cli_reader(unsigned int most)
-{
-    if (!cli_head_started(0u))
-    {
-        // with no head started, the files are read here, the reader starting no more
-        cli_lock_take(&s_lock);
-        s_search.heads += 1u;
-        cli_lock_give(&s_lock);
-        cli_head(NULL);
-    }
-    unsigned int heads = 1u;
-    double rate = 0.0;
-    unsigned long long since_at = cli_clock_milliseconds();
-    unsigned long long since_done = 0ull;
-    while (heads < most)
-    {
-        query_paused(1u);
-        cli_lock_take(&s_lock);
-        const unsigned long long done = s_search.read;
-        cli_lock_give(&s_lock);
-        if (done >= s_search.paths.count)
-        {
-            break;
-        }
-        if ((done - since_done) < CLI_HEAD_SPAN)
-        {
-            continue;
-        }
-        const double seconds = (double)(cli_clock_milliseconds() - since_at) / 1000.0;
-        const double now = (double)(done - since_done) / ((seconds > 1e-9) ? seconds : 1e-9);
-        if ((heads > 1u) && (now <= (rate * CLI_HEAD_GAIN)))
-        {
-            break;
-        }
-        rate = now;
-        since_at = cli_clock_milliseconds();
-        since_done = done;
-        if (!cli_head_started(heads))
-        {
-            break;
-        }
-        heads += 1u;
-    }
-    cli_lock_take(&s_lock);
-    s_search.heads_ended = 1;
+    s_search.workers -= 1u;
     cli_wake_all(&s_search.wake);
     cli_lock_give(&s_lock);
 }
@@ -347,25 +160,21 @@ static void cli_search_paths(const char *root, const CliPatterns *patterns, cons
     s_search.most = ((s_search.paths.seen != NULL) && s_search.paths.seen->git) ? ~0ull : CLI_SEARCHED_BYTES;
 }
 
-// the files read and searched, a worker on each core the work may take less the heads', and the lines found written
+// the files read and searched, a worker on each core the work may take, and the lines found written
 static void cli_search_run(CliLine *out)
 {
     const unsigned int budget = cli_cores_for_work();
-    const unsigned int quarter = ((budget / 4u) > 1u) ? (budget / 4u) : 1u;
-    const unsigned int heads_most = (quarter < CLI_HEADS) ? quarter : CLI_HEADS;
     const unsigned int files = (s_search.paths.count > 1u) ? s_search.paths.count : 1u;
-    unsigned int workers = (budget > heads_most) ? (budget - heads_most) : 0u;
-    workers = (workers < 1u) ? 1u : workers;
+    unsigned int workers = (budget < 1u) ? 1u : budget;
     workers = (workers > files) ? files : workers;
     workers = (workers > CLI_WORKERS_MOST) ? CLI_WORKERS_MOST : workers;
-    s_search.room = workers * CLI_READ_AHEAD;
     unsigned int started = 0u;
     for (unsigned int at = 0u; at < workers; at += 1u)
     {
         cli_lock_take(&s_lock);
         s_search.workers += 1u;
         cli_lock_give(&s_lock);
-        s_search.worker_thread[started] = (CliThread){cli_worker, NULL};
+        s_search.worker_thread[started] = (CliThread){cli_worker, &s_search.worker[started], CLI_PRIORITY_WORK};
         const int one = cli_thread_started(&s_search.worker_thread[started]);
         started += one ? 1u : 0u;
         cli_lock_take(&s_lock);
@@ -374,29 +183,23 @@ static void cli_search_run(CliLine *out)
     }
     if (started == 0u)
     {
-        // with no worker to hand them to, each file is read and searched here, one at a time
-        CliQueued queued;
-        while (cli_file_read(&queued))
-        {
-            cli_searched(&queued);
-        }
+        // with no worker started, the files are read and searched here, one at a time
+        s_search.workers = 1u;
+        cli_worker(&s_search.worker[0]);
     }
-    else
+    cli_lock_take(&s_lock);
+    while (s_search.workers > 0u)
     {
-        cli_reader(heads_most);
-        cli_lock_take(&s_lock);
-        while (s_search.workers > 0u)
-        {
-            cli_wake_wait(&s_search.wake, &s_lock);
-        }
-        cli_lock_give(&s_lock);
+        cli_wake_wait(&s_search.wake, &s_lock);
     }
-    cli_live_sorted();
-    const unsigned int shown = (s_search.lives < CLI_HITS_MOST) ? s_search.lives : CLI_HITS_MOST;
+    cli_lock_give(&s_lock);
+    CliSearchHits *const hits = &s_search.hits;
+    cli_hits_sorted(hits);
+    const unsigned int shown = (hits->lives < CLI_HITS_MOST) ? hits->lives : CLI_HITS_MOST;
     cli_line_character(out, '[');
     for (unsigned int at = 0u; at < shown; at += 1u)
     {
-        const CliHeldHit *const hit = &s_search.pool[s_search.live[at]];
+        const CliHeldHit *const hit = &hits->pool[hits->live[at]];
         cli_hit_written(out, at == 0u, cli_picked_at(&s_search.paths, hit->file), hit->line, hit->col, hit->text,
                         hit->size);
     }
@@ -457,19 +260,10 @@ int cli_files_search(const char *root, const char *query, CliSearching how, cons
                                   ascii,   s_search.lower,
                                   letters, how};
     s_search.next = 0u;
-    s_search.read = 0u;
-    s_search.head = 0u;
-    s_search.queued = 0u;
-    s_search.heads = 0u;
-    s_search.heads_ended = 0;
     s_search.workers = 0u;
-    s_search.lives = 0u;
-    for (unsigned int at = 0u; at < CLI_POOL_MOST; at += 1u)
-    {
-        s_search.free[at] = (CLI_POOL_MOST - 1u) - at;
-    }
-    s_search.frees = CLI_POOL_MOST;
+    cli_hits_given(&s_search.hits);
     cli_search_run(out);
+    cli_hits_given(&s_search.hits);
     cli_picked_let(&s_search.paths);
     cli_lock_give(&s_turn);
     return 1;

@@ -27,6 +27,6 @@ One subject's pipeline, from the archive to a checked corpus. This is the larges
 | `orior_algorithmic_extraction/` | the sift applied to the same papers |
 | `corpus_derivation.py` | how wrong the corpus could be, from what the checks have seen |
 
-The papers, and every text read off their pages, are not here. They are somebody else's copyright and somebody else's language, and they stay in the closed corpus, which the tools reach through `build/papers` or `ANCHOR_SIFT_PRIVATE`. The oracle tables the experiments read are at `examples/Salishan/oracles`, and `extract/workdir.py` names where each of these is.
+The papers, and every text read off their pages, are not here. They are somebody else's copyright and somebody else's language, and they stay in the closed corpus, which the tools reach through `build/papers` or `ORIOR_ENGINE_PRIVATE`. The oracle tables the experiments read are at `examples/Salishan/oracles`, and `extract/workdir.py` names where each of these is.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

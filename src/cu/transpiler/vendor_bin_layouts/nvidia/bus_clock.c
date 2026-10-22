@@ -4,7 +4,7 @@
 // aperture, read through the BAR0 driver (scaffolding/mmio_read.h, the BAR0 driver), and the first register that advances
 // kept in the part's .ksc as the clock the ask's cost is read off (query_ask.h, Q1).
 //
-//     bus_clock <ksc> <from> <words> <turns>
+//     orior_bus_clock <ksc> <from> <words> <turns>
 //
 // Every number is read as hexadecimal. `from` is a byte offset into BAR0, `words` how many 32-bit words from
 // it are asked, four bytes apart, and `turns` how many reads ADVANCES puts at a word after its first before the word
@@ -49,7 +49,7 @@ static int bus_clock_kept(const char *ksc, unsigned int offset)
         krf_path_beside(ksc, krf, sizeof(krf));
         if (!krf_removed_by(krf, "ksc", "replaced", (const char *const *)removed.line, removed.lines, who))
         {
-            printf("  bus_clock: the clock row let go from %s could not be kept in %s\n", ksc, krf);
+            printf("  orior_bus_clock: the clock row let go from %s could not be kept in %s\n", ksc, krf);
         }
     }
     kfile_lines_free(&removed);
@@ -60,7 +60,7 @@ int main(int count, char **words)
 {
     if (count != 5)
     {
-        fprintf(stderr, "bus_clock <ksc> <from> <words> <turns>, every number hexadecimal\n");
+        fprintf(stderr, "orior_bus_clock <ksc> <from> <words> <turns>, every number hexadecimal\n");
         return 2;
     }
     const char *const ksc = words[1];
@@ -69,20 +69,20 @@ int main(int count, char **words)
     const unsigned long long turns = strtoull(words[4], NULL, 16);
     if ((asked == 0ull) || (asked > BUS_CLOCK_WORDS_MOST) || ((from % 4ull) != 0ull))
     {
-        fprintf(stderr, "bus_clock: from 1 to %u words, from a whole word's offset\n", BUS_CLOCK_WORDS_MOST);
+        fprintf(stderr, "orior_bus_clock: from 1 to %u words, from a whole word's offset\n", BUS_CLOCK_WORDS_MOST);
         return 2;
     }
     HANDLE device = mmio_open();
     if (device == INVALID_HANDLE_VALUE)
     {
-        printf("  bus_clock: the BAR0 driver is not reached: its service GpuBar0 is not started (install_bar0.ps1)\n");
+        printf("  orior_bus_clock: the BAR0 driver is not reached: its service GpuBar0 is not started (install_bar0.ps1)\n");
         return 2;
     }
     unsigned long long base = 0ull;
     unsigned long long size = 0ull;
     if (!mmio_extent(device, &base, &size) || ((from + (asked * 4ull)) > size))
     {
-        printf("  bus_clock: the span 0x%llx to 0x%llx is not inside BAR0 of %llu bytes\n", from,
+        printf("  orior_bus_clock: the span 0x%llx to 0x%llx is not inside BAR0 of %llu bytes\n", from,
                from + (asked * 4ull), size);
         mmio_close(device);
         return 2;
@@ -135,13 +135,13 @@ int main(int count, char **words)
     }
     if (!found)
     {
-        printf("  bus_clock: no register of the %llu from 0x%llx advances over %llu reads; the part names no clock there\n",
+        printf("  orior_bus_clock: no register of the %llu from 0x%llx advances over %llu reads; the part names no clock there\n",
                asked, from, turns);
         return 1;
     }
     if (!bus_clock_kept(ksc, clock))
     {
-        printf("  bus_clock: the clock could not be written to %s\n", ksc);
+        printf("  orior_bus_clock: the clock could not be written to %s\n", ksc);
         return 2;
     }
     printf("  clock: the timer register at 0x%x advances, by %u between two reads; kept in %s as the clock the ask reads\n",
@@ -155,7 +155,7 @@ int main(int count, char **words)
 {
     (void)count;
     (void)words;
-    printf("  bus_clock: the BAR0 driver is a Windows kernel service, and this host has none\n");
+    printf("  orior_bus_clock: the BAR0 driver is a Windows kernel service, and this host has none\n");
     return 2;
 }
 

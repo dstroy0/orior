@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_programs.c: the command line's words that are programs of their own: `serve` answers a window on
-// another machine over its input and output; `write-raised` copies a file orior staged over the file the reader gave
-// the rights to write; `keep-run` runs a job the server keeps, a process of its own; `deploy` previews, sends or rolls
-// back a deployment the tree names; `libraries` says what a program loads and from where; and `sea` builds a script
-// into Node's single executable
+// another machine over its input and output; `write-raised` copies a file orior_cli staged over the file the reader
+// gave the rights to write; `keep-run` runs a job the server keeps, a process of its own; `deploy` previews, sends or
+// rolls back a deployment the tree names; `libraries` says what a program loads and from where; and `sea` builds a
+// script into Node's single executable
 #include "../deploy/deploy.h"
 #include "../machine/raised.h"
 #include "../programs/binary.h"
@@ -14,8 +14,13 @@
 #include "../window/serve.h"
 #include "command_line_internal.h"
 
-// the most folders of the PATH orior's jobs have that a program's libraries are looked for in
-#define CLI_PROGRAMS_PATH 512u
+// What a program's libraries are read with, a cell taken as they are read: the report of what it loads, and the PATH
+// orior's jobs have, whose folders they are looked for in
+typedef struct
+{
+    CliBinaryReport report;
+    char path[CLI_PATH_TEXT];
+} CliProgramsReading;
 
 static char s_said[1u << 14u];
 static char s_line[1u << 16u];
@@ -41,7 +46,7 @@ static int programs_failed(const CliLine *said, int code)
     return code;
 }
 
-// `orior serve`: the window on another machine answered, then every run, shell and server still in the container
+// `orior_cli serve`: the window on another machine answered, then every run, shell and server still in the container
 // ended with it, on the machine the window reached as on the window's own
 static int programs_serve(const char *named)
 {
@@ -56,7 +61,7 @@ static int programs_serve(const char *named)
     return 0;
 }
 
-// `orior deploy <name> <do> <changed> <gone>`, the tree the one --root names or the folder it runs in
+// `orior_cli deploy <name> <do> <changed> <gone>`, the tree the one --root names or the folder it runs in
 static int programs_deploy(const char *named, const char *const *words, unsigned int count)
 {
     const int act = (count > 2u) ? cli_deploy_act_of(words[2]) : -1;
@@ -72,7 +77,7 @@ static int programs_deploy(const char *named, const char *const *words, unsigned
     {
         if (named == NULL)
         {
-            cli_line_text(&said, "orior finds no folder to run in");
+            cli_line_text(&said, "orior_cli finds no folder to run in");
         }
         return programs_failed(&said, CLI_NO_CODE);
     }
@@ -88,7 +93,7 @@ static int programs_deploy(const char *named, const char *const *words, unsigned
     return 0;
 }
 
-// `orior libraries <program>`: each library the program loads, where it is found and the file found, then what the
+// `orior_cli libraries <program>`: each library the program loads, where it is found and the file found, then what the
 // report tells of the program
 static int programs_libraries(const char *const *words, unsigned int count)
 {
@@ -99,37 +104,53 @@ static int programs_libraries(const char *const *words, unsigned int count)
         cli_err("libraries takes the program to read");
         return CLI_WRONG;
     }
-    static char s_path[CLI_PATH_TEXT];
-    static char s_folders[CLI_PROGRAMS_PATH][CLI_PATH_LONGEST];
-    cli_toolchains_run_path(s_path, sizeof(s_path));
+    CliProgramsReading *const reading = cli_cell_taken(sizeof(*reading), "what a program's libraries are read with");
+    if (reading == NULL)
+    {
+        cli_err("the cells cannot meet what a program's libraries are read with");
+        return CLI_WRONG;
+    }
+    cli_toolchains_run_path(reading->path, sizeof(reading->path));
 #if defined(_WIN32)
     const char between = ';';
 #else
     const char between = ':';
 #endif
+    // the PATH's folders in a cell of the most it names, one for each mark between them and one more
+    unsigned int most = 1u;
+    for (const char *at = reading->path; at[0] != '\0'; at += 1)
+    {
+        most += (at[0] == between) ? 1u : 0u;
+    }
+    char (*const folder)[CLI_PATH_LONGEST] =
+        cli_cell_taken((unsigned long long)most * CLI_PATH_LONGEST, "the PATH's folders a program's libraries are in");
     unsigned int folders = 0u;
-    for (const char *part = s_path; (part != NULL) && (folders < CLI_PROGRAMS_PATH);)
+    for (const char *part = reading->path; (folder != NULL) && (part != NULL) && (folders < most);)
     {
         const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL, .byte = between});
         const size_t size =
             (end != NULL) ? (size_t)(end - part) : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
         if ((size > 0u) && (size < CLI_PATH_LONGEST))
         {
-            memor.cpy(&(MemoriaCfg){.dst = s_folders[folders], .src = part, .bytes = size});
-            s_folders[folders][size] = '\0';
+            memor.cpy(&(MemoriaCfg){.dst = folder[folders], .src = part, .bytes = size});
+            folder[folders][size] = '\0';
             folders += 1u;
         }
         part = (end != NULL) ? end + 1 : NULL;
     }
-    static CliBinaryReport s_report;
     CliLine said = {s_said, sizeof(s_said), 0ull};
-    if (!cli_binary_read(words[1], (const char (*)[CLI_PATH_LONGEST])s_folders, folders, &s_report, &said))
+    const int read =
+        cli_binary_read(words[1], (const char (*)[CLI_PATH_LONGEST])folder, folders, &reading->report, &said);
+    cli_cell_given(folder);
+    if (!read)
     {
+        cli_cell_given(reading);
         return programs_failed(&said, CLI_WRONG);
     }
-    for (unsigned int at = 0u; at < s_report.libraries; at += 1u)
+    const CliBinaryReport *const report = &reading->report;
+    for (unsigned int at = 0u; at < report->libraries; at += 1u)
     {
-        const CliLibrary *const one = &s_report.library[at];
+        const CliLibrary *const one = &report->library[at];
         CliLine line = {s_line, sizeof(s_line), 0ull};
         cli_line_text(&line, one->name);
         cli_line_text(&line, "  ");
@@ -139,11 +160,12 @@ static int programs_libraries(const char *const *words, unsigned int count)
         cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
     }
     const QuerySink say = {programs_err, NULL};
-    cli_binary_report_said(&s_report, say);
+    cli_binary_report_said(report, say);
+    cli_cell_given(reading);
     return 0;
 }
 
-// `orior sea <script> <program> [module]`: the script built into Node's single executable
+// `orior_cli sea <script> <program> [module]`: the script built into Node's single executable
 static int programs_sea(const char *const *words, unsigned int count)
 {
     if (count < 3u)

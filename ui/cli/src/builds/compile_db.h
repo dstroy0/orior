@@ -4,15 +4,15 @@
 // uses, with its include folders and its defines, and no file of settings is written by hand.
 //
 // A tree that holds its own database keeps it: a compile_commands.json at its top or in its build/ folder, or the
-// folder a .clangd at its top names. Otherwise each CMake project orior configured gives its targets' sources from
+// folder a .clangd at its top names. Otherwise each CMake project orior_cli configured gives its targets' sources from
 // CMake's file API, which answers for every generator, Visual Studio's among them, from the configuration configured
 // last; and each Meson build gives the compile_commands.json Meson writes. They are written together to
 // build/orior/compile_commands.json.
 //
 // clangd asks each compiler the database names, but MSVC's cl, for its own headers and target (`--query-driver`);
 // where one is cl, clangd runs in Visual Studio's environment, as cl does. The database is looked for again at most
-// every two seconds, and a clangd running when it changes is started again on it (compile_db.c, compile_db_gather.c,
-// compile_db_program.c)
+// every two seconds, and a clangd running when it changes is started again on it (compile_db.c, compile_db_look.c,
+// compile_db_gather.c, compile_db_program.c)
 #ifndef COMPILE_DB_H
 #define COMPILE_DB_H
 
@@ -34,8 +34,9 @@ typedef struct
     int msvc;
 } CliDatabase;
 
-// A program a CMake or Meson build orior configured makes from a source: the build tool, cmake or meson, the build's
-// folder, the target's name, the configuration, the program's path, and the source's compiler as GNU, Clang or MSVC
+// A program a CMake or Meson build orior_cli configured makes from a source: the build tool, cmake or meson, the
+// build's folder, the target's name, the configuration, the program's path, and the source's compiler as GNU, Clang or
+// MSVC
 typedef struct
 {
     char tool[16];
@@ -63,7 +64,7 @@ int cli_compile_db_refresh(const char *root, CliDatabase *database);
 int cli_compile_db_is_cl(const char *compiler);
 void cli_compile_db_words(const CliDatabase *database, CliWords *words);
 
-// the program a CMake or Meson build orior configured makes from `file`, where one does, into `program`: from a
+// the program a CMake or Meson build orior_cli configured makes from `file`, where one does, into `program`: from a
 // configuration with debugging information, Debug or RelWithDebInfo, or Meson's debug or debugoptimized, where one is
 // configured, and from the one configured last where not. 1, or 0 where none does (compile_db_program.c)
 int cli_compile_db_program_of(const char *root, const char *file, CliProgram *program);

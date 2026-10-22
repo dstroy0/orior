@@ -17,7 +17,7 @@ static void session_freed_where_done(CliDebugSession *session)
 {
     if (session->taken && !session->listed && session->heard_end && (session->users == 0u))
     {
-        session->taken = 0;
+        cli_debug_place_freed(session);
     }
 }
 
@@ -285,8 +285,13 @@ int cli_debug_set(CliDebugSession *session, const char *file, const CliJson *jso
     {
         long long number = 0ll;
         const unsigned int one = cli_json_item(said_json, placed, at);
-        if (cli_debug_signed(said_json, cli_json_member(said_json, one, "id"), &number) &&
-            (session->placed_count < CLI_DEBUG_PLACED))
+        if (!cli_debug_signed(said_json, cli_json_member(said_json, one, "id"), &number))
+        {
+            continue;
+        }
+        session->placed = cli_debug_grown(session->placed, session->placed_count, &session->placed_room,
+                                          sizeof(*session->placed), CLI_DEBUG_PLACED);
+        if (session->placed_count < session->placed_room)
         {
             session->placed[session->placed_count] = number;
             session->placed_count += 1u;

@@ -375,7 +375,7 @@ static void qasm_test_errors(QasmResults *results)
         {
             wide[amplitude] = qasm_number_zero;
         }
-        anchor_exact_zero(&wide[0].real.rational.numerator);
+        orior_exact_zero(&wide[0].real.rational.numerator);
         wide[0].real.rational.numerator.limb[6] = 1u << 8u;
         wide[0].real.rational.numerator.sign = 1;
         EngineError error;

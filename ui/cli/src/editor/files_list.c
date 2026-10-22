@@ -24,14 +24,20 @@ typedef struct
     int has_raw;
 } CliEntry;
 
-// The entries of the folder being listed, and the folders a file the patterns leave sits in, a list made of the files
-// cellblock, under the lock
+// the entries and the bytes of their texts a listing first holds, each doubled as it fills
+#define CLI_LIST_FIRST 256u
+#define CLI_LIST_TEXT_FIRST (1u << 14u)
+
+// The entries of the folder being listed, each list a cell of its own that doubles as it fills, and the folders a
+// file the patterns leave sits in, a list made of the files cellblock, under the lock
 typedef struct
 {
-    CliEntry item[CLI_LIST_MOST];
+    CliEntry *item;
     unsigned int count;
-    char text[CLI_FILES_TEXT];
+    unsigned int item_room;
+    char *text;
     unsigned long long used;
+    unsigned long long text_room;
     CliFiles holding;
     CliPatterns patterns;
     CliChildren children;
@@ -40,11 +46,46 @@ typedef struct
 static CliListing *s_listing;
 static CliLock s_lock = CLI_LOCK_INIT;
 
+// a list of `*room` items of `size` bytes, `count` held, given room for `more` items: where they do not fit and the
+// list is below `most`, moved into a cell of twice its room, `first` where it has none, its items copied and its cell
+// given back. The list as it stands after, `count + more` within `*room` where there is room
+static void *list_grown(void *list, unsigned long long count, unsigned long long more, unsigned long long *room,
+                        unsigned long long size, unsigned long long first, unsigned long long most, const char *what)
+{
+    if ((count + more) <= *room)
+    {
+        return list;
+    }
+    unsigned long long grown = (*room != 0ull) ? *room : first;
+    while ((grown < (count + more)) && (grown < most))
+    {
+        grown = ((grown * 2ull) < most) ? (grown * 2ull) : most;
+    }
+    if (grown < (count + more))
+    {
+        return list;
+    }
+    void *const cell = cli_cell_taken(grown * size, what);
+    if (cell == NULL)
+    {
+        return list;
+    }
+    if (count != 0ull)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = cell, .src = list, .bytes = count * size});
+    }
+    cli_cell_given(list);
+    *room = grown;
+    return cell;
+}
+
 // a text put in the entries' texts: its place
 static unsigned int cli_kept(const char *text)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    if ((s_listing->used + length + 1ull) > CLI_FILES_TEXT)
+    s_listing->text = list_grown(s_listing->text, s_listing->used, length + 1ull, &s_listing->text_room, 1ull,
+                                 CLI_LIST_TEXT_FIRST, CLI_FILES_TEXT, "a folder's listing's texts");
+    if ((s_listing->used + length + 1ull) > s_listing->text_room)
     {
         return 0u;
     }
@@ -58,7 +99,12 @@ static unsigned int cli_kept(const char *text)
 // an entry put after the entries
 static void cli_entry_put(const char *name, const char *path, int dir, int ignored, int archive, const char *raw)
 {
-    if (s_listing->count >= CLI_LIST_MOST)
+    unsigned long long room = s_listing->item_room;
+    s_listing->item = list_grown(s_listing->item, s_listing->count, 1ull, &room, sizeof(*s_listing->item),
+                                 CLI_LIST_FIRST, CLI_LIST_MOST, "a folder's listing's entries");
+    // the room is held to CLI_LIST_MOST, which an unsigned int holds
+    s_listing->item_room = (unsigned int)room;
+    if (s_listing->count >= s_listing->item_room)
     {
         return;
     }
@@ -214,6 +260,8 @@ static void cli_listed_each(void *context, const char *name, int is_folder)
 static void list_released(void)
 {
     cli_files_emptied(&s_listing->holding);
+    cli_cell_given(s_listing->item);
+    cli_cell_given(s_listing->text);
     cli_cell_given(s_listing);
     s_listing = NULL;
     cli_lock_give(&s_lock);
@@ -229,8 +277,12 @@ int cli_files_list(const char *root, const char *dir, CliLine *out, CliLine *sai
         cli_line_text(said, "a folder's listing could not be taken");
         return 0;
     }
+    s_listing->item = NULL;
     s_listing->count = 0u;
+    s_listing->item_room = 0u;
+    s_listing->text = NULL;
     s_listing->used = 0ull;
+    s_listing->text_room = 0ull;
     s_listing->holding = (CliFiles){NULL, 0u, 0u, NULL, 0ull, 0ull};
     // an archive, and a folder within one, lists what the archive holds
     char file[CLI_PATH_LONGEST];

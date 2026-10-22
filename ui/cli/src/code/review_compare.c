@@ -60,7 +60,8 @@ unsigned long long cli_review_compared_bytes(void)
 
 unsigned int cli_review_kept(const char *text, unsigned long long length)
 {
-    if ((g_cli_review.kept_used + length + 1ull) > CLI_REVIEW_KEPT)
+    if (!cli_review_room(&g_cli_review.kept, &g_cli_review.kept_room, g_cli_review.kept_used, length + 1ull,
+                         CLI_REVIEW_KEPT, "a review's piece texts"))
     {
         return 0u;
     }
@@ -372,7 +373,10 @@ static void cli_moves(void)
             }
             unsigned long long same = 0ull;
             unsigned long long longest = 1ull;
-            cli_review_share(g_cli_review.kept + gone->was, g_cli_review.kept + one->now, &same, &longest);
+            if (!cli_review_share(g_cli_review.kept + gone->was, g_cli_review.kept + one->now, &same, &longest))
+            {
+                continue;
+            }
             // a share as large as the best yet takes its place, the later winning a tie
             const int keeps = (same * 100ull) >= (CLI_MOVE_KEEPS * longest);
             if (keeps && ((best == s_compare->addeds) || ((same * best_longest) >= (best_same * longest))))
@@ -405,6 +409,32 @@ static void cli_moves(void)
     }
 }
 
+// room made for one call more: 1, or 0 where the review holds the most or the larger cell is refused
+static int compare_call_room(void)
+{
+    if (g_cli_review.calls < g_cli_review.call_room)
+    {
+        return 1;
+    }
+    const unsigned int doubled =
+        (g_cli_review.call_room == 0u) ? CLI_REVIEW_CALLS_FIRST : (g_cli_review.call_room * 2u);
+    const unsigned int room = (doubled < CLI_REVIEW_CALLS) ? doubled : CLI_REVIEW_CALLS;
+    unsigned int *const larger =
+        (g_cli_review.calls < CLI_REVIEW_CALLS)
+            ? cli_cell_taken((unsigned long long)room * sizeof(unsigned int), "a review's calls")
+            : NULL;
+    if (larger == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){
+        .dst = larger, .src = g_cli_review.call, .bytes = (size_t)g_cli_review.calls * sizeof(unsigned int)});
+    cli_cell_given(g_cli_review.call);
+    g_cli_review.call = larger;
+    g_cli_review.call_room = room;
+    return 1;
+}
+
 void cli_review_compare(void)
 {
     s_compare = (CliCompare *)g_cli_review.compared;
@@ -435,7 +465,7 @@ void cli_review_compare(void)
             if ((other != at) &&
                 (!cellul.eq(&(CatenaFinitaCfg){
                     .src = name, .other = g_cli_review.kept + piece->name, .cap = CLI_CELLS_POOL})) &&
-                cli_review_calls(body, name) && (g_cli_review.calls < CLI_REVIEW_CALLS))
+                cli_review_calls(body, name) && compare_call_room())
             {
                 g_cli_review.call[g_cli_review.calls] = other;
                 g_cli_review.calls += 1u;

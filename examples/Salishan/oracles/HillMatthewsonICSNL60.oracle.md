@@ -3,7 +3,7 @@
 Extraction of Gidaxan aa? Yagayt halaayin by Hector Hill, Gitsegukla Nation; Lisa Matthewson,
 University of British Columbia, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -45,7 +45,7 @@ printed. (9) labels Betty's line B: and Adam's three answers A1: to A3:, written
 (9A3). (10) sets a paragraph between its number and its context. (14b) and (14c) have no line in the
 orthography. Footnote * spells Jeannie Harris where page 3 and the prose have Jeanne Harris.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 586
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 13954 distinct tokens in the paper, 0 language tokens are held by no row.

@@ -288,7 +288,7 @@ static int decimal_double_expand_work(const DecimalDoubleRequest *request, Decim
             conversion.e2 = request->ex;
             if (left != 0ull)
             {
-                const unsigned long long shift = ANCHOR_EXACT_BITS + 1ull + (DECIMAL_DOUBLE_FIVE_BITS * left);
+                const unsigned long long shift = ORIOR_EXACT_BITS + 1ull + (DECIMAL_DOUBLE_FIVE_BITS * left);
                 if (!DECIMAL_DOUBLE_CHECK(decimal_double_shift_left(work, shift), work->limb, error,
                                           ENGINE_ERROR_LOGIC))
                 {
@@ -310,9 +310,9 @@ static int decimal_double_expand_work(const DecimalDoubleRequest *request, Decim
             conversion.needed_bits = decimal_double_bits(work);
         }
         const unsigned long long bits = decimal_double_bits(work);
-        if (bits > ANCHOR_EXACT_BITS)
+        if (bits > ORIOR_EXACT_BITS)
         {
-            const unsigned long long excess = bits - ANCHOR_EXACT_BITS;
+            const unsigned long long excess = bits - ORIOR_EXACT_BITS;
             decimal_double_shift_right(work, excess);
             // the excess is counted within the work. It converts to long long exactly
             conversion.e2 += (long long)excess;
@@ -320,8 +320,8 @@ static int decimal_double_expand_work(const DecimalDoubleRequest *request, Decim
         }
     }
 
-    AnchorExactInteger *const candidate = request->candidate;
-    anchor_exact_zero(candidate);
+    OriorExactInteger *const candidate = request->candidate;
+    orior_exact_zero(candidate);
     for (size_t index = 0u; index < work->used; index += 1u)
     {
         candidate->limb[index] = work->limb[index];
@@ -346,7 +346,7 @@ int decimal_double_expand(const DecimalDoubleRequest *request)
     }
     // the exponent's magnitude in long long holds INT_MIN's. It widens to unsigned long long exactly
     const unsigned long long places = (unsigned long long)((request->ex < 0) ? -(long long)request->ex : request->ex);
-    const unsigned long long tail_bits = (DECIMAL_DOUBLE_FIVE_BITS * places) + ANCHOR_EXACT_BITS + 1ull +
+    const unsigned long long tail_bits = (DECIMAL_DOUBLE_FIVE_BITS * places) + ORIOR_EXACT_BITS + 1ull +
                                          (DECIMAL_DOUBLE_SLACK_LIMBS * DECIMAL_DOUBLE_LIMB_BITS);
     if (!DECIMAL_DOUBLE_CHECK(request->digit_count <= ((ULLONG_MAX - tail_bits) / DECIMAL_DOUBLE_DIGIT_BITS),
                               request->digits, error, ENGINE_ERROR_REQUEST))

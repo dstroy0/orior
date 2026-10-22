@@ -27,6 +27,10 @@ const REST = 700;
 // passes over the edge on its way elsewhere shows nothing.
 export const EDGE_REST = 250;
 
+// How long a pointer may be off the edge and still be resting on it, in milliseconds: a pointer that
+// trembles as it rests, as one of high resolution does, leaves the edge and is back within this.
+const EDGE_GRACE = 120;
+
 // How long a pane takes to slide away, as style.css sets it, in milliseconds.
 const SLIDE = 220;
 
@@ -134,15 +138,29 @@ export function keepPane(node, side, { own = false } = {}) {
   node.addEventListener("keydown", () => (pane.keyed = true), true);
   node.addEventListener("focusout", () => collapseLater(pane));
   edge.addEventListener("pointerenter", () => {
+    // A pointer back within the grace is still resting: its wait goes on.
+    if (pane.leaving) {
+      window.clearTimeout(pane.leaving);
+      pane.leaving = 0;
+      return;
+    }
     window.clearTimeout(pane.resting);
     pane.resting = window.setTimeout(() => {
+      pane.resting = 0;
       if (!node.hidden) {
         setShown(pane, true);
         collapseLater(pane);
       }
     }, EDGE_REST);
   });
-  edge.addEventListener("pointerleave", () => window.clearTimeout(pane.resting));
+  edge.addEventListener("pointerleave", () => {
+    window.clearTimeout(pane.leaving);
+    pane.leaving = window.setTimeout(() => {
+      pane.leaving = 0;
+      window.clearTimeout(pane.resting);
+      pane.resting = 0;
+    }, EDGE_GRACE);
+  });
   // A pane hidden while it has nothing to show starts its wait again when it shows.
   new MutationObserver(() => !node.hidden && collapseLater(pane)).observe(node, { attributes: true, attributeFilter: ["hidden"] });
   panes.push(pane);

@@ -35,30 +35,30 @@
 /** @brief Most decimal digits one limb takes in a single multiply, since 10^9 is below 2^32. */
 #define LIMB_DECIMAL_DIGITS 9u
 
-#define EXACT_LIMBS ((size_t)ANCHOR_EXACT_LIMBS)
+#define EXACT_LIMBS ((size_t)ORIOR_EXACT_LIMBS)
 
 // A call's width-sized working copies are one block, placed at compile time: on the stack while the width is at most
-// ANCHOR_EXACT_STACK_LIMBS, from the heap beyond it. No width is bounded by a stack. A block from the heap that
-// cannot be held errors as ANCHOR_EXACT_WILL_NOT_FIT.
-#if (ANCHOR_EXACT_LIMBS) <= (ANCHOR_EXACT_STACK_LIMBS)
+// ORIOR_EXACT_STACK_LIMBS, from the heap beyond it. No width is bounded by a stack. A block from the heap that
+// cannot be held errors as ORIOR_EXACT_WILL_NOT_FIT.
+#if (ORIOR_EXACT_LIMBS) <= (ORIOR_EXACT_STACK_LIMBS)
 #define EXACT_SCRATCH(name_, count_)                                                                                   \
     uint32_t name_##_on_stack[count_];                                                                                 \
     uint32_t *const name_ = name_##_on_stack
 #define EXACT_SCRATCH_VALID(name_) (1)
 #define EXACT_SCRATCH_RELEASE(name_) ((void)(name_))
 #define EXACT_VALUE(name_)                                                                                             \
-    AnchorExactInteger name_##_on_stack;                                                                               \
-    AnchorExactInteger *const name_ = &name_##_on_stack
+    OriorExactInteger name_##_on_stack;                                                                               \
+    OriorExactInteger *const name_ = &name_##_on_stack
 #define EXACT_VALUE_RELEASE(name_) ((void)(name_))
 #else
 #define EXACT_SCRATCH(name_, count_) uint32_t *const name_ = (uint32_t *)malloc((size_t)(count_) * sizeof(uint32_t))
 #define EXACT_SCRATCH_VALID(name_) ((name_) != NULL)
 #define EXACT_SCRATCH_RELEASE(name_) free(name_)
-#define EXACT_VALUE(name_) AnchorExactInteger *const name_ = (AnchorExactInteger *)malloc(sizeof(AnchorExactInteger))
+#define EXACT_VALUE(name_) OriorExactInteger *const name_ = (OriorExactInteger *)malloc(sizeof(OriorExactInteger))
 #define EXACT_VALUE_RELEASE(name_) free(name_)
 #endif
 
-void anchor_exact_zero(AnchorExactInteger *value);
+void orior_exact_zero(OriorExactInteger *value);
 
 int magnitude_compare(const uint32_t *left, const uint32_t *right);
 
@@ -66,12 +66,12 @@ int magnitude_is_zero(const uint32_t *value);
 
 size_t magnitude_used(const uint32_t *value);
 
-int anchor_exact_equal(const AnchorExactInteger *left, const AnchorExactInteger *right);
+int orior_exact_equal(const OriorExactInteger *left, const OriorExactInteger *right);
 
-void settle_sign(AnchorExactInteger *result, int32_t sign);
+void settle_sign(OriorExactInteger *result, int32_t sign);
 
-AnchorExactStatus anchor_exact_add(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                   AnchorExactInteger *result);
+OriorExactStatus orior_exact_add(const OriorExactInteger *left, const OriorExactInteger *right,
+                                   OriorExactInteger *result);
 
 uint32_t limbs_add(uint32_t *result, const uint32_t *left, const uint32_t *right, size_t count);
 

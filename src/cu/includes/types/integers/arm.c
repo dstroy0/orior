@@ -18,14 +18,14 @@
 #include "arm.h"
 
 /** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
-static const AnchorExactArm PORTABLE_ARM = {
+static const OriorExactArm PORTABLE_ARM = {
     "portable",
-    anchor_exact_equal,
-    anchor_exact_compare,
-    anchor_exact_agreement,
+    orior_exact_equal,
+    orior_exact_compare,
+    orior_exact_agreement,
 };
 
-const AnchorExactArm *anchor_exact_portable_arm(void)
+const OriorExactArm *orior_exact_portable_arm(void)
 {
     return &PORTABLE_ARM;
 }

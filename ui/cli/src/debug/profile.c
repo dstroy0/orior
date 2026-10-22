@@ -7,16 +7,18 @@
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
 
-// the profiles held at once, the one running and the one before it ending, and the longest line read whole
+// the profiles held at once, the one running and the one before it ending; the longest line read whole, and the bytes
+// a line's cell is first taken with
 #define CLI_PROFILES 2u
 #define CLI_PROFILE_LINE (1u << 20u)
+#define CLI_PROFILE_LINE_FIRST 4096ull
 
 // The start of the lines the shim writes its counts on
 #define CLI_PROFILE_MARK "\x1eorior-profile "
 
 // A profile: whether its place is taken, where it tells, its process and whether it still waits to be waited on, its
-// readers still reading, under the profiles' lock, the code the shim said the program ended with, and the rooms a line
-// and what is told are read and written in
+// readers still reading, under the profiles' lock, the code the shim said the program ended with, and the cells its
+// words and the PATH it runs with are held in, taken with its place and given back with it
 typedef struct
 {
     int taken;
@@ -28,18 +30,24 @@ typedef struct
     long long code;
     CliThread output_thread;
     CliThread error_thread;
-    char out_line[CLI_PROFILE_LINE];
-    char err_line[CLI_PROFILE_LINE];
-    char told[CLI_PROFILE_LINE * 2u];
-    char error_told[CLI_PROFILE_LINE * 2u];
-    CliWords words;
-    char path[CLI_PATH_TEXT];
+    CliWords *words;
+    char *path;
 } CliProfile;
 
+static CliCellsTally s_cells = CLI_CELLS_TALLY("cli_profile");
 static CliProfile s_profiles[CLI_PROFILES];
 static CliProfile *s_running;
 static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
+
+// a profile's cells given back, under the profiles' lock
+static void profile_cells_given(CliProfile *profile)
+{
+    cli_cell_given_by(&s_cells, profile->words);
+    cli_cell_given_by(&s_cells, profile->path);
+    profile->words = NULL;
+    profile->path = NULL;
+}
 
 void cli_profile_stop(void)
 {
@@ -55,10 +63,17 @@ void cli_profile_stop(void)
     cli_lock_give(&s_lock);
 }
 
-// a line the program wrote told as output, to its errors where `error`
-static void profile_output_told(CliProfile *profile, const char *line, unsigned long long size, int error, char *room)
+// a line the program wrote told as output, to its errors where `error`, in a cell of the most its quoting takes, each
+// byte at most `\u` and four digits
+static void profile_output_told(CliProfile *profile, const char *line, unsigned long long size, int error)
 {
-    CliLine out = {room, CLI_PROFILE_LINE * 2u, 0ull};
+    const unsigned long long room = (size * 6ull) + 64ull;
+    char *const told = cli_cell_taken_by(&s_cells, room, "a profile's line told");
+    if (told == NULL)
+    {
+        return;
+    }
+    CliLine out = {told, room, 0ull};
     cli_line_text(&out, "{\"kind\":\"output\",\"text\":");
     cli_json_quoted_lossy(&out, (const unsigned char *)line, size);
     cli_line_text(&out, error ? ",\"error\":true}" : ",\"error\":false}");
@@ -66,6 +81,7 @@ static void profile_output_told(CliProfile *profile, const char *line, unsigned 
     {
         profile->tell.told(profile->tell.context, out.out, out.at);
     }
+    cli_cell_given_by(&s_cells, told);
 }
 
 // a line of the program's output heard: the counts so far where it starts with the mark, the code the program ended
@@ -75,12 +91,19 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
     const unsigned long long mark = sizeof(CLI_PROFILE_MARK) - 1ull;
     if ((size < mark) || (memor.cmp(&(MemoriaCfg){.src = line, .other = CLI_PROFILE_MARK, .bytes = mark}) != 0))
     {
-        profile_output_told(profile, line, size, 0, profile->told);
+        profile_output_told(profile, line, size, 0);
         return;
     }
     const char *const json = line + mark;
     const unsigned long long length = size - mark;
-    CliLine out = {profile->told, sizeof(profile->told), 0ull};
+    // the counts compacted are no longer than they are written
+    const unsigned long long room = length + 64ull;
+    char *const told = cli_cell_taken_by(&s_cells, room, "a profile's counts told");
+    if (told == NULL)
+    {
+        return;
+    }
+    CliLine out = {told, room, 0ull};
     cli_line_text(&out, "{\"kind\":\"counts\",\"counts\":");
     if (!cli_utf8_whole(json, length) || !cli_json_compacted(json, length, &out))
     {
@@ -111,13 +134,16 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
     {
         profile->tell.told(profile->tell.context, out.out, out.at);
     }
+    cli_cell_given_by(&s_cells, told);
 }
 
-// the lines of a pipe read until it ends, each handed on with its "\r" before "\n" taken off, a line longer than
-// `room` handed on in pieces of that length
-static void profile_lines(CliProfile *profile, unsigned long long pipe, char *line, unsigned long long room,
+// the lines of a pipe read until it ends, each in a cell grown as it fills, handed on with its "\r" before "\n" taken
+// off, a line longer than CLI_PROFILE_LINE, or than the cell could be grown to, handed on in pieces of that length
+static void profile_lines(CliProfile *profile, unsigned long long pipe,
                           void (*heard)(CliProfile *profile, const char *line, unsigned long long size))
 {
+    char *line = NULL;
+    unsigned long long room = 0ull;
     unsigned long long used = 0ull;
     char piece[4096];
     for (;;)
@@ -129,13 +155,26 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe, char *li
         }
         for (unsigned long long at = 0ull; at < count; at += 1ull)
         {
-            if ((piece[at] == '\n') || (used == room))
+            if ((used == room) && (room < CLI_PROFILE_LINE) && (piece[at] != '\n'))
+            {
+                const unsigned long long doubled = (room == 0ull) ? CLI_PROFILE_LINE_FIRST : (2ull * room);
+                const unsigned long long wanted = (doubled < CLI_PROFILE_LINE) ? doubled : CLI_PROFILE_LINE;
+                char *const grown = cli_cell_taken_by(&s_cells, wanted, "a line a profile reads");
+                if (grown != NULL)
+                {
+                    memor.cpy(&(MemoriaCfg){.dst = grown, .src = line, .bytes = (size_t)used});
+                    cli_cell_given_by(&s_cells, line);
+                    line = grown;
+                    room = wanted;
+                }
+            }
+            if ((piece[at] == '\n') || ((used == room) && (used > 0ull)))
             {
                 heard(profile, line,
                       ((piece[at] == '\n') && (used > 0ull) && (line[used - 1ull] == '\r')) ? used - 1ull : used);
                 used = 0ull;
             }
-            if (piece[at] != '\n')
+            if ((piece[at] != '\n') && (used < room))
             {
                 line[used] = piece[at];
                 used += 1ull;
@@ -146,12 +185,13 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe, char *li
     {
         heard(profile, line, used);
     }
+    cli_cell_given_by(&s_cells, line);
 }
 
 // a line the program wrote to its errors told as output
 static void profile_error_line(CliProfile *profile, const char *line, unsigned long long size)
 {
-    profile_output_told(profile, line, size, 1, profile->error_told);
+    profile_output_told(profile, line, size, 1);
 }
 
 // a reader's end: told to the profile, and its place given back with the last
@@ -162,6 +202,7 @@ static void profile_reader_ended(CliProfile *profile)
     if (profile->going == 0u)
     {
         cli_spawn_closed(&profile->spawned);
+        profile_cells_given(profile);
         profile->taken = 0;
         cli_wake_all(&s_wake);
     }
@@ -172,7 +213,7 @@ static void profile_reader_ended(CliProfile *profile)
 static void profile_errors_read(void *context)
 {
     CliProfile *const profile = (CliProfile *)context;
-    profile_lines(profile, profile->spawned.err, profile->err_line, CLI_PROFILE_LINE, profile_error_line);
+    profile_lines(profile, profile->spawned.err, profile_error_line);
     profile_reader_ended(profile);
 }
 
@@ -181,7 +222,7 @@ static void profile_errors_read(void *context)
 static void profile_output_read(void *context)
 {
     CliProfile *const profile = (CliProfile *)context;
-    profile_lines(profile, profile->spawned.out, profile->out_line, CLI_PROFILE_LINE, profile_line);
+    profile_lines(profile, profile->spawned.out, profile_line);
     cli_lock_take(&s_lock);
     while (profile->going > 1u)
     {
@@ -252,10 +293,15 @@ static CliProfile *profile_taken(CliTell tell)
     profile->has_code = 0;
     profile->code = 0ll;
     memor.set(&(MemoriaCfg){.dst = &profile->spawned, .val = 0, .bytes = sizeof(profile->spawned)});
+    profile->words = cli_cell_taken_by(&s_cells, sizeof(*profile->words), "a profile's words");
+    profile->path = NULL;
     cli_lock_give(&s_lock);
-    profile->words.count = 0u;
-    profile->words.used = 0u;
-    profile->words.full = 0;
+    if (profile->words != NULL)
+    {
+        profile->words->count = 0u;
+        profile->words->used = 0u;
+        profile->words->full = 0;
+    }
     return profile;
 }
 
@@ -263,6 +309,7 @@ static CliProfile *profile_taken(CliTell tell)
 static void profile_let_go(CliProfile *profile)
 {
     cli_lock_take(&s_lock);
+    profile_cells_given(profile);
     profile->taken = 0;
     cli_wake_all(&s_wake);
     cli_lock_give(&s_lock);
@@ -304,6 +351,15 @@ int cli_profile_start(const char *root, const char *file, const char *remote, Cl
         return 0;
     }
     CliProfile *const profile = profile_taken(tell);
+    // the PATH a program here runs with, as long as the system lets an environment's value be
+    profile->path =
+        ((profile->words != NULL) && !far) ? cli_cell_taken_by(&s_cells, CLI_PATH_TEXT, "a profile's PATH") : NULL;
+    if ((profile->words == NULL) || (!far && (profile->path == NULL)))
+    {
+        profile_let_go(profile);
+        cli_line_text(said, "the cells a profile is run in could not be taken");
+        return 0;
+    }
     char host[CLI_PATH_LONGEST];
     char shell[CLI_PATH_LONGEST * 3u];
     char full[CLI_PATH_LONGEST];
@@ -323,21 +379,21 @@ int cli_profile_start(const char *root, const char *file, const char *remote, Cl
         const char *const words[5] = {"ssh", "-o", "BatchMode=yes", host, shell};
         for (unsigned int at = 0u; at < 5u; at += 1u)
         {
-            cli_words_put(&profile->words, words[at]);
+            cli_words_put(profile->words, words[at]);
         }
     }
     else
     {
         cli_full(root, file, full);
-        cli_toolchains_run_path(profile->path, sizeof(profile->path));
+        cli_toolchains_run_path(profile->path, CLI_PATH_TEXT);
         settings_count = 2u;
         const char *const words[4] = {python, "-", root, full};
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            cli_words_put(&profile->words, words[at]);
+            cli_words_put(profile->words, words[at]);
         }
     }
-    if (!cli_spawn_fed(&profile->spawned, profile->words.word, far ? NULL : root, settings, settings_count, 1, said))
+    if (!cli_spawn_fed(&profile->spawned, profile->words->word, far ? NULL : root, settings, settings_count, 1, said))
     {
         profile_let_go(profile);
         return 0;

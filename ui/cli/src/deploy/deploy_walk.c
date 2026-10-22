@@ -232,7 +232,7 @@ int cli_deploy_gather(CliLine *said)
         run->sents = 0u;
         run->outs = 0u;
         cli_line_text(said, run->deployment.name);
-        cli_line_text(said, " sends more files than orior holds");
+        cli_line_text(said, " sends more files than orior_cli holds");
         return 0;
     }
     qsort(run->sent, run->sents, sizeof(run->sent[0]), walk_sent_order);
@@ -244,13 +244,13 @@ int cli_deploy_gather(CliLine *said)
         cli_deploy_full(at, &line);
         unsigned long long size = 0ull;
         const unsigned char *const bytes =
-            (cli_line_closed(&line) != 0ull) ? qry_member_file_mapped(full, &size) : NULL;
+            (cli_line_closed(&line) != 0ull) ? cli_file_held(full, &size) : NULL;
         if (bytes != NULL)
         {
             CliLine hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ull};
             cli_sha256_text(bytes, size, &hash);
             cli_line_closed(&hash);
-            qry_member_file_unmapped(bytes, size);
+            cli_file_let_go(bytes, size);
         }
     }
     return 1;

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // jupyter_specs.c: every kernel the machine has, each name once, in Jupyter's order: the specs in the folders Jupyter
-// keeps its data in, then a kernel for each Python orior finds that has no spec of its own
+// keeps its data in, then a kernel for each Python orior_cli finds that has no spec of its own
 #include "../toolchains/toolchains.h"
 #include "jupyter_internal.h"
 
@@ -202,7 +202,7 @@ static int jupyter_folder_specs(const char *data, CliKernelEach each, void *cont
         cli_full(kernels, name, folder);
         cli_full(folder, "kernel.json", file);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = seen ? NULL : qry_member_file_mapped(file, &size);
+        const unsigned char *const bytes = seen ? NULL : cli_file_held(file, &size);
         if (bytes == NULL)
         {
             continue;
@@ -216,7 +216,7 @@ static int jupyter_folder_specs(const char *data, CliKernelEach each, void *cont
                                                       CLI_KERNEL_SPEC_NODES, &unread)
                                       : CLI_JSON_NONE;
         const int read = (root != CLI_JSON_NONE) && jupyter_spec_read(root, name, folder);
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
         if (read && !jupyter_listed(each, context))
         {
             return 0;

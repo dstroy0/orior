@@ -96,7 +96,7 @@ int cli_format_nearest(const char *path, const char *const *names, unsigned int 
             char file[CLI_PATH_LONGEST];
             cli_full(folder, names[at], file);
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = qry_member_file_mapped(file, &size);
+            const unsigned char *const bytes = cli_file_held(file, &size);
             if (bytes == NULL)
             {
                 continue;
@@ -113,7 +113,7 @@ int cli_format_nearest(const char *path, const char *const *names, unsigned int 
                 g_cli_format.settings[size] = '\0';
             }
             g_cli_format.settings_size = text ? size : 0ull;
-            qry_member_file_unmapped(bytes, size);
+            cli_file_let_go(bytes, size);
             if (text)
             {
                 return 1;

@@ -343,9 +343,9 @@ int cli_servers_references(const char *tree, const char *path, unsigned int line
             {
                 if (mapped != NULL)
                 {
-                    qry_member_file_unmapped(mapped, mapped_size);
+                    cli_file_let_go(mapped, mapped_size);
                 }
-                mapped = qry_member_file_mapped(file, &mapped_size);
+                mapped = cli_file_held(file, &mapped_size);
                 size = ((mapped != NULL) && cli_utf8_whole((const char *)mapped, mapped_size)) ? mapped_size : 0ull;
                 at_line = 0u;
                 start = 0ull;
@@ -366,7 +366,7 @@ int cli_servers_references(const char *tree, const char *path, unsigned int line
         cli_line_character(out, ']');
         if (mapped != NULL)
         {
-            qry_member_file_unmapped(mapped, mapped_size);
+            cli_file_let_go(mapped, mapped_size);
         }
         ask_usages_given();
     }

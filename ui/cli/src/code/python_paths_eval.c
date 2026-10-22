@@ -291,7 +291,7 @@ static CliValues cli_many(const CliExpr *many)
     for (unsigned int at = 0u; at < many->count; at += 1u)
     {
         const CliValues one = cli_py_eval(g_cli_py.item[many->first + at]);
-        if (g_cli_py.ranged < CLI_PY_ITEMS)
+        if (g_cli_py.ranged < g_cli_py.items_most)
         {
             g_cli_py.range[g_cli_py.ranged] = one;
             g_cli_py.ranged += 1u;

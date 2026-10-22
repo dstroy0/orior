@@ -54,6 +54,19 @@ static void schema_json(void)
     cli_check((root != NULL) && (root->kind == CLI_SCHEMA_OBJECT) && (root->count == 3u) &&
                   (s_read.member[root->first].from == 4ull),
               "and with its places");
+    static char s_many[1u << 15u];
+    CliLine many = {s_many, sizeof(s_many), 0ull};
+    cli_line_character(&many, '[');
+    for (unsigned int item = 0u; item < 3000u; item += 1u)
+    {
+        cli_line_text(&many, (item == 0u) ? "{\"k\": 1}" : ",{\"k\": 1}");
+    }
+    cli_line_character(&many, ']');
+    cli_schema_read(s_many, many.at, &s_read);
+    cli_check((s_read.errors == 0u) && (s_read.full == 0) && (s_read.nodes == 6001u) && (s_read.members == 3000u) &&
+                  (s_read.nodes_most == 8192u),
+              "a file of more values than a read's lists begin with reads whole, its lists grown to it");
+    cli_schema_read_given(&s_read);
 }
 
 // the findings of `text`, the file `name` of the tree at `root`, read into the shared tree: the array's node
@@ -114,7 +127,7 @@ static void schema_file(void)
     cli_check(json->node[found].count == 9u, "and nothing more is found");
 }
 
-// a schema is checked against its own schema, and a schema not held offers its fetch
+// a schema is checked against its own schema, and a schema not kept offers its fetch
 static void schema_own(void)
 {
     const CliJson *json = NULL;
@@ -223,5 +236,9 @@ int main(void)
     schema_file();
     schema_own();
     schema_completes();
+    cli_check((g_cli_schema_cells.holds == 0ull) && (g_cli_schema_cells.hw != 0ull),
+              "every schema's text and tokens are given back once it is read, the most they held marked");
+    cli_check((g_cli_build_cells.holds == 0ull) && (g_cli_build_cells.hw != 0ull),
+              "and a file's findings and its lines indexed, once the findings are written");
     return cli_checked();
 }

@@ -157,15 +157,18 @@
   --lifted: rgba(8, 6, 30, 0.45);
   --t-comment: #6e6b99;
   --t-keyword: #a48cff;
+  --t-directive: #f0a07a;
+  --t-identifier: #9ea3b5;
+  --t-operator-memory: #f29bb0;
   --t-type: #6fdcb4;
   --t-predefined: #8ab8ff;
   --t-tag: #8ab8ff;
   --t-attribute: #c9b8ff;
-  --t-number: #c9c2ff;
+  --t-number: #f2d48a;
   --t-number-cost: #6fdcb4;
   --t-string: #9fe3c8;
   --t-variable: #a8c8ff;
-  --t-operator: #d6d4ee;
+  --t-operator: #ffffff;
   --t-delimiter: #9e9bc4;
   --t-strong: #e4e3f5;
   --t-emphasis: #c9b8ff;
@@ -219,15 +222,18 @@
   --lifted: rgba(23, 22, 58, 0.16);
   --t-comment: #8a88a8;
   --t-keyword: #5b3fd1;
+  --t-directive: #a3471b;
+  --t-identifier: #55576f;
+  --t-operator-memory: #b3284f;
   --t-type: #0f7a53;
   --t-predefined: #3346d3;
   --t-tag: #3346d3;
   --t-attribute: #6a4fc9;
-  --t-number: #6a4fc9;
+  --t-number: #b84a00;
   --t-number-cost: #0f7a53;
   --t-string: #116b4b;
   --t-variable: #2c3fb8;
-  --t-operator: #3d3b66;
+  --t-operator: #000000;
   --t-delimiter: #6b6990;
   --t-strong: #17163a;
   --t-emphasis: #6a4fc9;
@@ -293,11 +299,12 @@ select {
 }
 
 /* The bar's signal line runs over the work alone, from the curve at its top left to the curve at
-   its top right. */
+   its top right: it begins and ends at the centre of each curve, where the curve's band still stands
+   at the line's full height, so no row of the line reaches past the band. */
 .bar::before {
   content: "";
   position: absolute;
-  left: 47px;
+  left: 51px;
   right: calc(var(--frame-right) + 7px);
   bottom: -2px;
   height: 2px;
@@ -422,9 +429,13 @@ select {
   background-position: left top, left bottom;
 }
 
-/* The code: its own left corners, and the preview's left corners on the inside of the line down it. */
+/* The code: its own left corners, and the preview's left corners on the inside of the line down it.
+   The inside of each curve is filled with the editor's ground, so a line that runs under the corner,
+   the one down the editor's edge, ends where the curve meets it and shows nowhere above. */
 .ed::after {
-  background-image: var(--fillet-tl), var(--fillet-bl), var(--fillet-tl), var(--fillet-bl);
+  --fillet-ed-tl: radial-gradient(circle at 100% 100%, var(--ed-bg) 6.4px, var(--line) 7px);
+  --fillet-ed-bl: radial-gradient(circle at 100% 0, var(--ed-bg) 6.4px, var(--line) 7px);
+  background-image: var(--fillet-ed-tl), var(--fillet-ed-bl), var(--fillet-ed-tl), var(--fillet-ed-bl);
   background-position: left top, left bottom, right 76px top, right 76px bottom;
 }
 
@@ -503,12 +514,13 @@ select {
   mask-image: radial-gradient(9px 8px at 0 0, #000 95%, transparent 100%), radial-gradient(circle 7px at 0 0, #000 6.6px, transparent 7px);
 }
 
-/* The line along the work's foot, on the status bar's top edge. */
+/* The line along the work's foot, on the status bar's top edge, from the centre of the one curve to
+   the centre of the other. */
 .statusbar::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 47px;
+  left: 51px;
   right: calc(var(--frame-right) + 7px);
   height: 1px;
   background: color-mix(in srgb, var(--link), black 35%);
@@ -527,7 +539,7 @@ select {
    of its own color every menu lays over what stands under it. */
 :root {
   --bar-opacity: 30%;
-  --strip-width: 40px;
+  --strip-width: 44px;
   --menu-opacity: 100%;
   --glass-tint: color-mix(in srgb, var(--ink) var(--bar-opacity), transparent);
   --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
@@ -643,14 +655,17 @@ select {
   pointer-events: none;
 }
 
-/* The tool strip: an icon a tool window, the windows that show marked in signal on a square of it. */
+/* The tool strip: an icon a tool window, the windows that show marked in signal on a square of it. Where
+   its icons are more than the window's height holds, it scrolls, with no bar of its own. */
 .strip {
   flex: none;
-  width: 40px;
+  width: 44px;
   display: flex;
   flex-direction: column;
   position: relative;
   padding: 6px 0;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 
 /* Under the system's own title bar, the bar's own controls of the window stand down. */
@@ -666,7 +681,7 @@ body[data-system-title] .window-controls {
   align-items: center;
   gap: 2px;
   height: 30px;
-  padding: 0 8px 0 46px;
+  padding: 0 8px 0 calc(var(--strip-width) + 6px);
   background-color: var(--glass-tint);
   background-image: var(--glass-grain);
   background-attachment: fixed;
@@ -810,6 +825,19 @@ body[data-strip-edge] .strip-edge {
   background: none;
   color: var(--status-fg);
   cursor: pointer;
+}
+
+/* The strip's icons as large as the eye on the bar, 1.164em by 1.15em of the bar's 17px name at a
+   quarter and more over, in a line as heavy as the smaller icons draw theirs. */
+.strip-button {
+  width: 38px;
+  height: 38px;
+}
+
+.strip-button .glyph {
+  width: 29px;
+  height: 29px;
+  stroke-width: 1.1;
 }
 
 .strip-button:hover,
@@ -1255,12 +1283,7 @@ body[data-strip-edge] .strip-edge {
   cursor: pointer;
 }
 
-/* What holds the most memory, beside the total, quieter than it; and the reading over its budget. */
-.status-memory-most {
-  margin-left: 0.4rem;
-  color: var(--fg-3);
-}
-
+/* The reading over its budget. */
 .status-memory.over {
   color: var(--ed-warning);
 }
@@ -1416,33 +1439,64 @@ body[data-view="run"] .statusbar .ed-status {
   position: relative;
 }
 
+/* The sash is ten pixels wide astride the tool window's edge, and draws a line down its middle that
+   lights as the pointer rests on it, so the edge that drags can be seen and taken. */
 .dock-sash {
   position: absolute;
   z-index: 6;
 }
 
-[data-dock="left"] > .dock-sash {
-  top: 0;
-  bottom: 0;
-  right: -3px;
-  width: 6px;
-  cursor: ew-resize;
+.dock-sash::after {
+  content: "";
+  position: absolute;
+  background: var(--line);
+  opacity: 0;
+  transition: opacity 120ms ease-out 80ms;
 }
 
+.dock-sash:hover::after,
+.dock-sash:active::after {
+  opacity: 1;
+  background: var(--signal);
+}
+
+[data-dock="left"] > .dock-sash,
 [data-dock="right"] > .dock-sash {
   top: 0;
   bottom: 0;
-  left: -3px;
-  width: 6px;
+  width: 10px;
   cursor: ew-resize;
+}
+
+[data-dock="left"] > .dock-sash {
+  right: -5px;
+}
+
+[data-dock="right"] > .dock-sash {
+  left: -5px;
+}
+
+[data-dock="left"] > .dock-sash::after,
+[data-dock="right"] > .dock-sash::after {
+  top: 7px;
+  bottom: 7px;
+  left: 4px;
+  width: 2px;
 }
 
 [data-dock="bottom"] > .dock-sash {
   left: 0;
   right: 0;
-  top: -3px;
-  height: 6px;
+  top: -5px;
+  height: 10px;
   cursor: ns-resize;
+}
+
+[data-dock="bottom"] > .dock-sash::after {
+  left: 0;
+  right: 0;
+  top: 4px;
+  height: 2px;
 }
 
 .work > [data-dock] > .term-grip {
@@ -2745,10 +2799,12 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   white-space: nowrap;
 }
 
+/* The current tab stands in the purple the fuse and the eye's plasma burn in: the plasma's dusk as its
+   ground, the fuse's fire as the line along its top and, two pixels wide so it reads, down its left. */
 .tab[aria-selected="true"] {
-  background: var(--bg);
+  background: var(--plasma-dusk);
   color: var(--fg);
-  box-shadow: inset 0 2px 0 var(--signal);
+  box-shadow: inset 0 2px 0 var(--fuse-fire), inset 2px 0 0 var(--fuse-fire);
 }
 
 .tab .dirty {
@@ -3446,7 +3502,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 .desk[data-tabs="side"] > .tabs > .tab[aria-selected="true"] {
-  box-shadow: inset 2px 0 0 var(--signal);
+  box-shadow: inset 2px 0 0 var(--fuse-fire);
 }
 
 .desk[data-tabs="side"] > .tabs > .tab.grouped {
@@ -4223,6 +4279,23 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   color: var(--t-keyword);
 }
 
+/* A preprocessor directive is its own kind, not a keyword's purple: #include, #define, #ifdef and
+   #endif read apart from if and return. */
+.t-keyword-directive {
+  color: var(--t-directive);
+}
+/* The # is the category; the word after it is a kind of its own: the conditions, the definitions,
+   the includes. */
+.t-keyword-directive-condition {
+  color: var(--t-keyword);
+}
+.t-keyword-directive-define {
+  color: var(--t-function);
+}
+.t-keyword-directive-include {
+  color: var(--t-predefined);
+}
+
 .t-type {
   color: var(--t-type);
 }
@@ -4245,6 +4318,20 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 .t-number-cost {
   color: var(--t-number-cost);
+}
+
+/* The suffix of a numeric literal names its type, u, l, f, and takes the type's color. */
+.t-number-suffix {
+  color: var(--t-type);
+}
+/* A bare name stands a step below the text's white, so the colored kinds read against it. */
+.t-identifier {
+  color: var(--t-identifier);
+}
+/* The operators that reach memory, *, &, . and ->, every one an address at bottom, stand apart from
+   the arithmetic, logical and bitwise ones. */
+.t-operator-memory {
+  color: var(--t-operator-memory);
 }
 
 .t-string {
@@ -5136,11 +5223,13 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   opacity: 0;
 }
 
+/* The edge a collapsed pane comes back from is twelve pixels wide, so a pointer that trembles as it
+   rests there stays on it. */
 .pane-edge {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 6px;
+  width: 12px;
   z-index: 5;
 }
 
@@ -5161,7 +5250,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   left: 0;
   right: 0;
   width: auto;
-  height: 6px;
+  height: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -9324,7 +9413,7 @@ textarea.report-field {
   overflow-wrap: anywhere;
 }
 
-/* Toolchains: whether orior is on the PATH, then every toolchain under its group, a row a tool with a
+/* Toolchains: whether orior_gui is on the PATH, then every toolchain under its group, a row a tool with a
  * dot in the color of its state, its name over what it is for, where it was found and its version,
  * and what can be done. A tool on the PATH or in the reader's folder is signal, one installed and
  * not on the PATH is link, and one not found is dim, with its Install Page drawn in signal. */

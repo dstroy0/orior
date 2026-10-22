@@ -10,13 +10,6 @@
 // one was taken out
 #define CLI_TREE_BUCKETS (2u * CLI_TREE_FILES)
 
-// the most of each fact a file's facts are worked out with, for a text of `lines_` lines: imports, classes and
-// functions a line each, findings, fixes and edits four a line, names four a line, and the bytes of their texts the
-// text's own twice over and a finding's message for each of its findings
-#define CLI_TREE_PER_LINE(lines_) (lines_)
-#define CLI_TREE_FOUR_A_LINE(lines_) (4u * (lines_))
-#define CLI_TREE_MESSAGE 160u
-
 CliTreeFile *g_cli_tree_page[CLI_TREE_PAGES];
 unsigned int g_cli_tree_files;
 CliLock g_cli_tree_lock = CLI_LOCK_INIT;
@@ -46,42 +39,40 @@ static void *tree_part(unsigned char **at, unsigned long long bytes)
     return part;
 }
 
-// the work of `size` bytes of `text` made over one cell sized to its lines: the cell, NULL where it cannot be taken
-static void *tree_work_taken(CliTreeWork *work, const char *text, unsigned long long size)
+// the work of `size` bytes of `text` in `language` made over one cell sized to what the walk picks up: the facts are
+// counted by a walk that keeps nothing, the cell taken for the counts, and the walk after fills it. The cell, or NULL
+// where the language is not read or the cell cannot be taken
+static void *tree_work_taken(CliTreeWork *work, const char *language, const char *text, unsigned long long size)
 {
-    unsigned long long lines = 1ull;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    CliFacts counted;
+    cli_facts_counting(&counted);
+    if (!cli_inspect_facts(language, text, size, &counted))
     {
-        lines += (text[at] == '\n') ? 1ull : 0ull;
+        return NULL;
     }
-    // a fact's count is an unsigned int's, and a text past one's lines is worked out as one that fills
-    const unsigned int each = (lines < 0x3fffffffull) ? (unsigned int)lines : 0x3fffffffu;
-    const unsigned long long text_bytes = (2ull * size) + ((unsigned long long)CLI_TREE_MESSAGE * 4ull * each) + 64ull;
-    const unsigned long long bytes =
-        (CLI_TREE_PER_LINE(each) * (sizeof(CliInspectImport) + sizeof(CliInspectClass) + sizeof(CliInspectFunction))) +
-        ((unsigned long long)CLI_TREE_FOUR_A_LINE(each) *
-         (sizeof(CliInspectFinding) + sizeof(CliInspectFix) + sizeof(CliInspectEdit) + sizeof(CliInspectName))) +
-        text_bytes + 128ull;
+    const unsigned long long bytes = (counted.imports * sizeof(CliInspectImport)) +
+                                     (counted.classes * sizeof(CliInspectClass)) +
+                                     (counted.functions * sizeof(CliInspectFunction)) +
+                                     (counted.findings * sizeof(CliInspectFinding)) +
+                                     (counted.fixes * sizeof(CliInspectFix)) + (counted.edits * sizeof(CliInspectEdit)) +
+                                     (counted.names * sizeof(CliInspectName)) + counted.used + (8ull * 8ull);
     unsigned char *const cell = cli_cell_taken(bytes, "a file's facts worked out");
     if (cell == NULL)
     {
         return NULL;
     }
     unsigned char *at = cell;
-    work->imports = tree_part(&at, CLI_TREE_PER_LINE(each) * sizeof(CliInspectImport));
-    work->classes = tree_part(&at, CLI_TREE_PER_LINE(each) * sizeof(CliInspectClass));
-    work->functions = tree_part(&at, CLI_TREE_PER_LINE(each) * sizeof(CliInspectFunction));
-    work->findings = tree_part(&at, (unsigned long long)CLI_TREE_FOUR_A_LINE(each) * sizeof(CliInspectFinding));
-    work->fixes = tree_part(&at, (unsigned long long)CLI_TREE_FOUR_A_LINE(each) * sizeof(CliInspectFix));
-    work->edits = tree_part(&at, (unsigned long long)CLI_TREE_FOUR_A_LINE(each) * sizeof(CliInspectEdit));
-    work->names = tree_part(&at, (unsigned long long)CLI_TREE_FOUR_A_LINE(each) * sizeof(CliInspectName));
-    work->text = tree_part(&at, text_bytes);
-    // a text's places are an unsigned int's, so a text past one's reach is worked out as one that fills
-    const unsigned int text_most = (text_bytes < 0xffffffffull) ? (unsigned int)text_bytes : 0xffffffffu;
-    cli_facts_begun(&work->facts, work->imports, CLI_TREE_PER_LINE(each), work->classes, CLI_TREE_PER_LINE(each),
-                    work->functions, CLI_TREE_PER_LINE(each), work->findings, CLI_TREE_FOUR_A_LINE(each), work->fixes,
-                    CLI_TREE_FOUR_A_LINE(each), work->edits, CLI_TREE_FOUR_A_LINE(each), work->names,
-                    CLI_TREE_FOUR_A_LINE(each), work->text, text_most);
+    work->imports = tree_part(&at, counted.imports * sizeof(CliInspectImport));
+    work->classes = tree_part(&at, counted.classes * sizeof(CliInspectClass));
+    work->functions = tree_part(&at, counted.functions * sizeof(CliInspectFunction));
+    work->findings = tree_part(&at, counted.findings * sizeof(CliInspectFinding));
+    work->fixes = tree_part(&at, counted.fixes * sizeof(CliInspectFix));
+    work->edits = tree_part(&at, counted.edits * sizeof(CliInspectEdit));
+    work->names = tree_part(&at, counted.names * sizeof(CliInspectName));
+    work->text = tree_part(&at, counted.used);
+    cli_facts_begun(&work->facts, work->imports, counted.imports, work->classes, counted.classes, work->functions,
+                    counted.functions, work->findings, counted.findings, work->fixes, counted.fixes, work->edits,
+                    counted.edits, work->names, counted.names, work->text, counted.used);
     return cell;
 }
 
@@ -227,10 +218,10 @@ static unsigned int tree_place(void)
 
 int cli_inspect_tree_set(const char *path, const char *language, const char *text, unsigned long long size)
 {
-    // the facts are worked out in a cell of the call's own, sized to the text, before the lock is taken
+    // the facts are worked out in a cell of the call's own, sized to what they hold, before the lock is taken
     CliTreeWork held_work;
     CliTreeWork *const work = &held_work;
-    void *const work_cell = tree_work_taken(work, text, size);
+    void *const work_cell = tree_work_taken(work, language, text, size);
     if (work_cell == NULL)
     {
         return 0;

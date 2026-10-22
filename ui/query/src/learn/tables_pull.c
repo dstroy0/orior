@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tables_pull.c: the tables of every architecture wanted that lacks them pulled through the harness's image, and the
 // two readings of a pulled table, `read <arch> [--bank <size>] <low> <high>...` and `fields <arch>`, each a run of the
-// `tables_read` tool over the architecture's instruction set
+// `orior_tables_read` tool over the architecture's instruction set
 #include "tables_internal.h"
 
 // The tables of every architecture wanted that lacks them pulled: 0 where each now stands, 1 where the funnel found
 // no tables in some capture, -1 with why said. Each program runs through the writer's tee, the capture as
-// `tables_capture.console` and the funnel as `tables_funnel.console`
+// `tables_capture.console` and the funnel as `orior_tables_funnel.console`
 static int query_pulled(QueryContext *context, const QueryRun *run, const char *const *words, unsigned int count,
                         CliLine *said)
 {
@@ -122,7 +122,7 @@ static int query_pulled(QueryContext *context, const QueryRun *run, const char *
         return -1;
     }
     static char s_funnel[QUERY_PATH_LONGEST];
-    if (!query_context_tool(context, "tables_funnel", s_funnel, said) || !query_folder_made(tables))
+    if (!query_context_tool(context, "orior_tables_funnel", s_funnel, said) || !query_folder_made(tables))
     {
         return -1;
     }
@@ -138,7 +138,7 @@ static int query_pulled(QueryContext *context, const QueryRun *run, const char *
         query_tables_in(captures, capture_name, capture);
         query_tables_of(out, s_missing[at], instructions, latencies);
         const char *const funnel[5] = {s_funnel, capture, instructions, latencies, NULL};
-        if (!query_context_teed(context, run, "tables_funnel", funnel, &code, said))
+        if (!query_context_teed(context, run, "orior_tables_funnel", funnel, &code, said))
         {
             return -1;
         }
@@ -246,11 +246,11 @@ int query_tables_run(QueryContext *context, const char *const *words, unsigned i
         {
             cli_line_text(&failed, "no table for ");
             cli_line_text(&failed, words[1]);
-            cli_line_text(&failed, ": run orior protocol tables ");
+            cli_line_text(&failed, ": run orior_cli protocol tables ");
             cli_line_text(&failed, words[1]);
             cli_line_text(&failed, " first");
         }
-        else if (query_context_tool(context, "tables_read", s_reader, &failed))
+        else if (query_context_tool(context, "orior_tables_read", s_reader, &failed))
         {
             static QueryWords s_words;
             memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
@@ -263,7 +263,7 @@ int query_tables_run(QueryContext *context, const char *const *words, unsigned i
             }
             long long ran = -1ll;
             // an exit code is far below what an int holds
-            code = query_context_teed(context, &s_run, "tables_read", s_words.word, &ran, &failed) ? (int)ran : -1;
+            code = query_context_teed(context, &s_run, "orior_tables_read", s_words.word, &ran, &failed) ? (int)ran : -1;
         }
     }
     if ((code < 0) && (cli_line_closed(&failed) != 0ull))

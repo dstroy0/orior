@@ -2,7 +2,7 @@
 // exact_integer_add.c: magnitudes, comparison, addition and subtraction
 #include "exact_integer_internal.h"
 
-void anchor_exact_zero(AnchorExactInteger *value)
+void orior_exact_zero(OriorExactInteger *value)
 {
     memset(value->limb, 0, sizeof(value->limb));
     value->sign = 0;
@@ -19,7 +19,7 @@ void anchor_exact_zero(AnchorExactInteger *value)
  */
 int magnitude_compare(const uint32_t *left, const uint32_t *right)
 {
-    size_t at = (size_t)ANCHOR_EXACT_LIMBS;
+    size_t at = (size_t)ORIOR_EXACT_LIMBS;
     while (at > 0u)
     {
         at--;
@@ -39,7 +39,7 @@ int magnitude_compare(const uint32_t *left, const uint32_t *right)
  */
 int magnitude_is_zero(const uint32_t *value)
 {
-    for (size_t at = 0u; at < (size_t)ANCHOR_EXACT_LIMBS; at++)
+    for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
         if (value[at] != 0u)
         {
@@ -57,7 +57,7 @@ int magnitude_is_zero(const uint32_t *value)
  */
 size_t magnitude_used(const uint32_t *value)
 {
-    size_t used = (size_t)ANCHOR_EXACT_LIMBS;
+    size_t used = (size_t)ORIOR_EXACT_LIMBS;
     while ((used > 0u) && (value[used - 1u] == 0u))
     {
         used--;
@@ -72,14 +72,14 @@ size_t magnitude_used(const uint32_t *value)
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          1 where the sum needs more limbs than the width holds, 0 otherwise.
- * @note left + right reaches 2^ANCHOR_EXACT_BITS exactly where left exceeds 2^ANCHOR_EXACT_BITS - 1
+ * @note left + right reaches 2^ORIOR_EXACT_BITS exactly where left exceeds 2^ORIOR_EXACT_BITS - 1
  *       - right, and that bound is ~right limb by limb. The test is then a comparison from the top
  *       limb down, which settles at the first limb that differs. For two values well inside the
  *       width that is the top limb.
  */
 static int magnitude_add_overflows(const uint32_t *left, const uint32_t *right)
 {
-    size_t at = (size_t)ANCHOR_EXACT_LIMBS;
+    size_t at = (size_t)ORIOR_EXACT_LIMBS;
     while (at > 0u)
     {
         at--;
@@ -103,7 +103,7 @@ static int magnitude_add_overflows(const uint32_t *left, const uint32_t *right)
 static void magnitude_add(const uint32_t *left, const uint32_t *right, uint32_t *result)
 {
     uint64_t carry = 0u;
-    for (size_t at = 0u; at < (size_t)ANCHOR_EXACT_LIMBS; at++)
+    for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
         const uint64_t total = (uint64_t)left[at] + (uint64_t)right[at] + carry;
         // Explicit narrowing to a limb. The high half is the carry and is kept.
@@ -123,7 +123,7 @@ static void magnitude_add(const uint32_t *left, const uint32_t *right, uint32_t 
 static void magnitude_subtract(const uint32_t *left, const uint32_t *right, uint32_t *result)
 {
     uint64_t borrow = 0u;
-    for (size_t at = 0u; at < (size_t)ANCHOR_EXACT_LIMBS; at++)
+    for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
         // LIMB_BASE keeps the arithmetic non negative before the narrowing below. No unsigned
         // wrap has to be reasoned about at the point the limb is stored.
@@ -133,7 +133,7 @@ static void magnitude_subtract(const uint32_t *left, const uint32_t *right, uint
     }
 }
 
-int anchor_exact_equal(const AnchorExactInteger *left, const AnchorExactInteger *right)
+int orior_exact_equal(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -142,7 +142,7 @@ int anchor_exact_equal(const AnchorExactInteger *left, const AnchorExactInteger 
     return (magnitude_compare(left->limb, right->limb) == 0) ? 1 : 0;
 }
 
-int anchor_exact_compare(const AnchorExactInteger *left, const AnchorExactInteger *right)
+int orior_exact_compare(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -165,7 +165,7 @@ int anchor_exact_compare(const AnchorExactInteger *left, const AnchorExactIntege
  * @note Zero always ends up carrying sign 0, which keeps a negative zero from ever existing and
  *       keeps two zeros comparing equal.
  */
-void settle_sign(AnchorExactInteger *result, int32_t sign)
+void settle_sign(OriorExactInteger *result, int32_t sign)
 {
     result->sign = magnitude_is_zero(result->limb) ? 0 : sign;
 }
@@ -177,7 +177,7 @@ void settle_sign(AnchorExactInteger *result, int32_t sign)
  * @param[in]  right      Second addend, whose magnitude is read and whose sign is not [BORROWS].
  * @param[in]  right_sign Sign the second addend is taken to carry.
  * @param[out] result     Sum [BORROWS]. May alias either input.
- * @return                ANCHOR_EXACT_OK, or ANCHOR_EXACT_WILL_NOT_FIT where the sum needs more
+ * @return                ORIOR_EXACT_OK, or ORIOR_EXACT_WILL_NOT_FIT where the sum needs more
  *                        limbs.
  * @note The two signs are the flag for which operation is legal on this pair. Equal signs add the
  *       magnitudes, which alone can overrun and is tested before a limb is written. Opposite signs
@@ -185,38 +185,38 @@ void settle_sign(AnchorExactInteger *result, int32_t sign)
  *       magnitudes of opposite sign are zero.
  * @note Subtraction is this call with the sign turned over.
  */
-static AnchorExactStatus exact_add_signed(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                          int32_t right_sign, AnchorExactInteger *result)
+static OriorExactStatus exact_add_signed(const OriorExactInteger *left, const OriorExactInteger *right,
+                                          int32_t right_sign, OriorExactInteger *result)
 {
     if (left->sign == 0)
     {
         *result = *right;
         result->sign = right_sign;
-        return ANCHOR_EXACT_OK;
+        return ORIOR_EXACT_OK;
     }
     if (right_sign == 0)
     {
         *result = *left;
-        return ANCHOR_EXACT_OK;
+        return ORIOR_EXACT_OK;
     }
 
     if (left->sign == right_sign)
     {
         if (magnitude_add_overflows(left->limb, right->limb) != 0)
         {
-            return ANCHOR_EXACT_WILL_NOT_FIT;
+            return ORIOR_EXACT_WILL_NOT_FIT;
         }
         const int32_t sign = left->sign;
         magnitude_add(left->limb, right->limb, result->limb);
         settle_sign(result, sign);
-        return ANCHOR_EXACT_OK;
+        return ORIOR_EXACT_OK;
     }
 
     const int order = magnitude_compare(left->limb, right->limb);
     if (order == 0)
     {
-        anchor_exact_zero(result);
-        return ANCHOR_EXACT_OK;
+        orior_exact_zero(result);
+        return ORIOR_EXACT_OK;
     }
 
     // The sign is taken before the limbs are written, since `result` may be either input.
@@ -231,17 +231,17 @@ static AnchorExactStatus exact_add_signed(const AnchorExactInteger *left, const 
         magnitude_subtract(right->limb, left->limb, result->limb);
         settle_sign(result, right_sign);
     }
-    return ANCHOR_EXACT_OK;
+    return ORIOR_EXACT_OK;
 }
 
-AnchorExactStatus anchor_exact_add(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                   AnchorExactInteger *result)
+OriorExactStatus orior_exact_add(const OriorExactInteger *left, const OriorExactInteger *right,
+                                   OriorExactInteger *result)
 {
     return exact_add_signed(left, right, right->sign, result);
 }
 
-AnchorExactStatus anchor_exact_subtract(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                        AnchorExactInteger *result)
+OriorExactStatus orior_exact_subtract(const OriorExactInteger *left, const OriorExactInteger *right,
+                                        OriorExactInteger *result)
 {
     return exact_add_signed(left, right, -right->sign, result);
 }

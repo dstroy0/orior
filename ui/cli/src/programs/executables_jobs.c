@@ -318,18 +318,16 @@ static void cli_kind_params(const CliExecutable *exe, CliCatalog *catalog)
 
 void cli_executables_jobs(const char *root, CliCatalog *catalog)
 {
-    static CliExecutables s_found;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    cli_executables_read(root, &s_found);
-    for (unsigned int index = 0u; index < s_found.count; index += 1u)
+    CliExecutables found = {NULL, 0u, 0u, NULL};
+    cli_executables_read(root, &found);
+    for (unsigned int index = 0u; index < found.count; index += 1u)
     {
-        const CliExecutable *const exe = &s_found.item[s_found.order[index]];
+        const CliExecutable *const exe = &found.item[found.order[index]];
         unsigned int named = 0u;
-        for (unsigned int other = 0u; other < s_found.count; other += 1u)
+        for (unsigned int other = 0u; other < found.count; other += 1u)
         {
-            named += (cellul.eq(&(CatenaFinitaCfg){
-                         .src = s_found.item[other].name, .other = exe->name, .cap = CLI_CELLS_POOL}))
+            named += (cellul.eq(
+                         &(CatenaFinitaCfg){.src = found.item[other].name, .other = exe->name, .cap = CLI_CELLS_POOL}))
                          ? 1u
                          : 0u;
         }
@@ -362,5 +360,5 @@ void cli_executables_jobs(const char *root, CliCatalog *catalog)
             cli_executables_steps(root, exe, catalog);
         }
     }
-    cli_lock_give(&s_lock);
+    cli_executables_given(&found);
 }

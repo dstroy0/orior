@@ -378,8 +378,8 @@ int main(int argc, char **argv)
     place.work = argv[1];
     place.bench = argv[2];
     VhdlResults results = {0u, 0u, 0u};
-    printf("  record vhdl test: %u lanes a program, ANCHOR_EXACT_LIMBS %u, %s\n", HOST_TEST_LANES,
-           (unsigned int)ANCHOR_EXACT_LIMBS,
+    printf("  record vhdl test: %u lanes a program, ORIOR_EXACT_LIMBS %u, %s\n", HOST_TEST_LANES,
+           (unsigned int)ORIOR_EXACT_LIMBS,
            place.constructed ? ("a construction set of " + std::to_string(place.costs.size()) + " forms").c_str()
                              : "no construction set");
     VhdlRun run = {&results, &place};

@@ -103,7 +103,7 @@ pub fn build(ui: &Path, here: &Path) -> Result<PathBuf, String> {
     let target = here.join("target").join("driven").join("app");
     // Merged into tauri.conf.json as the window is built.
     let config = json!({"build": {"frontendDist": page.to_string_lossy()}}).to_string();
-    let built = Command::new("cargo")
+    let built = crate::guest("cargo")
         .args(["build", "--manifest-path"])
         .arg(ui.join("gui").join("src-tauri").join("Cargo.toml"))
         .arg("--target-dir")
@@ -115,7 +115,7 @@ pub fn build(ui: &Path, here: &Path) -> Result<PathBuf, String> {
     if !built.success() {
         return Err("the app did not build".into());
     }
-    Ok(target.join("debug").join(if cfg!(windows) { "orior.exe" } else { "orior" }))
+    Ok(target.join("debug").join(if cfg!(windows) { "orior_gui.exe" } else { "orior_gui" }))
 }
 
 /// `text` quoted for the shell, as one word.
@@ -338,12 +338,12 @@ mod tests {
 
     #[test]
     fn the_launch_script_starts_the_window_with_the_run_s_own_settings() {
-        let script = launch_script(Path::new("/target/debug/orior"), Path::new("/runs/a"), Path::new("/runs/a/tree"), &[("ORIOR_SSH".into(), "ssh -F 'x'".into())]);
+        let script = launch_script(Path::new("/target/debug/orior_gui"), Path::new("/runs/a"), Path::new("/runs/a/tree"), &[("ORIOR_SSH".into(), "ssh -F 'x'".into())]);
         assert!(script.starts_with("#!/bin/sh\n"), "{script}");
         assert!(script.contains("cd '/runs/a/tree'\n"), "{script}");
         assert!(script.contains("export TAURI_WEBVIEW_AUTOMATION='true'\n"), "{script}");
         assert!(script.contains("export ORIOR_SSH='ssh -F '\\''x'\\'''\n"), "{script}");
         let log = Path::new("/runs/a").join("window.log");
-        assert!(script.ends_with(&format!("exec '/target/debug/orior' >> '{}' 2>&1\n", log.display())), "{script}");
+        assert!(script.ends_with(&format!("exec '/target/debug/orior_gui' >> '{}' 2>&1\n", log.display())), "{script}");
     }
 }

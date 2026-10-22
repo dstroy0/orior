@@ -4,6 +4,8 @@
 // pass of a node takes the text one way or none, and where such a pass ends; and a match tried at one place
 #include "regexp_match_internal.h"
 
+#include "../command_line/cells.h"
+
 // the ASCII characters a node's one letter takes, as two words of bits
 static void cli_ascii_of(const CliRegexp *regexp, unsigned int node, unsigned long long *ascii)
 {
@@ -320,15 +322,25 @@ int cli_regexp_walk(const CliRegexp *regexp, unsigned int index, unsigned long l
 int cli_regexp_match_into(const CliRegexp *regexp, const unsigned int *text, unsigned long long length,
                           unsigned long long at, CliRegexpSpan *groups)
 {
+    if (regexp->anchored && (at != 0ull))
+    {
+        return 0;
+    }
     if (!regexp->first.empty && !((at < length) && cli_regexp_allows(&regexp->first, text[at])))
     {
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = groups, .val = 0, .bytes = (regexp->groups + 1u) * sizeof(groups[0])});
     const char mark = 0;
-    CliRegexpRun run = {text, length, groups, 0ull, 0ull, (uintptr_t)&mark};
+    // the repeats' ends kept on this stack until they outgrow it
+    unsigned int ends[CLI_REGEXP_ENDS_STACKED];
+    CliRegexpRun run = {text, length, groups, 0ull, 0ull, (uintptr_t)&mark, ends, 0ull, CLI_REGEXP_ENDS_STACKED, 0};
     const CliRegexpThen end = {CLI_THEN_END, 0u, 0u, 0u, 0ull, NULL};
     const int found = cli_regexp_walk(regexp, regexp->root, at, &run, &end);
+    if (run.ends_held)
+    {
+        cli_cell_given(run.ends);
+    }
     if (found)
     {
         groups[0] = (CliRegexpSpan){at, run.end, 1};

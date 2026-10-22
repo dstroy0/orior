@@ -355,15 +355,15 @@ void qasm_bitstring(const QasmCircuit *circuit, unsigned long long outcome, char
 
 void qasm_units_decimal(const unsigned int units[QASM_WIDE_LIMBS], unsigned int places, char *text, size_t capacity)
 {
-    AnchorExactInteger value;
-    AnchorExactInteger scale;
-    AnchorExactInteger integer_part;
-    AnchorExactInteger part;
+    OriorExactInteger value;
+    OriorExactInteger scale;
+    OriorExactInteger integer_part;
+    OriorExactInteger part;
     qasm_wide_to_exact(units, &value);
     qasm_exact_power_of_two(&scale, 2u * QASM_FRACTION_BITS);
-    if ((anchor_exact_divide(&value, &scale, &integer_part, &part) != ANCHOR_EXACT_OK) ||
-        (anchor_exact_scale_by_ten(&part, places) != ANCHOR_EXACT_OK) ||
-        (anchor_exact_divide(&part, &scale, &part, &value) != ANCHOR_EXACT_OK))
+    if ((orior_exact_divide(&value, &scale, &integer_part, &part) != ORIOR_EXACT_OK) ||
+        (orior_exact_scale_by_ten(&part, places) != ORIOR_EXACT_OK) ||
+        (orior_exact_divide(&part, &scale, &part, &value) != ORIOR_EXACT_OK))
     {
         snprintf(text, capacity, "?");
         return;

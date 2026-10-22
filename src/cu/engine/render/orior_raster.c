@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// anchor_raster.c: the raster on the host
-#include "anchor_raster_internal.h"
+// orior_raster.c: the raster on the host
+#include "orior_raster_internal.h"
 
 /**
  * @brief Gray value for an alignment that died at `level`, or passed every probe.
@@ -17,12 +17,12 @@ static uint8_t raster_value(size_t level, size_t probe_count, int matched)
 {
     if (matched != 0)
     {
-        return (uint8_t)ANCHOR_RASTER_MATCH;
+        return (uint8_t)ORIOR_RASTER_MATCH;
     }
     (void)probe_count;
 
-    const size_t scaled = 1u + (level * ANCHOR_RASTER_STEP);
-    return (uint8_t)((scaled > ANCHOR_RASTER_CEILING) ? ANCHOR_RASTER_CEILING : scaled);
+    const size_t scaled = 1u + (level * ORIOR_RASTER_STEP);
+    return (uint8_t)((scaled > ORIOR_RASTER_CEILING) ? ORIOR_RASTER_CEILING : scaled);
 }
 
 /**
@@ -32,7 +32,7 @@ static uint8_t raster_value(size_t level, size_t probe_count, int matched)
  * @return             Probe index that rejected it, or `probe_count` where none did.
  */
 static size_t raster_death_level(const uint8_t *corpus, const uint8_t *needle, size_t needle_len,
-                                 const AnchorRasterProbe *probes, size_t probe_count, size_t at, int *matched)
+                                 const OriorRasterProbe *probes, size_t probe_count, size_t at, int *matched)
 {
     *matched = 0;
 
@@ -63,7 +63,7 @@ static size_t raster_death_level(const uint8_t *corpus, const uint8_t *needle, s
 }
 
 /** @brief Counts what the object under examination is made of. */
-void raster_census(AnchorRasterCensus *census, const uint8_t *corpus, size_t corpus_len)
+void raster_census(OriorRasterCensus *census, const uint8_t *corpus, size_t corpus_len)
 {
     for (size_t symbol = 0u; symbol < 256u; symbol += 1u)
     {
@@ -76,7 +76,7 @@ void raster_census(AnchorRasterCensus *census, const uint8_t *corpus, size_t cor
     census->total = (uint64_t)corpus_len;
 }
 
-size_t anchor_raster_cell(const AnchorRasterConfig *config, size_t at, size_t alignments)
+size_t orior_raster_cell(const OriorRasterConfig *config, size_t at, size_t alignments)
 {
     const size_t cells = config->width * config->height;
 
@@ -89,11 +89,11 @@ size_t anchor_raster_cell(const AnchorRasterConfig *config, size_t at, size_t al
 
     switch (config->layout)
     {
-    case ANCHOR_LAYOUT_SERPENTINE: {
+    case ORIOR_LAYOUT_SERPENTINE: {
         const size_t flipped = ((row % 2u) == 0u) ? column : (config->width - 1u - column);
         return (row * config->width) + flipped;
     }
-    case ANCHOR_LAYOUT_COLUMNS: {
+    case ORIOR_LAYOUT_COLUMNS: {
         /* Transposed through the shorter side so the index stays inside the raster on a
          * rectangle. Reading down a column puts corpus neighbors a row apart. */
         const size_t turned_row = linear % config->height;
@@ -104,29 +104,29 @@ size_t anchor_raster_cell(const AnchorRasterConfig *config, size_t at, size_t al
         }
         return (turned_row * config->width) + turned_column;
     }
-    case ANCHOR_LAYOUT_DIAGONAL: {
+    case ORIOR_LAYOUT_DIAGONAL: {
         const size_t shifted = (column + row) % config->width;
         return (row * config->width) + shifted;
     }
-    case ANCHOR_LAYOUT_ROWS:
+    case ORIOR_LAYOUT_ROWS:
     default: {
         return linear;
     }
     }
 }
 
-uint8_t anchor_raster_sample(const AnchorRasterConfig *config, const uint8_t *corpus, const uint8_t *needle,
-                             size_t needle_len, const AnchorRasterProbe *probes, size_t probe_count, size_t at,
+uint8_t orior_raster_sample(const OriorRasterConfig *config, const uint8_t *corpus, const uint8_t *needle,
+                             size_t needle_len, const OriorRasterProbe *probes, size_t probe_count, size_t at,
                              const uint64_t *occurrences, uint64_t total)
 {
     const uint8_t gain = (config->gain == 0u) ? 1u : config->gain;
 
     switch (config->channel)
     {
-    case ANCHOR_CHANNEL_BYTE: {
+    case ORIOR_CHANNEL_BYTE: {
         return corpus[at];
     }
-    case ANCHOR_CHANNEL_RARITY: {
+    case ORIOR_CHANNEL_RARITY: {
         /* Rarity as the steering term defines it, scaled into eight bits by exact integer
          * division. A symbol the field never produces reaches the top of the ramp. */
         if (total == 0u)
@@ -137,21 +137,21 @@ uint8_t anchor_raster_sample(const AnchorRasterConfig *config, const uint8_t *co
         const uint64_t scaled = (missing * 254u) / total;
         return (uint8_t)(1u + scaled);
     }
-    case ANCHOR_CHANNEL_PROVEN: {
+    case ORIOR_CHANNEL_PROVEN: {
         /* A refuted alignment is proven to hold no occurrence. A survivor is undetermined: the
          * probes could not refute it and only the full compare decides. Proven takes the higher
          * value, a minimum reduction behaves as the conjunction this channel needs, a cell
          * staying proven only while every alignment under it was refuted. */
         int matched = 0;
         const size_t level = raster_death_level(corpus, needle, needle_len, probes, probe_count, at, &matched);
-        return (level < probe_count) ? (uint8_t)ANCHOR_RASTER_PROVEN : (uint8_t)ANCHOR_RASTER_UNDETERMINED;
+        return (level < probe_count) ? (uint8_t)ORIOR_RASTER_PROVEN : (uint8_t)ORIOR_RASTER_UNDETERMINED;
     }
-    case ANCHOR_CHANNEL_SURVIVED: {
+    case ORIOR_CHANNEL_SURVIVED: {
         int matched = 0;
         const size_t level = raster_death_level(corpus, needle, needle_len, probes, probe_count, at, &matched);
-        return (level >= probe_count) ? (uint8_t)ANCHOR_RASTER_MATCH : 1u;
+        return (level >= probe_count) ? (uint8_t)ORIOR_RASTER_MATCH : 1u;
     }
-    case ANCHOR_CHANNEL_DEATH_LEVEL:
+    case ORIOR_CHANNEL_DEATH_LEVEL:
     default: {
         int matched = 0;
         const size_t level = raster_death_level(corpus, needle, needle_len, probes, probe_count, at, &matched);
@@ -160,17 +160,17 @@ uint8_t anchor_raster_sample(const AnchorRasterConfig *config, const uint8_t *co
     }
 }
 
-void raster_reduce(uint8_t *values, uint8_t *filled, size_t cell, uint8_t value, AnchorRasterReduce reduce)
+void raster_reduce(uint8_t *values, uint8_t *filled, size_t cell, uint8_t value, OriorRasterReduce reduce)
 {
     // A cell's first arrival fills it and every later arrival meets the reduction. Zero is a value a cell holds and
-    // not the mark of an empty one: a zero byte under ANCHOR_REDUCE_MIN stays, as the device's identity seed keeps it
+    // not the mark of an empty one: a zero byte under ORIOR_REDUCE_MIN stays, as the device's identity seed keeps it
     if (filled[cell] == 0u)
     {
         filled[cell] = 1u;
         values[cell] = value;
         return;
     }
-    if (reduce == ANCHOR_REDUCE_MAX)
+    if (reduce == ORIOR_REDUCE_MAX)
     {
         if (value > values[cell])
         {
@@ -183,8 +183,8 @@ void raster_reduce(uint8_t *values, uint8_t *filled, size_t cell, uint8_t value,
     }
 }
 
-int anchor_raster_host(uint8_t *pixels, const AnchorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
-                       const uint8_t *needle, size_t needle_len, const AnchorRasterProbe *probes, size_t probe_count)
+int orior_raster_host(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
+                       const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count)
 {
     if ((pixels == NULL) || (config == NULL) || (corpus == NULL) || (needle == NULL) || (config->width == 0u) ||
         (config->height == 0u) || (needle_len == 0u) || (needle_len > corpus_len))
@@ -197,7 +197,7 @@ int anchor_raster_host(uint8_t *pixels, const AnchorRasterConfig *config, const 
     }
 
     const size_t cells = config->width * config->height;
-    // which cells an alignment has reached; a cell nothing reaches writes ANCHOR_RASTER_EMPTY
+    // which cells an alignment has reached; a cell nothing reaches writes ORIOR_RASTER_EMPTY
     uint8_t *const filled = (uint8_t *)calloc(cells, 1u);
     if (filled == NULL)
     {
@@ -205,37 +205,37 @@ int anchor_raster_host(uint8_t *pixels, const AnchorRasterConfig *config, const 
     }
     for (size_t cell = 0u; cell < cells; cell += 1u)
     {
-        pixels[cell] = (uint8_t)ANCHOR_RASTER_EMPTY;
+        pixels[cell] = (uint8_t)ORIOR_RASTER_EMPTY;
     }
 
-    AnchorRasterCensus census;
+    OriorRasterCensus census;
     raster_census(&census, corpus, corpus_len);
 
     const size_t alignments = (corpus_len - needle_len) + 1u;
     for (size_t at = 0u; at < alignments; at += 1u)
     {
-        const uint8_t value = anchor_raster_sample(config, corpus, needle, needle_len, probes, probe_count, at,
+        const uint8_t value = orior_raster_sample(config, corpus, needle, needle_len, probes, probe_count, at,
                                                    census.occurrences, census.total);
-        raster_reduce(pixels, filled, anchor_raster_cell(config, at, alignments), value, config->reduce);
+        raster_reduce(pixels, filled, orior_raster_cell(config, at, alignments), value, config->reduce);
     }
     free(filled);
     return 1;
 }
 
-const char *anchor_raster_layout_name(AnchorRasterLayout layout)
+const char *orior_raster_layout_name(OriorRasterLayout layout)
 {
     switch (layout)
     {
-    case ANCHOR_LAYOUT_ROWS: {
+    case ORIOR_LAYOUT_ROWS: {
         return "rows";
     }
-    case ANCHOR_LAYOUT_SERPENTINE: {
+    case ORIOR_LAYOUT_SERPENTINE: {
         return "serpentine";
     }
-    case ANCHOR_LAYOUT_COLUMNS: {
+    case ORIOR_LAYOUT_COLUMNS: {
         return "columns";
     }
-    case ANCHOR_LAYOUT_DIAGONAL: {
+    case ORIOR_LAYOUT_DIAGONAL: {
         return "diagonal";
     }
     default: {
@@ -244,23 +244,23 @@ const char *anchor_raster_layout_name(AnchorRasterLayout layout)
     }
 }
 
-const char *anchor_raster_channel_name(AnchorRasterChannel channel)
+const char *orior_raster_channel_name(OriorRasterChannel channel)
 {
     switch (channel)
     {
-    case ANCHOR_CHANNEL_PROVEN: {
+    case ORIOR_CHANNEL_PROVEN: {
         return "proven";
     }
-    case ANCHOR_CHANNEL_DEATH_LEVEL: {
+    case ORIOR_CHANNEL_DEATH_LEVEL: {
         return "death-level";
     }
-    case ANCHOR_CHANNEL_SURVIVED: {
+    case ORIOR_CHANNEL_SURVIVED: {
         return "survived";
     }
-    case ANCHOR_CHANNEL_RARITY: {
+    case ORIOR_CHANNEL_RARITY: {
         return "rarity";
     }
-    case ANCHOR_CHANNEL_BYTE: {
+    case ORIOR_CHANNEL_BYTE: {
         return "byte";
     }
     default: {
@@ -269,18 +269,18 @@ const char *anchor_raster_channel_name(AnchorRasterChannel channel)
     }
 }
 
-int anchor_raster_render(uint8_t *pixels, const AnchorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
-                         const uint8_t *needle, size_t needle_len, const AnchorRasterProbe *probes, size_t probe_count)
+int orior_raster_render(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
+                         const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count)
 {
     /* DEVICE FIRST WHERE THERE IS ONE. Both arms produce the same bytes. This is a performance
      * choice and never a correctness one, and a machine carrying a device should use it without the
      * caller asking for it. */
-    if (anchor_raster_device_available() != 0)
+    if (orior_raster_device_available() != 0)
     {
-        if (anchor_raster_device(pixels, config, corpus, corpus_len, needle, needle_len, probes, probe_count) != 0)
+        if (orior_raster_device(pixels, config, corpus, corpus_len, needle, needle_len, probes, probe_count) != 0)
         {
             return 1;
         }
     }
-    return anchor_raster_host(pixels, config, corpus, corpus_len, needle, needle_len, probes, probe_count);
+    return orior_raster_host(pixels, config, corpus, corpus_len, needle, needle_len, probes, probe_count);
 }

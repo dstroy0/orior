@@ -125,8 +125,8 @@ int main(void)
         // decision to make instead of being steered by a degenerate one. The census replaced the
         // entropy and distinct count the plan used to carry: the rule reads integer counts now and
         // the engine holds no floating point value anywhere.
-        AnchorFieldCensus census;
-        anchor_field_census(corpus, AGREEMENT_CORPUS_BYTES, &census);
+        OriorFieldCensus census;
+        orior_field_census(corpus, AGREEMENT_CORPUS_BYTES, &census);
         const OriorPlan plan = {.census = &census, .period = 0u};
 
         snprintf(label, sizeof label, "orior_run");

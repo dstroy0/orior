@@ -34,6 +34,9 @@ int cli_text_word(const char *text, unsigned long long size, unsigned long long 
 // the letters `size` bytes of `text` hold, and the UTF-16 units
 unsigned long long cli_text_letters(const char *text, unsigned long long size);
 unsigned long long cli_text_units(const char *text, unsigned long long size);
+// whether `size` bytes are UTF-8 whole, every byte starting or inside a letter: a word of ASCII bytes passes in one
+// test, a word holding a high bit is read letter by letter (text.c)
+int cli_text_utf8_whole(const unsigned char *text, unsigned long long size);
 
 // whether `size` bytes of `text` start with `prefix`, and end with `suffix`
 int cli_text_starts(const char *text, unsigned long long size, const char *prefix);
@@ -46,12 +49,20 @@ int cli_text_find(const char *text, unsigned long long length, const char *wante
 int cli_text_find_last(const char *text, unsigned long long length, const char *wanted, unsigned long long size,
                        unsigned long long *at);
 
+// the end of a quoted text that starts at `at` of `size` bytes of `text`, past its closing quote: a text in three
+// quotes, """ or ''', runs to the three that close it, and one in a quote to the quote that closes it on its line, a
+// backslash carrying the byte after it; an unclosed text runs to the end of the line, or of the bytes. 1 with the end
+// into `end`, or 0 where no quote starts at `at`
+int cli_text_quoted_end(const char *text, unsigned long long size, unsigned long long at, unsigned long long *end);
+
 // the last place of `byte` in `length` bytes of `text`, or NULL where it is not there
 const char *cli_text_last(const char *text, unsigned long long length, char byte);
 
 // the order of the texts `one` and `other`, byte by byte as unsigned through `one`'s terminator: below 0 where `one`
 // comes first, 0 where they are the same, above 0 where `other` comes first
 int cli_text_order(const char *one, const char *other);
+// `count` paths put in the order cli_text_order gives their bytes (text.c)
+void cli_paths_sorted(char (*paths)[CLI_PATH_LONGEST], unsigned int count);
 
 // whether the first `size` bytes of `one` and `other` are the same bytes
 int cli_text_same(const char *one, const char *other, unsigned long long size);

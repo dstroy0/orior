@@ -7,7 +7,7 @@
  * @brief The sweep itself, which the public entry names.
  *
  * @param[out] probes           Chosen probes, in evaluation order [BORROWS].
- * @param[in]  wanted           How many to place. At most ANCHOR_STEER_ANCHORS.
+ * @param[in]  wanted           How many to place. At most ORIOR_STEER_ANCHORS.
  * @param[in]  corpus           Bytes the search will run over [BORROWS].
  * @param[in]  corpus_len       How many.
  * @param[in]  needle           Bytes to find [BORROWS].
@@ -21,12 +21,12 @@
  *       surface takes one pointer to a const argument structure; this is the backend it names, and
  *       every check the contract states happens here and not in the entry.
  */
-static size_t steer_sweep_probes(AnchorProbe *probes, size_t wanted, const uint8_t *corpus, size_t corpus_len,
+static size_t steer_sweep_probes(OriorProbe *probes, size_t wanted, const uint8_t *corpus, size_t corpus_len,
                                  const uint8_t *needle, size_t needle_len, size_t max_length, uint8_t *survivors,
                                  size_t survivors_length, size_t sample_stride)
 {
     if ((probes == NULL) || (corpus == NULL) || (needle == NULL) || (survivors == NULL) || (wanted == 0u) ||
-        (wanted > ANCHOR_STEER_ANCHORS) || (needle_len == 0u) || (needle_len > corpus_len) || (max_length == 0u))
+        (wanted > ORIOR_STEER_ANCHORS) || (needle_len == 0u) || (needle_len > corpus_len) || (max_length == 0u))
     {
         return 0u;
     }
@@ -51,7 +51,7 @@ static size_t steer_sweep_probes(AnchorProbe *probes, size_t wanted, const uint8
     // this search is fixed before the first byte is examined.
     while (placed < wanted)
     {
-        AnchorProbe best = {0u, 1u, 1u};
+        OriorProbe best = {0u, 1u, 1u};
         size_t best_standing = 0u;
         int found = 0;
 
@@ -62,8 +62,8 @@ static size_t steer_sweep_probes(AnchorProbe *probes, size_t wanted, const uint8
                 const size_t step_limit = (length == 1u) ? 2u : (needle_len + 1u);
                 for (size_t step = 1u; step < step_limit; step += 1u)
                 {
-                    const AnchorProbe candidate = {origin, step, length};
-                    if (anchor_steer_probe_fits(&candidate, needle_len) == 0)
+                    const OriorProbe candidate = {origin, step, length};
+                    if (orior_steer_probe_fits(&candidate, needle_len) == 0)
                     {
                         continue;
                     }
@@ -97,7 +97,7 @@ static size_t steer_sweep_probes(AnchorProbe *probes, size_t wanted, const uint8
     return placed;
 }
 
-size_t anchor_steer_sweep_probes(const AnchorSteerSweep *args)
+size_t orior_steer_sweep_probes(const OriorSteerSweep *args)
 {
     if (args == NULL)
     {
@@ -111,21 +111,21 @@ size_t anchor_steer_sweep_probes(const AnchorSteerSweep *args)
                               args->max_length, args->survivors, args->survivors_length, args->sample_stride);
 }
 
-uint64_t anchor_steer_probes = 0u;
+uint64_t orior_steer_probes = 0u;
 
-void anchor_steer_probes_reset(void)
+void orior_steer_probes_reset(void)
 {
-    anchor_steer_probes = 0u;
+    orior_steer_probes = 0u;
 }
 
-size_t anchor_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle,
-                                      size_t needle_len, const AnchorProbe *probes, size_t count)
+size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle,
+                                      size_t needle_len, const OriorProbe *probes, size_t count)
 {
     if ((corpus == NULL) || (needle == NULL) || (needle_len > corpus_len))
     {
         return 0u;
     }
-    // An empty needle occurs at every alignment. orior_naive and anchor_steer_count both report
+    // An empty needle occurs at every alignment. orior_naive and orior_steer_count both report
     // corpus_len + 1 for it, and the reference fixes that answer. This returns the same before the
     // loop instead of reading needle[offset] off a needle with no positions. Returning 0 here would
     // disagree with the reference and with the two counting entries beside it.
@@ -140,13 +140,13 @@ size_t anchor_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, 
 
     // Every probe reads within the needle or the whole call errors. A probe whose origin plus its
     // stepped reach lands at or past needle_len would read needle[offset], and corpus[at + offset],
-    // out of bounds. anchor_steer_probe_fits is the same test the sweep applies before it emits a
+    // out of bounds. orior_steer_probe_fits is the same test the sweep applies before it emits a
     // probe, checked here once before the alignment loop because this is a public entry a caller can
     // hand a probe the sweep never made. A probe that does not fit gets 0, the error a null probe
     // array with a nonzero count gets above.
     for (size_t slot = 0u; slot < count; slot += 1u)
     {
-        if (anchor_steer_probe_fits(&probes[slot], needle_len) == 0)
+        if (orior_steer_probe_fits(&probes[slot], needle_len) == 0)
         {
             return 0u;
         }
@@ -162,7 +162,7 @@ size_t anchor_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, 
             for (size_t step = 0u; step < probes[slot].length; step += 1u)
             {
                 const size_t offset = probes[slot].origin + (step * probes[slot].step);
-                anchor_steer_probes += 1u;
+                orior_steer_probes += 1u;
                 if (corpus[at + offset] != needle[offset])
                 {
                     agrees = 0;
@@ -186,7 +186,7 @@ size_t anchor_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, 
     return found;
 }
 
-size_t anchor_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
+size_t orior_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
                           int steered)
 {
     if ((corpus == NULL) || (needle == NULL) || (needle_len > corpus_len))
@@ -203,33 +203,33 @@ size_t anchor_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_
         return corpus_len + 1u;
     }
 
-    size_t offsets[ANCHOR_STEER_ANCHORS];
+    size_t offsets[ORIOR_STEER_ANCHORS];
     // the placement the search uses: the steered route probes where the engines it is compared against do, and
     // only the order of evaluation is this file's
-    choose_offsets(offsets, ANCHOR_STEER_ANCHORS, needle_len);
+    choose_offsets(offsets, ORIOR_STEER_ANCHORS, needle_len);
 
     if (steered != 0)
     {
         // THE ENGINE TURNED ONTO ITSELF. One pass over the corpus it is about to search produces
         // the census, and the census decides the order this same corpus is then probed in.
-        AnchorFieldCensus census;
-        anchor_field_census(corpus, corpus_len, &census);
-        anchor_steer_probe_order(offsets, ANCHOR_STEER_ANCHORS, &census, needle, needle_len);
+        OriorFieldCensus census;
+        orior_field_census(corpus, corpus_len, &census);
+        orior_steer_probe_order(offsets, ORIOR_STEER_ANCHORS, &census, needle, needle_len);
     }
 
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
     {
         size_t slot = 0u;
-        while (slot < ANCHOR_STEER_ANCHORS)
+        while (slot < ORIOR_STEER_ANCHORS)
         {
-            anchor_steer_probes += 1u;
+            orior_steer_probes += 1u;
             if (corpus[at + offsets[slot]] != needle[offsets[slot]])
             {
                 break;
             }
             slot += 1u;
         }
-        if (slot == ANCHOR_STEER_ANCHORS)
+        if (slot == ORIOR_STEER_ANCHORS)
         {
             if (memcmp(corpus + at, needle, needle_len) == 0)
             {
@@ -242,56 +242,56 @@ size_t anchor_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_
 
 /* ---- the scan: shared counters and the arm dispatch; each arm is its own scan_<set>.c ---- */
 
-uint64_t anchor_steer_scan_calls = 0u;
-uint64_t anchor_steer_wide_calls = 0u;
+uint64_t orior_steer_scan_calls = 0u;
+uint64_t orior_steer_wide_calls = 0u;
 
-void anchor_steer_scan_counters_reset(void)
+void orior_steer_scan_counters_reset(void)
 {
-    anchor_steer_scan_calls = 0u;
-    anchor_steer_wide_calls = 0u;
+    orior_steer_scan_calls = 0u;
+    orior_steer_wide_calls = 0u;
 }
 
-const AnchorSteerEngine *anchor_steer_best_engine(void)
+const OriorSteerEngine *orior_steer_best_engine(void)
 {
     // Widest first, and each arm asks the processor before it is taken. The x86 arms and the ARM arms
     // are gated by mutually exclusive build macros. At most one architecture's ladder is compiled
     // in and the rest fold away. A present arm returning NULL means the build carried it but the
     // running part does not, and the next arm down is tried.
-#if defined(ANCHOR_STEER_HAVE_AVX512) && ANCHOR_STEER_HAVE_AVX512
+#if defined(ORIOR_STEER_HAVE_AVX512) && ORIOR_STEER_HAVE_AVX512
     {
-        const AnchorSteerEngine *wide = anchor_steer_avx512_engine();
+        const OriorSteerEngine *wide = orior_steer_avx512_engine();
         if (wide != NULL)
         {
             return wide;
         }
     }
 #endif
-#if defined(ANCHOR_STEER_HAVE_AVX2) && ANCHOR_STEER_HAVE_AVX2
+#if defined(ORIOR_STEER_HAVE_AVX2) && ORIOR_STEER_HAVE_AVX2
     {
-        const AnchorSteerEngine *wide = anchor_steer_avx2_engine();
+        const OriorSteerEngine *wide = orior_steer_avx2_engine();
         if (wide != NULL)
         {
             return wide;
         }
     }
 #endif
-#if defined(ANCHOR_STEER_HAVE_SVE) && ANCHOR_STEER_HAVE_SVE
+#if defined(ORIOR_STEER_HAVE_SVE) && ORIOR_STEER_HAVE_SVE
     {
-        const AnchorSteerEngine *wide = anchor_steer_sve_engine();
+        const OriorSteerEngine *wide = orior_steer_sve_engine();
         if (wide != NULL)
         {
             return wide;
         }
     }
 #endif
-#if defined(ANCHOR_STEER_HAVE_NEON) && ANCHOR_STEER_HAVE_NEON
+#if defined(ORIOR_STEER_HAVE_NEON) && ORIOR_STEER_HAVE_NEON
     {
-        const AnchorSteerEngine *wide = anchor_steer_neon_engine();
+        const OriorSteerEngine *wide = orior_steer_neon_engine();
         if (wide != NULL)
         {
             return wide;
         }
     }
 #endif
-    return anchor_steer_portable_engine();
+    return orior_steer_portable_engine();
 }

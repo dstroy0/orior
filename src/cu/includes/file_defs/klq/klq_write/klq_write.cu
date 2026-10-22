@@ -3,7 +3,7 @@
 // klq_write.cu: writes Lstar.klq, the bridge between languages, and each given language's .klm, its names keyed to
 // the bridge
 //
-//   klq_write <folder> <ruleset>...
+//   orior_klq_write <folder> <ruleset>...
 //
 // Each ruleset is read as its code generator reads it, its files held against each other and its schema
 // (ruleset_core_relation.h). The bridge is keyed by the schema's form names, which are gnascor's and no target's, and
@@ -16,7 +16,7 @@
 //
 // The bridge's identities between texts and between slices with their verdicts, its primitives and its chains, are no
 // ruleset's: each line is kept as the bridge held it and written after the keys. A pair the bridge held a verdict for,
-// put to the part, is written with that verdict, and with the set, the concept and the intent klq_decoder read it into
+// put to the part, is written with that verdict, and with the set, the concept and the intent orior_klq_decoder read it into
 #include "../../qry/writer/qry_member.h"
 #include "code_generator.h"
 #include "target_internal.h"
@@ -174,7 +174,7 @@ int main(int argc, char **argv)
 {
     if (argc < 3)
     {
-        printf("klq_write <folder> <ruleset>...\n");
+        printf("orior_klq_write <folder> <ruleset>...\n");
         return 1;
     }
     const std::string folder = argv[1];
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
     // verdicts, its primitives and its chains, kept whole: each line that is not the bridge's first, a key, a pair or
     // a line beneath a pair, written again after the keys as it was read
     std::vector<std::string> identities;
-    // each pair's verdict as the bridge held it, the sets of our coherence klq_decoder read it into, its metas and
+    // each pair's verdict as the bridge held it, the sets of our coherence orior_klq_decoder read it into, its metas and
     // then its set, its concept and its intent, each written again beneath the pair
     std::map<std::string, std::string> verdicts;
     std::map<std::string, std::vector<std::string>> sets;

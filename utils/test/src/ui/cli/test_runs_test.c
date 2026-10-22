@@ -204,6 +204,9 @@ static void runs_reports(void)
                   .src = cli_check_member_text(outcome, "outcome"), .other = "skipped", .cap = CLI_CELLS_POOL})) &&
                   (runs_whole(json, outcome, "line") == 14ll),
               "and one skipped its line");
+    cli_check((g_cli_test_report_cells.holds == 0ull) && (g_cli_test_report_cells.hw != 0ull) &&
+                  (g_cli_test_report_cells.hw < (sizeof(s_xml) * 4u)),
+              "a report's tags and texts are held in cells sized to the report, and given back");
     static const char s_failures[] =
         "test_two (tests.test_a.Checks.test_two) ... FAIL\n\n"
         "======================================================================\n"

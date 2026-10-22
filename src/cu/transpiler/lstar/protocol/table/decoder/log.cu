@@ -58,7 +58,7 @@ int Decoding::log_read(const char *qry)
     const unsigned long long joined_size = log_joined(qry);
     if (joined_size == QRY_MEMBER_UNREAD)
     {
-        printf("klq_decoder: the log could not be read whole\n");
+        printf("orior_klq_decoder: the log could not be read whole\n");
         return 1;
     }
     std::istringstream log(std::string((const char *)s_log, (size_t)joined_size));
@@ -69,7 +69,7 @@ int Decoding::log_read(const char *qry)
     std::string trace_error;
     if (!query_trace_read(query_trace_path(), &trace, &trace_error))
     {
-        printf("klq_decoder: %s\n", trace_error.c_str());
+        printf("orior_klq_decoder: %s\n", trace_error.c_str());
         return 1;
     }
     std::string choosing;

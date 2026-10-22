@@ -7,30 +7,29 @@
 
 #include "../text/text.h"
 
-// the bytes written to the file at a time, and of the values of one held row read back
+// the bytes written to the file at a time, the most of the values of one held row read back, and the bytes a value of
+// a JSON line is begun to be written in, doubling as it is
 #define CLI_DB_EXPORT_ROOM (1u << 20u)
 #define CLI_DB_EXPORT_ROW (1u << 20u)
+#define CLI_DB_EXPORT_VALUE_FIRST 64u
 
 // The writing of an export: its connection, its file and format, the bytes not yet written to it, whether a write
-// failed, how many rows it has written, where it is told so, the columns in the order a JSON line names them, each
-// once, and the room a held row's values are read back in
+// failed, how many rows it has written, the columns in the order a JSON line names them, each once, and a row's values;
+// the values, the order and the bytes not yet written one cell, the values and the order `columns` long
 typedef struct
 {
     CliDbOpen *open;
     const char *path;
     const char *format;
-    char pending[CLI_DB_EXPORT_ROOM];
+    char *pending;
     unsigned long long pending_size;
     int broke;
     unsigned long long written;
-    unsigned int order[CLI_DB_COLUMNS];
+    unsigned int *order;
     unsigned int ordered;
-    char text[CLI_DB_EXPORT_ROW];
-    CliDbValue values[CLI_DB_COLUMNS];
+    CliDbValue *values;
+    unsigned int columns;
 } CliDbExport;
-
-static CliDbExport s_export;
-static CliLock s_export_lock = CLI_LOCK_INIT;
 
 // the pending bytes written to the file
 static void export_flushed(CliDbExport *export)
@@ -45,11 +44,11 @@ static void export_flushed(CliDbExport *export)
 // a text written to the pending bytes, written out first where it does not fit after them
 static void export_put(CliDbExport *export, const char *text, unsigned long long size)
 {
-    if (export->pending_size + size > sizeof(export->pending))
+    if (export->pending_size + size > CLI_DB_EXPORT_ROOM)
     {
         export_flushed(export);
     }
-    if (size > sizeof(export->pending))
+    if (size > CLI_DB_EXPORT_ROOM)
     {
         export->broke = export->broke || !cli_file_appended(export->path, text, size, 0);
         return;
@@ -110,10 +109,12 @@ static void export_line(CliDbExport *export, const CliDbValue *values, unsigned 
                 export_put(export, "null", 4ull);
                 continue;
             }
-            static char s_value[CLI_DB_EXPORT_ROW * 2u];
-            CliLine value = {s_value, sizeof(s_value), 0ull};
+            CliLine value;
+            (void)cli_line_growing(&value, values[column].size + CLI_DB_EXPORT_VALUE_FIRST, "a value of a JSON line");
             cli_json_quoted_lossy(&value, (const unsigned char *)values[column].text, values[column].size);
-            export_put(export, value.out, value.at);
+            export->broke = export->broke || !cli_line_fits(&value);
+            export_put(export, value.out, cli_line_fits(&value) ? value.at : 0ull);
+            cli_cell_given(value.out);
         }
         export_put(export, "}\n", 2ull);
         return;
@@ -140,9 +141,18 @@ static void export_line(CliDbExport *export, const CliDbValue *values, unsigned 
 static void export_held_line(void *context, const char *line, unsigned long long size)
 {
     CliDbExport *const export = (CliDbExport *)context;
+    // the values read back take no more bytes than the line writes them in, each string's quotes room for its
+    // terminator
+    const unsigned long long room = (size < CLI_DB_EXPORT_ROW) ? (size + 1ull) : CLI_DB_EXPORT_ROW;
+    char *const texts = cli_cell_taken_by(&g_cli_db_cells, room, "a held row's values read back");
+    if (texts == NULL)
+    {
+        export->broke = 1;
+        return;
+    }
     unsigned int count = 0u;
     unsigned long long used = 0ull;
-    for (unsigned long long at = 1ull; (at < size) && (count < CLI_DB_COLUMNS);)
+    for (unsigned long long at = 1ull; (at < size) && (count < export->columns);)
     {
         while ((at < size) &&
                (cellul.chr(&(CatenaFinitaCfg){.src = " ,", .cap = CLI_CELLS_POOL, .byte = line[at]}) != NULL))
@@ -165,8 +175,8 @@ static void export_held_line(void *context, const char *line, unsigned long long
         {
             end += (line[end] == '\\') ? 2ull : 1ull;
         }
-        char *const text = export->text + used;
-        if (!cli_lsp_string(line + at, end + 1u - at, text, sizeof(export->text) - used))
+        char *const text = texts + used;
+        if (!cli_lsp_string(line + at, end + 1u - at, text, room - used))
         {
             text[0] = '\0';
         }
@@ -178,6 +188,7 @@ static void export_held_line(void *context, const char *line, unsigned long long
     }
     export_line(export, export->values, count);
     export->written += 1ull;
+    cli_cell_given_by(&g_cli_db_cells, texts);
 }
 
 // a row read on from the run written, and counted past those held
@@ -244,14 +255,25 @@ int cli_db_export(CliDbOpen *open, const char *path, const char *format,
         cli_db_failure_said(failure, "no statement has given rows to export");
         return 0;
     }
-    cli_lock_take(&s_export_lock);
-    CliDbExport *const export = &s_export;
-    export->open = open;
-    export->path = path;
-    export->format = format;
-    export->pending_size = 0ull;
-    export->broke = !cli_file_appended(path, "", 0ull, 1);
-    export->written = 0ull;
+    // a row's values, the columns' order, then the bytes not yet written, each list on its type's boundary
+    const unsigned int columns = (held->column_count != 0u) ? held->column_count : 1u;
+    const unsigned long long values_bytes = columns * sizeof(CliDbValue);
+    const unsigned long long order_bytes = columns * sizeof(unsigned int);
+    char *const cell =
+        cli_cell_taken_by(&g_cli_db_cells, values_bytes + order_bytes + CLI_DB_EXPORT_ROOM, "the room of an export");
+    if (cell == NULL)
+    {
+        cli_lock_give(&open->held_lock);
+        cli_db_failure_said(failure, "the cells cannot meet an export");
+        return 0;
+    }
+    CliDbExport held_export = {open,   path,
+                               format, cell + values_bytes + order_bytes,
+                               0ull,   !cli_file_appended(path, "", 0ull, 1),
+                               0ull,   (unsigned int *)(void *)(cell + values_bytes),
+                               0u,     (CliDbValue *)(void *)cell,
+                               columns};
+    CliDbExport *const export = &held_export;
     export_ordered(export);
     if (!export->broke && (!cellul.eq(&(CatenaFinitaCfg){.src = format, .other = "json", .cap = CLI_CELLS_POOL})))
     {
@@ -285,7 +307,7 @@ int cli_db_export(CliDbOpen *open, const char *path, const char *format,
     export_flushed(export);
     const int broke = export->broke;
     const unsigned long long written = export->written;
-    cli_lock_give(&s_export_lock);
+    cli_cell_given_by(&g_cli_db_cells, cell);
     cli_lock_give(&open->held_lock);
     if (!read)
     {

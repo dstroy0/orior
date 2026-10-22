@@ -5,10 +5,12 @@
 #ifndef PYTHON_PATHS_INTERNAL_H
 #define PYTHON_PATHS_INTERNAL_H
 
+#include "../command_line/cells.h"
 #include "python_paths.h"
 
 // the most expressions, list items, letters of one expression, bytes of texts, values and names one script's reading
-// holds; no expression; and the most values a pairing of two lists gives
+// holds; no expression; and the most values a pairing of two lists gives. A reading's own most of each is sized to
+// its script within these
 #define CLI_PY_EXPRS 16384u
 #define CLI_PY_ITEMS 16384u
 #define CLI_PY_LETTERS (1u << 20u)
@@ -62,32 +64,51 @@ typedef struct
 
 // One script's reading: its expressions, the items of their lists and the items of lists being read, the letters of
 // the expression being read and where the reading stands, the texts, the values, the lists being joined into one, the
-// names set, the script's path, and what it puts on `sys.path`, as places in the texts
+// names set, the script's path, and what it puts on `sys.path`, as places in the texts. Its lists are one cell taken
+// for the script, each sized to it: `exprs_most` expressions, `items_most` items, stacked items and ranges,
+// `letters_most` letters and `text_most` bytes of texts, and CLI_PY_VALUES values and found
 typedef struct
 {
-    CliExpr expr[CLI_PY_EXPRS];
+    CliExpr *expr;
     unsigned int exprs;
-    unsigned int item[CLI_PY_ITEMS];
+    unsigned int exprs_most;
+    unsigned int *item;
     unsigned int items;
-    unsigned int stack[CLI_PY_ITEMS];
+    unsigned int items_most;
+    unsigned int *stack;
     unsigned int stacked;
-    unsigned int letter[CLI_PY_LETTERS];
+    unsigned int *letter;
     unsigned int letters;
+    unsigned int letters_most;
     unsigned int at;
-    char text[CLI_PY_TEXT];
+    char *text;
     unsigned int used;
-    unsigned int value[CLI_PY_VALUES];
+    unsigned int text_most;
+    unsigned int *value;
     unsigned int values;
-    CliValues range[CLI_PY_ITEMS];
+    CliValues *range;
     unsigned int ranged;
     CliPyName name[CLI_PY_NAMES];
     unsigned int names;
     char file[CLI_PATH_LONGEST];
-    unsigned int found[CLI_PY_VALUES];
+    unsigned int *found;
     unsigned int founds;
 } CliPy;
 
 extern CliPy g_cli_py;
+
+// the cells a script's reading is held in (python_paths.c)
+extern CliCellsTally g_cli_python_cells;
+
+// the reading of a script of `size` bytes begun empty in a cell sized to it, the reading before given back: 1, or 0
+// where the cell is refused and the reading holds nothing; and the reading's cell given back once what it found is
+// read (python_paths.c)
+int cli_py_reading_taken(unsigned long long size);
+void cli_py_reading_given(void);
+// the logical lines of a script read into the reading's cell: `text_most` bytes of their text at `text`, and the start
+// and length of `lines_most` lines at `start` and `length`, none read yet (python_paths.c)
+void cli_py_lines_placed(char *text, unsigned int text_most, unsigned int *start, unsigned int *length,
+                         unsigned int lines_most);
 
 // `length` bytes of `text` put in the texts, a 0 after them: their place, or CLI_PY_NONE where they do not fit; the
 // text at a place; and the expression `length` bytes of `text` say, read whole: its place, or CLI_PY_NONE where it
@@ -109,8 +130,9 @@ CliValues cli_py_upward(const char *path);
 // the folder that holds `path`, as `os.path.dirname` gives it, written into `out` (python_paths_eval.c)
 void cli_py_parent(const char *path, CliLine *out);
 
-// what the script at `file`, `size` bytes of `text`, puts on `sys.path`, as it may write them, read into the found
-// (python_paths.c)
+// what the script at `file`, `size` bytes of `text`, puts on `sys.path`, as it may write them, read into the found,
+// the reading taken for it and given back with cli_py_reading_given once the found are read; none found where its
+// cell is refused (python_paths.c)
 void cli_py_paths_in(const char *file, const char *text, unsigned long long size);
 
 #endif

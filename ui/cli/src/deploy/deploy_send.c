@@ -157,7 +157,7 @@ static int send_carried(unsigned int index, const char *into, const CliDeployPai
         cli_line_character(&line, ' ');
         cli_link_quote(to, to_line.at, &line);
     }
-    return send_line_asked(place, &pieces, &line, "the line that copies the files kept is longer than orior runs",
+    return send_line_asked(place, &pieces, &line, "the line that copies the files kept is longer than orior_cli runs",
                            said);
 }
 
@@ -203,7 +203,7 @@ int cli_deploy_send_to(unsigned int index, int releases, const char *release, un
     cli_link_quote(into, into_line.at, &command);
     cli_line_closed(&command);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(tar, &size);
+    const unsigned char *const bytes = cli_file_held(tar, &size);
     CliLine none = {NULL, 0ull, 0ull};
     const int sent = (bytes != NULL) && cli_deploy_ask(place, line, (const char *)bytes, size, &none, said);
     if (bytes == NULL)
@@ -213,7 +213,7 @@ int cli_deploy_send_to(unsigned int index, int releases, const char *release, un
     }
     else
     {
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
     (void)query_removed(tar);
     return sent && (!releases || send_carried(index, into, kept, kept_count, remove, said));
@@ -254,7 +254,7 @@ static int send_releases(unsigned int index, const char **current, CliLine *said
     }
     if (s_releases_said == NULL)
     {
-        cli_line_text(said, "it holds more files than orior holds");
+        cli_line_text(said, "it holds more files than orior_cli holds");
         return 0;
     }
     static const char s_mark[] = "<current>";
@@ -274,7 +274,7 @@ static int send_releases(unsigned int index, const char **current, CliLine *said
     if (s_releases == NULL)
     {
         send_releases_given();
-        cli_line_text(said, "it holds more files than orior holds");
+        cli_line_text(said, "it holds more files than orior_cli holds");
         return 0;
     }
     for (char *at = s_releases_said; (*at != '\0') && (s_release_count < lines);)
@@ -492,7 +492,7 @@ int cli_deploy_removed(unsigned int index, CliLine *said)
             cli_link_quote(gone[at].path, cellul.len(&(CatenaFinitaCfg){.src = gone[at].path, .cap = CLI_CELLS_POOL}),
                            &line);
         }
-        if (!send_line_asked(place, &pieces, &line, "the line that deletes the files gone is longer than orior runs",
+        if (!send_line_asked(place, &pieces, &line, "the line that deletes the files gone is longer than orior_cli runs",
                              said))
         {
             return 0;

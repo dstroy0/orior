@@ -40,7 +40,7 @@ static OmegaFate omega_fate_of(const char *code, unsigned int steps, unsigned in
 }
 
 // the bits of a mass scaled by 2^64
-static void omega_bits(ScripturaLine *line, const AnchorExactInteger *value, unsigned int bits)
+static void omega_bits(ScripturaLine *line, const OriorExactInteger *value, unsigned int bits)
 {
     scriptura_text(line, "0.");
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
@@ -51,16 +51,16 @@ static void omega_bits(ScripturaLine *line, const AnchorExactInteger *value, uns
 }
 
 // the mass sum of count[n] 2^-n scaled by 2^64, exactly
-static void omega_dyadic(AnchorExactInteger *value, const unsigned long long *count, unsigned int length)
+static void omega_dyadic(OriorExactInteger *value, const unsigned long long *count, unsigned int length)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     for (unsigned int bits = 2u; bits <= length; bits += 1u)
     {
-        AnchorExactInteger part;
-        AnchorExactInteger scale;
+        OriorExactInteger part;
+        OriorExactInteger scale;
         sim_exact_unsigned(&part, count[bits]);
         sim_exact_unsigned(&scale, 1ull << (64u - bits));
-        AnchorExactInteger product;
+        OriorExactInteger product;
         (void)sim_exact_product(&part, &scale, &product);
         (void)sim_exact_sum(value, &product, value);
     }
@@ -215,7 +215,7 @@ int main(int argc, char **argv)
     {
         // every term the engine settled through 24 bits, run again by omega_run with steps enough to reach the step
         // the engine settled it at and no token budget: the same fate, and for a halt the same step and the same
-        // normal form. A loop is held to its fate alone, and a term that grew, by the growth proof or parked as
+        // normal form. A loop is limited to its fate alone, and a term that grew, by the growth proof or parked as
         // outgrown, is not run again
         std::atomic<int> every(1);
         omega_engine_threads(crossed.size(), workers, [&crossed, &every](size_t first, size_t last) {
@@ -278,12 +278,12 @@ int main(int argc, char **argv)
     }
     sim_check(&results, normal_within, "the normal form mass is within the closed mass at every length");
 
-    AnchorExactInteger lower;
-    AnchorExactInteger open;
-    AnchorExactInteger upper;
-    AnchorExactInteger tail;
-    AnchorExactInteger four;
-    AnchorExactInteger programs;
+    OriorExactInteger lower;
+    OriorExactInteger open;
+    OriorExactInteger upper;
+    OriorExactInteger tail;
+    OriorExactInteger four;
+    OriorExactInteger programs;
     // a halt is a normal form reached or a type found
     std::vector<unsigned long long> halted(counts.length + 1u, 0ull);
     std::vector<unsigned long long> unsettled(counts.length + 1u, 0ull);
@@ -309,11 +309,11 @@ int main(int argc, char **argv)
     (void)sim_exact_sum(&lower, &open, &upper);
     (void)sim_exact_sum(&upper, &tail, &upper);
     // the normal forms past L halt unrun
-    AnchorExactInteger normal;
+    OriorExactInteger normal;
     sim_exact_unsigned(&normal, normal_end);
     (void)sim_exact_product(&normal, &four, &normal);
     (void)sim_exact_sum(&lower, &normal, &lower);
-    sim_check(&results, (lower.sign > 0) && (anchor_exact_compare(&lower, &upper) < 0),
+    sim_check(&results, (lower.sign > 0) && (orior_exact_compare(&lower, &upper) < 0),
               "the bracket is proper: 0 < lower < upper");
 
     unsigned int shared = 0u;

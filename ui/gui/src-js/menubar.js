@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The menu bar, as commands.json lists it: the list the command line reads too, so that each item
-// here is `orior <menu> <command>` there. What each command does in the window is COMMANDS below,
+// here is `orior_gui <menu> <command>` there. What each command does in the window is COMMANDS below,
 // what it needs before it can act is NEEDS, whether an item that is on or off is on is CHECKS, and
 // the keys an item lists are bound here as well, with its `also`, a second key that does the same. A
 // key the editor or the terminal takes first stays theirs, and the keys of a command for the editor
@@ -66,7 +66,7 @@ import { buttonName, keysOf as commandKeys, letterOf, onKeys, wheelName } from "
 import { gatherLines, toggleBoard } from "./gather.js";
 import { peekHere } from "./peek.js";
 import { printHere } from "./prints.js";
-import { findSlowPlugin } from "./scripts.js";
+import { findSlowPlugin, pluginCommandRows } from "./scripts.js";
 import { previewMode, setPreview } from "./preview.js";
 import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
 import { databaseCommands, runSqlFile, runStatement, toggleDatabase } from "./database.js";
@@ -1295,6 +1295,7 @@ function paletteCommands() {
       found.push({ key: `Macros/${one.name}`, menu: "Macros", label: one.name, keys: one.keys || undefined, run: () => playBack(1, one.name) });
     }
   }
+  found.push(...pluginCommandRows());
   return found;
 }
 

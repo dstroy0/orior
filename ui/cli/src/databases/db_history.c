@@ -7,7 +7,7 @@
 #include "db_internal.h"
 #include "sql.h"
 
-// the connection's history file into `path`, which holds CLI_PATH_LONGEST, its folder made: 1, or 0 where orior has
+// the connection's history file into `path`, which holds CLI_PATH_LONGEST, its folder made: 1, or 0 where orior_cli has
 // no home folder
 static int history_file(const CliDbOpen *open, char *path)
 {
@@ -64,7 +64,7 @@ void cli_db_remembered(CliDbOpen *open, const char *statement, unsigned long lon
     cli_line_text(&entry, "}\n");
     // the history's newest lines but one kept, then the entry after them
     unsigned long long held_size = 0ull;
-    const unsigned char *const held = qry_member_file_mapped(path, &held_size);
+    const unsigned char *const held = cli_file_held(path, &held_size);
     // each newline before the last line's end starts one more line kept, counted back from the end
     unsigned long long start = 0ull;
     unsigned long long end =
@@ -93,7 +93,7 @@ void cli_db_remembered(CliDbOpen *open, const char *statement, unsigned long lon
     }
     if (held != NULL)
     {
-        qry_member_file_unmapped(held, held_size);
+        cli_file_let_go(held, held_size);
     }
     written = written && cli_file_appended(next, entry.out, entry.at, 0);
     if (written)
@@ -107,7 +107,7 @@ void cli_db_history(CliDbOpen *open, CliLine *out)
 {
     char path[CLI_PATH_LONGEST];
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = history_file(open, path) ? qry_member_file_mapped(path, &size) : NULL;
+    const unsigned char *const bytes = history_file(open, path) ? cli_file_held(path, &size) : NULL;
     cli_line_character(out, '[');
     unsigned int written = 0u;
     // the lines from the last back, each that reads as JSON
@@ -129,7 +129,7 @@ void cli_db_history(CliDbOpen *open, CliLine *out)
     }
     if (bytes != NULL)
     {
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
     cli_line_character(out, ']');
 }

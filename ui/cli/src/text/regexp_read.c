@@ -3,6 +3,7 @@
 // regexp_read.c: a pattern read into nodes: alternation, sequence, quantifiers, escapes, classes and atoms, as
 // JavaScript's syntax writes them; and each alternation's first characters and each repeat's one way filled in once
 // the pattern is read
+#include "regexp_match_internal.h"
 #include "regexp_read_internal.h"
 
 unsigned long long cli_regexp_letters(const char *text, unsigned long long size, unsigned int *letters,
@@ -247,6 +248,43 @@ unsigned int cli_alternation(CliRegexpReader *reader)
 
 // Each alternative of every alternation given its first characters, a place whose character none of them can start
 // with passed over; each repeat whether a pass takes the text one way or none
+// the ASCII letters each one-letter node takes, as bits, so the matcher tests a letter below 128 in one step
+static void cli_ascii_known(CliRegexp *regexp)
+{
+    for (unsigned int index = 0u; index < regexp->nodes; index += 1u)
+    {
+        CliRegexpNode *const node = &regexp->node[index];
+        if ((node->kind != CLI_REGEXP_CHAR) && (node->kind != CLI_REGEXP_ANY) && (node->kind != CLI_REGEXP_CLASS))
+        {
+            continue;
+        }
+        node->ascii[0] = 0ull;
+        node->ascii[1] = 0ull;
+        node->ascii_known = 0;
+        for (unsigned int letter = 0u; letter < 128u; letter += 1u)
+        {
+            node->ascii[letter / 64u] |= (cli_regexp_one(regexp, index, letter) == 1) ? (1ull << (letter % 64u)) : 0ull;
+        }
+        node->ascii_known = 1;
+    }
+}
+
+// whether a match of the node must start at the text's first letter: the node is ^, or a group or sequence that
+// starts with one
+static int cli_anchored(const CliRegexp *regexp, unsigned int index)
+{
+    const CliRegexpNode *const node = &regexp->node[index];
+    if (node->kind == CLI_REGEXP_START)
+    {
+        return 1;
+    }
+    if (node->kind == CLI_REGEXP_GROUP)
+    {
+        return cli_anchored(regexp, node->child);
+    }
+    return (node->kind == CLI_REGEXP_CONCAT) && (node->count > 0u) && cli_anchored(regexp, regexp->part[node->first]);
+}
+
 static void cli_filled(CliRegexp *regexp, unsigned int index)
 {
     CliRegexpNode *const node = &regexp->node[index];
@@ -308,5 +346,7 @@ int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, Cl
     regexp->groups = s_reader.groups;
     cli_filled(regexp, root);
     regexp->first = cli_regexp_first_of(regexp, root);
+    cli_ascii_known(regexp);
+    regexp->anchored = cli_anchored(regexp, root);
     return 1;
 }

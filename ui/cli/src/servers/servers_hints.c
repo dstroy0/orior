@@ -49,6 +49,22 @@ int cli_servers_capable_true(CliLsp *server, const char *name, const char *inner
     return capable;
 }
 
+int cli_servers_capable_command(CliLsp *server, const char *command)
+{
+    const unsigned int member = hints_capability(server, "executeCommandProvider");
+    const unsigned int commands = cli_json_member(&s_capable, member, "commands");
+    int listed = 0;
+    for (unsigned int one = cli_json_is(&s_capable, commands, CFG_JSON_ARRAY) ? s_capable.node[commands].first
+                                                                              : CLI_JSON_NONE;
+         !listed && (one != CLI_JSON_NONE); one = s_capable.node[one].next)
+    {
+        const char *const name = cli_json_string(&s_capable, one, NULL);
+        listed = (name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = command, .cap = CLI_CELLS_POOL});
+    }
+    hints_capability_given();
+    return listed;
+}
+
 // the params of a request about the file `uri` begun, its object left open
 static void hints_params_begun(const char *uri, CliLine *params)
 {

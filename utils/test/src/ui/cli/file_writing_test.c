@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // file_writing_test.c: the command line's files written whole and sealed: a .gsm written in pieces holds its bytes and
 // has its seal beside it, whose root is the root of those bytes sealed again; a file of a kind ksg does not seal has
-// none; and a .gsm written again holds its new bytes, and its seal the new root
+// none; a .gsm written again holds its new bytes, and its seal the new root; and a growing line holds what it is given
+// in one run of bytes
 #include "../../../../../ui/cli/src/command_line/cli_internal.h"
 #include "cli_check.h"
 
 static char s_read[1u << 16u];
 static KsgSeal s_seal;
 
-// a leaf let go: the root alone is held here
+// a leaf let go: the root alone is kept here
 static int writing_leaf_let(void *context, const unsigned char *leaf, unsigned long long line)
 {
     (void)context;
@@ -51,6 +52,35 @@ static int writing_sealed(const char *path, const char *text)
                 &(MemoriaCfg){.src = s_read + size - KSG_SIGNUM_BYTES, .other = root, .bytes = KSG_SIGNUM_BYTES}) == 0);
 }
 
+// a growing line begun small holds all that is written in one run of bytes, takes back what it rewinds past, makes room
+// for a read of its own, and a fixed line makes none past what it holds
+static void writing_line_grown(void)
+{
+    CliLine line;
+    cli_check(cli_line_growing(&line, 16ull, "a growing line checked") && (line.capacity == 16ull),
+              "a growing line is begun in a cell of the bytes asked");
+    for (unsigned int at = 0u; at < 100u; at += 1u)
+    {
+        cli_line_text(&line, "0123456789");
+    }
+    int whole = cli_line_fits(&line) && (line.at == 1000ull) && (line.capacity >= 1001ull);
+    for (unsigned int at = 0u; whole && (at < 1000u); at += 1u)
+    {
+        whole = (line.out[at] == (char)('0' + (at % 10u)));
+    }
+    cli_check(whole, "a thousand bytes written to it are held in one run, in order");
+    line.at = 5ull;
+    cli_line_text(&line, "x");
+    cli_check(cli_line_fits(&line) && (line.at == 6ull) && (line.out[5] == 'x'), "a rewind writes over what it held");
+    cli_check(cli_line_room(&line, 5000ull) && ((line.capacity - line.at) > 5000ull) && (line.out[5] == 'x'),
+              "room is made for five thousand bytes more, what it held kept");
+    cli_cell_given(line.out);
+    char fixed[8];
+    CliLine held = {fixed, sizeof(fixed), 0ull};
+    cli_check(cli_line_room(&held, 7ull) && !cli_line_room(&held, 8ull),
+              "a fixed line has room for what fits before its terminator and no more");
+}
+
 int main(void)
 {
     char root[CLI_PATH_LONGEST];
@@ -78,5 +108,6 @@ int main(void)
                   !ksg_kind_sealed("x.kpk") && !ksg_kind_sealed("x.c") && !ksg_kind_sealed("a.krs/b") &&
                   !ksg_kind_sealed("x.k") && !ksg_kind_sealed("x.KRS"),
               "the kinds sealed are .g, .gsm and the k-files, not a seal's own files or an approver's keys");
+    writing_line_grown();
     return cli_checked();
 }

@@ -11,7 +11,7 @@
 #include "../../../../../ui/cli/src/text/text.h"
 
 static char s_root[QUERY_PATH_LONGEST];
-static char s_found[QUERY_SOURCES_MOST][QUERY_PATH_LONGEST];
+static QueryPaths s_found;
 static char s_header[1u << 16u];
 
 // the number the interface's header defines under `name`, read off its `#define` line
@@ -51,7 +51,10 @@ static unsigned long long tools_interface_number(const char *name)
 static int tools_reaches(const char *pattern)
 {
     const char *const patterns[2] = {pattern, NULL};
-    return query_sources(s_root, patterns, s_found, 0u) > 0u;
+    query_paths_given(&s_found);
+    const int reached = query_sources(s_root, patterns, &s_found) > 0u;
+    query_paths_given(&s_found);
+    return reached;
 }
 
 // every pattern of every tool reaches a file of the tree
@@ -95,7 +98,8 @@ static void tools_objects(void)
         unsigned int tools = 0u;
         query_every_source(s_root, tool, &c, &cxx, &tools);
         unsigned int count = 0u;
-        char (*const lists[3])[QUERY_PATH_LONGEST] = {s_c_sources, s_cxx_sources, s_tool_sources};
+        char (*const lists[3])[QUERY_PATH_LONGEST] = {g_query_c_sources.path, g_query_cxx_sources.path,
+                                                      g_query_tool_sources.path};
         const unsigned int counts[3] = {c, cxx, tools};
         for (unsigned int list = 0u; list < 3u; list += 1u)
         {
@@ -116,6 +120,7 @@ static void tools_objects(void)
         }
         cli_check(tool_apart, tool->name);
         apart = apart && tool_apart;
+        query_every_source_given();
     }
     cli_check(apart, "no two sources of a tool share an object");
 }
@@ -123,21 +128,24 @@ static void tools_objects(void)
 // the file definitions are what every program links; and paths given the compilers are forward slashed
 static void tools_file_defs(void)
 {
-    const unsigned int count = query_sources(s_root, g_query_file_defs, s_found, 0u);
+    const unsigned int count = query_sources(s_root, g_query_file_defs, &s_found);
     int kfile_lines = 0;
     int kdm = 0;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_found[at], .cap = CLI_CELLS_POOL});
+        const char *const found = s_found.path[at];
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL});
         kfile_lines =
-            kfile_lines || ((length >= 14ull) &&
-                            (cellul.eq(&(CatenaFinitaCfg){
-                                .src = s_found[at] + length - 14u, .other = "/kfile_lines.c", .cap = CLI_CELLS_POOL})));
+            kfile_lines ||
+            ((length >= 14ull) && (cellul.eq(&(CatenaFinitaCfg){
+                                      .src = found + length - 14u, .other = "/kfile_lines.c", .cap = CLI_CELLS_POOL})));
         kdm = kdm ||
-              ((length >= 6ull) && (cellul.eq(&(CatenaFinitaCfg){
-                                       .src = s_found[at] + length - 6u, .other = "/kdm.c", .cap = CLI_CELLS_POOL})));
+              ((length >= 6ull) &&
+               (cellul.eq(&(CatenaFinitaCfg){.src = found + length - 6u, .other = "/kdm.c", .cap = CLI_CELLS_POOL})));
     }
-    cli_check(kfile_lines && kdm && (count > 10u), "the file definitions are what every program links");
+    cli_check(kfile_lines && kdm && (count > 10u) && (s_found.room <= (2u * count) + QUERY_PATHS_FIRST),
+              "the file definitions are what every program links, listed in a room that grew to them");
+    query_paths_given(&s_found);
     char source[QUERY_PATH_LONGEST];
     char objects[QUERY_PATH_LONGEST];
     char object[QUERY_PATH_LONGEST];
@@ -159,9 +167,9 @@ static void tools_stale(void)
     cli_full(s_root, "build/query_test/stale", out);
     (void)query_removed(out);
     (void)query_folder_made(out);
-    query_binary_name("qry_writer", name, sizeof(name));
+    query_binary_name("orior_qry_writer", name, sizeof(name));
     cli_full(out, name, binary);
-    const QueryTool *const tool = query_tool_named("qry_writer");
+    const QueryTool *const tool = query_tool_named("orior_qry_writer");
     cli_check((tool != NULL) && query_stale(s_root, tool, binary), "a missing binary is stale");
     (void)query_file_written(binary, "", 0ull);
     cli_check((tool != NULL) && !query_stale(s_root, tool, binary), "a binary newer than every source stands");
@@ -203,14 +211,14 @@ static void tools_built(void)
     const QueryPrograms none = {tools_none, tools_no_path, NULL};
     cli_full(s_root, "build/query_test/noc", out);
     (void)query_removed(out);
-    cli_check(!query_tool_built_into(s_root, &none, "sass_listing_seeds", out, binary, sizeof(binary), &said) &&
+    cli_check(!query_tool_built_into(s_root, &none, "orior_sass_listing_seeds", out, binary, sizeof(binary), &said) &&
                   (cli_line_closed(&said) != 0ull) &&
                   (cellul.starts(
                       &(CatenaFinitaCfg){.src = why, .other = "the C compiler is not found", .cap = CLI_CELLS_POOL})),
               "a missing compiler is said before any build");
     char name[QUERY_PATH_LONGEST];
     char path[QUERY_PATH_LONGEST];
-    query_binary_name("sass_listing_seeds", name, sizeof(name));
+    query_binary_name("orior_sass_listing_seeds", name, sizeof(name));
     cli_full(out, name, path);
     cli_check(!query_is_file(path), "and nothing is built");
     const QueryPrograms programs = query_on_path();
@@ -223,15 +231,15 @@ static void tools_built(void)
     }
     cli_full(s_root, "build/query_test/tools", out);
     said.at = 0ull;
-    cli_check(query_tool_built_into(s_root, &programs, "qry_writer", out, binary, sizeof(binary), &said),
+    cli_check(query_tool_built_into(s_root, &programs, "orior_qry_writer", out, binary, sizeof(binary), &said),
               "the writer builds");
     const char *const words[2] = {binary, NULL};
     CliRan *const ran = cli_ran_taken();
     said.at = 0ull;
     cli_check(cli_ran(words, NULL, NULL, 0u, ran, &said) && (ran->code == 2ll),
-              "qry_writer with no words says its usage and exits 2");
+              "orior_qry_writer with no words says its usage and exits 2");
     cli_ran_given(ran);
-    const QueryTool *const tool = query_tool_named("qry_writer");
+    const QueryTool *const tool = query_tool_named("orior_qry_writer");
     cli_check((tool != NULL) && !query_stale(s_root, tool, binary), "built, it stands");
 }
 

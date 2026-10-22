@@ -180,7 +180,7 @@ int cli_toolchains_add_to_path(const char *what, char *folder, CliLine *said)
         if (!found.has_program)
         {
             cli_line_text(said, (name != NULL) ? name : what);
-            cli_line_text(said, " is not found: install it or give orior its folder first");
+            cli_line_text(said, " is not found: install it or give orior_cli its folder first");
             cli_toolchains_find_released(&json);
             return 0;
         }

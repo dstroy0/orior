@@ -3,7 +3,7 @@
 Extraction of That moon has risen: The semantics of nɬeʔkepmxcín nominal demonstratives by Reed
 Steiner and Lisa Matthewson, University of British Columbia, ICSNL 61.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -43,7 +43,7 @@ glyph positions, read with pypdfium2, show none, and keeps the widths of the col
 cells of an example. The trees of (44) and (50) are drawn as pictures and have no text layer; their
 content is written out in a symbol note each, read at 110 and 150 dpi.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 1325
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 24281 distinct tokens in the paper, 0 language tokens are held by no row.

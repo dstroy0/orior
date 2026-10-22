@@ -11,9 +11,9 @@
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  * @date 2026-09-17
  *
- * WHAT THIS PROVES. A single descent places at most ANCHOR_STEER_ANCHORS probes and resets its
+ * WHAT THIS PROVES. A single descent places at most ORIOR_STEER_ANCHORS probes and resets its
  * survivor vector to all standing on entry. That caps one descent at four conditions. The resume
- * member of AnchorSteerDescent lifts the cap by composition: run a descent, then run the next over
+ * member of OriorSteerDescent lifts the cap by composition: run a descent, then run the next over
  * the survivors the last one left. Each level reads only what its parent kept standing and the
  * depth is data-dependent and unbounded. This suite drives that composition and grades it against the
  * controls a recursive search needs.
@@ -44,7 +44,7 @@
  *   nothing.
  *
  * @note No double, no float, nothing outside the C11 standard headers below. The composition is a
- *       plain loop over anchor_steer_spawn_coarms with resume set after the first call.
+ *       plain loop over orior_steer_spawn_coarms with resume set after the first call.
  */
 
 #include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
@@ -113,7 +113,7 @@ static size_t o2_compose(const uint8_t *const corpus, const uint8_t *const needl
         // What this level reads: every alignment on the first, its parent's survivors after that.
         const size_t standing = alive;
         size_t offset = 0u;
-        const size_t placed = ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = &offset,
+        const size_t placed = ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = &offset,
                                                 .count = 1u, .corpus = corpus, .corpus_len = O2_CORPUS,
                                                 .needle = needle, .needle_len = O2_NEEDLE, .survivors = survivors,
                                                 .survivors_length = alignments, .sample_stride = 1u, .resume = resume);
@@ -150,7 +150,7 @@ static void o2_fill(uint8_t *const corpus, const uint32_t alphabet, uint64_t *co
 /**
  * @brief Case 1. A unique target is found by composing past one descent's cap, then verified.
  *
- * @return 0 where the composition isolates the planted target at a depth above ANCHOR_STEER_ANCHORS
+ * @return 0 where the composition isolates the planted target at a depth above ORIOR_STEER_ANCHORS
  *         and the full compare confirms it, 1 otherwise.
  */
 static int o2_case_found_past_cap(void)
@@ -204,9 +204,9 @@ static int o2_case_found_past_cap(void)
         printf("    FAIL the composition left %zu standing, not the single target\n", left);
         failed = 1;
     }
-    if (depth <= ANCHOR_STEER_ANCHORS)
+    if (depth <= ORIOR_STEER_ANCHORS)
     {
-        printf("    FAIL depth %zu did not exceed one descent's cap of %u\n", depth, ANCHOR_STEER_ANCHORS);
+        printf("    FAIL depth %zu did not exceed one descent's cap of %u\n", depth, ORIOR_STEER_ANCHORS);
         failed = 1;
     }
 

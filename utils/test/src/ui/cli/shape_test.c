@@ -4,7 +4,7 @@
 // back, a name placeholder takes one name and one named twice takes the same both times, statements and layout match
 // in JavaScript past spaces and comments, and an expression last in a pattern takes the rest of its statement while
 // strings are one token
-#include "../../../../../ui/cli/src/code/shape.h"
+#include "../../../../../ui/cli/src/code/shape_internal.h"
 #include "../../../../../ui/cli/src/text/edits.h"
 #include "cli_check.h"
 
@@ -80,5 +80,9 @@ int main(void)
     shape_replaced("python", s_total, "total = $v$", "total = ($v$)", "total = (a + b * c)\nname = \"a + b\"\n",
                    "an expression last in a pattern takes the rest of its statement");
     cli_check(shape_search("python", s_total, "a + b", NULL) == 1u, "and a string is one token");
+    // a search of texts of a hundred bytes holds a room of their tokens, far below a fixed room of 2^22
+    cli_check((g_cli_shape_cells.holds == 0ull) && (g_cli_shape_cells.hw != 0ull) &&
+                  (g_cli_shape_cells.hw < (1ull << 16u)),
+              "a search's room is sized to its code and pattern, and given back");
     return cli_checked();
 }

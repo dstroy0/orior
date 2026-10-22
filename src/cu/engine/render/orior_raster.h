@@ -6,7 +6,7 @@
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
- * @file anchor_raster.h
+ * @file orior_raster.h
  * @brief Rasterizes the object under examination directly from engine state, on host or device.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
@@ -21,7 +21,7 @@
  *
  * WHAT A PIXEL CARRIES. The level at which an alignment died. Zero means the first probe rejected
  * it, one means the second did, and so on. An alignment that passed every probe carries the probe
- * count, and one that also matched under the full compare carries ANCHOR_RASTER_MATCH. Brighter is
+ * count, and one that also matched under the full compare carries ORIOR_RASTER_MATCH. Brighter is
  * later. A bright pixel is an alignment the probe set could not cheaply refute.
  *
  * HOST AND DEVICE PRODUCE THE SAME BYTES. That is the contract, and it is gradeable and not
@@ -36,8 +36,8 @@
  * @note No float anywhere. Positions map through integer division and values are counts.
  * @note Writes Netpbm P5, which needs no library and no encoder.
  */
-#ifndef ANCHOR_RASTER_H
-#define ANCHOR_RASTER_H
+#ifndef ORIOR_RASTER_H
+#define ORIOR_RASTER_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -49,10 +49,10 @@ extern "C"
 #endif
 
 /** @brief Value a pixel carries when its alignment passed every probe and matched. */
-#define ANCHOR_RASTER_MATCH 255u
+#define ORIOR_RASTER_MATCH 255u
 
 /** @brief Value a pixel carries when no alignment mapped to it. */
-#define ANCHOR_RASTER_EMPTY 0u
+#define ORIOR_RASTER_EMPTY 0u
 
     /**
      * @brief How an alignment index becomes a pixel position.
@@ -66,12 +66,12 @@ extern "C"
      */
     typedef enum
     {
-        ANCHOR_LAYOUT_ROWS = 0,       /**< Row major. Corpus order runs left to right, top to bottom. */
-        ANCHOR_LAYOUT_SERPENTINE = 1, /**< Row major with odd rows reversed. Neighbors stay adjacent
+        ORIOR_LAYOUT_ROWS = 0,       /**< Row major. Corpus order runs left to right, top to bottom. */
+        ORIOR_LAYOUT_SERPENTINE = 1, /**< Row major with odd rows reversed. Neighbors stay adjacent
                                        *   across a row boundary. */
-        ANCHOR_LAYOUT_COLUMNS = 2,    /**< Column major. A period near the width stands up as a stripe. */
-        ANCHOR_LAYOUT_DIAGONAL = 3    /**< Diagonal striping, which breaks up both axis alignments. */
-    } AnchorRasterLayout;
+        ORIOR_LAYOUT_COLUMNS = 2,    /**< Column major. A period near the width stands up as a stripe. */
+        ORIOR_LAYOUT_DIAGONAL = 3    /**< Diagonal striping, which breaks up both axis alignments. */
+    } OriorRasterLayout;
 
     /**
      * @brief What quantity a pixel carries.
@@ -82,19 +82,19 @@ extern "C"
      */
     typedef enum
     {
-        ANCHOR_CHANNEL_DEATH_LEVEL = 0, /**< Probe index that rejected the alignment. Brighter is later. */
-        ANCHOR_CHANNEL_SURVIVED = 1,    /**< Binary. Bright where every probe agreed, dark otherwise. */
-        ANCHOR_CHANNEL_RARITY = 2,      /**< Rarity rank of the corpus byte at the alignment, from the
+        ORIOR_CHANNEL_DEATH_LEVEL = 0, /**< Probe index that rejected the alignment. Brighter is later. */
+        ORIOR_CHANNEL_SURVIVED = 1,    /**< Binary. Bright where every probe agreed, dark otherwise. */
+        ORIOR_CHANNEL_RARITY = 2,      /**< Rarity rank of the corpus byte at the alignment, from the
                                          *   census the engine steers by. */
-        ANCHOR_CHANNEL_BYTE = 3,        /**< The corpus byte itself, which renders the object raw. */
-        ANCHOR_CHANNEL_PROVEN = 4       /**< Two valued. Proven to hold no occurrence, or undetermined. */
-    } AnchorRasterChannel;
+        ORIOR_CHANNEL_BYTE = 3,        /**< The corpus byte itself, which renders the object raw. */
+        ORIOR_CHANNEL_PROVEN = 4       /**< Two valued. Proven to hold no occurrence, or undetermined. */
+    } OriorRasterChannel;
 
 /** @brief Pixel value for a cell proven to contain no occurrence. */
-#define ANCHOR_RASTER_PROVEN 200u
+#define ORIOR_RASTER_PROVEN 200u
 
 /** @brief Pixel value for a cell holding at least one alignment the probes could not refute. */
-#define ANCHOR_RASTER_UNDETERMINED 60u
+#define ORIOR_RASTER_UNDETERMINED 60u
 
     /**
      * @brief How pixels resolve when several alignments map to one cell.
@@ -106,9 +106,9 @@ extern "C"
      */
     typedef enum
     {
-        ANCHOR_REDUCE_MIN = 0, /**< Darkest wins. Earliest rejection dominates. */
-        ANCHOR_REDUCE_MAX = 1  /**< Brightest wins. Surviving alignments dominate. */
-    } AnchorRasterReduce;
+        ORIOR_REDUCE_MIN = 0, /**< Darkest wins. Earliest rejection dominates. */
+        ORIOR_REDUCE_MAX = 1  /**< Brightest wins. Surviving alignments dominate. */
+    } OriorRasterReduce;
 
     /**
      * @brief The whole input configuration for a render.
@@ -121,15 +121,15 @@ extern "C"
     {
         size_t width;                /**< Pixels across. Non-zero. */
         size_t height;               /**< Pixel rows. Non-zero. */
-        AnchorRasterLayout layout;   /**< How an alignment index becomes a pixel position. */
-        AnchorRasterChannel channel; /**< What quantity a pixel carries. */
-        AnchorRasterReduce reduce;   /**< How collisions resolve. */
+        OriorRasterLayout layout;   /**< How an alignment index becomes a pixel position. */
+        OriorRasterChannel channel; /**< What quantity a pixel carries. */
+        OriorRasterReduce reduce;   /**< How collisions resolve. */
         uint8_t gain;                /**< Multiplier on a death level before it reaches the ramp. Zero
                                       *   is treated as one. A zeroed configuration still renders. */
-    } AnchorRasterConfig;
+    } OriorRasterConfig;
 
 /** @brief Number of layouts, for a caller sweeping every one. */
-#define ANCHOR_RASTER_LAYOUTS 4u
+#define ORIOR_RASTER_LAYOUTS 4u
 
 /**
  * @brief Number of channels, for a caller sweeping every one.
@@ -141,7 +141,7 @@ extern "C"
  *
  * Three properties follow and each one is load bearing. It reduces as a conjunction, a cell being
  * proven only when every alignment under it was refuted, and conjunction is associative and
- * commutative. It rides ANCHOR_REDUCE_MIN and needs no new reduction rule. It is monotone under
+ * commutative. It rides ORIOR_REDUCE_MIN and needs no new reduction rule. It is monotone under
  * refinement, since adding a probe only removes survivors. A render never retracts a claim it
  * made earlier. And it inherits the anytime property of the planner: stop the descent anywhere,
  * render, and every proven pixel is still proven.
@@ -150,17 +150,17 @@ extern "C"
  * is a fact about the plan. A proof taken from a half-built plan is a fact about the OBJECT.
  *
  * @warning Brightness is not presence anywhere in this renderer, and here least of all.
- *          ANCHOR_RASTER_PROVEN is brighter than ANCHOR_RASTER_UNDETERMINED and means the opposite
- *          of an occurrence. ANCHOR_RASTER_MATCH is the only value entitled to assert one.
+ *          ORIOR_RASTER_PROVEN is brighter than ORIOR_RASTER_UNDETERMINED and means the opposite
+ *          of an occurrence. ORIOR_RASTER_MATCH is the only value entitled to assert one.
  */
-#define ANCHOR_RASTER_CHANNELS 5u
+#define ORIOR_RASTER_CHANNELS 5u
 
     /**
-     * @brief One probe as the rasterizer needs it, matching AnchorProbe in orior.h.
+     * @brief One probe as the rasterizer needs it, matching OriorProbe in orior.h.
      *
      * @note Declared here instead of including the engine header so the device translation unit
      *       compiles without pulling in the limb library it does not use. The two layouts are identical
-     *       and anchor_raster_*.c asserts that at compile time.
+     *       and orior_raster_*.c asserts that at compile time.
      * @note Declared above the volume surface below, which names this type in a signature. A structure
      *       cannot name a type the compiler has not seen, and the order of this header holds that.
      */
@@ -169,14 +169,14 @@ extern "C"
         size_t origin; /**< First position in the needle this probe reads. */
         size_t step;   /**< Distance between successive positions. */
         size_t length; /**< Positions read. */
-    } AnchorRasterProbe;
+    } OriorRasterProbe;
 
     /**
      * @brief How an alignment index becomes a voxel position.
      *
-     * SEPARATE FROM AnchorRasterLayout AND NOT AN EXTENSION OF IT. A raster layout is a bijection onto
+     * SEPARATE FROM OriorRasterLayout AND NOT AN EXTENSION OF IT. A raster layout is a bijection onto
      * a width by height sheet and a volume layout is a bijection onto a width by height by depth block.
-     * Widening the raster enum would change ANCHOR_RASTER_LAYOUTS, which every caller sweeping the
+     * Widening the raster enum would change ORIOR_RASTER_LAYOUTS, which every caller sweeping the
      * raster uses as its bound, and would hand those callers layouts needing a depth they do not carry.
      *
      * @note The channel, the reduce rule and the gain are unchanged and are not duplicated here. Each
@@ -189,25 +189,25 @@ extern "C"
      */
     typedef enum
     {
-        ANCHOR_VOLUME_SLABS = 0,   /**< Slab major. Fills a sheet, then the next sheet behind it. The
-                                    *   three dimensional reading of ANCHOR_LAYOUT_ROWS. */
-        ANCHOR_VOLUME_BOUSTRO = 1, /**< Slab major with every other row and every other slab reversed.
+        ORIOR_VOLUME_SLABS = 0,   /**< Slab major. Fills a sheet, then the next sheet behind it. The
+                                    *   three dimensional reading of ORIOR_LAYOUT_ROWS. */
+        ORIOR_VOLUME_BOUSTRO = 1, /**< Slab major with every other row and every other slab reversed.
                                     *   Consecutive alignments stay adjacent across both boundaries. */
-        ANCHOR_VOLUME_MORTON = 2,  /**< Morton order, interleaving the bits of x, y and z. Locality is
+        ORIOR_VOLUME_MORTON = 2,  /**< Morton order, interleaving the bits of x, y and z. Locality is
                                     *   preserved on all three axes at once. A linear index set needs
                                     *   that to read as a solid and not as stacked sheets.
                                     *   Requires the extents to be powers of two; a caller giving
                                     *   others gets an error and not a silent remap. */
-        ANCHOR_VOLUME_HELIX = 3    /**< Slab major with each slab's rows shifted by its depth index.
+        ORIOR_VOLUME_HELIX = 3    /**< Slab major with each slab's rows shifted by its depth index.
                                     *   A feature at a fixed corpus offset winds through the block
                                     *   instead of stacking. A shear and not a rotation: a true helix
                                     *   needs trigonometry, this renderer is integer throughout so the
                                     *   host and a device agree exactly, and a shear is the bijection
                                     *   that gives the same reading without leaving the integers. */
-    } AnchorVolumeLayout;
+    } OriorVolumeLayout;
 
 /** @brief Number of volume layouts, for a caller sweeping every one. */
-#define ANCHOR_VOLUME_LAYOUTS 4u
+#define ORIOR_VOLUME_LAYOUTS 4u
 
     /**
      * @brief The whole input configuration for a volume render.
@@ -223,11 +223,11 @@ extern "C"
         size_t width;                /**< Voxels across. Non-zero. */
         size_t height;               /**< Voxel rows. Non-zero. */
         size_t depth;                /**< Voxel slabs. Non-zero, and one errors and not flattened. */
-        AnchorVolumeLayout layout;   /**< How an alignment index becomes a voxel position. */
-        AnchorRasterChannel channel; /**< What quantity a voxel carries. Same set as the raster. */
-        AnchorRasterReduce reduce;   /**< How collisions resolve. Same set as the raster. */
+        OriorVolumeLayout layout;   /**< How an alignment index becomes a voxel position. */
+        OriorRasterChannel channel; /**< What quantity a voxel carries. Same set as the raster. */
+        OriorRasterReduce reduce;   /**< How collisions resolve. Same set as the raster. */
         uint8_t gain;                /**< Multiplier on a death level. Zero is treated as one. */
-    } AnchorVolumeConfig;
+    } OriorVolumeConfig;
 
     /**
      * @brief Voxel index an alignment lands on under a configuration's layout.
@@ -237,7 +237,7 @@ extern "C"
      * @return              Index into a width*height*depth block, or the block size where the
      *                      configuration is unusable, which a caller treats as "not placed".
      */
-    size_t anchor_volume_cell_for(const AnchorVolumeConfig *config, size_t alignment);
+    size_t orior_volume_cell_for(const OriorVolumeConfig *config, size_t alignment);
 
     /**
      * @brief Renders the object under examination into a volume, on the host.
@@ -251,7 +251,7 @@ extern "C"
      * @param[in]  probes     Probes in evaluation order [BORROWS].
      * @param[in]  probe_count How many probes.
      * @param[in]  census     RESERVED AND NOT READ TODAY [BORROWS]. This call builds its own census
-     *                        from `corpus` and uses that for ANCHOR_CHANNEL_RARITY whatever is passed
+     *                        from `corpus` and uses that for ORIOR_CHANNEL_RARITY whatever is passed
      *                        here. The parameter is the integration point for a caller supplied rarity
      *                        source, a reference distribution or a census taken over a sampled slice,
      *                        and it is kept and not removed for that reason. Passing NULL is
@@ -261,14 +261,14 @@ extern "C"
      *                        it.
      * @return                1 where the volume was written, 0 where the configuration errored.
      *
-     * @note THE HOST ARM. anchor_volume_render is the entry a caller should use: it prefers the device
-     *       and falls back here, the same way anchor_raster_render does for a sheet. This arm and
-     *       anchor_volume_device stay public because a grader has to call one specific arm and compare
+     * @note THE HOST ARM. orior_volume_render is the entry a caller should use: it prefers the device
+     *       and falls back here, the same way orior_raster_render does for a sheet. This arm and
+     *       orior_volume_device stay public because a grader has to call one specific arm and compare
      *       it against the other. That comparison is the only check on the device copy.
      */
-    int anchor_volume_render_host(uint8_t *voxels, const AnchorVolumeConfig *config, const uint8_t *corpus,
+    int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus,
                                   size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                                  const AnchorRasterProbe *probes, size_t probe_count, const void *census);
+                                  const OriorRasterProbe *probes, size_t probe_count, const void *census);
 
     /**
      * @brief Renders a volume on whichever arm this machine has, preferring the device.
@@ -281,39 +281,39 @@ extern "C"
      * @param[in]  needle_len How many.
      * @param[in]  probes     Probes in evaluation order [BORROWS].
      * @param[in]  probe_count How many probes.
-     * @param[in]  census     RESERVED AND NOT READ, as in anchor_volume_render_host [BORROWS].
+     * @param[in]  census     RESERVED AND NOT READ, as in orior_volume_render_host [BORROWS].
      * @return                1 on success, 0 where both arms errored.
      *
-     * THE ENTRY A CALLER SHOULD USE, matching anchor_raster_render for the sheet. Both arms produce the
+     * THE ENTRY A CALLER SHOULD USE, matching orior_raster_render for the sheet. Both arms produce the
      * same bytes. Choosing between them is a performance decision and never a correctness one. This
      * asks the device first and falls back to the host. A render happens if either arm can do it.
      */
-    int anchor_volume_render(uint8_t *voxels, const AnchorVolumeConfig *config, const uint8_t *corpus,
+    int orior_volume_render(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus,
                              size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                             const AnchorRasterProbe *probes, size_t probe_count, const void *census);
+                             const OriorRasterProbe *probes, size_t probe_count, const void *census);
 
     /**
      * @brief Renders the object under examination into a volume, on the device.
      *
      * @return 1 where the volume was written, 0 where an argument was rejected, the layout errored on the
      *         configuration, no device answered, or the device work failed. Produces the same bytes
-     *         anchor_volume_render_host produces for the same arguments, which bench_raster grades voxel
+     *         orior_volume_render_host produces for the same arguments, which bench_raster grades voxel
      *         for voxel. A difference is a defect in one of the two and never a tradeoff.
      * @note Always returns 0 in a build compiled without the device renderer. A caller written
      *       against both arms links and runs either way.
      */
-    int anchor_volume_device(uint8_t *voxels, const AnchorVolumeConfig *config, const uint8_t *corpus,
+    int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus,
                              size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                             const AnchorRasterProbe *probes, size_t probe_count, const void *census);
+                             const OriorRasterProbe *probes, size_t probe_count, const void *census);
 
     /**
      * @brief Whether a usable CUDA device is present for the device volume renderer.
      *
      * @return 1 where a device is present and this build carries the device volume renderer, 0
      *         otherwise. Always 0 in a build compiled without it. A caller written against both arms
-     *         links and runs either way, and asks this before calling anchor_volume_device.
+     *         links and runs either way, and asks this before calling orior_volume_device.
      */
-    int anchor_volume_device_available(void);
+    int orior_volume_device_available(void);
 
     /**
      * @brief Writes a volume as a raw byte block beside a text header naming its extents.
@@ -327,10 +327,10 @@ extern "C"
      *       instead of inventing a container. A generated file says it is generated and names its
      *       generator, which the sidecar does.
      */
-    int anchor_volume_write_raw(const char *path, const uint8_t *voxels, const AnchorVolumeConfig *config);
+    int orior_volume_write_raw(const char *path, const uint8_t *voxels, const OriorVolumeConfig *config);
 
     /** @brief Name of a volume layout, for a caller printing a row. Never null. */
-    const char *anchor_volume_layout_name(AnchorVolumeLayout layout);
+    const char *orior_volume_layout_name(OriorVolumeLayout layout);
 
     /**
      * @brief Rasterizes the object under examination on the host.
@@ -351,8 +351,8 @@ extern "C"
      * @note Rejects and writes nothing where a pointer is null, where `width` or `height` is zero,
      *       where `needle_len` is zero, or where `needle_len` exceeds `corpus_len`.
      */
-    int anchor_raster_host(uint8_t *pixels, const AnchorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
-                           const uint8_t *needle, size_t needle_len, const AnchorRasterProbe *probes,
+    int orior_raster_host(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
+                           const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes,
                            size_t probe_count);
 
     /**
@@ -365,7 +365,7 @@ extern "C"
      * @note Exposed because the device rasterizer calls the same function. That keeps one
      *       transform and not two that agree until somebody edits one.
      */
-    size_t anchor_raster_cell(const AnchorRasterConfig *config, size_t at, size_t alignments);
+    size_t orior_raster_cell(const OriorRasterConfig *config, size_t at, size_t alignments);
 
     /**
      * @brief Value one alignment contributes under a configuration's channel.
@@ -373,17 +373,17 @@ extern "C"
      * @param[in] occurrences Symbol counts over the object, 256 entries [BORROWS].
      * @param[in] total       Bytes counted into `occurrences`.
      * @return                The pixel value before reduction.
-     * @note Shared with the device for the same reason anchor_raster_cell is.
+     * @note Shared with the device for the same reason orior_raster_cell is.
      */
-    uint8_t anchor_raster_sample(const AnchorRasterConfig *config, const uint8_t *corpus, const uint8_t *needle,
-                                 size_t needle_len, const AnchorRasterProbe *probes, size_t probe_count, size_t at,
+    uint8_t orior_raster_sample(const OriorRasterConfig *config, const uint8_t *corpus, const uint8_t *needle,
+                                 size_t needle_len, const OriorRasterProbe *probes, size_t probe_count, size_t at,
                                  const uint64_t *occurrences, uint64_t total);
 
     /** @brief Name of a layout, for a caller printing a row. Never null. */
-    const char *anchor_raster_layout_name(AnchorRasterLayout layout);
+    const char *orior_raster_layout_name(OriorRasterLayout layout);
 
     /** @brief Name of a channel, for a caller printing a row. Never null. */
-    const char *anchor_raster_channel_name(AnchorRasterChannel channel);
+    const char *orior_raster_channel_name(OriorRasterChannel channel);
 
     /**
      * @brief Writes a raster as Netpbm P5 grayscale.
@@ -397,7 +397,7 @@ extern "C"
      * @note P5 because the format is a short text header and then the bytes. Nothing is encoded. A
      *       reader comparing two rasters is comparing the same bytes the rasterizer produced.
      */
-    int anchor_raster_write_pgm(const char *path, const uint8_t *pixels, size_t width, size_t height);
+    int orior_raster_write_pgm(const char *path, const uint8_t *pixels, size_t width, size_t height);
 
     /**
      * @brief Renders on whichever arm this machine has, preferring the device.
@@ -418,12 +418,12 @@ extern "C"
      *
      * @note Falls back instead of failing where the device errors. A render always happens if
      *       either arm can do it.
-     * @note anchor_raster_host and anchor_raster_device stay public because a grader has to be able to
+     * @note orior_raster_host and orior_raster_device stay public because a grader has to be able to
      *       call one specific arm and compare. A caller that does not care should not have to.
      */
-    int anchor_raster_render(uint8_t *pixels, const AnchorRasterConfig *config, const uint8_t *corpus,
+    int orior_raster_render(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus,
                              size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                             const AnchorRasterProbe *probes, size_t probe_count);
+                             const OriorRasterProbe *probes, size_t probe_count);
 
     /**
      * @brief Whether a usable CUDA device is present for the device rasterizer.
@@ -432,7 +432,7 @@ extern "C"
      * @note Always returns 0 in a build compiled without the device rasterizer. A caller written
      *       against both arms links and runs either way.
      */
-    int anchor_raster_device_available(void);
+    int orior_raster_device_available(void);
 
     /**
      * @brief Rasterizes the object under examination on the device.
@@ -448,17 +448,17 @@ extern "C"
      * @param[in]  probe_count How many probes.
      * @return                1 on success, 0 where no device is present or an argument is rejected.
      *
-     * @note Produces the same bytes anchor_raster_host produces for the same arguments. A difference is
+     * @note Produces the same bytes orior_raster_host produces for the same arguments. A difference is
      *       a defect in one of them, and bench_raster grades exactly that.
      * @note One thread per alignment, reducing into the raster with atomicMin. The minimum rule
      *       lets that reduction run in any order and still agree with the host.
      */
-    int anchor_raster_device(uint8_t *pixels, const AnchorRasterConfig *config, const uint8_t *corpus,
+    int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus,
                              size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                             const AnchorRasterProbe *probes, size_t probe_count);
+                             const OriorRasterProbe *probes, size_t probe_count);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ANCHOR_RASTER_H */
+#endif /* ORIOR_RASTER_H */

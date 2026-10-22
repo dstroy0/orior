@@ -3,7 +3,7 @@
 Extraction of Program, 59th Annual International Conference on Salish and Neighbouring Languages
 (ICSNL) by the ICSNL 59 organizers, UBC Okanagan and the En’owkin Centre, ICSNL 59.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -34,7 +34,7 @@ sets after a stacked mark is closed, except before an opening quote, then NFC. T
 space after each glottalized or marked letter of a name, k̓ ɬk̓ əmpíc̓ aʔ and lax̌ lax̌ tkʷ, which
 the repair closes; the glyph positions set each name with no gap inside it.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 148
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 1898
 distinct tokens in the paper, 0 language tokens are held by no row.

@@ -29,19 +29,19 @@
  *       over 2 pi, is still computed in arbitrary precision outside this type and read in as finished
  *       decimal text.
  * @note Multiplication climbs a ladder: long multiplication, then Karatsuba from
- *       ANCHOR_EXACT_KARATSUBA_LIMBS, then the Schonhage-Strassen transform from
- *       ANCHOR_EXACT_TRANSFORM_LIMBS. Division is Knuth's long division, then Newton's reciprocal on
- *       that ladder from ANCHOR_EXACT_NEWTON_LIMBS. Every rung is measured by
+ *       ORIOR_EXACT_KARATSUBA_LIMBS, then the Schonhage-Strassen transform from
+ *       ORIOR_EXACT_TRANSFORM_LIMBS. Division is Knuth's long division, then Newton's reciprocal on
+ *       that ladder from ORIOR_EXACT_NEWTON_LIMBS. Every rung is measured by
  *       utils/test/src/cu/includes/types/integers/exact_transform_test.sh and gives the product or
  *       quotient the rung below it gives.
- * @note A width-sized working copy sits on the stack up to ANCHOR_EXACT_STACK_LIMBS and is held
+ * @note A width-sized working copy sits on the stack up to ORIOR_EXACT_STACK_LIMBS and is held
  *       from the heap past it. No width is bounded by a stack. Where the heap cannot hold a
- *       copy, the call errors with ANCHOR_EXACT_WILL_NOT_FIT. A caller holding many integers at a
+ *       copy, the call errors with ORIOR_EXACT_WILL_NOT_FIT. A caller holding many integers at a
  *       wide width keeps them in static or allocated storage. A main thread stack defaults to 1 MiB
  *       under the MSVC linker and 8 MiB under a stock Linux.
  */
-#ifndef ANCHOR_EXACT_LIMBS_H
-#define ANCHOR_EXACT_LIMBS_H
+#ifndef ORIOR_EXACT_LIMBS_H
+#define ORIOR_EXACT_LIMBS_H
 
 #include "exact_integer_api.h"
 

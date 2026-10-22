@@ -21,9 +21,14 @@
 #include "../requests/requests.h"
 #include "plugins.h"
 
+#include "../text/pieces.h"
 #include "../text/text.h"
 
+// the bytes of a piece a fetched body is written in before the piece is held in a cell of its own
+#define CLI_PLUGIN_CATALOG_PIECE 4096u
+
 CliCatalogRoom *g_cli_catalog;
+static CliCatalogRoom s_catalog_room;
 static CliLock s_catalog_lock = CLI_LOCK_INIT;
 
 // an entry's fields that are texts, and those that are lists of texts, in the order serde writes them
@@ -32,21 +37,27 @@ static const char *const s_lists[3] = {"reads", "writes", "reaches"};
 
 int cli_plugin_catalog_held(CliLine *said)
 {
+    (void)said;
     cli_lock_take(&s_catalog_lock);
-    g_cli_catalog = cli_cell_taken(sizeof(*g_cli_catalog), "a plugin catalog");
-    if (g_cli_catalog == NULL)
-    {
-        cli_lock_give(&s_catalog_lock);
-        cli_line_text(said, "a plugin catalog could not be taken");
-    }
-    return g_cli_catalog != NULL;
+    g_cli_catalog = &s_catalog_room;
+    g_cli_catalog->bytes = NULL;
+    cli_json_begun(&g_cli_catalog->json, NULL, 0u, NULL, 0ull);
+    return 1;
 }
 
 void cli_plugin_catalog_released(void)
 {
-    cli_cell_given(g_cli_catalog);
+    cli_json_given(&g_cli_catalog->json);
+    cli_cell_given(g_cli_catalog->bytes);
+    g_cli_catalog->bytes = NULL;
     g_cli_catalog = NULL;
     cli_lock_give(&s_catalog_lock);
+}
+
+unsigned int cli_plugin_catalog_tree(const char *text, unsigned long long size, CliLine *said)
+{
+    cli_json_given(&g_cli_catalog->json);
+    return cli_json_taken(&g_cli_catalog->json, text, size, 0u, 0ull, said);
 }
 
 // whether `text` begins with `prefix`
@@ -59,6 +70,8 @@ static int catalog_begins(const char *text, const char *prefix)
 // their count into `size`: 1, or 0 with why said
 int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned long long *size, CliLine *said)
 {
+    cli_cell_given(g_cli_catalog->bytes);
+    g_cli_catalog->bytes = NULL;
     if (catalog_begins(address, "http://") || catalog_begins(address, "https://"))
     {
         if (!cli_net_reach(address, purpose, said))
@@ -69,11 +82,20 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
         CliLine failed = {why, sizeof(why), 0ull};
         char reason[CLI_SAID_LONGEST];
         CliLine reason_line = {reason, sizeof(reason), 0ull};
-        CliLine body = {(char *)g_cli_catalog->bytes, sizeof(g_cli_catalog->bytes), 0ull};
+        CliPieces pieces;
+        CliLine body;
+        char piece[CLI_PLUGIN_CATALOG_PIECE];
+        cli_pieces_begun(&pieces, &body, piece, sizeof(piece));
         unsigned int status = 0u;
         int cut = 0;
-        if (!cli_requests_get(address, &status, &reason_line, &cut, &body, &failed))
+        const int got = cli_requests_get(address, &status, &reason_line, &cut, &body, &failed);
+        unsigned long long joined_size = 0ull;
+        // a body's bytes are held as its text
+        unsigned char *const joined =
+            (unsigned char *)cli_pieces_joined(&pieces, &body, "the bytes a plugin catalog fetched", &joined_size);
+        if (!got)
         {
+            cli_cell_given(joined);
             cli_line_text(said, address);
             cli_line_text(said, ": ");
             cli_line_counted(said, why, failed.at);
@@ -81,6 +103,7 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
         }
         if ((status < 200u) || (status >= 300u))
         {
+            cli_cell_given(joined);
             cli_line_text(said, address);
             cli_line_text(said, ": ");
             cli_line_decimal(said, status, 1u);
@@ -88,23 +111,41 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
             cli_line_counted(said, reason, reason_line.at);
             return 0;
         }
-        if (cut || !cli_line_fits(&body))
+        if (cut || (joined == NULL) || (joined_size > CLI_CATALOG_BYTES))
         {
+            cli_cell_given(joined);
             cli_line_text(said, address);
-            cli_line_text(said, " is larger than orior reads");
+            cli_line_text(said, " is larger than orior_cli reads");
             return 0;
         }
-        *size = body.at;
+        g_cli_catalog->bytes = joined;
+        *size = joined_size;
         return 1;
     }
     const char *const path = catalog_begins(address, "file://") ? (address + 7) : address;
-    *size = qry_member_file_read(path, g_cli_catalog->bytes, sizeof(g_cli_catalog->bytes));
-    if (*size == QRY_MEMBER_UNREAD)
+    unsigned long long mapped_size = 0ull;
+    const unsigned char *const mapped = cli_file_held(path, &mapped_size);
+    // a file of no bytes is held in a cell of one, so every read has a cell
+    unsigned char *const bytes =
+        ((mapped != NULL) && (mapped_size <= CLI_CATALOG_BYTES))
+            ? cli_cell_taken((mapped_size != 0ull) ? mapped_size : 1ull, "the bytes a plugin catalog read")
+            : NULL;
+    if (bytes != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = bytes, .src = mapped, .bytes = (size_t)mapped_size});
+    }
+    if (mapped != NULL)
+    {
+        cli_file_let_go(mapped, mapped_size);
+    }
+    if (bytes == NULL)
     {
         cli_line_text(said, path);
         cli_line_text(said, ": it could not be read");
         return 0;
     }
+    g_cli_catalog->bytes = bytes;
+    *size = mapped_size;
     return 1;
 }
 
@@ -277,10 +318,7 @@ int cli_plugin_catalog_read(const char *address, CliLine *out, CliLine *said)
     {
         char why[CLI_SAID_LONGEST];
         CliLine read_said = {why, sizeof(why), 0ull};
-        cli_json_begun(&g_cli_catalog->json, g_cli_catalog->nodes, CLI_CATALOG_NODES, g_cli_catalog->text,
-                       sizeof(g_cli_catalog->text));
-        catalog = cli_json_read(&g_cli_catalog->json, (const char *)g_cli_catalog->bytes, size, g_cli_catalog->tokens,
-                                CLI_CATALOG_NODES, &read_said);
+        catalog = cli_plugin_catalog_tree((const char *)g_cli_catalog->bytes, size, &read_said);
         read = (catalog != CLI_JSON_NONE);
         if (!read)
         {

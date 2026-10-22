@@ -7,15 +7,10 @@
 #include "../text/text.h"
 #include "executables_internal.h"
 
-// the most places the .NET runtime is looked for, the most numbers of a version read, and the most nodes and bytes of a
-// runtimeconfig.json read
+// the most places the .NET runtime is looked for, and the most numbers of a version read
 #define CLI_DOTNET_PLACES 8u
 
 #define CLI_DOTNET_NUMBERS 8u
-
-#define CLI_DOTNET_NODES 4096u
-
-#define CLI_DOTNET_BYTES (1u << 16u)
 
 // a line said through `say`
 static void cli_say(QuerySink say, const char *text)
@@ -176,12 +171,6 @@ static void cli_framework_told(const CliJson *json, unsigned int framework, char
 // same first number and at least as new
 static void cli_dotnet_missing(const char *file, QuerySink say)
 {
-    static CliJsonNode s_nodes[CLI_DOTNET_NODES];
-    static CfgJsonToken s_tokens[CLI_DOTNET_NODES];
-    static char s_file[CLI_DOTNET_BYTES];
-    static char s_text[CLI_DOTNET_BYTES];
-    static char s_places[CLI_DOTNET_PLACES][CLI_PATH_LONGEST];
-    static CliLock s_lock = CLI_LOCK_INIT;
     // the program's path with its extension put as runtimeconfig.json
     char config[CLI_PATH_LONGEST];
     const char *const base =
@@ -203,34 +192,35 @@ static void cli_dotnet_missing(const char *file, QuerySink say)
     {
         return;
     }
-    cli_lock_take(&s_lock);
-    const unsigned long long size = qry_member_file_read(config, (unsigned char *)s_file, sizeof(s_file));
     CliJson json;
-    cli_json_begun(&json, s_nodes, CLI_DOTNET_NODES, s_text, sizeof(s_text));
     char why[CLI_NAME_LONGEST];
     CliLine reason = {why, sizeof(why), 0ull};
-    const unsigned int root = (size != QRY_MEMBER_UNREAD)
-                                  ? cli_json_read(&json, s_file, size, s_tokens, CLI_DOTNET_NODES, &reason)
-                                  : CLI_JSON_NONE;
+    const unsigned int root = cli_json_file_taken(&json, config, 0u, 0ull, &reason);
     const unsigned int options = cli_json_member(&json, root, "runtimeOptions");
-    if ((options == CLI_JSON_NONE) || (cli_json_member(&json, options, "includedFrameworks") != CLI_JSON_NONE))
+    char (*const places)[CLI_PATH_LONGEST] =
+        ((options != CLI_JSON_NONE) && (cli_json_member(&json, options, "includedFrameworks") == CLI_JSON_NONE))
+            ? cli_cell_taken_by(&g_cli_executables_cells, (unsigned long long)CLI_DOTNET_PLACES * CLI_PATH_LONGEST,
+                                "the places .NET is put")
+            : NULL;
+    if (places == NULL)
     {
-        cli_lock_give(&s_lock);
+        cli_json_given(&json);
         return;
     }
-    const unsigned int place_count = cli_dotnet_places(s_places);
+    const unsigned int place_count = cli_dotnet_places(places);
     const unsigned int single = cli_json_member(&json, options, "framework");
     if (single != CLI_JSON_NONE)
     {
-        cli_framework_told(&json, single, s_places, place_count, file, say);
+        cli_framework_told(&json, single, places, place_count, file, say);
     }
     const unsigned int many = cli_json_member(&json, options, "frameworks");
     for (unsigned int item = cli_json_is(&json, many, CFG_JSON_ARRAY) ? json.node[many].first : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json.node[item].next)
     {
-        cli_framework_told(&json, item, s_places, place_count, file, say);
+        cli_framework_told(&json, item, places, place_count, file, say);
     }
-    cli_lock_give(&s_lock);
+    cli_cell_given_by(&g_cli_executables_cells, places);
+    cli_json_given(&json);
 }
 
 // The tree's own code beside a spec, and what is said of the modules it imports that PyInstaller did not find
@@ -349,8 +339,6 @@ static void cli_own_each(void *context, const char *module, unsigned long long m
 
 void cli_executables_built_advice(const char *root, const char *id, const CliLines *lines, QuerySink say)
 {
-    static char s_warn[CLI_EXECUTABLES_BYTES];
-    static CliLock s_lock = CLI_LOCK_INIT;
     const char *const colon = cli_text_last(id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}), ':');
     if ((!cellul.starts(&(CatenaFinitaCfg){.src = id, .other = "executable/", .cap = CLI_CELLS_POOL})) ||
         (colon == NULL) || (colon < (id + 11)))
@@ -380,12 +368,11 @@ void cli_executables_built_advice(const char *root, const char *id, const CliLin
     }
     else if (kind == CLI_KIND_PYINSTALLER)
     {
-        cli_lock_take(&s_lock);
         CliOwn own = {"", say};
         char folder[CLI_PATH_LONGEST];
-        cli_pyinstaller_warn(path, folder, s_warn, sizeof(s_warn));
+        char *const warned = cli_pyinstaller_warn(path, folder);
         own.folder = folder;
-        cli_pyinstaller_missing(s_warn, cli_own_each, &own);
-        cli_lock_give(&s_lock);
+        cli_pyinstaller_missing((warned != NULL) ? warned : "", cli_own_each, &own);
+        cli_cell_given_by(&g_cli_executables_cells, warned);
     }
 }

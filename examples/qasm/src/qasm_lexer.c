@@ -324,20 +324,20 @@ int qasm_number(QasmParser *parser, const QasmToken *token, QasmAngle *value)
         }
     }
     QasmFraction number;
-    if (!qasm_exact_ok(parser, anchor_exact_from_decimal(text, mantissa_end, places, &number.num)))
+    if (!qasm_exact_ok(parser, orior_exact_from_decimal(text, mantissa_end, places, &number.num)))
     {
         return 0;
     }
     qasm_exact_set(&number.den, 1ull, 0);
-    if (!qasm_exact_ok(parser, anchor_exact_scale_by_ten(&number.den, places)))
+    if (!qasm_exact_ok(parser, orior_exact_scale_by_ten(&number.den, places)))
     {
         return 0;
     }
-    if ((exponent > 0) && !qasm_exact_ok(parser, anchor_exact_scale_by_ten(&number.num, (uint32_t)exponent)))
+    if ((exponent > 0) && !qasm_exact_ok(parser, orior_exact_scale_by_ten(&number.num, (uint32_t)exponent)))
     {
         return 0;
     }
-    if ((exponent < 0) && !qasm_exact_ok(parser, anchor_exact_scale_by_ten(&number.den, (uint32_t)(-exponent))))
+    if ((exponent < 0) && !qasm_exact_ok(parser, orior_exact_scale_by_ten(&number.den, (uint32_t)(-exponent))))
     {
         return 0;
     }

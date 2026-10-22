@@ -6,7 +6,7 @@
 //
 //   {"deployments": [{"name": "site", "from": "dist", "exclude": ["*.map"], "to": ["me@web1:/srv/site"], "keep": 5}]}
 //
-// A place is an address of a machine as orior reaches one, user@host:folder over ssh with the keys the system's agent
+// A place is an address of a machine as orior_cli reaches one, user@host:folder over ssh with the keys the system's agent
 // holds, docker:container:folder or wsl:distribution:folder, or a folder on this machine. Its files go as a tar stream,
 // which keeps each file's bytes, line ends and all, and its mode, as git's index gives it where the tree is in git.
 //

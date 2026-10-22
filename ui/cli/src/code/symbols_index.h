@@ -31,14 +31,23 @@ typedef struct
     int seen;
 } CliHeldFile;
 
-// the files held, how many places among them were taken, the lock, and whether a reading goes (symbols.c)
-extern CliHeldFile g_cli_symbol_files[CLI_SYMBOL_FILES];
+// the files held, in a cell whose room doubles as places are wanted, CLI_SYMBOL_FILES at the most, how many places
+// among them were taken, the lock, and whether a reading goes (symbols.c, symbols_table.c)
+extern CliHeldFile *g_cli_symbol_files;
 extern unsigned int g_cli_symbol_file_count;
 extern CliLock g_cli_symbols_lock;
 extern int g_cli_symbols_reading;
 
-// a file held's path, and its declarations (symbols.c)
+// a file held's path, and its declarations; the place of a path's file, CLI_SYMBOL_FILES where none is held; a file's
+// place put in the paths' table; room made among the files for one more, the table grown or put together: 1, or 0
+// where none is made; a file held let go, its place taken out of the paths' table and its cell given back; and every
+// file let go with the table's cells. Called under the lock (symbols_table.c)
 const char *cli_held_path(const CliHeldFile *held);
 const CliSymbol *cli_held_symbols(const CliHeldFile *held);
+unsigned int cli_symbols_file_of(const char *path);
+void cli_symbols_bucket_put(const char *path, unsigned int file);
+int cli_symbols_room_made(void);
+void cli_symbols_let_go(unsigned int file);
+void cli_symbols_held_forgotten(void);
 
 #endif

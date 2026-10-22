@@ -6,11 +6,11 @@
 // table of a run's .qry is read the same way, the select over its rows: the rows of the table, a range of their keys,
 // raw or decoded through the table's oracle.
 //
-//     kdecode [--raw] [--from <record>] [--count <records>] <file>...
-//     kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> <run.qry>...
-//     kdecode [--latest] --blob <name> <run.qry>...
+//     orior_kdecode [--raw] [--from <record>] [--count <records>] <file>...
+//     orior_kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> <run.qry>...
+//     orior_kdecode [--latest] --blob <name> <run.qry>...
 //
-// What kdecode writes for a person to read it hands the run it is a member of as the record `kdecode` (KDECODE_SHOWN),
+// What orior_kdecode writes for a person to read it hands the run it is a member of as the record `orior_kdecode` (KDECODE_SHOWN),
 // its failures among it.
 //
 // A blob of the run by its name is printed whole, every blob of that name in sequence or the latest alone with
@@ -92,10 +92,10 @@ int main(int count, char **words)
     }
     if (given >= count)
     {
-        scriptura_text(&s_shown, "kdecode [--raw] [--from <record>] [--count <records>] <file>...\n"
-                                 "kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> "
+        scriptura_text(&s_shown, "orior_kdecode [--raw] [--from <record>] [--count <records>] <file>...\n"
+                                 "orior_kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> "
                                  "<run.qry>...\n"
-                                 "kdecode [--latest] --blob <name> <run.qry>...\n");
+                                 "orior_kdecode [--latest] --blob <name> <run.qry>...\n");
         kdecode_shown_handed(1);
         qry_member_settled();
         return 2;
@@ -123,7 +123,7 @@ int main(int count, char **words)
         {
             const int ran = (size >= 8u) &&
                             ((memcmp(bytes, QRY_TABLE_MAGIC, 8u) == 0) || (memcmp(bytes, QRY_FRAME_MAGIC, 8u) == 0));
-            scriptura_text(&s_shown, "kdecode: ");
+            scriptura_text(&s_shown, "orior_kdecode: ");
             scriptura_text(&s_shown, words[given]);
             scriptura_text(&s_shown, ran ? " is a run: name its table with --table\n" : " is no k-file\n");
             read = 0;
@@ -136,7 +136,7 @@ int main(int count, char **words)
         {
             if (!kqr_read(&s_record, words[given], "-", error, sizeof(error)))
             {
-                scriptura_text(&s_shown, "kdecode: ");
+                scriptura_text(&s_shown, "orior_kdecode: ");
                 scriptura_text(&s_shown, error);
                 scriptura_character(&s_shown, '\n');
                 read = 0;
@@ -151,7 +151,7 @@ int main(int count, char **words)
         }
         if (krep_read(&s_file, words[given], kind, error, sizeof(error)) != 1)
         {
-            scriptura_text(&s_shown, "kdecode: ");
+            scriptura_text(&s_shown, "orior_kdecode: ");
             scriptura_text(&s_shown, error);
             scriptura_character(&s_shown, '\n');
             read = 0;

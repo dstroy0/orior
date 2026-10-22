@@ -234,7 +234,7 @@ unsigned int query_commands(const char *root, const QueryCommand **commands)
                                    QUERY_COUNT(s_write_words)};
     s_commands[7] = (QueryCommand){"pairs",
                                    "pairs",
-                                   "the bridge's pairs put to the part, and the other modes of klq_identity",
+                                   "the bridge's pairs put to the part, and the other modes of orior_klq_identity",
                                    s_pairs_params,
                                    8u,
                                    s_pairs_words,

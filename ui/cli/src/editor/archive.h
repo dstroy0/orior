@@ -31,9 +31,9 @@ enum
     CLI_ARCHIVE_NONE
 };
 
-// the most bytes an archive's file, unpacked, holds here; the most members of one archive; the most bytes of their
-// names; and the most children a folder within one lists
-#define CLI_ARCHIVE_BYTES (1u << 24u)
+// the most bytes a room of the archives a path runs through is given; the most members of one archive; the most bytes
+// of their names; and the most children a folder within one lists
+#define CLI_ARCHIVE_MOST (1ull << 28u)
 
 #define CLI_ARCHIVE_MEMBERS 16384u
 

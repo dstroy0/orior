@@ -14,13 +14,13 @@ Builds referenced are MSVC 19.44 x64 Release and MinGW gcc, both exercised. Run 
 
 ### F1. The engine is one translation unit and one header
 
-`orior.c` and `orior.h` carry the search, the steering and the scan. `anchor_steer.{c,h}` and `anchor_steer_arm.{c,h}` are gone, absorbed. The `anchor_steer` and `anchor_steer_arms` CMake targets are gone; everything links `orior_kernel`.
+`orior.c` and `orior.h` carry the search, the steering and the scan. `orior_steer.{c,h}` and `orior_steer_arm.{c,h}` are gone, absorbed. The `orior_steer` and `orior_steer_arms` CMake targets are gone; everything links `orior_kernel`.
 
-**Check:** `ls src/engine/c/engine/` shows `orior.{c,h}` and `scan_avx2.c` and no `anchor_steer*`. `grep -rn "anchor_steer\.h\|anchor_steer_arm\.h" src/ test/ docs/` returns nothing.
+**Check:** `ls src/engine/c/engine/` shows `orior.{c,h}` and `scan_avx2.c` and no `orior_steer*`. `grep -rn "orior_steer\.h\|orior_steer_arm\.h" src/ test/ docs/` returns nothing.
 
 ### F2. The vectorized scan is flag confined to its own source
 
-`/arch:AVX2` and `-mavx2` are set with `set_source_files_properties` on `vectorized_win/anchor_steer_avx2.c`, not on the target. A target level flag would let the compiler emit AVX2 into the portable path, which is an illegal instruction on a machine without it and not a slower answer.
+`/arch:AVX2` and `-mavx2` are set with `set_source_files_properties` on `vectorized_win/orior_steer_avx2.c`, not on the target. A target level flag would let the compiler emit AVX2 into the portable path, which is an illegal instruction on a machine without it and not a slower answer.
 
 **Check:** `grep -n "set_source_files_properties" src/engine/c/CMakeLists.txt`.
 
@@ -64,15 +64,15 @@ A probe rejects a definite set of alignments; a probe set rejects their union; `
 
 ### F8. The sweep enumerates the whole legal probe set
 
-`anchor_steer_probe_fits` is the boundary function, domain probes by needle length, range `{0,1}`. `anchor_steer_sweep_probes` enumerates origins to `needle_len`, lengths to `max_length` and steps to `needle_len`, putting every candidate to the boundary function before scoring it. Every bound is an argument or a compile time constant and none is read from the corpus, and that makes the argmax exact and not sampled, as F7 needs.
+`orior_steer_probe_fits` is the boundary function, domain probes by needle length, range `{0,1}`. `orior_steer_sweep_probes` enumerates origins to `needle_len`, lengths to `max_length` and steps to `needle_len`, putting every candidate to the boundary function before scoring it. Every bound is an argument or a compile time constant and none is read from the corpus, and that makes the argmax exact and not sampled, as F7 needs.
 
 ### F9. The volume renderer, with its bijection checked
 
-`AnchorVolumeConfig` renders a block: four layouts by the raster's five channels, two reduce rules and gain, named by reference to the same enums. Every layout is a bijection on the cell index computed in integers. `bench_raster` maps every alignment through every layout at every channel and counts collisions.
+`OriorVolumeConfig` renders a block: four layouts by the raster's five channels, two reduce rules and gain, named by reference to the same enums. Every layout is a bijection on the cell index computed in integers. `bench_raster` maps every alignment through every layout at every channel and counts collisions.
 
 **Check:** `bench_raster` prints 20 volume rows, every one zero collisions and, where a device is present, graded host against device voxel for voxel, alongside 20 sheet rows graded host against device byte for byte.
 
-**Gap closed:** `src/engine/c/render/raster_cuda.cu` carries a device volume renderer (`render_volume`, `device_volume_cell`, and the `anchor_volume_device` entry), `anchor_volume_device_available` returns 1 where a device is present and the build carries the kernel and 0 otherwise, and `bench_raster` grades the volume host against device voxel for voxel. `anchor_volume_render_host` stays host only and named so, and nothing falls back silently.
+**Gap closed:** `src/engine/c/render/raster_cuda.cu` carries a device volume renderer (`render_volume`, `device_volume_cell`, and the `orior_volume_device` entry), `orior_volume_device_available` returns 1 where a device is present and the build carries the kernel and 0 otherwise, and `bench_raster` grades the volume host against device voxel for voxel. `orior_volume_render_host` stays host only and named so, and nothing falls back silently.
 
 ### F10. Two build defects that made measurements impossible
 
@@ -132,13 +132,13 @@ Found while pointing the engine at the protein subject, and verified.
 
 A descent's oracle is asked only whether two positions agree. That is a pairwise necessary condition and it survives any predicate whatever, including one that is not transitive.
 
-`anchor_field_project` groups positions into classes by comparing each against a representative, which assumes agreement partitions the field. Under a predicate that is not transitive the grouping depends on which representative a position meets first, two positions that do agree can land in different classes, same symbol stops implying same rank, and a rank probe stops being a necessary condition. It then rejects alignments holding true occurrences, silently, with nothing failing.
+`orior_field_project` groups positions into classes by comparing each against a representative, which assumes agreement partitions the field. Under a predicate that is not transitive the grouping depends on which representative a position meets first, two positions that do agree can land in different classes, same symbol stops implying same rank, and a rank probe stops being a necessary condition. It then rejects alignments holding true occurrences, silently, with nothing failing.
 
 **The case that motivates having an oracle is the case that breaks it.** `examples/proteins/5_sift/protein_domain.py` matches a point within a tolerance of a displaced position, and its docstring states why exact equality is the wrong test on a continuous domain: coordinates are real. Two occurrences of one motif never land on identical voxel offsets. A tolerance relation is not transitive, since `a` within tolerance of `b` and `b` of `c` does not put `a` within tolerance of `c`. That predicate is sound in a descent and unsound in the projection.
 
 Verifying transitivity costs a cube of the field, and nothing verifies it. The precondition is stated in the header at the declaration, loudly, because the failure mode is a wrong answer and not a refusal.
 
-**Check:** read the warning on `anchor_field_project` in `src/engine/c/engine/orior.h`, and `examples/proteins/5_sift/protein_domain.py` for the predicate that breaks it.
+**Check:** read the warning on `orior_field_project` in `src/engine/c/engine/orior.h`, and `examples/proteins/5_sift/protein_domain.py` for the predicate that breaks it.
 
 ### F12. A crystal derived field would be half selected by crystal system, and the selection tracks mineral family
 
@@ -190,7 +190,7 @@ Unchanged under the transitive closure, for a stated reason: a different rank me
 
 Found in published code, verified, and fixed.
 
-`anchor_volume_render_host` took a `census` parameter documented as "Rarity source for ANCHOR_CHANNEL_RARITY, or NULL". It discarded it (`src/engine/c/render/anchor_raster.c`) and built its own from `corpus` (`src/engine/c/render/anchor_raster.c`). A document describing behavior the code does not have.
+`orior_volume_render_host` took a `census` parameter documented as "Rarity source for ORIOR_CHANNEL_RARITY, or NULL". It discarded it (`src/engine/c/render/orior_raster.c`) and built its own from `corpus` (`src/engine/c/render/orior_raster.c`). A document describing behavior the code does not have.
 
 **The failure it enables has no symptom.** A caller passing NULL is correct, and every caller in this tree passes NULL. Nothing crashed and nothing was unsound. A caller passing a census built over something ELSE, a reference distribution or a census taken over a sampled slice, would have that rarity source silently replaced by one computed from the corpus in front of it. The render succeeds. The picture is plausible. Nothing reports anything.
 
@@ -198,7 +198,7 @@ Found in published code, verified, and fixed.
 
 **Fixed by correcting the document, not by removing the parameter**, because a tunable with no reader is an integration point that is never deleted and never described as unimplemented. The declaration says the call builds its own census from `corpus` and that this parameter is reserved for a caller supplied rarity source. The same note sits at the discard site. A reader of either meets it.
 
-**Swept for the class and not the instance**, the lesson from R8's sibling an hour earlier. Every discarded parameter in the engine and the renderer was checked: `raster_value`'s is a static helper, and `anchor_raster_device`'s are the stub arm on a build with no CUDA, which is documented as refusing. `census` was the only public parameter documented as used and not used.
+**Swept for the class and not the instance**, the lesson from R8's sibling an hour earlier. Every discarded parameter in the engine and the renderer was checked: `raster_value`'s is a static helper, and `orior_raster_device`'s are the stub arm on a build with no CUDA, which is documented as refusing. `census` was the only public parameter documented as used and not used.
 
 ## Open
 
@@ -212,7 +212,7 @@ Found in published code, verified, and fixed.
 
 **The counterevidence was in F14 the whole time.** The `placed` column reads 2 at sigma 2^8 and 2^12 and 1 from 2^16 up, with `wanted` fixed at 4 on every row, and F14 explains it as the destroy rule firing because a larger alphabet lets the first probe cut far enough. That is a description of corpus content changing the depth, sitting in this document, above a claim that corpus content cannot change the depth.
 
-**What is actually true, and the emphasis was exactly backwards.** Depth is data dependent DOWNWARD ONLY. The destroy rule can cut the descent short; nothing can extend it, because `while (placed < count)` caps it and `count` is at most `ANCHOR_STEER_ANCHORS`.
+**What is actually true, and the emphasis was exactly backwards.** Depth is data dependent DOWNWARD ONLY. The destroy rule can cut the descent short; nothing can extend it, because `while (placed < count)` caps it and `count` is at most `ORIOR_STEER_ANCHORS`.
 
 **So the cap is load bearing and data independence is not available.** The earlier entry said the reverse in both directions: that data independence was structural, that the cap was incidental, and that at four billion the classification would not shift. Withdrawn. The bound from above is the only thing doing the work, and it is a constant.
 
@@ -252,13 +252,13 @@ The shape would be a caller supplied array of `count` entries, filled with the s
 
 **The cost is the evidence.** At the outer level, termination goes. That is not a regression waiting to be fixed: if it were still decidable whether a given outer run finishes, the thing would not be universal. The engine's current selling point is that it always returns an answer, and this trades exactly that, at the outer level only.
 
-**This does not settle O1 and must not be recorded as settling it.** What the engine IS is unchanged: `ANCHOR_STEER_ANCHORS` is 4, the trichotomy shows it does not cycle, and both are verified. This names what would move the answer and leaves the answer open.
+**This does not settle O1 and must not be recorded as settling it.** What the engine IS is unchanged: `ORIOR_STEER_ANCHORS` is 4, the trichotomy shows it does not cycle, and both are verified. This names what would move the answer and leaves the answer open.
 
 **Nothing is blocked on it and nothing is being built.**
 
 ### F14. O3 measured: the oracle is flat in alphabet size and the table is not, with a crossover
 
-Built to find where the table route WINS. The flat line was not the target. Both routes answer the same question, ordering four candidate needle offsets by symbol rarity. Table is a direct indexed counter per symbol value, the census generalized to a four byte symbol. Oracle is `anchor_steer_plan_recursive` with `any` set. Four byte symbols, needle 16, each timing repeated to at least 60 ms.
+Built to find where the table route WINS. The flat line was not the target. Both routes answer the same question, ordering four candidate needle offsets by symbol rarity. Table is a direct indexed counter per symbol value, the census generalized to a four byte symbol. Oracle is `orior_steer_plan_recursive` with `any` set. Four byte symbols, needle 16, each timing repeated to at least 60 ms.
 
 **Alphabet grows, corpus fixed at 131072:**
 
@@ -311,7 +311,7 @@ Clifford, Jalsenius, Porat and Sach, "Space Lower Bounds for Online Pattern Matc
 
 **Also corrected: the bound is not deterministic only.** Verbatim: "We require that the correct answer is given at each position with constant probability." It binds randomized algorithms too. A summary said deterministic only, and the abstract contradicted it. "The lower bound is only for deterministic algorithms" is the plausible sentence that would otherwise have been written here.
 
-**Why the engine carries `m` bits anyway, and it is an interface cost and not a theorem.** The `O(log^2 m)` route is fingerprinting, reached by combining Karp-Rabin with KMP. Karp-Rabin needs arithmetic on symbols, treating them as numbers modulo a prime. `AnchorField` exposes equality alone: no order, no hash, no element size, no arithmetic. The engine cannot reach that regime, and the reason is its own oracle.
+**Why the engine carries `m` bits anyway, and it is an interface cost and not a theorem.** The `O(log^2 m)` route is fingerprinting, reached by combining Karp-Rabin with KMP. Karp-Rabin needs arithmetic on symbols, treating them as numbers modulo a prime. `OriorField` exposes equality alone: no order, no hash, no element size, no arithmetic. The engine cannot reach that regime, and the reason is its own oracle.
 
 **That is the same trade F14 measured, priced in the other currency.** The equality-only oracle buys independence from alphabet size. F14 prices that in time: a 7.4 times constant factor per corpus symbol, with a crossover near six times the corpus length. This prices it in space: `m` bits where `O(log^2 m)` is achievable for exact matching, because fingerprinting is closed to an engine that refuses to expose a representation. One interface decision, two measured costs. That is a better account of what the oracle costs than a lower bound the engine was never up against.
 

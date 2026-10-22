@@ -24,7 +24,7 @@
 #define CLI_REPORT_REPOSITORY "dstroy0/orior"
 
 #define CLI_REPORT_QUESTION                                                                                            \
-    "orior files the errors it meets as issues on dstroy0/orior on its own: through your GitHub CLI where it is "      \
+    "orior_cli files the errors it meets as issues on dstroy0/orior on its own: through your GitHub CLI where it is "      \
     "signed in, else as a page opened for you to submit. Help, Automatic Error Reports turns it on or off later."
 
 // the longest a filled-in issue page's address grows, which browsers and GitHub both read whole, with room past it
@@ -79,7 +79,7 @@ void cli_report_recent(CliLine *out);
 const char *cli_report_panic_category(const char *trace);
 // the new-issue page with the template's fields filled in, its logs cut to keep the address within CLI_REPORT_ADDRESS,
 // into `out`; a page of orior's repository opened in the browser, any other address refused; `url` opened in the
-// reader's browser, started outside orior's container so it stays as orior ends; a report filed, as an issue through
+// reader's browser, started outside orior's container so it stays as orior_cli ends; a report filed, as an issue through
 // the reporter's GitHub CLI where it is signed in, as nothing where its error is already an open issue, and otherwise
 // as the filled-in page, opened; and an error filed on its own where the reporter lets errors file, where it has not
 // filed this run, and where the run has filed fewer than five, 1 where it went somewhere (report_file.c)

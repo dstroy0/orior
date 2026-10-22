@@ -31,12 +31,12 @@
 #define TABLE_TEST_STEPS 64u
 
 // The widest output record any program here writes, in 32-bit words.
-#define ANCHOR_RECORD_OUT_WORDS 4u
+#define ORIOR_RECORD_OUT_WORDS 4u
 
 // the most the test puts on the device at once: two tables over the alphabet, and a sweep's atoms and records
 #define TABLE_TEST_DECLARED                                                                                            \
     ((2ull * TABLE_TEST_ALPHABET * sizeof(unsigned int)) +                                                             \
-     ((unsigned long long)TABLE_TEST_LANES * (1ull + ANCHOR_RECORD_OUT_WORDS) * sizeof(unsigned int)))
+     ((unsigned long long)TABLE_TEST_LANES * (1ull + ORIOR_RECORD_OUT_WORDS) * sizeof(unsigned int)))
 
 typedef struct
 {

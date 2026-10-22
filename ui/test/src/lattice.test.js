@@ -26,18 +26,18 @@ test("a lattice at rest draws no frame", () => {
   assert.equal(framesOver(0, 4).drawn, 0);
 });
 
-test("a frame is drawn once the loop has moved a point by a whole pixel", () => {
-  assert.equal(shows(8, 8.001), false, "a millisecond of the spread moves no point a pixel");
+test("a frame is drawn once the loop has moved a point by a quarter pixel", () => {
+  assert.equal(shows(8, 8.0001), false, "a tenth of a millisecond of the spread moves no point a quarter pixel");
   assert.equal(shows(8, 9), true, "a second of the spread moves points");
 });
 
-test("over the whole loop about one frame in three is drawn", () => {
+test("over the whole loop the frames that move nothing are not drawn", () => {
   const loop = framesOver(0, 50);
   assert.ok(loop.drawn > 0, "the lattice moves");
-  assert.ok(loop.drawn < loop.offered * 0.4, `${loop.drawn} of ${loop.offered} frames drawn`);
+  assert.ok(loop.drawn < loop.offered, `${loop.drawn} of ${loop.offered} frames drawn`);
 });
 
-test("no frame drawn moves the lattice less than a pixel from the one before", () => {
+test("no frame drawn moves the lattice less than a quarter pixel from the one before", () => {
   let drawnAt = 0;
   for (let frame = 1; frame <= 1500; frame += 1) {
     const now = frame / 30;

@@ -6,10 +6,10 @@
 #include "net.h"
 #include "report_internal.h"
 
-// the most reports a run files on its own, and the most bytes a struck field of a report holds
+// the most reports a run files on its own, and the bytes a struck field of a report is begun in before it grows
 #define CLI_REPORT_AUTO 5u
 
-#define CLI_REPORT_FIELD (1u << 20u)
+#define CLI_REPORT_FIELD_FIRST (4ull << 10u)
 
 // the fingerprints of the errors this run filed, under the lock
 static char s_filed[CLI_REPORT_AUTO][17];
@@ -77,7 +77,7 @@ int cli_report_open_url(const char *url, CliLine *said)
 #else
     const char *const words[3] = {"xdg-open", url, NULL};
 #endif
-    // the browser is the reader's, and stays as orior ends
+    // the browser is the reader's, and stays as orior_cli ends
     unsigned int id = 0u;
     if (!cli_started_outside(words, &id))
     {
@@ -88,108 +88,125 @@ int cli_report_open_url(const char *url, CliLine *said)
     return 1;
 }
 
-// A report struck of what identifies the reporter, its fields kept under the lock
-typedef struct
-{
-    char title[CLI_REPORT_FIELD];
-    char what[CLI_REPORT_FIELD];
-    char steps[CLI_REPORT_FIELD];
-    char logs[CLI_REPORT_FIELD];
-    char joined[CLI_REPORT_FIELD * 2u];
-    char body[CLI_REPORT_FIELD * 4u];
-} CliStruckReport;
-
-static CliStruckReport s_report;
+// the lock a report is struck and filed under, one at a time
 static CliLock s_report_lock = CLI_LOCK_INIT;
 
-// a field of a report struck into `into`
-static void cli_struck(const char *text, const char *root, char *into)
+// a field of a report struck into `into`, a growing line begun here and given back with cli_cell_given(into->out):
+// the field, "" where its cells are refused
+static const char *cli_struck(const char *text, const char *root, CliLine *into)
 {
-    CliLine line = {into, CLI_REPORT_FIELD, 0ull};
-    cli_report_scrub(text, root, &line);
-    cli_line_closed(&line);
+    if (!cli_line_growing(into, CLI_REPORT_FIELD_FIRST, "a struck field of a report"))
+    {
+        return "";
+    }
+    cli_report_scrub(text, root, into);
+    return (cli_line_closed(into) != 0ull) ? into->out : "";
+}
+
+// the report struck as `report` filed through the reporter's GitHub CLI, as nothing where its error is already an
+// open issue, the lock held: 1 with `filed` set, or 0 where the CLI is not signed in or did not file it
+static int cli_file_by_gh(const CliReport *report, const char *root, const char *print, CliFiled *filed)
+{
+    char why[CLI_PATH_LONGEST];
+    CliLine held = {why, sizeof(why), 0ull};
+    static const char *const s_auth[2] = {"auth", "status"};
+    char unused[CLI_PATH_LONGEST];
+    if (!cli_net_reach("https://github.com/" CLI_REPORT_REPOSITORY, "an error report", &held) ||
+        !cli_gh(s_auth, 2u, NULL, unused, sizeof(unused)))
+    {
+        return 0;
+    }
+    char search[64];
+    CliLine searched = {search, sizeof(search), 0ull};
+    cli_line_text(&searched, "\"orior-report ");
+    cli_line_text(&searched, print);
+    cli_line_text(&searched, "\" in:body");
+    cli_line_closed(&searched);
+    const char *const listed[12] = {"issue",   "list", "--repo",   CLI_REPORT_REPOSITORY,
+                                    "--state", "open", "--search", search,
+                                    "--json",  "url",  "--jq",     ".[0].url"};
+    if (cli_gh(listed, 12u, NULL, filed->url, sizeof(filed->url)) && (filed->url[0] != '\0'))
+    {
+        filed->kind = CLI_FILED_KNOWN;
+        return 1;
+    }
+    CliLine body;
+    if (!cli_line_growing(&body, CLI_REPORT_FIELD_FIRST, "a report's body"))
+    {
+        return 0;
+    }
+    cli_report_body(report, root, print, &body);
+    const char *const written = (cli_line_closed(&body) != 0ull) ? body.out : "";
+    char title[CLI_REPORT_URL];
+    CliLine titled = {title, sizeof(title), 0ull};
+    cli_line_text(&titled, "[bug] ");
+    cli_line_text(&titled, report->title);
+    cli_line_closed(&titled);
+    const char *const labelled[12] = {"issue",   "create", "--repo",      CLI_REPORT_REPOSITORY,
+                                      "--title", title,    "--body-file", "-",
+                                      "--label", "bug",    "--label",     report->category};
+    // a repository without a category's label still takes the issue, unlabelled
+    const int made = cli_gh(labelled, 12u, written, filed->url, sizeof(filed->url)) ||
+                     cli_gh(labelled, 8u, written, filed->url, sizeof(filed->url));
+    cli_cell_given(body.out);
+    if (made)
+    {
+        // the last line gh writes, the issue's address
+        const char *const last =
+            cli_text_last(filed->url, cellul.len(&(CatenaFinitaCfg){.src = filed->url, .cap = CLI_CELLS_POOL}), '\n');
+        if (last != NULL)
+        {
+            char kept[CLI_REPORT_URL];
+            memor.cpy(
+                &(MemoriaCfg){.dst = kept,
+                              .src = last + 1,
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = last + 1, .cap = CLI_CELLS_POOL}) + 1u});
+            memor.cpy(&(MemoriaCfg){.dst = filed->url,
+                                    .src = kept,
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = kept, .cap = CLI_CELLS_POOL}) + 1u});
+        }
+        filed->kind = CLI_FILED_FILED;
+        return 1;
+    }
+    return 0;
 }
 
 // a report filed as cli_report_file files it, the page it falls back to opened only where `open`
 static void cli_file_as(const CliReport *given, const char *root, int open, CliFiled *filed)
 {
     cli_lock_take(&s_report_lock);
-    CliStruckReport *const struck = &s_report;
-    cli_struck(given->title, root, struck->title);
-    cli_struck(given->what, root, struck->what);
-    cli_struck(given->steps, root, struck->steps);
-    cli_struck(given->logs, root, struck->logs);
-    const CliReport report = {cli_report_category_of(given), struck->title, struck->what, struck->steps, struck->logs};
-    CliLine joined = {struck->joined, sizeof(struck->joined), 0ull};
-    cli_line_text(&joined, report.title);
-    cli_line_character(&joined, '\n');
-    cli_line_text(&joined, report.logs);
-    cli_line_closed(&joined);
+    CliLine field[4];
+    const CliReport report = {cli_report_category_of(given), cli_struck(given->title, root, &field[0]),
+                              cli_struck(given->what, root, &field[1]), cli_struck(given->steps, root, &field[2]),
+                              cli_struck(given->logs, root, &field[3])};
     char print[17];
-    cli_report_fingerprint(report.category, struck->joined, print);
-    char why[CLI_PATH_LONGEST];
-    CliLine held = {why, sizeof(why), 0ull};
-    static const char *const s_auth[2] = {"auth", "status"};
-    char unused[CLI_PATH_LONGEST];
-    if (cli_net_reach("https://github.com/" CLI_REPORT_REPOSITORY, "an error report", &held) &&
-        cli_gh(s_auth, 2u, NULL, unused, sizeof(unused)))
+    CliLine joined;
+    if (cli_line_growing(&joined, CLI_REPORT_FIELD_FIRST, "a report's title and logs"))
     {
-        char search[64];
-        CliLine searched = {search, sizeof(search), 0ull};
-        cli_line_text(&searched, "\"orior-report ");
-        cli_line_text(&searched, print);
-        cli_line_text(&searched, "\" in:body");
-        cli_line_closed(&searched);
-        const char *const listed[12] = {"issue",   "list", "--repo",   CLI_REPORT_REPOSITORY,
-                                        "--state", "open", "--search", search,
-                                        "--json",  "url",  "--jq",     ".[0].url"};
-        if (cli_gh(listed, 12u, NULL, filed->url, sizeof(filed->url)) && (filed->url[0] != '\0'))
-        {
-            filed->kind = CLI_FILED_KNOWN;
-            cli_lock_give(&s_report_lock);
-            return;
-        }
-        CliLine body = {struck->body, sizeof(struck->body), 0ull};
-        cli_report_body(&report, root, print, &body);
-        cli_line_closed(&body);
-        char title[CLI_REPORT_URL];
-        CliLine titled = {title, sizeof(title), 0ull};
-        cli_line_text(&titled, "[bug] ");
-        cli_line_text(&titled, report.title);
-        cli_line_closed(&titled);
-        const char *const labelled[12] = {"issue",   "create", "--repo",      CLI_REPORT_REPOSITORY,
-                                          "--title", title,    "--body-file", "-",
-                                          "--label", "bug",    "--label",     report.category};
-        // a repository without a category's label still takes the issue, unlabelled
-        if (cli_gh(labelled, 12u, struck->body, filed->url, sizeof(filed->url)) ||
-            cli_gh(labelled, 8u, struck->body, filed->url, sizeof(filed->url)))
-        {
-            // the last line gh writes, the issue's address
-            const char *const last = cli_text_last(
-                filed->url, cellul.len(&(CatenaFinitaCfg){.src = filed->url, .cap = CLI_CELLS_POOL}), '\n');
-            if (last != NULL)
-            {
-                char kept[CLI_REPORT_URL];
-                memor.cpy(&(MemoriaCfg){
-                    .dst = kept,
-                    .src = last + 1,
-                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = last + 1, .cap = CLI_CELLS_POOL}) + 1u});
-                memor.cpy(
-                    &(MemoriaCfg){.dst = filed->url,
-                                  .src = kept,
-                                  .bytes = cellul.len(&(CatenaFinitaCfg){.src = kept, .cap = CLI_CELLS_POOL}) + 1u});
-            }
-            filed->kind = CLI_FILED_FILED;
-            cli_lock_give(&s_report_lock);
-            return;
-        }
+        cli_line_text(&joined, report.title);
+        cli_line_character(&joined, '\n');
+        cli_line_text(&joined, report.logs);
+        cli_report_fingerprint(report.category, (cli_line_closed(&joined) != 0ull) ? joined.out : "", print);
+        cli_cell_given(joined.out);
     }
-    CliLine page = {filed->url, sizeof(filed->url), 0ull};
-    cli_report_page(&report, root, &page);
-    cli_line_closed(&page);
+    else
+    {
+        cli_report_fingerprint(report.category, "", print);
+    }
+    const int by_gh = cli_file_by_gh(&report, root, print, filed);
+    if (!by_gh)
+    {
+        CliLine page = {filed->url, sizeof(filed->url), 0ull};
+        cli_report_page(&report, root, &page);
+        cli_line_closed(&page);
+        filed->kind = CLI_FILED_PAGE;
+    }
+    for (unsigned int at = 0u; at < 4u; at += 1u)
+    {
+        cli_cell_given(field[at].out);
+    }
     cli_lock_give(&s_report_lock);
-    filed->kind = CLI_FILED_PAGE;
-    if (open)
+    if (!by_gh && open)
     {
         char unopened[CLI_PATH_LONGEST];
         CliLine refused = {unopened, sizeof(unopened), 0ull};
@@ -204,17 +221,21 @@ void cli_report_file(const CliReport *report, const char *root, CliFiled *filed)
 
 int cli_report_error(const char *category, const char *message, const char *detail, const char *root, CliFiled *filed)
 {
-    static char s_kept[CLI_REPORT_FIELD];
-    static char s_what[CLI_REPORT_FIELD];
     static char s_scrubbed[CLI_NAME_LONGEST * 2u];
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
-    CliLine kept = {s_kept, sizeof(s_kept), 0ull};
-    cli_line_text(&kept, message);
-    cli_line_character(&kept, '\n');
-    cli_line_text(&kept, detail);
-    cli_line_closed(&kept);
-    cli_report_keep(s_kept, root);
+    CliLine kept;
+    if (cli_line_growing(&kept, CLI_REPORT_FIELD_FIRST, "an error kept"))
+    {
+        cli_line_text(&kept, message);
+        cli_line_character(&kept, '\n');
+        cli_line_text(&kept, detail);
+        if (cli_line_closed(&kept) != 0ull)
+        {
+            cli_report_keep(kept.out, root);
+        }
+        cli_cell_given(kept.out);
+    }
     if (!cli_report_auto() || cli_net_held())
     {
         cli_lock_give(&s_lock);
@@ -289,12 +310,17 @@ int cli_report_error(const char *category, const char *message, const char *deta
         cli_lock_give(&s_lock);
         return 0;
     }
-    CliLine what = {s_what, sizeof(s_what), 0ull};
-    cli_line_text(&what, "orior reported this error on its own.\n\n");
-    cli_line_text(&what, message);
-    cli_line_closed(&what);
-    const CliReport report = {category, title, s_what, "", detail};
+    CliLine what;
+    const char *said = "";
+    if (cli_line_growing(&what, CLI_REPORT_FIELD_FIRST, "what an error report says"))
+    {
+        cli_line_text(&what, "orior_cli reported this error on its own.\n\n");
+        cli_line_text(&what, message);
+        said = (cli_line_closed(&what) != 0ull) ? what.out : "";
+    }
+    const CliReport report = {category, title, said, "", detail};
     cli_file_as(&report, root, 0, filed);
+    cli_cell_given(what.out);
     cli_lock_give(&s_lock);
     return 1;
 }

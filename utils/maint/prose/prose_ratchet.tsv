@@ -257,8 +257,8 @@ src/cu/engine/nbody/orior/scan_avx512.c	1
 src/cu/engine/nbody/orior/scan_neon.c	1
 src/cu/engine/nbody/orior/scan_sve.c	1
 src/cu/engine/prg_sch/README.md	4
-src/cu/engine/render/anchor_raster.h	2
-src/cu/engine/render/anchor_raster_internal.h	1
+src/cu/engine/render/orior_raster.h	2
+src/cu/engine/render/orior_raster_internal.h	1
 src/cu/engine/rmc/asm_printer.h	13
 src/cu/engine/rmc/asm_printer_core_program.h	5
 src/cu/engine/rmc/asm_printer_core_words.h	6
@@ -320,7 +320,6 @@ src/cu/includes/file_defs/krep/krep_records/file.c	1
 src/cu/includes/file_defs/krep/krep_records/rows.c	1
 src/cu/includes/file_defs/krep/krep_records/viewed.c	1
 src/cu/includes/file_defs/krf/krf.h	1
-src/cu/includes/file_defs/krs/krs_write.c	4
 src/cu/includes/file_defs/krs/krs_write/fixed.c	2
 src/cu/includes/file_defs/krs/krs_write/fixed.h	1
 src/cu/includes/file_defs/krs/ruleset_core_relation_schema.h	2

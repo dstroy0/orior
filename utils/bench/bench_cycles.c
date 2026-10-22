@@ -162,8 +162,8 @@ int main(void)
     static uint8_t corpus[CORPUS_BYTES];
     static const Arm ARMS[] = {
         {"naive", orior_naive},
-        {"anchor_inorder", orior_inorder},
-        {"anchor_free", orior_free},
+        {"orior_inorder", orior_inorder},
+        {"orior_free", orior_free},
     };
     static const Corpus CORPORA[] = {
         {"skewed", corpus_skewed},
@@ -234,8 +234,8 @@ int main(void)
                        matched ? "agree" : "DIFFER");
             }
 
-            AnchorFieldCensus census;
-            anchor_field_census(corpus, CORPUS_BYTES, &census);
+            OriorFieldCensus census;
+            orior_field_census(corpus, CORPUS_BYTES, &census);
             const OriorPlan plan = {
                 .census = &census,
                 .needle_len = needle_len,

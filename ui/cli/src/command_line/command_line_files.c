@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_files.c: `orior run run-file`, a file run with its language's toolchain, in bash at the tree's top
-// folder, attached to this terminal, exiting with its code; `orior run validate`, each file validated with the tool
-// plugin for its language, what it found and its verdict said, or the whole report as JSON; and `orior edit format`,
+// command_line_files.c: `orior_cli run run-file`, a file run with its language's toolchain, in bash at the tree's top
+// folder, attached to this terminal, exiting with its code; `orior_cli run validate`, each file validated with the tool
+// plugin for its language, what it found and its verdict said, or the whole report as JSON; and `orior_cli edit format`,
 // each file formatted in place with its language's formatter, or with --check each that would change named
 #include "../code/git.h"
 #include "../plugins/validate.h"
@@ -103,7 +103,7 @@ static int files_run_words(const char *named, const char *const *words, unsigned
     char language[CLI_NAME_LONGEST];
     if (!cli_format_language_of(path, language))
     {
-        files_err(words[0], ": no plugin opens it, and so orior knows no way to run it", "");
+        files_err(words[0], ": no plugin opens it, and so orior_cli knows no way to run it", "");
         return CLI_NO_CODE;
     }
     CliLine run = {s_room->read, sizeof(s_room->read), 0ull};

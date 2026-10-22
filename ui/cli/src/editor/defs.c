@@ -6,23 +6,45 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
-// the most bytes of a table or a header read, and the most folders and tables listed
-#define CLI_DEFS_BYTES (1u << 22u)
-
+// the folders or tables a listing's room is begun with, doubling as they are put, and the most it holds
+#define CLI_DEFS_NAMES_FIRST 32u
 #define CLI_DEFS_NAMES 512u
 
-// a file's text and the names listed, held under the lock while the definitions are read
-static char s_text[CLI_DEFS_BYTES];
-static char s_names[CLI_DEFS_NAMES][CLI_NAME_LONGEST];
-static unsigned int s_count;
-static CliLock s_lock = CLI_LOCK_INIT;
+CliCellsTally g_cli_defs_cells = CLI_CELLS_TALLY("cli_defs");
 
-// the file at `path` read into the text: its size, or QRY_MEMBER_UNREAD
-static unsigned long long cli_read(const char *path)
+// A file read: its text, mapped, and its size; the text NULL where it could not be read
+typedef struct
 {
-    const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text) - 1u);
-    s_text[(size == QRY_MEMBER_UNREAD) ? 0u : size] = '\0';
-    return size;
+    const char *text;
+    unsigned long long size;
+} CliDefsFile;
+
+// The names a folder lists, its folders where `folders` is 1, else its files ending `.tsv`, in a cell whose room
+// doubles as they are put
+typedef struct
+{
+    char (*name)[CLI_NAME_LONGEST];
+    unsigned int count;
+    unsigned int room;
+    int folders;
+} CliDefsNames;
+
+// the file at `path` mapped whole, let go with cli_unmapped
+static CliDefsFile cli_mapped(const char *path)
+{
+    unsigned long long size = 0ull;
+    const unsigned char *const bytes = cli_file_held(path, &size);
+    // a file's bytes are read as its text
+    return (CliDefsFile){(const char *)bytes, size};
+}
+
+static void cli_unmapped(CliDefsFile file)
+{
+    if (file.text != NULL)
+    {
+        // the text is the bytes the file was mapped as
+        cli_file_let_go((const unsigned char *)file.text, file.size);
+    }
 }
 
 // the line from `at` before `end`: where it ends, its `\r` before `\n` left off, into `stop`; where the next starts
@@ -77,17 +99,12 @@ static void cli_fields_written(CliLine *out, const char *from, const char *to)
     cli_line_character(out, ']');
 }
 
-// A tab separated table whose first line that is not a comment names its columns, written; 0 where it has no such line
-// or could not be read, nothing written then
-static int cli_table_written(const char *root, const char *path, const char *name, CliLine *out)
+// The table `file` holds written, its first line that is not a comment naming its columns; 0 where it has no such line,
+// nothing written then
+static int cli_rows_written(const char *root, const char *path, const char *name, CliDefsFile file, CliLine *out)
 {
-    const unsigned long long size = cli_read(path);
-    if (size == QRY_MEMBER_UNREAD)
-    {
-        return 0;
-    }
-    const char *const end = s_text + size;
-    const char *at = s_text;
+    const char *const end = file.text + file.size;
+    const char *at = file.text;
     const char *stop = NULL;
     const char *next = NULL;
     while (at < end)
@@ -129,16 +146,31 @@ static int cli_table_written(const char *root, const char *path, const char *nam
     return 1;
 }
 
+// A tab separated table whose first line that is not a comment names its columns, written; 0 where it has no such line
+// or could not be read, nothing written then
+static int cli_table_written(const char *root, const char *path, const char *name, CliLine *out)
+{
+    const CliDefsFile file = cli_mapped(path);
+    if (file.text == NULL)
+    {
+        return 0;
+    }
+    const int written = cli_rows_written(root, path, name, file, out);
+    cli_unmapped(file);
+    return written;
+}
+
 // The comment lines a C header opens with, past its license line, each trimmed of its slashes and joined by a space,
-// written as one JSON string
+// written as one JSON string, joined in a cell of the header's size
 static void cli_header_written(const char *path, CliLine *out)
 {
-    static char s_joined[CLI_DEFS_BYTES];
-    CliLine joined = {s_joined, sizeof(s_joined), 0ull};
-    const unsigned long long size = cli_read(path);
-    const char *const end = s_text + ((size == QRY_MEMBER_UNREAD) ? 0ull : size);
+    const CliDefsFile file = cli_mapped(path);
+    const unsigned long long size = (file.text != NULL) ? file.size : 0ull;
+    char *const text = cli_cell_taken_by(&g_cli_defs_cells, size + 1ull, "a header's comment");
+    CliLine joined = {text, (text != NULL) ? (size + 1ull) : 0ull, 0ull};
+    const char *const end = (text != NULL) ? (file.text + size) : file.text;
     int first = 1;
-    const char *at = s_text;
+    const char *at = file.text;
     while (at < end)
     {
         const char *stop = NULL;
@@ -178,11 +210,13 @@ static void cli_header_written(const char *path, CliLine *out)
         at = next;
     }
     const unsigned long long length = cli_line_fits(&joined) ? joined.at : 0ull;
-    cli_json_quoted(out, s_joined, length);
+    cli_json_quoted(out, (text != NULL) ? text : "", length);
+    cli_cell_given_by(&g_cli_defs_cells, text);
+    cli_unmapped(file);
 }
 
 // A `#define NAME value` read out of the text: where its value starts, trimmed, and its length; NULL where none is
-static const char *cli_define(const char *name, unsigned long long size, unsigned long long *length)
+static const char *cli_define(const char *name, CliDefsFile file, unsigned long long *length)
 {
     char key[CLI_NAME_LONGEST];
     CliLine line = {key, sizeof(key), 0ull};
@@ -190,8 +224,8 @@ static const char *cli_define(const char *name, unsigned long long size, unsigne
     cli_line_text(&line, name);
     cli_line_character(&line, ' ');
     const unsigned long long key_length = cli_line_closed(&line);
-    const char *const end = s_text + size;
-    const char *at = s_text;
+    const char *const end = file.text + file.size;
+    const char *at = file.text;
     while (at < end)
     {
         const char *stop = NULL;
@@ -217,10 +251,10 @@ static const char *cli_define(const char *name, unsigned long long size, unsigne
 }
 
 // a define's value as a whole number, its `u` suffix taken off: 1, or 0 where it is none or past 32 bits
-static int cli_define_number(const char *name, unsigned long long size, unsigned long long *number)
+static int cli_define_number(const char *name, CliDefsFile file, unsigned long long *number)
 {
     unsigned long long length = 0ull;
-    const char *const value = cli_define(name, size, &length);
+    const char *const value = cli_define(name, file, &length);
     while ((value != NULL) && (length != 0ull) && (value[length - 1u] == 'u'))
     {
         length -= 1ull;
@@ -247,20 +281,15 @@ static int cli_define_number(const char *name, unsigned long long size, unsigned
     return 1;
 }
 
-// the head every k-file opens with, as krep_head.h defines it, written; `null` where it cannot be read
-static void cli_head_written(const char *root, CliLine *out)
+// the head every k-file opens with, as the header `file` defines it, written; `null` where it defines none
+static void cli_head_of(CliDefsFile file, CliLine *out)
 {
-    char path[CLI_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, root);
-    cli_line_text(&line, "/src/cu/includes/file_defs/krep/krep_head.h");
-    const unsigned long long size = (cli_line_closed(&line) != 0ull) ? cli_read(path) : QRY_MEMBER_UNREAD;
     unsigned long long bytes = 0ull;
     unsigned long long version = 0ull;
     unsigned long long magic_length = 0ull;
-    const char *magic = (size != QRY_MEMBER_UNREAD) ? cli_define("KREP_MAGIC", size, &magic_length) : NULL;
-    if ((magic == NULL) || !cli_define_number("KREP_HEAD_BYTES", size, &bytes) ||
-        !cli_define_number("KREP_VERSION", size, &version))
+    const char *magic = (file.text != NULL) ? cli_define("KREP_MAGIC", file, &magic_length) : NULL;
+    if ((magic == NULL) || !cli_define_number("KREP_HEAD_BYTES", file, &bytes) ||
+        !cli_define_number("KREP_VERSION", file, &version))
     {
         cli_line_text(out, "null");
         return;
@@ -289,45 +318,83 @@ static void cli_head_written(const char *root, CliLine *out)
     cli_line_character(out, '}');
 }
 
+// the head every k-file opens with, as krep_head.h defines it, written; `null` where it cannot be read
+static void cli_head_written(const char *root, CliLine *out)
+{
+    char path[CLI_PATH_LONGEST];
+    CliLine line = {path, sizeof(path), 0ull};
+    cli_line_text(&line, root);
+    cli_line_text(&line, "/src/cu/includes/file_defs/krep/krep_head.h");
+    const CliDefsFile file = (cli_line_closed(&line) != 0ull) ? cli_mapped(path) : (CliDefsFile){NULL, 0ull};
+    cli_head_of(file, out);
+    cli_unmapped(file);
+}
+
 // The names a folder lists: its folders, or its files ending `.tsv`, in order
+// room made for one name more in `names`: 1, or 0 where it holds the most or its larger cell is refused
+static int cli_name_room(CliDefsNames *names)
+{
+    if (names->count < names->room)
+    {
+        return 1;
+    }
+    const unsigned int doubled = (names->room == 0u) ? CLI_DEFS_NAMES_FIRST : (names->room * 2u);
+    const unsigned int room = (doubled < CLI_DEFS_NAMES) ? doubled : CLI_DEFS_NAMES;
+    char (*const larger)[CLI_NAME_LONGEST] =
+        (names->count < CLI_DEFS_NAMES)
+            ? cli_cell_taken_by(&g_cli_defs_cells, (unsigned long long)room * CLI_NAME_LONGEST,
+                                "the folders and tables of the definitions")
+            : NULL;
+    if (larger == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = larger, .src = names->name, .bytes = (size_t)names->count * CLI_NAME_LONGEST});
+    cli_cell_given_by(&g_cli_defs_cells, names->name);
+    names->name = larger;
+    names->room = room;
+    return 1;
+}
+
 static void cli_name_each(void *context, const char *name, int is_folder)
 {
-    const int *const folders = (const int *)context;
+    CliDefsNames *const names = context;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     const int wanted =
-        *folders ? is_folder
-                 : ((length > 4u) &&
-                    (cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".tsv", .cap = CLI_CELLS_POOL})));
-    if (wanted && (s_count < CLI_DEFS_NAMES) && (length < CLI_NAME_LONGEST))
+        names->folders
+            ? is_folder
+            : ((length > 4u) &&
+               (cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".tsv", .cap = CLI_CELLS_POOL})));
+    if (wanted && (length < CLI_NAME_LONGEST) && cli_name_room(names))
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_names[s_count],
-                                .src = name,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-        s_count += 1u;
+        memor.cpy(&(MemoriaCfg){.dst = names->name[names->count], .src = name, .bytes = length + 1u});
+        names->count += 1u;
     }
 }
 
-static void cli_names_listed(const char *folder, int folders)
+// the names `folder` lists into `names`, in order, those it held before given back
+static void cli_names_listed(const char *folder, int folders, CliDefsNames *names)
 {
-    s_count = 0u;
-    query_folder_each(folder, cli_name_each, &folders);
-    for (unsigned int at = 1u; at < s_count; at += 1u)
+    cli_cell_given_by(&g_cli_defs_cells, names->name);
+    *names = (CliDefsNames){NULL, 0u, 0u, folders};
+    query_folder_each(folder, cli_name_each, names);
+    char (*const name)[CLI_NAME_LONGEST] = names->name;
+    for (unsigned int at = 1u; at < names->count; at += 1u)
     {
         char held[CLI_NAME_LONGEST];
-        memor.cpy(
-            &(MemoriaCfg){.dst = held,
-                          .src = s_names[at],
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = held,
+                                .src = name[at],
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name[at], .cap = CLI_CELLS_POOL}) + 1u});
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(s_names[place - 1u], held) > 0))
+        while ((place > 0u) && (cli_text_order(name[place - 1u], held) > 0))
         {
             memor.cpy(&(MemoriaCfg){
-                .dst = s_names[place],
-                .src = s_names[place - 1u],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_names[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+                .dst = name[place],
+                .src = name[place - 1u],
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
             place -= 1u;
         }
-        memor.cpy(&(MemoriaCfg){.dst = s_names[place],
+        memor.cpy(&(MemoriaCfg){.dst = name[place],
                                 .src = held,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
     }
@@ -337,17 +404,17 @@ void cli_defs_read(const char *root, CliLine *out)
 {
     char folder[CLI_PATH_LONGEST];
     char path[CLI_PATH_LONGEST];
-    cli_lock_take(&s_lock);
+    CliDefsNames names = {NULL, 0u, 0u, 1};
     CliLine line = {folder, sizeof(folder), 0ull};
     cli_line_text(&line, root);
     cli_line_text(&line, "/src/cu/includes/file_defs");
     cli_line_closed(&line);
-    cli_names_listed(folder, 1);
+    cli_names_listed(folder, 1, &names);
     cli_line_text(out, "{\"types\":[");
     int first = 1;
-    for (unsigned int at = 0u; at < s_count; at += 1u)
+    for (unsigned int at = 0u; at < names.count; at += 1u)
     {
-        const char *const ext = s_names[at];
+        const char *const ext = names.name[at];
         CliLine table = {path, sizeof(path), 0ull};
         cli_line_text(&table, folder);
         cli_line_character(&table, '/');
@@ -393,17 +460,17 @@ void cli_defs_read(const char *root, CliLine *out)
     cli_line_text(&languages, root);
     cli_line_text(&languages, "/src/lng");
     cli_line_closed(&languages);
-    cli_names_listed(folder, 0);
+    cli_names_listed(folder, 0, &names);
     first = 1;
-    for (unsigned int at = 0u; at < s_count; at += 1u)
+    for (unsigned int at = 0u; at < names.count; at += 1u)
     {
         CliLine table = {path, sizeof(path), 0ull};
         cli_line_text(&table, folder);
         cli_line_character(&table, '/');
-        cli_line_text(&table, s_names[at]);
+        cli_line_text(&table, names.name[at]);
         const unsigned long long begun = out->at;
         cli_line_text(out, first ? "" : ",");
-        if ((cli_line_closed(&table) == 0ull) || !cli_table_written(root, path, s_names[at], out))
+        if ((cli_line_closed(&table) == 0ull) || !cli_table_written(root, path, names.name[at], out))
         {
             out->at = begun;
             continue;
@@ -411,5 +478,5 @@ void cli_defs_read(const char *root, CliLine *out)
         first = 0;
     }
     cli_line_text(out, "]}");
-    cli_lock_give(&s_lock);
+    cli_cell_given_by(&g_cli_defs_cells, names.name);
 }

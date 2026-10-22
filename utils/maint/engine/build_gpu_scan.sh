@@ -54,7 +54,7 @@ rm -f "$OUT/bench_steer_gpu.exe"
 nvcc -ccbin "$MSVC_BIN" -O2 $GENCODE \
     -I "$ROOT/src/cu/engine/nbody/orior" \
     -I "$ROOT/src/cu/includes/types/integers" \
-    -DANCHOR_STEER_HAVE_CUDA=1 \
+    -DORIOR_STEER_HAVE_CUDA=1 \
     -o "$OUT/bench_steer_gpu.exe" \
     "$ROOT/src/cu/engine/nbody/orior/scan.cu" \
     "$ROOT/src/cu/engine/nbody/orior/scan.c" \

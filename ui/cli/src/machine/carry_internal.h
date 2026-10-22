@@ -9,29 +9,21 @@
 #include "../text/json_tree.h"
 #include "carry.h"
 
-// the most nodes and bytes of one settings file read
-#define CLI_CARRY_NODES (1u << 18u)
-#define CLI_CARRY_JSON (1u << 24u)
-
 // What a carried file says it is
 #define CLI_CARRY_MARK "orior settings"
 
-// The room settings are read and written in: the tree, its storage and tokens, and the text written, cells of
-// CLI_CARRY_NODES and CLI_CARRY_JSON taken under the lock of the work that reads them and given back before it is
-// given
+// the bytes a settings text written is begun in before it grows
+#define CLI_CARRY_WRITTEN_FIRST (4ull << 10u)
+
+// The room settings are read in: the tree, a cell sized to the texts read into it, begun empty under the lock of the
+// work that reads them and given back before it is given
 typedef struct
 {
-    CliJsonNode *nodes;
-    char *text;
-    CfgJsonToken *tokens;
     CliJson json;
-    char *plain;
-    char *written;
 } CliCarryRoom;
 
-// a room's cells taken: 1, or 0 with none kept where the cells cannot meet them; and given back, those it has
-// (carry.c)
-int cli_carry_room_taken(CliCarryRoom *room);
+// a room begun empty, and its tree given back (carry.c)
+void cli_carry_room_begun(CliCarryRoom *room);
 void cli_carry_room_given(CliCarryRoom *room);
 
 // the files carried made empty; `size` bytes of `value` put at `place`, in the order of the places, one there already
@@ -44,12 +36,15 @@ const char *cli_carried_place(const CliCarried *carried, unsigned int at);
 const char *cli_carried_value(const CliCarried *carried, unsigned int at);
 
 // whether a setting's key names this machine's own and stays on it; `size` bytes of settings text read into the room's
-// tree as an object, an empty one where it is no object: the object; the object written with its keys in order, as
-// settings.json is written, into `out`; whether `place` is one a carried file may write; and the files of `folder`
-// that travel, by place, each with its path. A settings text is read into a tree begun afresh where `fresh` is 1,
-// and beside what it holds where it is 0 (carry.c)
+// tree as an object, an empty one where it is no object: the object, CLI_JSON_NONE where the tree's cell is refused;
+// the object written with its keys in order, as settings.json is written, into `out`; whether `place` is one a
+// carried file may write; and the files of `folder` that travel, by place, each with its path. A settings text is
+// read into a tree begun afresh in a cell sized to it with room over for `beside` bytes of settings read beside it and
+// copied over into it, or read beside what the tree holds, into that room (carry.c)
 int cli_carry_machine(const char *key);
-unsigned int cli_carry_settings_of(CliCarryRoom *room, const char *text, unsigned long long size, int fresh);
+unsigned int cli_carry_settings_of(CliCarryRoom *room, const char *text, unsigned long long size,
+                                   unsigned long long beside);
+unsigned int cli_carry_settings_beside(CliCarryRoom *room, const char *text, unsigned long long size);
 void cli_carry_settings_written(CliCarryRoom *room, unsigned int object, CliLine *out);
 int cli_carry_allowed(const char *place);
 void cli_carry_files(const char *folder, CliCarried *found);

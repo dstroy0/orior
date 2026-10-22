@@ -368,15 +368,16 @@ void query_leaf_shown(const char *path, const unsigned char *tree, unsigned long
 int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryAsker asker, QueryContext *context, CliLine *said)
 {
     QueryLeave standing = leave;
-    const unsigned int count = run->reads + run->lefts;
+    const unsigned int reads = run->read.count;
+    const unsigned int count = reads + run->left.count;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const char *const path = (at < run->reads) ? run->read[at] : run->left[at - run->reads];
+        const char *const path = (at < reads) ? run->read.path[at] : run->left.path[at - reads];
         // each path once, in the order first named
         int named_before = 0;
         for (unsigned int before = 0u; !named_before && (before < at); before += 1u)
         {
-            const char *const other = (before < run->reads) ? run->read[before] : run->left[before - run->reads];
+            const char *const other = (before < reads) ? run->read.path[before] : run->left.path[before - reads];
             named_before = cellul.eq(&(CatenaFinitaCfg){.src = other, .other = path, .cap = CLI_CELLS_POOL});
         }
         const unsigned char *held = NULL;

@@ -13,8 +13,8 @@
 // the denominator is always positive
 typedef struct
 {
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
 } SimRational;
 
 // one flag for the whole program: every file that includes this marks and reads the same one
@@ -42,9 +42,9 @@ static inline long long sim_rational_gcd(long long left, long long right)
 }
 
 // the value as a signed word, when its magnitude is below 2^62
-static inline int sim_rational_small(const AnchorExactInteger *value, long long *small)
+static inline int sim_rational_small(const OriorExactInteger *value, long long *small)
 {
-    for (unsigned int limb = 2u; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+    for (unsigned int limb = 2u; limb < ORIOR_EXACT_LIMBS; limb += 1u)
     {
         if (value->limb[limb] != 0u)
         {
@@ -70,17 +70,17 @@ static inline void sim_rational_settle(SimRational *value)
         (sim_rational_small(&value->denominator, &denominator) == 0) || (denominator <= 0ll))
     {
         // a gcd or a division that fails leaves the value as it was, exact and not in lowest terms, and marks the run
-        AnchorExactInteger common;
-        AnchorExactInteger one;
-        const int found = (anchor_exact_gcd(&value->numerator, &value->denominator, &common) == ANCHOR_EXACT_OK);
+        OriorExactInteger common;
+        OriorExactInteger one;
+        const int found = (orior_exact_gcd(&value->numerator, &value->denominator, &common) == ORIOR_EXACT_OK);
         sim_rational_status_check(found);
         sim_exact_unsigned(&one, 1ull);
-        if ((found != 0) && (anchor_exact_compare(&common, &one) > 0))
+        if ((found != 0) && (orior_exact_compare(&common, &one) > 0))
         {
-            AnchorExactInteger top;
-            AnchorExactInteger bottom;
-            const int divided = (anchor_exact_divide_exact(&value->numerator, &common, &top) == ANCHOR_EXACT_OK) &&
-                                (anchor_exact_divide_exact(&value->denominator, &common, &bottom) == ANCHOR_EXACT_OK);
+            OriorExactInteger top;
+            OriorExactInteger bottom;
+            const int divided = (orior_exact_divide_exact(&value->numerator, &common, &top) == ORIOR_EXACT_OK) &&
+                                (orior_exact_divide_exact(&value->denominator, &common, &bottom) == ORIOR_EXACT_OK);
             sim_rational_status_check(divided);
             if (divided != 0)
             {
@@ -117,8 +117,8 @@ static inline SimRational sim_rational(long long numerator, long long denominato
 static inline SimRational sim_rational_sum(SimRational left, SimRational right)
 {
     SimRational value;
-    AnchorExactInteger left_scaled;
-    AnchorExactInteger right_scaled;
+    OriorExactInteger left_scaled;
+    OriorExactInteger right_scaled;
     sim_rational_status_check(sim_exact_product(&left.numerator, &right.denominator, &left_scaled) &&
                               sim_exact_product(&right.numerator, &left.denominator, &right_scaled) &&
                               sim_exact_sum(&left_scaled, &right_scaled, &value.numerator) &&
@@ -182,12 +182,12 @@ static inline SimRational sim_rational_absolute(SimRational value)
 
 static inline int sim_rational_equal(SimRational left, SimRational right)
 {
-    AnchorExactInteger left_cross;
-    AnchorExactInteger right_cross;
+    OriorExactInteger left_cross;
+    OriorExactInteger right_cross;
     const int ok = sim_exact_product(&left.numerator, &right.denominator, &left_cross) &&
                    sim_exact_product(&right.numerator, &left.denominator, &right_cross);
     sim_rational_status_check(ok);
-    return ok && (anchor_exact_compare(&left_cross, &right_cross) == 0);
+    return ok && (orior_exact_compare(&left_cross, &right_cross) == 0);
 }
 
 // a reduced fraction when it fits a word; wider, the exact value truncated to 12 places
@@ -217,9 +217,9 @@ static inline void sim_rational_print(ScripturaLine *line, SimRational value)
 }
 
 // the number of bits in the magnitude: 0 for 0
-static inline unsigned long long sim_exact_bits(const AnchorExactInteger *value)
+static inline unsigned long long sim_exact_bits(const OriorExactInteger *value)
 {
-    for (unsigned int limb = ANCHOR_EXACT_LIMBS; limb > 0u; limb -= 1u)
+    for (unsigned int limb = ORIOR_EXACT_LIMBS; limb > 0u; limb -= 1u)
     {
         unsigned int word = value->limb[limb - 1u];
         if (word != 0u)
@@ -237,10 +237,10 @@ static inline unsigned long long sim_exact_bits(const AnchorExactInteger *value)
 }
 
 // base^power exactly, by repeated squaring
-static inline int sim_exact_power(unsigned long long base, unsigned long long power, AnchorExactInteger *result)
+static inline int sim_exact_power(unsigned long long base, unsigned long long power, OriorExactInteger *result)
 {
-    AnchorExactInteger square;
-    AnchorExactInteger next;
+    OriorExactInteger square;
+    OriorExactInteger next;
     sim_exact_unsigned(result, 1ull);
     sim_exact_unsigned(&square, base);
     while (power != 0ull)

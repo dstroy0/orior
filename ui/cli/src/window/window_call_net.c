@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window_call_net.c: the window's calls that reach past this machine or into the reader's files anywhere: orior held
-// off the network or let on and the addresses it reached, the plugin catalog read and installed from, a plugin's
+// window_call_net.c: the window's calls that reach past this machine or into the reader's files anywhere: orior_cli
+// held off the network or let on and the addresses it reached, the plugin catalog read and installed from, a plugin's
 // request sent, a picture read as a data address, a page opened in the browser, a toolchain's install page, and a
 // repository cloned, its progress told as it comes
 #include "../code/git.h"
@@ -18,10 +18,12 @@
 // the most bytes of a picture behind the editor
 #define CLI_WINDOW_IMAGE_MOST (8ull << 20u)
 
-static CliLock s_lock = CLI_LOCK_INIT;
-static unsigned char s_bytes[CLI_WINDOW_IMAGE_MOST];
+// the bytes a catalog entry's line is begun with before it grows
+#define CLI_WINDOW_ENTRY_FIRST 4096ull
 
-// orior held off the network, or let on, as the reader's setting `network` says
+static CliLock s_lock = CLI_LOCK_INIT;
+
+// orior_cli held off the network, or let on, as the reader's setting `network` says
 static int net_hold(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     (void)out;
@@ -34,7 +36,7 @@ static int net_hold(const CliServeArgs *args, CliLine *out, CliLine *said)
     return 1;
 }
 
-// the addresses orior has reached, the last first
+// the addresses orior_cli has reached, the last first
 static int net_reached(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     (void)args;
@@ -58,19 +60,22 @@ static int net_catalog_install(const CliServeArgs *args, CliLine *out, CliLine *
     {
         return 0;
     }
-    static char s_entry[1u << 16u];
-    static char s_folder[CLI_PATH_LONGEST];
-    cli_lock_take(&s_lock);
-    CliLine entry = {s_entry, sizeof(s_entry), 0ull};
+    CliLine entry;
+    if (!cli_line_growing(&entry, CLI_WINDOW_ENTRY_FIRST, "a catalog's entry"))
+    {
+        cli_line_text(said, "the catalog's entry could not be held");
+        return 0;
+    }
     cli_window_arg_written(args, "entry", &entry);
-    CliLine folder = {s_folder, sizeof(s_folder), 0ull};
+    char folder_text[CLI_PATH_LONGEST];
+    CliLine folder = {folder_text, sizeof(folder_text), 0ull};
     const int installed =
-        cli_line_fits(&entry) && cli_plugin_catalog_install(address, s_entry, entry.at, &folder, said);
+        cli_line_fits(&entry) && cli_plugin_catalog_install(address, entry.out, entry.at, &folder, said);
     if (installed)
     {
-        cli_window_counted(out, s_folder, cli_line_fits(&folder) ? folder.at : 0ull);
+        cli_window_counted(out, folder_text, cli_line_fits(&folder) ? folder.at : 0ull);
     }
-    cli_lock_give(&s_lock);
+    cli_cell_given(entry.out);
     return installed;
 }
 
@@ -212,7 +217,8 @@ static int net_image_data(const CliServeArgs *args, CliLine *out, CliLine *said)
         return 0;
     }
     unsigned long long size = 0ull;
-    if (!cli_file_size(path, &size))
+    const unsigned char *const bytes = cli_file_held(path, &size);
+    if (bytes == NULL)
     {
         cli_line_text(said, path);
         cli_line_text(said, ": it could not be read");
@@ -220,27 +226,18 @@ static int net_image_data(const CliServeArgs *args, CliLine *out, CliLine *said)
     }
     if (size > CLI_WINDOW_IMAGE_MOST)
     {
+        cli_file_let_go(bytes, size);
         cli_line_text(said, path);
         cli_line_text(said, " is over 8 MB, the most an image behind the editor is");
         return 0;
     }
-    cli_lock_take(&s_lock);
-    const unsigned long long read = qry_member_file_read(path, s_bytes, sizeof(s_bytes));
-    if (read != QRY_MEMBER_UNREAD)
-    {
-        cli_line_text(out, "\"data:");
-        cli_line_text(out, kind);
-        cli_line_text(out, ";base64,");
-        cli_base64(out, s_bytes, read);
-        cli_line_character(out, '"');
-    }
-    cli_lock_give(&s_lock);
-    if (read == QRY_MEMBER_UNREAD)
-    {
-        cli_line_text(said, path);
-        cli_line_text(said, ": it could not be read");
-    }
-    return read != QRY_MEMBER_UNREAD;
+    cli_line_text(out, "\"data:");
+    cli_line_text(out, kind);
+    cli_line_text(out, ";base64,");
+    cli_base64(out, bytes, size);
+    cli_line_character(out, '"');
+    cli_file_let_go(bytes, size);
+    return 1;
 }
 
 // an https page a hover or a diagnostic links to opened in the browser
@@ -334,7 +331,7 @@ static int net_repos_folder(const CliServeArgs *args, CliLine *out, CliLine *sai
     char folder[CLI_PATH_LONGEST];
     if (!cli_git_opened_parent(folder))
     {
-        cli_line_text(said, "orior has no folder of its own here");
+        cli_line_text(said, "orior_cli has no folder of its own here");
         return 0;
     }
     if (!query_folder_made(folder))

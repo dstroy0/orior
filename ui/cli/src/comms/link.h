@@ -5,7 +5,7 @@
 // An address names the machine and the tree's folder on it: `user@host:folder` over ssh, `docker:container:folder` in
 // a running container over docker exec, and `wsl:distribution:folder` in a WSL distribution. The link asks the
 // machine what it is, sends it orior's server for it where the machine does not hold the one this window was built
-// with, and starts `orior-cli serve` there, whose calls it answers by id and whose events it hands on. Where the link
+// with, and starts `orior_cli serve` there, whose calls it answers by id and whose events it hands on. Where the link
 // drops, the calls waiting on it are answered with the drop, and it is made again, sooner at first and then every
 // 30 s; each change is told as the event "link".
 //
@@ -57,7 +57,7 @@ typedef void (*CliLinkStated)(void *context, const char *state, const char *said
 // orior's server put on the machine where it is not there, what is being done told to `stated` as the state
 // `preparing` while it waits, and the shell line that starts it on the tree written into `start`: 1, or 0 with why
 // said. A server built here for the machine is built by the tree's ui/cli/build.sh, given the machine's target,
-// into build/cli/<target>/orior-cli (link_prepare.c)
+// into build/cli/<target>/orior_cli (link_prepare.c)
 int cli_link_prepare(const CliLinkAddress *address, CliLinkStated stated, void *context, CliLine *start, CliLine *said);
 // whether `uname -sm` says the machine is Windows; and the machine's target by what it says, into `target`, which
 // holds CLI_NAME_LONGEST: 1, or 0 with why said (link_prepare.c)

@@ -19,7 +19,7 @@ int main(int count, char **arguments)
     const unsigned int draws = plane_number(count, arguments, "--draws", PLANE_DRAWS);
     const std::string directory = plane_directory(count, arguments);
     const unsigned long long needed = (unsigned long long)bits_count + PLANE_GUARD + 64ull;
-    if ((bits_count < 64u) || (bits_count > PLANE_BITS_MAX) || (needed > ANCHOR_EXACT_BITS) || (draws == 0u))
+    if ((bits_count < 64u) || (bits_count > PLANE_BITS_MAX) || (needed > ORIOR_EXACT_BITS) || (draws == 0u))
     {
         unsigned long long limbs = 1ull;
         while (limbs * 32ull < needed)

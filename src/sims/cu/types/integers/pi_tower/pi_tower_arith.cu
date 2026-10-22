@@ -5,12 +5,12 @@
 
 int g_pi_tower_error = 0;
 
-// set where a search asks for a record past the range the records were held to
+// set where a search asks for a record past the range the records were limited to
 int g_pi_tower_records_short = 0;
 
-static void pi_tower_took(AnchorExactStatus status)
+static void pi_tower_took(OriorExactStatus status)
 {
-    if (status != ANCHOR_EXACT_OK)
+    if (status != ORIOR_EXACT_OK)
     {
         g_pi_tower_error = 1;
     }
@@ -26,7 +26,7 @@ PiWide pi_tower_unsigned(unsigned long long number)
 PiWide pi_tower_power_two(unsigned int bits)
 {
     PiWide value;
-    anchor_exact_zero(&value);
+    orior_exact_zero(&value);
     value.limb[bits / 32u] = 1u << (bits % 32u);
     value.sign = 1;
     return value;
@@ -35,24 +35,24 @@ PiWide pi_tower_power_two(unsigned int bits)
 PiWide pi_tower_sum(const PiWide &left, const PiWide &right)
 {
     PiWide value;
-    anchor_exact_zero(&value);
-    pi_tower_took(anchor_exact_add(&left, &right, &value));
+    orior_exact_zero(&value);
+    pi_tower_took(orior_exact_add(&left, &right, &value));
     return value;
 }
 
 PiWide pi_tower_difference(const PiWide &left, const PiWide &right)
 {
     PiWide value;
-    anchor_exact_zero(&value);
-    pi_tower_took(anchor_exact_subtract(&left, &right, &value));
+    orior_exact_zero(&value);
+    pi_tower_took(orior_exact_subtract(&left, &right, &value));
     return value;
 }
 
 PiWide pi_tower_product(const PiWide &left, const PiWide &right)
 {
     PiWide value;
-    anchor_exact_zero(&value);
-    pi_tower_took(anchor_exact_multiply(&left, &right, &value));
+    orior_exact_zero(&value);
+    pi_tower_took(orior_exact_multiply(&left, &right, &value));
     return value;
 }
 
@@ -61,9 +61,9 @@ PiWide pi_tower_quotient(const PiWide &numerator, const PiWide &divisor)
 {
     PiWide quotient;
     PiWide remainder;
-    anchor_exact_zero(&quotient);
-    anchor_exact_zero(&remainder);
-    pi_tower_took(anchor_exact_divide(&numerator, &divisor, &quotient, &remainder));
+    orior_exact_zero(&quotient);
+    orior_exact_zero(&remainder);
+    pi_tower_took(orior_exact_divide(&numerator, &divisor, &quotient, &remainder));
     return quotient;
 }
 
@@ -71,15 +71,15 @@ PiWide pi_tower_remainder(const PiWide &numerator, const PiWide &divisor)
 {
     PiWide quotient;
     PiWide remainder;
-    anchor_exact_zero(&quotient);
-    anchor_exact_zero(&remainder);
-    pi_tower_took(anchor_exact_divide(&numerator, &divisor, &quotient, &remainder));
+    orior_exact_zero(&quotient);
+    orior_exact_zero(&remainder);
+    pi_tower_took(orior_exact_divide(&numerator, &divisor, &quotient, &remainder));
     return remainder;
 }
 
 int pi_tower_compare(const PiWide &left, const PiWide &right)
 {
-    return anchor_exact_compare(&left, &right);
+    return orior_exact_compare(&left, &right);
 }
 
 // the low 64 bits

@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_inspect_test.c: a file with no server hears its findings and their fixes, and so does the tree: a file of the
-// tree no tab holds is inspected too, a finding's fix is carried out, and the file's findings go once it is changed
+// tree no tab holds is inspected too, and so is a class that sets one attribute twice, a finding's fix is carried out,
+// and the file's findings go once it is changed
 #include "../../../../../ui/cli/src/servers/servers.h"
 #include "cli_check.h"
 
@@ -143,6 +144,12 @@ int main(void)
     cli_full(dir, "b.py", path);
     static const char s_python[] = "def g():\n    '''Return two.'''\n    return 2\n";
     (void)query_file_written(path, s_python, sizeof(s_python) - 1u);
+    // a class whose family sets one attribute twice, the second put of a file's key taking the first's place
+    cli_full(dir, "c.py", path);
+    static const char s_twice[] = "class Counter:\n    def __init__(self):\n        self.count = 0\n\n"
+                                  "    def add(self, by=1):\n        '''Count by more.'''\n        self.count += by\n"
+                                  "        return self.count\n";
+    (void)query_file_written(path, s_twice, sizeof(s_twice) - 1u);
     CliServersEmit emit = {inspect_told, NULL, ""};
     CliLine out = {s_out, sizeof(s_out), 0ull};
     cli_check(cli_servers_open(dir, file, "javascript", s_text, sizeof(s_text) - 1u, &emit, &out, &said) &&
@@ -158,6 +165,11 @@ int main(void)
                       .src = first, .other = "`unused` is declared and never read.", .cap = CLI_CELLS_POOL})),
               "a file with no server hears its findings");
     cli_check(inspect_given("b.py", first) == 1, "a file of the tree no tab holds is inspected too");
+    for (unsigned int tries = 0u; (inspect_given("c.py", first) < 0) && (tries < 100u); tries += 1u)
+    {
+        query_paused(100u);
+    }
+    cli_check(inspect_given("c.py", first) >= 1, "and a class that sets one attribute twice is inspected");
     const CliTextPlace place = {1u, 9u};
     out.at = 0ull;
     said.at = 0ull;

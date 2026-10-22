@@ -27,7 +27,7 @@ static const CliJson *settings_chain_read(const CliChain *chain, unsigned int *r
     return cli_check_parsed(s_written, out.at, read);
 }
 
-// whether an array of strings holds one that holds `part`
+// whether the strings of an array hold one that holds `part`
 static int settings_any_holds(const CliJson *json, unsigned int array, const char *part)
 {
     for (unsigned int at = 0u; cli_json_item(json, array, at) != CLI_JSON_NONE; at += 1u)
@@ -78,20 +78,24 @@ static void settings_chain_checked(void)
             (cellul.eq(&(CatenaFinitaCfg){.src = third, .other = CLI_SETTINGS_TREE, .cap = CLI_CELLS_POOL})),
         "the files run from the one taken first to the tree's own");
     settings_written("base.json", "{ \"takes\": \"shared.json\" }");
+    cli_settings_chain_given(&s_chain);
     cli_settings_tree(tree, &s_chain);
     json = settings_chain_read(&s_chain, &read);
     cli_check((json->node[cli_json_member(json, read, "files")].count == 3u) &&
                   settings_any_holds(json, cli_json_member(json, read, "problems"), "taken twice"),
               "a chain that takes a file twice stops, and says so");
     settings_written("base.json", "{ \"takes\": \"gone.json\" }");
+    cli_settings_chain_given(&s_chain);
     cli_settings_tree(tree, &s_chain);
     json = settings_chain_read(&s_chain, &read);
     cli_check(settings_any_holds(json, cli_json_member(json, read, "problems"), "gone.json"),
               "a file not there is said");
     cli_full(s_root, "none.json", path);
+    cli_settings_chain_given(&s_chain);
     cli_settings_chain(path, s_root, &s_chain);
     json = settings_chain_read(&s_chain, &read);
     cli_check(json->node[cli_json_member(json, read, "problems")].count == 0u, "a file not there is no problem");
+    cli_settings_chain_given(&s_chain);
 }
 
 // a text of the layers' map `map` at `key`, the empty text where it has none
@@ -219,11 +223,16 @@ static void settings_layers_checked(void)
                                                 .other = "machine",
                                                 .cap = CLI_CELLS_POOL})),
               "the part for this machine alone stands over the rest");
+    cli_settings_layers_given(&s_layers);
+    cli_settings_chain_given(&s_chain);
+    cli_settings_chain_given(&s_other);
 }
 
 int main(void)
 {
     settings_chain_checked();
     settings_layers_checked();
+    cli_check((g_cli_settings_cells.holds == 0ull) && (g_cli_settings_cells.hw != 0ull),
+              "the settings are read and laid in cells each given back");
     return cli_checked();
 }

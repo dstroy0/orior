@@ -3,12 +3,14 @@
 // qry_listed.c: the runs of a tree, from its folders of runs: those a walk of the tree found, walked again at most
 // every ten seconds, each folder read again on every listing so a run that appears in it shows at once; and the lessons
 // of each folder's `overseer.txt`
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "qry.h"
 
 // how often the tree is walked for folders of runs, in milliseconds; the most trees whose walks are kept, the most
-// folders of runs one holds, the most folders a walk has yet to read, and the most runs listed
+// folders of runs one holds, the most folders a walk has yet to read, the most runs listed, and the places a list is
+// first taken with
 #define CLI_WALK_EVERY 10000ull
 
 #define CLI_WALKS_MOST 16u
@@ -19,16 +21,20 @@
 
 #define CLI_LISTED_MOST 4096u
 
-#define CLI_OVERSEER_BYTES (1u << 20u)
+#define CLI_LISTED_FIRST 16u
 
-// A tree's walk: its root, when it was walked on the clock that only goes forward, and its folders of runs in order
+CliCellsTally g_cli_qry_listed_cells = CLI_CELLS_TALLY("cli_qry_listed");
+
+// A tree's walk: its root, when it was walked on the clock that only goes forward, and its folders of runs in order,
+// in a cell of `room` grown as they are found and kept with the walk
 typedef struct
 {
     char root[CLI_PATH_LONGEST];
     int used;
     unsigned long long walked;
-    char folders[CLI_RUN_FOLDERS][CLI_PATH_LONGEST];
+    char (*folders)[CLI_PATH_LONGEST];
     unsigned int count;
+    unsigned int room;
 } CliWalk;
 
 // A run as the window lists it
@@ -42,19 +48,57 @@ typedef struct
     unsigned int folder;
 } CliListed;
 
-// the walks kept, the folders a walk has yet to read, the runs listed and an overseer's text, under the lock
+// the walks kept, under the lock
 static CliWalk s_walks[CLI_WALKS_MOST];
-static char s_pending[CLI_WALK_PENDING][CLI_PATH_LONGEST];
-static CliListed s_listed[CLI_LISTED_MOST];
-static char s_overseer[CLI_OVERSEER_BYTES];
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// What one folder read of a walk hands on: the walk, the folder read, and how many folders wait
+// The folders a walk has yet to read, in a cell of `room` grown as they are found
+typedef struct
+{
+    char (*folder)[CLI_PATH_LONGEST];
+    unsigned int count;
+    unsigned int room;
+} CliPending;
+
+// The runs listed, in a cell of `room` grown as they are read
+typedef struct
+{
+    CliListed *run;
+    unsigned int count;
+    unsigned int room;
+} CliRuns;
+
+// a list of `*room` places of `width` bytes grown to twice as many, or to CLI_LISTED_FIRST where it holds none, up to
+// `most`, `list` given back: the list, or NULL where it holds `most` or the cell is refused and `list` is kept
+static void *cli_listed_grown(void *list, unsigned int *room, unsigned int most, unsigned long long width,
+                              const char *what)
+{
+    if (*room >= most)
+    {
+        return NULL;
+    }
+    const unsigned int doubled = (*room == 0u) ? CLI_LISTED_FIRST : (2u * *room);
+    const unsigned int taken = (doubled < most) ? doubled : most;
+    void *const grown = cli_cell_taken_by(&g_cli_qry_listed_cells, (unsigned long long)taken * width, what);
+    if (grown == NULL)
+    {
+        return NULL;
+    }
+    if (list != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = grown, .src = list, .bytes = (size_t)((unsigned long long)*room * width)});
+        cli_cell_given_by(&g_cli_qry_listed_cells, list);
+    }
+    *room = taken;
+    return grown;
+}
+
+// What one folder read of a walk hands on: the walk, the folder read, and the folders that wait
 typedef struct
 {
     CliWalk *walk;
     const char *folder;
-    unsigned int *pending;
+    CliPending *pending;
 } CliWalking;
 
 // each entry of a folder walked: a folder to read after, other than version control's and built crates', or a run
@@ -62,21 +106,31 @@ typedef struct
 static void cli_walk_each(void *context, const char *name, int is_folder)
 {
     CliWalking *const walking = (CliWalking *)context;
+    CliPending *const pending = walking->pending;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (is_folder)
     {
         if ((cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".git", .cap = CLI_CELLS_POOL})) ||
             (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "node_modules", .cap = CLI_CELLS_POOL})) ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "target", .cap = CLI_CELLS_POOL})) ||
-            (*walking->pending >= CLI_WALK_PENDING))
+            (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "target", .cap = CLI_CELLS_POOL})))
         {
             return;
         }
-        CliLine line = {s_pending[*walking->pending], CLI_PATH_LONGEST, 0ull};
+        if (pending->count == pending->room)
+        {
+            void *const grown = cli_listed_grown(pending->folder, &pending->room, CLI_WALK_PENDING, CLI_PATH_LONGEST,
+                                                 "the folders a walk has yet to read");
+            pending->folder = (grown != NULL) ? grown : pending->folder;
+        }
+        if (pending->count == pending->room)
+        {
+            return;
+        }
+        CliLine line = {pending->folder[pending->count], CLI_PATH_LONGEST, 0ull};
         cli_line_text(&line, walking->folder);
         cli_line_text(&line, (walking->folder[0] != '\0') ? "/" : "");
         cli_line_text(&line, name);
-        *walking->pending += cli_line_fits(&line) ? 1u : 0u;
+        pending->count += cli_line_fits(&line) ? 1u : 0u;
         cli_line_closed(&line);
         return;
     }
@@ -93,7 +147,13 @@ static void cli_walk_each(void *context, const char *name, int is_folder)
             return;
         }
     }
-    if (walk->count < CLI_RUN_FOLDERS)
+    if (walk->count == walk->room)
+    {
+        void *const grown =
+            cli_listed_grown(walk->folders, &walk->room, CLI_RUN_FOLDERS, CLI_PATH_LONGEST, "a tree's folders of runs");
+        walk->folders = (grown != NULL) ? grown : walk->folders;
+    }
+    if (walk->count < walk->room)
     {
         // put in its place among the folders, in order
         unsigned int place = walk->count;
@@ -117,16 +177,22 @@ static void cli_walk_each(void *context, const char *name, int is_folder)
 static void cli_walked(const char *root, CliWalk *walk)
 {
     walk->count = 0u;
-    unsigned int pending = 1u;
-    s_pending[0][0] = '\0';
-    while (pending > 0u)
+    CliPending pending = {NULL, 0u, 0u};
+    pending.folder =
+        cli_listed_grown(NULL, &pending.room, CLI_WALK_PENDING, CLI_PATH_LONGEST, "the folders a walk has yet to read");
+    pending.count = (pending.folder != NULL) ? 1u : 0u;
+    if (pending.folder != NULL)
     {
-        pending -= 1u;
+        pending.folder[0][0] = '\0';
+    }
+    while (pending.count > 0u)
+    {
+        pending.count -= 1u;
         char folder[CLI_PATH_LONGEST];
         memor.cpy(&(MemoriaCfg){
             .dst = folder,
-            .src = s_pending[pending],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_pending[pending], .cap = CLI_CELLS_POOL}) + 1u});
+            .src = pending.folder[pending.count],
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = pending.folder[pending.count], .cap = CLI_CELLS_POOL}) + 1u});
         char full[CLI_PATH_LONGEST];
         CliLine line = {full, sizeof(full), 0ull};
         cli_line_text(&line, root);
@@ -142,6 +208,7 @@ static void cli_walked(const char *root, CliWalk *walk)
         CliWalking walking = {walk, folder, &pending};
         query_folder_each(full, cli_walk_each, &walking);
     }
+    cli_cell_given_by(&g_cli_qry_listed_cells, pending.folder);
 }
 
 // the walk of the tree at `root`, walked again where it is older than CLI_WALK_EVERY
@@ -171,26 +238,36 @@ static CliWalk *cli_walk_of(const char *root)
     return walk;
 }
 
-// What one folder of runs read hands on: its full path, its place among the folders, and the count listed
+// What one folder of runs read hands on: its full path, its place among the folders, and the runs listed
 typedef struct
 {
     const char *full;
     const char *folder;
     unsigned int index;
-    unsigned int *count;
+    CliRuns *runs;
 } CliFolderRead;
 
 static void cli_run_each(void *context, const char *name, int is_folder)
 {
     CliFolderRead *const read = (CliFolderRead *)context;
+    CliRuns *const runs = read->runs;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (is_folder || (length <= 4u) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})) ||
-        (*read->count >= CLI_LISTED_MOST))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
     {
         return;
     }
-    CliListed *const listed = &s_listed[*read->count];
+    if (runs->count == runs->room)
+    {
+        void *const grown =
+            cli_listed_grown(runs->run, &runs->room, CLI_LISTED_MOST, sizeof(CliListed), "the runs of a tree listed");
+        runs->run = (grown != NULL) ? grown : runs->run;
+    }
+    if (runs->count == runs->room)
+    {
+        return;
+    }
+    CliListed *const listed = &runs->run[runs->count];
     char full[CLI_PATH_LONGEST];
     CliLine path_line = {full, sizeof(full), 0ull};
     cli_line_text(&path_line, read->full);
@@ -211,7 +288,7 @@ static void cli_run_each(void *context, const char *name, int is_folder)
     }
     listed->live = cli_qry_standing(full, &listed->panicked);
     listed->folder = read->index;
-    *read->count += 1u;
+    runs->count += 1u;
 }
 
 // whether a run lists before another: the live first, then the newest, then by path
@@ -310,7 +387,7 @@ void cli_qry_listed(const char *root, CliLine *out)
 {
     cli_lock_take(&s_lock);
     const CliWalk *const walk = cli_walk_of(root);
-    unsigned int count = 0u;
+    CliRuns runs = {NULL, 0u, 0u};
     for (unsigned int index = 0u; index < walk->count; index += 1u)
     {
         char full[CLI_PATH_LONGEST];
@@ -318,25 +395,25 @@ void cli_qry_listed(const char *root, CliLine *out)
         {
             continue;
         }
-        CliFolderRead read = {full, walk->folders[index], index, &count};
+        CliFolderRead read = {full, walk->folders[index], index, &runs};
         query_folder_each(full, cli_run_each, &read);
     }
+    const unsigned int count = runs.count;
     for (unsigned int at = 1u; at < count; at += 1u)
     {
-        static CliListed s_held;
-        s_held = s_listed[at];
+        const CliListed held = runs.run[at];
         unsigned int place = at;
-        while ((place > 0u) && cli_before(&s_held, &s_listed[place - 1u]))
+        while ((place > 0u) && cli_before(&held, &runs.run[place - 1u]))
         {
-            s_listed[place] = s_listed[place - 1u];
+            runs.run[place] = runs.run[place - 1u];
             place -= 1u;
         }
-        s_listed[place] = s_held;
+        runs.run[place] = held;
     }
     cli_line_text(out, "{\"runs\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const CliListed *const listed = &s_listed[at];
+        const CliListed *const listed = &runs.run[at];
         const char *const folder = walk->folders[listed->folder];
         cli_line_text(out, (at != 0u) ? ",{\"path\":" : "{\"path\":");
         cli_json_quoted(out, listed->path, cellul.len(&(CatenaFinitaCfg){.src = listed->path, .cap = CLI_CELLS_POOL}));
@@ -350,6 +427,7 @@ void cli_qry_listed(const char *root, CliLine *out)
         cli_line_decimal(out, listed->panicked, 1u);
         cli_line_character(out, '}');
     }
+    cli_cell_given_by(&g_cli_qry_listed_cells, runs.run);
     cli_line_text(out, "],\"folders\":[");
     for (unsigned int index = 0u; index < walk->count; index += 1u)
     {
@@ -362,13 +440,14 @@ void cli_qry_listed(const char *root, CliLine *out)
         CliLine line = {overseer, sizeof(overseer), 0ull};
         cli_line_text(&line, cli_folder_full(root, walk->folders[index], full) ? full : "");
         cli_line_text(&line, "/overseer.txt");
-        const unsigned long long size =
-            (cli_line_closed(&line) != 0ull)
-                ? qry_member_file_read(overseer, (unsigned char *)s_overseer, sizeof(s_overseer))
-                : QRY_MEMBER_UNREAD;
-        if (size != QRY_MEMBER_UNREAD)
+        unsigned long long size = 0ull;
+        const unsigned char *const bytes =
+            (cli_line_closed(&line) != 0ull) ? cli_file_held(overseer, &size) : NULL;
+        if (bytes != NULL)
         {
-            cli_qry_lessons_written(s_overseer, size, out);
+            // the overseer's bytes are its text
+            cli_qry_lessons_written((const char *)bytes, size, out);
+            cli_file_let_go(bytes, size);
         }
         cli_line_text(out, "]}");
     }

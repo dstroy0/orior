@@ -3,7 +3,7 @@
 // devcontainer_test.c: the dev containers' check: an image's container mounts the tree and runs its commands there, a
 // Dockerfile is built from its context with its args, a compose description brings up its service, and a description
 // with nothing to build says so
-#include "../../../../../ui/cli/src/deploy/devcontainer.h"
+#include "../../../../../ui/cli/src/deploy/devcontainer_internal.h"
 #include "cli_check.h"
 
 #include "../../../../../ui/cli/src/text/text.h"
@@ -239,5 +239,9 @@ int main(void)
             (cellul.find(&(CatenaFinitaCfg){
                  .src = why, .cap = CLI_CELLS_POOL, .other = "names no image", .other_cap = CLI_CELLS_POOL}) != NULL),
         "a description with nothing to build says so");
+    // the descriptions read are each below a few kilobytes, their tokens with them
+    cli_check((g_cli_devcontainer_cells.holds == 0ull) && (g_cli_devcontainer_cells.hw != 0ull) &&
+                  (g_cli_devcontainer_cells.hw < 65536ull),
+              "a description is read into cells sized to it and given back");
     return cli_checked();
 }

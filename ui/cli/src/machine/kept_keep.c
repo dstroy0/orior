@@ -7,28 +7,8 @@
 #include "../text/text.h"
 #include "kept_internal.h"
 
-// The files being kept and what is written, a cell taken with the lock and given back with it: with the tokens the
-// changes, the themes and an entry are read through, and an entry written back
-typedef struct
-{
-    CfgJsonToken given_tokens[CLI_KEPT_NODES];
-    CfgJsonToken theme_tokens[CLI_KEPT_NODES];
-    CfgJsonToken entry_tokens[CLI_KEPT_NODES];
-    char back[CLI_KEPT_BYTES];
-    CliJsonNode change_nodes[CLI_KEPT_NODES];
-    char change_text[CLI_KEPT_BYTES];
-    CliJsonNode settings_nodes[CLI_KEPT_NODES];
-    char settings_text[CLI_KEPT_BYTES];
-    CliJsonNode state_nodes[CLI_KEPT_NODES];
-    char state_text[CLI_KEPT_BYTES];
-    CliJsonNode file_nodes[CLI_KEPT_NODES];
-    char file_text[CLI_KEPT_BYTES];
-    char written[CLI_KEPT_BYTES];
-    CliJsonFiles files;
-    char names[CLI_KEPT_FILES][CLI_NAME_LONGEST];
-} CliKeeping;
-
-static CliKeeping *s_keeping;
+// the files kept, one keeping at a time; each tree and text a keeping reads and writes is a cell of its own, sized to
+// it
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // `name` under `folder` into `out`, which holds CLI_PATH_LONGEST
@@ -81,16 +61,21 @@ static int cli_whole_written(const char *path, const char *text, unsigned long l
 static int cli_map_written(const char *path, CliJson *json, unsigned int object, CliLine *said)
 {
     cli_json_sorted(json, object);
-    CliLine out = {s_keeping->written, sizeof(s_keeping->written), 0ull};
-    cli_json_write(json, object, &out, 2u, 1);
-    cli_line_character(&out, '\n');
-    if (!cli_line_fits(&out))
+    CliKeptWriting out;
+    cli_kept_writing_begun(&out);
+    cli_json_write(json, object, &out.line, 2u, 1);
+    cli_line_character(&out.line, '\n');
+    unsigned long long size = 0ull;
+    char *const written = cli_kept_writing_joined(&out, &size);
+    if (written == NULL)
     {
         cli_line_text(said, path);
-        cli_line_text(said, ": it is larger than orior writes");
+        cli_line_text(said, ": the cells it is written in could not be taken");
         return 0;
     }
-    return cli_whole_written(path, s_keeping->written, out.at, said);
+    const int whole = cli_whole_written(path, written, size, said);
+    cli_cell_given(written);
+    return whole;
 }
 
 // an entry's text as it is written into `json`: its JSON where it is JSON other than a string that writes back the
@@ -101,16 +86,28 @@ static unsigned int cli_written(CliJson *json, const char *text, unsigned long l
     const unsigned long long used = json->used;
     char why[CLI_NAME_LONGEST];
     CliLine said = {why, sizeof(why), 0ull};
-    const unsigned int value = cli_json_read(json, text, length, s_keeping->entry_tokens, CLI_KEPT_NODES, &said);
+    // the tokens the entry is read through, as many as it holds; and the entry written back, which matches it only
+    // where it is as long as it, so a cell one longer holds every match
+    const unsigned int tokens_most = cli_json_tokens_counted(text, length) + 1u;
+    CfgJsonToken *const tokens = cli_cell_taken_by(
+        &g_cli_kept_cells, (unsigned long long)tokens_most * sizeof(CfgJsonToken), "an entry's tokens");
+    char *const back_text = cli_cell_taken_by(&g_cli_kept_cells, length + 2ull, "an entry written back");
+    const unsigned int value = ((tokens != NULL) && (back_text != NULL))
+                                   ? cli_json_read(json, text, length, tokens, tokens_most, &said)
+                                   : CLI_JSON_NONE;
+    int same = 0;
     if ((value != CLI_JSON_NONE) && !cli_json_is(json, value, CFG_JSON_STRING))
     {
-        CliLine back = {s_keeping->back, sizeof(s_keeping->back), 0ull};
+        CliLine back = {back_text, length + 2ull, 0ull};
         cli_json_write(json, value, &back, 0u, 0);
-        if (cli_line_fits(&back) && (back.at == length) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_keeping->back, .other = text, .bytes = length}) == 0))
-        {
-            return value;
-        }
+        same = cli_line_fits(&back) && (back.at == length) &&
+               (memor.cmp(&(MemoriaCfg){.src = back_text, .other = text, .bytes = length}) == 0);
+    }
+    cli_cell_given_by(&g_cli_kept_cells, back_text);
+    cli_cell_given_by(&g_cli_kept_cells, tokens);
+    if (same)
+    {
+        return value;
     }
     // the nodes and texts the reading made taken back
     json->nodes = mark;
@@ -174,12 +171,16 @@ static void cli_backup_file(const char *key, char *out)
 static int cli_themes_kept(const char *folder, const char *text, unsigned long long length, CliLine *said)
 {
     CliJson json;
-    cli_json_begun(&json, s_keeping->file_nodes, CLI_KEPT_NODES, s_keeping->file_text, CLI_KEPT_BYTES);
+    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_NAME_LONGEST];
     CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int themes =
-        (text != NULL) ? cli_json_read(&json, text, length, s_keeping->theme_tokens, CLI_KEPT_NODES, &unread)
-                       : CLI_JSON_NONE;
+    const unsigned int themes = (text != NULL) ? cli_json_taken(&json, text, length, 0u, 0ull, &unread) : CLI_JSON_NONE;
+    // the files written, one a theme, in a cell of their count
+    const unsigned int count = cli_json_is(&json, themes, CFG_JSON_ARRAY) ? json.node[themes].count : 0u;
+    char (*const kept_names)[CLI_NAME_LONGEST] =
+        (count != 0u)
+            ? cli_cell_taken_by(&g_cli_kept_cells, (unsigned long long)count * CLI_NAME_LONGEST, "the themes' files")
+            : NULL;
     unsigned int names = 0u;
     for (unsigned int theme = cli_json_is(&json, themes, CFG_JSON_ARRAY) ? json.node[themes].first : CLI_JSON_NONE;
          theme != CLI_JSON_NONE; theme = json.node[theme].next)
@@ -196,8 +197,7 @@ static int cli_themes_kept(const char *folder, const char *text, unsigned long l
             int taken = 0;
             for (unsigned int at = 0u; !taken && (at < names); at += 1u)
             {
-                taken =
-                    cellul.eq(&(CatenaFinitaCfg){.src = s_keeping->names[at], .other = name, .cap = CLI_CELLS_POOL});
+                taken = cellul.eq(&(CatenaFinitaCfg){.src = kept_names[at], .other = name, .cap = CLI_CELLS_POOL});
             }
             if (!taken)
             {
@@ -210,70 +210,73 @@ static int cli_themes_kept(const char *folder, const char *text, unsigned long l
             cli_line_text(&counted, ".json");
             cli_line_closed(&counted);
         }
-        CliLine out = {s_keeping->written, sizeof(s_keeping->written), 0ull};
-        cli_json_write(&json, theme, &out, 2u, 0);
-        cli_line_character(&out, '\n');
+        CliKeptWriting out;
+        cli_kept_writing_begun(&out);
+        cli_json_write(&json, theme, &out.line, 2u, 0);
+        cli_line_character(&out.line, '\n');
+        unsigned long long size = 0ull;
+        char *const written = cli_kept_writing_joined(&out, &size);
         char path[CLI_PATH_LONGEST];
         cli_in(folder, name, path);
-        if (!cli_line_fits(&out) || !cli_whole_written(path, s_keeping->written, out.at, said))
+        const int whole = (written != NULL) && cli_whole_written(path, written, size, said);
+        cli_cell_given(written);
+        if (!whole)
         {
+            cli_cell_given_by(&g_cli_kept_cells, kept_names);
+            cli_json_given(&json);
             return 0;
         }
-        if (names < CLI_KEPT_FILES)
+        if (names < count)
         {
-            memor.cpy(&(MemoriaCfg){.dst = s_keeping->names[names],
+            memor.cpy(&(MemoriaCfg){.dst = kept_names[names],
                                     .src = name,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
             names += 1u;
         }
     }
-    cli_kept_json_files(folder, &s_keeping->files);
-    for (unsigned int at = 0u; at < s_keeping->files.count; at += 1u)
+    CliJsonFiles files = {NULL, 0u};
+    cli_kept_json_files(folder, &files);
+    for (unsigned int at = 0u; at < files.count; at += 1u)
     {
         int kept = 0;
         for (unsigned int each = 0u; !kept && (each < names); each += 1u)
         {
-            kept = cellul.eq(&(CatenaFinitaCfg){
-                .src = s_keeping->names[each], .other = s_keeping->files.name[at], .cap = CLI_CELLS_POOL});
+            kept =
+                cellul.eq(&(CatenaFinitaCfg){.src = kept_names[each], .other = files.name[at], .cap = CLI_CELLS_POOL});
         }
         if (!kept)
         {
             char path[CLI_PATH_LONGEST];
-            cli_in(folder, s_keeping->files.name[at], path);
+            cli_in(folder, files.name[at], path);
             query_removed(path);
         }
     }
+    cli_kept_json_files_given(&files);
+    cli_cell_given_by(&g_cli_kept_cells, kept_names);
+    cli_json_given(&json);
     return 1;
-}
-
-// the files kept given back, and the lock with them
-static void keep_released(void)
-{
-    cli_cell_given(s_keeping);
-    s_keeping = NULL;
-    cli_lock_give(&s_lock);
 }
 
 int cli_kept_keep(const char *folder, const char *changes, unsigned long long length, CliLine *said)
 {
     cli_lock_take(&s_lock);
-    s_keeping = cli_cell_taken(sizeof(*s_keeping), "the changes kept");
-    if (s_keeping == NULL)
-    {
-        cli_lock_give(&s_lock);
-        cli_line_text(said, "the changes kept could not be taken");
-        return 0;
-    }
     CliJson given;
-    cli_json_begun(&given, s_keeping->change_nodes, CLI_KEPT_NODES, s_keeping->change_text, CLI_KEPT_BYTES);
-    const unsigned int changed = cli_json_read(&given, changes, length, s_keeping->given_tokens, CLI_KEPT_NODES, said);
+    cli_json_begun(&given, NULL, 0u, NULL, 0ull);
+    const unsigned int changed = cli_json_taken(&given, changes, length, 0u, 0ull, said);
     if (!cli_json_is(&given, changed, CFG_JSON_OBJECT))
     {
-        keep_released();
+        cli_json_given(&given);
+        cli_lock_give(&s_lock);
         return 0;
     }
+    // what the changes put in the settings or the state: each a key and an entry's text, read as JSON or kept as a
+    // string, each within the changes' own text, so twice its nodes and bytes hold them all
+    const unsigned int nodes_more = (unsigned int)(((length < CLI_KEPT_BYTES) ? length : CLI_KEPT_BYTES) * 2ull) + 2u;
+    const unsigned long long text_more = (length * 2ull) + 2ull;
     CliJson settings;
     CliJson state;
+    cli_json_begun(&settings, NULL, 0u, NULL, 0ull);
+    cli_json_begun(&state, NULL, 0u, NULL, 0ull);
     unsigned int settings_map = CLI_JSON_NONE;
     unsigned int state_map = CLI_JSON_NONE;
     char path[CLI_PATH_LONGEST];
@@ -293,10 +296,15 @@ int cli_kept_keep(const char *folder, const char *changes, unsigned long long le
             if (*map == CLI_JSON_NONE)
             {
                 cli_in(folder, is_settings ? "settings.json" : "state.json", path);
-                *map = cli_kept_map_read(json, is_settings ? s_keeping->settings_nodes : s_keeping->state_nodes,
-                                         is_settings ? s_keeping->settings_text : s_keeping->state_text, path);
+                *map = cli_kept_map_read(json, path, nodes_more, text_more);
             }
-            if (text != NULL)
+            if (*map == CLI_JSON_NONE)
+            {
+                cli_line_text(said, path);
+                cli_line_text(said, ": the cells it is read into could not be taken");
+                done = 0;
+            }
+            else if (text != NULL)
             {
                 cli_json_set(json, *map, key, cli_written(json, text, text_length));
             }
@@ -320,14 +328,21 @@ int cli_kept_keep(const char *folder, const char *changes, unsigned long long le
             cli_in(backups, file, path);
             if (text != NULL)
             {
+                // the backup: an object of two members, its key and its text, and their names
                 CliJson backup;
-                cli_json_begun(&backup, s_keeping->file_nodes, CLI_KEPT_NODES, s_keeping->file_text, CLI_KEPT_BYTES);
+                const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
+                if (!cli_json_held(&backup, 8u, key_length + text_length + 16ull, "a change not saved"))
+                {
+                    cli_line_text(said, path);
+                    cli_line_text(said, ": the cells it is written from could not be taken");
+                    done = 0;
+                    continue;
+                }
                 const unsigned int object = cli_json_made(&backup, CFG_JSON_OBJECT);
-                cli_json_set(&backup, object, "key",
-                             cli_json_string_made(&backup, key,
-                                                  cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL})));
+                cli_json_set(&backup, object, "key", cli_json_string_made(&backup, key, key_length));
                 cli_json_set(&backup, object, "text", cli_json_string_made(&backup, text, text_length));
                 done = cli_map_written(path, &backup, object, said);
+                cli_json_given(&backup);
             }
             else
             {
@@ -349,6 +364,9 @@ int cli_kept_keep(const char *folder, const char *changes, unsigned long long le
     {
         done = cli_whole_written(path, "{}\n", 3ull, said);
     }
-    keep_released();
+    cli_json_given(&state);
+    cli_json_given(&settings);
+    cli_json_given(&given);
+    cli_lock_give(&s_lock);
     return done;
 }

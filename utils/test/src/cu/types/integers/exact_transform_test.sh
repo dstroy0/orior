@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds and runs the ladder test at three widths: the default 128 limbs, 4096 limbs on the stack, and 4194304 bits,
-# past any stack, from the heap. Extra arguments are passed to nvcc as defines (for example -DANCHOR_EXACT_TRANSFORM_LIMBS=512u).
+# past any stack, from the heap. Extra arguments are passed to nvcc as defines (for example -DORIOR_EXACT_TRANSFORM_LIMBS=512u).
 set -u
 
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,8 +31,8 @@ case "$(uname -s)" in
 esac
 
 STATUS=0
-for WIDTH in ${EXACT_TEST_WIDTHS:-"-DANCHOR_EXACT_LIMBS=128u" "-DANCHOR_EXACT_LIMBS=4096u" \
-             "-DANCHOR_EXACT_BITS=4194304ull"}; do
+for WIDTH in ${EXACT_TEST_WIDTHS:-"-DORIOR_EXACT_LIMBS=128u" "-DORIOR_EXACT_LIMBS=4096u" \
+             "-DORIOR_EXACT_BITS=4194304ull"}; do
     NAME="$(echo "$WIDTH" | tr -cd '0-9')"
     BINARY="$OUT/exact_transform_test_$NAME$SUFFIX"
     rm -f "$BINARY"

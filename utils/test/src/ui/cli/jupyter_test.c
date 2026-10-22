@@ -283,8 +283,15 @@ static void jupyter_debugged(const CliKernelSpec *spec)
                   NULL,
               "and only its next run");
     unsigned int again = 0u;
-    cli_check(cli_jupyter_debug_next(kernel, file, &again, &said) && (again == port),
-              "debugpy listens at the same port again");
+    said.at = 0ull;
+    const int readied = cli_jupyter_debug_next(kernel, file, &again, &said);
+    if (!readied)
+    {
+        // why the second readying failed, written beside the check
+        query_terminal_written(1, why, said.at);
+        query_terminal_written(1, "\n", 1ull);
+    }
+    cli_check(readied && (again == port), "debugpy listens at the same port again");
     (void)cli_jupyter_stopped(kernel, 10000ull);
     cli_jupyter_given(kernel);
 }

@@ -27,24 +27,24 @@ int psi_case_open(PsiCase *psi_case, unsigned long long dimension, unsigned long
     return 1;
 }
 
-void psi_times_integer(const AnchorExactInteger *value, unsigned long long factor, AnchorExactInteger *result)
+void psi_times_integer(const OriorExactInteger *value, unsigned long long factor, OriorExactInteger *result)
 {
-    AnchorExactInteger integer_part;
+    OriorExactInteger integer_part;
     sim_exact_unsigned(&integer_part, factor);
     sim_rational_status_check(sim_exact_product(value, &integer_part, result));
 }
 
-void psi_add(const AnchorExactInteger *left, const AnchorExactInteger *right, AnchorExactInteger *result)
+void psi_add(const OriorExactInteger *left, const OriorExactInteger *right, OriorExactInteger *result)
 {
     sim_rational_status_check(sim_exact_sum(left, right, result));
 }
 
-void psi_multiply(const AnchorExactInteger *left, const AnchorExactInteger *right, AnchorExactInteger *result)
+void psi_multiply(const OriorExactInteger *left, const OriorExactInteger *right, OriorExactInteger *result)
 {
     sim_rational_status_check(sim_exact_product(left, right, result));
 }
 
-SimRational psi_rational_exact(const AnchorExactInteger *numerator, const AnchorExactInteger *denominator)
+SimRational psi_rational_exact(const OriorExactInteger *numerator, const OriorExactInteger *denominator)
 {
     SimRational value;
     value.numerator = *numerator;
@@ -138,15 +138,15 @@ static int psi_dominates(SimRational head, SimRational tail, unsigned long long 
         *decided = 0;
         return 0;
     }
-    AnchorExactInteger power;
-    AnchorExactInteger scaled;
-    AnchorExactInteger left;
-    AnchorExactInteger right;
+    OriorExactInteger power;
+    OriorExactInteger scaled;
+    OriorExactInteger left;
+    OriorExactInteger right;
     sim_rational_status_check(sim_exact_power(base, gap, &power));
     psi_multiply(&head.numerator, &power, &scaled);
     psi_multiply(&scaled, &tail.denominator, &left);
     psi_multiply(&tail.numerator, &head.denominator, &right);
-    return anchor_exact_compare(&left, &right) > 0;
+    return orior_exact_compare(&left, &right) > 0;
 }
 
 // the exact sign of sum c_j . base^-e_j: the leading terms are folded in until they outweigh any tail the rest can make
@@ -181,8 +181,8 @@ int psi_value_sign(const PsiValue *value, unsigned long long base)
                 g_sim_rational_wide = 1;
                 return sim_rational_sign(head);
             }
-            AnchorExactInteger power;
-            AnchorExactInteger one;
+            OriorExactInteger power;
+            OriorExactInteger one;
             sim_rational_status_check(sim_exact_power(base, gap, &power));
             sim_exact_unsigned(&one, 1ull);
             const SimRational shrink = psi_rational_exact(&one, &power);
@@ -213,8 +213,8 @@ SimRational psi_value_expand(const PsiValue *value, unsigned long long base)
     SimRational total = sim_rational(0ll, 1ll);
     for (unsigned int at = 0u; at < value->count; at += 1u)
     {
-        AnchorExactInteger power;
-        AnchorExactInteger one;
+        OriorExactInteger power;
+        OriorExactInteger one;
         sim_rational_status_check(sim_exact_power(base, value->exponent[at], &power));
         sim_exact_unsigned(&one, 1ull);
         total = sim_rational_sum(total, sim_rational_product(value->coefficient[at], psi_rational_exact(&one, &power)));
@@ -244,7 +244,7 @@ void psi_value_print(ScripturaLine *line, const PsiValue *value)
 }
 
 // Sprecher's psi (2.4) on D_5 at n = 2, gamma = 10, as a numerator over 2^5 . gamma^beta(5)
-void psi_sprecher_numerator(const PsiCase *psi_case, const unsigned char *digit, AnchorExactInteger *numerator)
+void psi_sprecher_numerator(const PsiCase *psi_case, const unsigned char *digit, OriorExactInteger *numerator)
 {
     const unsigned long long base = psi_case->base;
     sim_exact_unsigned(numerator, 0ull);
@@ -274,9 +274,9 @@ void psi_sprecher_numerator(const PsiCase *psi_case, const unsigned char *digit,
                 shifts += run;
             }
         }
-        AnchorExactInteger power;
-        AnchorExactInteger term;
-        AnchorExactInteger total;
+        OriorExactInteger power;
+        OriorExactInteger term;
+        OriorExactInteger total;
         sim_rational_status_check(
             sim_exact_power(base, psi_case->weight[PSI_EXHAUSTIVE] - psi_case->weight[level - shifts], &power));
         // the level's term, over 2^5 . gamma^beta(5): reduced . 2^(5 - m_r) . gamma^(beta(5) - beta(r - m_r))

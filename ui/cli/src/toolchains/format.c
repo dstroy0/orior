@@ -160,7 +160,7 @@ unsigned int cli_format_tool(const char *language, CliLine *said)
             }
         }
     }
-    cli_line_text(said, "orior has no formatter for ");
+    cli_line_text(said, "orior_cli has no formatter for ");
     cli_line_text(said, language);
     cli_line_text(said, ": it formats with ");
     unsigned int written = 0u;

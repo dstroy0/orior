@@ -16,13 +16,13 @@ void psi_digits(unsigned long long index, unsigned long long base, unsigned int 
 void psi_sprecher(SimResults *results, const PsiCase *psi_case)
 {
     ScripturaLine *const line = &results->line;
-    AnchorExactInteger denominator;
-    AnchorExactInteger power;
+    OriorExactInteger denominator;
+    OriorExactInteger power;
     sim_rational_status_check(sim_exact_power(psi_case->base, psi_case->weight[PSI_EXHAUSTIVE], &power));
     psi_times_integer(&power, 1ull << PSI_EXHAUSTIVE, &denominator);
     const unsigned char before[PSI_EXHAUSTIVE] = {5u, 8u, 9u, 9u, 9u};
     const unsigned char after[PSI_EXHAUSTIVE] = {5u, 9u, 0u, 0u, 0u};
-    AnchorExactInteger numerator;
+    OriorExactInteger numerator;
     psi_sprecher_numerator(psi_case, before, &numerator);
     const SimRational low = psi_rational_exact(&numerator, &denominator);
     psi_sprecher_numerator(psi_case, after, &numerator);
@@ -34,14 +34,14 @@ void psi_sprecher(SimResults *results, const PsiCase *psi_case)
     sim_check(results, sim_rational_sign(sim_rational_difference(low, high)) > 0, "so Sprecher's psi is not monotone");
     unsigned long long descents = 0ull;
     unsigned long long first = 0ull;
-    AnchorExactInteger previous;
+    OriorExactInteger previous;
     unsigned char digit[PSI_EXHAUSTIVE];
     const unsigned long long points = 100000ull;
     for (unsigned long long index = 0ull; index < points; index += 1ull)
     {
         psi_digits(index, psi_case->base, PSI_EXHAUSTIVE, digit);
         psi_sprecher_numerator(psi_case, digit, &numerator);
-        if ((index != 0ull) && (anchor_exact_compare(&numerator, &previous) < 0))
+        if ((index != 0ull) && (orior_exact_compare(&numerator, &previous) < 0))
         {
             first = (descents == 0ull) ? index : first;
             descents += 1ull;
@@ -69,7 +69,7 @@ void psi_scale_open(const PsiCase *psi_case, PsiScale *scale)
 {
     for (unsigned int level = 1u; level <= PSI_EXHAUSTIVE; level += 1u)
     {
-        AnchorExactInteger power;
+        OriorExactInteger power;
         sim_rational_status_check(sim_exact_power(
             psi_case->base, psi_case->weight[level] - psi_case->weight[level - 1u], &scale->lift[level]));
         psi_times_integer(&scale->lift[level], 2ull, &scale->up[level]);
@@ -84,8 +84,8 @@ void psi_scale_open(const PsiCase *psi_case, PsiScale *scale)
 // 2 gamma^(beta(L) - beta(L - 1)); a regular digit adds i units of 2^L; the carried midpoint is
 // (value + plus) gamma^(beta(L) - beta(L - 1)) + tilt . 2^(L - 1), tilt being gamma - 2 (2.9) or gamma - 1 (2.7)
 static void psi_pair_numerator(const PsiCase *psi_case, const PsiScale *scale, const unsigned char *digit,
-                               unsigned int levels, unsigned long long tilt, AnchorExactInteger *value,
-                               AnchorExactInteger *plus)
+                               unsigned int levels, unsigned long long tilt, OriorExactInteger *value,
+                               OriorExactInteger *plus)
 {
     const unsigned long long base = psi_case->base;
     sim_exact_unsigned(value, 2ull * digit[0]);
@@ -93,11 +93,11 @@ static void psi_pair_numerator(const PsiCase *psi_case, const PsiScale *scale, c
     for (unsigned int level = 2u; level <= levels; level += 1u)
     {
         const unsigned long long place = digit[level - 1u];
-        AnchorExactInteger raised;
-        AnchorExactInteger shifted;
-        AnchorExactInteger both;
-        AnchorExactInteger lifted;
-        AnchorExactInteger midpoint;
+        OriorExactInteger raised;
+        OriorExactInteger shifted;
+        OriorExactInteger both;
+        OriorExactInteger lifted;
+        OriorExactInteger midpoint;
         if (place < (base - 2ull))
         {
             psi_multiply(value, &scale->up[level], &raised);
@@ -130,21 +130,21 @@ static void psi_pair_numerator(const PsiCase *psi_case, const PsiScale *scale, c
 // level L from level L - 1, point by point, as the paper's recursion reads: a regular digit adds to the prefix's
 // value, and the last digit takes the prefix and its successor's average plus the carried units
 void psi_table_next(const PsiCase *psi_case, const PsiScale *scale, unsigned int level, unsigned long long tilt,
-                    const AnchorExactInteger *below, unsigned long long below_count, AnchorExactInteger *table)
+                    const OriorExactInteger *below, unsigned long long below_count, OriorExactInteger *table)
 {
     const unsigned long long base = psi_case->base;
     for (unsigned long long prefix = 0ull; prefix < below_count; prefix += 1ull)
     {
-        AnchorExactInteger raised;
-        AnchorExactInteger shifted;
+        OriorExactInteger raised;
+        OriorExactInteger shifted;
         psi_multiply(&below[prefix], &scale->up[level], &raised);
         for (unsigned long long place = 0ull; place < (base - 1ull); place += 1ull)
         {
             psi_times_integer(&scale->unit[level], place, &shifted);
             psi_add(&raised, &shifted, &table[(prefix * base) + place]);
         }
-        AnchorExactInteger both;
-        AnchorExactInteger lifted;
+        OriorExactInteger both;
+        OriorExactInteger lifted;
         psi_add(&below[prefix], &below[prefix + 1ull], &both);
         psi_multiply(&both, &scale->lift[level], &lifted);
         psi_times_integer(&scale->half[level], tilt, &shifted);
@@ -166,7 +166,7 @@ unsigned long long psi_wide_side(const PsiCase *psi_case, unsigned long long til
 }
 
 void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned long long tilt,
-                    AnchorExactInteger *measured_widest)
+                    OriorExactInteger *measured_widest)
 {
     ScripturaLine *const line = &results->line;
     const unsigned long long base = psi_case->base;
@@ -175,8 +175,8 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
     {
         maximum *= base;
     }
-    AnchorExactInteger *below = (AnchorExactInteger *)malloc((size_t)(maximum + 1ull) * sizeof(AnchorExactInteger));
-    AnchorExactInteger *table = (AnchorExactInteger *)malloc((size_t)(maximum + 1ull) * sizeof(AnchorExactInteger));
+    OriorExactInteger *below = (OriorExactInteger *)malloc((size_t)(maximum + 1ull) * sizeof(OriorExactInteger));
+    OriorExactInteger *table = (OriorExactInteger *)malloc((size_t)(maximum + 1ull) * sizeof(OriorExactInteger));
     if ((below == NULL) || (table == NULL))
     {
         sim_check(results, 0, "the level tables were held");
@@ -188,7 +188,7 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
     {
         sim_exact_unsigned(&table[index], 2ull * index);
     }
-    AnchorExactInteger predicted;
+    OriorExactInteger predicted;
     sim_exact_unsigned(&predicted, 2ull);
     const unsigned long long side = psi_wide_side(psi_case, tilt);
     unsigned long long points = base;
@@ -201,14 +201,14 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
     {
         if (level >= 2u)
         {
-            AnchorExactInteger *const swap = below;
+            OriorExactInteger *const swap = below;
             below = table;
             table = swap;
             psi_table_next(psi_case, scale, level, tilt, below, points, table);
             points *= base;
-            AnchorExactInteger lifted;
-            AnchorExactInteger shrink;
-            AnchorExactInteger next;
+            OriorExactInteger lifted;
+            OriorExactInteger shrink;
+            OriorExactInteger next;
             psi_multiply(&predicted, &scale->lift[level], &lifted);
             psi_times_integer(&scale->half[level], side, &shrink);
             sim_rational_status_check(sim_exact_less(&lifted, &shrink, &next));
@@ -216,33 +216,33 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
         }
         unsigned long long matched = 0ull;
         unsigned long long increasing = 0ull;
-        AnchorExactInteger least;
-        AnchorExactInteger widest;
+        OriorExactInteger least;
+        OriorExactInteger widest;
         unsigned char digit[PSI_EXHAUSTIVE];
         for (unsigned long long index = 0ull; index < points; index += 1ull)
         {
-            AnchorExactInteger value;
-            AnchorExactInteger plus;
-            AnchorExactInteger gap;
+            OriorExactInteger value;
+            OriorExactInteger plus;
+            OriorExactInteger gap;
             psi_digits(index, base, level, digit);
             psi_pair_numerator(psi_case, scale, digit, level, tilt, &value, &plus);
-            matched += ((anchor_exact_compare(&value, &table[index]) == 0) &&
-                        (anchor_exact_compare(&plus, &table[index + 1ull]) == 0))
+            matched += ((orior_exact_compare(&value, &table[index]) == 0) &&
+                        (orior_exact_compare(&plus, &table[index + 1ull]) == 0))
                            ? 1ull
                            : 0ull;
             sim_rational_status_check(sim_exact_less(&table[index + 1ull], &table[index], &gap));
             increasing += (gap.sign > 0) ? 1ull : 0ull;
-            if ((index == 0ull) || (anchor_exact_compare(&gap, &least) < 0))
+            if ((index == 0ull) || (orior_exact_compare(&gap, &least) < 0))
             {
                 least = gap;
             }
-            if ((index == 0ull) || (anchor_exact_compare(&gap, &widest) > 0))
+            if ((index == 0ull) || (orior_exact_compare(&gap, &widest) > 0))
             {
                 widest = gap;
             }
         }
-        const int least_is_unit = (anchor_exact_compare(&least, &scale->unit[level]) == 0);
-        const int widest_predicted = (anchor_exact_compare(&widest, &predicted) == 0);
+        const int least_is_unit = (orior_exact_compare(&least, &scale->unit[level]) == 0);
+        const int widest_predicted = (orior_exact_compare(&widest, &predicted) == 0);
         measured_widest[level] = widest;
         sim_check(results, matched == points,
                   "the scale step (the pair recursion) equals the level recursion on every point");

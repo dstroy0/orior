@@ -5,9 +5,9 @@
 
 static const char *const NOISE_LINE_NAMES[NOISE_LINE_KINDS] = {"row", "column", "plane"};
 
-void noise_exact_wide(AnchorExactInteger *value, const NoiseWide *wide)
+void noise_exact_wide(OriorExactInteger *value, const NoiseWide *wide)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     value->limb[0] = (uint32_t)(wide->low & 0xFFFFFFFFull);
     value->limb[1] = (uint32_t)(wide->low >> 32u);
     value->limb[2] = (uint32_t)(wide->high & 0xFFFFFFFFull);
@@ -23,17 +23,17 @@ static int noise_line_per_mille(const NoiseWide *line_squares, unsigned long lon
     {
         return 0;
     }
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
-    AnchorExactInteger factor;
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
+    OriorExactInteger factor;
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
     noise_exact_wide(&numerator, line_squares);
     noise_exact_word(&factor, 1000ull);
     noise_exact_word(&denominator, member_squares);
-    int ok = (anchor_exact_multiply(&numerator, &factor, &numerator) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_divide(&numerator, &denominator, &quotient, &remainder) == ANCHOR_EXACT_OK);
-    for (unsigned int limb = 2u; ok && (limb < ANCHOR_EXACT_LIMBS); limb += 1u)
+    int ok = (orior_exact_multiply(&numerator, &factor, &numerator) == ORIOR_EXACT_OK) &&
+             (orior_exact_divide(&numerator, &denominator, &quotient, &remainder) == ORIOR_EXACT_OK);
+    for (unsigned int limb = 2u; ok && (limb < ORIOR_EXACT_LIMBS); limb += 1u)
     {
         ok = quotient.limb[limb] == 0u;
     }
@@ -74,21 +74,21 @@ static void noise_lines_summary(const char *name, const NoiseLineCell cells[NOIS
 
 // scale times numerator over denominator, signed and rounded toward zero; 0 where the denominator is 0 or the
 // quotient's magnitude reaches 2^63
-static int noise_exact_ratio(const AnchorExactInteger *numerator, const AnchorExactInteger *denominator,
+static int noise_exact_ratio(const OriorExactInteger *numerator, const OriorExactInteger *denominator,
                              unsigned long long scale, long long *ratio)
 {
     if (denominator->sign == 0)
     {
         return 0;
     }
-    AnchorExactInteger scaled;
-    AnchorExactInteger factor;
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
+    OriorExactInteger scaled;
+    OriorExactInteger factor;
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
     noise_exact_word(&factor, scale);
-    int ok = (anchor_exact_multiply(numerator, &factor, &scaled) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_divide(&scaled, denominator, &quotient, &remainder) == ANCHOR_EXACT_OK);
-    for (unsigned int limb = 2u; ok && (limb < ANCHOR_EXACT_LIMBS); limb += 1u)
+    int ok = (orior_exact_multiply(numerator, &factor, &scaled) == ORIOR_EXACT_OK) &&
+             (orior_exact_divide(&scaled, denominator, &quotient, &remainder) == ORIOR_EXACT_OK);
+    for (unsigned int limb = 2u; ok && (limb < ORIOR_EXACT_LIMBS); limb += 1u)
     {
         ok = quotient.limb[limb] == 0u;
     }
@@ -104,30 +104,30 @@ void noise_planes_readings(const NoisePlanePool *pool, long long readings[NOISE_
 {
     const unsigned long long height = pool->height;
     const unsigned long long width = pool->width;
-    AnchorExactInteger residual;
-    AnchorExactInteger factor;
-    AnchorExactInteger row_part;
-    AnchorExactInteger column_part;
-    AnchorExactInteger plane_part;
-    AnchorExactInteger counted;
+    OriorExactInteger residual;
+    OriorExactInteger factor;
+    OriorExactInteger row_part;
+    OriorExactInteger column_part;
+    OriorExactInteger plane_part;
+    OriorExactInteger counted;
     noise_exact_word(&factor, width - 1ull);
-    int ok = (anchor_exact_subtract(&pool->spread, &pool->rows, &residual) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(&residual, &pool->columns, &residual) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&pool->rows, &factor, &row_part) == ANCHOR_EXACT_OK);
+    int ok = (orior_exact_subtract(&pool->spread, &pool->rows, &residual) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(&residual, &pool->columns, &residual) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&pool->rows, &factor, &row_part) == ORIOR_EXACT_OK);
     noise_exact_word(&factor, height - 1ull);
-    ok = ok && (anchor_exact_multiply(&pool->columns, &factor, &column_part) == ANCHOR_EXACT_OK);
+    ok = ok && (orior_exact_multiply(&pool->columns, &factor, &column_part) == ORIOR_EXACT_OK);
     noise_exact_word(&factor, (height - 1ull) * (width - 1ull));
-    ok = ok && (anchor_exact_multiply(&pool->plane_squares, &factor, &plane_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_subtract(&plane_part, &row_part, &plane_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_subtract(&plane_part, &column_part, &plane_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_add(&plane_part, &residual, &plane_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_add(&plane_part, &residual, &plane_part) == ANCHOR_EXACT_OK);
+    ok = ok && (orior_exact_multiply(&pool->plane_squares, &factor, &plane_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_subtract(&plane_part, &row_part, &plane_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_subtract(&plane_part, &column_part, &plane_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_add(&plane_part, &residual, &plane_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_add(&plane_part, &residual, &plane_part) == ORIOR_EXACT_OK);
     // the planes' voxels are the sample's frame pairs times its voxels, which the sample's bound holds in a word
     noise_exact_word(&counted, height * width * pool->planes);
-    ok = ok && (anchor_exact_multiply(&counted, &factor, &counted) == ANCHOR_EXACT_OK);
-    const AnchorExactInteger *const numerators[NOISE_TWO_WAY_READINGS] = {&row_part, &column_part, &plane_part,
+    ok = ok && (orior_exact_multiply(&counted, &factor, &counted) == ORIOR_EXACT_OK);
+    const OriorExactInteger *const numerators[NOISE_TWO_WAY_READINGS] = {&row_part, &column_part, &plane_part,
                                                                           &residual};
-    const AnchorExactInteger *const denominators[NOISE_TWO_WAY_READINGS] = {&residual, &residual, &residual, &counted};
+    const OriorExactInteger *const denominators[NOISE_TWO_WAY_READINGS] = {&residual, &residual, &residual, &counted};
     const unsigned long long scales[NOISE_TWO_WAY_READINGS] = {1000ull, 1000ull, 1000ull, 1ull};
     for (unsigned int ratio = 0u; ratio < NOISE_TWO_WAY_READINGS; ratio += 1u)
     {
@@ -166,14 +166,14 @@ static void noise_planes_summary(const NoisePlanePool *pool)
 void noise_static_readings(const NoiseStaticPool *still, long long readings[NOISE_STATIC_READINGS],
                            int valid[NOISE_STATIC_READINGS])
 {
-    AnchorExactInteger squares;
-    AnchorExactInteger members;
-    AnchorExactInteger row_pairs;
-    AnchorExactInteger column_pairs;
-    AnchorExactInteger plane_pairs;
-    AnchorExactInteger row_excess;
-    AnchorExactInteger column_excess;
-    AnchorExactInteger plane_excess;
+    OriorExactInteger squares;
+    OriorExactInteger members;
+    OriorExactInteger row_pairs;
+    OriorExactInteger column_pairs;
+    OriorExactInteger plane_pairs;
+    OriorExactInteger row_excess;
+    OriorExactInteger column_excess;
+    OriorExactInteger plane_excess;
     noise_exact_word(&squares, still->squares);
     noise_exact_word(&members, still->members);
     noise_exact_word(&row_pairs, still->row_pairs);
@@ -183,40 +183,40 @@ void noise_static_readings(const NoiseStaticPool *still, long long readings[NOIS
     noise_exact_wide(&column_excess, &still->column_squares);
     noise_exact_wide(&plane_excess, &still->plane_squares);
     // plane_pairs becomes D_plane, and plane_excess the plane's excess less the rows' and the columns'
-    int ok = (anchor_exact_subtract(&row_excess, &squares, &row_excess) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(&column_excess, &squares, &column_excess) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(&plane_excess, &squares, &plane_excess) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(&plane_excess, &row_excess, &plane_excess) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(&plane_excess, &column_excess, &plane_excess) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(&plane_pairs, &row_pairs, &plane_pairs) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(&plane_pairs, &column_pairs, &plane_pairs) == ANCHOR_EXACT_OK);
+    int ok = (orior_exact_subtract(&row_excess, &squares, &row_excess) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(&column_excess, &squares, &column_excess) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(&plane_excess, &squares, &plane_excess) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(&plane_excess, &row_excess, &plane_excess) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(&plane_excess, &column_excess, &plane_excess) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(&plane_pairs, &row_pairs, &plane_pairs) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(&plane_pairs, &column_pairs, &plane_pairs) == ORIOR_EXACT_OK);
     // var_plane L, then A_row M K_column D_plane and A_column M K_row D_plane, then s L and L
-    AnchorExactInteger plane_part;
-    AnchorExactInteger row_part;
-    AnchorExactInteger column_part;
-    AnchorExactInteger independent;
-    AnchorExactInteger common;
-    ok = ok && (anchor_exact_multiply(&plane_excess, &members, &plane_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&plane_part, &row_pairs, &plane_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&plane_part, &column_pairs, &plane_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&row_excess, &members, &row_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&row_part, &column_pairs, &row_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&row_part, &plane_pairs, &row_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&column_excess, &members, &column_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&column_part, &row_pairs, &column_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&column_part, &plane_pairs, &column_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&row_pairs, &column_pairs, &common) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&common, &plane_pairs, &common) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&common, &squares, &independent) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_subtract(&independent, &row_part, &independent) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_subtract(&independent, &column_part, &independent) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_add(&independent, &plane_part, &independent) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_multiply(&common, &members, &common) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_subtract(&row_part, &plane_part, &row_part) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_subtract(&column_part, &plane_part, &column_part) == ANCHOR_EXACT_OK);
-    const AnchorExactInteger *const numerators[NOISE_STATIC_READINGS] = {&row_part, &column_part, &plane_part,
+    OriorExactInteger plane_part;
+    OriorExactInteger row_part;
+    OriorExactInteger column_part;
+    OriorExactInteger independent;
+    OriorExactInteger common;
+    ok = ok && (orior_exact_multiply(&plane_excess, &members, &plane_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&plane_part, &row_pairs, &plane_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&plane_part, &column_pairs, &plane_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&row_excess, &members, &row_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&row_part, &column_pairs, &row_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&row_part, &plane_pairs, &row_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&column_excess, &members, &column_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&column_part, &row_pairs, &column_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&column_part, &plane_pairs, &column_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&row_pairs, &column_pairs, &common) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&common, &plane_pairs, &common) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&common, &squares, &independent) == ORIOR_EXACT_OK) &&
+         (orior_exact_subtract(&independent, &row_part, &independent) == ORIOR_EXACT_OK) &&
+         (orior_exact_subtract(&independent, &column_part, &independent) == ORIOR_EXACT_OK) &&
+         (orior_exact_add(&independent, &plane_part, &independent) == ORIOR_EXACT_OK) &&
+         (orior_exact_multiply(&common, &members, &common) == ORIOR_EXACT_OK) &&
+         (orior_exact_subtract(&row_part, &plane_part, &row_part) == ORIOR_EXACT_OK) &&
+         (orior_exact_subtract(&column_part, &plane_part, &column_part) == ORIOR_EXACT_OK);
+    const OriorExactInteger *const numerators[NOISE_STATIC_READINGS] = {&row_part, &column_part, &plane_part,
                                                                          &independent};
-    const AnchorExactInteger *const denominators[NOISE_STATIC_READINGS] = {&independent, &independent, &independent,
+    const OriorExactInteger *const denominators[NOISE_STATIC_READINGS] = {&independent, &independent, &independent,
                                                                            &common};
     for (unsigned int measurement = 0u; measurement < NOISE_STATIC_READINGS; measurement += 1u)
     {

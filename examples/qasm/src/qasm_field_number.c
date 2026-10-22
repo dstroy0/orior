@@ -177,10 +177,10 @@ static void qasm_word_bytes(uint32_t word, unsigned char *bytes)
     }
 }
 
-static size_t qasm_integer_bytes(const AnchorExactInteger *value, unsigned char *bytes)
+static size_t qasm_integer_bytes(const OriorExactInteger *value, unsigned char *bytes)
 {
     // the limb count fits in 32 bits, as the assert at the top of this file requires
-    uint32_t used = (uint32_t)ANCHOR_EXACT_LIMBS;
+    uint32_t used = (uint32_t)ORIOR_EXACT_LIMBS;
     while ((used > 0u) && (value->limb[used - 1u] == 0u))
     {
         used -= 1u;

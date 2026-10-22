@@ -185,14 +185,14 @@ destroy rule catches what the prediction missed, and the gap between them is mea
 
 ## Planning without touching the corpus
 
-The header states planning cost as a worst case and does not measure it. `anchor_steer_sweep_probes`
+The header states planning cost as a worst case and does not measure it. `orior_steer_sweep_probes`
 performs about `wanted * needle_len^2 * max_length^2 * alignments / sample_stride` byte comparisons
 at worst, which exceeds the scan it plans for on any but a short needle
 ([`orior_descent.h:325-332`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L325-L332)). That is the engine's
 sharpest open cost problem, and the determinant removes its dominant factor.
 
 Scoring a candidate today walks the alignments. Scoring a candidate by determinant walks a `k` by `k`
-integer matrix, where `k` is at most `ANCHOR_STEER_ANCHORS`, which is 4. The corpus is touched once,
+integer matrix, where `k` is at most `ORIOR_STEER_ANCHORS`, which is 4. The corpus is touched once,
 by the census that collects `C`, and never again during planning.
 
 | | corpus touched during planning | per-candidate cost |

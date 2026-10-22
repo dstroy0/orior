@@ -79,8 +79,8 @@ int query_cross_run(QueryContext *context, const char *const *words, unsigned in
     static char s_cross[QUERY_PATH_LONGEST];
     static char s_nvdisasm[QUERY_PATH_LONGEST];
     static QueryRun s_here;
-    if (!query_context_tool(context, "cubin_run", s_carrier, said) ||
-        !query_context_tool(context, "measuring_stick_query", s_cross, said) ||
+    if (!query_context_tool(context, "orior_cubin_run", s_carrier, said) ||
+        !query_context_tool(context, "orior_measuring_stick_query", s_cross, said) ||
         !query_nvdisasm(context, s_nvdisasm, said) ||
         !query_context_started(context, &s_here, QUERY_LEARN_FOLDER, said))
     {
@@ -193,7 +193,7 @@ int query_cross_run(QueryContext *context, const char *const *words, unsigned in
     {
         const char *const crossed[8] = {
             s_cross, "questions.txt", s_nvdisasm, "SM86", "measuring_stick_query.md", "held.txt", NULL, NULL};
-        whole = query_context_teed(context, &s_here, "measuring_stick_query", crossed, &code, said);
+        whole = query_context_teed(context, &s_here, "orior_measuring_stick_query", crossed, &code, said);
     }
     if (whole)
     {
@@ -206,7 +206,7 @@ int query_cross_run(QueryContext *context, const char *const *words, unsigned in
         {
             query_said(context, line);
         }
-        query_said(context, "  a live run holds those encodings with: cubin_run --held held.txt ...");
+        query_said(context, "  a live run holds those encodings with: orior_cubin_run --held held.txt ...");
     }
     if (!query_context_ended(context, &s_here, said) || !whole)
     {

@@ -188,7 +188,7 @@ int cli_git_clone(const char *url, const char *target, void (*said_line)(void *c
     if (!cli_toolchains_chosen_program("git", program) && !cli_git_on(s_run_path, program))
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "git is not installed, or not on the PATH: File, Toolchains, or orior file toolchains "
+        cli_line_text(said, "git is not installed, or not on the PATH: File, Toolchains, or orior_cli file toolchains "
                             "install git, opens its install page");
         return 0;
     }
@@ -198,7 +198,7 @@ int cli_git_clone(const char *url, const char *target, void (*said_line)(void *c
     CliSpawned spawned;
     char why[CLI_PATH_LONGEST];
     CliLine unstarted = {why, sizeof(why), 0ull};
-    if (!cli_spawn(&spawned, words, NULL, settings, 2u, 1, &unstarted))
+    if (!cli_spawn_as(CLI_PRIORITY_GUEST, &spawned, words, NULL, settings, 2u, 1, &unstarted))
     {
         cli_lock_give(&s_lock);
         cli_line_text(said, "git did not start: ");

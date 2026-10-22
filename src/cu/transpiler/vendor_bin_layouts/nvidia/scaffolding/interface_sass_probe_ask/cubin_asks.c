@@ -109,7 +109,7 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
         // The high numbers are a different question and are not asked here. A kernel is given the registers its
         // count declares, and a question spliced into form_0 inherits form_0's count, which is far below
         // the numbers sm_86.kdm pins and cannot ask about one above it. The last register a kernel declaring 255 can
-        // name is asked on the run channel (klq_identity register) and held in sm_86.ksc
+        // name is asked on the run channel (orior_klq_identity register) and held in sm_86.ksc
         {"MOV R255, 0x5a3c69a5\nIMAD.MOV.U32 R7, RZ, RZ, R255", 0x00000000u},
         // The precepts of the alphabet (precepts.h) the part has never been asked for. Everything above this point
         // was asked because a ruleset wanted it; these are asked because the alphabet has them, and a part that has

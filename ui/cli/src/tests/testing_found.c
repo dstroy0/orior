@@ -388,5 +388,6 @@ void cli_tests_found(const char *root, CliTestEach each, void *context)
     {
         each(context, &s_room->cargo.found[at].test);
     }
+    cli_cargo_tests_given(&s_room->cargo);
     found_released();
 }

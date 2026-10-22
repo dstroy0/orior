@@ -5,7 +5,7 @@
 // files it as an issue on its own where the reader lets errors file; Help, Report a Bug opens a form
 // for a report the reader writes. Where a report went shows in the status bar, its issue a click away.
 
-import { invoke } from "./bridge.js";
+import { invoke, STOPPED } from "./bridge.js";
 import { linkError } from "./remote.js";
 
 // A script's address, struck from what it says: a report reads the same from any window.
@@ -45,6 +45,10 @@ export function catchErrors() {
   });
   window.addEventListener("unhandledrejection", (event) => {
     const reason = event.reason;
+    // a wait the reader stopped is no error
+    if (reason instanceof Error && reason.name === STOPPED) {
+      return;
+    }
     const message = reason instanceof Error ? reason.message : String(reason);
     reportError(`unhandled rejection: ${message}`, reason instanceof Error ? (reason.stack ?? "") : "");
   });

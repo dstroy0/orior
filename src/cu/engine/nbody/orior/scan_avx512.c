@@ -17,7 +17,7 @@
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
  * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract AnchorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
+ * the contract OriorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
  *
  * @note No machine in this project has AVX-512. This arm has never been run. It is compiled for
  *       the target and its emitted instructions are read by utils/maint/engine/verify_arm_asm.sh, which
@@ -40,15 +40,15 @@
 #if defined(_MSC_VER)
 #include <intrin.h>
 /** @brief Set where this translation unit can ask the processor about AVX-512. */
-#define ANCHOR_STEER_AVX512_CAN_DETECT 1
+#define ORIOR_STEER_AVX512_CAN_DETECT 1
 #elif defined(__GNUC__) || defined(__clang__)
-#define ANCHOR_STEER_AVX512_CAN_DETECT 1
+#define ORIOR_STEER_AVX512_CAN_DETECT 1
 #else
-#define ANCHOR_STEER_AVX512_CAN_DETECT 0
+#define ORIOR_STEER_AVX512_CAN_DETECT 0
 #endif
 
 /** @brief Alignments one AVX-512 register answers at once. */
-#define ANCHOR_STEER_LANES 64u
+#define ORIOR_STEER_LANES 64u
 
 /**
  * @brief Set bits in a 64-bit mask.
@@ -76,7 +76,7 @@ static size_t steer_popcount64(uint64_t bits)
  */
 static int steer_avx512_present(void)
 {
-#if !ANCHOR_STEER_AVX512_CAN_DETECT
+#if !ORIOR_STEER_AVX512_CAN_DETECT
     return 0;
 #elif defined(_MSC_VER)
     int leaves[4] = {0, 0, 0, 0};
@@ -96,13 +96,13 @@ static int steer_avx512_present(void)
 #endif
 }
 
-size_t anchor_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
+size_t orior_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
                                         size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm
      * was the one asked. The claim the counters carry is which arm RAN and not what it returned. */
-    anchor_steer_scan_calls += 1u;
-    anchor_steer_wide_calls += 1u;
+    orior_steer_scan_calls += 1u;
+    orior_steer_wide_calls += 1u;
 
     if ((corpus == NULL) || (alive == NULL) || (alignments == 0u))
     {
@@ -113,7 +113,7 @@ size_t anchor_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments
     size_t standing = 0u;
     size_t at = 0u;
 
-    for (; (at + ANCHOR_STEER_LANES) <= alignments; at += ANCHOR_STEER_LANES)
+    for (; (at + ORIOR_STEER_LANES) <= alignments; at += ORIOR_STEER_LANES)
     {
         /* Unaligned loads. The corpus window starts at an arbitrary offset and forcing
          * alignment would mean copying, which costs more than the load does. */
@@ -145,9 +145,9 @@ size_t anchor_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments
     return standing;
 }
 
-const AnchorSteerEngine *anchor_steer_avx512_engine(void)
+const OriorSteerEngine *orior_steer_avx512_engine(void)
 {
-    static const AnchorSteerEngine engine = {"avx512-unrun", anchor_steer_truthy_after_avx512};
+    static const OriorSteerEngine engine = {"avx512-unrun", orior_steer_truthy_after_avx512};
 
     if (steer_avx512_present() == 0)
     {

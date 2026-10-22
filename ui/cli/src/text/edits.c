@@ -4,15 +4,16 @@
 // the text's lines, its places taken in the order of their lines, and the spans then written in the order of their
 // bytes, those of one span in the order they were given
 #include "edits.h"
+#include "../command_line/cells.h"
 #include "json_tree.h"
 
 #include <stdlib.h>
 
-// the places of the edits being written, each edit's from and then its to; their bytes; the order they are taken in;
-// and the lock they are held under
-static CliTextPlace s_place[2u * CLI_TEXT_EDITS];
-static unsigned long long s_byte[2u * CLI_TEXT_EDITS];
-static unsigned int s_order[2u * CLI_TEXT_EDITS];
+// the places of the edits being written, each edit's from and then its to; their bytes; the order they are taken in,
+// one cell of twice the edits' count; and the lock they are held under, which the sorts read them through
+static CliTextPlace *s_place;
+static unsigned long long *s_byte;
+static unsigned int *s_order;
 static CliLock s_edits_lock = CLI_LOCK_INIT;
 
 void cli_text_place_written(CliTextPlace place, CliLine *out)
@@ -128,7 +129,18 @@ int cli_text_applied(const char *text, unsigned long long size, const CliTextEdi
     {
         return 0;
     }
+    // the bytes first on the cell's boundary, then the places, then the order
+    const unsigned long long places = 2ull * count;
+    char *const cell = cli_cell_taken((places + 1ull) * (sizeof(*s_byte) + sizeof(*s_place) + sizeof(*s_order)),
+                                      "the places of the edits written");
+    if (cell == NULL)
+    {
+        return 0;
+    }
     cli_lock_take(&s_edits_lock);
+    s_byte = (unsigned long long *)(void *)cell;
+    s_place = (CliTextPlace *)(void *)(s_byte + places + 1ull);
+    s_order = (unsigned int *)(void *)(s_place + places + 1ull);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         s_place[2u * at] = edits[at].from;
@@ -151,6 +163,10 @@ int cli_text_applied(const char *text, unsigned long long size, const CliTextEdi
         held = (to > from) ? to : from;
     }
     cli_line_counted(out, text + held, size - held);
+    s_byte = NULL;
+    s_place = NULL;
+    s_order = NULL;
     cli_lock_give(&s_edits_lock);
+    cli_cell_given(cell);
     return 1;
 }

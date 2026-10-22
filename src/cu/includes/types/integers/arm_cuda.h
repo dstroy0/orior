@@ -20,8 +20,8 @@
  * @note Only `agreement` is handed over. A single comparison is far too small to be worth a bus
  *       crossing. The arm's `equal` and `compare` stay on the host and are the portable ones.
  */
-#ifndef ANCHOR_EXACT_GPU_H
-#define ANCHOR_EXACT_GPU_H
+#ifndef ORIOR_EXACT_GPU_H
+#define ORIOR_EXACT_GPU_H
 
 #include "exact_integer.h"
 
@@ -37,7 +37,7 @@ extern "C"
      * @note Asked at run time. A binary built with CUDA still runs on machines with no device, and the
      *       arm has to report itself absent there instead of failing inside a launch.
      */
-    int anchor_exact_cuda_available(void);
+    int orior_exact_cuda_available(void);
 
     /**
      * @brief The name and compute capability of the device this arm would use.
@@ -46,7 +46,7 @@ extern "C"
      * @param[in]  capacity  How many bytes `text` holds.
      * @return           1 where a description was written, 0 where no device answered.
      */
-    int anchor_exact_cuda_describe(char *text, size_t capacity);
+    int orior_exact_cuda_describe(char *text, size_t capacity);
 
     /**
      * @brief Counts agreeing places over a sorted run, one position per thread.
@@ -60,11 +60,11 @@ extern "C"
      * @note Returns the same count the portable arm returns. Where it does not, one of the two has a
      *       defect and the difference is never a tradeoff.
      */
-    size_t anchor_exact_agreement_cuda(const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                                       const AnchorExactInteger *lag);
+    size_t orior_exact_agreement_cuda(const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                                       const OriorExactInteger *lag);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ANCHOR_EXACT_GPU_H */
+#endif /* ORIOR_EXACT_GPU_H */

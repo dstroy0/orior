@@ -5,6 +5,10 @@
 # *_test.c here compiled against it, with cli_check.c, and run from build/cli_test, its exit said as the harness reads
 # it; the checks named after it alone where any are. The compiler is CC where it is set, else clang.
 set -u
+# The checks are guests of the machine: they run niced, below the window and the host's own work.
+if [ -z "${ORIOR_GUEST:-}" ]; then
+    ORIOR_GUEST=1 exec nice -n 9 "$0" "$@"
+fi
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../.." && pwd)"
@@ -23,13 +27,15 @@ if [ "$(uname -s)" = "Linux" ] && ldd --version 2>&1 | grep -qi musl; then
 fi
 
 # MMgr's two include roots and embedded_types' headers, and the capabilities MMgr is built with, as ui/cli/build.sh
-# gives them, so a check reaching a CLI header sees the module layouts the library was compiled to
+# gives them; a check reaching a CLI header therefore sees the module layouts the library was compiled to
 MMGR="$TOP/src/cu/includes/mmgr"
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_types/include" -DMMGR_ENABLE_DMA=0
-    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1)
+    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1)
 
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "test exit 1"; exit 1; }
-LIBRARY="$TOP/build/cli/$HOST/liborior.a"
+# the command line's library, named as bin_names.tsv at the top of the tree names the command line
+CLI_NAME="$(awk -F'\t' '$1 == "cli" { print $2 }' "$TOP/bin_names.tsv")"
+LIBRARY="$TOP/build/cli/$HOST/lib$CLI_NAME.a"
 RUN="$TOP/build/cli_test"
 mkdir -p "$RUN"
 
@@ -39,6 +45,9 @@ for named in "$@"; do
     TESTS+=("$HERE/${named}_test.c")
 done
 [ "${#TESTS[@]}" -gt 0 ] || TESTS=("$HERE"/*_test.c)
+
+# the repositories a check makes are its own: git signs nothing in them, whatever the reader's git signs
+export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=commit.gpgsign GIT_CONFIG_VALUE_0=false GIT_CONFIG_KEY_1=tag.gpgsign     GIT_CONFIG_VALUE_1=false
 
 for test in "${TESTS[@]}"; do
     name="$(basename "$test" .c)"

@@ -130,7 +130,7 @@ void cli_gz_inner(const char *name, char *out)
 }
 
 int cli_members_of(const unsigned char *bytes, unsigned long long size, unsigned int kind, const char *inner,
-                   CliMembers *members, unsigned char *unpacked, unsigned long long *unpacked_size, CliLine *said)
+                   CliMembers *members, CliRoom *unpacked, unsigned long long *unpacked_size, CliLine *said)
 {
     static char s_names[CLI_QRY_NAMES][CLI_NAME_LONGEST];
     static CliLock s_lock = CLI_LOCK_INIT;
@@ -148,13 +148,21 @@ int cli_members_of(const unsigned char *bytes, unsigned long long size, unsigned
     }
     if ((kind == CLI_ARCHIVE_TARGZ) || (kind == CLI_ARCHIVE_GZ))
     {
-        if (!cli_gunzip(bytes, size, unpacked, CLI_ARCHIVE_BYTES, unpacked_size, said))
+        // a gzip's trailer ends with the low 32 bits of what it holds unpacked
+        unsigned long long told = 0ull;
+        if ((size < 18ull) || !cli_archive_number(bytes, size, size - 4ull, 4u, &told, said))
+        {
+            cli_line_text(said, (size < 18ull) ? "a gzip is cut" : "");
+            return 0;
+        }
+        if (!cli_archive_room(unpacked, told + 1ull, "an archive unpacked", said) ||
+            !cli_gunzip(bytes, size, unpacked->bytes, unpacked->room, unpacked_size, said))
         {
             return 0;
         }
         if (kind == CLI_ARCHIVE_TARGZ)
         {
-            return cli_tar_members(unpacked, *unpacked_size, members, said);
+            return cli_tar_members(unpacked->bytes, *unpacked_size, members, said);
         }
         cli_archive_member_put(
             members,
@@ -178,22 +186,29 @@ int cli_members_of(const unsigned char *bytes, unsigned long long size, unsigned
 }
 
 int cli_data_of(const unsigned char *bytes, unsigned long long size, unsigned int kind, const unsigned char *unpacked,
-                unsigned long long unpacked_size, const CliMembers *members, const CliMember *member,
-                unsigned char *out, unsigned long long room, unsigned long long *out_size, CliLine *said)
+                unsigned long long unpacked_size, const CliMembers *members, const CliMember *member, CliRoom *out,
+                unsigned long long *out_size, CliLine *said)
 {
     const char *const name = members->text + member->name;
+    const unsigned long long length = (kind == CLI_ARCHIVE_GZ)    ? unpacked_size
+                                      : (kind == CLI_ARCHIVE_QRY) ? cli_qry_member_size(bytes, size, name)
+                                                                  : member->size;
+    if (!cli_archive_room(out, length + 1ull, "a member of an archive", said))
+    {
+        return 0;
+    }
     if (kind == CLI_ARCHIVE_ZIP)
     {
-        return cli_zip_data(bytes, size, members, member, out, room, out_size, said);
+        return cli_zip_data(bytes, size, members, member, out->bytes, out->room, out_size, said);
     }
     if (kind == CLI_ARCHIVE_QRY)
     {
-        CliLine line = {(char *)out, room, 0ull};
+        CliLine line = {(char *)out->bytes, out->room, 0ull};
         cli_qry_member_joined(bytes, size, name, &line);
         if (!cli_line_fits(&line))
         {
             cli_line_text(said, name);
-            cli_line_text(said, " is larger than orior holds");
+            cli_line_text(said, " is larger than orior_cli holds");
             return 0;
         }
         *out_size = line.at;
@@ -202,14 +217,13 @@ int cli_data_of(const unsigned char *bytes, unsigned long long size, unsigned in
     const unsigned char *const from = (kind == CLI_ARCHIVE_TAR) ? bytes : unpacked;
     const unsigned long long from_size = (kind == CLI_ARCHIVE_TAR) ? size : unpacked_size;
     const unsigned long long start = (kind == CLI_ARCHIVE_GZ) ? 0ull : (member->at + 512ull);
-    const unsigned long long length = (kind == CLI_ARCHIVE_GZ) ? unpacked_size : member->size;
-    if ((start > from_size) || (length > (from_size - start)) || (length > room))
+    if ((start > from_size) || (length > (from_size - start)))
     {
         cli_line_text(said, name);
-        cli_line_text(said, (length > room) ? " is larger than orior holds" : " is cut");
+        cli_line_text(said, " is cut");
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = out, .src = from + start, .bytes = length});
+    memor.cpy(&(MemoriaCfg){.dst = out->bytes, .src = from + start, .bytes = length});
     *out_size = length;
     return 1;
 }

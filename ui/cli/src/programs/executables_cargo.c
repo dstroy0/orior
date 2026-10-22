@@ -246,6 +246,8 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
         {
             query_folder_each(bin_folder, cli_bin_each, bins);
         }
+        // the folder is the walk's alone: no address of this frame stays in the bins, which outlive it
+        bins->folder = NULL;
         // src/bin's binaries in the order of their names, then their paths
         for (unsigned int at = 1u; at < bins->more.count; at += 1u)
         {

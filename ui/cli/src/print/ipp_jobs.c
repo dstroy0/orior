@@ -10,6 +10,14 @@ static CliIppMessage s_answer;
 static unsigned int s_next = 1u;
 static CliLock s_lock = CLI_LOCK_INIT;
 
+// the request and the answer given back once the answer is read, and the lock given with them
+static void cli_jobs_let_go(void)
+{
+    cli_ipp_given(&s_request);
+    cli_ipp_given(&s_answer);
+    cli_lock_give(&s_lock);
+}
+
 int cli_ipp_status(unsigned int code, CliLine *said)
 {
     if (code <= 0x00ffu)
@@ -140,7 +148,7 @@ int cli_ipp_printer(const char *uri, CliIppPrinter *printer, CliLine *said)
     }
     if (!cli_answer(uri, NULL, 0ull, said))
     {
-        cli_lock_give(&s_lock);
+        cli_jobs_let_go();
         return 0;
     }
     const CliIppGroup *const group = cli_ipp_group_of(&s_answer, CLI_IPP_PRINTER, 0u);
@@ -153,7 +161,7 @@ int cli_ipp_printer(const char *uri, CliIppPrinter *printer, CliLine *said)
     cli_ipp_first_number(&s_answer, group, "printer-state", &printer->state);
     printer->reason_count = cli_texts(group, "printer-state-reasons", printer->reasons);
     printer->accepting = !cli_truth(group, "printer-is-accepting-jobs", 0);
-    cli_lock_give(&s_lock);
+    cli_jobs_let_go();
     return 1;
 }
 
@@ -185,7 +193,7 @@ int cli_ipp_print(const char *uri, const CliIppJob *job, const unsigned char *do
     const int answered = cli_answer(uri, document, size, said);
     const int found =
         answered && cli_ipp_first_number(&s_answer, cli_ipp_group_of(&s_answer, CLI_IPP_JOB, 0u), "job-id", id);
-    cli_lock_give(&s_lock);
+    cli_jobs_let_go();
     if (answered && !found)
     {
         cli_line_text(said, "the printer took the job and gave it no id");
@@ -204,7 +212,7 @@ int cli_ipp_job_state(const char *uri, int id, int *state, CliLine *reasons, Cli
     cli_ipp_text(&s_request, CLI_IPP_KEYWORD, "job-state-reasons");
     if (!cli_answer(uri, NULL, 0ull, said))
     {
-        cli_lock_give(&s_lock);
+        cli_jobs_let_go();
         return 0;
     }
     const CliIppGroup *const group = cli_ipp_group_of(&s_answer, CLI_IPP_JOB, 0u);
@@ -217,7 +225,7 @@ int cli_ipp_job_state(const char *uri, int id, int *state, CliLine *reasons, Cli
         cli_line_text(reasons, (at != 0u) ? ", " : "");
         cli_line_text(reasons, listed[at]);
     }
-    cli_lock_give(&s_lock);
+    cli_jobs_let_go();
     return 1;
 }
 
@@ -228,7 +236,7 @@ int cli_ipp_cancel(const char *uri, int id, CliLine *said)
     cli_ipp_attribute(&s_request, "job-id");
     cli_ipp_number(&s_request, CLI_IPP_INTEGER, id);
     const int done = cli_answer(uri, NULL, 0ull, said);
-    cli_lock_give(&s_lock);
+    cli_jobs_let_go();
     return done;
 }
 
@@ -253,7 +261,7 @@ int cli_ipp_cups_printers(const char *host, unsigned int port, CliIppShared *sha
     }
     if (!cli_answer(uri, NULL, 0ull, said))
     {
-        cli_lock_give(&s_lock);
+        cli_jobs_let_go();
         return -1;
     }
     int count = 0;
@@ -288,6 +296,6 @@ int cli_ipp_cups_printers(const char *host, unsigned int port, CliIppShared *sha
         }
         count += 1;
     }
-    cli_lock_give(&s_lock);
+    cli_jobs_let_go();
     return count;
 }

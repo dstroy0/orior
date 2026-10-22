@@ -135,21 +135,21 @@ int noise_neighbors_per_mille(const unsigned long long cell[NOISE_NEIGHBORS_SUMS
     {
         return 0;
     }
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
-    AnchorExactInteger part;
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
+    OriorExactInteger part;
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
     noise_exact_word(&numerator, cell[NOISE_NEIGHBORS_RAISED]);
     noise_exact_word(&part, cell[NOISE_NEIGHBORS_LOWERED]);
-    int ok = anchor_exact_subtract(&numerator, &part, &numerator) == ANCHOR_EXACT_OK;
+    int ok = orior_exact_subtract(&numerator, &part, &numerator) == ORIOR_EXACT_OK;
     noise_exact_word(&part, 2000ull);
-    ok = ok && (anchor_exact_multiply(&numerator, &part, &numerator) == ANCHOR_EXACT_OK);
+    ok = ok && (orior_exact_multiply(&numerator, &part, &numerator) == ORIOR_EXACT_OK);
     noise_exact_word(&denominator, cell[NOISE_NEIGHBORS_SQUARES]);
     noise_exact_word(&part, cell[NOISE_NEIGHBORS_OTHER_SQUARES]);
-    ok = ok && (anchor_exact_add(&denominator, &part, &denominator) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_divide(&numerator, &denominator, &quotient, &remainder) == ANCHOR_EXACT_OK);
-    for (unsigned int limb = 1u; ok && (limb < ANCHOR_EXACT_LIMBS); limb += 1u)
+    ok = ok && (orior_exact_add(&denominator, &part, &denominator) == ORIOR_EXACT_OK) &&
+         (orior_exact_divide(&numerator, &denominator, &quotient, &remainder) == ORIOR_EXACT_OK);
+    for (unsigned int limb = 1u; ok && (limb < ORIOR_EXACT_LIMBS); limb += 1u)
     {
         ok = quotient.limb[limb] == 0u;
     }

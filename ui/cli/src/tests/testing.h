@@ -8,7 +8,7 @@
 // `python_classes` and `python_functions` are read in place of these. The folders of environments, of what a build
 // writes and of caches are not searched, nor a file larger than 2 MiB or not UTF-8.
 //
-// A test is named as pytest names it, `path::Class::name`, and a Rust test as orior names one, its file first,
+// A test is named as pytest names it, `path::Class::name`, and a Rust test as orior_cli names one, its file first,
 // `src/files.rs::listing::name` (testing.c, testing_found.c)
 #ifndef TESTING_H
 #define TESTING_H

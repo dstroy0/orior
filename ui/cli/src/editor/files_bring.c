@@ -11,9 +11,9 @@
 #define CLI_BRING_TELLS 100ull
 #define CLI_PART_BYTES (1ull << 20u)
 
-// the bytes of a part's call written, its data in base64, and of an answer of the tree's side
-#define CLI_PART_CALL ((CLI_PART_BYTES / 3ull * 4ull) + 8192ull)
-#define CLI_ANSWER_BYTES (1u << 16u)
+// the bytes a call's arguments and an answer of the tree's side are begun to be written in, doubling as they fill
+#define CLI_OVER_ARGUMENTS_FIRST 4096u
+#define CLI_OVER_ANSWER_FIRST 1024u
 
 // What a bring copies: the tree, the path it was asked for, which a failure names, and who is told how far it is
 typedef struct
@@ -41,7 +41,7 @@ static int cli_brought(void *context, const char *source, const char *target, in
     char path[CLI_PATH_LONGEST];
     cli_relative(bringing->root, target, path);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(source, &size);
+    const unsigned char *const bytes = cli_file_held(source, &size);
     int written = bytes != NULL;
     if (written)
     {
@@ -64,7 +64,7 @@ static int cli_brought(void *context, const char *source, const char *target, in
     }
     if (bytes != NULL)
     {
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
     if (!written)
     {
@@ -80,25 +80,16 @@ int cli_files_bring(const char *root, const char *into, const char *const *from,
                     void *context, CliLine *out, CliLine *said)
 {
     char folder[CLI_PATH_LONGEST];
-    if (!cli_inside(root, into, folder, said))
+    if (!cli_paste_begun(root, into, folder, out, said))
     {
         return 0;
     }
-    if (!query_is_folder(folder))
-    {
-        cli_line_text(said, into);
-        cli_line_text(said, " is no folder");
-        return 0;
-    }
-    cli_line_character(out, '[');
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         const char *const source = from[index];
         char name[CLI_PATH_LONGEST];
-        if (!cli_paste_name(source, name))
+        if (!cli_paste_named(source, name, said))
         {
-            cli_line_text(said, source);
-            cli_line_text(said, " has no name");
             return 0;
         }
         if (query_is_folder(source) && cli_paste_under(source, folder))
@@ -129,48 +120,53 @@ int cli_files_bring(const char *root, const char *into, const char *const *from,
     return 1;
 }
 
-// What a bring over a link copies: the call of the tree's side, the path it was asked for, who is told how far it
-// is, and room for a call's arguments and its answer
+// What a bring over a link copies: the call of the tree's side, who is told how far it is, and a call's arguments and
+// its answer, each a growing line given back once the bring ends
 typedef struct
 {
     CliCall call;
     void *call_context;
     CliTold told;
     void *context;
-    char arguments[CLI_PART_CALL];
-    char answer[CLI_ANSWER_BYTES];
+    CliLine arguments;
+    CliLine answer;
 } CliOver;
 
-static CliOver s_over;
-
-// a call of the tree's side with the arguments written into `arguments`: 1, or 0 with what it said
-static int cli_over_called(const char *name, const CliLine *arguments, CliLine *said)
+// a call of the tree's side with the arguments written into the bring's arguments, its answer into the bring's
+// answer: 1, or 0 with what it said
+static int cli_over_called(CliOver *over, const char *name, CliLine *said)
 {
-    CliLine answer = {s_over.answer, sizeof(s_over.answer), 0ull};
-    return (cli_line_fits(arguments) != 0) && s_over.call(s_over.call_context, name, s_over.arguments, &answer, said);
+    over->answer.at = 0ull;
+    if (!cli_line_fits(&over->arguments))
+    {
+        cli_line_text(said, "the cells cannot meet the call's arguments");
+        return 0;
+    }
+    return over->call(over->call_context, name, over->arguments.out, &over->answer, said);
 }
 
 // a folder made there, or a file read here and written there a part at a time
 static int cli_over_each(void *context, const char *source, const char *target, int folder, CliLine *said)
 {
-    (void)context;
-    CliLine arguments = {s_over.arguments, sizeof(s_over.arguments), 0ull};
+    CliOver *const over = context;
+    CliLine *const arguments = &over->arguments;
+    arguments->at = 0ull;
     if (folder)
     {
-        cli_line_text(&arguments, "{\"path\":");
-        cli_json_quoted(&arguments, target, cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}));
-        cli_line_character(&arguments, '}');
-        cli_line_closed(&arguments);
-        return cli_over_called("folder_create", &arguments, said);
+        cli_line_text(arguments, "{\"path\":");
+        cli_json_quoted(arguments, target, cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}));
+        cli_line_character(arguments, '}');
+        cli_line_closed(arguments);
+        return cli_over_called(over, "folder_create", said);
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(source, &size);
+    const unsigned char *const bytes = cli_file_held(source, &size);
     if (bytes == NULL)
     {
         cli_line_text(said, "it could not be read");
         return 0;
     }
-    s_over.told(s_over.context, target, 0ull, size);
+    over->told(over->context, target, 0ull, size);
     unsigned long long at = 0ull;
     int sent = 1;
     int last = 0;
@@ -178,71 +174,68 @@ static int cli_over_each(void *context, const char *source, const char *target, 
     {
         const unsigned long long read = ((size - at) < CLI_PART_BYTES) ? (size - at) : CLI_PART_BYTES;
         last = ((at + read) >= size) || (read < CLI_PART_BYTES);
-        arguments.at = 0ull;
-        cli_line_text(&arguments, "{\"path\":");
-        cli_json_quoted(&arguments, target, cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}));
-        cli_line_text(&arguments, ",\"at\":");
-        cli_line_decimal(&arguments, at, 0u);
-        cli_line_text(&arguments, ",\"data\":\"");
-        cli_base64(&arguments, bytes + at, read);
-        cli_line_text(&arguments, last ? "\",\"last\":true}" : "\",\"last\":false}");
-        cli_line_closed(&arguments);
-        sent = cli_over_called("file_part", &arguments, said);
+        arguments->at = 0ull;
+        cli_line_text(arguments, "{\"path\":");
+        cli_json_quoted(arguments, target, cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}));
+        cli_line_text(arguments, ",\"at\":");
+        cli_line_decimal(arguments, at, 0u);
+        cli_line_text(arguments, ",\"data\":\"");
+        cli_base64(arguments, bytes + at, read);
+        cli_line_text(arguments, last ? "\",\"last\":true}" : "\",\"last\":false}");
+        cli_line_closed(arguments);
+        sent = cli_over_called(over, "file_part", said);
         at += read;
         if (sent)
         {
-            s_over.told(s_over.context, target, at, (size > at) ? size : at);
+            over->told(over->context, target, at, (size > at) ? size : at);
         }
     }
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     return sent;
 }
 
 // the tree's side asked for the path of `name` in `into`, numbered where it holds it already, into `to`: 1, or 0 with
 // why said
-static int cli_over_named(const char *into, const char *name, char *to, CliLine *said)
+static int cli_over_named(CliOver *over, const char *into, const char *name, char *to, CliLine *said)
 {
-    static CliJsonNode s_nodes[16];
-    static char s_text[CLI_ANSWER_BYTES];
-    static CfgJsonToken s_tokens[16];
-    CliLine arguments = {s_over.arguments, sizeof(s_over.arguments), 0ull};
-    cli_line_text(&arguments, "{\"into\":");
-    cli_json_quoted(&arguments, into, cellul.len(&(CatenaFinitaCfg){.src = into, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&arguments, ",\"name\":");
-    cli_json_quoted(&arguments, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-    cli_line_character(&arguments, '}');
-    cli_line_closed(&arguments);
-    CliLine answer = {s_over.answer, sizeof(s_over.answer), 0ull};
-    if (!s_over.call(s_over.call_context, "bring_name", s_over.arguments, &answer, said))
+    CliLine *const arguments = &over->arguments;
+    arguments->at = 0ull;
+    cli_line_text(arguments, "{\"into\":");
+    cli_json_quoted(arguments, into, cellul.len(&(CatenaFinitaCfg){.src = into, .cap = CLI_CELLS_POOL}));
+    cli_line_text(arguments, ",\"name\":");
+    cli_json_quoted(arguments, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+    cli_line_character(arguments, '}');
+    cli_line_closed(arguments);
+    if (!cli_over_called(over, "bring_name", said))
     {
         return 0;
     }
-    CliJson json;
-    cli_json_begun(&json, s_nodes, 16u, s_text, sizeof(s_text));
+    CliJson json = {0};
     char why[CLI_NAME_LONGEST];
     CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_read(&json, s_over.answer, answer.at, s_tokens, 16u, &unread);
+    const unsigned int root = cli_line_fits(&over->answer)
+                                  ? cli_json_taken(&json, over->answer.out, over->answer.at, 0u, 0ull, &unread)
+                                  : CLI_JSON_NONE;
     unsigned long long length = 0ull;
     const char *const named = (root != CLI_JSON_NONE) ? cli_json_string(&json, root, &length) : NULL;
-    if ((named == NULL) || (length >= CLI_PATH_LONGEST))
+    const int fits = (named != NULL) && (length < CLI_PATH_LONGEST);
+    if (fits)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = to, .src = named, .bytes = length});
+        to[length] = '\0';
+    }
+    cli_json_given(&json);
+    if (!fits)
     {
         cli_line_text(said, "the tree's side gave no name");
-        return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = to, .src = named, .bytes = length});
-    to[length] = '\0';
-    return 1;
+    return fits;
 }
 
-int cli_files_bring_over(CliCall call, void *call_context, const char *into, const char *const *from,
-                         unsigned int count, CliTold told, void *context, CliLine *out, CliLine *said)
+// each path of `from` brought over into `into`, the names they took written into `out`: 1, or 0 with why said
+static int cli_over_brought(CliOver *over, const char *into, const char *const *from, unsigned int count, CliLine *out,
+                            CliLine *said)
 {
-    static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    s_over.call = call;
-    s_over.call_context = call_context;
-    s_over.told = told;
-    s_over.context = context;
     cli_line_character(out, '[');
     for (unsigned int index = 0u; index < count; index += 1u)
     {
@@ -253,27 +246,36 @@ int cli_files_bring_over(CliCall call, void *call_context, const char *into, con
         {
             cli_line_text(said, source);
             cli_line_text(said, " has no name");
-            cli_lock_give(&s_lock);
             return 0;
         }
-        if (!cli_over_named(into, name, to, said))
+        if (!cli_over_named(over, into, name, to, said))
         {
-            cli_lock_give(&s_lock);
             return 0;
         }
         char why[CLI_NAME_LONGEST * 4u];
         CliLine failed = {why, sizeof(why), 0ull};
-        if (!cli_paste_walked(source, to, cli_over_each, NULL, &failed))
+        if (!cli_paste_walked(source, to, cli_over_each, over, &failed))
         {
             cli_line_text(said, source);
             cli_line_text(said, ": ");
             cli_line_counted(said, why, failed.at);
-            cli_lock_give(&s_lock);
             return 0;
         }
         cli_pasted_written(out, index == 0u, NULL, to);
     }
     cli_line_character(out, ']');
-    cli_lock_give(&s_lock);
     return 1;
+}
+
+int cli_files_bring_over(CliCall call, void *call_context, const char *into, const char *const *from,
+                         unsigned int count, CliTold told, void *context, CliLine *out, CliLine *said)
+{
+    CliOver over = {
+        call, call_context, told, context, {NULL, 0ull, 0ull, NULL, NULL, 0ull}, {NULL, 0ull, 0ull, NULL, NULL, 0ull}};
+    (void)cli_line_growing(&over.arguments, CLI_OVER_ARGUMENTS_FIRST, "a call's arguments of a bring over a link");
+    (void)cli_line_growing(&over.answer, CLI_OVER_ANSWER_FIRST, "an answer of the tree's side");
+    const int brought = cli_over_brought(&over, into, from, count, out, said);
+    cli_cell_given(over.arguments.out);
+    cli_cell_given(over.answer.out);
+    return brought;
 }

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dap_start.c: a debug adapter begun: a program started for the session, or one listening at an address connected to;
-// one that runs in orior is begun by dap_within.c
+// one that runs in orior_cli is begun by dap_within.c
 #include "../machine/net.h"
 #include "dap_internal.h"
 

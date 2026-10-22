@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../src/cu/engine/render/anchor_raster.h"
+#include "../../src/cu/engine/render/orior_raster.h"
 #include "../../src/cu/engine/nbody/orior/orior.h"
 
 #include <stdio.h>
@@ -50,7 +50,7 @@ static size_t filled_cells(const uint8_t *pixels, size_t cells)
 
     for (size_t cell = 0u; cell < cells; cell += 1u)
     {
-        if (pixels[cell] != (uint8_t)ANCHOR_RASTER_EMPTY)
+        if (pixels[cell] != (uint8_t)ORIOR_RASTER_EMPTY)
         {
             filled += 1u;
         }
@@ -103,10 +103,10 @@ int main(void)
         return 1;
     }
 
-    size_t spawned[ANCHOR_STEER_ANCHORS];
-    const size_t coarms = ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent,
+    size_t spawned[ORIOR_STEER_ANCHORS];
+    const size_t coarms = ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent,
                                             .offsets = spawned,
-                                            .count = ANCHOR_STEER_ANCHORS,
+                                            .count = ORIOR_STEER_ANCHORS,
                                             .corpus = corpus,
                                             .corpus_len = RASTER_CORPUS,
                                             .needle = needle,
@@ -114,7 +114,7 @@ int main(void)
                                             .survivors = survivors,
                                             .survivors_length = alignments,
                                             .sample_stride = 1u);
-    AnchorRasterProbe steered[ANCHOR_STEER_ANCHORS];
+    OriorRasterProbe steered[ORIOR_STEER_ANCHORS];
     for (size_t slot = 0u; slot < coarms; slot += 1u)
     {
         steered[slot].origin = spawned[slot];
@@ -122,16 +122,16 @@ int main(void)
         steered[slot].length = 1u;
     }
 
-    AnchorRasterProbe plain[ANCHOR_STEER_ANCHORS];
-    const size_t cell_span = RASTER_NEEDLE / ANCHOR_STEER_ANCHORS;
-    for (size_t slot = 0u; slot < ANCHOR_STEER_ANCHORS; slot += 1u)
+    OriorRasterProbe plain[ORIOR_STEER_ANCHORS];
+    const size_t cell_span = RASTER_NEEDLE / ORIOR_STEER_ANCHORS;
+    for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
     {
         plain[slot].origin = (slot * cell_span) + ((cell_span > 1u) ? ((slot * 7u) % cell_span) : 0u);
         plain[slot].step = 1u;
         plain[slot].length = 1u;
     }
 
-    const int have_device = anchor_raster_device_available();
+    const int have_device = orior_raster_device_available();
     printf("\n  OBJECT UNDER EXAMINATION: %u bytes, %zu alignments, raster %ux%u\n", RASTER_CORPUS,
            alignments, RASTER_EDGE, RASTER_EDGE);
     printf("  steered probe set: %zu probes. device rasterizer: %s\n\n", coarms,
@@ -142,25 +142,25 @@ int main(void)
     size_t reference_filled = 0u;
     int reference_taken = 0;
 
-    for (unsigned int which_layout = 0u; which_layout < ANCHOR_RASTER_LAYOUTS; which_layout += 1u)
+    for (unsigned int which_layout = 0u; which_layout < ORIOR_RASTER_LAYOUTS; which_layout += 1u)
     {
-        for (unsigned int which_channel = 0u; which_channel < ANCHOR_RASTER_CHANNELS;
+        for (unsigned int which_channel = 0u; which_channel < ORIOR_RASTER_CHANNELS;
              which_channel += 1u)
         {
-            AnchorRasterConfig config;
+            OriorRasterConfig config;
             config.width = RASTER_EDGE;
             config.height = RASTER_EDGE;
-            config.layout = (AnchorRasterLayout)which_layout;
-            config.channel = (AnchorRasterChannel)which_channel;
-            config.reduce = ANCHOR_REDUCE_MIN;
+            config.layout = (OriorRasterLayout)which_layout;
+            config.channel = (OriorRasterChannel)which_channel;
+            config.reduce = ORIOR_REDUCE_MIN;
             config.gain = 1u;
 
-            if (anchor_raster_host(host_pixels, &config, corpus, RASTER_CORPUS, needle,
+            if (orior_raster_host(host_pixels, &config, corpus, RASTER_CORPUS, needle,
                                    RASTER_NEEDLE, steered, coarms) == 0)
             {
                 printf("  %12s %14s   host render errored\n",
-                       anchor_raster_layout_name(config.layout),
-                       anchor_raster_channel_name(config.channel));
+                       orior_raster_layout_name(config.layout),
+                       orior_raster_channel_name(config.channel));
                 failed += 1;
                 continue;
             }
@@ -183,7 +183,7 @@ int main(void)
             const char *agreement = "host only";
             if (have_device != 0)
             {
-                if (anchor_raster_device(device_pixels, &config, corpus, RASTER_CORPUS, needle,
+                if (orior_raster_device(device_pixels, &config, corpus, RASTER_CORPUS, needle,
                                          RASTER_NEEDLE, steered, coarms) == 0)
                 {
                     agreement = "device errored";
@@ -206,14 +206,14 @@ int main(void)
                 }
             }
 
-            printf("  %12s %14s %10zu %12s %14s\n", anchor_raster_layout_name(config.layout),
-                   anchor_raster_channel_name(config.channel), filled, agreement, verdict);
+            printf("  %12s %14s %10zu %12s %14s\n", orior_raster_layout_name(config.layout),
+                   orior_raster_channel_name(config.channel), filled, agreement, verdict);
 
             char path[128];
             snprintf(path, sizeof(path), "raster_%s_%s.pgm",
-                     anchor_raster_layout_name(config.layout),
-                     anchor_raster_channel_name(config.channel));
-            if (anchor_raster_write_pgm(path, host_pixels, config.width, config.height) == 0)
+                     orior_raster_layout_name(config.layout),
+                     orior_raster_channel_name(config.channel));
+            if (orior_raster_write_pgm(path, host_pixels, config.width, config.height) == 0)
             {
                 printf("    could not write %s\n", path);
                 failed += 1;
@@ -224,24 +224,24 @@ int main(void)
     printf("\n  FRAME RATE, death-level channel, rows layout, %zu frames each\n\n", (size_t)200u);
     printf("  %22s %12s %12s %14s\n", "probe set", "frames", "seconds", "frames/second");
 
-    AnchorRasterConfig timing;
+    OriorRasterConfig timing;
     timing.width = RASTER_EDGE;
     timing.height = RASTER_EDGE;
-    timing.layout = ANCHOR_LAYOUT_ROWS;
-    timing.channel = ANCHOR_CHANNEL_DEATH_LEVEL;
-    timing.reduce = ANCHOR_REDUCE_MIN;
+    timing.layout = ORIOR_LAYOUT_ROWS;
+    timing.channel = ORIOR_CHANNEL_DEATH_LEVEL;
+    timing.reduce = ORIOR_REDUCE_MIN;
     timing.gain = 1u;
 
     const size_t frames = 200u;
     for (unsigned int which = 0u; which < 2u; which += 1u)
     {
-        const AnchorRasterProbe *set = (which == 0u) ? plain : steered;
-        const size_t count = (which == 0u) ? (size_t)ANCHOR_STEER_ANCHORS : coarms;
+        const OriorRasterProbe *set = (which == 0u) ? plain : steered;
+        const size_t count = (which == 0u) ? (size_t)ORIOR_STEER_ANCHORS : coarms;
 
         const clock_t opened = clock();
         for (size_t frame = 0u; frame < frames; frame += 1u)
         {
-            (void)anchor_raster_host(host_pixels, &timing, corpus, RASTER_CORPUS, needle,
+            (void)orior_raster_host(host_pixels, &timing, corpus, RASTER_CORPUS, needle,
                                      RASTER_NEEDLE, set, count);
         }
         const clock_t closed = clock();
@@ -253,8 +253,8 @@ int main(void)
     }
 
     printf("\n  VOLUME SWEEP, %u layouts by %u channels into 32 by 32 by 32\n\n",
-           (unsigned)ANCHOR_VOLUME_LAYOUTS, (unsigned)ANCHOR_RASTER_CHANNELS);
-    const int have_device_volume = anchor_volume_device_available();
+           (unsigned)ORIOR_VOLUME_LAYOUTS, (unsigned)ORIOR_RASTER_CHANNELS);
+    const int have_device_volume = orior_volume_device_available();
     printf("  %16s %14s %10s %12s %14s %10s\n", "layout", "channel", "filled", "collisions",
            "host/device", "verdict");
 
@@ -271,22 +271,22 @@ int main(void)
     }
     else
     {
-        for (unsigned layout = 0u; layout < ANCHOR_VOLUME_LAYOUTS; layout += 1u)
+        for (unsigned layout = 0u; layout < ORIOR_VOLUME_LAYOUTS; layout += 1u)
         {
-            for (unsigned channel = 0u; channel < ANCHOR_RASTER_CHANNELS; channel += 1u)
+            for (unsigned channel = 0u; channel < ORIOR_RASTER_CHANNELS; channel += 1u)
             {
-                const AnchorVolumeConfig config = {
-                    volume_edge, volume_edge, volume_edge, (AnchorVolumeLayout)layout,
-                    (AnchorRasterChannel)channel, ANCHOR_REDUCE_MAX, 1u};
+                const OriorVolumeConfig config = {
+                    volume_edge, volume_edge, volume_edge, (OriorVolumeLayout)layout,
+                    (OriorRasterChannel)channel, ORIOR_REDUCE_MAX, 1u};
 
-                const int rendered = anchor_volume_render_host(voxels, &config, corpus,
+                const int rendered = orior_volume_render_host(voxels, &config, corpus,
                                                                RASTER_CORPUS, needle, RASTER_NEEDLE,
                                                                steered, coarms, NULL);
                 if (rendered == 0)
                 {
                     printf("  %16s %14s %10s %12s %14s %10s\n",
-                           anchor_volume_layout_name((AnchorVolumeLayout)layout),
-                           anchor_raster_channel_name((AnchorRasterChannel)channel),
+                           orior_volume_layout_name((OriorVolumeLayout)layout),
+                           orior_raster_channel_name((OriorRasterChannel)channel),
                            "-", "-", "-", "ERROR");
                     failed += 1;
                     continue;
@@ -301,7 +301,7 @@ int main(void)
                 const size_t checked = (alignments < volume_cells) ? alignments : volume_cells;
                 for (size_t at = 0u; at < checked; at += 1u)
                 {
-                    const size_t cell = anchor_volume_cell_for(&config, at);
+                    const size_t cell = orior_volume_cell_for(&config, at);
                     if (cell >= volume_cells)
                     {
                         collisions += 1u;
@@ -317,7 +317,7 @@ int main(void)
                 size_t filled = 0u;
                 for (size_t cell = 0u; cell < volume_cells; cell += 1u)
                 {
-                    if (voxels[cell] != (uint8_t)ANCHOR_RASTER_EMPTY)
+                    if (voxels[cell] != (uint8_t)ORIOR_RASTER_EMPTY)
                     {
                         filled += 1u;
                     }
@@ -327,7 +327,7 @@ int main(void)
                 int device_failed = 0;
                 if (have_device_volume != 0)
                 {
-                    if (anchor_volume_device(device_voxels, &config, corpus, RASTER_CORPUS, needle,
+                    if (orior_volume_device(device_voxels, &config, corpus, RASTER_CORPUS, needle,
                                              RASTER_NEEDLE, steered, coarms, NULL) == 0)
                     {
                         agreement = "device errored";
@@ -346,33 +346,33 @@ int main(void)
 
                 const int row_ok = (collisions == 0u) && (device_failed == 0);
                 printf("  %16s %14s %10zu %12zu %14s %10s\n",
-                       anchor_volume_layout_name((AnchorVolumeLayout)layout),
-                       anchor_raster_channel_name((AnchorRasterChannel)channel),
+                       orior_volume_layout_name((OriorVolumeLayout)layout),
+                       orior_raster_channel_name((OriorRasterChannel)channel),
                        filled, collisions, agreement, row_ok ? "ok" : "FAILS");
                 failed += (row_ok == 0) ? 1 : 0;
             }
         }
 
-        const AnchorVolumeConfig sample = {
-            volume_edge, volume_edge, volume_edge, ANCHOR_VOLUME_MORTON,
-            ANCHOR_CHANNEL_DEATH_LEVEL, ANCHOR_REDUCE_MAX, 1u};
-        if (anchor_volume_render_host(voxels, &sample, corpus, RASTER_CORPUS, needle, RASTER_NEEDLE,
+        const OriorVolumeConfig sample = {
+            volume_edge, volume_edge, volume_edge, ORIOR_VOLUME_MORTON,
+            ORIOR_CHANNEL_DEATH_LEVEL, ORIOR_REDUCE_MAX, 1u};
+        if (orior_volume_render_host(voxels, &sample, corpus, RASTER_CORPUS, needle, RASTER_NEEDLE,
                                       steered, coarms, NULL) != 0)
         {
-            if (anchor_volume_write_raw("anchor_volume_morton_death.raw", voxels, &sample) == 0)
+            if (orior_volume_write_raw("orior_volume_morton_death.raw", voxels, &sample) == 0)
             {
                 printf("  the volume could not be written\n");
                 failed += 1;
             }
             else
             {
-                printf("\n  wrote anchor_volume_morton_death.raw with its sidecar, %zu bytes\n",
+                printf("\n  wrote orior_volume_morton_death.raw with its sidecar, %zu bytes\n",
                        volume_cells);
             }
         }
 
         printf("  device volume renderer: %s\n",
-               (anchor_volume_device_available() != 0) ? "present" : "absent, host only");
+               (orior_volume_device_available() != 0) ? "present" : "absent, host only");
     }
 
     free(voxels);

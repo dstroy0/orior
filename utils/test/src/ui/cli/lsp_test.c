@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lsp_test.c: the language servers' check: a path and its URI name each other, a server that ends is known to have
-// ended with what it held and why, and a message is read by its length
+// ended with what it held and why, a request the server asks is answered later while it is heard on meanwhile, and a
+// message is read by its length
 #include "../../../../../ui/cli/src/servers/lsp.h"
+#include "../../../../../ui/cli/src/servers/lsp_internal.h"
 #include "../../../../../ui/cli/src/tests/test_runs.h"
 #include "cli_check.h"
 
@@ -36,6 +38,12 @@ static const char s_stand_in[] =
     "        send({\"jsonrpc\": \"2.0\", \"id\": message[\"id\"], \"result\": {\"capabilities\": {}}})\n"
     "    elif method == \"textDocument/didOpen\":\n"
     "        sys.stderr.write(\"given \" + message[\"params\"][\"textDocument\"][\"uri\"] + \"\\n\")\n"
+    "        sys.stderr.flush()\n"
+    "    elif method == \"orior/ask\":\n"
+    "        send({\"jsonrpc\": \"2.0\", \"id\": 7, \"method\": \"orior/question\", \"params\": {}})\n"
+    "        send({\"jsonrpc\": \"2.0\", \"method\": \"orior/meanwhile\", \"params\": {}})\n"
+    "    elif method is None and message.get(\"id\") == 7:\n"
+    "        sys.stderr.write(\"answered \" + json.dumps(message.get(\"result\")) + \"\\n\")\n"
     "        sys.stderr.flush()\n"
     "    elif method == \"orior/end\":\n"
     "        sys.stderr.write(\"ending as asked\\n\")\n"
@@ -86,7 +94,7 @@ static void lsp_heard(void *context, const char *method, const char *params, uns
     cli_line_text(answer, "null");
 }
 
-// the files a server held, `path` and its text, each after the last
+// the files a server kept, `path` and its text, each after the last
 static void lsp_held(void *context, const char *path, const char *text, unsigned long long length)
 {
     CliLine *const held = context;
@@ -98,7 +106,7 @@ static void lsp_held(void *context, const char *path, const char *text, unsigned
     cli_line_counted(held, text, length);
 }
 
-// a server that ends is known to have ended with what it held and why
+// a server that ends is known to have ended with what it kept and why
 static void lsp_ended(void)
 {
     char python[CLI_PATH_LONGEST];
@@ -123,7 +131,9 @@ static void lsp_ended(void)
         return;
     }
     cli_full(dir, "a.txt", file);
+    const unsigned long long closed_held = g_cli_lsp_files_cells.holds;
     (void)cli_lsp_opened(server, file, "plaintext", "one\n", 4ull, &said);
+    const unsigned long long open_held = g_cli_lsp_files_cells.holds;
     (void)cli_lsp_notified(server, "orior/end", "null", 4ull, &said);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
     while (cli_lsp_alive(server) && (cli_clock_milliseconds() < until))
@@ -143,6 +153,78 @@ static void lsp_ended(void)
     CliLine out = {complaint, sizeof(complaint), 0ull};
     cli_lsp_complaint(server, &out);
     cli_check_text(complaint, out.at, "ending as asked", "and the last thing it said");
+    cli_lsp_given(server);
+    cli_check((open_held > closed_held) && (g_cli_lsp_files_cells.holds < open_held),
+              "a file open holds its URI in a cell, given back as the server is let go");
+}
+
+// The request a server asked that is answered later, as its id's JSON, and the notifications heard after it
+typedef struct
+{
+    char id[64];
+    int held;
+    int meanwhile;
+} LspLater;
+
+// the server's question kept to be answered later, and what it says after it counted
+static void lsp_heard_later(void *context, const char *method, const char *params, unsigned long long size,
+                            CliLine *answer)
+{
+    (void)params;
+    (void)size;
+    (void)answer;
+    LspLater *const later = context;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "orior/question", .cap = CLI_CELLS_POOL}))
+    {
+        later->held = cli_lsp_answer_later(later->id, sizeof(later->id));
+    }
+    later->meanwhile +=
+        (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "orior/meanwhile", .cap = CLI_CELLS_POOL})) ? 1 : 0;
+}
+
+// a request the server asks is kept, the server heard on meanwhile, and answered later
+static void lsp_answered_later(void)
+{
+    char python[CLI_PATH_LONGEST];
+    if (!cli_test_python(python))
+    {
+        cli_check(1, "the machine has no Python, and no server runs");
+        return;
+    }
+    char dir[CLI_PATH_LONGEST];
+    char script[CLI_PATH_LONGEST];
+    char why[1024];
+    CliLine said = {why, sizeof(why), 0ull};
+    cli_check_folder("lsp_later", dir);
+    cli_full(dir, "stand_in.py", script);
+    (void)query_file_written(script, s_stand_in, sizeof(s_stand_in) - 1u);
+    const char *const args[1] = {script};
+    static LspLater s_later;
+    CliLsp *const server =
+        cli_lsp_started(python, args, 1u, dir, "null", 4ull, NULL, 0u, lsp_heard_later, &s_later, &said);
+    if (server == NULL)
+    {
+        cli_check(0, "the server starts");
+        return;
+    }
+    (void)cli_lsp_notified(server, "orior/ask", "null", 4ull, &said);
+    const unsigned long long until = cli_clock_milliseconds() + 5000ull;
+    while ((s_later.meanwhile == 0) && (cli_clock_milliseconds() < until))
+    {
+        query_paused(20u);
+    }
+    cli_check(s_later.held && (s_later.meanwhile == 1),
+              "a request the server asks is held unanswered, and what the server says after it is heard");
+    cli_check(cli_lsp_answer(server, s_later.id, "\"later\"", 7ull, &said), "the request is answered later");
+    char complaint[CLI_LSP_COMPLAINT];
+    CliLine out = {complaint, sizeof(complaint), 0ull};
+    while ((out.at == 0ull) && (cli_clock_milliseconds() < until + 5000ull))
+    {
+        query_paused(20u);
+        cli_lsp_complaint(server, &out);
+    }
+    cli_check_text(complaint, out.at, "answered \"later\"", "and the server is given the answer");
+    cli_lsp_stopped(server);
     cli_lsp_given(server);
 }
 
@@ -190,6 +272,7 @@ int main(void)
 {
     lsp_uri();
     lsp_ended();
+    lsp_answered_later();
     lsp_framed();
     return cli_checked();
 }

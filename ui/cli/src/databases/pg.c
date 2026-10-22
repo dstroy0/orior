@@ -57,7 +57,7 @@ int cli_pg_message(CliPg *pg, unsigned char *kind, CliDbFailure *failure)
         CliLine line = {said, sizeof(said), 0ull};
         cli_line_text(&line, "a message of ");
         cli_line_decimal(&line, size, 1u);
-        cli_line_text(&line, " bytes is past the room orior reads one in");
+        cli_line_text(&line, " bytes is past the room orior_cli reads one in");
         cli_line_closed(&line);
         cli_db_failure_said(failure, said);
         return 0;
@@ -210,7 +210,7 @@ CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, c
     cli_lock_give(&s_links_lock);
     if (pg == NULL)
     {
-        cli_db_failure_said(failure, "orior holds as many PostgreSQL connections as it can");
+        cli_db_failure_said(failure, "orior_cli holds as many PostgreSQL connections as it can");
         return NULL;
     }
     pg->start = 0ull;

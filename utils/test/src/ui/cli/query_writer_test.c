@@ -108,7 +108,7 @@ static int writer_in(const char *name, char *out, QueryWriter *writer)
     memor.set(&(MemoriaCfg){.dst = writer, .val = 0, .bytes = sizeof(*writer)});
     said.at = 0ull;
     cli_check(
-        query_tool_built_into(s_root, &s_programs, "qry_writer", out, writer->binary, sizeof(writer->binary), &said),
+        query_tool_built_into(s_root, &s_programs, "orior_qry_writer", out, writer->binary, sizeof(writer->binary), &said),
         "the writer is built");
     cli_full(out, "query1-test.qry", writer->qry);
     memor.cpy(&(MemoriaCfg){.dst = writer->top,

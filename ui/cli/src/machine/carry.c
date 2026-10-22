@@ -55,32 +55,12 @@ const char *cli_carried_value(const CliCarried *carried, unsigned int at)
 
 void cli_carry_room_given(CliCarryRoom *room)
 {
-    cli_cell_given(room->written);
-    cli_cell_given(room->plain);
-    cli_cell_given(room->tokens);
-    cli_cell_given(room->text);
-    cli_cell_given(room->nodes);
-    room->written = NULL;
-    room->plain = NULL;
-    room->tokens = NULL;
-    room->text = NULL;
-    room->nodes = NULL;
+    cli_json_given(&room->json);
 }
 
-int cli_carry_room_taken(CliCarryRoom *room)
+void cli_carry_room_begun(CliCarryRoom *room)
 {
-    room->nodes = cli_cell_taken(CLI_CARRY_NODES * sizeof(CliJsonNode), "a settings tree's nodes");
-    room->text = cli_cell_taken(CLI_CARRY_JSON, "a settings tree's texts");
-    room->tokens = cli_cell_taken(CLI_CARRY_NODES * sizeof(CfgJsonToken), "a settings tree's tokens");
-    room->plain = cli_cell_taken(CLI_CARRY_JSON, "a settings file's plain text");
-    room->written = cli_cell_taken(CLI_CARRY_JSON, "a settings file written");
-    const int taken = (room->nodes != NULL) && (room->text != NULL) && (room->tokens != NULL) &&
-                      (room->plain != NULL) && (room->written != NULL);
-    if (!taken)
-    {
-        cli_carry_room_given(room);
-    }
-    return taken;
+    cli_json_begun(&room->json, NULL, 0u, NULL, 0ull);
 }
 
 // the cells a carry's work took given back, its paths and its room, and its lock
@@ -165,20 +145,59 @@ int cli_carry_machine(const char *key)
     return 0;
 }
 
-unsigned int cli_carry_settings_of(CliCarryRoom *room, const char *text, unsigned long long size, int fresh)
+// `size` bytes of settings text made plain, which is never longer than the text, and read into the room's tree, a
+// fresh one in a cell sized to it with `nodes_more` nodes and `text_more` bytes over where `fresh` is 1, else beside
+// what it holds: the object read, an empty one where it is no object, CLI_JSON_NONE where the tree has no cell
+static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsigned long long size, int fresh,
+                                     unsigned int nodes_more, unsigned long long text_more)
 {
-    if (fresh)
+    char *const plain_text = cli_cell_taken(size + 1ull, "a settings file's plain text");
+    CliLine plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
+    if (plain_text != NULL)
     {
-        cli_json_begun(&room->json, room->nodes, CLI_CARRY_NODES, room->text, CLI_CARRY_JSON);
+        cli_plain_json(text, size, &plain);
     }
-    CliLine plain = {room->plain, CLI_CARRY_JSON, 0ull};
-    cli_plain_json(text, size, &plain);
     char why[CLI_NAME_LONGEST];
     CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_line_fits(&plain) ? cli_json_read(&room->json, room->plain, plain.at, room->tokens,
-                                                                    CLI_CARRY_NODES, &unread)
-                                                    : CLI_JSON_NONE;
+    unsigned int root = CLI_JSON_NONE;
+    if (fresh)
+    {
+        cli_json_given(&room->json);
+        root = (plain_text != NULL) ? cli_json_taken(&room->json, plain_text, plain.at, nodes_more, text_more, &unread)
+                                    : CLI_JSON_NONE;
+        if (room->json.node == NULL)
+        {
+            (void)cli_json_held(&room->json, nodes_more, text_more, "a settings tree");
+        }
+    }
+    else if (plain_text != NULL)
+    {
+        const unsigned int tokens_most = cli_json_tokens_counted(plain_text, plain.at) + 1u;
+        CfgJsonToken *const tokens =
+            cli_cell_taken((unsigned long long)tokens_most * sizeof(*tokens), "a settings file's tokens");
+        root = (tokens != NULL) ? cli_json_read(&room->json, plain_text, plain.at, tokens, tokens_most, &unread)
+                                : CLI_JSON_NONE;
+        cli_cell_given(tokens);
+    }
+    cli_cell_given(plain_text);
+    if (room->json.node == NULL)
+    {
+        return CLI_JSON_NONE;
+    }
     return cli_json_is(&room->json, root, CFG_JSON_OBJECT) ? root : cli_json_made(&room->json, CFG_JSON_OBJECT);
+}
+
+unsigned int cli_carry_settings_of(CliCarryRoom *room, const char *text, unsigned long long size,
+                                   unsigned long long beside)
+{
+    // a text read beside makes no more nodes than its bytes, and no more text than twice them with a 0 after each,
+    // and a copy of what it read takes as much again; the four over are the empty objects either side may be made
+    return carry_plain_read(room, text, size, 1, (unsigned int)((2ull * beside) + 4ull), (4ull * beside) + 64ull);
+}
+
+unsigned int cli_carry_settings_beside(CliCarryRoom *room, const char *text, unsigned long long size)
+{
+    return carry_plain_read(room, text, size, 0, 0u, 0ull);
 }
 
 void cli_carry_settings_written(CliCarryRoom *room, unsigned int object, CliLine *out)
@@ -288,36 +307,13 @@ void cli_carry_files(const char *folder, CliCarried *found)
     }
 }
 
-// the file at `path` read whole where it is UTF-8: its bytes mapped, or NULL
-static const unsigned char *cli_text_mapped(const char *path, unsigned long long *size)
-{
-    const unsigned char *const bytes = qry_member_file_mapped(path, size);
-    for (unsigned long long at = 0ull; (bytes != NULL) && (at < *size);)
-    {
-        unsigned int letter = 0u;
-        const unsigned long long step = cli_lossy_letter(bytes, *size, at, &letter);
-        if ((step == 1ull) && (bytes[at] >= 0x80u))
-        {
-            qry_member_file_unmapped(bytes, *size);
-            return NULL;
-        }
-        at += step;
-    }
-    return bytes;
-}
-
 int cli_carry_pack(const char *home, CliCarried *packed, CliLine *said)
 {
     static CliCarried s_paths;
     static CliCarryRoom s_room;
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
-    if (!cli_carry_room_taken(&s_room))
-    {
-        cli_lock_give(&s_lock);
-        cli_line_text(said, "the settings' cells could not be taken");
-        return 0;
-    }
+    cli_carry_room_begun(&s_room);
     cli_carried_clear(packed);
     cli_carry_files(home, &s_paths);
     for (unsigned int at = 0u; at < s_paths.count; at += 1u)
@@ -332,15 +328,16 @@ int cli_carry_pack(const char *home, CliCarried *packed, CliLine *said)
             carry_released(&s_paths, &s_room, &s_lock);
             return 0;
         }
-        const unsigned char *const bytes = cli_text_mapped(path, &size);
+        const unsigned char *const bytes = cli_file_held_utf8(path, &size);
         if (bytes == NULL)
         {
             continue;
         }
         if (cellul.eq(&(CatenaFinitaCfg){.src = place, .other = "settings.json", .cap = CLI_CELLS_POOL}))
         {
-            const unsigned int object = cli_carry_settings_of(&s_room, (const char *)bytes, size, 1);
-            for (unsigned int member = s_room.json.node[object].first; member != CLI_JSON_NONE;)
+            const unsigned int object = cli_carry_settings_of(&s_room, (const char *)bytes, size, 0ull);
+            for (unsigned int member = (object != CLI_JSON_NONE) ? s_room.json.node[object].first : CLI_JSON_NONE;
+                 member != CLI_JSON_NONE;)
             {
                 const unsigned int next = s_room.json.node[member].next;
                 const char *const key = s_room.json.text + s_room.json.node[member].key;
@@ -350,15 +347,23 @@ int cli_carry_pack(const char *home, CliCarried *packed, CliLine *said)
                 }
                 member = next;
             }
-            CliLine written = {s_room.written, CLI_CARRY_JSON, 0ull};
-            cli_carry_settings_written(&s_room, object, &written);
-            cli_carried_put(packed, place, s_room.written, written.at);
+            CliLine written;
+            if ((object != CLI_JSON_NONE) &&
+                cli_line_growing(&written, CLI_CARRY_WRITTEN_FIRST, "a settings file written"))
+            {
+                cli_carry_settings_written(&s_room, object, &written);
+                if (cli_line_fits(&written))
+                {
+                    cli_carried_put(packed, place, written.out, written.at);
+                }
+                cli_cell_given(written.out);
+            }
         }
         else
         {
             cli_carried_put(packed, place, (const char *)bytes, size);
         }
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
     carry_released(&s_paths, &s_room, &s_lock);
     return 1;
@@ -381,12 +386,7 @@ int cli_carry_read(const char *from, CliCarried *there, CliLine *said)
     static CliCarryRoom s_room;
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
-    if (!cli_carry_room_taken(&s_room))
-    {
-        cli_lock_give(&s_lock);
-        cli_line_text(said, "the settings' cells could not be taken");
-        return 0;
-    }
+    cli_carry_room_begun(&s_room);
     cli_carried_clear(there);
     if (query_is_folder(from))
     {
@@ -403,18 +403,18 @@ int cli_carry_read(const char *from, CliCarried *there, CliLine *said)
         for (unsigned int at = 0u; at < s_paths.count; at += 1u)
         {
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = cli_text_mapped(cli_carried_value(&s_paths, at), &size);
+            const unsigned char *const bytes = cli_file_held_utf8(cli_carried_value(&s_paths, at), &size);
             if (bytes != NULL)
             {
                 cli_carried_put(there, cli_carried_place(&s_paths, at), (const char *)bytes, size);
-                qry_member_file_unmapped(bytes, size);
+                cli_file_let_go(bytes, size);
             }
         }
         carry_released(&s_paths, &s_room, &s_lock);
         return 1;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_text_mapped(from, &size);
+    const unsigned char *const bytes = cli_file_held_utf8(from, &size);
     if (bytes == NULL)
     {
         cli_line_text(said, from);
@@ -422,12 +422,10 @@ int cli_carry_read(const char *from, CliCarried *there, CliLine *said)
         carry_released(&s_paths, &s_room, &s_lock);
         return 0;
     }
-    cli_json_begun(&s_room.json, s_room.nodes, CLI_CARRY_NODES, s_room.text, CLI_CARRY_JSON);
     char why[CLI_NAME_LONGEST];
     CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int root =
-        cli_json_read(&s_room.json, (const char *)bytes, size, s_room.tokens, CLI_CARRY_NODES, &unread);
-    qry_member_file_unmapped(bytes, size);
+    const unsigned int root = cli_json_taken(&s_room.json, (const char *)bytes, size, 0u, 0ull, &unread);
+    cli_file_let_go(bytes, size);
     const char *const mark = cli_json_string(&s_room.json, cli_json_member(&s_room.json, root, "orior"), NULL);
     const unsigned int files = cli_json_member(&s_room.json, root, "files");
     int read = (root != CLI_JSON_NONE) && (mark != NULL) &&
@@ -448,7 +446,7 @@ int cli_carry_read(const char *from, CliCarried *there, CliLine *said)
     if (!read)
     {
         cli_line_text(said, from);
-        cli_line_text(said, (root == CLI_JSON_NONE) ? ": it is no JSON" : " holds no settings orior carried");
+        cli_line_text(said, (root == CLI_JSON_NONE) ? ": it is no JSON" : " holds no settings orior_cli carried");
     }
     carry_released(&s_paths, &s_room, &s_lock);
     return read;

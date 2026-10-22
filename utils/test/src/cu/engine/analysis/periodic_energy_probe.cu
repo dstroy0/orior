@@ -116,14 +116,14 @@ static unsigned long long probe_declared(FILE *file)
     return pages_max * DEVICE_POOL_PAGE_BYTES;
 }
 
-static void probe_exact(const AnchorExactInteger *value)
+static void probe_exact(const OriorExactInteger *value)
 {
     if (value->sign == 0)
     {
         printf("0");
         return;
     }
-    unsigned int top = ANCHOR_EXACT_LIMBS;
+    unsigned int top = ORIOR_EXACT_LIMBS;
     while ((top > 1u) && (value->limb[top - 1u] == 0u))
     {
         top -= 1u;
@@ -135,7 +135,7 @@ static void probe_exact(const AnchorExactInteger *value)
     }
 }
 
-static void probe_ratio(const AnchorExactInteger *numerator, const AnchorExactInteger *denominator)
+static void probe_ratio(const OriorExactInteger *numerator, const OriorExactInteger *denominator)
 {
     probe_exact(numerator);
     printf("/");
@@ -222,8 +222,8 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
 
     for (unsigned long long period = 2ull; (recovered != 0) && (period <= top); period += 1ull)
     {
-        AnchorExactInteger numerator;
-        AnchorExactInteger denominator;
+        OriorExactInteger numerator;
+        OriorExactInteger denominator;
         printf("ratio %llu ", period);
         if (energy_ratio(values, length, sums, period, &numerator, &denominator) != 0)
         {
@@ -238,8 +238,8 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
 
     if ((record->has_target != 0u) && (recovered != 0) && (record->period >= 2ull) && (record->period <= top))
     {
-        AnchorExactInteger numerator;
-        AnchorExactInteger denominator;
+        OriorExactInteger numerator;
+        OriorExactInteger denominator;
         const int reduced = energy_reduction(values, target, length, record->period,
                                              &sums[energy_phase_base(record->period)], &numerator, &denominator);
         printf("reduction status %d ", reduced);

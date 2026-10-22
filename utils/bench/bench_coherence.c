@@ -184,8 +184,8 @@ int main(void)
         bench_build_bytes(corpus, CORPUS_BYTES, KINDS[which], CORPUS_SEED);
         bench_build_bytes(absent, NEEDLE_BYTES * NEEDLES_PER_ROW, KINDS[which], ABSENT_SEED);
 
-        AnchorFieldCensus census;
-        anchor_field_census(corpus, CORPUS_BYTES, &census);
+        OriorFieldCensus census;
+        orior_field_census(corpus, CORPUS_BYTES, &census);
         const OriorPlan plan = {&census, NEEDLE_BYTES, held[which].period};
         const OriorPlan flat_plan = {&census, NEEDLE_BYTES, 0u};
         const double alignments = (double)(CORPUS_BYTES - NEEDLE_BYTES + 1u)

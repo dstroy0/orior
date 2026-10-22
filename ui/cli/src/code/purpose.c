@@ -142,7 +142,7 @@ int cli_purpose_said(const char *root, const char *path, CliLine *out, CliLine *
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(file, &size);
+    const unsigned char *const bytes = cli_file_held(file, &size);
     if (bytes == NULL)
     {
         cli_line_text(said, path);
@@ -159,7 +159,7 @@ int cli_purpose_said(const char *root, const char *path, CliLine *out, CliLine *
         cli_line_closed(&text);
         cli_purpose_first_comment(file, s_text, text.at, &comment);
     }
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     cli_json_quoted(out, s_said, comment.at);
     cli_lock_give(&s_lock);
     return 1;
@@ -208,7 +208,7 @@ static void cli_part_read(CliPurposePart *part)
         char full[CLI_PATH_LONGEST];
         cli_full(s_users->root, other, full);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = qry_member_file_mapped(full, &size);
+        const unsigned char *const bytes = cli_file_held(full, &size);
         if (bytes == NULL)
         {
             continue;
@@ -219,7 +219,7 @@ static void cli_part_read(CliPurposePart *part)
             const unsigned long long length = cli_text_of(bytes, read, part->text);
             s_users->used[index] = (unsigned char)cli_purpose_uses(part->text, length, s_users->name, s_users->stem);
         }
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
 }
 

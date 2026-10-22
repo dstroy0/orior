@@ -168,34 +168,34 @@ extern "C" long noise_ladder_volume(const unsigned short *volume, const unsigned
     {
         return NOISE_DETECTOR_ERROR;
     }
-    AnchorExactInteger left;
-    AnchorExactInteger right;
-    AnchorExactInteger term;
+    OriorExactInteger left;
+    OriorExactInteger right;
+    OriorExactInteger term;
     // s3 >= s2^2: S3 D2^2 >= S2^2 D3, every denominator positive
-    int formed = (anchor_exact_multiply(&second->denominator, &second->denominator, &term) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&third->slope, &term, &left) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&second->slope, &second->slope, &term) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&term, &third->denominator, &right) == ANCHOR_EXACT_OK);
-    read.rising = formed && (anchor_exact_compare(&left, &right) >= 0);
+    int formed = (orior_exact_multiply(&second->denominator, &second->denominator, &term) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&third->slope, &term, &left) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&second->slope, &second->slope, &term) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&term, &third->denominator, &right) == ORIOR_EXACT_OK);
+    read.rising = formed && (orior_exact_compare(&left, &right) >= 0);
     // s2 s4 >= s3^2: S2 S4 D3^2 >= S3^2 D2 D4
-    formed = formed && (anchor_exact_multiply(&second->slope, &fourth->slope, &term) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&term, &third->denominator, &term) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&term, &third->denominator, &left) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&third->slope, &third->slope, &term) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&term, &second->denominator, &term) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&term, &fourth->denominator, &right) == ANCHOR_EXACT_OK);
-    read.convex = formed && (anchor_exact_compare(&left, &right) >= 0);
+    formed = formed && (orior_exact_multiply(&second->slope, &fourth->slope, &term) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&term, &third->denominator, &term) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&term, &third->denominator, &left) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&third->slope, &third->slope, &term) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&term, &second->denominator, &term) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&term, &fourth->denominator, &right) == ORIOR_EXACT_OK);
+    read.convex = formed && (orior_exact_compare(&left, &right) >= 0);
     // C19: O = -C3 / S3 and R^2 = (C2 S3 - C3 S2) / (D2 S3), each turned to a positive denominator
     read.tail = formed && (third->slope.sign != 0);
     if (read.tail != 0)
     {
-        anchor_exact_zero(&term);
-        formed = (anchor_exact_subtract(&term, &third->intercept, &read.offset) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&second->intercept, &third->slope, &left) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&third->intercept, &second->slope, &right) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_subtract(&left, &right, &read.read_square) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&second->denominator, &third->slope, &read.read_square_denominator) ==
-                  ANCHOR_EXACT_OK);
+        orior_exact_zero(&term);
+        formed = (orior_exact_subtract(&term, &third->intercept, &read.offset) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&second->intercept, &third->slope, &left) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&third->intercept, &second->slope, &right) == ORIOR_EXACT_OK) &&
+                 (orior_exact_subtract(&left, &right, &read.read_square) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&second->denominator, &third->slope, &read.read_square_denominator) ==
+                  ORIOR_EXACT_OK);
         read.offset_denominator = third->slope;
         if (third->slope.sign < 0)
         {

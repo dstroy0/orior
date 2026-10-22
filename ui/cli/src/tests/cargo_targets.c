@@ -7,9 +7,36 @@
 #include "../text/text.h"
 #include <stdlib.h>
 
-// the most targets of a package and entries of a folder Cargo finds targets in
+// the most targets of a package and entries of a folder Cargo finds targets in, and those each list is begun with,
+// doubling as they are found
 #define CLI_CARGO_TARGETS 1024u
 #define CLI_CARGO_ENTRIES 1024u
+#define CLI_CARGO_FIRST 16u
+
+// a list of items of `size` bytes, `count` of them held in a cell of `*room`, given room for one more: where it is full
+// and below `most`, moved into a cell of twice its room, CLI_CARGO_FIRST where it has none, its items copied and its
+// cell given back. The list as it stands after, `count` below `*room` where there is room
+static void *found_grown(void *list, unsigned int count, unsigned int *room, unsigned long long size, unsigned int most)
+{
+    if ((count < *room) || (*room >= most))
+    {
+        return list;
+    }
+    const unsigned int doubled = (*room == 0u) ? CLI_CARGO_FIRST : (*room * 2u);
+    const unsigned int grown = (doubled < most) ? doubled : most;
+    void *const cell = cli_cell_taken_by(&g_cli_cargo_cells, grown * size, "the targets of a package");
+    if (cell == NULL)
+    {
+        return list;
+    }
+    if (count != 0u)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = cell, .src = list, .bytes = count * size});
+    }
+    cli_cell_given_by(&g_cli_cargo_cells, list);
+    *room = grown;
+    return cell;
+}
 
 // a TOML value as text: a string's contents in either quotes, or the bare word before a comment, into `out`, which
 // holds `room`
@@ -135,23 +162,36 @@ void cli_cargo_joined(const char *a, const char *b, const char *between, char *o
     cli_line_closed(&line);
 }
 
-// The targets of one package and what Cargo finds on its own in a folder of it
+// The targets of one package and what Cargo finds on its own in a folder of it, each list a cell of its room grown as
+// they are found
 typedef struct
 {
-    CliCargoFirst firsts[CLI_CARGO_TARGETS];
+    CliCargoFirst *firsts;
     unsigned int count;
-    CliCargoFirst entries[CLI_CARGO_ENTRIES];
+    unsigned int room;
+    CliCargoFirst *entries;
     unsigned int entry_count;
+    unsigned int entry_room;
     const char *folder;
     const char *dir;
 } CliCargoTargets;
 
 static CliCargoTargets s_targets;
 
+void cli_cargo_firsts_given(void)
+{
+    cli_cell_given_by(&g_cli_cargo_cells, s_targets.firsts);
+    s_targets.firsts = NULL;
+    s_targets.count = 0u;
+    s_targets.room = 0u;
+}
+
 // a target put with its first file
 static void found_first(unsigned int kind, const char *name, const char *path)
 {
-    if (s_targets.count < CLI_CARGO_TARGETS)
+    s_targets.firsts =
+        found_grown(s_targets.firsts, s_targets.count, &s_targets.room, sizeof(CliCargoFirst), CLI_CARGO_TARGETS);
+    if (s_targets.count < s_targets.room)
     {
         CliCargoFirst *const first = &s_targets.firsts[s_targets.count];
         first->kind = kind;
@@ -182,7 +222,9 @@ static int found_taken(unsigned int from, unsigned int to, const char *path)
 static void found_entry(void *context, const char *name, int is_folder)
 {
     (void)context;
-    if (s_targets.entry_count == CLI_CARGO_ENTRIES)
+    s_targets.entries = found_grown(s_targets.entries, s_targets.entry_count, &s_targets.entry_room,
+                                    sizeof(CliCargoFirst), CLI_CARGO_ENTRIES);
+    if (s_targets.entry_count == s_targets.entry_room)
     {
         return;
     }
@@ -271,13 +313,14 @@ typedef struct
     int pathed;
 } CliCargoListed;
 
-static CliCargoListed s_listed[CLI_CARGO_TARGETS];
-
 const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, unsigned long long size,
                                        const char *package, unsigned int *count)
 {
-    s_targets.count = 0u;
+    cli_cargo_firsts_given();
     s_targets.folder = folder;
+    // the tables the manifest lists, a cell grown as they are read and given back as the targets are found
+    CliCargoListed *tables = NULL;
+    unsigned int listed_room = 0u;
     char table[CLI_NAME_LONGEST] = "";
     int autobins = 1;
     int autotests = 1;
@@ -299,12 +342,16 @@ const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, uns
             const unsigned long long end =
                 ((closed != NULL) && (closed < line + length)) ? (unsigned long long)(closed - line) : length;
             found_trimmed(line + open, end - open, table, sizeof(table));
-            if (doubled &&
-                ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) ||
-                 (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "test", .cap = CLI_CELLS_POOL}))) &&
-                (listed < CLI_CARGO_TARGETS))
+            const int lists =
+                doubled && ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) ||
+                            (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "test", .cap = CLI_CELLS_POOL})));
+            if (lists)
             {
-                s_listed[listed] = (CliCargoListed){
+                tables = found_grown(tables, listed, &listed_room, sizeof(CliCargoListed), CLI_CARGO_TARGETS);
+            }
+            if (lists && (listed < listed_room))
+            {
+                tables[listed] = (CliCargoListed){
                     cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL}), "", "", 0, 0};
                 listed += 1u;
             }
@@ -342,18 +389,18 @@ const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, uns
         else if (listing && (listed > 0u) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "name", .cap = CLI_CELLS_POOL})))
         {
-            memor.cpy(&(MemoriaCfg){.dst = s_listed[listed - 1u].name,
+            memor.cpy(&(MemoriaCfg){.dst = tables[listed - 1u].name,
                                     .src = value,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
-            s_listed[listed - 1u].named = 1;
+            tables[listed - 1u].named = 1;
         }
         else if (listing && (listed > 0u) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_CELLS_POOL})))
         {
-            memor.cpy(&(MemoriaCfg){.dst = s_listed[listed - 1u].path,
+            memor.cpy(&(MemoriaCfg){.dst = tables[listed - 1u].path,
                                     .src = value,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
-            s_listed[listed - 1u].pathed = 1;
+            tables[listed - 1u].pathed = 1;
         }
     }
     char lib_full[CLI_PATH_LONGEST];
@@ -365,7 +412,7 @@ const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, uns
     const unsigned int listed_first = s_targets.count;
     for (unsigned int one = 0u; one < listed; one += 1u)
     {
-        CliCargoListed *const entry = &s_listed[one];
+        CliCargoListed *const entry = &tables[one];
         if (!entry->named)
         {
             continue;
@@ -406,6 +453,11 @@ const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, uns
     {
         found_auto("tests", CLI_CARGO_TEST, listed_first, taken);
     }
+    cli_cell_given_by(&g_cli_cargo_cells, tables);
+    cli_cell_given_by(&g_cli_cargo_cells, s_targets.entries);
+    s_targets.entries = NULL;
+    s_targets.entry_count = 0u;
+    s_targets.entry_room = 0u;
     *count = s_targets.count;
     return s_targets.firsts;
 }

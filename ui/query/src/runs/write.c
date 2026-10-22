@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// write.c: the writers, each over the part's files and the rulesets and reaching no part: `klq_write` writes
-// `Lstar.klq` and each given language's `.klm` beside the rulesets; `krs_write` writes `sass.krs` and `sm_86.krs`
-// beside `sm_86.khw` from the forms the part answered for; `gsm_write` writes `sm_86.gsm`, each relation the part
+// write.c: the writers, each over the part's files and the rulesets and reaching no part: `orior_klq_write` writes
+// `Lstar.klq` and each given language's `.klm` beside the rulesets; `orior_krs_write` writes `sass.krs` and `sm_86.krs`
+// beside `sm_86.khw` from the forms the part answered for; `orior_gsm_write` writes `sm_86.gsm`, each relation the part
 // answered as the cases it answered it on. And the query: the bridge written over two languages' rulesets, then its
 // pairs put to the part where one is chosen
 #include "../../../cli/src/text/text.h"
@@ -23,7 +23,7 @@ static void query_table_named(const QueryContext *context, const char *name, cha
     cli_line_closed(&line);
 }
 
-// `Lstar.klq` and each given language's `.klm` written beside the rulesets (`klq_write`), teed as `klq_write.console`:
+// `Lstar.klq` and each given language's `.klm` written beside the rulesets (`orior_klq_write`), teed as `orior_klq_write.console`:
 // the writer's exit code
 int query_bridge(QueryContext *context, const char *const *rulesets, unsigned int count, CliLine *said)
 {
@@ -32,7 +32,7 @@ int query_bridge(QueryContext *context, const char *const *rulesets, unsigned in
     const unsigned int given_count = (count == 0u) ? 3u : ((count < QUERY_RULESETS_MOST) ? count : QUERY_RULESETS_MOST);
     static char s_klq_write[QUERY_PATH_LONGEST];
     static QueryRun s_run;
-    if (!query_context_tool(context, "klq_write", s_klq_write, said) ||
+    if (!query_context_tool(context, "orior_klq_write", s_klq_write, said) ||
         !query_context_started(context, &s_run, "build/engine/klq/qry", said))
     {
         return -1;
@@ -58,7 +58,7 @@ int query_bridge(QueryContext *context, const char *const *rulesets, unsigned in
     }
     long long code = -1ll;
     const int whole = query_run_read(&s_run, s_reads, given_count + 1u, said) &&
-                      query_context_teed(context, &s_run, "klq_write", s_words.word, &code, said);
+                      query_context_teed(context, &s_run, "orior_klq_write", s_words.word, &code, said);
     if (!query_context_ended(context, &s_run, said) || !whole)
     {
         return -1;
@@ -67,8 +67,8 @@ int query_bridge(QueryContext *context, const char *const *rulesets, unsigned in
     return (int)code;
 }
 
-// `sass.krs` and `sm_86.krs` written beside `sm_86.khw` from the forms the part answered for (`krs_write`), teed as
-// `krs_write.console`; or `sm_86.gsm`, each relation the part answered as the cases it answered it on (`gsm_write`).
+// `sass.krs` and `sm_86.krs` written beside `sm_86.khw` from the forms the part answered for (`orior_krs_write`), teed as
+// `orior_krs_write.console`; or `sm_86.gsm`, each relation the part answered as the cases it answered it on (`orior_gsm_write`).
 // The writer's exit code
 static int query_part_written(QueryContext *context, int krs, CliLine *said)
 {
@@ -77,8 +77,8 @@ static int query_part_written(QueryContext *context, int krs, CliLine *said)
     static QueryFiles s_files;
     static QueryRun s_run;
     query_files_of(context->root, "sm_86", &s_files);
-    if (!query_context_tool(context, krs ? "krs_write" : "gsm_write", s_tool, said) ||
-        !query_context_tool(context, "khw_machine_write", s_writer, said) ||
+    if (!query_context_tool(context, krs ? "orior_krs_write" : "orior_gsm_write", s_tool, said) ||
+        !query_context_tool(context, "orior_khw_machine_write", s_writer, said) ||
         !query_context_started(context, &s_run, krs ? "build/engine/krs/qry" : "build/engine/gsm/qry", said))
     {
         return -1;
@@ -99,7 +99,7 @@ static int query_part_written(QueryContext *context, int krs, CliLine *said)
     long long code = -1ll;
     const int whole =
         query_run_read(&s_run, krs ? krs_read : gsm_read, krs ? 7u : 3u, said) &&
-        query_context_teed(context, &s_run, krs ? "krs_write" : "gsm_write", krs ? krs_words : gsm_words, &code, said);
+        query_context_teed(context, &s_run, krs ? "orior_krs_write" : "orior_gsm_write", krs ? krs_words : gsm_words, &code, said);
     if (!query_context_ended(context, &s_run, said) || !whole)
     {
         return -1;

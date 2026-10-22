@@ -11,7 +11,7 @@
 # compiler nvcc is driving. That keeps the ABI consistent inside it.
 #
 # The result is bench_raster with the device arm compiled in. Without this script the CMake build
-# still produces bench_raster, linking the stub arms in anchor_raster_output.c, and it reports the device as
+# still produces bench_raster, linking the stub arms in orior_raster_output.c, and it reports the device as
 # absent and grades the host alone. That is a skip.
 
 param(
@@ -69,9 +69,9 @@ foreach ($line in $envDump)
 
 New-Item -ItemType Directory -Force $out | Out-Null
 
-# ANCHOR_RASTER_HAVE_CUDA is what suppresses the stub arms in anchor_raster_output.c. Defined on this build
+# ORIOR_RASTER_HAVE_CUDA is what suppresses the stub arms in orior_raster_output.c. Defined on this build
 # and undefined on the CMake one. Exactly one definition of each device symbol ever exists.
-$defines = "-DANCHOR_RASTER_HAVE_CUDA=1"
+$defines = "-DORIOR_RASTER_HAVE_CUDA=1"
 $includes = "-I`"$sift`" -I`"$exact`" -I`"$render`""
 
 # TWO STEPS, AND THE SPLIT IS FORCED. The C sources use _Static_assert, which is
@@ -90,8 +90,8 @@ try
 {
     Write-Host "[*] cl /std:c11 -> objects"
     $units = @(
-        (Join-Path $render "anchor_raster.c"),
-        (Join-Path $render "anchor_raster_output.c"),
+        (Join-Path $render "orior_raster.c"),
+        (Join-Path $render "orior_raster_output.c"),
         (Join-Path $exact "exact_integer_add.c"),
         (Join-Path $exact "exact_integer_limbs.c"),
         (Join-Path $exact "exact_integer_multiply.c"),
@@ -110,7 +110,7 @@ try
     $objects = $units | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) + ".obj" }
     foreach ($unit in $units)
     {
-        & cl /nologo /std:c11 /O2 /DANCHOR_RASTER_HAVE_CUDA=1 $clIncludes /c $unit | Out-Null
+        & cl /nologo /std:c11 /O2 /DORIOR_RASTER_HAVE_CUDA=1 $clIncludes /c $unit | Out-Null
         if ($LASTEXITCODE -ne 0)
         {
             Write-Error "cl failed on $unit"
@@ -119,7 +119,7 @@ try
     }
 
     Write-Host "[*] nvcc -> bench_raster.exe"
-    & nvcc -O3 "-arch=$Arch" -DANCHOR_RASTER_HAVE_CUDA=1 ("-I" + $render) ("-I" + $render_cu) `
+    & nvcc -O3 "-arch=$Arch" -DORIOR_RASTER_HAVE_CUDA=1 ("-I" + $render) ("-I" + $render_cu) `
         (Join-Path $render_cu "raster.cu") (Join-Path $render_cu "raster_entry.cu") `
         $objects -o bench_raster.exe
     if ($LASTEXITCODE -ne 0)

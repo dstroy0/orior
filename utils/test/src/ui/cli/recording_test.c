@@ -30,17 +30,18 @@ static void recording_sample(void)
 // the values of frame `serial` as step `at` was about to run, `name=value` joined by `|`, checked against `wanted`
 static void recording_values(unsigned int serial, unsigned int at, const char *wanted, const char *what)
 {
-    static CliRecordedValue s_values[8];
-    const unsigned int count = cli_recording_values(serial, at, s_values, 8u);
+    CliRecordedValue *values = NULL;
+    const unsigned int count = cli_recording_values(serial, at, &values, 8u);
     char text[256];
     CliLine line = {text, sizeof(text), 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
     {
         cli_line_text(&line, (each > 0u) ? "|" : "");
-        cli_line_text(&line, s_values[each].name);
+        cli_line_text(&line, values[each].name);
         cli_line_character(&line, '=');
-        cli_line_text(&line, s_values[each].value);
+        cli_line_text(&line, values[each].value);
     }
+    cli_cell_given(values);
     cli_check_text(text, line.at, wanted, what);
 }
 

@@ -141,7 +141,7 @@ static int sign_reply(CliMysql *mysql, const char *user, const char *database, c
     cli_line_character(&out, '\0');
     if (!cli_line_fits(&out))
     {
-        cli_db_failure_said(failure, "the user's and the database's names are longer than orior sends");
+        cli_db_failure_said(failure, "the user's and the database's names are longer than orior_cli sends");
         return 0;
     }
     return cli_mysql_sent(mysql, (const unsigned char *)out.out, out.at, failure);
@@ -211,7 +211,7 @@ static int sign_switched(CliMysql *mysql, const char *password, unsigned char *s
         CliLine line = {why, sizeof(why), 0ull};
         cli_line_text(&line, "the account signs in by ");
         cli_line_text(&line, plugin);
-        cli_line_text(&line, ", which orior does not speak: mysql_native_password and caching_sha2_password are "
+        cli_line_text(&line, ", which orior_cli does not speak: mysql_native_password and caching_sha2_password are "
                              "spoken");
         cli_line_closed(&line);
         cli_db_failure_said(failure, why);
@@ -280,7 +280,7 @@ int cli_mysql_signed_in(CliMysql *mysql, const char *host, unsigned int port, co
         }
         else if (first != 0x01u)
         {
-            cli_db_failure_said(failure, "the server answered the sign-in with what orior cannot read");
+            cli_db_failure_said(failure, "the server answered the sign-in with what orior_cli cannot read");
             return 0;
         }
         if (!going)
@@ -323,7 +323,7 @@ CliMysql *cli_mysql_connected(const char *host, unsigned int port, const char *u
     cli_lock_give(&s_links_lock);
     if (mysql == NULL)
     {
-        cli_db_failure_said(failure, "orior holds as many MySQL connections as it can");
+        cli_db_failure_said(failure, "orior_cli holds as many MySQL connections as it can");
         return NULL;
     }
     mysql->start = 0ull;

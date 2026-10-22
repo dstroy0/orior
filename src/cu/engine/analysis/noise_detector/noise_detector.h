@@ -192,25 +192,25 @@ extern "C"
     // in measurements per level and in measurements at level 0.
     typedef struct
     {
-        AnchorExactInteger samples;
-        AnchorExactInteger along;
-        AnchorExactInteger along_square;
-        AnchorExactInteger measured;
-        AnchorExactInteger cross;
+        OriorExactInteger samples;
+        OriorExactInteger along;
+        OriorExactInteger along_square;
+        OriorExactInteger measured;
+        OriorExactInteger cross;
     } NoiseLineSums;
 
     typedef struct
     {
-        AnchorExactInteger slope;
-        AnchorExactInteger intercept;
-        AnchorExactInteger denominator;
+        OriorExactInteger slope;
+        OriorExactInteger intercept;
+        OriorExactInteger denominator;
     } NoiseLine;
 
     void noise_line_sums_zero(NoiseLineSums *sums);
 
     // count points at place whose measurements sum to total; on an error the sums are unchanged
     long noise_line_sums_add(NoiseLineSums *sums, unsigned long long count, unsigned long long place,
-                             const AnchorExactInteger *total, EngineError *error);
+                             const OriorExactInteger *total, EngineError *error);
 
     // errors where the places do not span two levels (D would be 0), a scale is 0, or a product passes the exact
     // integer's width; on an error the line is unchanged
@@ -234,10 +234,10 @@ extern "C"
         // C19 from the k2 and k3 lines, set where s3 is not 0: O = -c3 / s3 and R^2 = (c2 s3 - c3 s2) / s3, each a
         // numerator over a positive denominator. O is the offset only where rising and convex both hold.
         int tail;
-        AnchorExactInteger offset;
-        AnchorExactInteger offset_denominator;
-        AnchorExactInteger read_square;
-        AnchorExactInteger read_square_denominator;
+        OriorExactInteger offset;
+        OriorExactInteger offset_denominator;
+        OriorExactInteger read_square;
+        OriorExactInteger read_square_denominator;
     } NoiseLadderMeasurement;
 
     // errors on a volume with fewer than two whole blocks of frames, or whose blocks' levels do not span two values
@@ -257,10 +257,10 @@ extern "C"
     typedef struct
     {
         unsigned long long pairs[NOISE_CROSSTALK_AXES];
-        AnchorExactInteger squares[NOISE_CROSSTALK_AXES];
-        AnchorExactInteger steps[NOISE_CROSSTALK_AXES][NOISE_CROSSTALK_STEPS];
+        OriorExactInteger squares[NOISE_CROSSTALK_AXES];
+        OriorExactInteger steps[NOISE_CROSSTALK_AXES][NOISE_CROSSTALK_STEPS];
         // V = sum d'^2 - 2 C2
-        AnchorExactInteger spread[NOISE_CROSSTALK_AXES];
+        OriorExactInteger spread[NOISE_CROSSTALK_AXES];
     } NoiseCrosstalkMeasurement;
 
     // errors on a volume of fewer than two frames or one whose products could pass 64 bits a sum
@@ -275,18 +275,18 @@ extern "C"
     // bias's is g^2 D dt; g is their ratio. Each measurement is a numerator over a positive denominator.
     typedef struct
     {
-        AnchorExactInteger offset;
-        AnchorExactInteger offset_denominator;
-        AnchorExactInteger level_free;
-        AnchorExactInteger level_free_denominator;
-        AnchorExactInteger dark_level;
-        AnchorExactInteger dark_level_denominator;
-        AnchorExactInteger dark_square;
-        AnchorExactInteger dark_square_denominator;
+        OriorExactInteger offset;
+        OriorExactInteger offset_denominator;
+        OriorExactInteger level_free;
+        OriorExactInteger level_free_denominator;
+        OriorExactInteger dark_level;
+        OriorExactInteger dark_level_denominator;
+        OriorExactInteger dark_square;
+        OriorExactInteger dark_square_denominator;
         // set where the dark mean differs from the bias mean
         int gain_read;
-        AnchorExactInteger gain;
-        AnchorExactInteger gain_denominator;
+        OriorExactInteger gain;
+        OriorExactInteger gain_denominator;
     } NoiseChargeMeasurement;
 
     // errors series of fewer than two frames, or whose squares could pass 64 bits a sum
@@ -309,10 +309,10 @@ extern "C"
         unsigned long long pairs[NOISE_FLICKER_LAGS];
         // set where q is not a line in M within every bin. MM QQ - MQ^2 is positive
         int read[NOISE_FLICKER_LAGS];
-        AnchorExactInteger slope[NOISE_FLICKER_LAGS];
-        AnchorExactInteger slope_denominator[NOISE_FLICKER_LAGS];
-        AnchorExactInteger intercept[NOISE_FLICKER_LAGS];
-        AnchorExactInteger intercept_denominator[NOISE_FLICKER_LAGS];
+        OriorExactInteger slope[NOISE_FLICKER_LAGS];
+        OriorExactInteger slope_denominator[NOISE_FLICKER_LAGS];
+        OriorExactInteger intercept[NOISE_FLICKER_LAGS];
+        OriorExactInteger intercept_denominator[NOISE_FLICKER_LAGS];
     } NoiseStructureMeasurement;
 
     // errors on a volume of fewer than two frames or two columns, of more than 65536 frames, or whose sums could pass
@@ -329,10 +329,10 @@ extern "C"
     // (n_lo + n_hi)). Each is a numerator over a positive denominator.
     typedef struct
     {
-        AnchorExactInteger covariance;
-        AnchorExactInteger covariance_denominator;
-        AnchorExactInteger level;
-        AnchorExactInteger level_denominator;
+        OriorExactInteger covariance;
+        OriorExactInteger covariance_denominator;
+        OriorExactInteger level;
+        OriorExactInteger level_denominator;
     } NoiseHalvesMeasurement;
 
     // errors on a volume of fewer than two planes, or whose sums could pass 128 bits

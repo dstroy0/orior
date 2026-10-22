@@ -3,7 +3,7 @@
 Extraction of Boas and the Babblefish Part 2: Making Sense of pentl’ach ¢ and ç by Mathew Andreatta
 and Jesse Recalma, Qualicum First Nation, and Suzanne Urbanczyk, University of Victoria, ICSNL 59.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -37,7 +37,7 @@ each table into the paragraph after it; the tables are read off the page one cel
 columns of the consonant charts, where Tables 6 and 9 leave the dental stop and affricate cells
 empty, are placed by the glyph positions. Table 4 spells its last row shahishalhem.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 241
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 11286 distinct tokens in the paper, 0 language tokens are held by no row.

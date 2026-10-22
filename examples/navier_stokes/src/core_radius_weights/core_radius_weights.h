@@ -114,12 +114,12 @@ typedef struct
 
 // the least multiple of 1 / unit at or above `value`, for value >= 0: every operation on magnitudes is monotone, and a
 // bound rounded up stays a bound, held in a length that does not grow with the order
-SimRational core_radius_up(SimRational value, const AnchorExactInteger *unit);
+SimRational core_radius_up(SimRational value, const OriorExactInteger *unit);
 
 // the largest multiple of 1 / unit at or below `value`, for value >= 0: a lower bound rounded down stays a lower bound
-SimRational core_radius_down(SimRational value, const AnchorExactInteger *unit);
+SimRational core_radius_down(SimRational value, const OriorExactInteger *unit);
 
-void core_radius_round_up(CoreRadiusWeights *weights, const AnchorExactInteger *unit);
+void core_radius_round_up(CoreRadiusWeights *weights, const OriorExactInteger *unit);
 
 // The carry on the device. Past the exact orders every weight the carry reads is a multiple of 2^-bits, and the
 // Cauchy sums of an order are integer sums: with every weight held as the integer c 2^bits,
@@ -171,16 +171,16 @@ void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsi
 void core_radius_device_close(CoreRadiusDevice *device);
 
 // the weights of `kind` at order k, each a multiple of 1 / unit, put on the device as integers modulo every prime
-void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigned int k, const CoreRadiusWeights &weights, const AnchorExactInteger *unit);
+void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigned int k, const CoreRadiusWeights &weights, const OriorExactInteger *unit);
 
 // order k's three sums, spin, along and square, each over 2^(2 bits + 1), read back whole
-void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const AnchorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS]);
+void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const OriorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS]);
 
 // The orders of `orders` carried to `order`: for every k <= order the inflow and the Z parts are taken from f_k and
 // u_k, and every order past those `orders` holds is built from the rule. Exact at s = -1, magnitudes at s = +1: with
 // s = +1 and the orders it is given at their magnitudes, each new order bounds the magnitudes of the exact one mode by
 // mode. With a device and a unit the Cauchy sums are the device's, every weight they read a multiple of 1 / unit.
-void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned int order, const AnchorExactInteger *unit,
+void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned int order, const OriorExactInteger *unit,
                                CoreRadiusDevice *device, CoreRadiusOrders *orders);
 
 // 1 where two orders' weights are the same, a 0 past either's last weight
@@ -197,6 +197,6 @@ void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWeights &
 // the exact orders to `order` at their magnitudes, carried by magnitudes to `last`: every order a bound of the exact
 // one mode by mode, each its weight kept where it holds it
 void core_radius_continued(const CoreRadiusScale *scale, const CoreRadiusOrders *exact, unsigned int order, unsigned int last,
-                                  const AnchorExactInteger *unit, CoreRadiusDevice *device, CoreRadiusOrders *continued);
+                                  const OriorExactInteger *unit, CoreRadiusDevice *device, CoreRadiusOrders *continued);
 
 #endif

@@ -3,28 +3,18 @@
 // serve_call_page.c: the calls of the page's own kinds of file and of the machine's containers: a file too large for
 // the page held here as the file and the lines written over it, opened, shaped, read, edited, changed, found in, saved
 // and let go; a file of HTTP requests parsed, its environments read, a request sent, its answers kept, written as curl
-// and read from curl, and its private environment made; a notebook read, written, written for a diff, merged from a
-// merge's stages and written without its outputs; and the containers and pods, their logs, and a container acted on
-// or a line run in it
-#include "../code/git.h"
+// and read from curl, and its private environment made; and the containers and pods, their logs, and a container
+// acted on or a line run in it
 #include "../command_line/cells.h"
 #include "../deploy/containers.h"
 #include "../editor/document.h"
 #include "../editor/pages.h"
-#include "../notebooks/notebook.h"
 #include "../requests/requests.h"
 #include "serve_internal.h"
 
-// the most changes and edits one edit of a held text makes, and the most bytes of a notebook
+// the most changes and edits one edit of a held text makes
 #define CLI_SERVE_CHANGES 4096u
 #define CLI_SERVE_PAGE_EDITS 65536u
-#define CLI_SERVE_NOTEBOOK (32ull << 20u)
-
-// the edits of the changes given, each change's first edit and its count
-static CliEdit s_edit[CLI_SERVE_PAGE_EDITS];
-static const CliEdit *s_change[CLI_SERVE_CHANGES];
-static unsigned int s_edits[CLI_SERVE_CHANGES];
-static CliLock s_edit_lock = CLI_LOCK_INIT;
 
 // a place `{line, col}` of the page's read into `place`: 1, or 0 where it is none
 static int page_place(const CliJson *json, unsigned int node, CliPlace *place)
@@ -72,28 +62,51 @@ static int pages_edit(const CliServeArgs *args, CliLine *out, CliLine *said)
         cli_line_text(said, "changes: invalid type: null, expected a sequence");
         return 0;
     }
-    cli_lock_take(&s_edit_lock);
+    // the changes and their edits counted, CLI_SERVE_CHANGES and CLI_SERVE_PAGE_EDITS at the most, and one cell taken
+    // for the edits, each change's first and each change's count
+    unsigned int changes_most = 0u;
+    unsigned int edits_most = 0u;
+    for (unsigned int change = json->node[changes].first;
+         (change != CLI_JSON_NONE) && (changes_most < CLI_SERVE_CHANGES); change = json->node[change].next)
+    {
+        changes_most += 1u;
+        for (unsigned int edit = cli_json_is(json, change, CFG_JSON_ARRAY) ? json->node[change].first : CLI_JSON_NONE;
+             (edit != CLI_JSON_NONE) && (edits_most < CLI_SERVE_PAGE_EDITS); edit = json->node[edit].next)
+        {
+            edits_most += 1u;
+        }
+    }
+    const unsigned long long edit_bytes = (edits_most + 1ull) * sizeof(CliEdit);
+    const unsigned long long change_bytes = (changes_most + 1ull) * sizeof(const CliEdit *);
+    char *const cell = cli_serve_cell(edit_bytes + change_bytes + ((changes_most + 1ull) * sizeof(unsigned int)),
+                                      "the edits of a held text", said);
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    // the edits on the cell's boundary, the changes' pointers then their counts after them
+    CliEdit *const edit_list = (CliEdit *)(void *)cell;
+    const CliEdit **const change_list = (const CliEdit **)(void *)(cell + edit_bytes);
+    unsigned int *const edit_counts = (unsigned int *)(void *)(cell + edit_bytes + change_bytes);
     unsigned int count = 0u;
     unsigned int used = 0u;
     const char *missing = NULL;
     for (unsigned int change = json->node[changes].first;
-         (missing == NULL) && (change != CLI_JSON_NONE) && (count < CLI_SERVE_CHANGES);
-         change = json->node[change].next)
+         (missing == NULL) && (change != CLI_JSON_NONE) && (count < changes_most); change = json->node[change].next)
     {
-        s_change[count] = &s_edit[used];
-        s_edits[count] = 0u;
+        change_list[count] = &edit_list[used];
+        edit_counts[count] = 0u;
         for (unsigned int edit = cli_json_is(json, change, CFG_JSON_ARRAY) ? json->node[change].first : CLI_JSON_NONE;
-             (missing == NULL) && (edit != CLI_JSON_NONE) && (used < CLI_SERVE_PAGE_EDITS);
-             edit = json->node[edit].next)
+             (missing == NULL) && (edit != CLI_JSON_NONE) && (used < edits_most); edit = json->node[edit].next)
         {
-            CliEdit *const one = &s_edit[used];
+            CliEdit *const one = &edit_list[used];
             one->text = cli_json_string(json, cli_json_member(json, edit, "text"), &one->length);
             missing = !page_place(json, cli_json_member(json, edit, "from"), &one->from) ? "from"
                       : !page_place(json, cli_json_member(json, edit, "to"), &one->to)   ? "to"
                       : (one->text == NULL)                                              ? "text"
                                                                                          : NULL;
             used += 1u;
-            s_edits[count] += 1u;
+            edit_counts[count] += 1u;
         }
         count += 1u;
     }
@@ -104,8 +117,8 @@ static int pages_edit(const CliServeArgs *args, CliLine *out, CliLine *said)
         cli_line_text(said, missing);
         cli_line_character(said, '`');
     }
-    const int done = whole && cli_pages_edit(key, s_change, s_edits, count, out, said);
-    cli_lock_give(&s_edit_lock);
+    const int done = whole && cli_pages_edit(key, change_list, edit_counts, count, out, said);
+    cli_cell_given(cell);
     return done;
 }
 
@@ -245,209 +258,6 @@ static int requests_private(const CliServeArgs *args, CliLine *out, CliLine *sai
     return (path != NULL) && cli_serve_tree(root, said) && cli_requests_private_made(root, path, out, said);
 }
 
-// the most nodes and tokens a notebook's tree holds
-#define CLI_SERVE_BOOK_NODES (1u << 19u)
-
-// a notebook's text, a merge's three stages, and the tree it is read into, cells taken with their lock and given back
-// before it is
-static char *s_book;
-static char *s_stage[3];
-static CliJsonNode *s_node;
-static char *s_tree_text;
-static CfgJsonToken *s_token;
-static CliJson s_json;
-static CliLock s_book_lock = CLI_LOCK_INIT;
-
-// the notebook's cells given back, and its lock
-static void book_given(void)
-{
-    cli_cell_given(s_token);
-    cli_cell_given(s_tree_text);
-    cli_cell_given(s_node);
-    for (unsigned int at = 0u; at < 3u; at += 1u)
-    {
-        cli_cell_given(s_stage[at]);
-        s_stage[at] = NULL;
-    }
-    cli_cell_given(s_book);
-    s_token = NULL;
-    s_tree_text = NULL;
-    s_node = NULL;
-    s_book = NULL;
-    cli_lock_give(&s_book_lock);
-}
-
-// the notebook's lock taken and its cells with it: 1, or 0 with why said and the lock given back where the cells
-// cannot meet them
-static int book_taken(CliLine *said)
-{
-    cli_lock_take(&s_book_lock);
-    s_book = cli_cell_taken(CLI_SERVE_NOTEBOOK, "a notebook's text");
-    int taken = s_book != NULL;
-    for (unsigned int at = 0u; at < 3u; at += 1u)
-    {
-        s_stage[at] = cli_cell_taken(CLI_SERVE_NOTEBOOK, "a merge's stage");
-        taken = taken && (s_stage[at] != NULL);
-    }
-    s_node = cli_cell_taken(CLI_SERVE_BOOK_NODES * sizeof(CliJsonNode), "a notebook's nodes");
-    s_tree_text = cli_cell_taken(CLI_SERVE_NOTEBOOK, "a notebook's tree texts");
-    s_token = cli_cell_taken(CLI_SERVE_BOOK_NODES * sizeof(CfgJsonToken), "a notebook's tokens");
-    taken = taken && (s_node != NULL) && (s_tree_text != NULL) && (s_token != NULL);
-    if (!taken)
-    {
-        book_given();
-        cli_line_text(said, "the notebook's cells could not be taken");
-    }
-    return taken;
-}
-
-// the notebook tree made empty
-static void notebook_begun(void)
-{
-    cli_json_begun(&s_json, s_node, CLI_SERVE_BOOK_NODES, s_tree_text, CLI_SERVE_NOTEBOOK);
-}
-
-// the file of the argument `path` read into the notebook's text: its size, 1, or 0 with why said
-static int notebook_file(const CliServeArgs *args, char *full, unsigned long long *size, CliLine *said)
-{
-    char root[CLI_PATH_LONGEST];
-    if (!cli_serve_at(args, root, full, said))
-    {
-        return 0;
-    }
-    *size = qry_member_file_read(full, (unsigned char *)s_book, CLI_SERVE_NOTEBOOK);
-    if ((*size == QRY_MEMBER_UNREAD) || !cli_utf8_whole(s_book, *size))
-    {
-        cli_line_text(said, full);
-        cli_line_text(said, ": it could not be read");
-        return 0;
-    }
-    return 1;
-}
-
-static int notebook_read(const CliServeArgs *args, CliLine *out, CliLine *said)
-{
-    char full[CLI_PATH_LONGEST];
-    unsigned long long size = 0ull;
-    if (!book_taken(said))
-    {
-        return 0;
-    }
-    notebook_begun();
-    const unsigned int book = notebook_file(args, full, &size, said)
-                                  ? cli_notebook_read(&s_json, full, s_book, size, s_token, CLI_SERVE_BOOK_NODES, said)
-                                  : CLI_JSON_NONE;
-    if (book != CLI_JSON_NONE)
-    {
-        cli_json_write(&s_json, book, out, 0u, 0);
-    }
-    book_given();
-    return book != CLI_JSON_NONE;
-}
-
-static int notebook_write(const CliServeArgs *args, CliLine *out, CliLine *said)
-{
-    char root[CLI_PATH_LONGEST];
-    char full[CLI_PATH_LONGEST];
-    const char *const path = cli_serve_string(args, "path", said);
-    if ((path == NULL) || !cli_serve_at(args, root, full, said))
-    {
-        return 0;
-    }
-    if (!book_taken(said))
-    {
-        return 0;
-    }
-    CliLine text = {s_book, CLI_SERVE_NOTEBOOK, 0ull};
-    // the arguments' tree is the call's own room, which the writer may add nodes to
-    cli_notebook_write((CliJson *)args->json, full, cli_serve_arg(args, "book"), &text);
-    const int done = cli_line_fits(&text) && cli_serve_file_write(path, s_book, text.at, said);
-    book_given();
-    cli_line_text(out, done ? "null" : "");
-    return done;
-}
-
-static int notebook_diff_text(const CliServeArgs *args, CliLine *out, CliLine *said)
-{
-    unsigned long long size = 0ull;
-    const char *const text = cli_serve_string(args, "text", said);
-    if (text == NULL)
-    {
-        return 0;
-    }
-    (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &size);
-    if (!book_taken(said))
-    {
-        return 0;
-    }
-    notebook_begun();
-    const int done = cli_notebook_for_diff(&s_json, text, size, s_token, CLI_SERVE_BOOK_NODES, out, said);
-    book_given();
-    return done;
-}
-
-static int notebook_without_outputs(const CliServeArgs *args, CliLine *out, CliLine *said)
-{
-    char full[CLI_PATH_LONGEST];
-    unsigned long long size = 0ull;
-    if (!book_taken(said))
-    {
-        return 0;
-    }
-    notebook_begun();
-    const int done = notebook_file(args, full, &size, said) &&
-                     cli_notebook_without_outputs(&s_json, s_book, size, s_token, CLI_SERVE_BOOK_NODES, out, said);
-    book_given();
-    return done;
-}
-
-// stage `stage` of a merge of the notebook `given` read into the notebook tree: its node, or CLI_JSON_NONE with why
-// said
-static unsigned int notebook_side(const char *root, const char *given, unsigned int stage, CliLine *said)
-{
-    CliLine text = {s_stage[stage - 1u], CLI_SERVE_NOTEBOOK, 0ull};
-    if (!cli_git_stage_text(root, given, stage, &text) || !cli_line_fits(&text))
-    {
-        cli_line_text(said, given);
-        cli_line_text(said, " holds no stage ");
-        cli_line_decimal(said, stage, 1u);
-        cli_line_text(said, " of a merge");
-        return CLI_JSON_NONE;
-    }
-    return cli_notebook_read(&s_json, "x.ipynb", s_stage[stage - 1u], text.at, s_token, CLI_SERVE_BOOK_NODES, said);
-}
-
-static int notebook_merge(const CliServeArgs *args, CliLine *out, CliLine *said)
-{
-    char root[CLI_PATH_LONGEST];
-    const char *const given = cli_serve_string(args, "path", said);
-    if ((given == NULL) || !cli_serve_tree(root, said))
-    {
-        return 0;
-    }
-    if (!book_taken(said))
-    {
-        return 0;
-    }
-    notebook_begun();
-    char quiet[1024];
-    CliLine ignored = {quiet, sizeof(quiet), 0ull};
-    unsigned int base = notebook_side(root, given, 1u, &ignored);
-    if (base == CLI_JSON_NONE)
-    {
-        base = cli_json_made(&s_json, CFG_JSON_OBJECT);
-        cli_json_set(&s_json, base, "cells", cli_json_made(&s_json, CFG_JSON_ARRAY));
-    }
-    const unsigned int ours = notebook_side(root, given, 2u, said);
-    const unsigned int theirs = (ours != CLI_JSON_NONE) ? notebook_side(root, given, 3u, said) : CLI_JSON_NONE;
-    if (theirs != CLI_JSON_NONE)
-    {
-        cli_json_write(&s_json, cli_notebook_merge(&s_json, base, ours, theirs), out, 0u, 0);
-    }
-    book_given();
-    return theirs != CLI_JSON_NONE;
-}
-
 static int containers_list(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     (void)args;
@@ -513,11 +323,6 @@ const CliServeCall g_cli_serve_page_calls[] = {
     {"requests_curl", requests_curl},
     {"requests_from_curl", requests_from_curl},
     {"requests_private", requests_private},
-    {"notebook_read", notebook_read},
-    {"notebook_write", notebook_write},
-    {"notebook_diff_text", notebook_diff_text},
-    {"notebook_merge", notebook_merge},
-    {"notebook_without_outputs", notebook_without_outputs},
     {"containers_list", containers_list},
     {"container_act", container_act},
     {"container_logs", container_logs},

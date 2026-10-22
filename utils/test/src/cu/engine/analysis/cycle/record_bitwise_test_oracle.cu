@@ -163,9 +163,9 @@ static unsigned int bitwise_field_bit(const unsigned int *atom, unsigned int off
 }
 
 // read `bits` at offset as two's complement into an exact integer
-void bitwise_take(const unsigned int *record, unsigned int offset, unsigned int bits, AnchorExactInteger *value)
+void bitwise_take(const unsigned int *record, unsigned int offset, unsigned int bits, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int from = offset + bit;
@@ -186,7 +186,7 @@ void bitwise_take(const unsigned int *record, unsigned int offset, unsigned int 
         value->limb[(bits - 1u) / 32u] &= (left == 0u) ? 0xFFFFFFFFu : ((1u << left) - 1u);
     }
     int zero = 1;
-    for (unsigned int limb = 0u; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+    for (unsigned int limb = 0u; limb < ORIOR_EXACT_LIMBS; limb += 1u)
     {
         zero = zero && (value->limb[limb] == 0u);
     }
@@ -195,17 +195,17 @@ void bitwise_take(const unsigned int *record, unsigned int offset, unsigned int 
 
 // bit `bit` of an exact integer's two's complement, sign-extended without end: the magnitude's bit where the value
 // is not negative, and the complement of the magnitude less one's bit where it is
-static unsigned int bitwise_exact_bit(const AnchorExactInteger *value, const AnchorExactInteger *less_one,
+static unsigned int bitwise_exact_bit(const OriorExactInteger *value, const OriorExactInteger *less_one,
                                       unsigned int bit)
 {
-    const AnchorExactInteger *const source = (value->sign < 0) ? less_one : value;
+    const OriorExactInteger *const source = (value->sign < 0) ? less_one : value;
     const unsigned int bit_value =
-        (bit < (32u * ANCHOR_EXACT_LIMBS)) ? ((source->limb[bit / 32u] >> (bit % 32u)) & 1u) : 0u;
+        (bit < (32u * ORIOR_EXACT_LIMBS)) ? ((source->limb[bit / 32u] >> (bit % 32u)) & 1u) : 0u;
     return (value->sign < 0) ? (bit_value ^ 1u) : bit_value;
 }
 
 // the field a field step reads, as an exact integer
-static void bitwise_field_value(const BitwiseOracle *oracle, unsigned int at, AnchorExactInteger *value)
+static void bitwise_field_value(const BitwiseOracle *oracle, unsigned int at, OriorExactInteger *value)
 {
     const unsigned int field = oracle->program->steps[at].left;
     bitwise_take(oracle->atom, oracle->program->field_offset[field], oracle->program->field_bits[field], value);
@@ -222,23 +222,23 @@ int bitwise_oracle_open(BitwiseOracle *oracle, const BitwiseProgram *program, co
         {
             continue;
         }
-        AnchorExactInteger left;
-        AnchorExactInteger right;
+        OriorExactInteger left;
+        OriorExactInteger right;
         bitwise_field_value(oracle, program->steps[at].left, &left);
         bitwise_field_value(oracle, program->steps[at].right, &right);
-        if (anchor_exact_multiply(&left, &right, &oracle->product[at]) != ANCHOR_EXACT_OK)
+        if (orior_exact_multiply(&left, &right, &oracle->product[at]) != ORIOR_EXACT_OK)
         {
             return 0;
         }
-        AnchorExactInteger magnitude = oracle->product[at];
+        OriorExactInteger magnitude = oracle->product[at];
         magnitude.sign = (magnitude.sign != 0) ? 1 : 0;
-        AnchorExactInteger one;
-        anchor_exact_zero(&one);
+        OriorExactInteger one;
+        orior_exact_zero(&one);
         one.limb[0] = 1u;
         one.sign = 1;
         oracle->product_less_one[at] = magnitude;
         if ((magnitude.sign != 0) &&
-            (anchor_exact_subtract(&magnitude, &one, &oracle->product_less_one[at]) != ANCHOR_EXACT_OK))
+            (orior_exact_subtract(&magnitude, &one, &oracle->product_less_one[at]) != ORIOR_EXACT_OK))
         {
             return 0;
         }

@@ -145,7 +145,7 @@ int cli_fill_docstring(const char *text, unsigned long long size, const CliFillL
     }
     const int closing = (last.index == string.end);
     unsigned int count = 0u;
-    for (CliFillLine line = first; count < CLI_FILL_SLICES;)
+    for (CliFillLine line = first; count < g_cli_fill_slices;)
     {
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;

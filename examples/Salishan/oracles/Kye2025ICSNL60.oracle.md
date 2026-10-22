@@ -3,7 +3,7 @@
 Extraction of The realization of /a/ in ay in Southern Lushootseed storytelling by Ted Kye,
 University of Washington, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -41,7 +41,7 @@ printed. The prose cites Hess (1977) and Chambers 2006, which the references do 
 holds Hess 1967 and Chambers 1973. The figures, a map, spectrograms and plots, have no text layer
 beyond their captions.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 251
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 9014
 distinct tokens in the paper, 0 language tokens are held by no row.

@@ -1,7 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
+import { shownGroup } from "../../gui/src-js/explorer.js";
 import { closeMenu, menuOpen } from "../../gui/src-js/menu.js";
+import { showCategory, shownCategory } from "../../gui/src-js/run.js";
+import { refreshStrip, stripCommands } from "../../gui/src-js/strip.js";
 import { cssVariable } from "../helpers.js";
 
 const { test, assert, ui } = window.__harness;
@@ -74,6 +77,45 @@ test("the menu More opened by resting goes once the pointer leaves it and the ic
   assert.notEqual(more().dataset.menu, "open");
 });
 
+test("the magnifying glass is Search's own icon, and a press on it shows the search of the tree's files alone", async () => {
+  const search = document.querySelector(".strip-button.strip-search");
+  assert.ok(search, "Search has an icon of its own");
+  assert.ok(search.querySelector("svg.glyph-search"), "drawn as a magnifying glass");
+  await ui.click(search);
+  await ui.waitFor(() => shownGroup() === "search", 2000);
+  await ui.waitFor(() => search.classList.contains("on"), 2000);
+  assert.equal(document.querySelector(".strip-button.strip-explorer").classList.contains("on"), false, "and Explorer's is not lit");
+});
+
+test("no two icons of the strip and the bar are drawn the same", () => {
+  const drawn = [...document.querySelectorAll(".strip-button svg.glyph, .bar-tool svg.glyph")].filter((svg) => !svg.closest("[hidden]")).map((svg) => svg.innerHTML);
+  assert.ok(drawn.length > 10, "the strip and the bar hold their icons");
+  assert.equal(new Set(drawn).size, drawn.length, "each icon is its own drawing");
+});
+
+test("the strip's icons are as large as the eye on the bar", () => {
+  const eye = document.querySelector(".bar-mark .eye-mark").getBoundingClientRect();
+  const glyph = document.querySelector(".strip-button.strip-explorer svg").getBoundingClientRect();
+  assert.ok(Math.abs(glyph.width - eye.width) <= 1, `the icon is ${glyph.width}px wide and the eye ${eye.width}px`);
+});
+
+test("one view lights one icon: a category shown alone lights its own and not Run's, and Run shows every category", async () => {
+  showCategory("build");
+  refreshStrip();
+  const run = document.querySelector(".strip-button.strip-run");
+  assert.equal(run.classList.contains("on"), false, "Run is not lit while one category shows alone");
+  const category = document.querySelector("#strip-jobs .strip-job");
+  if (category) {
+    await ui.click(category);
+    await ui.waitFor(() => category.classList.contains("on"), 2000);
+    assert.equal(run.classList.contains("on"), false, "nor once a category's icon is pressed");
+  }
+  await ui.click(run);
+  await ui.waitFor(() => run.classList.contains("on"), 2000);
+  assert.equal(shownCategory(), null, "Run shows every category");
+  assert.equal(document.querySelectorAll("#strip-jobs .strip-job.on").length, 0, "and no category's icon is lit with it");
+});
+
 test("a press on More opens its menu with the keys on its first item, and it stays", async () => {
   await ui.click(more());
   const menu = await ui.waitFor(() => openMenu());
@@ -84,4 +126,8 @@ test("a press on More opens its menu with the keys on its first item, and it sta
   assert.equal(menuOpen(), true, "a pressed menu stays as the pointer leaves");
   await ui.key("Escape");
   await ui.waitFor(() => !menuOpen());
+});
+
+test("a pane opened by a name that is no pane is refused with the panes there are", async () => {
+  await assert.rejects(async () => stripCommands["pane-open"](["explorer"]), /no pane explorer: its panes are .*timeline/);
 });

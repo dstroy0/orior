@@ -6,9 +6,6 @@
 
 #include "trust.h"
 
-// the most bytes of the file of answers and its texts, and of a git configuration read
-#define CLI_TRUST_BYTES (1u << 16u)
-
 // the code found in every tree let go, to be looked for again as the answers kept change
 void cli_trust_forget(void);
 

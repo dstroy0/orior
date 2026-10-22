@@ -8,7 +8,7 @@
 
 import { coloringReach, lineHeight, runsRightToLeft, smoothScrolling } from "../../../gui/src-js/editor/view.js";
 import { invoke } from "../../../gui/src-js/bridge.js";
-import { editing, onEdit, openFile, setVimKeys, vimKeys } from "../../../gui/src-js/edit.js";
+import { editing, onEdit, openAt, openFile, setVimKeys, vimKeys } from "../../../gui/src-js/edit.js";
 import { runCommand } from "../../../gui/src-js/menubar.js";
 import { showView } from "../../../gui/src-js/views.js";
 import { status, write } from "../../../gui/src-js/status.js";
@@ -225,7 +225,7 @@ test("under a steady wheel every frame moves the text an even step", async () =>
   wheeling = false;
   view.smoothOn = smooth;
   await joinRun(null);
-  await ui.browserTraced(writer, `${root}/${traceRun}`, "browser.trace");
+  await ui.browserTraced(writer, `${root}/${traceRun}`, `${root}/browser.trace`);
   await new Promise((done) => setTimeout(done, 300));
   const paints = paintsOf(await invoke("qry_joined", { path: traceRun, name: TRACE_BLOB }));
   const browser = (await invoke("qry_joined", { path: traceRun, name: "browser.trace" })).split("\n").filter((line, at) => at < 8 || line.startsWith("forced")).join("; ");
@@ -431,10 +431,11 @@ test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000
   for (const [path, text, line, col] of files) {
     await invoke("file_write", { path, text });
     showView("edit");
-    await openFile(path);
+    // a file of 250,000 lines is held as pages: opened at the line, the window stands about it
+    await openAt(path, line, col);
     await ui.waitFor(() => editing().active === path && editing().editor?.s, 10000);
     const view = editing().editor;
-    await ui.waitFor(() => view.s.base + view.s.doc.count >= line + 1, 10000);
+    await ui.waitFor(() => line >= view.s.base && line < view.s.base + view.s.doc.count, 10000);
     view.goTo(line - view.s.base, col);
     view.focus();
     await framesOver(500);
@@ -569,8 +570,12 @@ async function scrolledThrough(path, seconds) {
     await new Promise((done) => setTimeout(done, 1500));
     sampling = false;
     await joinRun(null);
-    await ui.browserTraced(writer, `${root}/${relative}`, "browser.trace");
-    await ui.waitFor(async () => (await invoke("qry_joined", { path: relative, name: TRACE_BLOB })).length > 0, 5000);
+    await ui.browserTraced(writer, `${root}/${relative}`, `${root}/browser.trace`);
+    try {
+      await ui.waitFor(async () => (await invoke("qry_joined", { path: relative, name: TRACE_BLOB })).length > 0, 5000);
+    } catch (error) {
+      throw new Error(`${error.message}: the window's trace queue ${JSON.stringify(await invoke("qry_window"))}, the run at ${relative}`);
+    }
     await new Promise((done) => setTimeout(done, 300));
     const paints = paintsOf(await invoke("qry_joined", { path: relative, name: TRACE_BLOB }));
     const browser = (await invoke("qry_joined", { path: relative, name: "browser.trace" })).split("\n").filter((line, at) => at < 8 || line.startsWith("forced")).join("; ");

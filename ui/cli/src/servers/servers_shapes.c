@@ -1,15 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_shapes.c: a server's answer read, and what it says written in orior's own shapes: a place, a workspace edit
-// as each file's edits, a hover as Markdown, a completion as the editor's item, a diagnostic and a location
+// servers_shapes.c: a server's answer read, and what it says written in orior's own shapes: a place, a path, a hover
+// as Markdown, a completion as the editor's item, a diagnostic and a location
 #include "../command_line/cells.h"
 #include "../text/measured.h"
 #include "servers_internal.h"
-
-#include <stdlib.h>
-
-// the most files one workspace edit changes
-#define CLI_SERVERS_EDITED 1024u
 
 void cli_servers_reading_held(CliServersReading *reading)
 {
@@ -47,23 +42,6 @@ int cli_servers_answer_joined(CliServersReading *reading, CliLine *line)
     reading->answer_size = (reading->answer != NULL) ? reading->answer_size : 0ull;
     return reading->answer != NULL;
 }
-
-// One edit of a workspace edit: the file it changes, its span, the node of its text, and its place among the edits
-typedef struct
-{
-    unsigned int file;
-    CliTextPlace from;
-    CliTextPlace to;
-    unsigned int text;
-    unsigned int order;
-} CliServersEdit;
-
-// the edits of one workspace edit and the paths of its files, under their lock
-static CliServersEdit s_edit[CLI_TEXT_EDITS];
-static unsigned int s_edits;
-static char s_edited[CLI_SERVERS_EDITED][CLI_PATH_LONGEST];
-static unsigned int s_files;
-static CliLock s_edit_lock = CLI_LOCK_INIT;
 
 unsigned int cli_servers_read(CliServersReading *reading, const char *text, unsigned long long size)
 {
@@ -131,132 +109,12 @@ CliTextPlace cli_servers_place(const CliJson *json, unsigned int node)
     return place;
 }
 
-// the edits of `edits` for the file of `uri`, `length` bytes, put after those kept
-static void shapes_edits_added(const CliJson *json, const char *uri, unsigned long long length, unsigned int edits)
-{
-    char path[CLI_PATH_LONGEST];
-    if (!cli_lsp_path_of(uri, length, path))
-    {
-        return;
-    }
-    unsigned int file = 0u;
-    while ((file < s_files) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = s_edited[file], .other = path, .cap = CLI_CELLS_POOL})))
-    {
-        file += 1u;
-    }
-    if (file == s_files)
-    {
-        if (s_files == CLI_SERVERS_EDITED)
-        {
-            return;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = s_edited[file],
-                                .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-        s_files += 1u;
-    }
-    for (unsigned int one = cli_json_is(json, edits, CFG_JSON_ARRAY) ? json->node[edits].first : CLI_JSON_NONE;
-         (one != CLI_JSON_NONE) && (s_edits < CLI_TEXT_EDITS); one = json->node[one].next)
-    {
-        const unsigned int range = cli_json_member(json, one, "range");
-        s_edit[s_edits] = (CliServersEdit){file, cli_servers_place(json, cli_json_member(json, range, "start")),
-                                           cli_servers_place(json, cli_json_member(json, range, "end")),
-                                           cli_json_member(json, one, "newText"), s_edits};
-        s_edits += 1u;
-    }
-}
-
-// two places in the order they stand in a text
-static int shapes_place_order(CliTextPlace one, CliTextPlace other)
-{
-    if (one.line != other.line)
-    {
-        return (one.line < other.line) ? -1 : 1;
-    }
-    return (one.col < other.col) ? -1 : (one.col > other.col) ? 1 : 0;
-}
-
-// two edits by their file, then their span, then the order they were given in
-static int shapes_edit_order(const void *one, const void *other)
-{
-    const CliServersEdit *const left = one;
-    const CliServersEdit *const right = other;
-    if (left->file != right->file)
-    {
-        return (left->file < right->file) ? -1 : 1;
-    }
-    const int from = shapes_place_order(left->from, right->from);
-    if (from != 0)
-    {
-        return from;
-    }
-    const int to = shapes_place_order(left->to, right->to);
-    if (to != 0)
-    {
-        return to;
-    }
-    return (left->order < right->order) ? -1 : 1;
-}
-
-// a path written as a JSON string as it stands in `tree`
-static void shapes_path_written(const char *tree, const char *path, CliLine *out)
+void cli_servers_path_written(const char *tree, const char *path, CliLine *out)
 {
     char written[CLI_PATH_LONGEST];
     CliLine shown = {written, sizeof(written), 0ull};
     cli_servers_tree_path(tree, path, &shown);
     cli_json_quoted_lossy(out, (const unsigned char *)written, cli_line_fits(&shown) ? shown.at : 0ull);
-}
-
-void cli_servers_workspace_edit_of(const CliJson *json, unsigned int edit, const char *tree, CliLine *out)
-{
-    cli_lock_take(&s_edit_lock);
-    s_edits = 0u;
-    s_files = 0u;
-    const unsigned int document_changes = cli_json_member(json, edit, "documentChanges");
-    const unsigned int changes = cli_json_member(json, edit, "changes");
-    if (cli_json_is(json, document_changes, CFG_JSON_ARRAY))
-    {
-        for (unsigned int change = json->node[document_changes].first; change != CLI_JSON_NONE;
-             change = json->node[change].next)
-        {
-            unsigned long long length = 0ull;
-            const char *const uri = cli_json_string(
-                json, cli_json_member(json, cli_json_member(json, change, "textDocument"), "uri"), &length);
-            if (uri != NULL)
-            {
-                shapes_edits_added(json, uri, length, cli_json_member(json, change, "edits"));
-            }
-        }
-    }
-    else if (cli_json_is(json, changes, CFG_JSON_OBJECT))
-    {
-        for (unsigned int change = json->node[changes].first; change != CLI_JSON_NONE; change = json->node[change].next)
-        {
-            const char *const uri = json->text + json->node[change].key;
-            shapes_edits_added(json, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), change);
-        }
-    }
-    qsort(s_edit, s_edits, sizeof(s_edit[0]), shapes_edit_order);
-    cli_line_character(out, '[');
-    unsigned int at = 0u;
-    for (unsigned int file = 0u; file < s_files; file += 1u)
-    {
-        cli_line_text(out, (file > 0u) ? ",{\"path\":" : "{\"path\":");
-        shapes_path_written(tree, s_edited[file], out);
-        cli_line_text(out, ",\"edits\":[");
-        for (unsigned int first = at; (at < s_edits) && (s_edit[at].file == file); at += 1u)
-        {
-            unsigned long long size = 0ull;
-            const char *const text = cli_json_string(json, s_edit[at].text, &size);
-            const CliTextEdit one = {s_edit[at].from, s_edit[at].to, (text != NULL) ? text : "", size};
-            cli_line_text(out, (at > first) ? "," : "");
-            cli_text_edit_written(&one, out);
-        }
-        cli_line_text(out, "]}");
-    }
-    cli_line_character(out, ']');
-    cli_lock_give(&s_edit_lock);
 }
 
 void cli_servers_markdown_of(const CliJson *json, unsigned int contents, CliLine *out)
@@ -470,7 +328,7 @@ int cli_servers_found_of(const CliJson *json, unsigned int location, const char 
         cli_json_is(json, range, CFG_JSON_OBJECT) ? range : cli_json_member(json, location, "targetSelectionRange");
     const CliTextPlace at = cli_servers_place(json, cli_json_member(json, span, "start"));
     cli_line_text(out, "{\"path\":");
-    shapes_path_written(tree, path, out);
+    cli_servers_path_written(tree, path, out);
     cli_line_text(out, ",\"line\":");
     cli_line_decimal(out, at.line, 1u);
     cli_line_text(out, ",\"col\":");

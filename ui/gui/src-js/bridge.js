@@ -14,7 +14,7 @@ const bridge = () => window.__TAURI_INTERNALS__;
 const WINDOW = new Set([
   "app_changes", "app_exit", "app_version", "call", "carry_read", "carry_send", "carry_take", "carry_takings", "carry_undo", "checkers_known", "clip_files", "clip_read", "clip_write", "clone_start",
   "code_docstring", "code_sort", "commands_read", "devcontainer_line", "document_changes", "document_edit", "document_find", "document_part", "document_read", "document_release",
-  "file_read_any", "file_slice", "file_write_any",
+  "file_read_any", "file_write_any",
   "files_copy", "files_paste", "fill_paragraph", "format_languages", "highlight_grammar", "highlight_lines",
   "home_folder", "home_reveal", "image_data", "inspect_languages", "kept_now", "kept_write", "language_read", "languages_list", "launch_take", "link_open", "memory_calls", "memory_hold", "memory_use", "network_hold", "network_reached", "print_page", "printers_list",
   "parse_classes", "pick", "plugin_code", "plugin_create", "plugin_draft", "plugin_request", "plugin_settings_read", "plugin_settings_write", "plugins_catalog_install", "plugins_catalog_read", "plugins_read", "project_create", "reader_menus_read",
@@ -39,11 +39,50 @@ function send(command, args) {
   return bridge().invoke("call", { name: command, args });
 }
 
-// Those told of each call as it is made, each given a way to stop the wait on it, as waits.js is.
+// Those told of each call as it is made, each given a way to stop the wait on it, as waits.js is. A wait
+// stopped fails its call with an error of the name STOPPED, which the reader asked for and no report files.
 const told = new Set();
+export const STOPPED = "Stopped";
 
 export function onCalls(listener) {
   told.add(listener);
+}
+
+// A call answered later: sent with an ask number of its own, the call returns at once and its answer, or
+// why it failed, comes as the event call-answered with that number; a call the command line answers
+// in place, as it does where no server holds the file, is answered as it is. Past `wait` ms with no
+// answer the ask answers null, so nothing waits on a server that is slow or gone.
+const asks = new Map();
+let askNext = 0;
+let asksHeard = null;
+export async function asked(command, args = {}, wait = 6000) {
+  asksHeard ??= listen("call-answered", (event) => {
+    const one = asks.get(event.payload?.ask);
+    if (one) {
+      asks.delete(event.payload.ask);
+      one(event.payload);
+    }
+  });
+  await asksHeard;
+  const ask = ++askNext;
+  const sent = await invoke(command, { ...args, ask });
+  if (!(sent && typeof sent === "object" && sent.asked === true)) {
+    return sent;
+  }
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      asks.delete(ask);
+      resolve(null);
+    }, wait);
+    asks.set(ask, (said) => {
+      window.clearTimeout(timer);
+      if ("error" in said) {
+        reject(new Error(said.error));
+      } else {
+        resolve(said.answer);
+      }
+    });
+  });
 }
 
 export function invoke(command, args = {}) {
@@ -53,7 +92,7 @@ export function invoke(command, args = {}) {
   }
   let stop;
   const stopped = new Promise((_, fail) => (stop = fail));
-  told.forEach((listener) => listener(command, args, sent, (why) => stop(new Error(why))));
+  told.forEach((listener) => listener(command, args, sent, (why) => stop(Object.assign(new Error(why), { name: STOPPED }))));
   return Promise.race([sent, stopped]);
 }
 

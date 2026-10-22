@@ -12,7 +12,7 @@
  *                           probes while still deciding every alignment through the compare.
  */
 static size_t count_with_probes(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                                const AnchorProbe *probes, size_t probe_count, uint64_t *reads, uint64_t *verifications)
+                                const OriorProbe *probes, size_t probe_count, uint64_t *reads, uint64_t *verifications)
 {
     size_t found = 0u;
     uint64_t taken = 0u;
@@ -139,9 +139,9 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     printf("  %26s %8s %10s %14s %12s %10s\n", "route", "probes", "count", "reads", "per align", "verdict");
 
     /* Spatial placement, unsteered, as the engine did before any of this. */
-    AnchorProbe spatial[ANCHOR_STEER_ANCHORS];
-    const size_t cell = needle_len / ANCHOR_STEER_ANCHORS;
-    for (size_t slot = 0u; slot < ANCHOR_STEER_ANCHORS; slot += 1u)
+    OriorProbe spatial[ORIOR_STEER_ANCHORS];
+    const size_t cell = needle_len / ORIOR_STEER_ANCHORS;
+    for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
     {
         spatial[slot].origin = (slot * cell) + ((cell > 1u) ? ((slot * 7u) % cell) : 0u);
         spatial[slot].step = 1u;
@@ -150,22 +150,22 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     uint64_t spatial_reads = 0u;
     uint64_t spatial_verifications = 0u;
     const size_t spatial_count = count_with_probes(corpus, corpus_len, needle, needle_len, spatial,
-                                                   ANCHOR_STEER_ANCHORS, &spatial_reads, &spatial_verifications);
-    print_route_row("spatial, unsteered", ANCHOR_STEER_ANCHORS, spatial_count, spatial_reads, alignments,
+                                                   ORIOR_STEER_ANCHORS, &spatial_reads, &spatial_verifications);
+    print_route_row("spatial, unsteered", ORIOR_STEER_ANCHORS, spatial_count, spatial_reads, alignments,
                     spatial_count == want);
     failed += (spatial_count == want) ? 0 : 1;
 
     /* Recursive reorder of those same placements. */
-    size_t reordered[ANCHOR_STEER_ANCHORS];
-    for (size_t slot = 0u; slot < ANCHOR_STEER_ANCHORS; slot += 1u)
+    size_t reordered[ORIOR_STEER_ANCHORS];
+    for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
     {
         reordered[slot] = spatial[slot].origin;
     }
-    const size_t depth = ANCHOR_STEER_CALL(anchor_steer_plan_recursive, AnchorSteerDescent, .offsets = reordered,
-                                           .count = ANCHOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
+    const size_t depth = ORIOR_STEER_CALL(orior_steer_plan_recursive, OriorSteerDescent, .offsets = reordered,
+                                           .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
                                            .needle = needle, .needle_len = needle_len, .survivors = survivors,
                                            .survivors_length = alignments, .sample_stride = 1u);
-    AnchorProbe recursive[ANCHOR_STEER_ANCHORS];
+    OriorProbe recursive[ORIOR_STEER_ANCHORS];
     for (size_t slot = 0u; slot < depth; slot += 1u)
     {
         recursive[slot].origin = reordered[slot];
@@ -180,12 +180,12 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     failed += (recursive_count == want) ? 0 : 1;
 
     /* Coarms spawned wherever the field says, and not where a spread rule put them. */
-    size_t spawned[ANCHOR_STEER_ANCHORS];
-    const size_t coarms = ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = spawned,
-                                            .count = ANCHOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
+    size_t spawned[ORIOR_STEER_ANCHORS];
+    const size_t coarms = ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = spawned,
+                                            .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
                                             .needle = needle, .needle_len = needle_len, .survivors = survivors,
                                             .survivors_length = alignments, .sample_stride = 1u);
-    AnchorProbe coarm_probes[ANCHOR_STEER_ANCHORS];
+    OriorProbe coarm_probes[ORIOR_STEER_ANCHORS];
     for (size_t slot = 0u; slot < coarms; slot += 1u)
     {
         coarm_probes[slot].origin = spawned[slot];
@@ -200,9 +200,9 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     failed += (coarm_count == want) ? 0 : 1;
 
     /* Eyes allowed. A line probe reads more per alignment and has to prune harder to earn it. */
-    AnchorProbe swept[ANCHOR_STEER_ANCHORS];
-    const size_t eyes = ANCHOR_STEER_CALL(anchor_steer_sweep_probes, AnchorSteerSweep, .probes = swept,
-                                          .count = ANCHOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
+    OriorProbe swept[ORIOR_STEER_ANCHORS];
+    const size_t eyes = ORIOR_STEER_CALL(orior_steer_sweep_probes, OriorSteerSweep, .probes = swept,
+                                          .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
                                           .needle = needle, .needle_len = needle_len, .max_length = 3u,
                                           .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u);
     uint64_t eye_reads = 0u;
@@ -221,7 +221,7 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     printf("\n");
 
     /* THE DEPTH IS A COMPILE TIME FACT AND THIS ASSERTS IT. */
-    if ((depth > ANCHOR_STEER_ANCHORS) || (coarms > ANCHOR_STEER_ANCHORS) || (eyes > ANCHOR_STEER_ANCHORS))
+    if ((depth > ORIOR_STEER_ANCHORS) || (coarms > ORIOR_STEER_ANCHORS) || (eyes > ORIOR_STEER_ANCHORS))
     {
         printf("    a descent exceeded its compile time bound: FAILS\n");
         failed += 1;
@@ -288,7 +288,7 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
  * called produces no wrong answer. Every count stays identical, every differential passes, and the
  * suite reports green while the engine runs the scalar path it always ran. That happened here: the
  * AVX2 arm was built, graded against portable and benched at thirty-three times its rate while
- * anchor_steer.c went on calling its own loop, and nothing in the suite could say so, because
+ * orior_steer.c went on calling its own loop, and nothing in the suite could say so, because
  * identical counts are exactly what an unused implementation produces.
  *
  * The claim asserted here is about the WIRING. Run the planner, then require that the scan counter
@@ -307,15 +307,15 @@ int check_arm_is_wired(const uint8_t *corpus, size_t corpus_len, const uint8_t *
         return 1;
     }
 
-    const AnchorSteerEngine *best = anchor_steer_best_engine();
+    const OriorSteerEngine *best = orior_steer_best_engine();
     const int wide_present = (strcmp(best->name, "portable") != 0) ? 1 : 0;
 
     printf("\n  THE ARM IS WIRED, not merely compiled.\n\n");
 
-    anchor_steer_scan_counters_reset();
-    size_t spawned[ANCHOR_STEER_ANCHORS];
-    (void)ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = spawned,
-                            .count = ANCHOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len, .needle = needle,
+    orior_steer_scan_counters_reset();
+    size_t spawned[ORIOR_STEER_ANCHORS];
+    (void)ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = spawned,
+                            .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len, .needle = needle,
                             .needle_len = needle_len, .survivors = survivors, .survivors_length = alignments,
                             .sample_stride = 1u);
 
@@ -328,18 +328,18 @@ int check_arm_is_wired(const uint8_t *corpus, size_t corpus_len, const uint8_t *
      * only stride an arm serves. Every scan in it should reach the wide arm and the share
      * should be the full hundred. */
     const uint64_t share =
-        (anchor_steer_scan_calls > 0u) ? ((anchor_steer_wide_calls * 100u) / anchor_steer_scan_calls) : 0u;
+        (orior_steer_scan_calls > 0u) ? ((orior_steer_wide_calls * 100u) / orior_steer_scan_calls) : 0u;
 
-    const int ok = (anchor_steer_scan_calls > 0u) && ((wide_present == 0) || (share == 100u));
-    printf("  %18s %14llu %14llu %9llu%% %10s\n", best->name, (unsigned long long)anchor_steer_scan_calls,
-           (unsigned long long)anchor_steer_wide_calls, (unsigned long long)share, ok ? "ok" : "FAILS");
+    const int ok = (orior_steer_scan_calls > 0u) && ((wide_present == 0) || (share == 100u));
+    printf("  %18s %14llu %14llu %9llu%% %10s\n", best->name, (unsigned long long)orior_steer_scan_calls,
+           (unsigned long long)orior_steer_wide_calls, (unsigned long long)share, ok ? "ok" : "FAILS");
 
-    if (anchor_steer_scan_calls == 0u)
+    if (orior_steer_scan_calls == 0u)
     {
         printf("    the planner served no scan through an arm at all\n");
         failed += 1;
     }
-    else if ((wide_present != 0) && (anchor_steer_wide_calls == 0u))
+    else if ((wide_present != 0) && (orior_steer_wide_calls == 0u))
     {
         printf("    %s reports present and the planner never called it\n", best->name);
         failed += 1;
@@ -380,7 +380,7 @@ int sample_same_at(const void *field, size_t corpus_at, size_t needle_at)
  *
  * @note Separate from sample_same_at because the two index different spaces. A descent's oracle
  *       takes a corpus position and a needle position; grouping a field into classes takes two
- *       field positions. Handing the first to anchor_field_project indexes the needle with a field
+ *       field positions. Handing the first to orior_field_project indexes the needle with a field
  *       position and reads past its end. That is how this was found.
  */
 int sample_same_in_field(const void *field, size_t left, size_t right)

@@ -10,10 +10,8 @@
 #include "container.h"
 
 CliDoorServed g_cli_door_served = {.lock = CLI_LOCK_INIT};
+CliCellsTally g_cli_door_cells = CLI_CELLS_TALLY("cli_door");
 
-// the processes the system lists with their parents, read as a process joins, and their lock
-static CliProcess s_parents[1u << 16u];
-static CliLock s_parents_lock = CLI_LOCK_INIT;
 // the listener the door is joined through
 static CliDoorListener s_listener;
 
@@ -119,7 +117,7 @@ static int serve_tell(CliDoorJoined *joined, CliDoorSlot *slot)
     return told;
 }
 
-// a thread's end in the process's place: the last of the two lets the end and the place go
+// a thread's end in the process's place: the last of the two lets the end go and gives the place back
 static void serve_thread_ended(CliDoorJoined *joined)
 {
     cli_lock_take(&g_cli_door_served.lock);
@@ -132,8 +130,9 @@ static void serve_thread_ended(CliDoorJoined *joined)
     }
     cli_door_closed(&joined->end);
     cli_lock_take(&g_cli_door_served.lock);
-    joined->taken = 0;
+    g_cli_door_served.joined[joined->place] = NULL;
     cli_lock_give(&g_cli_door_served.lock);
+    cli_cell_given_by(&g_cli_door_cells, joined);
 }
 
 // the messages queued told the process, one at a time, until the process is gone and its queue is empty; a message
@@ -196,10 +195,10 @@ static int serve_may_join(CliDoorJoined *joined, const char *key, const char *na
         (void)serve_refused(joined, said.out, said.at);
         return 0;
     }
-    cli_lock_take(&s_parents_lock);
-    const unsigned int count = cli_processes_listed(s_parents, sizeof(s_parents) / sizeof(s_parents[0]));
-    const int under = joined->has_peer && ((joined->peer == given) || cli_under(given, joined->peer, s_parents, count));
-    cli_lock_give(&s_parents_lock);
+    unsigned int count = 0u;
+    CliProcess *const parents = cli_processes_taken(&g_cli_door_cells, &count);
+    const int under = joined->has_peer && ((joined->peer == given) || cli_under(given, joined->peer, parents, count));
+    cli_cell_given_by(&g_cli_door_cells, parents);
     if (!under)
     {
         cli_line_text(&said, "the key of ");
@@ -257,8 +256,8 @@ static void serve_read(void *context)
     serve_thread_ended(joined);
 }
 
-// the processes that join taken, each into a place of its own with its two threads, one refused where every place is
-// taken
+// the processes that join taken, each into a place of its own, a cell, with its two threads, one refused where every
+// place is taken or the cellblock cannot meet one
 static void serve_accepted(void *context)
 {
     (void)context;
@@ -276,14 +275,19 @@ static void serve_accepted(void *context)
         }
         CliDoorJoined *joined = NULL;
         cli_lock_take(&g_cli_door_served.lock);
-        for (unsigned int at = 0u; (at < CLI_DOOR_JOINED) && (joined == NULL); at += 1u)
+        unsigned int place = CLI_DOOR_JOINED;
+        for (unsigned int at = 0u; (at < CLI_DOOR_JOINED) && (place == CLI_DOOR_JOINED); at += 1u)
         {
-            joined = g_cli_door_served.joined[at].taken ? NULL : &g_cli_door_served.joined[at];
+            place = (g_cli_door_served.joined[at] == NULL) ? at : place;
         }
+        joined = (place < CLI_DOOR_JOINED)
+                     ? cli_cell_taken_by(&g_cli_door_cells, sizeof(CliDoorJoined), "a joined process's place")
+                     : NULL;
         if (joined != NULL)
         {
-            joined->taken = 1;
+            joined->place = place;
             joined->going = 2u;
+            g_cli_door_served.joined[place] = joined;
         }
         cli_lock_give(&g_cli_door_served.lock);
         if (joined == NULL)

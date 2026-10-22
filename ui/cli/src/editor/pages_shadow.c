@@ -30,7 +30,7 @@ unsigned long long cli_page_written_at(const CliPaged *one, const CliPagePiece *
         return piece->to;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(one->shadow, &size);
+    const unsigned char *const bytes = cli_file_held(one->shadow, &size);
     const unsigned long long end = ((bytes != NULL) && (piece->to < size)) ? piece->to : size;
     unsigned long long at = piece->from;
     for (unsigned long long passed = 0ull; (bytes != NULL) && (passed < line) && (at < end); passed += 1ull)
@@ -42,7 +42,7 @@ unsigned long long cli_page_written_at(const CliPaged *one, const CliPagePiece *
     }
     if (bytes != NULL)
     {
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
     return at;
 }

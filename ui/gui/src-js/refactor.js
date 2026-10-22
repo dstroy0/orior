@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The refactorings orior makes itself in the file open, each one change that undo takes back whole,
+// The refactorings orior_gui makes itself in the file open, each one change that undo takes back whole,
 // and each working where no language server offers one: Extract Variable, Extract Constant and
 // Inline Variable. Each reads the code by its lines in the file's language, as the outline does.
 //

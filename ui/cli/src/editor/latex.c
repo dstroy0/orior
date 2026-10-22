@@ -72,7 +72,7 @@ void cli_latex_job_of(const char *file, char *job)
     job[size] = '\0';
 }
 
-// the program `name` as orior finds it into `program`, which holds CLI_PATH_LONGEST: in TeX's folder or Poppler's as
+// the program `name` as orior_cli finds it into `program`, which holds CLI_PATH_LONGEST: in TeX's folder or Poppler's as
 // File, Toolchains finds them, then on the PATH orior's runs get. 1, or 0 where it is in none
 static int latex_program(const char *name, char *program)
 {
@@ -282,7 +282,7 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
         char log_path[CLI_PATH_LONGEST];
         latex_file(dir, job, ".log", log_path);
         unsigned long long size = 0ull;
-        const unsigned char *const log = qry_member_file_mapped(log_path, &size);
+        const unsigned char *const log = cli_file_held(log_path, &size);
         const char *const read = (log != NULL) ? (const char *)log : "";
         const unsigned long long read_size = (log != NULL) ? size : 0ull;
         if (cli_tex_errors_written(read, read_size, &names, out) == 0u)
@@ -291,7 +291,7 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
         }
         if (log != NULL)
         {
-            qry_member_file_unmapped(log, size);
+            cli_file_let_go(log, size);
         }
         cli_line_text(out, "],\"ms\":");
         cli_line_decimal(out, cli_clock_milliseconds() - began, 1u);
@@ -325,18 +325,18 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     char drawn[CLI_PATH_LONGEST];
     latex_file(dir, job, ".svg", drawn);
     unsigned long long svg_size = 0ull;
-    const unsigned char *const svg = qry_member_file_mapped(drawn, &svg_size);
+    const unsigned char *const svg = cli_file_held(drawn, &svg_size);
     const int whole = (svg != NULL) && cli_utf8_whole((const char *)svg, svg_size);
     cli_line_character(out, ',');
     const int fits = whole && cli_tex_pages_written((const char *)svg, svg_size, out);
     if (svg != NULL)
     {
-        qry_member_file_unmapped(svg, svg_size);
+        cli_file_let_go(svg, svg_size);
     }
     if (!fits)
     {
         cli_line_text(said, drawn);
-        cli_line_text(said, whole ? " is larger than orior holds" : ": it could not be read");
+        cli_line_text(said, whole ? " is larger than orior_cli holds" : ": it could not be read");
         out->at = from;
         return 0;
     }
@@ -344,7 +344,7 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     char sync_path[CLI_PATH_LONGEST];
     latex_file(dir, job, ".synctex.gz", sync_path);
     unsigned long long zipped_size = 0ull;
-    const unsigned char *const zipped = qry_member_file_mapped(sync_path, &zipped_size);
+    const unsigned char *const zipped = cli_file_held(sync_path, &zipped_size);
     unsigned long long sync_size = 0ull;
     char why[CLI_SAID_LONGEST];
     CliLine unzipped = {why, sizeof(why), 0ull};
@@ -358,7 +358,7 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     }
     if (zipped != NULL)
     {
-        qry_member_file_unmapped(zipped, zipped_size);
+        cli_file_let_go(zipped, zipped_size);
     }
     cli_line_text(out, ",\"errors\":[],\"ms\":");
     cli_line_decimal(out, cli_clock_milliseconds() - began, 1u);

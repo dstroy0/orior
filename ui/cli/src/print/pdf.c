@@ -8,10 +8,8 @@
 
 #include <math.h>
 
-// the most bytes of one page's content, and the most objects a PDF holds
-#define CLI_PDF_CONTENT (1u << 22u)
-
-#define CLI_PDF_OBJECTS (7u + (2u * CLI_PRINT_PAGES))
+// the bytes a page's contents are begun with, the line growing past them
+#define CLI_PDF_CONTENT_FIRST 65536ull
 
 // the color of the line numbers
 static const unsigned char s_number_color[3] = {0x88u, 0x88u, 0x88u};
@@ -208,20 +206,34 @@ static void cli_object(CliLine *out, unsigned long long *offsets, unsigned int n
 void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout, CliLine *out,
                    unsigned long long *pages)
 {
-    static unsigned int s_printed[CLI_PRINT_PAGES];
-    static unsigned long long s_offsets[CLI_PDF_OBJECTS];
-    static char s_content[CLI_PDF_CONTENT];
     static const char *const s_faces[4] = {"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique"};
     const CliPrintLaid *const laid = cli_print_lay_out(listing, layout);
     float width = 0.0f;
     float height = 0.0f;
     cli_print_size(layout, &width, &height);
+    // the pages printed, the objects' offsets and a page's contents, in cells sized to the pages laid out
+    const unsigned int most = (laid->pages < CLI_PRINT_PAGES) ? laid->pages : CLI_PRINT_PAGES;
+    unsigned int *const printed =
+        cli_cell_taken(((unsigned long long)most + 1ull) * sizeof(unsigned int), "the pages a PDF prints");
+    unsigned long long *const offsets =
+        cli_cell_taken((7ull + (2ull * most)) * sizeof(unsigned long long), "the places of a PDF's objects");
+    CliLine content;
+    const int begun = cli_line_growing(&content, CLI_PDF_CONTENT_FIRST, "a PDF page's contents");
+    *pages = 0ull;
+    if ((printed == NULL) || (offsets == NULL) || !begun)
+    {
+        // with no room to write it in, nothing is written
+        cli_cell_given(printed);
+        cli_cell_given(offsets);
+        cli_cell_given(content.out);
+        return;
+    }
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < laid->pages; at += 1u)
     {
-        if (cli_print_prints(layout, at + 1ull) && (count < CLI_PRINT_PAGES))
+        if (cli_print_prints(layout, at + 1ull) && (count < most))
         {
-            s_printed[count] = at;
+            printed[count] = at;
             count += 1u;
         }
     }
@@ -230,9 +242,9 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
     const unsigned int first_page = 8u;
     const unsigned int objects = 7u + (2u * count);
     cli_line_text(out, "%PDF-1.4\n%\xe2\xe3\xcf\xd3\n");
-    cli_object(out, s_offsets, 1u);
+    cli_object(out, offsets, 1u);
     cli_line_text(out, "<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
-    cli_object(out, s_offsets, 2u);
+    cli_object(out, offsets, 2u);
     cli_line_text(out, "<< /Type /Pages /Kids [");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -245,19 +257,19 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
     cli_line_text(out, " >>\nendobj\n");
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
-        cli_object(out, s_offsets, 3u + face);
+        cli_object(out, offsets, 3u + face);
         cli_line_text(out, "<< /Type /Font /Subtype /Type1 /BaseFont /");
         cli_line_text(out, s_faces[face]);
         cli_line_text(out, " /Encoding /WinAnsiEncoding >>\nendobj\n");
     }
-    cli_object(out, s_offsets, 7u);
+    cli_object(out, offsets, 7u);
     cli_line_text(out, "<< /Title ");
     cli_text_string(out, listing->title);
     cli_line_text(out, " /Producer (orior) >>\nendobj\n");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const unsigned int page = first_page + (at * 2u);
-        cli_object(out, s_offsets, page);
+        cli_object(out, offsets, page);
         cli_line_text(out, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ");
         cli_fixed(out, width, 2u);
         cli_line_character(out, ' ');
@@ -265,14 +277,14 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
         cli_line_text(out, "] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> >> /Contents ");
         cli_line_decimal(out, page + 1u, 1u);
         cli_line_text(out, " 0 R >>\nendobj\n");
-        CliLine content = {s_content, sizeof(s_content), 0ull};
-        cli_content(laid, s_printed[at], height, layout->gray, &content);
+        content.at = 0ull;
+        cli_content(laid, printed[at], height, layout->gray, &content);
         const unsigned long long length = cli_line_fits(&content) ? content.at : 0ull;
-        cli_object(out, s_offsets, page + 1u);
+        cli_object(out, offsets, page + 1u);
         cli_line_text(out, "<< /Length ");
         cli_line_decimal(out, length, 1u);
         cli_line_text(out, " >>\nstream\n");
-        cli_line_counted(out, s_content, length);
+        cli_line_counted(out, content.out, length);
         cli_line_text(out, "endstream\nendobj\n");
     }
     const unsigned long long xref = out->at;
@@ -281,7 +293,7 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
     cli_line_text(out, "\n0000000000 65535 f \n");
     for (unsigned int at = 0u; at < objects; at += 1u)
     {
-        cli_line_decimal(out, s_offsets[at], 10u);
+        cli_line_decimal(out, offsets[at], 10u);
         cli_line_text(out, " 00000 n \n");
     }
     cli_line_text(out, "trailer\n<< /Size ");
@@ -290,4 +302,7 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
     cli_line_decimal(out, xref, 1u);
     cli_line_text(out, "\n%%EOF\n");
     *pages = count;
+    cli_cell_given(printed);
+    cli_cell_given(offsets);
+    cli_cell_given(content.out);
 }

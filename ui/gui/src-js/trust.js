@@ -62,7 +62,7 @@ export function askTrust(told = state.told) {
   buttons.push(hold);
   const node = document.getElementById("trust-ask");
   node.replaceChildren(
-    element("p", { className: "rights-said", textContent: `${name} has build scripts of its own, ${listOf(told.code)}, which run when the tree is built. orior runs them only once you trust the tree.` }),
+    element("p", { className: "rights-said", textContent: `${name} has build scripts of its own, ${listOf(told.code)}, which run when the tree is built. orior_gui runs them only once you trust the tree.` }),
     element("div", { className: "rights-buttons" }, ...buttons),
   );
   node.hidden = false;

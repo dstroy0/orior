@@ -3,6 +3,7 @@
 // text.c: a text of UTF-8 read letter by letter. A byte that starts no letter, or a letter cut short, is read as one
 // letter of its own byte
 #include "text.h"
+#include "json_tree.h"
 #include "regexp.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -191,6 +192,29 @@ int cli_text_find(const char *text, unsigned long long length, const char *wante
     return 1;
 }
 
+int cli_text_quoted_end(const char *text, unsigned long long size, unsigned long long at, unsigned long long *end)
+{
+    const char *const rest = text + at;
+    const unsigned long long left = size - at;
+    unsigned long long found = 0ull;
+    if (cli_text_starts(rest, left, "\"\"\"") || cli_text_starts(rest, left, "'''"))
+    {
+        *end = cli_text_find(rest + 3u, left - 3u, rest, 3u, &found) ? at + 3u + found + 3u : size;
+        return 1;
+    }
+    if ((left == 0ull) || ((rest[0] != '"') && (rest[0] != '\'')))
+    {
+        return 0;
+    }
+    unsigned long long walk = at + 1u;
+    while ((walk < size) && (text[walk] != rest[0]) && (text[walk] != '\n'))
+    {
+        walk += (text[walk] == '\\') ? 2u : 1u;
+    }
+    *end = (walk + 1u < size) ? walk + 1u : size;
+    return 1;
+}
+
 int cli_text_find_last(const char *text, unsigned long long length, const char *wanted, unsigned long long size,
                        unsigned long long *at)
 {
@@ -225,6 +249,51 @@ int cli_text_order(const char *one, const char *other)
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL}) + 1u;
     const embed_iword order = memor.cmp(&(MemoriaCfg){.src = one, .other = other, .bytes = length});
     return (order > 0) - (order < 0);
+}
+
+void cli_paths_sorted(char (*paths)[CLI_PATH_LONGEST], unsigned int count)
+{
+    for (unsigned int at = 1u; at < count; at += 1u)
+    {
+        char held[CLI_PATH_LONGEST];
+        memor.cpy(&(MemoriaCfg){.dst = held,
+                                .src = paths[at],
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}) + 1u});
+        unsigned int place = at;
+        while ((place > 0u) && (cli_text_order(paths[place - 1u], held) > 0))
+        {
+            memor.cpy(&(MemoriaCfg){
+                .dst = paths[place],
+                .src = paths[place - 1u],
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+            place -= 1u;
+        }
+        memor.cpy(&(MemoriaCfg){.dst = paths[place],
+                                .src = held,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
+    }
+}
+
+int cli_text_utf8_whole(const unsigned char *text, unsigned long long size)
+{
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        if (((at + MMGR_SWAR_BYTES) <= size) &&
+            ((word.load(&(ScrutWordCfg){.at = text + at}) & MMGR_VERBUM_SCRUTOR_HIGH) == 0u))
+        {
+            at += MMGR_SWAR_BYTES;
+            continue;
+        }
+        unsigned int letter = 0u;
+        const unsigned long long step = cli_lossy_letter(text, size, at, &letter);
+        if ((step == 1ull) && (text[at] >= 0x80u))
+        {
+            return 0;
+        }
+        at += step;
+    }
+    return 1;
 }
 
 int cli_text_same(const char *one, const char *other, unsigned long long size)

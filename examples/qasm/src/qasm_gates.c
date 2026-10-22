@@ -22,18 +22,18 @@ static void qasm_gate_controls(QasmGate *gate, const unsigned int *qubits, unsig
 }
 
 // the entry r e^{i phase} at G: (r cos, r sin), with r and the phase's cos and sin at G; slack grows by the product's
-static int qasm_entry(QasmParser *parser, const AnchorExactInteger *radius, const QasmAngle *phase, int negate,
+static int qasm_entry(QasmParser *parser, const OriorExactInteger *radius, const QasmAngle *phase, int negate,
                       long long *re, long long *im, unsigned long long *slack)
 {
-    AnchorExactInteger c;
-    AnchorExactInteger s;
+    OriorExactInteger c;
+    OriorExactInteger s;
     unsigned long long phase_slack = 0ull;
     if (!qasm_cos_sin(parser, phase, &c, &s, &phase_slack))
     {
         return 0;
     }
-    AnchorExactInteger x;
-    AnchorExactInteger y;
+    OriorExactInteger x;
+    OriorExactInteger y;
     if (!qasm_fixed_multiply(parser, radius, &c, &x) || !qasm_fixed_multiply(parser, radius, &s, &y))
     {
         return 0;
@@ -59,8 +59,8 @@ static int qasm_u3_entries(QasmParser *parser, const QasmAngle *theta, const Qas
                            const QasmAngle *gamma, QasmGate *gate)
 {
     QasmAngle half;
-    AnchorExactInteger c;
-    AnchorExactInteger s;
+    OriorExactInteger c;
+    OriorExactInteger s;
     unsigned long long slack = 0ull;
     if (!qasm_angle_scale(parser, theta, 1, 2, &half) || !qasm_cos_sin(parser, &half, &c, &s, &slack))
     {
@@ -103,17 +103,17 @@ static int qasm_quarter_turns(QasmParser *parser, const QasmAngle *angle)
     {
         return -1;
     }
-    AnchorExactInteger one;
+    OriorExactInteger one;
     qasm_exact_set(&one, 1ull, 0);
-    if (!anchor_exact_equal(&twice.den, &one))
+    if (!orior_exact_equal(&twice.den, &one))
     {
         return -1;
     }
-    AnchorExactInteger four;
-    AnchorExactInteger turns;
-    AnchorExactInteger remainder;
+    OriorExactInteger four;
+    OriorExactInteger turns;
+    OriorExactInteger remainder;
     qasm_exact_set(&four, 4ull, 0);
-    if (anchor_exact_divide(&twice.num, &four, &turns, &remainder) != ANCHOR_EXACT_OK)
+    if (orior_exact_divide(&twice.num, &four, &turns, &remainder) != ORIOR_EXACT_OK)
     {
         return -1;
     }

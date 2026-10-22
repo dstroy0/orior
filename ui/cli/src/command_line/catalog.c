@@ -28,12 +28,77 @@ void cli_catalog_begun(CliCatalog *catalog, CliJob *jobs, unsigned int jobs_most
     catalog->used = 0u;
     catalog->text_most = text_most;
     catalog->full = 0;
+    catalog->cells = NULL;
+    catalog->jobs_cap = jobs_most;
     // the text at 0 is the empty one
     if (text_most != 0u)
     {
         text[0] = '\0';
         catalog->used = 1u;
     }
+}
+
+// the jobs, params, steps, arguments and list items, and the bytes of text, a growing catalog's rooms are begun with
+#define CLI_CATALOG_FIRST 16u
+#define CLI_CATALOG_TEXT_FIRST 1024u
+
+void cli_catalog_growing(CliCatalog *catalog, CliCellsTally *cells, unsigned int jobs_most)
+{
+    cli_catalog_begun(catalog, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u);
+    catalog->cells = cells;
+    catalog->jobs_cap = jobs_most;
+    catalog->text = cli_cell_taken_by(cells, CLI_CATALOG_TEXT_FIRST, "a catalog's texts");
+    catalog->text_most = (catalog->text != NULL) ? CLI_CATALOG_TEXT_FIRST : 0u;
+    catalog->full = (catalog->text == NULL);
+    if (catalog->text != NULL)
+    {
+        // the text at 0 is the empty one
+        catalog->text[0] = '\0';
+        catalog->used = 1u;
+    }
+}
+
+void cli_catalog_given(CliCatalog *catalog)
+{
+    CliCellsTally *const cells = catalog->cells;
+    if (cells != NULL)
+    {
+        cli_cell_given_by(cells, catalog->job);
+        cli_cell_given_by(cells, catalog->param);
+        cli_cell_given_by(cells, catalog->step);
+        cli_cell_given_by(cells, catalog->arg);
+        cli_cell_given_by(cells, catalog->list);
+        cli_cell_given_by(cells, catalog->text);
+    }
+    cli_catalog_begun(catalog, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u);
+}
+
+// `list`, `count` items of `each` bytes held of `*most`, made to hold `wanted` in all: the list, moved into a cell of
+// doubled room where the catalog grows and it is full; or NULL with the catalog full where it does not grow or the cell
+// is refused
+static void *cli_catalog_room(CliCatalog *catalog, void *list, unsigned int count, unsigned int *most,
+                              unsigned long long each, unsigned int wanted, const char *what)
+{
+    if (wanted <= *most)
+    {
+        return list;
+    }
+    unsigned int room = (*most == 0u) ? CLI_CATALOG_FIRST : *most;
+    while (room < wanted)
+    {
+        room *= 2u;
+    }
+    void *const larger =
+        (catalog->cells != NULL) ? cli_cell_taken_by(catalog->cells, (unsigned long long)room * each, what) : NULL;
+    if (larger == NULL)
+    {
+        catalog->full = 1;
+        return NULL;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
+    cli_cell_given_by(catalog->cells, list);
+    *most = room;
+    return larger;
 }
 
 unsigned int cli_catalog_text(CliCatalog *catalog, const char *text)
@@ -43,11 +108,17 @@ unsigned int cli_catalog_text(CliCatalog *catalog, const char *text)
         return CLI_CATALOG_NONE;
     }
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
-    if ((catalog->used + size) > catalog->text_most)
+    // the bytes wanted are below 4 GiB where they are counted as an unsigned int, as checked
+    char *const texts = ((catalog->used + size) <= 0xffffffffull)
+                            ? cli_catalog_room(catalog, catalog->text, catalog->used, &catalog->text_most, 1ull,
+                                               (unsigned int)(catalog->used + size), "a catalog's texts")
+                            : NULL;
+    if (texts == NULL)
     {
         catalog->full = 1;
         return 0u;
     }
+    catalog->text = texts;
     const unsigned int at = catalog->used;
     memor.cpy(&(MemoriaCfg){.dst = catalog->text + at, .src = text, .bytes = size});
     // the texts are below the room handed, which an unsigned int counts
@@ -63,11 +134,16 @@ const char *cli_catalog_at(const CliCatalog *catalog, unsigned int text)
 unsigned int cli_catalog_job(CliCatalog *catalog, const char *id, const char *group, const char *title,
                              const char *file, const char *about, const char *opens)
 {
-    if (catalog->jobs >= catalog->jobs_most)
+    CliJob *const jobs = (catalog->jobs < catalog->jobs_cap)
+                             ? cli_catalog_room(catalog, catalog->job, catalog->jobs, &catalog->jobs_most,
+                                                sizeof(CliJob), catalog->jobs + 1u, "a catalog's jobs")
+                             : NULL;
+    if (jobs == NULL)
     {
         catalog->full = 1;
         return CLI_CATALOG_NONE;
     }
+    catalog->job = jobs;
     CliJob *const job = &catalog->job[catalog->jobs];
     job->id = cli_catalog_text(catalog, id);
     job->group = group;
@@ -85,11 +161,16 @@ unsigned int cli_catalog_job(CliCatalog *catalog, const char *id, const char *gr
 
 void cli_catalog_param(CliCatalog *catalog, const char *key, const char *kind, int required)
 {
-    if ((catalog->jobs == 0u) || (catalog->params >= catalog->params_most))
+    CliParam *const params = (catalog->jobs != 0u)
+                                 ? cli_catalog_room(catalog, catalog->param, catalog->params, &catalog->params_most,
+                                                    sizeof(CliParam), catalog->params + 1u, "a catalog's params")
+                                 : NULL;
+    if (params == NULL)
     {
         catalog->full = 1;
         return;
     }
+    catalog->param = params;
     const CliParam param = {cli_catalog_text(catalog, key), kind, catalog->lists, 0u, 0u, required};
     catalog->param[catalog->params] = param;
     catalog->params += 1u;
@@ -99,11 +180,13 @@ void cli_catalog_param(CliCatalog *catalog, const char *key, const char *kind, i
 // a text put after the lists
 static void cli_listed(CliCatalog *catalog, unsigned int text)
 {
-    if (catalog->lists >= catalog->lists_most)
+    unsigned int *const lists = cli_catalog_room(catalog, catalog->list, catalog->lists, &catalog->lists_most,
+                                                 sizeof(unsigned int), catalog->lists + 1u, "a catalog's lists");
+    if (lists == NULL)
     {
-        catalog->full = 1;
         return;
     }
+    catalog->list = lists;
     catalog->list[catalog->lists] = text;
     catalog->lists += 1u;
 }
@@ -129,11 +212,16 @@ void cli_catalog_choice(CliCatalog *catalog, const char *choice)
 
 void cli_catalog_step(CliCatalog *catalog, unsigned int program, const char *text, const char *tool_program, int system)
 {
-    if ((catalog->jobs == 0u) || (catalog->steps >= catalog->steps_most))
+    CliStep *const steps = (catalog->jobs != 0u)
+                               ? cli_catalog_room(catalog, catalog->step, catalog->steps, &catalog->steps_most,
+                                                  sizeof(CliStep), catalog->steps + 1u, "a catalog's steps")
+                               : NULL;
+    if (steps == NULL)
     {
         catalog->full = 1;
         return;
     }
+    catalog->step = steps;
     const CliStep step = {
         program, cli_catalog_text(catalog, text), cli_catalog_text(catalog, tool_program), system, catalog->args, 0u};
     catalog->step[catalog->steps] = step;
@@ -144,11 +232,16 @@ void cli_catalog_step(CliCatalog *catalog, unsigned int program, const char *tex
 void cli_catalog_arg(CliCatalog *catalog, unsigned int kind, const char *a, const char *b, const char *c, const char *d,
                      int separated)
 {
-    if ((catalog->steps == 0u) || (catalog->args >= catalog->args_most))
+    CliArg *const args = (catalog->steps != 0u)
+                             ? cli_catalog_room(catalog, catalog->arg, catalog->args, &catalog->args_most,
+                                                sizeof(CliArg), catalog->args + 1u, "a catalog's arguments")
+                             : NULL;
+    if (args == NULL)
     {
         catalog->full = 1;
         return;
     }
+    catalog->arg = args;
     const CliArg arg = {kind,
                         {cli_catalog_text(catalog, a), cli_catalog_text(catalog, b), cli_catalog_text(catalog, c),
                          cli_catalog_text(catalog, d)},

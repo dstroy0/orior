@@ -322,7 +322,7 @@ static int validate_text(const char *path, const char *text, unsigned long long 
     if (!cli_validate_code_of(text, size))
     {
         cli_line_text(said, path);
-        cli_line_text(said, " is larger than orior holds");
+        cli_line_text(said, " is larger than orior_cli holds");
         return 0;
     }
     cli_validate_words_of();
@@ -409,7 +409,7 @@ int cli_validated(const char *id, const char *path, CliLine *report, CliLine *sa
     else
     {
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+        const unsigned char *const bytes = cli_file_held(path, &size);
         if ((bytes == NULL) || !cli_utf8_whole((const char *)bytes, size))
         {
             cli_line_text(said, path);
@@ -421,7 +421,7 @@ int cli_validated(const char *id, const char *path, CliLine *report, CliLine *sa
         }
         if (bytes != NULL)
         {
-            qry_member_file_unmapped(bytes, size);
+            cli_file_let_go(bytes, size);
         }
     }
     cli_validate_released();

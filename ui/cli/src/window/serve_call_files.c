@@ -15,33 +15,23 @@
 #include "../text/base64.h"
 #include "serve_internal.h"
 
-// the most bytes of a file read as bytes
-#define CLI_SERVE_BYTES (64ull << 20u)
+// the bytes a file's text read is begun in before it grows
+#define CLI_SERVE_TEXT_FIRST (64ull << 10u)
 
-// a file's text and bytes as they are read and written, a cell of CLI_SERVE_BYTES taken with their lock and given
-// back with it
-static char *s_text;
-static CliLock s_text_lock = CLI_LOCK_INIT;
+// the cells a file's text and bytes are held in as they are read and written, each sized to them, and the lock a
+// file's text is read, written over and kept in its history under, one write at a time
+static CliCellsTally s_cells = CLI_CELLS_TALLY("cli_serve_files");
+static CliLock s_write_lock = CLI_LOCK_INIT;
 
-// the lock taken and the text's cell with it: 1, or 0 with why said and the lock given back where the cells cannot
-// meet it; and the cell given back with the lock
-static int text_held(CliLine *said)
+// a growing line begun for a file's text: 1, or 0 with why said where the cells cannot meet it
+static int text_line_begun(CliLine *text, CliLine *said)
 {
-    cli_lock_take(&s_text_lock);
-    s_text = cli_cell_taken(CLI_SERVE_BYTES, "a file's text");
-    if (s_text == NULL)
+    const int begun = cli_line_growing(text, CLI_SERVE_TEXT_FIRST, "a file's text");
+    if (!begun)
     {
-        cli_lock_give(&s_text_lock);
         cli_line_text(said, "a file's text could not be taken: the cells cannot meet it");
     }
-    return s_text != NULL;
-}
-
-static void text_released(void)
-{
-    cli_cell_given(s_text);
-    s_text = NULL;
-    cli_lock_give(&s_text_lock);
+    return begun;
 }
 
 static int file_create(const CliServeArgs *args, CliLine *out, CliLine *said)
@@ -106,6 +96,19 @@ static int file_read(const CliServeArgs *args, CliLine *out, CliLine *said)
     return (path != NULL) && cli_serve_tree(root, said) && cli_files_read(root, path, out, said);
 }
 
+// whether git ignores the file of the argument `path`: true where it neither tracks it nor would
+static int file_ignored(const CliServeArgs *args, CliLine *out, CliLine *said)
+{
+    char root[CLI_PATH_LONGEST];
+    const char *const path = cli_serve_string(args, "path", said);
+    if ((path == NULL) || !cli_serve_tree(root, said))
+    {
+        return 0;
+    }
+    cli_line_text(out, cli_files_tracked(root, path) ? "false" : "true");
+    return 1;
+}
+
 static int bridge_read(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     (void)args;
@@ -128,16 +131,6 @@ static int bridge_read(const CliServeArgs *args, CliLine *out, CliLine *said)
     return 1;
 }
 
-static int file_window(const CliServeArgs *args, CliLine *out, CliLine *said)
-{
-    char root[CLI_PATH_LONGEST];
-    unsigned long long line = 0ull;
-    unsigned long long half = 0ull;
-    const char *const path = cli_serve_string(args, "path", said);
-    return (path != NULL) && cli_serve_whole(args, "line", &line, said) && cli_serve_whole(args, "half", &half, said) &&
-           cli_serve_tree(root, said) && cli_files_window(root, path, line, half, out, said);
-}
-
 static int file_slice(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     char root[CLI_PATH_LONGEST];
@@ -149,11 +142,11 @@ static int file_slice(const CliServeArgs *args, CliLine *out, CliLine *said)
     {
         return 0;
     }
-    if (!text_held(said))
+    CliLine slice;
+    if (!text_line_begun(&slice, said))
     {
         return 0;
     }
-    CliLine slice = {s_text, CLI_SERVE_BYTES, 0ull};
     const int done = cli_files_slice(root, path, start, end, &slice, said);
     if (done)
     {
@@ -167,9 +160,9 @@ static int file_slice(const CliServeArgs *args, CliLine *out, CliLine *said)
             cli_line_text(out, (at > 0u) ? ",\"" : "\"");
             cli_line_text(out, s_kept[at]);
             cli_line_text(out, "\":");
-            if (cli_lsp_member(s_text, slice.at, s_kept[at], &from, &length))
+            if (cli_lsp_member(slice.out, slice.at, s_kept[at], &from, &length))
             {
-                cli_line_counted(out, s_text + from, length);
+                cli_line_counted(out, slice.out + from, length);
             }
             else
             {
@@ -178,7 +171,7 @@ static int file_slice(const CliServeArgs *args, CliLine *out, CliLine *said)
         }
         cli_line_character(out, '}');
     }
-    text_released();
+    cli_cell_given(slice.out);
     return done;
 }
 
@@ -198,7 +191,7 @@ static int file_bytes(const CliServeArgs *args, CliLine *out, CliLine *said)
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = qry_member_file_mapped(full, &size);
+    const unsigned char *const mapped = cli_file_held(full, &size);
     if ((mapped == NULL) && (!cli_file_size(full, &size) || (size > 0ull)))
     {
         cli_line_text(said, full);
@@ -210,7 +203,7 @@ static int file_bytes(const CliServeArgs *args, CliLine *out, CliLine *said)
     cli_line_character(out, '"');
     if (mapped != NULL)
     {
-        qry_member_file_unmapped(mapped, size);
+        cli_file_let_go(mapped, size);
     }
     return 1;
 }
@@ -244,20 +237,24 @@ int cli_serve_file_write(const char *path, const char *text, unsigned long long 
         return 0;
     }
     cli_full(root, path, full);
-    if (!text_held(said))
-    {
-        return 0;
-    }
-    const unsigned long long before = qry_member_file_read(full, (unsigned char *)s_text, CLI_SERVE_BYTES);
-    const int had = (before != QRY_MEMBER_UNREAD) && cli_utf8_whole(s_text, before);
+    // the text the file held is copied out before it is written over, as the write puts a new file in its place
+    cli_lock_take(&s_write_lock);
+    unsigned long long held = 0ull;
+    char *const was = cli_file_size(full, &held)
+                          ? cli_cell_taken_by(&s_cells, held + 1ull, "a file's text before it is written")
+                          : NULL;
+    const unsigned long long before =
+        (was != NULL) ? qry_member_file_read(full, (unsigned char *)was, held + 1ull) : QRY_MEMBER_UNREAD;
+    const int had = (before != QRY_MEMBER_UNREAD) && cli_utf8_whole(was, before);
     if (!cli_files_write(root, path, text, length, said))
     {
-        text_released();
+        cli_cell_given_by(&s_cells, was);
+        cli_lock_give(&s_write_lock);
         return 0;
     }
     char why[1024];
     CliLine kept = {why, sizeof(why), 0ull};
-    if (!cli_history_keep(root, path, had ? s_text : NULL, had ? before : 0ull, text, length, &kept))
+    if (!cli_history_keep(root, path, had ? was : NULL, had ? before : 0ull, text, length, &kept))
     {
         char told[2048];
         CliLine line = {told, sizeof(told), 0ull};
@@ -268,7 +265,8 @@ int cli_serve_file_write(const char *path, const char *text, unsigned long long 
         cli_line_character(&line, '\n');
         query_terminal_written(1, told, cli_line_fits(&line) ? line.at : 0ull);
     }
-    text_released();
+    cli_cell_given_by(&s_cells, was);
+    cli_lock_give(&s_write_lock);
     return 1;
 }
 
@@ -304,18 +302,22 @@ static int file_part(const CliServeArgs *args, CliLine *out, CliLine *said)
         return 0;
     }
     (void)cli_json_string(args->json, cli_serve_arg(args, "data"), &length);
-    if (!text_held(said))
+    // base64 holds three bytes in each four letters
+    const unsigned long long room = ((length / 4ull) + 1ull) * 3ull;
+    char *const bytes = cli_cell_taken_by(&s_cells, room, "a file's part");
+    if (bytes == NULL)
     {
+        cli_line_text(said, "a file's part could not be taken: the cells cannot meet it");
         return 0;
     }
     unsigned long long size = 0ull;
-    int done = cli_unbase64(data, length, (unsigned char *)s_text, CLI_SERVE_BYTES, &size);
+    int done = cli_unbase64(data, length, (unsigned char *)bytes, room, &size);
     if (!done)
     {
         cli_line_text(said, "a part not in base64");
     }
-    done = done && cli_files_write_part(root, path, at, s_text, size, last, said);
-    text_released();
+    done = done && cli_files_write_part(root, path, at, bytes, size, last, said);
+    cli_cell_given_by(&s_cells, bytes);
     cli_line_text(out, done ? "null" : "");
     return done;
 }
@@ -367,37 +369,29 @@ static int history_read(const CliServeArgs *args, CliLine *out, CliLine *said)
     {
         return 0;
     }
-    if (!text_held(said))
+    CliLine text;
+    if (!text_line_begun(&text, said))
     {
         return 0;
     }
-    CliLine text = {s_text, CLI_SERVE_BYTES, 0ull};
     const int done = cli_history_read(root, path, at, &text, said);
     if (done)
     {
-        cli_json_quoted_lossy(out, (const unsigned char *)s_text, cli_line_fits(&text) ? text.at : 0ull);
+        cli_json_quoted_lossy(out, (const unsigned char *)text.out, cli_line_fits(&text) ? text.at : 0ull);
     }
-    text_released();
+    cli_cell_given(text.out);
     return done;
 }
 
 const CliServeCall g_cli_serve_files_calls[] = {
-    {"file_create", file_create},
-    {"folder_create", folder_create},
-    {"tree_relative", tree_relative},
-    {"file_read", file_read},
-    {"bridge_read", bridge_read},
-    {"file_window", file_window},
+    {"file_create", file_create},         {"folder_create", folder_create},
+    {"tree_relative", tree_relative},     {"file_read", file_read},
+    {"file_ignored", file_ignored},       {"bridge_read", bridge_read},
     {"file_slice", file_slice},
-    {"file_bytes", file_bytes},
-    {"file_write_raised", file_write_raised},
-    {"file_write", file_write},
-    {"files_bring", cli_serve_files_bring},
-    {"bring_name", cli_serve_bring_name},
-    {"file_part", file_part},
-    {"trust_read", trust_read},
-    {"trust_set", trust_set},
-    {"history_list", history_list},
-    {"history_read", history_read},
+    {"file_bytes", file_bytes},           {"file_write_raised", file_write_raised},
+    {"file_write", file_write},           {"files_bring", cli_serve_files_bring},
+    {"bring_name", cli_serve_bring_name}, {"file_part", file_part},
+    {"trust_read", trust_read},           {"trust_set", trust_set},
+    {"history_list", history_list},       {"history_read", history_read},
 };
 const unsigned int g_cli_serve_files_count = sizeof(g_cli_serve_files_calls) / sizeof(g_cli_serve_files_calls[0]);

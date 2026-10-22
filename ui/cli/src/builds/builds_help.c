@@ -7,6 +7,23 @@
 #include "../text/text.h"
 #include "builds.h"
 
+CliCellsTally g_cli_build_cells = CLI_CELLS_TALLY("cli_builds");
+
+unsigned int *cli_build_lines_taken(const char *text, unsigned long long size, CliBuildLines *lines)
+{
+    unsigned long long count = 1ull;
+    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    {
+        count += (text[at] == '\n') ? 1ull : 0ull;
+    }
+    unsigned int *const starts =
+        (count <= 0xffffffffull) ? cli_cell_taken_by(&g_cli_build_cells, count * sizeof(unsigned int), "a text's lines")
+                                 : NULL;
+    // a count no more than 0xffffffff where the cell is taken, which an unsigned int holds
+    cli_build_lines_of(text, size, starts, (starts != NULL) ? (unsigned int)count : 0u, lines);
+    return starts;
+}
+
 void cli_build_lines_of(const char *text, unsigned long long size, unsigned int *starts, unsigned int most,
                         CliBuildLines *lines)
 {
@@ -89,28 +106,80 @@ unsigned long long cli_build_line_start(const CliBuildLines *lines, unsigned int
 
 void cli_build_findings_begun(CliBuildFindings *found)
 {
-    found->count = 0u;
-    found->fixes = 0u;
-    found->used = 0u;
-    found->full = 0;
+    cli_build_findings_given(found);
+}
+
+void cli_build_findings_given(CliBuildFindings *found)
+{
+    cli_cell_given_by(&g_cli_build_cells, found->finding);
+    cli_cell_given_by(&g_cli_build_cells, found->fix);
+    cli_cell_given_by(&g_cli_build_cells, found->text);
+    *found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
+}
+
+// `list`, `count` items of `each` bytes in a room of `*room`, made to hold `wanted` in all, `most` at the most: the
+// list, moved into a cell of doubled room where it is full; or NULL with the findings full where `wanted` is past
+// `most` or the cell is refused
+static void *help_room(CliBuildFindings *found, void *list, unsigned int count, unsigned int *room,
+                       unsigned long long each, unsigned long long wanted, unsigned int most, const char *what)
+{
+    if (wanted <= *room)
+    {
+        return list;
+    }
+    unsigned long long grown = (*room == 0u) ? CLI_BUILD_FIRST : *room;
+    while (grown < wanted)
+    {
+        grown *= 2ull;
+    }
+    grown = (grown < most) ? grown : most;
+    void *const larger = (wanted <= most) ? cli_cell_taken_by(&g_cli_build_cells, grown * each, what) : NULL;
+    if (larger == NULL)
+    {
+        found->full = 1;
+        return NULL;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
+    cli_cell_given_by(&g_cli_build_cells, list);
+    // a room no more than `most`, which an unsigned int holds
+    *room = (unsigned int)grown;
+    return larger;
+}
+
+// room made in the texts for `size` bytes and their terminator past those kept, and CLI_BUILD_SAID more where the
+// texts hold them: 1, or 0 with the findings full
+static int help_text_room(CliBuildFindings *found, unsigned long long size)
+{
+    const unsigned long long needed = found->used + size + 1ull;
+    const unsigned long long wanted =
+        ((needed + CLI_BUILD_SAID) < CLI_BUILD_TEXT) ? (needed + CLI_BUILD_SAID) : CLI_BUILD_TEXT;
+    char *const texts = help_room(found, found->text, found->used, &found->text_room, 1ull,
+                                  (needed <= CLI_BUILD_TEXT) ? wanted : needed, CLI_BUILD_TEXT, "a file's findings");
+    found->text = (texts != NULL) ? texts : found->text;
+    return texts != NULL;
 }
 
 CliLine cli_build_said(CliBuildFindings *found)
 {
-    return (CliLine){found->text + found->used, CLI_BUILD_TEXT - found->used, 0ull};
+    (void)help_text_room(found, 0ull);
+    return (found->text != NULL) ? (CliLine){found->text + found->used, found->text_room - found->used, 0ull}
+                                 : (CliLine){NULL, 0ull, 0ull};
 }
 
 // `line` kept in the findings' texts, in place where it was written there: where it starts, or CLI_BUILD_TEXT where it
 // does not fit
 static unsigned int help_kept(CliBuildFindings *found, const char *bytes, unsigned long long size)
 {
-    if (size + 1u > CLI_BUILD_TEXT - found->used)
+    // a line written in place already has its room, and nothing it points at is moved; any other is copied in
+    const int in_place = (found->text != NULL) && (bytes == found->text + found->used);
+    const int room = in_place ? ((found->used + size + 1u) <= found->text_room) : help_text_room(found, size);
+    if (!room)
     {
         found->full = 1;
         return CLI_BUILD_TEXT;
     }
     const unsigned int at = found->used;
-    if (bytes != found->text + at)
+    if (!in_place)
     {
         memor.move_down(&(MemoriaCfg){.dst = found->text + at, .src = bytes, .bytes = (size_t)size});
     }
@@ -133,11 +202,14 @@ static unsigned int help_line_kept(CliBuildFindings *found, const CliLine *line)
 unsigned int cli_build_finding(CliBuildFindings *found, const CliLine *message, const CliBuildLines *lines,
                                unsigned long long from, unsigned long long to, unsigned int severity, const char *code)
 {
-    if (found->count == CLI_BUILD_FINDINGS)
+    CliBuildFinding *const findings =
+        help_room(found, found->finding, found->count, &found->finding_room, sizeof(CliBuildFinding),
+                  found->count + 1ull, CLI_BUILD_FINDINGS, "a file's findings");
+    if (findings == NULL)
     {
-        found->full = 1;
         return CLI_BUILD_NONE;
     }
+    found->finding = findings;
     const unsigned int at = help_line_kept(found, message);
     if (at == CLI_BUILD_TEXT)
     {
@@ -152,11 +224,16 @@ unsigned int cli_build_finding(CliBuildFindings *found, const CliLine *message, 
 // a fix of the finding at `finding` begun with its title: its place, or CLI_BUILD_FIXES where it does not fit
 static unsigned int help_fix(CliBuildFindings *found, unsigned int finding, const CliLine *title)
 {
-    if ((finding == CLI_BUILD_NONE) || (found->fixes == CLI_BUILD_FIXES))
+    CliBuildFix *const fixes = (finding != CLI_BUILD_NONE)
+                                   ? help_room(found, found->fix, found->fixes, &found->fix_room, sizeof(CliBuildFix),
+                                               found->fixes + 1ull, CLI_BUILD_FIXES, "a file's fixes")
+                                   : NULL;
+    if (fixes == NULL)
     {
         found->full = 1;
         return CLI_BUILD_FIXES;
     }
+    found->fix = fixes;
     const unsigned int at = help_line_kept(found, title);
     if (at == CLI_BUILD_TEXT)
     {

@@ -238,7 +238,7 @@ std::string pair_categories(const Ruleset *sass, const std::string &first, const
 }
 
 // the lines the bridge `bridge` holds beneath the pair of `first` and `second`, either way round: its verdict, the
-// metas and sets klq_decoder read it into, its concept and its intent; none where the bridge holds no such pair
+// metas and sets orior_klq_decoder read it into, its concept and its intent; none where the bridge holds no such pair
 std::vector<std::string> pair_beneath(const std::vector<std::string> &bridge, const std::string &first,
                                              const std::string &second)
 {

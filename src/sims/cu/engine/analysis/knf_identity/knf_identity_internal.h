@@ -84,12 +84,12 @@ void knf_wide_add(KnfWide *sum, long long term);
 
 int knf_wide_equal(const KnfWide *left, const KnfWide *right);
 
-void knf_wide_exact(const KnfWide *wide, AnchorExactInteger *value);
+void knf_wide_exact(const KnfWide *wide, OriorExactInteger *value);
 
-void knf_exact_total(const KnfEntangled *entangled, AnchorExactInteger *total);
+void knf_exact_total(const KnfEntangled *entangled, OriorExactInteger *total);
 
-void knf_departure_of(const AnchorExactInteger *truth, const AnchorExactInteger *drawn_sum,
-                      AnchorExactInteger *departure);
+void knf_departure_of(const OriorExactInteger *truth, const OriorExactInteger *drawn_sum,
+                      OriorExactInteger *departure);
 
 void knf_scene(SimScene *scene, SimBody *body, int with_bodies);
 

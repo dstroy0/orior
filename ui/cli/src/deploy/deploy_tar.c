@@ -144,7 +144,7 @@ int cli_deploy_tar(const char *path, const CliDeployPair *kept, unsigned int kep
         cli_deploy_full(index, &full_line);
         cli_line_closed(&full_line);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = qry_member_file_mapped(full, &size);
+        const unsigned char *const bytes = cli_file_held(full, &size);
         if (bytes == NULL)
         {
             cli_line_text(said, full);
@@ -156,7 +156,7 @@ int cli_deploy_tar(const char *path, const CliDeployPair *kept, unsigned int kep
         const int written = ((cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_CELLS_POOL}) <= 99u) ||
                              tar_pax(path, file->path, time)) &&
                             tar_put(path, header, sizeof(header)) && tar_put(path, bytes, size);
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
         if (!written)
         {
             cli_line_text(said, path);

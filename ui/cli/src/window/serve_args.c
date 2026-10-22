@@ -226,6 +226,36 @@ int cli_serve_strings_or(const CliServeArgs *args, const char *key, const char *
     return cli_serve_strings(args, key, items, room, count, said);
 }
 
+CliCellsTally g_cli_serve_strings_cells = CLI_CELLS_TALLY("cli_serve_strings");
+
+int cli_serve_strings_taken(const CliServeArgs *args, const char *key, unsigned int most, const char ***items,
+                            unsigned int *count, CliLine *said)
+{
+    const unsigned int node = cli_serve_arg(args, key);
+    const unsigned int first =
+        cli_json_is(args->json, node, CFG_JSON_ARRAY) ? args->json->node[node].first : CLI_JSON_NONE;
+    unsigned int room = 0u;
+    for (unsigned int item = first; (item != CLI_JSON_NONE) && (room < most); item = args->json->node[item].next)
+    {
+        room += 1u;
+    }
+    *count = 0u;
+    *items = cli_cell_taken_by(&g_cli_serve_strings_cells, (room + 1ull) * sizeof(**items), "the strings a call names");
+    if (*items == NULL)
+    {
+        cli_line_text(said, "the strings a call names could not be given a cell");
+        return 0;
+    }
+    const int read = cli_serve_strings(args, key, *items, room, count, said);
+    (*items)[*count] = NULL;
+    return read;
+}
+
+void cli_serve_strings_given(const char **items)
+{
+    cli_cell_given_by(&g_cli_serve_strings_cells, items);
+}
+
 int cli_serve_tree(char *root, CliLine *said)
 {
     return cli_serve_root(root, said);

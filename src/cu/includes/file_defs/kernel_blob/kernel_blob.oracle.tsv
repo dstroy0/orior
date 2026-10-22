@@ -1,6 +1,6 @@
 where	who	kind	form	gloss
-head 0	khw_machine_write	places	4 bytes	the kernel's places
-head 1	khw_machine_write	registers	4 bytes	the registers a thread of the kernel holds
-head 2	khw_machine_write	from	4 bytes	the place the least opening begins at, 0 where the part has not answered
-head 3	khw_machine_write	slot	4 bytes	the slot's place, KERNEL_BLOB_SLOT_NONE where the part names none or a place past the kernel
-place	khw_machine_write	encoding	16 bytes	a place's encoding as the container holds it, places of them after the head
+head 0	orior_khw_machine_write	places	4 bytes	the kernel's places
+head 1	orior_khw_machine_write	registers	4 bytes	the registers a thread of the kernel holds
+head 2	orior_khw_machine_write	from	4 bytes	the place the least opening begins at, 0 where the part has not answered
+head 3	orior_khw_machine_write	slot	4 bytes	the slot's place, KERNEL_BLOB_SLOT_NONE where the part names none or a place past the kernel
+place	orior_khw_machine_write	encoding	16 bytes	a place's encoding as the container holds it, places of them after the head

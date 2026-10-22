@@ -225,14 +225,14 @@ void cli_test_rules_of(const char *root, CliTestRules *rules)
         char path[CLI_PATH_LONGEST];
         cli_full(root, s_files[at], path);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+        const unsigned char *const bytes = cli_file_held(path, &size);
         if (bytes == NULL)
         {
             continue;
         }
         const char *const text = (const char *)bytes;
         const int read = cli_utf8_whole(text, size) && cli_test_rules_in(text, size, s_sections[at], rules);
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
         if (read)
         {
             return;

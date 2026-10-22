@@ -3,7 +3,7 @@
 // command_line_help.c: the help, made from the menus: a line for each command, the ones that act in the window marked,
 // its usage in a left column and what it does wrapped beside it; the keys of every command that has some, by menu;
 // the words that can follow a menu, its commands and its jobs or their subjects; and the completion script for bash,
-// zsh, fish or PowerShell, which asks orior itself for the words after the first
+// zsh, fish or PowerShell, which asks orior_cli itself for the words after the first
 #include "../text/text.h"
 #include "command_line_internal.h"
 #include "commands.h"
@@ -155,7 +155,7 @@ static void help_rows(CliHelpMade *made)
         for (unsigned int at = 0u; at < items; at += 1u)
         {
             CliLine usage = {s_usage, sizeof(s_usage), 0ull};
-            cli_line_text(&usage, "orior ");
+            cli_line_text(&usage, "orior_cli ");
             cli_line_text(&usage, word);
             cli_line_character(&usage, ' ');
             cli_line_text(&usage, s_items[at].command);
@@ -175,7 +175,7 @@ static void help_rows(CliHelpMade *made)
             char split[CLI_LABEL_LONGEST];
             cli_menu_split(menu, split);
             CliLine usage = {s_usage, sizeof(s_usage), 0ull};
-            cli_line_text(&usage, "orior ");
+            cli_line_text(&usage, "orior_cli ");
             cli_line_text(&usage, word);
             if (split[0] != '\0')
             {
@@ -197,11 +197,11 @@ static void help_rows(CliHelpMade *made)
             help_row(made, s_usage, s_said);
         }
     }
-    help_row(made, "orior run <job> [key=value] [-- words]", "start a job, as orior run start");
-    help_row(made, "orior list | show <job> | bridge [key]", "as orior run list, run show and go bridge");
-    help_row(made, "orior <file>[:line[:column]]", "* open a file of the tree in the window, at a line and column");
-    help_row(made, "orior --completions <shell>", "the completions for bash, zsh, fish or powershell");
-    help_row(made, "orior help", "this");
+    help_row(made, "orior_cli run <job> [key=value] [-- words]", "start a job, as orior_cli run start");
+    help_row(made, "orior_cli list | show <job> | bridge [key]", "as orior_cli run list, run show and go bridge");
+    help_row(made, "orior_cli <file>[:line[:column]]", "* open a file of the tree in the window, at a line and column");
+    help_row(made, "orior_cli --completions <shell>", "the completions for bash, zsh, fish or powershell");
+    help_row(made, "orior_cli help", "this");
 }
 
 void cli_help(CliLine *out)
@@ -343,7 +343,7 @@ static void help_bash(CliLine *out)
     cli_line_text(out, "_orior() {\n  local cur=${COMP_WORDS[COMP_CWORD]}\n  if [ \"$COMP_CWORD\" -eq 1 ]; then\n"
                        "    COMPREPLY=($(compgen -W \"");
     help_first(out, 0);
-    cli_line_text(out, "\" -- \"$cur\"))\n  else\n    COMPREPLY=($(compgen -W \"$(orior __words "
+    cli_line_text(out, "\" -- \"$cur\"))\n  else\n    COMPREPLY=($(compgen -W \"$(orior_cli __words "
                        "\"${COMP_WORDS[1]}\" 2>/dev/null)\" -- \"$cur\"))\n  fi\n}\n"
                        "complete -o default -F _orior orior\n");
 }
@@ -363,26 +363,26 @@ int cli_completions(const char *shell, CliLine *out, CliLine *said)
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = shell, .other = "fish", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_text(out, "complete -c orior -n __fish_use_subcommand -a \"");
+        cli_line_text(out, "complete -c orior_cli -n __fish_use_subcommand -a \"");
         help_first(out, 0);
-        cli_line_text(out, "\"\ncomplete -c orior -n 'not __fish_use_subcommand' -a "
-                           "'(orior __words (commandline -opc)[2])'\n");
+        cli_line_text(out, "\"\ncomplete -c orior_cli -n 'not __fish_use_subcommand' -a "
+                           "'(orior_cli __words (commandline -opc)[2])'\n");
         return 1;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = shell, .other = "powershell", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_text(out, "Register-ArgumentCompleter -Native -CommandName orior -ScriptBlock {\n"
+        cli_line_text(out, "Register-ArgumentCompleter -Native -CommandName orior_cli -ScriptBlock {\n"
                            "  param($word, $ast, $at)\n"
                            "  $given = @($ast.CommandElements | ForEach-Object { $_.ToString() })\n"
                            "  if ($given.Count -le 1 -or ($given.Count -eq 2 -and $word)) { $all = @(");
         help_first(out, 1);
-        cli_line_text(out, ") } else { $all = @(& orior __words $given[1]) }\n"
+        cli_line_text(out, ") } else { $all = @(& orior_cli __words $given[1]) }\n"
                            "  $all | Where-Object { $_ -like \"$word*\" } | ForEach-Object { "
                            "[System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }\n"
                            "}\n");
         return 1;
     }
-    cli_line_text(said, "orior has no completions for ");
+    cli_line_text(said, "orior_cli has no completions for ");
     cli_line_text(said, shell);
     cli_line_text(said, ": bash, zsh, fish or powershell");
     return 0;

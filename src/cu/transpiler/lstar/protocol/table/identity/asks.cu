@@ -8,7 +8,7 @@
 // with the first case apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
 thread_local AskLog *s_ask_trace = NULL;
 
-// The log, in the query's .qry beside the trace, that klq_decoder reads: the cases as `cases <case>...`, written again
+// The log, in the query's .qry beside the trace, that orior_klq_decoder reads: the cases as `cases <case>...`, written again
 // where an ask is put over other cases, and each ask as `ask <number>` and what came back of every case in the order of
 // the cases, `=` alike, `x` apart and `-` where the host gives no bracket, or `recorded` or `refused` where the part
 // answered it nothing here. A mode writes what it put after the ask, and every choice a pair's put makes at a link as
@@ -78,7 +78,7 @@ void ask_files_opened(void)
     s_ask_run = qry_member_run();
     if (s_ask_run == NULL)
     {
-        printf("klq_identity: no query writer runs to take the trace: %s names no .qry a writer holds open\n",
+        printf("orior_klq_identity: no query writer runs to take the trace: %s names no .qry a writer holds open\n",
                QRY_ENVIRONMENT);
         return;
     }

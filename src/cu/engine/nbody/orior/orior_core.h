@@ -52,7 +52,7 @@ extern "C"
 #endif
 
 /** @brief Distinct values a byte takes, the width of every census below. */
-#define ANCHOR_STEER_SYMBOLS 256u
+#define ORIOR_STEER_SYMBOLS 256u
 
 /**
  * @brief Most probes any planner here will place, defined as ORIOR_ANCHORS so the two cannot
@@ -66,7 +66,7 @@ extern "C"
  * @note DEFINED FROM ORIOR_ANCHORS INSTEAD OF COPIED. Defining one from the other makes the compiler
  *       hold the invariant the termination argument rests on.
  */
-#define ANCHOR_STEER_ANCHORS ORIOR_ANCHORS
+#define ORIOR_STEER_ANCHORS ORIOR_ANCHORS
 
     /**
      * @brief What one pass over a corpus records about the field it is.
@@ -78,10 +78,10 @@ extern "C"
      */
     typedef struct
     {
-        uint64_t occurrences[ANCHOR_STEER_SYMBOLS]; /**< How often each byte value appears. */
+        uint64_t occurrences[ORIOR_STEER_SYMBOLS]; /**< How often each byte value appears. */
         uint64_t total;                             /**< Bytes counted, the sum of the row above. */
         uint32_t distinct;                          /**< Byte values with a non-zero count. */
-    } AnchorFieldCensus;
+    } OriorFieldCensus;
 
     /**
      * @brief One search engine: count exact occurrences of a needle in a corpus.
@@ -152,12 +152,12 @@ extern "C"
      *       having none over the values the bench measures. The rule does not consult it. It
      *       duplicates nothing. It stays.
      * @warning `census` is BORROWED for the duration of every call taking this plan. A plan holds a
-     *          pointer to it because AnchorFieldCensus is about two kilobytes
+     *          pointer to it because OriorFieldCensus is about two kilobytes
      *          and a plan is passed by pointer on a hot path.
      */
     typedef struct
     {
-        const AnchorFieldCensus *census; /**< The field's own census, which the rule reads [BORROWS]. */
+        const OriorFieldCensus *census; /**< The field's own census, which the rule reads [BORROWS]. */
         size_t needle_len;               /**< Known at the call. Not read by the rule that ships today. */
         size_t period;                   /**< Lag the corpus agrees with itself at, or zero where none. */
     } OriorPlan;
@@ -204,7 +204,7 @@ extern "C"
      * @return         The engine to call. Never NULL.
      * @note Every engine is sound. The choice costs speed and never correctness. A wrong dispatch is
      *       therefore a performance defect instead of a wrong answer.
-     * @note One term, decided by anchor_steer_prefers_free in exact integer arithmetic. A corpus whose
+     * @note One term, decided by orior_steer_prefers_free in exact integer arithmetic. A corpus whose
      *       effective alphabet 2^H2 reaches 85 percent of the symbols it uses, a flat corpus, takes the
      *       short circuiting engine, and every other corpus takes the free order one. Since 2^H2 is
      *       total squared over the sum of squared counts, the comparison clears its denominators into
@@ -241,7 +241,7 @@ extern "C"
      * @note Safe on a zero length corpus and on a null pointer, both of which produce an empty census
      *       whose `total` and `distinct` are zero. Every function below is defined on an empty census.
      */
-    void anchor_field_census(const uint8_t *corpus, size_t corpus_len, AnchorFieldCensus *census);
+    void orior_field_census(const uint8_t *corpus, size_t corpus_len, OriorFieldCensus *census);
 
     /**
      * @brief Steering magnitude of one symbol, as an integer, larger meaning rarer.
@@ -258,7 +258,7 @@ extern "C"
      * @note A symbol absent from the corpus returns the largest magnitude available, which is correct:
      *       an anchor testing a symbol the field never produces rejects every alignment immediately.
      */
-    uint64_t anchor_steer_magnitude(const AnchorFieldCensus *census, uint8_t symbol);
+    uint64_t orior_steer_magnitude(const OriorFieldCensus *census, uint8_t symbol);
 
     /**
      * @brief Orders anchor offsets so the rarest symbol the needle carries is tested first.
@@ -279,7 +279,7 @@ extern "C"
      * @note Does nothing where any argument is null, where `count` is zero, or where the census is
      *       empty. An engine with nothing to steer by keeps the order it was given.
      */
-    void anchor_steer_probe_order(size_t *offsets, size_t count, const AnchorFieldCensus *census, const uint8_t *needle,
+    void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCensus *census, const uint8_t *needle,
                                   size_t needle_len);
 
     /**
@@ -306,13 +306,13 @@ extern "C"
      *       nearest double to 0.85.
      * @note Both sides outgrow 64 bits on a corpus of any size, since total^2 passes 2^64 at a four
      *       gigabyte corpus and the sum of squares is accumulated over 256 terms. Both are carried in
-     *       AnchorExactInteger for that reason, the fixed width limb form the rest of the
+     *       OriorExactInteger for that reason, the fixed width limb form the rest of the
      *       engine already measures in.
      * @note The threshold was swept and not chosen, and the sweep is recorded against the constant
      *       in orior_core.c. Clearing the denominators does not re-open that: 85/100 is the same value
      *       the sweep scored, carried exactly instead of rounded.
      */
-    int anchor_steer_prefers_free(const AnchorFieldCensus *census);
+    int orior_steer_prefers_free(const OriorFieldCensus *census);
 
 #ifdef __cplusplus
 }

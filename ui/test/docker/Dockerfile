@@ -16,13 +16,23 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl build-essential pkg-config git python3 rsync openssh-client \
       libwebkit2gtk-4.1-dev webkit2gtk-driver libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
       xvfb xauth dbus dbus-x11 at-spi2-core fonts-dejavu-core fonts-noto-core x11vnc novnc websockify \
-      clangd clang lldb gdb python-is-python3 python3-debugpy python3-pytest \
+      cmake ninja-build clangd clang clang-tidy cppcheck lldb gdb python-is-python3 python3-debugpy python3-pytest \
  && rm -rf /var/lib/apt/lists/*
 # lldb's debugger for editors goes by its version's name; orior looks for lldb-dap.
 RUN found="$(ls /usr/bin/lldb-dap* /usr/lib/llvm-*/bin/lldb-dap 2>/dev/null | head -1)" && test -n "$found" && ln -sf "$found" /usr/local/bin/lldb-dap
 RUN curl -sSf --retry 3 --connect-timeout 30 https://sh.rustup.rs | sh -s -- -y --profile minimal
 # The name git gives the commits a test makes in the run's tree.
 RUN git config --global user.name "orior harness" && git config --global user.email harness@localhost
+# SonarQube for IDE, as the SonarQube plugin's toolchain finds it: the extension unpacked where VS Code keeps its
+# extensions, with the Java and the analyzers it carries.
+ARG SONARLINT=6.1.1
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/* \
+ && curl -sSfL --retry 3 -o /tmp/sonarlint.vsix "https://open-vsx.org/api/SonarSource/sonarlint-vscode/linux-x64/${SONARLINT}/file/SonarSource.sonarlint-vscode-${SONARLINT}@linux-x64.vsix" \
+ && mkdir -p /tmp/sonarlint /root/.vscode/extensions \
+ && unzip -q /tmp/sonarlint.vsix -d /tmp/sonarlint \
+ && mv /tmp/sonarlint/extension "/root/.vscode/extensions/sonarsource.sonarlint-vscode-${SONARLINT}-linux-x64" \
+ && chmod -R u+rwX "/root/.vscode/extensions/sonarsource.sonarlint-vscode-${SONARLINT}-linux-x64/jre" \
+ && rm -rf /tmp/sonarlint /tmp/sonarlint.vsix
 # A container gives the web view no namespaces of its own to sandbox in, and no GPU: it draws in
 # software, through X.
 ENV PATH=/root/.cargo/bin:$PATH \

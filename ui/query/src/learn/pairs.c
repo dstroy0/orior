@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pairs.c: the bridge's pairs put to the part, and the other modes of `klq_identity` (klq_identity.cu): `stall`,
+// pairs.c: the bridge's pairs put to the part, and the other modes of `orior_klq_identity` (klq_identity.cu): `stall`,
 // `register`, `past`, `queue`, `cost` and `curve` over the stick's questions and the host's answers to them,
 // `text_identity` over every identity between texts in `Lstar.klq`, each side a kernel of a stick of its own, and
 // `stick`, the no-argument run, which slices the stick's questions into identities, computes the integer questions on
@@ -66,7 +66,7 @@ int query_pairs_read(const char *const *words, unsigned int count, QueryPairsMod
     }
     if (!cellul.eq(&(CatenaFinitaCfg){.src = mode->to, .other = "sass", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_text(said, "klq_identity writes forms in sass alone, and --to names ");
+        cli_line_text(said, "orior_klq_identity writes forms in sass alone, and --to names ");
         cli_line_text(said, mode->to);
         return 0;
     }
@@ -91,8 +91,8 @@ int query_pairs_carry(QueryContext *context, const char *part, int dry, QueryWor
     static char s_carrier[QUERY_PATH_LONGEST];
     static char s_cross[QUERY_PATH_LONGEST];
     static char s_nvdisasm[QUERY_PATH_LONGEST];
-    if (!query_context_tool(context, "cubin_run", s_carrier, said) ||
-        !query_context_tool(context, "measuring_stick_query", s_cross, said) ||
+    if (!query_context_tool(context, "orior_cubin_run", s_carrier, said) ||
+        !query_context_tool(context, "orior_measuring_stick_query", s_cross, said) ||
         !query_nvdisasm(context, s_nvdisasm, said))
     {
         return 0;
@@ -268,7 +268,7 @@ static int query_pairs_mode_run(QueryContext *context, const QueryPairsMode *mod
     query_at(context, QUERY_PAIRS_STICK "/measuring_stick_nvcc.sass", stick);
     if (!query_is_file(stick))
     {
-        cli_line_text(said, "no stick: run orior protocol stick");
+        cli_line_text(said, "no stick: run orior_cli protocol stick");
         return -1;
     }
     static const char *const s_kinds[3] = {"khw", "ksc", "kqr"};
@@ -317,7 +317,7 @@ static int query_pairs_mode_run(QueryContext *context, const QueryPairsMode *mod
     // the machine file the mode names
     static char s_writer[QUERY_PATH_LONGEST];
     static QueryFiles s_files;
-    if (!query_context_tool(context, "khw_machine_write", s_writer, said))
+    if (!query_context_tool(context, "orior_khw_machine_write", s_writer, said))
     {
         return -1;
     }
@@ -336,7 +336,7 @@ static int query_pairs_mode_run(QueryContext *context, const QueryPairsMode *mod
     context->setting[context->settings] = (QuerySetting){"identity.ruleset", s_ruleset_setting, ruleset.at};
     context->settings += 1u;
     static char s_identity[QUERY_PATH_LONGEST];
-    if (!query_context_tool(context, "klq_identity", s_identity, said))
+    if (!query_context_tool(context, "orior_klq_identity", s_identity, said))
     {
         return -1;
     }
@@ -385,7 +385,7 @@ int query_pairs_pair(QueryContext *context, const char *part, const char *to, in
     mode.trace = trace;
     if (!cellul.eq(&(CatenaFinitaCfg){.src = to, .other = "sass", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_text(said, "klq_identity writes forms in sass alone, and --to names ");
+        cli_line_text(said, "orior_klq_identity writes forms in sass alone, and --to names ");
         cli_line_text(said, to);
         return -1;
     }

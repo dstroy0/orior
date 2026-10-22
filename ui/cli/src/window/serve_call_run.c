@@ -50,8 +50,6 @@ static void made_copied(void *context, const char *name)
 
 static int made_libraries_copy(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
-    static CliBinaryReport s_report;
-    static CliLock s_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_LONGEST];
     char file[CLI_PATH_LONGEST];
     const char *const given = cli_serve_string(args, "path", said);
@@ -72,17 +70,18 @@ static int made_libraries_copy(const CliServeArgs *args, CliLine *out, CliLine *
     {
         cli_full(root, given, file);
     }
-    cli_lock_take(&s_lock);
+    CliBinaryReport *const report = cli_serve_cell(sizeof(*report), "the report of what a program loads", said);
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_LONGEST] = cli_toolchains_path_taken(&count);
+    char (*const folders)[CLI_PATH_LONGEST] = (report != NULL) ? cli_toolchains_path_taken(&count) : NULL;
     const unsigned long long start = out->at;
     cli_line_character(out, '[');
-    const int done = cli_binary_read(file, (const char (*)[CLI_PATH_LONGEST])folders, count, &s_report, said) &&
-                     cli_binary_copy_beside(file, &s_report, made_copied, out, said);
+    const int done = (report != NULL) &&
+                     cli_binary_read(file, (const char (*)[CLI_PATH_LONGEST])folders, count, report, said) &&
+                     cli_binary_copy_beside(file, report, made_copied, out, said);
     cli_line_character(out, ']');
     out->at = done ? out->at : start;
     cli_cell_given(folders);
-    cli_lock_give(&s_lock);
+    cli_cell_given(report);
     return done;
 }
 
@@ -191,7 +190,7 @@ static int qry_append_file(const CliServeArgs *args, CliLine *out, CliLine *said
     }
     cli_full(root, file, full);
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = qry_member_file_mapped(full, &size);
+    const unsigned char *const mapped = cli_file_held(full, &size);
     if ((mapped == NULL) && (!cli_file_size(full, &size) || (size > 0ull)))
     {
         cli_line_text(said, file);
@@ -208,7 +207,7 @@ static int qry_append_file(const CliServeArgs *args, CliLine *out, CliLine *said
     cli_qry_queue(CLI_CHANNEL_PRIMARY, run, name, (mapped != NULL) ? mapped : (const unsigned char *)"", size, 2u);
     if (mapped != NULL)
     {
-        qry_member_file_unmapped(mapped, size);
+        cli_file_let_go(mapped, size);
     }
     cli_line_text(out, "null");
     return 1;
@@ -260,6 +259,26 @@ static int cores_keep(const CliServeArgs *args, CliLine *out, CliLine *said)
     cli_line_decimal(out, cli_cores_for_work(), 1u);
     cli_line_text(out, ",\"machine\":");
     cli_line_decimal(out, cli_cores_machine(), 1u);
+    cli_line_character(out, '}');
+    return 1;
+}
+
+// the cellblock's own account, `{"pool", "persistent", "temporary"}`, the pool's bytes and its two peaks, beside what
+// the system says the process holds
+static int cells_said(const CliServeArgs *args, CliLine *out, CliLine *said)
+{
+    (void)args;
+    (void)said;
+    unsigned long long pool = 0ull;
+    unsigned long long persistent = 0ull;
+    unsigned long long temporary = 0ull;
+    cli_cells_report(&pool, &persistent, &temporary);
+    cli_line_text(out, "{\"pool\":");
+    cli_line_decimal(out, pool, 1u);
+    cli_line_text(out, ",\"persistent\":");
+    cli_line_decimal(out, persistent, 1u);
+    cli_line_text(out, ",\"temporary\":");
+    cli_line_decimal(out, temporary, 1u);
     cli_line_character(out, '}');
     return 1;
 }
@@ -332,25 +351,23 @@ static void tests_told(void *context, const char *heard, unsigned long long size
 
 static int tests_run(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
-    static const char *s_given[CLI_SERVE_GIVEN];
+    const char **given = NULL;
     char root[CLI_PATH_LONGEST];
     unsigned int count = 0u;
     int parallel = 0;
     int cover = 0;
-    if (!cli_serve_strings(args, "given", s_given, CLI_SERVE_GIVEN, &count, said) ||
-        !cli_serve_bool(args, "parallel", &parallel, said) || !cli_serve_bool(args, "cover", &cover, said) ||
-        !cli_serve_tree(root, said))
-    {
-        return 0;
-    }
     const CliTell tell = {tests_told, NULL};
     unsigned long long run = 0ull;
-    if (!cli_test_runs_start(root, s_given, count, parallel, cover, tell, &run, said))
+    const int started = cli_serve_strings_taken(args, "given", CLI_SERVE_GIVEN, &given, &count, said) &&
+                        cli_serve_bool(args, "parallel", &parallel, said) &&
+                        cli_serve_bool(args, "cover", &cover, said) && cli_serve_tree(root, said) &&
+                        cli_test_runs_start(root, given, count, parallel, cover, tell, &run, said);
+    cli_serve_strings_given(given);
+    if (started)
     {
-        return 0;
+        cli_line_decimal(out, run, 1u);
     }
-    cli_line_decimal(out, run, 1u);
-    return 1;
+    return started;
 }
 
 static int tests_stop(const CliServeArgs *args, CliLine *out, CliLine *said)
@@ -437,6 +454,7 @@ const CliServeCall g_cli_serve_run_calls[] = {
     {"qry_join", qry_join},
     {"cores_keep", cores_keep},
     {"qry_window", qry_window},
+    {"cells_said", cells_said},
     {"qry_joined", qry_joined},
     {"tests_found", tests_found},
     {"tests_run", tests_run},

@@ -134,7 +134,7 @@ static char *standing_theirs(unsigned int index, const char *path, unsigned long
     if (place->here)
     {
         unsigned long long mapped = 0ull;
-        const unsigned char *const bytes = qry_member_file_mapped(path, &mapped);
+        const unsigned char *const bytes = cli_file_held(path, &mapped);
         read = (bytes != NULL) && (mapped <= CLI_DEPLOY_COMPARED);
         if (read)
         {
@@ -142,7 +142,7 @@ static char *standing_theirs(unsigned int index, const char *path, unsigned long
         }
         if (bytes != NULL)
         {
-            qry_member_file_unmapped(bytes, mapped);
+            cli_file_let_go(bytes, mapped);
         }
     }
     else
@@ -200,14 +200,14 @@ static void standing_changed(unsigned int index, const char *folder, const char 
         cli_deploy_full(sent, &full_line);
         cli_line_closed(&full_line);
         unsigned long long size = 0ull;
-        const unsigned char *const mine = qry_member_file_mapped(full, &size);
+        const unsigned char *const mine = cli_file_held(full, &size);
         if ((mine != NULL) && cli_utf8_whole((const char *)mine, size))
         {
             cli_deploy_difference(theirs, theirs_size, (const char *)mine, size);
         }
         if (mine != NULL)
         {
-            qry_member_file_unmapped(mine, size);
+            cli_file_let_go(mine, size);
         }
         break;
     }
@@ -284,7 +284,7 @@ int cli_deploy_standing(unsigned int index, const char *folder, int replace, int
     {
         run->changed[index] = 0u;
         run->gone[index] = 0u;
-        cli_line_text(said, "it holds more files than orior holds");
+        cli_line_text(said, "it holds more files than orior_cli holds");
         return 0;
     }
     const int releases = !run->deployment.in_place && !run->place[index].here;

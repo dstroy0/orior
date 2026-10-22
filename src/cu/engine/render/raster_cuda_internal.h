@@ -40,16 +40,16 @@
 
 extern "C"
 {
-#include "anchor_raster.h"
+#include "orior_raster.h"
 }
 
-/** @brief Death level step in the gray ramp. Matches ANCHOR_RASTER_STEP in anchor_raster_internal.h. */
+/** @brief Death level step in the gray ramp. Matches ORIOR_RASTER_STEP in orior_raster_internal.h. */
 #define RASTER_STEP 40u
 
-/** @brief Brightest value a death level may reach. Matches ANCHOR_RASTER_CEILING. */
+/** @brief Brightest value a death level may reach. Matches ORIOR_RASTER_CEILING. */
 #define RASTER_CEILING 250u
 
-/** @brief Probe as the kernel reads it, laid out to match AnchorRasterProbe exactly. */
+/** @brief Probe as the kernel reads it, laid out to match OriorRasterProbe exactly. */
 struct DeviceProbe
 {
     unsigned long long origin;
@@ -74,7 +74,7 @@ __global__ void render_alignments(unsigned int *staging, DeviceConfig config, co
                                   unsigned long long probe_count, const unsigned long long *occurrences,
                                   unsigned long long total);
 
-extern "C" int anchor_raster_device_available(void);
+extern "C" int orior_raster_device_available(void);
 
 /** @brief Volume configuration as the kernel reads it. The layout maps an alignment to a voxel. */
 struct DeviceVolumeConfig

@@ -171,9 +171,9 @@ static void table_reuse(TableResults *results)
 
     unsigned int *const atoms = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
     unsigned int *const kept =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ANCHOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
     unsigned int *const reused =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ANCHOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
     int ok = (atoms != NULL) && (kept != NULL) && (reused != NULL);
     for (unsigned int lane = 0u; lane < TABLE_TEST_LANES; lane += 1u)
     {

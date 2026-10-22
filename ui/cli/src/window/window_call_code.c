@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // window_call_code.c: the window's calls on code and orior's own lists: the languages orior's inspections read and
-// the classes a parse names, a docstring drawn up, a class's methods sorted, a paragraph filled, whether orior reads a
-// file itself, the checkers the manifest knows, the languages a formatter formats, the plugins and a plugin's code, a
-// plugin drafted from the generator's answers and written, the menus, and the shell line that brings the tree's dev
-// container up
+// the classes a parse names, a docstring drawn up, a class's methods sorted, a paragraph filled, whether orior_cli
+// reads a file itself, the checkers the manifest knows, the languages a formatter formats, the plugins and a plugin's
+// code, a plugin drafted from the generator's answers and written, the menus, and the shell line that brings the tree's
+// dev container up
 #include "../builds/builds.h"
 #include "../code/schema.h"
 #include "../command_line/cells.h"
@@ -161,7 +161,7 @@ static int code_fill(const CliServeArgs *args, CliLine *out, CliLine *said)
     return filled;
 }
 
-// whether orior reads the file at `path` of the tree itself: a build file, a Gradle script or catalog, a POM, an
+// whether orior_cli reads the file at `path` of the tree itself: a build file, a Gradle script or catalog, a POM, an
 // SConstruct or an SConscript, or JSON, read by its schema
 static int code_reads_file(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
@@ -273,25 +273,12 @@ static int code_plugin_code(const CliServeArgs *args, CliLine *out, CliLine *sai
     return read;
 }
 
-// the answers `spec` copied into a tree of their own, with room for a plugin made of them, which is a few nodes and
-// texts for each of theirs: the copy, CLI_JSON_NONE where the tree's cell cannot be taken
-static unsigned int code_spec_taken(const CliServeArgs *args, CliJson *json)
-{
-    const unsigned int given = cli_serve_arg(args, "spec");
-    unsigned int nodes = 0u;
-    unsigned long long text = 0ull;
-    cli_json_extent(args->json, given, &nodes, &text);
-    return cli_json_held(json, (4u * nodes) + 512u, (4ull * text) + (1ull << 14u), "a plugin made of answers")
-               ? cli_json_copy_from(json, args->json, given)
-               : CLI_JSON_NONE;
-}
-
 // the plugin the generator's answers `spec` ask for, as its file would hold it
 static int code_plugin_draft(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
-    CliJson tree;
-    const unsigned int spec = code_spec_taken(args, &tree);
-    const unsigned int plugin = cli_plugins_draft(&tree, spec, said);
+    CliJson tree = {0};
+    const unsigned int spec = cli_plugins_draft_tree(&tree, args->json, cli_serve_arg(args, "spec"), said);
+    const unsigned int plugin = (spec != CLI_JSON_NONE) ? cli_plugins_draft(&tree, spec, said) : CLI_JSON_NONE;
     if (plugin != CLI_JSON_NONE)
     {
         char piece[4096];
@@ -315,10 +302,7 @@ static int code_plugin_create(const CliServeArgs *args, CliLine *out, CliLine *s
         return 0;
     }
     char folder[CLI_PATH_LONGEST];
-    CliJson tree;
-    const unsigned int spec = code_spec_taken(args, &tree);
-    const int created = cli_plugins_create(&tree, spec, replace, folder, said);
-    cli_json_given(&tree);
+    const int created = cli_plugins_create(args->json, cli_serve_arg(args, "spec"), replace, folder, said);
     if (created)
     {
         cli_window_quoted(out, folder);

@@ -9,10 +9,12 @@
 #include "../code/git.h"
 #include "../machine/carry.h"
 #include "../tests/testing.h"
+#include "../text/pieces.h"
 #include "../text/text.h"
 
-// the most files of tests one run of the tree's tests is given
+// the most files of tests one run of the tree's tests is given, and the most bytes of their paths
 #define CLI_AT_TERMINAL_FILES 65536u
+#define CLI_AT_TERMINAL_FILES_TEXT (1u << 22u)
 
 int cli_at_terminal_runs(const char *command)
 {
@@ -50,7 +52,7 @@ static int at_terminal_home(char *home, CliLine *said)
 {
     if (!cli_home_folder(home))
     {
-        cli_line_text(said, "orior has no folder of its own");
+        cli_line_text(said, "orior_cli has no folder of its own");
         return 0;
     }
     return 1;
@@ -59,51 +61,69 @@ static int at_terminal_home(char *home, CliLine *said)
 // every branch, the one the tree is on marked, each with its last commit's subject, a line each
 static void at_terminal_branches(const char *root, CliLine *out)
 {
-    static CliBranches s_found;
-    cli_git_branches(root, &s_found);
-    for (unsigned int at = 0u; at < s_found.count; at += 1u)
+    CliBranches *const found = cli_cell_taken_by(&g_cli_git_cells, sizeof(*found), "a tree's branches");
+    if (found == NULL)
     {
-        const CliBranch *const one = &s_found.item[at];
-        const char *const subject = cli_git_text_of(&s_found.text, one->subject);
+        return;
+    }
+    cli_git_branches(root, found);
+    for (unsigned int at = 0u; at < found->count; at += 1u)
+    {
+        const CliBranch *const one = &found->item[at];
+        const char *const subject = cli_git_text_of(&found->text, one->subject);
         cli_line_text(out, (at > 0u) ? "\n" : "");
         cli_line_text(out, one->current ? "* " : "  ");
-        cli_line_text(out, cli_git_text_of(&s_found.text, one->name));
+        cli_line_text(out, cli_git_text_of(&found->text, one->name));
         if (subject[0] != '\0')
         {
             cli_line_text(out, "  ");
             cli_line_text(out, subject);
         }
     }
+    cli_git_text_given(&found->text);
+    cli_cell_given_by(&g_cli_git_cells, found);
 }
 
 // every stash with its line, a line each
 static void at_terminal_stashes(const char *root, CliLine *out)
 {
-    static CliStashes s_found;
-    cli_git_stashes(root, &s_found);
-    for (unsigned int at = 0u; at < s_found.count; at += 1u)
+    CliStashes *const found = cli_cell_taken_by(&g_cli_git_cells, sizeof(*found), "a tree's stashes");
+    if (found == NULL)
+    {
+        return;
+    }
+    cli_git_stashes(root, found);
+    for (unsigned int at = 0u; at < found->count; at += 1u)
     {
         cli_line_text(out, (at > 0u) ? "\n" : "");
-        cli_line_text(out, cli_git_text_of(&s_found.text, s_found.item[at].name));
+        cli_line_text(out, cli_git_text_of(&found->text, found->item[at].name));
         cli_line_text(out, "  ");
-        cli_line_text(out, cli_git_text_of(&s_found.text, s_found.item[at].subject));
+        cli_line_text(out, cli_git_text_of(&found->text, found->item[at].subject));
     }
+    cli_git_text_given(&found->text);
+    cli_cell_given_by(&g_cli_git_cells, found);
 }
 
 // the commits of the other branches the branch open does not hold, each by its short id with its subject, a line each
 static void at_terminal_elsewhere(const char *root, CliLine *out)
 {
-    static CliCommits s_found;
-    cli_git_elsewhere(root, &s_found);
-    for (unsigned int at = 0u; at < s_found.count; at += 1u)
+    CliCommits *const found = cli_cell_taken_by(&g_cli_git_cells, sizeof(*found), "a tree's commits elsewhere");
+    if (found == NULL)
     {
-        const char *const id = cli_git_text_of(&s_found.text, s_found.item[at].id);
+        return;
+    }
+    cli_git_elsewhere(root, found);
+    for (unsigned int at = 0u; at < found->count; at += 1u)
+    {
+        const char *const id = cli_git_text_of(&found->text, found->item[at].id);
         const size_t length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL});
         cli_line_text(out, (at > 0u) ? "\n" : "");
         cli_line_counted(out, id, (length < 7u) ? length : 7u);
         cli_line_text(out, "  ");
-        cli_line_text(out, cli_git_text_of(&s_found.text, s_found.item[at].subject));
+        cli_line_text(out, cli_git_text_of(&found->text, found->item[at].subject));
     }
+    cli_git_text_given(&found->text);
+    cli_cell_given_by(&g_cli_git_cells, found);
 }
 
 // a branch deleted, with --force where it is given, a branch whose commits no other branch holds refused with how to
@@ -139,26 +159,63 @@ static int at_terminal_branch_delete(const char *root, const char *const *args, 
     return 0;
 }
 
-// the files of the tree's tests, each once, and the bytes of their paths, as a run of them is gathered
-static const char *s_files[CLI_AT_TERMINAL_FILES];
-static char s_room[1u << 22u];
-static unsigned long long s_used;
+// The files of the tree's tests as a run of them is gathered, each once: their paths, each ended by a 0, written
+// through pieces, the bytes a piece is held in before it goes to a cell, the last path put, and how many are put
+typedef struct
+{
+    CliPieces pieces;
+    CliLine line;
+    char piece[4096];
+    char last[CLI_PATH_LONGEST];
+    unsigned int count;
+} CliTerminalFiles;
 
-// a file of tests put among the files, after the last where it is not that one
+// a file of tests put among the files, after the last where it is not that one, up to the most files and their bytes
 static void at_terminal_test_file(void *context, const CliTest *test)
 {
-    unsigned int *const count = context;
+    CliTerminalFiles *const found = context;
     const size_t size = cellul.len(&(CatenaFinitaCfg){.src = test->file, .cap = CLI_CELLS_POOL}) + 1u;
-    if (((*count > 0u) &&
-         (cellul.eq(&(CatenaFinitaCfg){.src = s_files[*count - 1u], .other = test->file, .cap = CLI_CELLS_POOL}))) ||
-        (*count == CLI_AT_TERMINAL_FILES) || (s_used + size > sizeof(s_room)))
+    if (((found->count > 0u) &&
+         (cellul.eq(&(CatenaFinitaCfg){.src = found->last, .other = test->file, .cap = CLI_CELLS_POOL}))) ||
+        (found->count == CLI_AT_TERMINAL_FILES) ||
+        (found->pieces.size + found->line.at + size > CLI_AT_TERMINAL_FILES_TEXT))
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = s_room + s_used, .src = test->file, .bytes = size});
-    s_files[*count] = s_room + s_used;
-    s_used += size;
-    *count += 1u;
+    cli_line_counted(&found->line, test->file, size);
+    found->last[0] = '\0';
+    if (size <= sizeof(found->last))
+    {
+        memor.cpy(&(MemoriaCfg){.dst = found->last, .src = test->file, .bytes = size});
+    }
+    found->count += 1u;
+}
+
+// the tree's tests run over the files `found` gathered: their paths joined into a cell and listed in another, both of
+// their size and given back once the run is done
+static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int cover, CliLine *out, CliLine *said)
+{
+    unsigned long long size = 0ull;
+    char *const joined = cli_pieces_joined(&found->pieces, &found->line, "the files of the tree's tests", &size);
+    const char **const files =
+        (joined != NULL) ? cli_cell_taken((found->count + 1ull) * sizeof(const char *), "the tests' files listed")
+                         : NULL;
+    if (files == NULL)
+    {
+        cli_cell_given(joined);
+        cli_line_text(said, "the cells the tests' files are held in could not be taken");
+        return 0;
+    }
+    unsigned long long at = 0ull;
+    for (unsigned int one = 0u; one < found->count; one += 1u)
+    {
+        files[one] = joined + at;
+        at += cellul.len(&(CatenaFinitaCfg){.src = joined + at, .cap = CLI_CELLS_POOL}) + 1u;
+    }
+    const int good = cli_at_terminal_tests(root, files, found->count, cover, out, said);
+    cli_cell_given(files);
+    cli_cell_given(joined);
+    return good;
 }
 
 int cli_at_terminal_run(const char *root, const char *command, const char *const *args, unsigned int count,
@@ -244,10 +301,16 @@ int cli_at_terminal_run(const char *root, const char *command, const char *const
     if ((cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "run-tests", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "cover-tests", .cap = CLI_CELLS_POOL})))
     {
-        unsigned int files = 0u;
-        s_used = 0ull;
-        cli_tests_found(root, at_terminal_test_file, &files);
-        return cli_at_terminal_tests(root, s_files, files, cover, out, said);
+        static CliTerminalFiles s_found;
+        static CliLock s_found_lock = CLI_LOCK_INIT;
+        cli_lock_take(&s_found_lock);
+        cli_pieces_begun(&s_found.pieces, &s_found.line, s_found.piece, sizeof(s_found.piece));
+        s_found.last[0] = '\0';
+        s_found.count = 0u;
+        cli_tests_found(root, at_terminal_test_file, &s_found);
+        const int good = at_terminal_files_run(root, &s_found, cover, out, said);
+        cli_lock_give(&s_found_lock);
+        return good;
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "test-run", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "test-cover", .cap = CLI_CELLS_POOL})))

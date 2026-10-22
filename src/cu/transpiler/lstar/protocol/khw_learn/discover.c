@@ -7,10 +7,10 @@
 unsigned int s_kernel_slot;
 
 // The kernel the vendor's writer reads out of the container, got through the interface and read where it appends it
-// in the run (khw_machine_write, kernel mode; kernel_blob.h): the run read to its end before the writer runs, so the
-// kernel read is the one appended after. The places it holds from the one the least opening begins at go into
+// in the run (orior_khw_machine_write, kernel mode; kernel_blob.h): the run read to its end before the writer runs; the
+// kernel read is therefore that appended after. The places it holds from the one the least opening begins at go into
 // s_kernel_places, the places before it into s_opening_places, the registers a thread holds into s_registers, each
-// kept place's encoding into s_kernel_text, and the slot's place among the kept ones into s_kernel_slot where the
+// kept place's encoding into s_kernel_text, and the position's place among the kept ones into s_kernel_slot where the
 // head names one from the opening on, s_kernel_places where it names none. 1, or 0 where the run holds no kernel
 // this reads
 int khw_kernel_read(void)
@@ -96,7 +96,7 @@ int khw_form_asked(unsigned long long low, unsigned long long high)
 }
 
 // the bits a register's number takes, from the last register the part answers a question's code can name, kept in
-// the .ksc at `ksc` by the register walk as `run answers <last> register last` (klq_identity): the bits of that
+// the .ksc at `ksc` by the register walk as `run answers <last> register last` (orior_klq_identity): the bits of that
 // number; 0 where the part has not answered it
 static unsigned int khw_register_bits(const char *ksc)
 {
@@ -142,18 +142,18 @@ static void khw_seed_added(unsigned long long *seed_low, unsigned long long *see
     *count += 1u;
 }
 
-// Every seed of the run's blob `name` asked its relation from the top in the slot, each a line `<low> <high>` in hex
-// as a vendor's reader of a listing writes it (sass_listing_seeds): one that answers a ladder relation enters the
+// Every seed of the run's blob `name` asked its relation from the top in the position, each a line `<low> <high>` in hex
+// as a vendor's reader of a listing writes it (orior_sass_listing_seeds): one that answers a ladder relation enters the
 // working set as a discovered form, its fields left for the turns and register passes once a cross has read them, and
 // one that answers none, or is a form the part has answered for already, is passed over. A seed is put with the
-// slot's own registers: a listing's instruction names the compiler's registers, and the slot's case words lie in the
+// position's own registers: a listing's instruction names the compiler's registers, and the position's case words lie in the
 // kernel's. The words the kernel's own classified form holds at its register fields are written into the seed at the
 // same fields, every other register field is set in turn to the zero register the part answered, and the part says
 // whether the relation holds there. The seeds are the question Q17 names and the part answers; no byte of the listing
 // enters a form. They go through the airlock in rounds as any question: the cross reads each, and the gate holds its
 // key unknown until a conference admits it (overseer.h). The count that entered
 // The forms of the round carried that answered a relation, into `related`: the pool's `count` questions in their
-// order, each put at the slot with the encoding `lows` and `highs` give, a frame candidate where `frame` marks it
+// order, each put at the position with the encoding `lows` and `highs` give, a frame candidate where `frame` marks it
 // read for its frame relation and every other read against the register relations. A candidate that answered none
 // and left the second word standing on every case, as a form that writes a predicate does, is put again in a round
 // of its own with the store guarded by P0 and read against the predicate relations. The count related
@@ -222,7 +222,7 @@ unsigned int khw_seeds_asked(const char *name)
         printf("  khw_write: the run holds no seeds %s\n", name);
         return 0u;
     }
-    // the kernel's own form, the slot's encoding as classified, else the first classified form with operand runs
+    // the kernel's own form, the position's encoding as classified, else the first classified form with operand runs
     const unsigned long long slot_low = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 0u);
     const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
     // the register fields of the instruction word's layout: every field as wide as the last register the part
@@ -251,9 +251,9 @@ unsigned int khw_seeds_asked(const char *name)
         printf("  khw_write: no classified form holds the slot's registers, and no seed is asked\n");
         return 0u;
     }
-    // The seeds asked: each of the listing's as it stands, the slot's registers in the register fields the kernel's
+    // The seeds asked: each of the listing's as it stands, the position's registers in the register fields the kernel's
     // form covers, and for each register field it does not cover the same with that field set to the zero register
-    // the part answered (fixed zero, Open 6.2), so that a source the slot's form does not hold adds nothing; which of
+    // the part answered (fixed zero, Open 6.2), so that a source the position's form does not hold adds nothing; which of
     // these is a form the part decides. A field holding no register, set so, the vendor's reader holds before the part
     static unsigned long long s_seed_low[KHW_SEEDS_MOST];
     static unsigned long long s_seed_high[KHW_SEEDS_MOST];
@@ -317,7 +317,7 @@ unsigned int khw_seeds_asked(const char *name)
             khw_seed_added(s_seed_low, s_seed_high, &seeds, zeroed_low, zeroed_high);
         }
     }
-    // the seeds asked in rounds, as many a round as the pool holds, over the union's cases at the slot, and each read
+    // the seeds asked in rounds, as many a round as the pool holds, over the union's cases at the position, and each read
     // for its relation; one that answers a relation enters the working set discovered
     khw_union_written();
     unsigned int entered = 0u;

@@ -345,10 +345,10 @@ void cli_servers_check_one(unsigned int checker, const char *path, const CliServ
 {
     // the file read where it lies for as long as it is checked
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = qry_member_file_mapped(path, &size);
+    const unsigned char *const mapped = cli_file_held(path, &size);
     check_one_held(checker, path, (const char *)mapped, size, one, emit);
     if (mapped != NULL)
     {
-        qry_member_file_unmapped(mapped, size);
+        cli_file_let_go(mapped, size);
     }
 }

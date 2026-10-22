@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_clone.c: `orior file clone`, a repository cloned into a new folder, git's progress written over one line
+// command_line_clone.c: `orior_cli file clone`, a repository cloned into a new folder, git's progress written over one line
 // as git writes it
 #include "../code/git.h"
 #include "../text/text.h"
@@ -76,7 +76,7 @@ int cli_clone_words(const char *const *words, unsigned int count)
     cli_line_character(&line, '.');
     cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
     line.at = 0ull;
-    cli_line_text(&line, "orior --root \"");
+    cli_line_text(&line, "orior_cli --root \"");
     cli_line_text(&line, target);
     cli_line_text(&line, "\" opens it in the window.");
     cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);

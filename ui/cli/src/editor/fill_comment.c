@@ -115,7 +115,7 @@ static int comment_bounds(const char *text, unsigned long long size, const CliFi
 // after
 static unsigned int comment_body_put(unsigned int count, const char *line, unsigned long long size, int kept)
 {
-    if (kept && (count + 1u < CLI_FILL_SLICES))
+    if (kept && (count + 1u < g_cli_fill_slices))
     {
         g_cli_fill_slice[count] = line;
         g_cli_fill_slice_size[count] = size;

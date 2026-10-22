@@ -106,8 +106,8 @@ static void host_error(HostResults *results, const HostProgram *program, const u
 int main(void)
 {
     HostResults results = {0u, 0u};
-    printf("  record host test: %u lanes a program, ANCHOR_EXACT_LIMBS %u\n", HOST_TEST_LANES,
-           (unsigned int)ANCHOR_EXACT_LIMBS);
+    printf("  record host test: %u lanes a program, ORIOR_EXACT_LIMBS %u\n", HOST_TEST_LANES,
+           (unsigned int)ORIOR_EXACT_LIMBS);
     HostProgram program;
     const unsigned long long one_body[1] = {HOST_TEST_LANES};
     unsigned int *records = NULL;

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qry_queue.c: the backend's channels to a run. Each party of the window holds what it gathers in its own buffer and
 // queues it here at once; each channel's thread appends each record to the run in the order queued. A record waits for
-// room in its channel's ring, never behind the records of another channel, and one larger than half a ring is counted
-// failed and said. A channel's ring is a cell of the cellblock, counted to the queue, taken as the channel is first
-// queued to and held while its thread runs, so a channel never queued to holds nothing
+// room in its channel's ring, never behind the records of another channel, and one larger than half a ring, a whole
+// file as a rule, is appended to the run as it is queued, the party waiting on it. A channel's ring is a cell of the
+// cellblock, counted to the queue, taken as the channel is first queued to and held while its thread runs, so a channel
+// never queued to holds nothing
 #include "../text/json_tree.h"
 #include "qry.h"
 
@@ -109,13 +110,21 @@ void cli_qry_queue(unsigned int channel_named, const char *path, const char *nam
     cli_lock_take(&s_lock);
     if (need > (CLI_QUEUE_BYTES / 2u))
     {
-        s_failed += 1ull;
-        memor.cpy(&(MemoriaCfg){
-            .dst = s_said,
-            .src = "a record larger than half the queue's ring holds",
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "a record larger than half the queue's ring holds",
-                                                   .cap = CLI_CELLS_POOL}) +
-                     1u});
+        // a record too large for the ring, a whole file as a rule, is appended as it is queued
+        cli_lock_give(&s_lock);
+        char why[CLI_SAID_LONGEST];
+        CliLine said = {why, sizeof(why), 0ull};
+        const int done = cli_qry_append(path, name, bytes, size, priority, &said);
+        cli_line_closed(&said);
+        cli_lock_take(&s_lock);
+        s_handed += done ? 1ull : 0ull;
+        s_failed += done ? 0ull : 1ull;
+        if (!done)
+        {
+            memor.cpy(&(MemoriaCfg){.dst = s_said,
+                                    .src = why,
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = why, .cap = CLI_CELLS_POOL}) + 1u});
+        }
         cli_lock_give(&s_lock);
         return;
     }
@@ -136,6 +145,7 @@ void cli_qry_queue(unsigned int channel_named, const char *path, const char *nam
     {
         channel->thread.run = cli_channel_run;
         channel->thread.context = channel;
+        channel->thread.priority = CLI_PRIORITY_RUN;
         channel->started = cli_thread_started(&channel->thread);
     }
     for (;;)

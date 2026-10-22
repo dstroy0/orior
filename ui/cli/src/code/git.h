@@ -7,12 +7,16 @@
 // commit chosen files, push, pull where nothing would merge, put a file back as the last commit left it, act on
 // branches, put changes aside in a stash and bring them back, and apply a commit of another branch, each giving git's
 // own words where it refuses. Here too is the clone of a repository into a folder of its own, for File, Clone
-// Repository and `orior file clone` (git.c, git_run.c, git_commit.c, git_branches.c, git_lists.c, git_graph.c,
+// Repository and `orior_cli file clone` (git.c, git_run.c, git_commit.c, git_branches.c, git_lists.c, git_graph.c,
 // git_lines.c, git_clone.c)
 #ifndef GIT_H
 #define GIT_H
 
+#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+
+// the cells the lists git gives keep their texts in (git_run.c)
+extern CliCellsTally g_cli_git_cells;
 
 // the repository File, Clone Repository offers first
 #define CLI_GIT_ORIOR "https://github.com/dstroy0/orior.git"
@@ -20,19 +24,23 @@
 // the most bytes of the texts of one list git gives
 #define CLI_GIT_TEXT (1u << 22u)
 
-// The texts of a list: each one ended by a 0 at its place, the place 0 holding the empty text, and 1 in `full` where
-// one did not fit and was kept empty
+// The texts of a list, in a cell of `room` grown as they are kept: each one ended by a 0 at its place, the place 0
+// holding the empty text, and 1 in `full` where one did not fit and was kept empty
 typedef struct
 {
-    char bytes[CLI_GIT_TEXT];
+    char *bytes;
     unsigned long long used;
+    unsigned long long room;
     int full;
 } CliGitText;
 
-// the texts made empty; `length` bytes of `from` kept: their place; and the text at a place
+// the texts made empty, a list holding none before, or one given back; `length` bytes of `from` kept: their place;
+// the text at a place, the empty text where the list holds no cell; and the texts' cell given back, the list holding
+// none
 void cli_git_text_begun(CliGitText *text);
 unsigned int cli_git_text_put(CliGitText *text, const char *from, unsigned long long length);
 const char *cli_git_text_of(const CliGitText *text, unsigned int at);
+void cli_git_text_given(CliGitText *text);
 
 // the most repositories, changed files, branches, stashes and commits a list holds
 #define CLI_GIT_REPOSITORIES 256u

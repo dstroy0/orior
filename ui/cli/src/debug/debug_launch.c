@@ -15,11 +15,11 @@
 static void launch_place_freed(CliDebugSession *place)
 {
     cli_lock_take(&g_cli_debug.lock);
-    place->taken = 0;
+    cli_debug_place_freed(place);
     cli_lock_give(&g_cli_debug.lock);
 }
 
-// the adapter started as the plan says: run in orior for a recorded run, connected to where a debugger already
+// the adapter started as the plan says: run in orior_cli for a recorded run, connected to where a debugger already
 // listens, else its program started with the spec's words and PATH: the adapter, or NULL with why said
 static CliDap *launch_adapter(CliDebugSession *place, const char *root, const CliDebugPlan *plan, CliLine *said)
 {

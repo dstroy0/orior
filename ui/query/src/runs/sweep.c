@@ -16,7 +16,6 @@
 #define QUERY_SWEEP_ROUNDS 3u
 #define QUERY_SWEEP_LEAST 3u
 #define QUERY_SWEEP_SLICE_NEAR 50ull
-#define QUERY_SWEEP_COMMIT_BYTES (1ull << 30u)
 #define QUERY_SWEEP_WRITE_BYTES (256ull << 20u)
 #define QUERY_SWEEP_READ_BYTES (64ull << 20u)
 
@@ -25,24 +24,25 @@ static char s_scratch[QUERY_PATH_LONGEST];
 static unsigned char *s_bytes;
 static volatile unsigned long long s_read_sum;
 
-// the writer's commit: a run's shared memory given memory `size` bytes a step, each page touched
-static unsigned long long sweep_commit(unsigned long long size)
+// a run's region made whole for an ask of `size` bytes, as the writer makes it, and every page of it touched
+static unsigned long long sweep_region(unsigned long long size)
 {
-    QryShared *const shared = qry_writer_shared_made(s_scratch);
-    int whole = (shared != NULL);
-    for (unsigned long long at = 0ull; whole && (at < QUERY_SWEEP_COMMIT_BYTES); at += size)
+    unsigned long long members = 0ull;
+    unsigned long long places = 0ull;
+    unsigned long long run_bytes = 0ull;
+    const unsigned long long whole = qry_shared_laid(size, &members, &places, &run_bytes);
+    QryShared *const shared = qry_writer_shared_made(s_scratch, whole);
+    if (shared == NULL)
     {
-        whole = qry_shared_committed(shared->records + at, size);
-        for (unsigned long long page = 0ull; whole && (page < size); page += 4096ull)
-        {
-            shared->records[at + page] = 1u;
-        }
+        return 0ull;
     }
-    if (shared != NULL)
+    unsigned char *const bytes = (unsigned char *)shared;
+    for (unsigned long long page = 4096ull; page < whole; page += 4096ull)
     {
-        qry_writer_shared_released(shared);
+        bytes[page] = 1u;
     }
-    return whole ? QUERY_SWEEP_COMMIT_BYTES : 0ull;
+    qry_writer_shared_released(shared);
+    return whole;
 }
 
 // the writer's write call: a file written whole `size` bytes a call, flushed to the disk and taken away
@@ -94,15 +94,15 @@ typedef struct
 } QuerySweepEntry;
 
 static const QuerySweepEntry s_entries[] = {
-    {"commit", 1ull << 20u, sweep_commit},   {"commit", 4ull << 20u, sweep_commit},
-    {"commit", 16ull << 20u, sweep_commit},  {"commit", 64ull << 20u, sweep_commit},
-    {"commit", 256ull << 20u, sweep_commit}, {"write", 64ull << 10u, sweep_write},
-    {"write", 256ull << 10u, sweep_write},   {"write", 1ull << 20u, sweep_write},
-    {"write", 4ull << 20u, sweep_write},     {"write", 16ull << 20u, sweep_write},
-    {"write", 64ull << 20u, sweep_write},    {"slice", 64ull << 10u, sweep_slice},
-    {"slice", 128ull << 10u, sweep_slice},   {"slice", 256ull << 10u, sweep_slice},
-    {"slice", 384ull << 10u, sweep_slice},   {"slice", 512ull << 10u, sweep_slice},
-    {"slice", 1ull << 20u, sweep_slice},     {"slice", 2ull << 20u, sweep_slice}};
+    {"region", 16ull << 20u, sweep_region},  {"region", 64ull << 20u, sweep_region},
+    {"region", 256ull << 20u, sweep_region}, {"region", 1ull << 30u, sweep_region},
+    {"write", 64ull << 10u, sweep_write},    {"write", 256ull << 10u, sweep_write},
+    {"write", 1ull << 20u, sweep_write},     {"write", 4ull << 20u, sweep_write},
+    {"write", 16ull << 20u, sweep_write},    {"write", 64ull << 20u, sweep_write},
+    {"slice", 64ull << 10u, sweep_slice},    {"slice", 128ull << 10u, sweep_slice},
+    {"slice", 256ull << 10u, sweep_slice},   {"slice", 384ull << 10u, sweep_slice},
+    {"slice", 512ull << 10u, sweep_slice},   {"slice", 1ull << 20u, sweep_slice},
+    {"slice", 2ull << 20u, sweep_slice}};
 
 #define QUERY_SWEEP_ENTRIES ((unsigned int)(sizeof(s_entries) / sizeof(s_entries[0])))
 
@@ -228,23 +228,22 @@ static int sweep_picked(QueryContext *context, const QueryWriter *own)
         median[entry] = sweep_median(timed, kept);
     }
     cli_cell_given_by(&g_query_cells, rates);
-    const unsigned long long commit = sweep_taken("commit", 0ull, median);
+    const unsigned long long region = sweep_taken("region", 0ull, median);
     const unsigned long long write = sweep_taken("write", 0ull, median);
     const unsigned long long slice = sweep_taken("slice", QUERY_SWEEP_SLICE_NEAR, median);
-    if ((commit == 0ull) || (write == 0ull) || (slice == 0ull))
+    if ((region == 0ull) || (write == 0ull) || (slice == 0ull))
     {
         query_said(context, "  fewer sweeps say than the host's sizes are written from");
         return 1;
     }
     char text[1024];
     CliLine header = {text, sizeof(text), 0ull};
-    cli_line_text(&header, "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR "
-                           "LicenseRef-Educational\n// qry_host.h: this host's steps for the run's writer, the fastest "
-                           "of each size's median over the host's\n// sweeps, written by `orior protocol sweep` and "
-                           "read by qry_writer_internal.h\n#ifndef QRY_HOST_H\n#define QRY_HOST_H\n\n#define "
-                           "QRY_WRITER_COMMIT_BYTES ");
-    cli_line_decimal(&header, commit, 0u);
-    cli_line_text(&header, "ull\n#define QRY_WRITER_PIECE_BYTES ");
+    cli_line_text(&header,
+                  "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR "
+                  "LicenseRef-Educational\n// qry_host.h: this host's steps for the run's writer, the fastest "
+                  "of each size's median over the host's\n// sweeps, written by `orior_cli protocol sweep` and "
+                  "read by qry_writer_internal.h\n#ifndef QRY_HOST_H\n#define QRY_HOST_H\n\n#define "
+                  "QRY_WRITER_PIECE_BYTES ");
     cli_line_decimal(&header, write, 0u);
     cli_line_text(&header, "ull\n\n#endif\n");
     sweep_written(context, QUERY_SWEEP_HOST_HEADER, &header);
@@ -252,7 +251,7 @@ static int sweep_picked(QueryContext *context, const QueryWriter *own)
     cli_line_text(&module, "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR "
                            "LicenseRef-Educational\n\n// The file window's sizes on this host, the slice the fastest "
                            "of each size's median over the\n// host's sweeps, or within a twentieth of it and smaller, "
-                           "written by `orior protocol sweep`:\n// a window HALF bytes either side of a line, read "
+                           "written by `orior_cli protocol sweep`:\n// a window HALF bytes either side of a line, read "
                            "outward a SLICE at a time.\nexport const HALF = ");
     cli_line_decimal(&module, slice / 2ull, 0u);
     cli_line_text(&module, ";\nexport const SLICE = ");

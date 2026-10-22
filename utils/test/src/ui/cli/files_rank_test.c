@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_rank_test.c: the quick open and the editor's windows: a name as typed stands above every looser match and above
 // the files opened lately; with fuzzy matching off only the text as typed answers; a quick open answers from the
-// recent files until the tree is read; a window and its slices are whole numbered lines; and a name typed matches its
-// letters in the name, each score the palette's own, a query torn into too many pieces matching nothing
+// recent files until the tree is read; a slice and the slices about it are whole numbered lines; and a name typed
+// matches its letters in the name, each score the palette's own, a query torn into too many pieces matching nothing
 #include "../../../../../ui/cli/src/editor/files.h"
 #include "cli_check.h"
 
@@ -159,7 +159,18 @@ static void rank_line(CliLine *out, unsigned long long n)
     cli_line_character(out, '\n');
 }
 
-// a window and its slices are whole numbered lines
+// the number `n` of the "line n " a window's text starts with
+static unsigned long long rank_first_line(const char *text)
+{
+    unsigned long long n = 0ull;
+    for (unsigned long long at = 5ull; (text[at] >= '0') && (text[at] <= '9'); at += 1ull)
+    {
+        n = (n * 10ull) + (unsigned long long)(text[at] - '0');
+    }
+    return n;
+}
+
+// a slice and the slices about it are whole numbered lines
 static void rank_windows(void)
 {
     static RankWindow s_window;
@@ -179,18 +190,17 @@ static void rank_windows(void)
     cli_full(root, "lines.txt", path);
     (void)query_file_written(path, s_text, text.at);
     CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(rank_window(cli_files_window(root, "lines.txt", 2500ull, 3000ull, &out, &said), &out, &s_window),
-              "a window is read");
+    cli_check(rank_window(cli_files_slice(root, "lines.txt", 2500ull, 3000ull, &out, &said), &out, &s_window) &&
+                  (s_window.start >= 2500ull) && (s_window.end >= 3000ull) && (s_window.end > s_window.start),
+              "a slice is read about its bytes");
+    s_window.line = rank_first_line(s_window.text);
     CliLine first = {wanted, sizeof(wanted), 0ull};
     rank_line(&first, s_window.line);
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_window.text, .cap = CLI_CELLS_POOL});
-    cli_check(
-        cli_text_same(s_window.text, wanted, first.at) &&
-            (cellul.find(&(CatenaFinitaCfg){
-                 .src = s_window.text, .cap = CLI_CELLS_POOL, .other = "\nline 2500 ", .other_cap = CLI_CELLS_POOL}) !=
-             NULL) &&
-            (length > 0ull) && (s_window.text[length - 1u] == '\n'),
-        "its whole lines, numbered from its first");
+    cli_check(cli_text_same(s_window.text, wanted, first.at) &&
+                  ((s_window.start == 0ull) || (s_text[s_window.start - 1ull] == '\n')) && (length > 0ull) &&
+                  (s_window.text[length - 1u] == '\n'),
+              "its whole lines, from a line's first byte");
     out.at = 0ull;
     cli_check(rank_window(cli_files_slice(root, "lines.txt", s_window.end, s_window.end + 2000ull, &out, &said), &out,
                           &s_below) &&
@@ -219,9 +229,9 @@ static void rank_windows(void)
                        .src = s_above.text + above - before.at, .other = wanted, .bytes = before.at}) == 0),
               "with the line before its first");
     out.at = 0ull;
-    cli_check(rank_window(cli_files_window(root, "lines.txt", 99999ull, 100ull, &out, &said), &out, &s_window) &&
+    cli_check(rank_window(cli_files_slice(root, "lines.txt", 999999ull, 1000099ull, &out, &said), &out, &s_window) &&
                   (s_window.end == s_window.size),
-              "a window past the end ends at the file's");
+              "a slice past the end ends at the file's");
 }
 
 // whether `query` matches `text` past `from` with `score`, any where it is below 0, and the hits `wanted`, any where it

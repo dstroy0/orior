@@ -232,7 +232,7 @@ static int emit_given_names(const char *key, const char *uri, const char **names
         return 0;
     }
     unsigned long long build_size = 0ull;
-    const unsigned char *const build = qry_member_file_mapped(path, &build_size);
+    const unsigned char *const build = cli_file_held(path, &build_size);
     if (build == NULL)
     {
         return 0;
@@ -242,7 +242,7 @@ static int emit_given_names(const char *key, const char *uri, const char **names
     CliLine given;
     cli_pieces_begun(&pieces, &given, piece, sizeof(piece));
     cli_build_given_names(path, (const char *)build, build_size, emit_name_put, &given);
-    qry_member_file_unmapped(build, build_size);
+    cli_file_let_go(build, build_size);
     unsigned long long given_size = 0ull;
     char *const joined = cli_pieces_joined(&pieces, &given, "the names a build tool gives", &given_size);
     (void)cli_keyed_put(&g_cli_servers_given, key, "", (joined != NULL) ? joined : "",

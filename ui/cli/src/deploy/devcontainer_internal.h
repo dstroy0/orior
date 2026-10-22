@@ -18,9 +18,12 @@ typedef struct
 } CliPlanPlaces;
 
 // the description at `file` read and made plain JSON, its tokens read, and nothing yet found too long: 1, or 0 with
-// why said; 1 where a text of it did not fit what a plan keeps
+// why said, the plain text and its tokens in cells sized to it; those cells given back once the plan is made; 1 where a
+// text of it did not fit what a plan keeps; and the cells the description holds
 int cli_plan_description_read(const char *file, CliLine *said);
+void cli_plan_description_given(void);
 int cli_plan_overflowed(void);
+extern CliCellsTally g_cli_devcontainer_cells;
 // the string at token `value` decoded into `out`, which holds CLI_STRING_LONGEST: 1, or 0 where it is no string; the
 // member `name` of the description, and of the object at token `object` where it is a member found, 0 where none
 int cli_plan_string(unsigned int value, char *out);

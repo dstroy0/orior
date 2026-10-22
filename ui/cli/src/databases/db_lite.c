@@ -61,7 +61,7 @@ static int lite_line(CliDbLite *lite, CliDbFailure *failure)
     }
     if (!fits)
     {
-        cli_db_failure_said(failure, "SQLite's process said more in one line than orior reads");
+        cli_db_failure_said(failure, "SQLite's process said more in one line than orior_cli reads");
     }
     return fits;
 }
@@ -84,7 +84,7 @@ static int lite_ask(CliDbLite *lite, const char *request, unsigned long long siz
     unsigned long long length = 0ull;
     if (!cli_json_compacted(lite->line, lite->size, &(CliLine){NULL, 0ull, 0ull}))
     {
-        cli_db_failure_said(failure, "SQLite's process said what orior cannot read");
+        cli_db_failure_said(failure, "SQLite's process said what orior_cli cannot read");
         return 0;
     }
     lite->in_transaction = lite_member(lite, "tx", &start, &length) && (length == 4u) &&
@@ -162,7 +162,7 @@ CliDbLite *cli_db_lite_open(const char *file, int read_only, CliDbFailure *failu
     if (lite == NULL)
     {
         cli_db_failure_said(failure, (slot < CLI_DB_LITES) ? "no room is left to open a SQLite database in"
-                                                           : "orior holds as many SQLite databases open as it can");
+                                                           : "orior_cli holds as many SQLite databases open as it can");
         return NULL;
     }
     lite->start = 0ull;
@@ -354,7 +354,7 @@ int cli_db_lite_start(CliDbLite *lite, const char *statement, unsigned long long
     cli_cell_given_by(&g_cli_db_cells, request);
     if (!fits)
     {
-        cli_db_failure_said(failure, (request != NULL) ? "the statement is longer than orior sends SQLite's process"
+        cli_db_failure_said(failure, (request != NULL) ? "the statement is longer than orior_cli sends SQLite's process"
                                                        : "no room is left to send the statement in");
     }
     if (!answered)

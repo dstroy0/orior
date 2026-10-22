@@ -6,15 +6,22 @@
 #ifndef WINDOW_INTERNAL_H
 #define WINDOW_INTERNAL_H
 
+#include "../command_line/cells.h"
 #include "serve_internal.h"
 #include "window.h"
+
+// the cells a call on a text holds while it answers (window_call_text.c), and a call on the reader's places
+// (window_call_places.c)
+extern CliCellsTally g_cli_window_text_cells;
+extern CliCellsTally g_cli_window_places_cells;
 
 // `text` written as a JSON string, its bytes read as Rust's from_utf8_lossy reads them; `size` bytes of it the same;
 // and a JSON array of the `count` strings of `items`
 void cli_window_quoted(CliLine *out, const char *text);
 void cli_window_counted(CliLine *out, const char *text, unsigned long long size);
 void cli_window_strings(CliLine *out, const char *const *items, unsigned int count);
-// orior's own folder into `folder`, which holds CLI_PATH_LONGEST: 1, or 0 with "orior has no folder of its own" said
+// orior's own folder into `folder`, which holds CLI_PATH_LONGEST: 1, or 0 with "orior_cli has no folder of its own"
+// said
 int cli_window_home(char *folder, CliLine *said);
 // the argument `key` written as compact JSON into `out`, `null` where there is none
 void cli_window_arg_written(const CliServeArgs *args, const char *key, CliLine *out);

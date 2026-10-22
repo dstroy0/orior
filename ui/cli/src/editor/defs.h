@@ -10,6 +10,9 @@
 
 #include "../command_line/cli_internal.h"
 
+// the cells the definitions are read through, counted, each given back before cli_defs_read returns
+extern CliCellsTally g_cli_defs_cells;
+
 // the tree's definitions written into `out` as the window reads them: `{"types": [{"ext", "table": {"name", "path",
 // "columns", "rows"}, "header"}...], "head": {"bytes", "magic", "version"} or null, "languages": [table...]}`
 void cli_defs_read(const char *root, CliLine *out);

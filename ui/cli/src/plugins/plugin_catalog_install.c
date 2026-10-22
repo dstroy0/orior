@@ -8,15 +8,6 @@
 
 #include "../text/text.h"
 
-// the nodes and texts of the tree a package's plugin.json is read into
-#define CLI_CATALOG_OWN_NODES (1u << 16u)
-#define CLI_CATALOG_OWN_TEXT (8u << 20u)
-
-static CliJsonNode s_own_nodes[CLI_CATALOG_OWN_NODES];
-static CfgJsonToken s_own_tokens[CLI_CATALOG_OWN_NODES];
-static char s_own_text[CLI_CATALOG_OWN_TEXT];
-static CliJson s_own;
-
 // whether a file's name in a package stays inside its plugin's folder: no part of it empty, `.` or `..`
 static int catalog_inside(const char *name)
 {
@@ -73,10 +64,7 @@ static unsigned int catalog_package(const char *from, const char *id, const char
     }
     char why[CLI_SAID_LONGEST];
     CliLine read_said = {why, sizeof(why), 0ull};
-    cli_json_begun(&g_cli_catalog->json, g_cli_catalog->nodes, CLI_CATALOG_NODES, g_cli_catalog->text,
-                   sizeof(g_cli_catalog->text));
-    const unsigned int package = cli_json_read(&g_cli_catalog->json, (const char *)g_cli_catalog->bytes, size,
-                                               g_cli_catalog->tokens, CLI_CATALOG_NODES, &read_said);
+    const unsigned int package = cli_plugin_catalog_tree((const char *)g_cli_catalog->bytes, size, &read_said);
     const char *const kind =
         cli_json_string(&g_cli_catalog->json, cli_json_member(&g_cli_catalog->json, package, "orior"), NULL);
     const unsigned int files = cli_json_member(&g_cli_catalog->json, package, "files");
@@ -118,8 +106,9 @@ static unsigned int catalog_package(const char *from, const char *id, const char
         return CLI_JSON_NONE;
     }
     read_said.at = 0ull;
-    cli_json_begun(&s_own, s_own_nodes, CLI_CATALOG_OWN_NODES, s_own_text, sizeof(s_own_text));
-    const unsigned int own = cli_json_read(&s_own, own_text, own_size, s_own_tokens, CLI_CATALOG_OWN_NODES, &read_said);
+    CliJson own_json;
+    cli_json_begun(&own_json, NULL, 0u, NULL, 0ull);
+    const unsigned int own = cli_json_taken(&own_json, own_text, own_size, 0u, 0ull, &read_said);
     if (own == CLI_JSON_NONE)
     {
         cli_line_text(said, from);
@@ -127,10 +116,11 @@ static unsigned int catalog_package(const char *from, const char *id, const char
         cli_line_counted(said, why, read_said.at);
         return CLI_JSON_NONE;
     }
-    const char *const own_id = cli_plugin_catalog_field(&s_own, own, "id");
-    const char *const own_version = cli_plugin_catalog_field(&s_own, own, "version");
-    if ((!cellul.eq(&(CatenaFinitaCfg){.src = own_id, .other = id, .cap = CLI_CELLS_POOL})) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = own_version, .other = version, .cap = CLI_CELLS_POOL})))
+    const char *const own_id = cli_plugin_catalog_field(&own_json, own, "id");
+    const char *const own_version = cli_plugin_catalog_field(&own_json, own, "version");
+    const int matched = (cellul.eq(&(CatenaFinitaCfg){.src = own_id, .other = id, .cap = CLI_CELLS_POOL})) &&
+                        (cellul.eq(&(CatenaFinitaCfg){.src = own_version, .other = version, .cap = CLI_CELLS_POOL}));
+    if (!matched)
     {
         cli_line_text(said, from);
         cli_line_text(said, " holds ");
@@ -141,6 +131,10 @@ static unsigned int catalog_package(const char *from, const char *id, const char
         cli_line_text(said, id);
         cli_line_character(said, ' ');
         cli_line_text(said, version);
+    }
+    cli_json_given(&own_json);
+    if (!matched)
+    {
         return CLI_JSON_NONE;
     }
     for (unsigned int file = g_cli_catalog->json.node[files].first; file != CLI_JSON_NONE;
@@ -196,10 +190,7 @@ int cli_plugin_catalog_install_into(const char *plugins, const char *address, co
     }
     char why[CLI_SAID_LONGEST];
     CliLine read_said = {why, sizeof(why), 0ull};
-    cli_json_begun(&g_cli_catalog->json, g_cli_catalog->nodes, CLI_CATALOG_NODES, g_cli_catalog->text,
-                   sizeof(g_cli_catalog->text));
-    const unsigned int node =
-        cli_json_read(&g_cli_catalog->json, entry, size, g_cli_catalog->tokens, CLI_CATALOG_NODES, &read_said);
+    const unsigned int node = cli_plugin_catalog_tree(entry, size, &read_said);
     if (node == CLI_JSON_NONE)
     {
         cli_line_counted(said, why, read_said.at);
@@ -229,7 +220,7 @@ int cli_plugin_catalog_install_into(const char *plugins, const char *address, co
         (void)cli_line_closed(&from_line);
         if (!done)
         {
-            cli_line_text(said, "the entry is larger than orior holds");
+            cli_line_text(said, "the entry is larger than orior_cli holds");
         }
     }
     const unsigned int files = done ? catalog_package(from, id, version, sha256, said) : CLI_JSON_NONE;
@@ -280,7 +271,7 @@ int cli_plugin_catalog_install(const char *address, const char *entry, unsigned 
     char plugins[CLI_PATH_LONGEST];
     if (!cli_home_plugins(plugins))
     {
-        cli_line_text(said, "orior has no folder of its own");
+        cli_line_text(said, "orior_cli has no folder of its own");
         return 0;
     }
     return cli_plugin_catalog_install_into(plugins, address, entry, size, out, said);

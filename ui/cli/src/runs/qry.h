@@ -15,7 +15,11 @@
 #ifndef CLI_QRY_H
 #define CLI_QRY_H
 
+#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+
+// the cells a tree's runs are listed in (qry_listed.c)
+extern CliCellsTally g_cli_qry_listed_cells;
 
 // the prefix of a conference's records, its question's identity after it
 #define CLI_CONFERENCE "conference_"
@@ -46,6 +50,8 @@ int cli_qry_joined_bytes(const char *path, const char *name, CliLine *out, CliLi
 unsigned int cli_qry_member_names(const unsigned char *data, unsigned long long size, char (*names)[CLI_NAME_LONGEST],
                                   unsigned int room);
 void cli_qry_member_joined(const unsigned char *data, unsigned long long size, const char *name, CliLine *out);
+// the bytes the blobs of `name` in `size` bytes of a .qry join to
+unsigned long long cli_qry_member_size(const unsigned char *data, unsigned long long size, const char *name);
 // `size` bytes appended to the run at `path` as a record of `name` at `priority`, the window a member of that run; a
 // panic or a critical record waited on until it is on the disk: 1, or 0 with why said
 int cli_qry_append(const char *path, const char *name, const void *bytes, unsigned long long size,
@@ -61,7 +67,8 @@ int cli_qry_stop(const char *path, CliLine *said);
 int cli_qry_joined(char *path);
 void cli_qry_join_window(const char *path);
 // `size` bytes queued to be appended to the run at `path` as the record `name` at `priority`, on `channel`; a panic
-// or a critical record on the signal channel whatever channel is named; and what the queue has done so far written as
+// or a critical record on the signal channel whatever channel is named, and a record larger than half a channel's
+// ring appended before the call returns; and what the queue has done so far written as
 // `{"handed", "dumped", "failed", "said"}` (qry_queue.c)
 void cli_qry_queue(unsigned int channel, const char *path, const char *name, const void *bytes, unsigned long long size,
                    unsigned int priority);

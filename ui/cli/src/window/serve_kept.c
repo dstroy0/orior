@@ -87,7 +87,7 @@ static void kept_follower(void *context)
         if (whole > at)
         {
             unsigned long long mapped_size = 0ull;
-            const unsigned char *const mapped = qry_member_file_mapped(said_file, &mapped_size);
+            const unsigned char *const mapped = cli_file_held(said_file, &mapped_size);
             if (mapped != NULL)
             {
                 const unsigned long long room = sizeof(one->held) - one->holding;
@@ -95,7 +95,7 @@ static void kept_follower(void *context)
                 read = (read < room) ? read : room;
                 memor.cpy(&(MemoriaCfg){.dst = one->held + one->holding, .src = mapped + at, .bytes = (size_t)read});
                 one->holding += read;
-                qry_member_file_unmapped(mapped, mapped_size);
+                cli_file_let_go(mapped, mapped_size);
             }
         }
         if (read > 0ull)

@@ -5,9 +5,8 @@
 #include "../text/text.h"
 #include "carry_internal.h"
 
-// the most keys a settings comparison reads, and the most bytes of the settings that differ or are written
+// the most keys a settings comparison reads
 #define CLI_CARRY_KEYS 4096u
-#define CLI_CARRY_SETTINGS (1u << 24u)
 
 // The room taking needs: what travels here, the settings read, the keys of two settings, and a taking
 typedef struct
@@ -63,27 +62,34 @@ static void cli_keys_of(unsigned int mine, unsigned int theirs)
 // a setting's value written as JSON in a string, or null where it is not set
 static void cli_value_written(CliLine *out, unsigned int value)
 {
-    static char s_value[1u << 20u];
-    if (value == CLI_JSON_NONE)
+    CliLine line;
+    if ((value == CLI_JSON_NONE) || !cli_line_growing(&line, CLI_CARRY_WRITTEN_FIRST, "a setting's value written"))
     {
         cli_line_text(out, "null");
         return;
     }
-    CliLine line = {s_value, sizeof(s_value), 0ull};
     cli_json_write(&s_take.room.json, value, &line, 0u, 0);
-    cli_json_quoted(out, s_value, line.at);
+    cli_json_quoted(out, line.out, cli_line_fits(&line) ? line.at : 0ull);
+    cli_cell_given(line.out);
 }
 
 // the settings that differ between two settings texts written, each with its value here and there: 1 where any do
 static int cli_settings_differ(const CliCarried *there, unsigned int mine_at, unsigned int theirs_at, CliLine *out)
 {
     CliJson *const json = &s_take.room.json;
+    const unsigned long long theirs_size = (theirs_at < there->count) ? there->size[theirs_at] : 0ull;
     const unsigned int mine = cli_carry_settings_of(
         &s_take.room, (mine_at < s_take.here.count) ? cli_carried_value(&s_take.here, mine_at) : "",
-        (mine_at < s_take.here.count) ? s_take.here.size[mine_at] : 0ull, 1);
+        (mine_at < s_take.here.count) ? s_take.here.size[mine_at] : 0ull, theirs_size);
     const unsigned int theirs =
-        cli_carry_settings_of(&s_take.room, (theirs_at < there->count) ? cli_carried_value(there, theirs_at) : "",
-                              (theirs_at < there->count) ? there->size[theirs_at] : 0ull, 0);
+        (mine != CLI_JSON_NONE)
+            ? cli_carry_settings_beside(
+                  &s_take.room, (theirs_at < there->count) ? cli_carried_value(there, theirs_at) : "", theirs_size)
+            : CLI_JSON_NONE;
+    if (theirs == CLI_JSON_NONE)
+    {
+        return 0;
+    }
     cli_keys_of(mine, theirs);
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < s_take.keys; at += 1u)
@@ -111,14 +117,14 @@ static int cli_settings_differ(const CliCarried *there, unsigned int mine_at, un
 void cli_carry_differences(const char *home, const CliCarried *there, CliLine *out)
 {
     cli_lock_take(&s_lock);
-    char *const settings_text = cli_cell_taken(CLI_CARRY_SETTINGS, "the settings that differ");
-    if ((settings_text == NULL) || !cli_carry_room_taken(&s_take.room))
+    CliLine settings;
+    if (!cli_line_growing(&settings, CLI_CARRY_WRITTEN_FIRST, "the settings that differ"))
     {
-        cli_cell_given(settings_text);
         cli_line_text(out, "[]");
         cli_lock_give(&s_lock);
         return;
     }
+    cli_carry_room_begun(&s_take.room);
     char why[CLI_NAME_LONGEST];
     CliLine unpacked = {why, sizeof(why), 0ull};
     if (!cli_carry_pack(home, &s_take.here, &unpacked))
@@ -145,7 +151,7 @@ void cli_carry_differences(const char *home, const CliCarried *there, CliLine *o
         mine_at += (order <= 0) ? 1u : 0u;
         theirs_at += (order >= 0) ? 1u : 0u;
         const char *how = NULL;
-        CliLine settings = {settings_text, CLI_CARRY_SETTINGS, 0ull};
+        settings.at = 0ull;
         if (cellul.eq(&(CatenaFinitaCfg){.src = place, .other = "settings.json", .cap = CLI_CELLS_POOL}))
         {
             how = cli_settings_differ(there, mine, theirs, &settings) ? "changed" : NULL;
@@ -171,14 +177,14 @@ void cli_carry_differences(const char *home, const CliCarried *there, CliLine *o
         cli_line_text(out, ",\"how\":\"");
         cli_line_text(out, how);
         cli_line_text(out, "\",\"settings\":[");
-        cli_line_counted(out, settings_text, settings.at);
+        cli_line_counted(out, settings.out, cli_line_fits(&settings) ? settings.at : 0ull);
         cli_line_text(out, "]}");
         written += 1u;
     }
     cli_line_character(out, ']');
     cli_carried_clear(&s_take.here);
     cli_carry_room_given(&s_take.room);
-    cli_cell_given(settings_text);
+    cli_cell_given(settings.out);
     cli_lock_give(&s_lock);
 }
 
@@ -195,34 +201,24 @@ static int cli_written_to(const char *to, const char *text, unsigned long long s
     return 1;
 }
 
-// the text of the file at `path` where it is there and UTF-8, mapped: its bytes, or NULL
-static const unsigned char *cli_text_at(const char *path, unsigned long long *size)
-{
-    const unsigned char *const bytes = qry_member_file_mapped(path, size);
-    for (unsigned long long at = 0ull; (bytes != NULL) && (at < *size);)
-    {
-        unsigned int letter = 0u;
-        const unsigned long long step = cli_lossy_letter(bytes, *size, at, &letter);
-        if ((step == 1ull) && (bytes[at] >= 0x80u))
-        {
-            qry_member_file_unmapped(bytes, *size);
-            return NULL;
-        }
-        at += step;
-    }
-    return bytes;
-}
-
-// the settings of this machine kept and of `keys` taken from there, written into `out`
-static void cli_settings_taken(const char *before, unsigned long long before_size, const CliCarried *there,
-                               const char *const *keys, unsigned int key_count, CliLine *out)
+// the settings of this machine kept and of `keys` taken from there, written into `out`: 1, or 0 where the settings'
+// tree is refused its cell or they do not fit
+static int cli_settings_taken(const char *before, unsigned long long before_size, const CliCarried *there,
+                              const char *const *keys, unsigned int key_count, CliLine *out)
 {
     CliJson *const json = &s_take.room.json;
     const unsigned int theirs_at = cli_carried_find(there, "settings.json");
-    const unsigned int mine = cli_carry_settings_of(&s_take.room, before, before_size, 1);
+    const unsigned long long theirs_size = (theirs_at < there->count) ? there->size[theirs_at] : 0ull;
+    const unsigned int mine = cli_carry_settings_of(&s_take.room, before, before_size, theirs_size);
     const unsigned int theirs =
-        cli_carry_settings_of(&s_take.room, (theirs_at < there->count) ? cli_carried_value(there, theirs_at) : "",
-                              (theirs_at < there->count) ? there->size[theirs_at] : 0ull, 0);
+        (mine != CLI_JSON_NONE)
+            ? cli_carry_settings_beside(
+                  &s_take.room, (theirs_at < there->count) ? cli_carried_value(there, theirs_at) : "", theirs_size)
+            : CLI_JSON_NONE;
+    if (theirs == CLI_JSON_NONE)
+    {
+        return 0;
+    }
     for (unsigned int at = 0u; at < key_count; at += 1u)
     {
         if (cli_carry_machine(keys[at]))
@@ -240,14 +236,15 @@ static void cli_settings_taken(const char *before, unsigned long long before_siz
         }
     }
     cli_carry_settings_written(&s_take.room, mine, out);
+    return cli_line_fits(out);
 }
 
 // one place taken in: its file kept in `kept` where one stood, and written as there: 1, or 0 with why said
 static int cli_place_taken(const char *home, const char *kept, const char *place, const CliCarried *there,
                            const char *const *keys, unsigned int key_count, CliLine *said)
 {
-    char *const settings_text = cli_cell_taken(CLI_CARRY_SETTINGS, "the settings written");
-    if (settings_text == NULL)
+    CliLine settings;
+    if (!cli_line_growing(&settings, CLI_CARRY_WRITTEN_FIRST, "the settings written"))
     {
         cli_line_text(said, "the settings written could not be given a cell");
         return 0;
@@ -255,15 +252,19 @@ static int cli_place_taken(const char *home, const char *kept, const char *place
     char path[CLI_PATH_LONGEST];
     cli_full(home, place, path);
     unsigned long long before_size = 0ull;
-    const unsigned char *const before = cli_text_at(path, &before_size);
+    const unsigned char *const before = cli_file_held_utf8(path, &before_size);
     const char *text = NULL;
     unsigned long long size = 0ull;
-    CliLine settings = {settings_text, CLI_CARRY_SETTINGS, 0ull};
+    int taken = 1;
     if (cellul.eq(&(CatenaFinitaCfg){.src = place, .other = "settings.json", .cap = CLI_CELLS_POOL}))
     {
-        cli_settings_taken((before != NULL) ? (const char *)before : "", before_size, there, keys, key_count,
-                           &settings);
-        text = settings_text;
+        taken = cli_settings_taken((before != NULL) ? (const char *)before : "", before_size, there, keys, key_count,
+                                   &settings);
+        if (!taken)
+        {
+            cli_line_text(said, "the settings taken could not be given cells");
+        }
+        text = settings.out;
         size = settings.at;
     }
     else
@@ -272,8 +273,7 @@ static int cli_place_taken(const char *home, const char *kept, const char *place
         text = (at < there->count) ? cli_carried_value(there, at) : NULL;
         size = (at < there->count) ? there->size[at] : 0ull;
     }
-    int taken = 1;
-    if ((text != NULL) && (before != NULL))
+    if (taken && (text != NULL) && (before != NULL))
     {
         char saved[CLI_PATH_LONGEST];
         cli_full(kept, place, saved);
@@ -285,7 +285,7 @@ static int cli_place_taken(const char *home, const char *kept, const char *place
     const unsigned int stood = (before != NULL) ? 1u : 0u;
     if (before != NULL)
     {
-        qry_member_file_unmapped(before, before_size);
+        cli_file_let_go(before, before_size);
     }
     taken = taken && ((text == NULL) || cli_written_to(path, text, size, said));
     if (taken && (text != NULL) && (s_take.taking.files < CLI_TAKING_FILES))
@@ -295,21 +295,21 @@ static int cli_place_taken(const char *home, const char *kept, const char *place
         s_take.taking.stood[s_take.taking.files] = stood;
         s_take.taking.files += 1u;
     }
-    cli_cell_given(settings_text);
+    cli_cell_given(settings.out);
     return taken;
 }
 
 int cli_carry_take(const char *home, const char *from, const CliCarried *there, const char *const *places,
                    unsigned int count, const char *const *keys, unsigned int key_count, CliLine *out, CliLine *said)
 {
-    static char s_written[1u << 20u];
-    cli_lock_take(&s_lock);
-    if (!cli_carry_room_taken(&s_take.room))
+    CliLine written;
+    if (!cli_line_growing(&written, CLI_CARRY_WRITTEN_FIRST, "a taking written"))
     {
-        cli_line_text(said, "the settings' cells could not be taken");
-        cli_lock_give(&s_lock);
+        cli_line_text(said, "a taking written could not be given a cell");
         return 0;
     }
+    cli_lock_take(&s_lock);
+    cli_carry_room_begun(&s_take.room);
     CliTaking *const taking = &s_take.taking;
     taking->at = cli_wall_milliseconds();
     CliLine id = {taking->id, sizeof(taking->id), 0ull};
@@ -333,14 +333,15 @@ int cli_carry_take(const char *home, const char *from, const CliCarried *there, 
     }
     char file[CLI_PATH_LONGEST];
     cli_full(kept, "taking.json", file);
-    CliLine written = {s_written, sizeof(s_written), 0ull};
     cli_carry_taking_written(taking, 1, &written);
-    taken = taken && query_folder_made(kept) && cli_written_to(file, s_written, written.at, said);
+    taken = taken && cli_line_fits(&written) && query_folder_made(kept) &&
+            cli_written_to(file, written.out, written.at, said);
     if (taken)
     {
         cli_carry_taking_written(taking, 0, out);
     }
     cli_carry_room_given(&s_take.room);
     cli_lock_give(&s_lock);
+    cli_cell_given(written.out);
     return taken;
 }

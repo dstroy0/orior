@@ -1,32 +1,35 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_reports.c: what a Python process reports of its tests read: pytest's report in JUnit's form, each test with how
-// long it took, a failure's and a skip's message and the line its traceback last names; and unittest's report of its
-// failures, each with its last line and the line of its file its traceback last names
+// long it took, a failure's and a skip's message and the line its traceback last names; and the reading of a report's
+// text both forms share
 #include "test_runs_internal.h"
 
 #include "../text/text.h"
 #include <stdlib.h>
 
-// the most attributes a tag of the report holds, and the bytes their values and a failure's text take
+// the most attributes a tag of the report holds, and the most bytes their values and a failure's text take
 #define CLI_REPORT_ATTRIBUTES 32u
 #define CLI_REPORT_VALUES (1u << 18u)
 #define CLI_REPORT_TEXT (1u << 22u)
 
-// The attributes of a tag: each name's start and size in the report, and its value, its entities read, in the values
+// The attributes of a tag: each name's start and size in the report, and its value, its entities read, in the values,
+// a cell of `room` bytes taken larger as a longer tag is read and given back as the report is
 typedef struct
 {
     const char *name[CLI_REPORT_ATTRIBUTES];
     unsigned long long name_size[CLI_REPORT_ATTRIBUTES];
     unsigned long long value[CLI_REPORT_ATTRIBUTES];
     unsigned int count;
-    char values[CLI_REPORT_VALUES];
+    char *values;
+    unsigned long long room;
     unsigned long long used;
 } CliReportTag;
 
+CliCellsTally g_cli_test_report_cells = CLI_CELLS_TALLY("cli_test_report");
+
 static CliReportTag s_case;
 static CliReportTag s_said;
-static char s_text[CLI_REPORT_TEXT];
 static CliLock s_report_lock = CLI_LOCK_INIT;
 
 // `length` bytes of an XML text with their entities read written into `out`
@@ -58,8 +61,7 @@ static void report_unescaped(const char *text, unsigned long long length, CliLin
     }
 }
 
-// where `needle` is first found in `length` bytes of `text`, `length` where it is not
-static unsigned long long report_find(const char *text, unsigned long long length, const char *needle)
+unsigned long long cli_report_find(const char *text, unsigned long long length, const char *needle)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = needle, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ull; at + size <= length; at += 1ull)
@@ -77,16 +79,29 @@ static void report_attributes(const char *text, unsigned long long length, CliRe
 {
     tag->count = 0u;
     tag->used = 0ull;
+    // each value takes its letters, an entity read to one, and a terminator for the `="` and `"` about it, so the
+    // values fit in the bytes of the tag's text and one more
+    const unsigned long long room = (length < CLI_REPORT_VALUES) ? (length + 1ull) : CLI_REPORT_VALUES;
+    if (tag->room < room)
+    {
+        cli_cell_given_by(&g_cli_test_report_cells, tag->values);
+        tag->values = cli_cell_taken_by(&g_cli_test_report_cells, room, "the values of a report's tag");
+        tag->room = (tag->values != NULL) ? room : 0ull;
+    }
+    if (tag->values == NULL)
+    {
+        return;
+    }
     unsigned long long at = 0ull;
     for (;;)
     {
-        const unsigned long long equal = at + report_find(text + at, length - at, "=\"");
+        const unsigned long long equal = at + cli_report_find(text + at, length - at, "=\"");
         if (equal >= length)
         {
             return;
         }
         const unsigned long long from = equal + 2ull;
-        const unsigned long long size = report_find(text + from, length - from, "\"");
+        const unsigned long long size = cli_report_find(text + from, length - from, "\"");
         if (from + size >= length)
         {
             return;
@@ -97,7 +112,7 @@ static void report_attributes(const char *text, unsigned long long length, CliRe
         {
             name -= 1ull;
         }
-        CliLine value = {tag->values + tag->used, CLI_REPORT_VALUES - tag->used, 0ull};
+        CliLine value = {tag->values + tag->used, tag->room - tag->used, 0ull};
         report_unescaped(text + from, size, &value);
         // a name given again takes the later value, as a map's insert does
         unsigned int slot = 0u;
@@ -133,8 +148,7 @@ static const char *report_attribute(const CliReportTag *tag, const char *name)
     return NULL;
 }
 
-// a whole text read as a 32-bit count, a + before it as Rust takes one: 1, or 0 where it is none
-static int report_count(const char *text, unsigned long long length, long long *value)
+int cli_report_count(const char *text, unsigned long long length, long long *value)
 {
     unsigned long long start = 0ull;
     while ((start < length) &&
@@ -161,8 +175,7 @@ static int report_count(const char *text, unsigned long long length, long long *
     return (start < length) && (sum <= 4294967295ull);
 }
 
-// whether `length` bytes of a path, its backslashes read as slashes, end with `wanted`
-static int report_ends_with(const char *path, unsigned long long length, const char *wanted)
+int cli_report_ends_with(const char *path, unsigned long long length, const char *wanted)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL});
     if (length < size)
@@ -180,10 +193,8 @@ static int report_ends_with(const char *path, unsigned long long length, const c
     return 1;
 }
 
-// the next line of `size` bytes from `at`, a "\r" before its "\n" taken off: 1 with its start and end, or 0 where none
-// is left
-static int report_line(const char *text, unsigned long long size, unsigned long long *at, unsigned long long *start,
-                       unsigned long long *end)
+int cli_report_line(const char *text, unsigned long long size, unsigned long long *at, unsigned long long *start,
+                    unsigned long long *end)
 {
     if (*at >= size)
     {
@@ -205,9 +216,9 @@ static int report_traceback_line(const char *text, unsigned long long size, cons
     unsigned long long at = 0ull;
     unsigned long long start = 0ull;
     unsigned long long end = 0ull;
-    while (report_line(text, size, &at, &start, &end))
+    while (cli_report_line(text, size, &at, &start, &end))
     {
-        const unsigned long long place = start + report_find(text + start, end - start, ": ");
+        const unsigned long long place = start + cli_report_find(text + start, end - start, ": ");
         if (place >= end)
         {
             continue;
@@ -218,8 +229,8 @@ static int report_traceback_line(const char *text, unsigned long long size, cons
             colon -= 1ull;
         }
         long long number = 0ll;
-        if ((colon > start) && report_ends_with(text + start, colon - 1ull - start, wanted) &&
-            report_count(text + colon, place - colon, &number))
+        if ((colon > start) && cli_report_ends_with(text + start, colon - 1ull - start, wanted) &&
+            cli_report_count(text + colon, place - colon, &number))
         {
             *line = (number > 0ll) ? number - 1ll : 0ll;
             found = 1;
@@ -228,15 +239,14 @@ static int report_traceback_line(const char *text, unsigned long long size, cons
     return found;
 }
 
-// the last line of a text that is not blank, trimmed, as its start and size: 1, or 0 where every line is blank
-static int report_last_line(const char *text, unsigned long long size, int skip_rules, unsigned long long *last,
-                            unsigned long long *last_size)
+int cli_report_last_line(const char *text, unsigned long long size, int skip_rules, unsigned long long *last,
+                         unsigned long long *last_size)
 {
     int found = 0;
     unsigned long long at = 0ull;
     unsigned long long start = 0ull;
     unsigned long long end = 0ull;
-    while (report_line(text, size, &at, &start, &end))
+    while (cli_report_line(text, size, &at, &start, &end))
     {
         const int rule = skip_rules && (end - start >= 3ull) &&
                          (memor.cmp(&(MemoriaCfg){.src = text + start, .other = "---", .bytes = 3u}) == 0);
@@ -321,7 +331,8 @@ static void report_case_told(CliTestWorker *worker, const char *open, unsigned l
     long long own_line = -1ll;
     const char *const line_text = report_attribute(&s_case, "line");
     if ((line_text == NULL) ||
-        !report_count(line_text, cellul.len(&(CatenaFinitaCfg){.src = line_text, .cap = CLI_CELLS_POOL}), &own_line))
+        !cli_report_count(line_text, cellul.len(&(CatenaFinitaCfg){.src = line_text, .cap = CLI_CELLS_POOL}),
+                          &own_line))
     {
         own_line = -1ll;
     }
@@ -330,20 +341,25 @@ static void report_case_told(CliTestWorker *worker, const char *open, unsigned l
     static const char *const s_outcomes[3] = {"failed", "failed", "skipped"};
     for (unsigned int tag = 0u; tag < 3u; tag += 1u)
     {
-        const unsigned long long at = report_find(body, body_size, s_tags[tag]);
+        const unsigned long long at = cli_report_find(body, body_size, s_tags[tag]);
         if (at >= body_size)
         {
             continue;
         }
-        const unsigned long long tag_end = at + report_find(body + at, body_size - at, ">");
+        const unsigned long long tag_end = at + cli_report_find(body + at, body_size - at, ">");
         report_attributes(body + at, tag_end - at, &s_said);
         const unsigned long long text_end =
-            (tag_end < body_size) ? tag_end + report_find(body + tag_end, body_size - tag_end, "</") : body_size;
+            (tag_end < body_size) ? tag_end + cli_report_find(body + tag_end, body_size - tag_end, "</") : body_size;
         const unsigned long long text_start = (tag_end + 1ull < text_end) ? tag_end + 1ull : text_end;
-        CliLine text = {s_text, sizeof(s_text), 0ull};
+        // the text read takes no more bytes than it is written in, an entity read to one letter
+        const unsigned long long text_room =
+            ((text_end - text_start) < CLI_REPORT_TEXT) ? ((text_end - text_start) + 1ull) : CLI_REPORT_TEXT;
+        char *const held = cli_cell_taken_by(&g_cli_test_report_cells, text_room, "a failure's text in a report");
+        char refused[1] = {'\0'};
+        CliLine text = (held != NULL) ? (CliLine){held, text_room, 0ull} : (CliLine){refused, sizeof(refused), 0ull};
         report_unescaped(body + text_start, text_end - text_start, &text);
         long long line = own_line;
-        if (!report_traceback_line(s_text, text.at, wanted, &line))
+        if (!report_traceback_line(text.out, text.at, wanted, &line))
         {
             line = own_line;
         }
@@ -351,11 +367,12 @@ static void report_case_told(CliTestWorker *worker, const char *open, unsigned l
         unsigned long long last = 0ull;
         unsigned long long last_size = 0ull;
         const int given = (message != NULL) && (message[0] != '\0');
-        const int found = !given && report_last_line(s_text, text.at, 0, &last, &last_size);
-        cli_test_result_told(worker, id, s_outcomes[tag], given ? message : (found ? s_text + last : ""),
+        const int found = !given && cli_report_last_line(text.out, text.at, 0, &last, &last_size);
+        cli_test_result_told(worker, id, s_outcomes[tag], given ? message : (found ? text.out + last : ""),
                              given ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL})
                                    : (found ? last_size : 0ull),
                              wanted, line, taken);
+        cli_cell_given_by(&g_cli_test_report_cells, held);
         return;
     }
     cli_test_result_told(worker, id, "passed", "", 0ull, wanted, own_line, taken);
@@ -367,132 +384,25 @@ void cli_test_report_told(CliTestWorker *worker, const char *xml, unsigned long 
     unsigned long long rest = 0ull;
     for (;;)
     {
-        const unsigned long long start = rest + report_find(xml + rest, size - rest, "<testcase ");
+        const unsigned long long start = rest + cli_report_find(xml + rest, size - rest, "<testcase ");
         if (start >= size)
         {
             break;
         }
         const char *const at = xml + start;
         const unsigned long long length = size - start;
-        const unsigned long long open_end = report_find(at, length, ">");
+        const unsigned long long open_end = cli_report_find(at, length, ">");
         const int lone = (open_end > 0ull) && (open_end <= length) && (at[open_end - 1ull] == '/');
-        unsigned long long close = length;
-        if (lone)
-        {
-            close = open_end + 1ull;
-        }
-        else
-        {
-            const unsigned long long closing = report_find(at, length, "</testcase>");
-            close = (closing < length) ? closing + 11ull : length;
-        }
+        // a lone tag closes at its own end; any other where its closing tag ends, or at the text's end without one
+        const unsigned long long closing = lone ? 0ull : cli_report_find(at, length, "</testcase>");
+        const unsigned long long close = lone ? (open_end + 1ull) : ((closing < length) ? closing + 11ull : length);
         const unsigned long long body = (open_end < close) ? open_end : close;
         report_case_told(worker, at, open_end, at + body, close - body);
         rest = start + ((close < length) ? close : length);
     }
+    cli_cell_given_by(&g_cli_test_report_cells, s_case.values);
+    cli_cell_given_by(&g_cli_test_report_cells, s_said.values);
+    s_case = (CliReportTag){0};
+    s_said = (CliReportTag){0};
     cli_lock_give(&s_report_lock);
-}
-
-// one failure of unittest's report told: its name as pytest gives it, the last line of its traceback, and the line of
-// its file the traceback last names, the rule under its head and the rule after it bounding the traceback
-static void report_failure_told(CliTestWorker *worker, const char *block, unsigned long long size)
-{
-    unsigned long long at = 0ull;
-    unsigned long long start = 0ull;
-    unsigned long long end = 0ull;
-    (void)report_line(block, size, &at, &start, &end);
-    const unsigned long long open = report_find(block, end, " (");
-    if (open >= end)
-    {
-        return;
-    }
-    unsigned long long dotted_end = end;
-    while ((dotted_end > open + 2ull) && (block[dotted_end - 1ull] == ')'))
-    {
-        dotted_end -= 1ull;
-    }
-    char id[CLI_PATH_LONGEST * 2u];
-    if (!cli_test_unittest_id(block + open + 2ull, dotted_end - open - 2ull, id, sizeof(id)))
-    {
-        return;
-    }
-    char wanted[CLI_PATH_LONGEST];
-    const char *const path =
-        cellul.find(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
-    memor.cpy(&(MemoriaCfg){
-        .dst = wanted, .src = id, .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
-    wanted[(path != NULL) ? (size_t)(path - id) : cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL})] =
-        '\0';
-    unsigned long long body = size;
-    unsigned long long body_end = size;
-    while (report_line(block, size, &at, &start, &end))
-    {
-        if ((end - start >= 3ull) && (memor.cmp(&(MemoriaCfg){.src = block + start, .other = "---", .bytes = 3u}) == 0))
-        {
-            body = at;
-            break;
-        }
-    }
-    at = body;
-    while (report_line(block, size, &at, &start, &end))
-    {
-        if ((end - start >= 3ull) && (memor.cmp(&(MemoriaCfg){.src = block + start, .other = "---", .bytes = 3u}) == 0))
-        {
-            body_end = start;
-            break;
-        }
-    }
-    body = (body < body_end) ? body : body_end;
-    long long line = -1ll;
-    at = body;
-    while (report_line(block, body_end, &at, &start, &end))
-    {
-        while ((start < end) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = block[start]}) != NULL))
-        {
-            start += 1ull;
-        }
-        if ((end - start < 6ull) ||
-            (memor.cmp(&(MemoriaCfg){.src = block + start, .other = "File \"", .bytes = 6u}) != 0))
-        {
-            continue;
-        }
-        const unsigned long long quote = start + 6ull + report_find(block + start + 6ull, end - start - 6ull, "\"");
-        if (quote >= end)
-        {
-            continue;
-        }
-        unsigned long long number = quote + 1ull;
-        while ((number + 7ull <= end) &&
-               (memor.cmp(&(MemoriaCfg){.src = block + number, .other = ", line ", .bytes = 7u}) == 0))
-        {
-            number += 7ull;
-        }
-        const unsigned long long number_end = number + report_find(block + number, end - number, ",");
-        long long value = 0ll;
-        if (report_ends_with(block + start + 6ull, quote - start - 6ull, wanted) &&
-            report_count(block + number, number_end - number, &value))
-        {
-            line = (value > 0ll) ? value - 1ll : 0ll;
-        }
-    }
-    unsigned long long last = 0ull;
-    unsigned long long last_size = 0ull;
-    const int found = report_last_line(block + body, body_end - body, 1, &last, &last_size);
-    cli_test_result_told(worker, id, "failed", found ? block + body + last : "", found ? last_size : 0ull, wanted, line,
-                         0.0);
-}
-
-void cli_test_unittest_failures_told(CliTestWorker *worker, const char *text, unsigned long long size)
-{
-    static const char s_rule[] = "\n======================================================================\n";
-    const unsigned long long rule = sizeof(s_rule) - 1ull;
-    unsigned long long at = report_find(text, size, s_rule);
-    while (at < size)
-    {
-        const unsigned long long from = at + rule;
-        const unsigned long long next = from + report_find(text + from, size - from, s_rule);
-        report_failure_told(worker, text + from, ((next < size) ? next : size) - from);
-        at = next;
-    }
 }

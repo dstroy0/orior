@@ -88,7 +88,7 @@ int query_judged(QueryContext *context, const QueryPairsMode *mode, const char *
     query_files_of(context->root, mode->part, &s_files);
     static char s_writer[QUERY_PATH_LONGEST];
     long long code = -1ll;
-    int whole = query_context_tool(context, "khw_machine_write", s_writer, said);
+    int whole = query_context_tool(context, "orior_khw_machine_write", s_writer, said);
     if (whole && query_kernel_handed(mode->mode))
     {
         // the kernel the system accepted, handed to the run by the vendor's writer for the frame's asks
@@ -96,7 +96,7 @@ int query_judged(QueryContext *context, const QueryPairsMode *mode, const char *
         memor.set(&(MemoriaCfg){.dst = &s_kernel, .val = 0, .bytes = sizeof(s_kernel)});
         query_words_add(&s_kernel, s_writer);
         query_kernel_words(&s_kernel, mode->part, &s_files);
-        whole = query_context_teed(context, &s_run, "khw_machine_write", s_kernel.word, &code, said);
+        whole = query_context_teed(context, &s_run, "orior_khw_machine_write", s_kernel.word, &code, said);
         if (whole && (code != 0ll))
         {
             cli_line_text(said, "the vendor's writer handed the run no kernel");
@@ -119,7 +119,7 @@ int query_judged(QueryContext *context, const QueryPairsMode *mode, const char *
         (!cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "fixed", .cap = CLI_CELLS_POOL})) &&
         !query_writer_latest(&s_run.writer, "host_answers.txt", &bytes, &size))
     {
-        cli_line_text(said, "no host answers: run orior protocol pairs stick first");
+        cli_line_text(said, "no host answers: run orior_cli protocol pairs stick first");
         whole = 0;
     }
     whole = whole && query_pairs_configs(context, &s_run, mode->part, said);
@@ -146,7 +146,7 @@ int query_judged(QueryContext *context, const QueryPairsMode *mode, const char *
         // part's clock beside the arrangements
         const char *const placed[8] = {s_writer,          mode->part,      s_files.machine, s_files.layout,
                                        s_files.mnemonics, "krs_forms.bin", "krs",           NULL};
-        whole = query_context_teed(context, &s_run, "khw_machine_write", placed, &code, said);
+        whole = query_context_teed(context, &s_run, "orior_khw_machine_write", placed, &code, said);
         if (whole && (code != 0ll))
         {
             cli_line_text(said, "the vendor's writer placed no forms");
@@ -168,8 +168,8 @@ int query_judged(QueryContext *context, const QueryPairsMode *mode, const char *
         char klq[QUERY_PATH_LONGEST];
         query_at(context, QUERY_TABLE "/Lstar.klq", klq);
         const char *const decoded[5] = {s_decoder, s_run.writer.qry, engine, klq, NULL};
-        whole = query_context_tool(context, "klq_decoder", s_decoder, said) &&
-                query_context_teed(context, &s_run, "klq_decoder", decoded, &code, said);
+        whole = query_context_tool(context, "orior_klq_decoder", s_decoder, said) &&
+                query_context_teed(context, &s_run, "orior_klq_decoder", decoded, &code, said);
     }
     if (!query_context_ended(context, &s_run, said) || !whole)
     {

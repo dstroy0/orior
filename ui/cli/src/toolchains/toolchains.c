@@ -41,7 +41,7 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
         CliLine line = {path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}),
                         CLI_PATH_LONGEST - cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), 0ull};
         cli_line_text(&line, "/user_toolchains.json");
-        added_text = (cli_line_closed(&line) != 0ull) ? qry_member_file_mapped(path, &added_size) : NULL;
+        added_text = (cli_line_closed(&line) != 0ull) ? cli_file_held(path, &added_size) : NULL;
     }
     // the tree one cell sized to both texts' tokens and bytes and the array kept, the tokens one cell for the larger
     const unsigned int bundled_tokens = cli_json_tokens_counted(bundled_text, g_cli_toolchains_json_size) + 1u;
@@ -66,7 +66,7 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
     cli_cell_given(tokens);
     if (added_text != NULL)
     {
-        qry_member_file_unmapped(added_text, added_size);
+        cli_file_let_go(added_text, added_size);
     }
     if (!cli_json_is(json, tools, CFG_JSON_ARRAY))
     {
@@ -105,9 +105,9 @@ unsigned int cli_toolchains_tool(CliJson *json, unsigned int manifest, const cha
             return tool;
         }
     }
-    cli_line_text(said, "orior knows no toolchain ");
+    cli_line_text(said, "orior_cli knows no toolchain ");
     cli_line_text(said, id);
-    cli_line_text(said, ": orior file toolchains lists them");
+    cli_line_text(said, ": orior_cli file toolchains lists them");
     return CLI_JSON_NONE;
 }
 

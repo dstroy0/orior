@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // print.h: orior's own printing, with no dialog of the system's: a listing laid out in pages (page.c), written as a PDF
-// (pdf.c) or drawn as pixels by orior itself (font.c, font_outline.c, raster.c, raster_write.c), and sent from orior's
+// (pdf.c) or drawn as pixels by orior_cli itself (font.c, font_outline.c, raster.c, raster_write.c), and sent from orior's
 // own queue to a printer on the network by IPP (ipp.c, ipp_jobs.c) or its raw port, to a printer of the system's
 // through its driver or CUPS, or to a PDF file.
 //

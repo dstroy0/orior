@@ -163,21 +163,21 @@ int rank_match_chunk(SimResults *results, RankMatchDevice *device, const RankMat
                      unsigned long long *microseconds);
 
 // a field of a record read as two's complement into an exact integer
-void rank_field_read(const unsigned int *record, RankField field, AnchorExactInteger *value);
+void rank_field_read(const unsigned int *record, RankField field, OriorExactInteger *value);
 
 // the sign of a field: -1, 0 or 1
 int rank_field_sign(const unsigned int *record, RankField field);
 
 // an exact integer written into a record's field, two's complement
-void rank_field_put(unsigned int *record, unsigned int offset, unsigned int bits, const AnchorExactInteger *value);
+void rank_field_put(unsigned int *record, unsigned int offset, unsigned int bits, const OriorExactInteger *value);
 
 // a value below 2^bits written into a record's field that holds 0
 void rank_put_unsigned(unsigned int *record, unsigned int offset, unsigned int bits, unsigned long long value);
 
 // `bits` bits of `limbs` from bit 0 or'ed into a record at `offset`, the field there 0
 void rank_bits_copy(unsigned int *record, unsigned int offset, const unsigned int *limbs, unsigned int bits);
-unsigned int rank_bits(const AnchorExactInteger *value);
+unsigned int rank_bits(const OriorExactInteger *value);
 
-void rank_exact_of(unsigned long long value, AnchorExactInteger *out);
+void rank_exact_of(unsigned long long value, OriorExactInteger *out);
 
 #endif

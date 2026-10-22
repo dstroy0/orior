@@ -175,12 +175,11 @@ static int query_vendor_read(QueryContext *context, const QueryRun *run, CliLine
     return query_blob_filed(run, "measuring_stick_nvcc.sass", s_paths.sass, said);
 }
 
-// what the walk over a folder's codes keeps: the folder, the codes found, sorted, and their count
+// what the walk over a folder's codes keeps: the folder and the codes found, sorted
 typedef struct
 {
     const char *folder;
-    char (*codes)[QUERY_PATH_LONGEST];
-    unsigned int count;
+    QueryPaths *codes;
 } QueryCodesWalk;
 
 static void query_code_walked(void *context, const char *name, int is_folder)
@@ -189,55 +188,65 @@ static void query_code_walked(void *context, const char *name, int is_folder)
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (is_folder || (length <= 4u) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".bin", .cap = CLI_CELLS_POOL})) ||
-        (walk->count >= QUERY_CODES_MOST))
+        !query_paths_room(walk->codes, QUERY_CODES_MOST))
     {
         return;
     }
     char path[QUERY_PATH_LONGEST];
     query_in(walk->folder, name, path);
-    unsigned int at = walk->count;
-    while ((at > 0u) && (cli_text_order(walk->codes[at - 1u], path) > 0))
+    char (*const codes)[QUERY_PATH_LONGEST] = walk->codes->path;
+    unsigned int at = walk->codes->count;
+    while ((at > 0u) && (cli_text_order(codes[at - 1u], path) > 0))
     {
-        memor.cpy(&(MemoriaCfg){.dst = walk->codes[at], .src = walk->codes[at - 1u], .bytes = QUERY_PATH_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = codes[at], .src = codes[at - 1u], .bytes = QUERY_PATH_LONGEST});
         at -= 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = walk->codes[at], .src = path, .bytes = QUERY_PATH_LONGEST});
-    walk->count += 1u;
+    memor.cpy(&(MemoriaCfg){.dst = codes[at], .src = path, .bytes = QUERY_PATH_LONGEST});
+    walk->codes->count += 1u;
 }
 
-int query_listings_read(QueryContext *context, const QueryRun *run, const char *pattern, const char *prefix,
-                        const char *architecture, const char *folder, CliLine *said)
+// the codes, a line each, handed to the run as `cubin_listing_codes.txt` from a cell of their size: 1, or 0 with why
+// said
+static int query_codes_handed(const QueryRun *run, const QueryPaths *codes, CliLine *said)
 {
-    static char s_codes[QUERY_CODES_MOST][QUERY_PATH_LONGEST];
-    QueryCodesWalk walk = {folder, s_codes, 0u};
-    query_folder_each(folder, query_code_walked, &walk);
-    if (walk.count == 0u)
+    unsigned long long size = 0ull;
+    for (unsigned int at = 0u; at < codes->count; at += 1u)
     {
-        return 1;
+        size += cellul.len(&(CatenaFinitaCfg){.src = codes->path[at], .cap = QUERY_PATH_LONGEST}) + 1u;
     }
-    static char s_listing[QUERY_PATH_LONGEST];
-    static char s_nvdisasm[QUERY_PATH_LONGEST];
-    if (!query_context_tool(context, "cubin_listing", s_listing, said) ||
-        !query_program(context, QUERY_ROLE_NVDISASM, s_nvdisasm, said))
+    char *const text = cli_cell_taken_by(&g_query_cells, size + 1ull, "the codes the vendor reads");
+    if (text == NULL)
     {
+        cli_line_text(said, "the codes the vendor reads could not be held");
         return 0;
     }
-    static char s_list[QUERY_CODES_MOST * (QUERY_PATH_LONGEST + 1u)];
-    CliLine list = {s_list, sizeof(s_list), 0ull};
-    for (unsigned int at = 0u; at < walk.count; at += 1u)
+    CliLine list = {text, size + 1ull, 0ull};
+    for (unsigned int at = 0u; at < codes->count; at += 1u)
     {
-        cli_line_text(&list, s_codes[at]);
+        cli_line_text(&list, codes->path[at]);
         cli_line_character(&list, '\n');
     }
-    if (!cli_line_fits(&list) ||
-        !query_writer_append(&run->writer, "cubin_listing_codes.txt", s_list, list.at, QRY_ORDINARY, said))
+    const int handed = cli_line_fits(&list) &&
+                       query_writer_append(&run->writer, "cubin_listing_codes.txt", text, list.at, QRY_ORDINARY, said);
+    cli_cell_given_by(&g_query_cells, text);
+    return handed;
+}
+
+// the vendor's listing of each code of `codes` read and filed: 1, or 0 with why said
+static int query_codes_listed(QueryContext *context, const QueryRun *run, const char *pattern, const char *prefix,
+                              const char *architecture, const QueryPaths *codes, CliLine *said)
+{
+    static char s_listing[QUERY_PATH_LONGEST];
+    static char s_nvdisasm[QUERY_PATH_LONGEST];
+    if (!query_context_tool(context, "orior_cubin_listing", s_listing, said) ||
+        !query_program(context, QUERY_ROLE_NVDISASM, s_nvdisasm, said) || !query_codes_handed(run, codes, said))
     {
         return 0;
     }
     const char *const words[7] = {s_listing, pattern, prefix, architecture, s_nvdisasm, "cubin_listing_codes.txt",
                                   NULL};
     long long code = -1ll;
-    if (!query_context_teed(context, run, "cubin_listing", words, &code, said))
+    if (!query_context_teed(context, run, "orior_cubin_listing", words, &code, said))
     {
         return 0;
     }
@@ -246,12 +255,12 @@ int query_listings_read(QueryContext *context, const QueryRun *run, const char *
         cli_line_text(said, "the vendor did not read the codes");
         return 0;
     }
-    for (unsigned int at = 0u; at < walk.count; at += 1u)
+    for (unsigned int at = 0u; at < codes->count; at += 1u)
     {
         // the code's number, its file name's stem, and its listing's blob `<number>.dis`
-        const char *name =
-            cli_text_last(s_codes[at], cellul.len(&(CatenaFinitaCfg){.src = s_codes[at], .cap = CLI_CELLS_POOL}), '/');
-        name = (name != NULL) ? (name + 1) : s_codes[at];
+        const char *const code = codes->path[at];
+        const char *name = cli_text_last(code, cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}), '/');
+        name = (name != NULL) ? (name + 1) : code;
         char blob[QUERY_PATH_LONGEST];
         char dis[QUERY_PATH_LONGEST];
         CliLine blob_line = {blob, sizeof(blob), 0ull};
@@ -259,8 +268,7 @@ int query_listings_read(QueryContext *context, const QueryRun *run, const char *
         cli_line_text(&blob_line, ".dis");
         cli_line_closed(&blob_line);
         CliLine dis_line = {dis, sizeof(dis), 0ull};
-        cli_line_text_most(&dis_line, s_codes[at],
-                           cellul.len(&(CatenaFinitaCfg){.src = s_codes[at], .cap = CLI_CELLS_POOL}) - 4u);
+        cli_line_text_most(&dis_line, code, cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}) - 4u);
         cli_line_text(&dis_line, ".dis");
         cli_line_closed(&dis_line);
         if (!query_blob_filed(run, blob, dis, said))
@@ -271,6 +279,18 @@ int query_listings_read(QueryContext *context, const QueryRun *run, const char *
     return 1;
 }
 
+int query_listings_read(QueryContext *context, const QueryRun *run, const char *pattern, const char *prefix,
+                        const char *architecture, const char *folder, CliLine *said)
+{
+    QueryPaths codes = {NULL, 0u, 0u};
+    QueryCodesWalk walk = {folder, &codes};
+    query_folder_each(folder, query_code_walked, &walk);
+    const int read =
+        (codes.count == 0u) || query_codes_listed(context, run, pattern, prefix, architecture, &codes, said);
+    query_paths_given(&codes);
+    return read;
+}
+
 // the vendor's reading of the stick, and nvcc's listing read against `sass.krs` into the record
 static int query_stick_vendor(QueryContext *context, CliLine *said)
 {
@@ -278,7 +298,7 @@ static int query_stick_vendor(QueryContext *context, CliLine *said)
     static QueryStickPaths s_paths;
     static QueryRun s_run;
     query_stick_paths(context, &s_paths);
-    if (!query_context_tool(context, "measuring_stick_read", s_reader, said) ||
+    if (!query_context_tool(context, "orior_measuring_stick_read", s_reader, said) ||
         !query_context_started(context, &s_run, QUERY_STICK "/qry", said))
     {
         return -1;
@@ -296,7 +316,7 @@ static int query_stick_vendor(QueryContext *context, CliLine *said)
         const char *const left[1] = {record};
         query_run_left(&s_run, left, 1u);
         const char *const words[6] = {s_reader, s_paths.sass, s_paths.tsv, krs, record, NULL};
-        whole = query_context_teed(context, &s_run, "measuring_stick_read", words, &code, said);
+        whole = query_context_teed(context, &s_run, "orior_measuring_stick_read", words, &code, said);
     }
     if (!query_context_ended(context, &s_run, said) || !whole)
     {
@@ -332,8 +352,8 @@ static int query_stick_engine(QueryContext *context, CliLine *said)
     static QueryStickPaths s_paths;
     static QueryRun s_run;
     query_stick_paths(context, &s_paths);
-    if (!query_context_tool(context, "measuring_stick_engine", s_engine, said) ||
-        !query_context_tool(context, "measuring_stick_read", s_reader, said))
+    if (!query_context_tool(context, "orior_measuring_stick_engine", s_engine, said) ||
+        !query_context_tool(context, "orior_measuring_stick_read", s_reader, said))
     {
         return -1;
     }
@@ -382,7 +402,7 @@ static int query_stick_engine(QueryContext *context, CliLine *said)
     if (whole)
     {
         const char *const words[8] = {s_reader, s_paths.sass, s_paths.tsv, sass_krs, record, engine_tsv, out, NULL};
-        whole = query_context_teed(context, &s_run, "measuring_stick_read", words, &code, said);
+        whole = query_context_teed(context, &s_run, "orior_measuring_stick_read", words, &code, said);
     }
     if (!query_context_ended(context, &s_run, said) || !whole)
     {
@@ -397,7 +417,7 @@ static int query_stick_read(QueryContext *context, const char *const *words, uns
 {
     static char s_reader[QUERY_PATH_LONGEST];
     static QueryRun s_run;
-    if (!query_context_tool(context, "measuring_stick_read", s_reader, said) ||
+    if (!query_context_tool(context, "orior_measuring_stick_read", s_reader, said) ||
         !query_context_started(context, &s_run, QUERY_STICK "/engine/qry", said))
     {
         return -1;
@@ -410,7 +430,7 @@ static int query_stick_read(QueryContext *context, const char *const *words, uns
         query_words_add(&s_words, words[at]);
     }
     long long code = -1ll;
-    const int whole = query_context_teed(context, &s_run, "measuring_stick_read", s_words.word, &code, said);
+    const int whole = query_context_teed(context, &s_run, "orior_measuring_stick_read", s_words.word, &code, said);
     if (!query_context_ended(context, &s_run, said) || !whole)
     {
         return -1;

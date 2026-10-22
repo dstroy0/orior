@@ -93,6 +93,9 @@ static void requests_parsed(void)
                                            .other = "GET http://example.com/upload",
                                            .cap = CLI_CELLS_POOL}),
               "one with no name by its method and address");
+    cli_check((s_parsed.requests_room == 1u) && (s_parsed.text_room <= (2u * sizeof(s_bare)) + 64u),
+              "a file read holds as many requests as its parts and texts as twice its bytes");
+    cli_requests_parsed_given(&s_parsed);
 }
 
 // the folder `name` of the run's, its api/v1 made, into `root`
@@ -144,6 +147,9 @@ static void requests_values(void)
             (cellul.eq(&(CatenaFinitaCfg){.src = requests_value("token"), .other = "secret", .cap = CLI_CELLS_POOL})) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = requests_value("who"), .other = "all", .cap = CLI_CELLS_POOL})),
         "the private values over the shared, $shared to every environment");
+    cli_requests_values_given(&s_values);
+    cli_check((g_cli_requests_cells.holds == 0ull) && (g_cli_requests_cells.hw != 0ull),
+              "the environments and their values are read in cells each given back");
     cli_check(cli_requests_verifies(root, "api/v1/calls.http", "dev"), "a certificate is checked");
     requests_written(root, CLI_REQUESTS_PRIVATE,
                      "{\"dev\": {\"token\": \"secret\", \"SSLConfiguration\": {\"verifyHostCertificate\": false}}}");

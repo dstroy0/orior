@@ -372,7 +372,7 @@ int cli_runner_command(const char *root, const CliCatalog *catalog, const CliSte
     case CLI_PROGRAM_ORIOR:
         if (!cli_program_own(program, sizeof(program)))
         {
-            cli_line_text(said, "orior itself: its program could not be found");
+            cli_line_text(said, "orior_cli itself: its program could not be found");
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = shown_program,
@@ -472,7 +472,7 @@ int cli_runner_command(const char *root, const CliCatalog *catalog, const CliSte
     }
     if (command->words.full || s_args.full)
     {
-        cli_line_text(said, "the step's command is longer than orior holds");
+        cli_line_text(said, "the step's command is longer than orior_cli holds");
         return 0;
     }
     return 1;

@@ -66,9 +66,9 @@ int main(int count, char **arguments)
     scriptura_text(&results.line, " cells, the turn held to ");
     scriptura_decimal(&results.line, precision, 1u);
     scriptura_text(&results.line, " bits, in an exact width of ");
-    scriptura_decimal(&results.line, (unsigned long long)ANCHOR_EXACT_BITS, 1u);
+    scriptura_decimal(&results.line, (unsigned long long)ORIOR_EXACT_BITS, 1u);
     scriptura_text(&results.line, " bits\n");
-    if (needed > (unsigned long long)ANCHOR_EXACT_BITS)
+    if (needed > (unsigned long long)ORIOR_EXACT_BITS)
     {
         unsigned long long limbs = 1ull;
         while ((limbs * 32ull) < needed)

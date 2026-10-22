@@ -26,15 +26,15 @@
 #if defined(__aarch64__) || defined(__ARM_NEON) || defined(_M_ARM64)
 #include <arm_neon.h>
 /** @brief Set where this translation unit can issue NEON instructions. */
-#define ANCHOR_NEON_USABLE 1
+#define ORIOR_NEON_USABLE 1
 #else
-#define ANCHOR_NEON_USABLE 0
+#define ORIOR_NEON_USABLE 0
 #endif
 
-#if ANCHOR_NEON_USABLE
+#if ORIOR_NEON_USABLE
 
 /** @brief Limbs compared per NEON instruction. 128 bits holds four 32 bit limbs. */
-#define ANCHOR_NEON_LANES 4u
+#define ORIOR_NEON_LANES 4u
 
 /**
  * @brief Whether two magnitudes are equal, four limbs at a time.
@@ -47,10 +47,10 @@
  */
 static int neon_magnitude_equal(const uint32_t *left, const uint32_t *right)
 {
-    size_t at = (size_t)ANCHOR_EXACT_LIMBS;
-    while (at >= (size_t)ANCHOR_NEON_LANES)
+    size_t at = (size_t)ORIOR_EXACT_LIMBS;
+    while (at >= (size_t)ORIOR_NEON_LANES)
     {
-        at -= (size_t)ANCHOR_NEON_LANES;
+        at -= (size_t)ORIOR_NEON_LANES;
         const uint32x4_t one = vld1q_u32(left + at);
         const uint32x4_t two = vld1q_u32(right + at);
         // The smallest lane of the comparison is zero exactly when one of the four differed.
@@ -82,15 +82,15 @@ static int neon_magnitude_equal(const uint32_t *left, const uint32_t *right)
  */
 static int neon_magnitude_compare(const uint32_t *left, const uint32_t *right)
 {
-    size_t at = (size_t)ANCHOR_EXACT_LIMBS;
-    while (at >= (size_t)ANCHOR_NEON_LANES)
+    size_t at = (size_t)ORIOR_EXACT_LIMBS;
+    while (at >= (size_t)ORIOR_NEON_LANES)
     {
-        at -= (size_t)ANCHOR_NEON_LANES;
+        at -= (size_t)ORIOR_NEON_LANES;
         const uint32x4_t one = vld1q_u32(left + at);
         const uint32x4_t two = vld1q_u32(right + at);
         if (vminvq_u32(vceqq_u32(one, two)) == 0u)
         {
-            size_t back = at + (size_t)ANCHOR_NEON_LANES;
+            size_t back = at + (size_t)ORIOR_NEON_LANES;
             while (back > at)
             {
                 back--;
@@ -119,7 +119,7 @@ static int neon_magnitude_compare(const uint32_t *left, const uint32_t *right)
  * @param[in] right Second integer [BORROWS].
  * @return          1 where the values are equal, 0 otherwise.
  */
-static int arm_equal(const AnchorExactInteger *left, const AnchorExactInteger *right)
+static int arm_equal(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -133,9 +133,9 @@ static int arm_equal(const AnchorExactInteger *left, const AnchorExactInteger *r
  *
  * @param[in] left  First integer [BORROWS].
  * @param[in] right Second integer [BORROWS].
- * @return          -1, 1 or 0, matching anchor_exact_compare exactly.
+ * @return          -1, 1 or 0, matching orior_exact_compare exactly.
  */
-static int arm_compare(const AnchorExactInteger *left, const AnchorExactInteger *right)
+static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -159,24 +159,24 @@ static int arm_compare(const AnchorExactInteger *left, const AnchorExactInteger 
  * @param[in] lag       The offset to test [BORROWS].
  * @return              How many positions agree with the place one lag above them.
  */
-static size_t arm_agreement(const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                            const AnchorExactInteger *lag)
+static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                            const OriorExactInteger *lag)
 {
     // The shared search, with only the equality test swapped. The timing then measures the instruction
     // set and not a second algorithm. This arm carried its own ordered search once, which measured
     // the difference between two algorithms and reported it as the difference between two parts.
-    return anchor_exact_agreement_using(arm_equal, positions, values, count, lag);
+    return orior_exact_agreement_using(arm_equal, positions, values, count, lag);
 }
 
 /** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
-static const AnchorExactArm NEON_ARM = {
+static const OriorExactArm NEON_ARM = {
     "neon",
     arm_equal,
     arm_compare,
     arm_agreement,
 };
 
-const AnchorExactArm *anchor_exact_neon_arm(void)
+const OriorExactArm *orior_exact_neon_arm(void)
 {
     // NEON is part of the base aarch64 architecture. A build that got here can always run it.
     return &NEON_ARM;
@@ -184,9 +184,9 @@ const AnchorExactArm *anchor_exact_neon_arm(void)
 
 #else
 
-const AnchorExactArm *anchor_exact_neon_arm(void)
+const OriorExactArm *orior_exact_neon_arm(void)
 {
     return NULL;
 }
 
-#endif /* ANCHOR_NEON_USABLE */
+#endif /* ORIOR_NEON_USABLE */

@@ -9,8 +9,10 @@
 
 #include <stddef.h>
 
-// the bytes of a member's ring, a power of two: a record takes at most half of it
+// the bytes of a member's ring, a power of two: a record takes at most half of it; and the members a run keeps a ring
+// for at the most, its region laid with fewer where its ask is smaller
 #define QRY_WRITER_RING_BYTES (64ull << 20u)
+#define QRY_WRITER_MEMBERS QRY_WRITER_MEMBERS_MOST
 
 // the longest path of the top of the tree, and of a run's .qry
 #define QRY_WRITER_TOP_LONGEST 1024u
@@ -54,7 +56,7 @@ extern "C"
     // memory let go
     void qry_member_parted(void);
 
-    // 1 while the writer of the run of the .qry at `path` writes, not yet asked to stop, whether or not this process
+    // 1 while the writer of the run of the .qry at `path` writes, not yet asked to stop, whether this process
     // is a member of it
     int qry_member_writer_runs(const char *path);
 
@@ -73,7 +75,7 @@ extern "C"
     // holds, a place past every record this thread appended
     unsigned long long qry_member_settled(void);
 
-    // every ring waited on until the writer has taken every record each held as this was called: the places the
+    // every ring waited on until the writer has taken every record each kept as this was called: the places the
     // schedule then holds
     unsigned long long qry_member_rings_settled(void);
 

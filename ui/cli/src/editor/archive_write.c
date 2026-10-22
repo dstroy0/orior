@@ -21,13 +21,13 @@ static int cli_replace(unsigned int depth, const unsigned char *bytes, unsigned 
     if (depth >= CLI_ARCHIVE_DEPTH)
     {
         cli_line_text(said, name);
-        cli_line_text(said, " lies deeper in archives than orior writes back");
+        cli_line_text(said, " lies deeper in archives than orior_cli writes back");
         return 0;
     }
     char inner[CLI_NAME_LONGEST];
     unsigned long long unpacked = 0ull;
     cli_gz_inner(name, inner);
-    if (!cli_members_of(bytes, bytes_size, kind, inner, &levels->members[depth], levels->unpacked[depth], &unpacked,
+    if (!cli_members_of(bytes, bytes_size, kind, inner, &levels->members[depth], &levels->unpacked[depth], &unpacked,
                         said))
     {
         return 0;
@@ -55,42 +55,50 @@ static int cli_replace(unsigned int depth, const unsigned char *bytes, unsigned 
             if (depth >= (CLI_ARCHIVE_DEPTH - 1u))
             {
                 cli_line_text(said, path);
-                cli_line_text(said, " lies deeper in archives than orior writes back");
+                cli_line_text(said, " lies deeper in archives than orior_cli writes back");
                 return 0;
             }
             unsigned long long nested_size = 0ull;
-            if (!cli_data_of(bytes, bytes_size, kind, levels->unpacked[depth], unpacked, &levels->members[depth],
-                             member, levels->inner[depth], CLI_ARCHIVE_BYTES, &nested_size, said) ||
-                !cli_replace(depth + 1u, levels->inner[depth], nested_size, nested, path, parts, cut, data, data_size,
-                             &changed_size, said))
+            if (!cli_data_of(bytes, bytes_size, kind, levels->unpacked[depth].bytes, unpacked, &levels->members[depth],
+                             member, &levels->inner[depth], &nested_size, said) ||
+                !cli_replace(depth + 1u, levels->inner[depth].bytes, nested_size, nested, path, parts, cut, data,
+                             data_size, &changed_size, said))
             {
                 return 0;
             }
-            changed = levels->written[depth + 1u];
+            changed = levels->written[depth + 1u].bytes;
         }
-        if (kind == CLI_ARCHIVE_ZIP)
-        {
-            return cli_zip_with(bytes, bytes_size, member, changed, changed_size, levels->written[depth],
-                                CLI_ARCHIVE_BYTES, size, said);
-        }
-        if (kind == CLI_ARCHIVE_TAR)
-        {
-            return cli_tar_with(bytes, bytes_size, member, changed, changed_size, levels->written[depth],
-                                CLI_ARCHIVE_BYTES, size, said);
-        }
-        unsigned long long tar_size = 0ull;
-        if ((kind == CLI_ARCHIVE_TARGZ) && !cli_tar_with(levels->unpacked[depth], unpacked, member, changed,
-                                                         changed_size, levels->tar, CLI_ARCHIVE_BYTES, &tar_size, said))
+        // the level written anew holds the archive as it was and the member changed, with an eighth and a page over
+        CliRoom *const written = &levels->written[depth];
+        const unsigned long long whole = (kind == CLI_ARCHIVE_TARGZ) ? unpacked : bytes_size;
+        if (!cli_archive_room(written, cli_archive_grown(whole + changed_size), "an archive written anew", said))
         {
             return 0;
         }
-        *size = (kind == CLI_ARCHIVE_TARGZ)
-                    ? cli_gzip(levels->tar, tar_size, levels->written[depth], CLI_ARCHIVE_BYTES)
-                    : cli_gzip(changed, changed_size, levels->written[depth], CLI_ARCHIVE_BYTES);
+        if (kind == CLI_ARCHIVE_ZIP)
+        {
+            return cli_zip_with(bytes, bytes_size, member, changed, changed_size, written->bytes, written->room, size,
+                                said);
+        }
+        if (kind == CLI_ARCHIVE_TAR)
+        {
+            return cli_tar_with(bytes, bytes_size, member, changed, changed_size, written->bytes, written->room, size,
+                                said);
+        }
+        unsigned long long tar_size = 0ull;
+        if ((kind == CLI_ARCHIVE_TARGZ) &&
+            (!cli_archive_room(&levels->tar, cli_archive_grown(unpacked + changed_size), "a tar written anew", said) ||
+             !cli_tar_with(levels->unpacked[depth].bytes, unpacked, member, changed, changed_size, levels->tar.bytes,
+                           levels->tar.room, &tar_size, said)))
+        {
+            return 0;
+        }
+        *size = (kind == CLI_ARCHIVE_TARGZ) ? cli_gzip(levels->tar.bytes, tar_size, written->bytes, written->room)
+                                            : cli_gzip(changed, changed_size, written->bytes, written->room);
         if (*size == 0ull)
         {
             cli_line_text(said, name);
-            cli_line_text(said, " is larger than orior holds");
+            cli_line_text(said, " is larger than orior_cli holds");
             return 0;
         }
         return 1;
@@ -121,7 +129,7 @@ int cli_archive_write(const char *root, const char *path, const unsigned char *d
     unsigned long long written = 0ull;
     int done = cli_replace(0u, descent.bytes, descent.size, descent.kind, descent.name, &s_parts, 0u, data, size,
                            &written, said);
-    qry_member_file_unmapped(descent.bytes, descent.size);
+    cli_file_let_go(descent.bytes, descent.size);
     // the archive written beside the old one as `.<name>.saving`, then put in its place
     char beside[CLI_PATH_LONGEST];
     char folder[CLI_PATH_LONGEST];
@@ -134,8 +142,8 @@ int cli_archive_write(const char *root, const char *path, const unsigned char *d
     cli_line_character(&line, '.');
     cli_line_text(&line, descent.name);
     cli_line_text(&line, ".saving");
-    if (done &&
-        ((cli_line_closed(&line) == 0ull) || !query_file_written(beside, g_cli_archive_levels->written[0], written)))
+    if (done && ((cli_line_closed(&line) == 0ull) ||
+                 !query_file_written(beside, g_cli_archive_levels->written[0].bytes, written)))
     {
         cli_line_text(said, beside);
         cli_line_text(said, ": it could not be written");

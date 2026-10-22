@@ -83,7 +83,7 @@ static void cli_read_into(void)
 {
     s_held.reading = 1;
     s_held.begun += 1ull;
-    s_held.reader = (CliThread){cli_reader, NULL};
+    s_held.reader = (CliThread){cli_reader, NULL, CLI_PRIORITY_IDLE};
     if (!cli_thread_started(&s_held.reader))
     {
         s_held.reading = 0;

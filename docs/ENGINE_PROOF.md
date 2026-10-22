@@ -135,7 +135,7 @@ current one, which gives `V(i+1) < V(i)`. A strictly decreasing sequence of non-
 and its length is at most `V(0) = |A|`. ∎
 
 **The depth constant is a resource limit and not the termination argument.**
-`ANCHOR_STEER_ANCHORS` bounds the work and the register footprint. Theorem 5 shows the recursion is
+`ORIOR_STEER_ANCHORS` bounds the work and the register footprint. Theorem 5 shows the recursion is
 well founded on a measure the field supplies. Removing the constant leaves a terminating descent.
 
 *Corollary, self-correcting depth.* The number of probes placed is decided by the field. A field
@@ -266,7 +266,7 @@ and emits as it goes.
 specifications, it may run forever, it may be adversarial, and nothing constrains what it computes.
 Between `G` and the plan sits a TOTAL CHECKER: a candidate is admitted only if its offsets lie inside
 `[0, m)` and it compares against the needle's own byte at each offset. That check is finite,
-decidable, and already implemented as `anchor_steer_probe_fits`.
+decidable, and already implemented as `orior_steer_probe_fits`.
 
 **Every admitted candidate is a necessary condition. Theorem 1 applies to the plan at every
 instant, and the machine emits a correct count continuously while `G` runs forever.**

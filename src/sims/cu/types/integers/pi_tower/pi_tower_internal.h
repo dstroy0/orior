@@ -12,7 +12,7 @@
 // the three gap theorem; T. van Ravenstein, "The three gap theorem (Steinhaus conjecture)", J. Austral. Math. Soc. A
 // 45, 1988). Cut the boundary into N = 2^k cells: the turn fills every cell at an exact step, and that step and the
 // cell it fills are read here from the floors, without walking the turn.
-// Everything is exact. pi is bracketed by Machin's formula in integers, and the turn is held as the integer rotation
+// Everything is exact. pi is bracketed by Machin's formula in integers, and the turn is represented as the integer rotation
 // y_n = n A mod 2^P, A = floor(alpha 2^P). A first hit, the least n with y_n in a window, is Euclid's descent through
 // the floors. Whether the integer turn is the real one, cell for cell, is itself a first hit, and is checked.
 // 1. pi is bracketed: floor(pi 2^P) is one integer at both ends of Machin's bracket, and its first 64 bits after the
@@ -58,7 +58,7 @@
 // 13. On the engine, pi's first 64 bits after the point are 0x243F6A8885A308D3, and its hex digits at Bailey's
 //     published positions are his.
 // 14. The engine's cell at the deepest resolution asked for, its low 64 bits, is the exact turn's.
-// A resolution past 2^20, n given whole or as base^exponent (10^100 for a googol), is held as (2, n): its precision
+// A resolution past 2^20, n given whole or as base^exponent (10^100 for a googol), is represented as (2, n): its precision
 // and widths are printed exact, and the engine sums the depth-n terms sweep by sweep, printing the terms done and its
 // rate. Its digits are printed only once every term is summed.
 // 15. A segment: pi_tower segment d [digits], d whole or base^exponent, reads that many hex digits from position d + 1
@@ -125,14 +125,14 @@
 
 #define PI_TOWER_SEGMENT_MAX 65536u
 
-// the deepest resolution the exact turn is held at; past it a resolution is read on the engine alone
+// the deepest resolution the exact turn is represented at; past it a resolution is read on the engine alone
 #define PI_TOWER_EXACT_MAX (1ull << 20u)
 
 extern int g_pi_tower_error;
 
 extern int g_pi_tower_records_short;
 
-typedef AnchorExactInteger PiWide;
+typedef OriorExactInteger PiWide;
 
 // one level of the descent: the rotation a on m, and the window's low end
 typedef struct

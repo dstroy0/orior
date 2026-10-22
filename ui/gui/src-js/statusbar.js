@@ -4,9 +4,9 @@
 // The bar along the bottom of the window. On its left the breadcrumbs of the open file, then the runs
 // going and the files still being read, then a word for a moment from what was last done, such as
 // what a formatter said, which the top bar's bell keeps. On its right what the app holds in memory:
-// its own process and every process it started, the web view's among them, read again every
-// MEMORY_EVERY while the window shows, with the name of what holds the most, marked where it is over
-// the memory budget; then the editor's own line, shown in the edit view only:
+// its own process, every process it started and the web view's, read again every MEMORY_EVERY while
+// the window shows, what they hold in RAM, marked where it is over the memory budget, with what each
+// has reserved on the hover; then the editor's own line, shown in the edit view only:
 // where the cursor is as line:column, what is chosen, the line ends, the encoding, the indent, and
 // the lock. The branch the tree is on, with a star where a file differs from the last commit, is on
 // the top bar beside the tree's name.
@@ -50,9 +50,9 @@ export function onOverBudget(hold) {
   memory.hold = hold;
 }
 
-// The total in RAM on the bar with the name of what holds the most beside it, and over it each
-// program's share: its processes, what it holds in RAM and what it has reserved in all. Over the
-// budget, the reading is marked and the app held to the budget.
+// What the app holds in RAM on the bar, and over it the budget, then each program's share: its
+// processes, what it holds in RAM and what it has reserved, which is the most it could come to hold
+// and not what it holds. Over the budget, the reading is marked and the app held to the budget.
 async function drawMemory() {
   const node = document.getElementById("status-memory");
   if (still()) {
@@ -64,12 +64,22 @@ async function drawMemory() {
   if (!read) {
     return;
   }
+  // The cellblock's own account beside the system's: its pool and its peaks, and the share of the app's own
+  // process the cellblock accounts for.
+  const cells = await invoke("cells_said").catch(() => null);
+  const own = read.parts.find((part) => part.name === read.parts[0]?.name);
+  const accounted = cells && own && own.commit > 0 ? `${((cells.pool / own.commit) * 100).toFixed(0)}% of its reserved` : "";
+  const cellblock = cells ? `cellblock: pool ${megabytes(cells.pool)}, peaks ${megabytes(cells.persistent)} persistent and ${megabytes(cells.temporary)} temporary${accounted ? `, ${accounted}` : ""}` : "";
   const budget = memoryBudget() * 1024 * 1024;
   const over = read.working > budget;
   node.classList.toggle("over", over);
-  node.replaceChildren(megabytes(read.working), ...(read.parts[0] ? [Object.assign(document.createElement("span"), { className: "status-memory-most", textContent: read.parts[0].name })] : []));
-  const rows = read.parts.map((part) => `${part.name}${part.processes > 1 ? ` (${part.processes} processes)` : ""}: ${megabytes(part.working)}, ${megabytes(part.commit)} committed`);
-  node.title = [`${megabytes(read.working)} in RAM, ${megabytes(read.commit)} committed, of a budget of ${megabytes(budget)}`, ...rows].join("\n");
+  node.replaceChildren(megabytes(read.working));
+  const rows = read.parts.map((part) => `${part.name}${part.processes > 1 ? ` (${part.processes} processes)` : ""}: ${megabytes(part.working)} in RAM, ${megabytes(part.commit)} reserved`);
+  // A title written while the pointer rests on the reading closes its tooltip and opens it again: the
+  // tooltip keeps the reading it opened with until the pointer leaves.
+  if (!node.matches(":hover")) {
+    node.title = [`${megabytes(read.working)} in RAM of a budget of ${megabytes(budget)}`, ...rows, cellblock, `Reserved is the most a program could come to hold, not what it holds.`].filter(Boolean).join("\n");
+  }
   if (over && memory.hold && performance.now() - memory.held > HOLD_EVERY) {
     memory.held = performance.now();
     memory.hold(budget);

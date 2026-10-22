@@ -18,7 +18,7 @@
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
  * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract AnchorSteerEngine carries, the same one the exact arms carry in no_rounding.
+ * the contract OriorSteerEngine carries, the same one the exact arms carry in no_rounding.
  *
  * @note NOT SHARED SOURCE WITH THE HOST ARMS. A device function carries __global__ or __device__ on
  *       every declaration. The kernel cannot be the portable loop compiled twice, and the two can
@@ -27,7 +27,7 @@
  * @note THE WHOLE OBJECT CROSSES THE BUS PER CALL. The corpus and the survivor vector are copied to
  *       the device. This arm pays a transfer a host arm does not. It wins only where the object is
  *       large enough to amortize that. It is graded and timed and not placed in
- *       anchor_steer_best_engine.
+ *       orior_steer_best_engine.
  * @note A device error falls back to a host count instead of returning a sentinel into a table of
  *       counts, matching arm.cu. A driver comparing arms would otherwise read the sentinel as a
  *       disagreement and blame the scan for what was an allocation failure.
@@ -40,7 +40,7 @@
 #include <stdio.h>
 
 /** @brief Threads per block. 256 suits every device this is built for and needs no tuning here. */
-#define ANCHOR_STEER_GPU_BLOCK 256u
+#define ORIOR_STEER_GPU_BLOCK 256u
 
 /**
  * @brief One thread per alignment: add one where it stands and its corpus byte is the wanted one.
@@ -70,7 +70,7 @@ __global__ static void scan_kernel(const unsigned char *corpus, size_t alignment
     }
 }
 
-extern "C" int anchor_steer_cuda_available(void)
+extern "C" int orior_steer_cuda_available(void)
 {
     int devices = 0;
     if (cudaGetDeviceCount(&devices) != cudaSuccess)
@@ -80,7 +80,7 @@ extern "C" int anchor_steer_cuda_available(void)
     return (devices > 0) ? 1 : 0;
 }
 
-extern "C" int anchor_steer_cuda_describe(char *text, size_t capacity)
+extern "C" int orior_steer_cuda_describe(char *text, size_t capacity)
 {
     int devices = 0;
     if ((cudaGetDeviceCount(&devices) != cudaSuccess) || (devices <= 0))
@@ -100,8 +100,8 @@ extern "C" int anchor_steer_cuda_describe(char *text, size_t capacity)
 /**
  * @brief Counts on the host, without touching the scan counters, for the device fallback.
  *
- * @note anchor_steer_truthy_after_cuda has already counted the call. The fallback must not reach
- *       anchor_steer_truthy_after_portable, which would count it a second time. The loop is the same
+ * @note orior_steer_truthy_after_cuda has already counted the call. The fallback must not reach
+ *       orior_steer_truthy_after_portable, which would count it a second time. The loop is the same
  *       one the portable arm runs.
  */
 static size_t scan_host_fallback(const unsigned char *corpus, size_t alignments, const unsigned char *alive,
@@ -122,13 +122,13 @@ static size_t scan_host_fallback(const unsigned char *corpus, size_t alignments,
     return standing;
 }
 
-extern "C" size_t anchor_steer_truthy_after_cuda(const uint8_t *corpus, size_t alignments, const uint8_t *alive,
+extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t alignments, const uint8_t *alive,
                                                  uint8_t wanted, size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm was
      * the one asked. The claim the counters carry is which arm RAN and not what it returned. */
-    anchor_steer_scan_calls += 1u;
-    anchor_steer_wide_calls += 1u;
+    orior_steer_scan_calls += 1u;
+    orior_steer_wide_calls += 1u;
 
     if ((corpus == NULL) || (alive == NULL) || (alignments == 0u))
     {
@@ -160,8 +160,8 @@ extern "C" size_t anchor_steer_truthy_after_cuda(const uint8_t *corpus, size_t a
 
     {
         const unsigned int blocks =
-            (unsigned int)((alignments + (size_t)ANCHOR_STEER_GPU_BLOCK - 1u) / (size_t)ANCHOR_STEER_GPU_BLOCK);
-        scan_kernel<<<blocks, ANCHOR_STEER_GPU_BLOCK>>>(device_corpus, alignments, device_alive, (unsigned char)wanted,
+            (unsigned int)((alignments + (size_t)ORIOR_STEER_GPU_BLOCK - 1u) / (size_t)ORIOR_STEER_GPU_BLOCK);
+        scan_kernel<<<blocks, ORIOR_STEER_GPU_BLOCK>>>(device_corpus, alignments, device_alive, (unsigned char)wanted,
                                                         offset, device_standing);
         if ((cudaGetLastError() != cudaSuccess) || (cudaDeviceSynchronize() != cudaSuccess))
         {
@@ -190,9 +190,9 @@ done:
     return answer;
 }
 
-extern "C" const AnchorSteerEngine *anchor_steer_cuda_engine(void)
+extern "C" const OriorSteerEngine *orior_steer_cuda_engine(void)
 {
-    static const AnchorSteerEngine engine = {"cuda", anchor_steer_truthy_after_cuda};
+    static const OriorSteerEngine engine = {"cuda", orior_steer_truthy_after_cuda};
 
-    return anchor_steer_cuda_available() ? &engine : NULL;
+    return orior_steer_cuda_available() ? &engine : NULL;
 }

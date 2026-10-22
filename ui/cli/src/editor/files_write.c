@@ -100,13 +100,17 @@ int cli_files_write(const char *root, const char *file, const char *text, unsign
     cli_line_text(&line, ".saving");
     if ((cli_line_closed(&line) == 0ull) || !query_file_written(beside, text, length))
     {
+        const unsigned int error = cli_system_error();
         cli_unwritten(file, said);
+        cli_system_reason(error, said);
         return 0;
     }
     if (!query_file_renamed(beside, path))
     {
+        const unsigned int error = cli_system_error();
         query_removed(beside);
         cli_unwritten(file, said);
+        cli_system_reason(error, said);
         return 0;
     }
     return 1;

@@ -106,7 +106,7 @@ static int url_host(const char *url, const char *authority, unsigned long long s
     cli_line_counted(&host_line, host, host_size);
     if (cli_line_closed(&host_line) == 0ull)
     {
-        cli_line_text(said, "the request is larger than orior holds");
+        cli_line_text(said, "the request is larger than orior_cli holds");
         return 0;
     }
     return 1;
@@ -147,7 +147,7 @@ int cli_requests_address(const char *url, CliRequestsAddress *address, CliLine *
     cli_line_counted(&target_line, target, target_size);
     if (cli_line_closed(&target_line) == 0ull)
     {
-        cli_line_text(said, "the request is larger than orior holds");
+        cli_line_text(said, "the request is larger than orior_cli holds");
         return 0;
     }
     return url_host(url, authority, (unsigned long long)(rest + authority_end - authority), address, said);

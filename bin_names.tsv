@@ -1,0 +1,23 @@
+id	name	kind	source	built_to	for
+cli	orior_cli	program	ui/cli	build/cli/<target>/orior_cli	the command line, and the library the window links, liborior_cli.a
+gui	orior_gui	program	ui/gui/src-tauri	build/cargo/release/orior_gui	the window
+harness	orior_harness	program	ui/test	build/cargo/release/orior_harness	the window's and the crates' tests
+plugins_bundle	orior_plugins_bundle	program	ui/cli/src/bundle	build/cli/<host>/bundle/orior_plugins_bundle	writes plugins_bundled.c as the command line is built
+qry_writer	orior_qry_writer	program	src/cu/includes/file_defs/qry	<programs>/orior_qry_writer	a run's writer, the one process that writes its .qry
+bus_clock	orior_bus_clock	program	src/cu/transpiler/lstar/protocol	<programs>/orior_bus_clock	the clock asked of the bus
+cubin_run	orior_cubin_run	program	src/cu/transpiler/lstar/protocol	<programs>/orior_cubin_run	a cubin launched on the part
+cubin_listing	orior_cubin_listing	program	src/cu/transpiler/lstar/protocol	<programs>/orior_cubin_listing	a cubin's listing
+measuring_stick_query	orior_measuring_stick_query	program	src/cu/transpiler/lstar/protocol	<programs>/orior_measuring_stick_query	the measuring stick's query
+khw_learn	orior_khw_learn	program	src/cu/transpiler/lstar/protocol	<programs>/orior_khw_learn	the learn passes
+khw_machine_write	orior_khw_machine_write	program	src/cu/transpiler/lstar/protocol	<programs>/orior_khw_machine_write	the machine file written
+sass_listing_seeds	orior_sass_listing_seeds	program	src/cu/transpiler/lstar/protocol	<programs>/orior_sass_listing_seeds	the listing's seeds
+krs_write	orior_krs_write	program	src/cu/transpiler/lstar/protocol	<programs>/orior_krs_write	the ruleset written
+gsm_write	orior_gsm_write	program	src/cu/transpiler/lstar/protocol	<programs>/orior_gsm_write	the verdicts written
+klq_write	orior_klq_write	program	src/cu/transpiler/lstar/protocol	<programs>/orior_klq_write	the query written
+klq_identity	orior_klq_identity	program	src/cu/transpiler/lstar/protocol/table	<programs>/orior_klq_identity	the identity asked of the part
+klq_decoder	orior_klq_decoder	program	src/cu/transpiler/lstar/protocol	<programs>/orior_klq_decoder	the decoder
+tables_funnel	orior_tables_funnel	program	src/cu/transpiler/lstar/protocol	<programs>/orior_tables_funnel	the tables funnelled
+tables_read	orior_tables_read	program	src/cu/transpiler/lstar/protocol	<programs>/orior_tables_read	the tables read
+kdecode	orior_kdecode	program	src/cu/transpiler/lstar/protocol/kdecode	<programs>/orior_kdecode	the record decoded
+measuring_stick_read	orior_measuring_stick_read	program	src/cu/transpiler/lstar/protocol	<programs>/orior_measuring_stick_read	the measuring stick read
+measuring_stick_engine	orior_measuring_stick_engine	program	src/cu/transpiler/lstar/protocol	<programs>/orior_measuring_stick_engine	the measuring stick's engine

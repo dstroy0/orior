@@ -51,7 +51,7 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
     }
     if (entries.empty())
     {
-        printf("klq_identity queue: %s lists no question\n", manifest);
+        printf("orior_klq_identity queue: %s lists no question\n", manifest);
         return 1;
     }
     if (!run_channel_open(carrier, 60000000ull))
@@ -108,7 +108,7 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
     }
     if (!run_closed(&table))
     {
-        printf("klq_identity queue: %s/queue.txt could not be written\n", folder.c_str());
+        printf("orior_klq_identity queue: %s/queue.txt could not be written\n", folder.c_str());
         run_channel_close();
         return 1;
     }
@@ -127,7 +127,7 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
     }
     printf("| all | %u | %u | %u | %u | %u | %u | %u |\n", all["questions"], all["written"], all["held"], all["alike"],
            all["1"], all["0"], all["gray"]);
-    printf("klq_identity queue: %llu asks, %u read 1, %u read 0, %u gray\n", asks, all["1"], all["0"], all["gray"]);
+    printf("orior_klq_identity queue: %llu asks, %u read 1, %u read 0, %u gray\n", asks, all["1"], all["0"], all["gray"]);
     return (all["0"] == 0u) ? 0 : 1;
 }
 
@@ -280,10 +280,10 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
     }
     if (!run_closed(&file))
     {
-        printf("klq_identity text_identity: %s could not be written\n", klq);
+        printf("orior_klq_identity text_identity: %s could not be written\n", klq);
         return 1;
     }
-    printf("klq_identity text_identity: %llu asks, %u open, %u closed, %u not asked, written to %s\n", asks, open,
+    printf("orior_klq_identity text_identity: %llu asks, %u open, %u closed, %u not asked, written to %s\n", asks, open,
            closed, unasked, klq);
     return 0;
 }

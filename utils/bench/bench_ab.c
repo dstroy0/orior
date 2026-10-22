@@ -1796,14 +1796,14 @@ static void ab_salience(const char *name, const uint8_t *corpus, size_t corpus_l
     }
 }
 
-static size_t ab_rarest(const uint8_t *needle, size_t length, const AnchorFieldCensus *census)
+static size_t ab_rarest(const uint8_t *needle, size_t length, const OriorFieldCensus *census)
 {
     size_t best = 0u;
     uint64_t best_magnitude = 0u;
 
     for (size_t index = 0u; index < length; index++)
     {
-        const uint64_t magnitude = anchor_steer_magnitude(census, needle[index]);
+        const uint64_t magnitude = orior_steer_magnitude(census, needle[index]);
 
         if (magnitude > best_magnitude)
         {
@@ -1907,9 +1907,9 @@ static void ab_report(const char *name, const uint8_t *corpus, size_t corpus_len
         carried[byte] = 1u;
     }
 
-    AnchorFieldCensus census;
+    OriorFieldCensus census;
 
-    anchor_field_census(corpus, corpus_len, &census);
+    orior_field_census(corpus, corpus_len, &census);
 
     unsigned samples = 0u;
     unsigned disagreed = 0u;

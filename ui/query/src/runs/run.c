@@ -29,12 +29,20 @@ static void query_parent_of(const char *path, const char *root, char *folder)
     cli_line_closed(&line);
 }
 
+// the cells of the files a run read and may leave given back, as the run ends and before a run begins again in its
+// room
+static void query_run_paths_given(QueryRun *run)
+{
+    query_paths_given(&run->read);
+    query_paths_given(&run->left);
+}
+
 // the run's writer named: its program built where stale, its .qry and the top of the tree
 static int query_run_writer(QueryRun *run, const char *root, const char *qry, const QueryPrograms *programs,
                             CliLine *said)
 {
     memor.set(&(MemoriaCfg){.dst = run, .val = 0, .bytes = sizeof(*run)});
-    if (!query_tool_built(root, programs, "qry_writer", run->writer.binary, sizeof(run->writer.binary), said))
+    if (!query_tool_built(root, programs, "orior_qry_writer", run->writer.binary, sizeof(run->writer.binary), said))
     {
         return 0;
     }
@@ -50,6 +58,7 @@ static int query_run_writer(QueryRun *run, const char *root, const char *qry, co
 
 int query_run_joining(QueryRun *run, const char *root, const char *qry, const QueryPrograms *programs, CliLine *said)
 {
+    query_run_paths_given(run);
     if (!query_run_writer(run, root, qry, programs, said))
     {
         return 0;
@@ -69,6 +78,7 @@ int query_run_started(QueryRun *run, const char *root, const char *folder, const
                       QueryContext *context, CliLine *said)
 {
     (void)context;
+    query_run_paths_given(run);
     char held[QUERY_PATH_LONGEST];
     if (query_environment_read("QRY", held, sizeof(held)))
     {
@@ -289,13 +299,13 @@ int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, 
                 return 0;
             }
         }
-        if (run->reads < QUERY_LEAVES_MOST)
+        if (query_paths_room(&run->read, QUERY_LEAVES_MOST))
         {
             memor.cpy(
-                &(MemoriaCfg){.dst = run->read[run->reads],
+                &(MemoriaCfg){.dst = run->read.path[run->read.count],
                               .src = paths[at],
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}) + 1u});
-            run->reads += 1u;
+            run->read.count += 1u;
         }
     }
     return 1;
@@ -303,17 +313,18 @@ int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, 
 
 void query_run_left(QueryRun *run, const char *const *paths, unsigned int count)
 {
-    for (unsigned int at = 0u; (at < count) && (run->lefts < QUERY_LEAVES_MOST); at += 1u)
+    for (unsigned int at = 0u; (at < count) && query_paths_room(&run->left, QUERY_LEAVES_MOST); at += 1u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = run->left[run->lefts],
+        memor.cpy(&(MemoriaCfg){.dst = run->left.path[run->left.count],
                                 .src = paths[at],
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}) + 1u});
-        run->lefts += 1u;
+        run->left.count += 1u;
     }
 }
 
 int query_run_stopped(QueryRun *run, CliLine *said)
 {
+    query_run_paths_given(run);
     // this process is a member of the run no more before the writer is asked to stop
     const unsigned long long process = run->process;
     run->process = 0ull;
@@ -332,19 +343,20 @@ int query_run_stopped(QueryRun *run, CliLine *said)
 
 int query_run_ended(QueryRun *run, QueryLeave leave, QueryAsker asker, QueryContext *context, CliLine *said)
 {
-    for (unsigned int at = 0u; at < run->lefts; at += 1u)
+    for (unsigned int at = 0u; at < run->left.count; at += 1u)
     {
         char left[QUERY_SAID_LONGEST];
         CliLine left_line = {left, sizeof(left), 0ull};
         cli_line_text(&left_line, "  ");
-        if (!query_writer_left(&run->writer, run->left[at], &left_line) && (cli_line_closed(&left_line) != 0ull))
+        if (!query_writer_left(&run->writer, run->left.path[at], &left_line) && (cli_line_closed(&left_line) != 0ull))
         {
             query_said(context, left);
         }
     }
-    run->lefts = 0u;
+    query_paths_given(&run->left);
     if (!query_leaves_settled(run, leave, asker, context, said))
     {
+        query_run_paths_given(run);
         return 0;
     }
     return query_run_stopped(run, said);

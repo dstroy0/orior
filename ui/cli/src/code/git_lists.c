@@ -207,6 +207,8 @@ void cli_git_elsewhere(const char *root, CliCommits *found)
         kept->subject = cli_git_text_put(&found->text, subject,
                                          cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}));
     }
+    cli_git_text_given(&s_elsewhere.found.text);
+    cli_git_text_given(&s_elsewhere.made);
     cli_lock_give(&s_elsewhere_lock);
 }
 

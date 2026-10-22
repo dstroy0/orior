@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// recording.h: a Python program's run recorded as it goes, and a debug adapter, run in orior itself, that steps through
+// recording.h: a Python program's run recorded as it goes, and a debug adapter, run in orior_cli itself, that steps through
 // the recording backward as well as forward.
 //
 // The recorder is a shim the program runs under. It notes each line of the tree's own code the program runs, before

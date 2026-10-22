@@ -22,6 +22,10 @@ typedef struct
     unsigned int deaths;
 } CliRestarts;
 
+// the processes the system lists, a cell counted to `tally`, their count into `count`, listed again in a cell twice as
+// large while a list fills its cell, up to CLI_PROCESSES_MOST: the cell, or NULL with none counted where the cellblock
+// could not meet it
+CliProcess *cli_processes_taken(CliCellsTally *tally, unsigned int *count);
 // 1 where the process `id` is `root` or stands under it in the tree `parents` gives, `count` of them
 int cli_under(unsigned int root, unsigned int id, const CliProcess *parents, unsigned int count);
 // the processes under `root` in the tree `parents` gives, by child and parent, each once, children after their

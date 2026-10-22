@@ -233,7 +233,7 @@ static void check_checkers_started(void)
     for (unsigned int at = 0u; !started && (at < CLI_SERVERS_CHECKING); at += 1u)
     {
         s_checker_index[at] = at;
-        s_checker[at] = (CliThread){check_checker, &s_checker_index[at]};
+        s_checker[at] = (CliThread){check_checker, &s_checker_index[at], CLI_PRIORITY_GUEST};
         (void)cli_thread_started(&s_checker[at]);
     }
 }

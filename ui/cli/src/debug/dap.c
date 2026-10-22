@@ -138,7 +138,7 @@ static void dap_response(CliDap *dap, const char *message, unsigned long long si
     dap_answered(dap, seq, NULL, 0ull, error);
 }
 
-// a request of the adapter's own refused, as orior runs the program through the adapter
+// a request of the adapter's own refused, as orior_cli runs the program through the adapter
 static void dap_refused(CliDap *dap, const char *message, unsigned long long size, unsigned long long seq)
 {
     unsigned long long at = 0ull;
@@ -157,7 +157,7 @@ static void dap_refused(CliDap *dap, const char *message, unsigned long long siz
         {has_seq ? message + at : "null", has_seq ? length : 4ull, 0},
         CLI_LSP_RAW(",\"success\":false,\"command\":"),
         {has_command ? message + command : "null", has_command ? command_size : 4ull, 0},
-        CLI_LSP_RAW(",\"message\":\"orior runs the program through the adapter\"}"),
+        CLI_LSP_RAW(",\"message\":\"orior_cli runs the program through the adapter\"}"),
     };
     char why[CLI_SAID_LONGEST];
     CliLine unsent = {why, sizeof(why), 0ull};

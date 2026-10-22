@@ -8,11 +8,16 @@
 #include "../text/json_tree.h"
 #include "compile_db.h"
 
-// how deep below build/cmake and build/meson a build is looked for; the most files a look reads; and the most folders
-// a search below a build finds
+// how deep below build/cmake and build/meson a build is looked for; the most files a look reads; the most folders a
+// search below a build finds; and the files and folders their rooms are begun with, doubling as they are put
 #define CLI_COMPILE_DEPTH 6u
 #define CLI_COMPILE_INPUTS 1024u
 #define CLI_COMPILE_FOUND 1024u
+#define CLI_COMPILE_FIRST 16u
+
+// the cells the files a look reads, the folders a search finds and the folders a walk has still to look in are held
+// in, counted (compile_db.c)
+extern CliCellsTally g_cli_compile_cells;
 
 // A file a look reads, and when it last changed, in milliseconds since 1970
 typedef struct
@@ -21,20 +26,32 @@ typedef struct
     unsigned long long time;
 } CliStamped;
 
-// What a look reads: the tree's own database, where it has one, or each build orior configured
+// What a look reads: the tree's own database, where it has one, or each build orior_cli configured, in a cell whose
+// room doubles as they are put, given back with cli_compile_inputs_given
 typedef struct
 {
     int own;
-    CliStamped file[CLI_COMPILE_INPUTS];
+    CliStamped *file;
     unsigned int count;
+    unsigned int room;
 } CliInputs;
 
-// Folders a search below a build finds
+// Folders a search below a build finds, in a cell whose room doubles as they are found, given back with
+// cli_compile_found_given
 typedef struct
 {
-    char path[CLI_COMPILE_FOUND][CLI_PATH_LONGEST];
+    char (*path)[CLI_PATH_LONGEST];
     unsigned int count;
+    unsigned int room;
 } CliFoundFolders;
+
+// the cells of what a look read, and of the folders a search found, given back, each left empty; and `list`, `count`
+// items of `each` bytes held in a room of `*room`, made to hold one more, `most` at the most: the list, moved into a
+// cell of doubled room where it is full, or NULL where it holds the most or the cell is refused (compile_db.c)
+void cli_compile_inputs_given(CliInputs *inputs);
+void cli_compile_found_given(CliFoundFolders *found);
+void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsigned long long each, unsigned int most,
+                       const char *what);
 
 // the file at `path` with when it last changed into `stamped`: 1, or 0 where it is not there; each folder below `top`,
 // at most CLI_COMPILE_DEPTH down, that ends in the folders `tail`, `count` of them, into `found`; each file named
@@ -45,8 +62,10 @@ void cli_compile_folders_named(const char *top, const char *const *tail, unsigne
 void cli_compile_files_named(const char *top, const char *name, CliFoundFolders *found);
 int cli_compile_newest_index(const char *reply, char *index);
 
-// the words of a command line, a word in double quotes kept whole, the first into `first`, which holds
-// CLI_PATH_LONGEST: 1, or 0 where it has none; and each of them handed to `each` (compile_db.c)
+// whether a letter is whitespace as a command line is read; the words of a command line, a word in double quotes kept
+// whole, the first into `first`, which holds CLI_PATH_LONGEST: 1, or 0 where it has none; and each of them handed to
+// `each` (compile_db.c)
+int cli_compile_white(char letter);
 int cli_compile_first_word(const char *text, unsigned long long length, char *first);
 void cli_compile_words_each(const char *text, unsigned long long length,
                             void (*each)(void *context, const char *word, unsigned long long size), void *context);
@@ -54,7 +73,7 @@ void cli_compile_words_each(const char *text, unsigned long long length,
 // the JSON file at `path` read into `json`, `tokens` holding `tokens_most`: its root, or CLI_JSON_NONE where it is not
 // there or is no JSON (compile_db.c)
 unsigned int cli_compile_json_read(CliJson *json, const char *path, CfgJsonToken *tokens, unsigned int tokens_most);
-// what a look at the tree at `root` reads into `inputs` (compile_db.c)
+// what a look at the tree at `root` reads into `inputs` (compile_db_look.c)
 void cli_compile_inputs(const char *root, CliInputs *inputs);
 
 // the most nodes and bytes of the entries gathered and of a CMake reply read, the most projects, languages and flags
@@ -67,6 +86,8 @@ void cli_compile_inputs(const char *root, CliInputs *inputs);
 #define CLI_GATHER_LANGUAGES 16u
 #define CLI_GATHER_FLAGS 4096u
 #define CLI_GATHER_WRITTEN (1u << 26u)
+// the bytes a compile group's flags are begun to be written in, doubling as they fill
+#define CLI_GATHER_FLAGS_FIRST 4096u
 
 // A project's entries: its folder, when its configuration was written, and its entries in the gathered tree
 typedef struct
@@ -86,8 +107,8 @@ typedef struct
 
 // The gathering: the entries tree and the reply tree with their tokens, the projects, a compile group's flags, and the
 // database written; the trees' nodes, texts and tokens and the database written are cells of CLI_GATHER_NODES,
-// CLI_GATHER_TEXT, CLI_REPLY_NODES, CLI_REPLY_TEXT and CLI_GATHER_WRITTEN, taken for one gathering and given back
-// as it ends
+// CLI_GATHER_TEXT, CLI_REPLY_NODES, CLI_REPLY_TEXT and CLI_GATHER_WRITTEN, and the flags' text a growing line, each
+// one after another with its zero after it, taken for one gathering and given back as it ends
 typedef struct
 {
     CliJsonNode *nodes;
@@ -101,8 +122,7 @@ typedef struct
     unsigned int projects;
     CliCompilerOf compiler[CLI_GATHER_LANGUAGES];
     unsigned int compilers;
-    char flags_text[1u << 20u];
-    unsigned int flags_used;
+    CliLine flags_text;
     unsigned int flag[CLI_GATHER_FLAGS];
     unsigned int flags;
     char *written;

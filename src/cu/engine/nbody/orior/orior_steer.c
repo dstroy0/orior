@@ -5,7 +5,7 @@
 
 /* ---- the steering, folded in ---- */
 
-void anchor_field_census(const uint8_t *corpus, size_t corpus_len, AnchorFieldCensus *census)
+void orior_field_census(const uint8_t *corpus, size_t corpus_len, OriorFieldCensus *census)
 {
     if (census == NULL)
     {
@@ -24,7 +24,7 @@ void anchor_field_census(const uint8_t *corpus, size_t corpus_len, AnchorFieldCe
     }
     census->total = (uint64_t)corpus_len;
 
-    for (unsigned int symbol = 0u; symbol < ANCHOR_STEER_SYMBOLS; symbol += 1u)
+    for (unsigned int symbol = 0u; symbol < ORIOR_STEER_SYMBOLS; symbol += 1u)
     {
         if (census->occurrences[symbol] != 0u)
         {
@@ -33,7 +33,7 @@ void anchor_field_census(const uint8_t *corpus, size_t corpus_len, AnchorFieldCe
     }
 }
 
-uint64_t anchor_steer_magnitude(const AnchorFieldCensus *census, uint8_t symbol)
+uint64_t orior_steer_magnitude(const OriorFieldCensus *census, uint8_t symbol)
 {
     if (census == NULL)
     {
@@ -42,7 +42,7 @@ uint64_t anchor_steer_magnitude(const AnchorFieldCensus *census, uint8_t symbol)
     return census->total - census->occurrences[symbol];
 }
 
-void anchor_steer_probe_order(size_t *offsets, size_t count, const AnchorFieldCensus *census, const uint8_t *needle,
+void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCensus *census, const uint8_t *needle,
                               size_t needle_len)
 {
     if ((offsets == NULL) || (census == NULL) || (needle == NULL) || (count == 0u) || (needle_len == 0u) ||
@@ -61,14 +61,14 @@ void anchor_steer_probe_order(size_t *offsets, size_t count, const AnchorFieldCe
         {
             continue;
         }
-        const uint64_t moving = anchor_steer_magnitude(census, needle[moving_offset]);
+        const uint64_t moving = orior_steer_magnitude(census, needle[moving_offset]);
 
         size_t slot = placed;
         while (slot > 0u)
         {
             const size_t settled_offset = offsets[slot - 1u];
             const uint64_t settled =
-                (settled_offset < needle_len) ? anchor_steer_magnitude(census, needle[settled_offset]) : 0u;
+                (settled_offset < needle_len) ? orior_steer_magnitude(census, needle[settled_offset]) : 0u;
             if (settled > moving)
             {
                 break;
@@ -91,14 +91,14 @@ void anchor_steer_probe_order(size_t *offsets, size_t count, const AnchorFieldCe
  * @param[in]  from  The value to carry.
  * @note Base 2^32 least significant limb first, the layout exact_integer.h declares.
  *       Writing the two limbs directly is reading that declaration instead of reaching around it;
- *       there is no decimal text here to route through anchor_exact_from_decimal and converting a
+ *       there is no decimal text here to route through orior_exact_from_decimal and converting a
  *       counter to text to parse it back would be slower and just as exact.
  * @note limb[1] exists because the assert at the top of this file holds the engine to 8 limbs or
  *       more.
  */
-static void steer_exact_from_u64(AnchorExactInteger *value, uint64_t from)
+static void steer_exact_from_u64(OriorExactInteger *value, uint64_t from)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     if (from == 0u)
     {
         return;
@@ -108,7 +108,7 @@ static void steer_exact_from_u64(AnchorExactInteger *value, uint64_t from)
     value->sign = 1;
 }
 
-int anchor_steer_prefers_free(const AnchorFieldCensus *census)
+int orior_steer_prefers_free(const OriorFieldCensus *census)
 {
     if ((census == NULL) || (census->total == 0u) || (census->distinct == 0u))
     {
@@ -120,18 +120,18 @@ int anchor_steer_prefers_free(const AnchorFieldCensus *census)
     // Three integers, each built in place, since every exact operation accepts its result aliasing
     // an input. Six would come to 768 KiB at 32768 limbs, and with the multiply's accumulator that
     // passes the 1 MiB stack the MSVC linker gives a main thread.
-    AnchorExactInteger left;
-    AnchorExactInteger right;
-    AnchorExactInteger term;
+    OriorExactInteger left;
+    OriorExactInteger right;
+    OriorExactInteger term;
 
     // left = 100 * total^2
     steer_exact_from_u64(&left, census->total);
-    if (anchor_exact_multiply(&left, &left, &left) != ANCHOR_EXACT_OK)
+    if (orior_exact_multiply(&left, &left, &left) != ORIOR_EXACT_OK)
     {
         return 0;
     }
     steer_exact_from_u64(&term, 100u);
-    if (anchor_exact_multiply(&left, &term, &left) != ANCHOR_EXACT_OK)
+    if (orior_exact_multiply(&left, &term, &left) != ORIOR_EXACT_OK)
     {
         return 0;
     }
@@ -139,19 +139,19 @@ int anchor_steer_prefers_free(const AnchorFieldCensus *census)
     // right = sum over symbols of count^2, accumulated in the limb form and not in a 64 bit
     // counter. A single count squares to at most total^2, which already passes 2^64 on a four
     // gigabyte corpus, and 256 of them are summed on top of that.
-    anchor_exact_zero(&right);
-    for (unsigned int symbol = 0u; symbol < ANCHOR_STEER_SYMBOLS; symbol += 1u)
+    orior_exact_zero(&right);
+    for (unsigned int symbol = 0u; symbol < ORIOR_STEER_SYMBOLS; symbol += 1u)
     {
         if (census->occurrences[symbol] == 0u)
         {
             continue;
         }
         steer_exact_from_u64(&term, census->occurrences[symbol]);
-        if (anchor_exact_multiply(&term, &term, &term) != ANCHOR_EXACT_OK)
+        if (orior_exact_multiply(&term, &term, &term) != ORIOR_EXACT_OK)
         {
             return 0;
         }
-        if (anchor_exact_add(&right, &term, &right) != ANCHOR_EXACT_OK)
+        if (orior_exact_add(&right, &term, &right) != ORIOR_EXACT_OK)
         {
             return 0;
         }
@@ -159,19 +159,19 @@ int anchor_steer_prefers_free(const AnchorFieldCensus *census)
 
     // right = 85 * distinct * right
     steer_exact_from_u64(&term, 85u);
-    if (anchor_exact_multiply(&right, &term, &right) != ANCHOR_EXACT_OK)
+    if (orior_exact_multiply(&right, &term, &right) != ORIOR_EXACT_OK)
     {
         return 0;
     }
     steer_exact_from_u64(&term, (uint64_t)census->distinct);
-    if (anchor_exact_multiply(&right, &term, &right) != ANCHOR_EXACT_OK)
+    if (orior_exact_multiply(&right, &term, &right) != ORIOR_EXACT_OK)
     {
         return 0;
     }
 
     // The rule reads "flat corpora take the short circuiting engine". The free order one is
     // therefore the branch taken when the effective alphabet does NOT reach the threshold.
-    return (anchor_exact_compare(&left, &right) < 0) ? 1 : 0;
+    return (orior_exact_compare(&left, &right) < 0) ? 1 : 0;
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -199,7 +199,7 @@ int anchor_steer_prefers_free(const AnchorFieldCensus *census)
  * @return           Count of survivors, in the sampled population.
  */
 size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                          const uint8_t *alive, size_t offset, size_t stride, const AnchorField *any)
+                          const uint8_t *alive, size_t offset, size_t stride, const OriorField *any)
 {
     // ANY SYMBOL TYPE TAKES THE SCALAR LOOP AND CANNOT TAKE A WIDE ONE. A vectorized scan compares
     // bytes against a broadcast byte, which is a statement about the representation. The oracle is
@@ -237,15 +237,15 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
     // to the loop below, the same code the portable engine runs.
     if (stride == 1u)
     {
-        // Resolved through anchor_steer_best_engine, which holds the one dispatch every arm is added
+        // Resolved through orior_steer_best_engine, which holds the one dispatch every arm is added
         // to. Reproducing the #if ladder here would be a second copy that a new arm could miss, and a
         // scan that keeps running the old widest arm while a wider one reports itself present has
         // the unused-implementation defect the scan counters exist to catch.
-        static const AnchorSteerEngine *chosen = NULL;
+        static const OriorSteerEngine *chosen = NULL;
         static int resolved = 0;
         if (resolved == 0)
         {
-            chosen = anchor_steer_best_engine();
+            chosen = orior_steer_best_engine();
             resolved = 1;
         }
         if (chosen != NULL)
@@ -298,7 +298,7 @@ size_t steer_truthy_total(const uint8_t *alive, size_t alignments, size_t stride
  *       level ranks against it and an approximate survivor set would compound.
  */
 void steer_make_falsy(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                      uint8_t *alive, size_t offset, const AnchorField *any)
+                      uint8_t *alive, size_t offset, const OriorField *any)
 {
     if (any != NULL)
     {

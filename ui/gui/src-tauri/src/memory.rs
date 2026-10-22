@@ -1,12 +1,23 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-//! What the app holds in memory: its own process and every process it started, the web view's
-//! browser, renderers and GPU process among them. Each counts its private working set, the memory
-//! only it uses that is in RAM, and its commit, the private memory it has reserved whether in RAM or
-//! paged out. The app's own process alone is a small share of the whole.
+//! What the app holds in memory: its own process and every process it started, and the web view's
+//! browser, renderers and GPU process, wherever the browser stands. Each counts its private working
+//! set, the memory only it uses that is in RAM, and its commit, the private memory it has reserved
+//! whether in RAM or paged out. The app's own process alone is a small share of the whole.
 
 use serde::Serialize;
+use std::sync::atomic::{AtomicU32, Ordering};
+
+/// The web view's browser process, 0 until the web view says it. WebView2 runs one browser for
+/// every app process on the same data folder, so a window that opens while another of orior's runs
+/// joins that one's browser, which stands under the other process and not under this one.
+static BROWSER: AtomicU32 = AtomicU32::new(0);
+
+/// The web view's browser process kept, counted with every process under it.
+pub fn browser_known(pid: u32) {
+    BROWSER.store(pid, Ordering::Relaxed);
+}
 
 /// What one program the app started holds, with every process it started in turn: its name, the
 /// process the app started, how many processes, what they hold in RAM and what they have reserved,
@@ -75,12 +86,19 @@ pub fn read() -> Option<Memory> {
         CloseHandle(snapshot);
     }
 
-    // The app's process, then each process whose parent is one of the app's and that started after
-    // it: a process that took an ended parent's number before that parent started is not the app's.
+    // The app's process and the web view's browser, then each process whose parent is one of those
+    // and that started after it: a process that took an ended parent's number before that parent
+    // started is not the app's.
     // SAFETY: a call that takes nothing and cannot fail.
     let own = unsafe { GetCurrentProcessId() };
     let first = measure(own)?;
     let mut found: Vec<(u32, (u64, u64, u64))> = vec![(own, first)];
+    let browser = BROWSER.load(Ordering::Relaxed);
+    if browser != 0 && browser != own {
+        if let Some(measured) = measure(browser) {
+            found.push((browser, measured));
+        }
+    }
     let mut at = 0;
     while at < found.len() {
         let (parent, (_, _, parent_start)) = found[at];
@@ -120,7 +138,7 @@ pub fn read() -> Option<Memory> {
     let mut memory = Memory::default();
     for (pid, (working, commit, _)) in found {
         let root = if pid == own { own } else { started_from(pid) };
-        let name = if root == own { "orior".to_string() } else { all.get(&root).map(|(_, name)| name.trim_end_matches(".exe").to_string()).unwrap_or_default() };
+        let name = if root == own { "orior_gui".to_string() } else { all.get(&root).map(|(_, name)| name.trim_end_matches(".exe").to_string()).unwrap_or_default() };
         let part = parts.entry(root).or_insert_with(|| Part { name, pid: root, ..Part::default() });
         part.processes += 1;
         part.working += working;
@@ -157,7 +175,7 @@ pub fn read() -> Option<Memory> {
     for pid in std::iter::once(own).chain(crate::orior::own_as::<Vec<u32>>("container_members", serde_json::json!({})).unwrap_or_default()) {
         let Some((working, commit)) = measure(pid) else { continue };
         let root = if pid == own { own } else { started_from(pid) };
-        let name = if root == own { "orior".to_string() } else { name_of(root) };
+        let name = if root == own { "orior_gui".to_string() } else { name_of(root) };
         let part = parts.entry(root).or_insert_with(|| Part { name, pid: root, ..Part::default() });
         part.processes += 1;
         part.working += working;

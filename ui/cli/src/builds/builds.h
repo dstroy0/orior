@@ -29,11 +29,18 @@
 #define CLI_BUILD_WARNING 2u
 #define CLI_BUILD_NOTE 3u
 
-// the most findings of one file, the most fixes of them, the bytes their texts take, and no finding
+// the most findings of one file, the most fixes of them, the most bytes their texts take, and no finding; the findings
+// and fixes their rooms are begun with, doubling as they are put; and the bytes the texts hold free past the last kept,
+// the room a message or a title is written in before it is kept
 #define CLI_BUILD_FINDINGS 4096u
 #define CLI_BUILD_FIXES 16384u
 #define CLI_BUILD_TEXT (1u << 21u)
 #define CLI_BUILD_NONE 0xffffffffu
+#define CLI_BUILD_FIRST 16u
+#define CLI_BUILD_SAID 16384u
+
+// the cells the findings and the lines indexed are held in, counted, each given back once the findings are written
+extern CliCellsTally g_cli_build_cells;
 
 // the kind of build file at `path`, by its name, 0 where it is none
 unsigned int cli_build_kind_of(const char *path);
@@ -69,6 +76,10 @@ typedef struct
 // UTF-16 units, of byte `at`; and the byte line `line` starts at, the text's end past its last (builds_help.c)
 void cli_build_lines_of(const char *text, unsigned long long size, unsigned int *starts, unsigned int most,
                         CliBuildLines *lines);
+// the lines of `size` bytes of `text` indexed whole, their starts in a cell counted to g_cli_build_cells sized to
+// them: the cell, given back with cli_cell_given_by once the lines are done with, or NULL with no line indexed where it
+// is refused
+unsigned int *cli_build_lines_taken(const char *text, unsigned long long size, CliBuildLines *lines);
 CliTextPlace cli_build_place(const CliBuildLines *lines, unsigned long long at);
 unsigned long long cli_build_line_start(const CliBuildLines *lines, unsigned int line);
 
@@ -103,23 +114,29 @@ typedef struct
     unsigned int folder_size;
 } CliBuildFix;
 
-// A file's findings and their fixes, and the texts they take, with 1 in `full` where one did not fit
+// A file's findings and their fixes, and the texts they take, each in a cell whose room doubles as they are put, with 1
+// in `full` where one did not fit
 typedef struct
 {
-    CliBuildFinding finding[CLI_BUILD_FINDINGS];
+    CliBuildFinding *finding;
     unsigned int count;
-    CliBuildFix fix[CLI_BUILD_FIXES];
+    unsigned int finding_room;
+    CliBuildFix *fix;
     unsigned int fixes;
-    char text[CLI_BUILD_TEXT];
+    unsigned int fix_room;
+    char *text;
     unsigned int used;
+    unsigned int text_room;
     int full;
 } CliBuildFindings;
 
-// findings made empty; a line over the room left in their texts, a message or a title written into it there kept by
-// the finding or the fix made of it next; a finding of `message` over the bytes `from` to `to`: its place, or
+// findings made empty, those held before given back; their cells given back; a line over the room left in their
+// texts, CLI_BUILD_SAID bytes or more, a message or a title written into it there kept by the finding or the fix made
+// of it next, one at a time; a finding of `message` over the bytes `from` to `to`: its place, or
 // CLI_BUILD_NONE where it does not fit; a fix of the finding at `finding` that writes `size` bytes of `text` over the
 // bytes `from` to `to`; and one that runs `line` in the terminal in `folder` of the tree (builds_help.c)
 void cli_build_findings_begun(CliBuildFindings *found);
+void cli_build_findings_given(CliBuildFindings *found);
 CliLine cli_build_said(CliBuildFindings *found);
 unsigned int cli_build_finding(CliBuildFindings *found, const CliLine *message, const CliBuildLines *lines,
                                unsigned long long from, unsigned long long to, unsigned int severity, const char *code);

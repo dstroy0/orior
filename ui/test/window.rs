@@ -20,6 +20,15 @@ pub struct Window {
     pub page: String,
 }
 
+/// How the window ended, where it did: its exit status, or that it still runs.
+pub fn ended(window: &mut Window) -> String {
+    match window.child.try_wait() {
+        Ok(Some(status)) => format!("the window ended with {status}"),
+        Ok(None) => "the window's page closed while its process still runs".into(),
+        Err(error) => format!("the window's end could not be read: {error}"),
+    }
+}
+
 impl Drop for Window {
     fn drop(&mut self) {
         let _ = self.child.kill();
@@ -27,14 +36,18 @@ impl Drop for Window {
     }
 }
 
-/// Builds the app into `target`, and gives the program built.
+/// Builds the app into `target`, and gives the program built; or, where ORIOR_TEST_GUI names a program
+/// already built, as a container with no toolchain is handed one, that program.
 pub fn build(ui: &Path, target: &Path) -> Result<PathBuf, String> {
+    if let Some(given) = std::env::var_os("ORIOR_TEST_GUI").map(PathBuf::from).filter(|given| given.is_file()) {
+        return Ok(given);
+    }
     let manifest = ui.join("gui").join("src-tauri").join("Cargo.toml");
-    let built = Command::new("cargo").args(["build", "--manifest-path"]).arg(&manifest).arg("--target-dir").arg(target).stdin(Stdio::null()).status().map_err(|error| format!("cargo: {error}"))?;
+    let built = crate::guest("cargo").args(["build", "--manifest-path"]).arg(&manifest).arg("--target-dir").arg(target).stdin(Stdio::null()).status().map_err(|error| format!("cargo: {error}"))?;
     if !built.success() {
         return Err("the app did not build".into());
     }
-    Ok(target.join("debug").join(if cfg!(windows) { "orior.exe" } else { "orior" }))
+    Ok(target.join("debug").join(format!("{}{}", crate::bin_named(ui, "gui"), if cfg!(windows) { ".exe" } else { "" })))
 }
 
 /// A port nothing listens on, of the ports the system gives out.
@@ -61,6 +74,12 @@ pub fn start(program: &Path, ui: &Path, run: &Path, tree: &Path, monitor: Option
         .env("ORIOR_HOME", run.join("home"))
         .env("ORIOR_ROOT", tree)
         .env("ORIOR_NO_REPORTS", "1")
+        // the repositories a test makes are its own: git signs nothing in them, whatever the reader's git signs
+        .env("GIT_CONFIG_COUNT", "2")
+        .env("GIT_CONFIG_KEY_0", "commit.gpgsign")
+        .env("GIT_CONFIG_VALUE_0", "false")
+        .env("GIT_CONFIG_KEY_1", "tag.gpgsign")
+        .env("GIT_CONFIG_VALUE_1", "false")
         .env("WEBVIEW2_USER_DATA_FOLDER", run.join("webview"))
         .env("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", browser_arguments(ui, port))
         .envs(extra.iter().map(|(key, value)| (key, value)))
@@ -234,7 +253,7 @@ mod screen {
         if process == found.0 && unsafe { GetWindow(window, GW_OWNER) }.is_null() {
             let mut title = [0u16; 64];
             let length = unsafe { GetWindowTextW(window, title.as_mut_ptr(), title.len() as i32) };
-            if String::from_utf16_lossy(&title[..length.max(0) as usize]) == "orior" {
+            if String::from_utf16_lossy(&title[..length.max(0) as usize]) == "orior_gui" {
                 found.1.push(window);
             }
         }

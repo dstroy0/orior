@@ -16,7 +16,7 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
         sizes.begin(), sizes.begin() + (ptrdiff_t)std::min<size_t>(PLANE_BLIND_RINGS, sizes.size()));
     const unsigned long long block = plane_ring_total(rings);
     const unsigned long long needed = seen + ((first + pairs) * block);
-    if ((first + pairs > PLANE_BLIND_MAX) || (needed + PLANE_GUARD + 64ull > ANCHOR_EXACT_BITS))
+    if ((first + pairs > PLANE_BLIND_MAX) || (needed + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
     {
         scriptura_text(line, "  the blind pairs lie in the first ");
         scriptura_decimal(line, PLANE_BLIND_MAX, 1u);
@@ -362,7 +362,7 @@ int plane_funnels(SimResults *results, const std::vector<unsigned long long> &si
         sizes.begin(), sizes.begin() + (ptrdiff_t)std::min<size_t>(PLANE_BLIND_RINGS, sizes.size()));
     const unsigned long long block = plane_ring_total(rings);
     const unsigned long long needed = seen + ((PLANE_BLIND_SCORED + fresh) * block);
-    if ((fresh > PLANE_FUNNEL_FRESH_MAX) || (needed + PLANE_GUARD + 64ull > ANCHOR_EXACT_BITS))
+    if ((fresh > PLANE_FUNNEL_FRESH_MAX) || (needed + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
     {
         scriptura_text(line, "  the funnels read at most ");
         scriptura_decimal(line, PLANE_FUNNEL_FRESH_MAX, 1u);

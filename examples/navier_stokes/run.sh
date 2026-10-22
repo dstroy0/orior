@@ -55,7 +55,7 @@ esac
 # SIM_EXACT_LIMBS sets the exact integer's width in 32-bit limbs, a power of two, for every object linked
 WIDTH=()
 if [ -n "${SIM_EXACT_LIMBS:-}" ]; then
-    WIDTH=(-DANCHOR_EXACT_LIMBS="${SIM_EXACT_LIMBS}u")
+    WIDTH=(-DORIOR_EXACT_LIMBS="${SIM_EXACT_LIMBS}u")
 fi
 INCLUDES=(-I "$SRC/cu/engine" -I "$SIMS_CU" -I "$SCRIPTURA" -I "$NO_ROUNDING" -I "$CFG_JSON"
           -I "$DAEMON_DIRECTORY" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")

@@ -46,8 +46,21 @@ static DWORD WINAPI cli_thread_entry(LPVOID given)
 {
     // the thread is handed what it runs, which its starter keeps for as long as the thread lives
     const CliThread *const thread = (const CliThread *)given;
+    cli_priority_own(thread->priority);
     thread->run(thread->context);
     return 0u;
+}
+
+void cli_priority_own(unsigned int priority)
+{
+    const int level = (priority == CLI_PRIORITY_RUN)     ? THREAD_PRIORITY_ABOVE_NORMAL
+                      : (priority == CLI_PRIORITY_GUEST) ? THREAD_PRIORITY_BELOW_NORMAL
+                      : (priority == CLI_PRIORITY_IDLE)  ? THREAD_PRIORITY_IDLE
+                                                         : THREAD_PRIORITY_NORMAL;
+    if (level != THREAD_PRIORITY_NORMAL)
+    {
+        SetThreadPriority(GetCurrentThread(), level);
+    }
 }
 
 int cli_thread_started(CliThread *thread)

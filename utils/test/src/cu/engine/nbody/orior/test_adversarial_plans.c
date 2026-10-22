@@ -17,40 +17,40 @@ int adversarial_case_family_guard(void)
     int failed = 0;
 
     // An origin at the needle length reads past the end and must error.
-    const AnchorProbe past_end = {needle_len, 1u, 1u};
-    if (anchor_steer_probe_fits(&past_end, needle_len) != 0)
+    const OriorProbe past_end = {needle_len, 1u, 1u};
+    if (orior_steer_probe_fits(&past_end, needle_len) != 0)
     {
         printf("    FAIL origin at needle_len admitted\n");
         failed = 1;
     }
 
     // A line whose last position falls outside the needle must error.
-    const AnchorProbe overruns = {needle_len - 2u, 4u, 3u};
-    if (anchor_steer_probe_fits(&overruns, needle_len) != 0)
+    const OriorProbe overruns = {needle_len - 2u, 4u, 3u};
+    if (orior_steer_probe_fits(&overruns, needle_len) != 0)
     {
         printf("    FAIL line overrunning the needle admitted\n");
         failed = 1;
     }
 
     // A zero step above length one reads one position repeatedly and carries no second condition.
-    const AnchorProbe stalled = {0u, 0u, 4u};
-    if (anchor_steer_probe_fits(&stalled, needle_len) != 0)
+    const OriorProbe stalled = {0u, 0u, 4u};
+    if (orior_steer_probe_fits(&stalled, needle_len) != 0)
     {
         printf("    FAIL zero step above length one admitted\n");
         failed = 1;
     }
 
     // A zero length probe tests nothing and is not a necessary condition of anything.
-    const AnchorProbe empty = {0u, 1u, 0u};
-    if (anchor_steer_probe_fits(&empty, needle_len) != 0)
+    const OriorProbe empty = {0u, 1u, 0u};
+    if (orior_steer_probe_fits(&empty, needle_len) != 0)
     {
         printf("    FAIL zero length probe admitted\n");
         failed = 1;
     }
 
     // The widest line that still lands inside must be admitted, or the guard is erroring on the family.
-    const AnchorProbe widest = {0u, needle_len - 1u, 2u};
-    if (anchor_steer_probe_fits(&widest, needle_len) == 0)
+    const OriorProbe widest = {0u, needle_len - 1u, 2u};
+    if (orior_steer_probe_fits(&widest, needle_len) == 0)
     {
         printf("    FAIL widest fitting line errored\n");
         failed = 1;
@@ -100,9 +100,9 @@ int adversarial_case_sampling_cost(void)
 
     const size_t expected = orior_naive(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle));
 
-    anchor_steer_probes_reset();
-    const size_t baseline_count = anchor_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 1);
-    const uint64_t baseline_reads = anchor_steer_probes;
+    orior_steer_probes_reset();
+    const size_t baseline_count = orior_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 1);
+    const uint64_t baseline_reads = orior_steer_probes;
 
     if (baseline_count != expected)
     {
@@ -145,7 +145,7 @@ int adversarial_case_permutation_null(void)
     adversarial_fill_field(corpus, ADVERSARIAL_CORPUS, 6u, &state);
     memcpy(needle, corpus + 700u, sizeof(needle));
 
-    const AnchorProbe orders[4][3] = {
+    const OriorProbe orders[4][3] = {
         {{0u, 1u, 1u}, {7u, 1u, 1u}, {15u, 1u, 1u}},
         {{15u, 1u, 1u}, {0u, 1u, 1u}, {7u, 1u, 1u}},
         {{7u, 1u, 1u}, {15u, 1u, 1u}, {0u, 1u, 1u}},
@@ -156,7 +156,7 @@ int adversarial_case_permutation_null(void)
     for (size_t which = 0u; which < 4u; which += 1u)
     {
         const size_t counted =
-            anchor_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), orders[which], 3u);
+            orior_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), orders[which], 3u);
         if (counted != reference)
         {
             printf("    FAIL order %zu returned %zu against reference %zu\n", which, counted, reference);
@@ -199,9 +199,9 @@ int adversarial_case_empty_plan(void)
 
     const size_t reference = orior_naive(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle));
 
-    anchor_steer_probes_reset();
-    const size_t counted = anchor_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), NULL, 0u);
-    const uint64_t reads = anchor_steer_probes;
+    orior_steer_probes_reset();
+    const size_t counted = orior_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), NULL, 0u);
+    const uint64_t reads = orior_steer_probes;
 
     if (counted != reference)
     {
@@ -247,7 +247,7 @@ int adversarial_case_growing_plan(void)
     adversarial_fill_field(corpus, ADVERSARIAL_CORPUS, 5u, &state);
     memcpy(needle, corpus + 1024u, sizeof(needle));
 
-    const AnchorProbe probes[4] = {
+    const OriorProbe probes[4] = {
         {0u, 1u, 1u},
         {19u, 1u, 1u},
         {9u, 1u, 1u},
@@ -257,9 +257,9 @@ int adversarial_case_growing_plan(void)
 
     for (size_t used = 1u; used <= 4u; used += 1u)
     {
-        anchor_steer_probes_reset();
+        orior_steer_probes_reset();
         const size_t counted =
-            anchor_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), probes, used);
+            orior_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), probes, used);
         if (counted != reference)
         {
             printf("    FAIL %zu probe(s) counted %zu against reference %zu\n", used, counted, reference);
@@ -268,13 +268,13 @@ int adversarial_case_growing_plan(void)
     }
 
     // The empty-needle boundary, which no other case reaches. An empty needle occurs at every
-    // alignment. The reference is corpus_len + 1. anchor_steer_count_with_probes returned 0 here
-    // until its guard was split, disagreeing with orior_naive and anchor_steer_count in the
+    // alignment. The reference is corpus_len + 1. orior_steer_count_with_probes returned 0 here
+    // until its guard was split, disagreeing with orior_naive and orior_steer_count in the
     // same tree. The probes cannot be evaluated on a needle with no positions. The empty probe set
     // grades it.
     {
         const size_t empty_reference = orior_naive(corpus, ADVERSARIAL_CORPUS, needle, 0u);
-        const size_t empty_counted = anchor_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, 0u, NULL, 0u);
+        const size_t empty_counted = orior_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, 0u, NULL, 0u);
         if (empty_counted != empty_reference)
         {
             printf("    FAIL empty needle counted %zu against reference %zu\n", empty_counted, empty_reference);
@@ -283,13 +283,13 @@ int adversarial_case_growing_plan(void)
     }
 
     // A probe that reads past the needle. Its last position is (needle_len - 2) + 4*2, which is
-    // needle_len + 6. Anchor_steer_probe_fits rejects it and the count is 0. Before the guard,
+    // needle_len + 6. Orior_steer_probe_fits rejects it and the count is 0. Before the guard,
     // count_with_probes read needle[offset] and corpus[at + offset] off the end of both. The count
     // it returns is not the reference; an error is the point, and 0 is the documented one.
     {
-        const AnchorProbe overruns = {sizeof(needle) - 2u, 4u, 3u};
+        const OriorProbe overruns = {sizeof(needle) - 2u, 4u, 3u};
         const size_t error =
-            anchor_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), &overruns, 1u);
+            orior_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), &overruns, 1u);
         if (error != 0u)
         {
             printf("    FAIL a probe past the needle counted %zu, expected the error 0\n", error);
@@ -320,8 +320,8 @@ int adversarial_case_stop_equals_continue(void)
 {
     uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
     uint8_t needle[16];
-    size_t shallow[ANCHOR_STEER_ANCHORS];
-    size_t deep[ANCHOR_STEER_ANCHORS];
+    size_t shallow[ORIOR_STEER_ANCHORS];
+    size_t deep[ORIOR_STEER_ANCHORS];
     int failed = 0;
 
     if (corpus == NULL)
@@ -347,17 +347,17 @@ int adversarial_case_stop_equals_continue(void)
     // The two runs differ in one member only, and the case exists to compare them.
     // force_full_depth is omitted on the first, and an omitted member is zero, the destroy
     // rule honored. Naming it on the second forces every level.
-    const size_t stopped = ANCHOR_STEER_CALL(
-        anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = shallow, .count = ANCHOR_STEER_ANCHORS,
+    const size_t stopped = ORIOR_STEER_CALL(
+        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = shallow, .count = ORIOR_STEER_ANCHORS,
         .corpus = corpus, .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle),
         .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u);
-    const size_t forced = ANCHOR_STEER_CALL(
-        anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = deep, .count = ANCHOR_STEER_ANCHORS, .corpus = corpus,
+    const size_t forced = ORIOR_STEER_CALL(
+        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = deep, .count = ORIOR_STEER_ANCHORS, .corpus = corpus,
         .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle), .survivors = survivors,
         .survivors_length = alignments, .sample_stride = 1u, .force_full_depth = 1);
 
     const size_t reference = orior_naive(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle));
-    const size_t shallow_count = anchor_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 1);
+    const size_t shallow_count = orior_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 1);
 
     if (shallow_count != reference)
     {

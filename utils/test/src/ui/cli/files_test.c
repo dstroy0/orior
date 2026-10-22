@@ -6,6 +6,7 @@
 // was read is tracked, and one in an ignored folder is not
 #include "../../../../../ui/cli/src/code/git.h"
 #include "../../../../../ui/cli/src/editor/files.h"
+#include "../../../../../ui/cli/src/editor/files_search_hits.h"
 #include "../../../../../ui/cli/src/text/base64.h"
 #include "cli_check.h"
 
@@ -351,6 +352,11 @@ static void files_listing(void)
             (cellul.eq(&(CatenaFinitaCfg){.src = cli_files_at(files, 1u), .other = "src/b.js", .cap = CLI_CELLS_POOL})),
         "a tree its repository ignores lists its files from the disk");
     cli_files_let(files);
+    const CliFiles *const kinds = cli_files_kinds_held(tree);
+    cli_check((kinds != NULL) && (kinds->count == 3u) && cli_files_holds(kinds, ".js") &&
+                  cli_files_holds(kinds, "a.js") && cli_files_holds(kinds, "b.js") && !cli_files_holds(kinds, ".lean"),
+              "and the view keeps each file's name and ending once, as it reads them");
+    cli_files_let(kinds);
     cli_check_folder("files_tracked", repo);
     files_folder(repo, "made", path);
     files_written(repo, ".gitignore", "out/\n", 5ull);
@@ -369,8 +375,80 @@ static void files_listing(void)
     cli_files_forget_seen();
 }
 
+// a search holds what it finds in cells that grow past their first room as lines are found, each given back as it ends
+static void files_searched(void)
+{
+    char root[CLI_PATH_LONGEST];
+    char why[1024];
+    CliLine said = {why, sizeof(why), 0ull};
+    cli_check_folder("files_search", root);
+    char many[100u * 12u];
+    CliLine lines = {many, sizeof(many), 0ull};
+    for (unsigned int at = 0u; at < 100u; at += 1u)
+    {
+        cli_line_text(&lines, "a needle\n");
+    }
+    files_written(root, "a.txt", many, lines.at);
+    files_written(root, "b.txt", "no\nthe needle\n", 14ull);
+    cli_files_forget_seen();
+    const CliPatterns none = {0};
+    CliLine out = {s_out, sizeof(s_out), 0ull};
+    const int found = cli_files_search(root, "needle", (CliSearching){0, 0, 0}, &none, &out, &said);
+    (void)cli_line_closed(&out);
+    unsigned int hits = 0u;
+    for (const char *at = s_out;
+         (at = cellul.find(&(CatenaFinitaCfg){
+              .src = at, .cap = CLI_CELLS_POOL, .other = "\"line\"", .other_cap = CLI_CELLS_POOL})) != NULL;
+         at += 1)
+    {
+        hits += 1u;
+    }
+    cli_check(found && (hits == 101u), "every line that holds the query is found");
+    cli_check((g_cli_search_cells.holds == 0ull) && (g_cli_search_cells.hw > (64ull * sizeof(CliHeldHit))),
+              "the lines found are held in cells grown past their first room, each given back");
+    cli_files_forget_seen();
+}
+
+// a find walks the folders of a tree git does not read and names each file whose path holds the query's words, sorted
+static void files_found(void)
+{
+    char root[CLI_PATH_LONGEST];
+    char path[CLI_PATH_LONGEST];
+    cli_check_folder("files_find", root);
+    files_folder(root, "beta", path);
+    files_written(root, "alpha.txt", "a", 1ull);
+    files_written(root, "beta/alpha.js", "b", 1ull);
+    files_written(root, "gamma.txt", "c", 1ull);
+    cli_files_forget_seen();
+    CliLine out = {s_out, sizeof(s_out), 0ull};
+    cli_files_find(root, "alpha", &out);
+    cli_check_text(s_out, out.at, "[\"alpha.txt\",\"beta/alpha.js\"]", "a find names the files that hold the query");
+    cli_files_forget_seen();
+}
+
+// a file written where a folder stands is refused with the system's reason, for the window to tell a refusal of rights
+static void files_refused(void)
+{
+    char root[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_LONGEST];
+    cli_check_folder("files_refused", root);
+    cli_full(root, "taken", folder);
+    query_folder_made(folder);
+    char why[512];
+    CliLine said = {why, sizeof(why), 0ull};
+    const int written = cli_files_write(root, "taken", "x", 1ull, &said);
+    (void)cli_line_closed(&said);
+    cli_check(!written &&
+                  (cellul.find(&(CatenaFinitaCfg){
+                       .src = why, .cap = CLI_CELLS_POOL, .other = "(os error ", .other_cap = CLI_CELLS_POOL}) != NULL),
+              why);
+}
+
 int main(void)
 {
+    files_refused();
+    files_found();
+    files_searched();
     files_paste();
     files_bring_over();
     files_bring();

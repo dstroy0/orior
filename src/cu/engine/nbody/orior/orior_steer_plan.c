@@ -6,7 +6,7 @@
 /** @brief Shared entry the two planners differ only in their candidate set. */
 static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus, size_t corpus_len,
                             const uint8_t *needle, size_t needle_len, uint8_t *survivors, size_t survivors_length,
-                            size_t sample_stride, int spawning, int force_full_depth, const AnchorField *any,
+                            size_t sample_stride, int spawning, int force_full_depth, const OriorField *any,
                             int resume)
 {
     // A field of any symbol type supplies its own extents and its own validity, and the byte
@@ -27,7 +27,7 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     {
         return 0u;
     }
-    if (count > ANCHOR_STEER_ANCHORS)
+    if (count > ORIOR_STEER_ANCHORS)
     {
         return 0u;
     }
@@ -61,11 +61,11 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
         }
     }
 
-    size_t chosen[ANCHOR_STEER_ANCHORS];
+    size_t chosen[ORIOR_STEER_ANCHORS];
     size_t placed = 0u;
 
     // THE BOUNDED DESCENT. One coarm per level, at most `count` levels, which the guard above holds
-    // at or under ANCHOR_STEER_ANCHORS. The corpus picks a level's offset and, through the destroy
+    // at or under ORIOR_STEER_ANCHORS. The corpus picks a level's offset and, through the destroy
     // rule below, can end the descent early unless `force_full_depth` is set. The ceiling is decided
     // before the program starts and this loop terminates for the same reason a for loop over a fixed
     // array does.
@@ -143,7 +143,7 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     return placed;
 }
 
-size_t anchor_steer_plan_recursive(const AnchorSteerDescent *args)
+size_t orior_steer_plan_recursive(const OriorSteerDescent *args)
 {
     if (args == NULL)
     {
@@ -158,7 +158,7 @@ size_t anchor_steer_plan_recursive(const AnchorSteerDescent *args)
                          args->any, args->resume);
 }
 
-size_t anchor_steer_spawn_coarms(const AnchorSteerDescent *args)
+size_t orior_steer_spawn_coarms(const OriorSteerDescent *args)
 {
     if (args == NULL)
     {
@@ -171,7 +171,7 @@ size_t anchor_steer_spawn_coarms(const AnchorSteerDescent *args)
                          args->any, args->resume);
 }
 
-int anchor_steer_probe_fits(const AnchorProbe *probe, size_t needle_len)
+int orior_steer_probe_fits(const OriorProbe *probe, size_t needle_len)
 {
     if ((probe == NULL) || (probe->length == 0u) || (needle_len == 0u))
     {
@@ -200,7 +200,7 @@ int anchor_steer_probe_fits(const AnchorProbe *probe, size_t needle_len)
 }
 
 /** @brief Whether one alignment agrees with the needle at every position a probe reads. */
-static int steer_probe_agrees(const uint8_t *corpus, const uint8_t *needle, const AnchorProbe *probe, size_t at)
+static int steer_probe_agrees(const uint8_t *corpus, const uint8_t *needle, const OriorProbe *probe, size_t at)
 {
     for (size_t step = 0u; step < probe->length; step += 1u)
     {
@@ -215,7 +215,7 @@ static int steer_probe_agrees(const uint8_t *corpus, const uint8_t *needle, cons
 
 /** @brief Truthy alignments remaining if `probe` were placed, in the sampled population. */
 size_t steer_truthy_after_probe(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                                const uint8_t *alive, const AnchorProbe *probe, size_t stride)
+                                const uint8_t *alive, const OriorProbe *probe, size_t stride)
 {
     const size_t alignments = (corpus_len - needle_len) + 1u;
     size_t standing = 0u;
@@ -236,7 +236,7 @@ size_t steer_truthy_after_probe(const uint8_t *corpus, size_t corpus_len, const 
 
 /** @brief Turns falsy every alignment a probe rejects, over the whole population. */
 void steer_make_falsy_probe(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                            uint8_t *alive, const AnchorProbe *probe)
+                            uint8_t *alive, const OriorProbe *probe)
 {
     const size_t alignments = (corpus_len - needle_len) + 1u;
 

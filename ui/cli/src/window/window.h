@@ -16,16 +16,17 @@ extern "C"
 {
 #endif
 
-    // the calls answered at once, and the most bytes of one's answer and of why one failed
+    // the calls answered at once, the bytes one's answer is begun in before it grows, and the most bytes of why one
+    // failed
 #define CLI_WINDOW_ROOMS 8u
-#define CLI_WINDOW_ANSWER (16ull << 20u)
+#define CLI_WINDOW_ANSWER_FIRST (64ull << 10u)
 #define CLI_WINDOW_SAID (1ull << 16u)
 
     // the command line run on `count` words: the code to exit with, 1 in `window` where the words open the window
     // instead, the window to open kept for cli_window_begun
     int cli_window_command_line(const char *const *words, unsigned int count, int *window);
 
-    // the window opened as the command line left it, or on the tree found where it left none: orior run on the
+    // the window opened as the command line left it, or on the tree found where it left none: orior_cli run on the
     // machine where it is in a Flatpak's sandbox, every process it starts held under it, the tree's side made with
     // what it tells sent to `emit`, its door opened, the command line let reach it, the tree watched, and the link
     // opened where the tree is on another machine, what it tells sent to `emit` too; and every server, session,

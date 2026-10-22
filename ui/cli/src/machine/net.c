@@ -1,24 +1,28 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// net.c: an address reached asked for, refused where orior is held off the network, and kept where it is let on
+// net.c: an address reached asked for, refused where orior_cli is held off the network, and kept where it is let on
 #include "net.h"
 #include "../deploy/devcontainer.h"
 #include "../text/json_tree.h"
 
-// the most addresses kept, and the most bytes the file of them and settings.json are read as
+// the most addresses kept, and the bytes an address's line written is begun with past the file before it grows
 #define CLI_NET_KEPT 1000u
 
-#define CLI_NET_BYTES (1u << 22u)
+#define CLI_NET_LINE_MORE (4ull << 10u)
 
-#define CLI_NET_TOKENS 65536u
-
-// Whether the window holds orior off the network: 0 where the window has not said, and settings.json is read; 1 where
-// it lets orior on; 2 where it holds orior off. Read and set under the lock, which also holds the file of addresses
+// Whether the window holds orior_cli off the network: 0 where the window has not said, and settings.json is read; 1
+// where it lets orior_cli on; 2 where it holds orior_cli off. Read and set under the lock, which also holds the file of
+// addresses
 static int s_held;
 static CliLock s_lock = CLI_LOCK_INIT;
-static char s_text[CLI_NET_BYTES];
-static char s_plain[CLI_NET_BYTES];
-static CfgJsonToken s_tokens[CLI_NET_TOKENS];
+
+// the tokens `size` bytes of JSON make, in a cell of their count given back with cli_cell_given, NULL where it is
+// refused; their count into `count`
+static CfgJsonToken *cli_net_tokens(const char *text, unsigned long long size, unsigned int *count)
+{
+    *count = cli_json_tokens_counted(text, size) + 1u;
+    return cli_cell_taken((unsigned long long)*count * sizeof(CfgJsonToken), "the tokens of a network file");
+}
 
 void cli_net_hold(int off)
 {
@@ -39,24 +43,33 @@ static int cli_settings_off(void)
     CliLine line = {path, sizeof(path), 0ull};
     cli_line_text(&line, folder);
     cli_line_text(&line, "/settings.json");
-    const unsigned long long size = (cli_line_closed(&line) != 0ull)
-                                        ? qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text))
-                                        : QRY_MEMBER_UNREAD;
-    if (size == QRY_MEMBER_UNREAD)
+    unsigned long long size = 0ull;
+    const unsigned char *const bytes = (cli_line_closed(&line) != 0ull) ? cli_file_held(path, &size) : NULL;
+    if (bytes == NULL)
     {
         return 0;
     }
-    CliLine plain = {s_plain, sizeof(s_plain), 0ull};
-    cli_plain_json(s_text, size, &plain);
+    // a text made plain is never longer than the text, as it only leaves comments and commas out
+    char *const plain_text = cli_cell_taken(size + 1ull, "settings.json made plain");
+    CliLine plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
+    if (plain_text != NULL)
+    {
+        cli_plain_json((const char *)bytes, size, &plain);
+    }
+    cli_file_let_go(bytes, size);
+    unsigned int count = 0u;
+    CfgJsonToken *const tokens = (plain_text != NULL) ? cli_net_tokens(plain_text, plain.at, &count) : NULL;
     CfgJsonParse parse = {0u, 0u, 0u, NULL};
-    if (!cli_line_fits(&plain) || !cfg_json_parse_metadata(s_plain, plain.at, s_tokens, CLI_NET_TOKENS, &parse))
-    {
-        return 0;
-    }
-    const unsigned int network = cfg_json_member(s_plain, s_tokens, 0u, "network");
     char value[8];
-    return (network != 0u) && cfg_json_string(s_plain, &s_tokens[network], value, sizeof(value)) &&
-           (cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "off", .cap = CLI_CELLS_POOL}));
+    const unsigned int network = ((tokens != NULL) && cli_line_fits(&plain) &&
+                                  cfg_json_parse_metadata(plain_text, plain.at, tokens, count, &parse))
+                                     ? cfg_json_member(plain_text, tokens, 0u, "network")
+                                     : 0u;
+    const int off = (network != 0u) && cfg_json_string(plain_text, &tokens[network], value, sizeof(value)) &&
+                    (cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "off", .cap = CLI_CELLS_POOL}));
+    cli_cell_given(tokens);
+    cli_cell_given(plain_text);
+    return off;
 }
 
 int cli_net_held(void)
@@ -165,9 +178,15 @@ static void cli_kept(const char *address, const char *purpose)
         return;
     }
     query_folder_made(folder);
-    unsigned long long size = qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text));
-    size = (size == QRY_MEMBER_UNREAD) ? 0ull : size;
-    CliLine line = {s_text, sizeof(s_text), size};
+    unsigned long long held = 0ull;
+    (void)cli_file_size(path, &held);
+    CliLine line;
+    if (!cli_line_growing(&line, held + CLI_NET_LINE_MORE, "the addresses reached"))
+    {
+        return;
+    }
+    unsigned long long size = qry_member_file_read(path, (unsigned char *)line.out, line.capacity - 1ull);
+    line.at = (size == QRY_MEMBER_UNREAD) ? 0ull : size;
     cli_line_text(&line, "{\"at\":");
     cli_line_decimal(&line, cli_wall_milliseconds(), 1u);
     cli_line_text(&line, ",\"address\":");
@@ -177,6 +196,7 @@ static void cli_kept(const char *address, const char *purpose)
     cli_line_text(&line, "}\n");
     if (!cli_line_fits(&line))
     {
+        cli_cell_given(line.out);
         return;
     }
     // the lines counted from the end, the file kept from the KEPT-th last where it holds more than twice as many
@@ -184,15 +204,16 @@ static void cli_kept(const char *address, const char *purpose)
     unsigned int lines = 0u;
     for (unsigned long long at = line.at; at > 0ull; at -= 1ull)
     {
-        if ((s_text[at - 1u] == '\n') && (at != line.at))
+        if ((line.out[at - 1u] == '\n') && (at != line.at))
         {
             lines += 1u;
             from = (lines == CLI_NET_KEPT) ? at : from;
         }
     }
     lines += 1u;
-    query_file_written(path, s_text + ((lines > (2u * CLI_NET_KEPT)) ? from : 0ull),
+    query_file_written(path, line.out + ((lines > (2u * CLI_NET_KEPT)) ? from : 0ull),
                        line.at - ((lines > (2u * CLI_NET_KEPT)) ? from : 0ull));
+    cli_cell_given(line.out);
 }
 
 int cli_net_reach(const char *address, const char *purpose, CliLine *said)
@@ -205,7 +226,7 @@ int cli_net_reach(const char *address, const char *purpose, CliLine *said)
     }
     if (cli_net_held())
     {
-        cli_line_text(said, "orior is held off the network, and ");
+        cli_line_text(said, "orior_cli is held off the network, and ");
         cli_line_text(said, purpose);
         cli_line_text(said, " did not reach ");
         cli_line_text(said, address);
@@ -228,36 +249,38 @@ void cli_net_reached(unsigned int most, CliLine *out)
     const int homed = cli_home_folder(folder);
     cli_line_text(&named, folder);
     cli_line_text(&named, "/network.jsonl");
-    unsigned long long size = (homed && (cli_line_closed(&named) != 0ull))
-                                  ? qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text))
-                                  : QRY_MEMBER_UNREAD;
-    size = (size == QRY_MEMBER_UNREAD) ? 0ull : size;
+    unsigned long long size = 0ull;
+    const unsigned char *const bytes =
+        (homed && (cli_line_closed(&named) != 0ull)) ? cli_file_held(path, &size) : NULL;
+    const char *const kept = (const char *)bytes;
+    // every line's tokens are no more than the file's, so one cell of the file's holds any line's
+    unsigned int count = 0u;
+    CfgJsonToken *const tokens = (bytes != NULL) ? cli_net_tokens(kept, size, &count) : NULL;
     unsigned int written = 0u;
-    unsigned long long end = size;
+    unsigned long long end = (tokens != NULL) ? size : 0ull;
     while ((end > 0ull) && (written < most))
     {
         unsigned long long start = end;
-        while ((start > 0ull) && (s_text[start - 1u] != '\n'))
+        while ((start > 0ull) && (kept[start - 1u] != '\n'))
         {
             start -= 1ull;
         }
         unsigned long long stop = end;
-        stop -= ((stop > start) && (s_text[stop - 1u] == '\n')) ? 1ull : 0ull;
-        stop -= ((stop > start) && (s_text[stop - 1u] == '\r')) ? 1ull : 0ull;
+        stop -= ((stop > start) && (kept[stop - 1u] == '\n')) ? 1ull : 0ull;
+        stop -= ((stop > start) && (kept[stop - 1u] == '\r')) ? 1ull : 0ull;
         // a line read as one address reached where it is one, written again as it reads
         CfgJsonParse parse = {0u, 0u, 0u, NULL};
         char address[CLI_PATH_LONGEST];
         char purpose[CLI_PATH_LONGEST];
         unsigned long long at = 0ull;
-        if ((stop > start) && cfg_json_parse_metadata(s_text + start, stop - start, s_tokens, CLI_NET_TOKENS, &parse))
+        if ((stop > start) && cfg_json_parse_metadata(kept + start, stop - start, tokens, count, &parse))
         {
-            const unsigned int when = cfg_json_member(s_text + start, s_tokens, 0u, "at");
-            const unsigned int where = cfg_json_member(s_text + start, s_tokens, 0u, "address");
-            const unsigned int why = cfg_json_member(s_text + start, s_tokens, 0u, "for");
-            if ((when != 0u) && (where != 0u) && (why != 0u) &&
-                cfg_json_unsigned(s_text + start, &s_tokens[when], &at) &&
-                cfg_json_string(s_text + start, &s_tokens[where], address, sizeof(address)) &&
-                cfg_json_string(s_text + start, &s_tokens[why], purpose, sizeof(purpose)))
+            const unsigned int when = cfg_json_member(kept + start, tokens, 0u, "at");
+            const unsigned int where = cfg_json_member(kept + start, tokens, 0u, "address");
+            const unsigned int why = cfg_json_member(kept + start, tokens, 0u, "for");
+            if ((when != 0u) && (where != 0u) && (why != 0u) && cfg_json_unsigned(kept + start, &tokens[when], &at) &&
+                cfg_json_string(kept + start, &tokens[where], address, sizeof(address)) &&
+                cfg_json_string(kept + start, &tokens[why], purpose, sizeof(purpose)))
             {
                 cli_line_text(out, (written != 0u) ? ",{\"at\":" : "{\"at\":");
                 cli_line_decimal(out, at, 1u);
@@ -276,6 +299,8 @@ void cli_net_reached(unsigned int most, CliLine *out)
         // the line before ends at this one's start, its line end left off
         end = start - 1ull;
     }
+    cli_cell_given(tokens);
+    cli_file_let_go(bytes, size);
     cli_lock_give(&s_lock);
     cli_line_character(out, ']');
 }

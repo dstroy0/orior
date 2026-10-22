@@ -3,7 +3,7 @@
 Extraction of Jargon and European Origins of some Bella Coola Lexicon by Hank Nater, Independent
 Linguist, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -47,7 +47,7 @@ caption footnote 3's. The page's radical, which marks a root in √smiw, √t’
 use area, U+F0D6 and U+F0A8; the table writes them √ and ♦, read off a 300 dpi render. The ⬧ bullets
 of §1.1 are in the text layer as printed.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 294
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 6924
 distinct tokens in the paper, 0 language tokens are held by no row.

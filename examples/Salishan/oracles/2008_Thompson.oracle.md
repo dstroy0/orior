@@ -3,7 +3,7 @@
 Extraction of Control constructions as a sub-class of nominalized clauses in Upriver Halkomelem by
 James J Thompson, UBC, Dept of Linguistics, ICSNL 43.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -32,7 +32,7 @@ named by outline, the Times-Roman ones by raster against TeX Gyre Termes, and th
 glyph rows. The words t á-t and tl éqwel-t print a blank where a glyph of no ink stands, kept as a
 space, and the paper prints ?i for the first locative auxiliary.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 216
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 7378
 distinct tokens in the paper, 0 language tokens are held by no row.

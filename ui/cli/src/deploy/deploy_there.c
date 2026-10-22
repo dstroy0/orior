@@ -182,12 +182,14 @@ static void there_walk(void *context, const char *name, int is_folder)
     cli_line_text(&path_line, folder);
     cli_line_text(&path_line, (folder[0] != '\0') ? "/" : "");
     cli_line_text(&path_line, name);
+    // the path ended before the whole path is written from it
+    const unsigned long long ended = cli_line_closed(&path_line);
     char full[(2u * CLI_PATH_LONGEST) + 2u];
     CliLine full_line = {full, sizeof(full), 0ull};
     cli_line_text(&full_line, s_walk_top);
     cli_line_character(&full_line, '/');
-    cli_line_text(&full_line, path);
-    if ((cli_line_closed(&path_line) == 0ull) || (cli_line_closed(&full_line) == 0ull))
+    cli_line_text(&full_line, (ended != 0ull) ? path : "");
+    if ((ended == 0ull) || (cli_line_closed(&full_line) == 0ull))
     {
         s_walk_full = 1;
         return;
@@ -198,7 +200,7 @@ static void there_walk(void *context, const char *name, int is_folder)
         return;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(full, &size);
+    const unsigned char *const bytes = cli_file_held(full, &size);
     if (bytes == NULL)
     {
         return;
@@ -206,7 +208,7 @@ static void there_walk(void *context, const char *name, int is_folder)
     char digest[65];
     CliLine digest_line = {digest, sizeof(digest), 0ull};
     cli_sha256_text(bytes, size, &digest_line);
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     there_held(cli_deploy_kept(&s_pool, path, path_line.at), cli_deploy_kept(&s_pool, digest, 64u));
 }
 
@@ -277,7 +279,7 @@ int cli_deploy_hashes(unsigned int index, const char *folder, CliLine *said)
     if (s_walk_full || s_pool.refused)
     {
         cli_deploy_there_given();
-        cli_line_text(said, "it holds more files than orior holds");
+        cli_line_text(said, "it holds more files than orior_cli holds");
         return 0;
     }
     for (unsigned int at = g_cli_deploy_there_count; s_held != NULL; s_held = s_held->before)
@@ -285,7 +287,11 @@ int cli_deploy_hashes(unsigned int index, const char *folder, CliLine *said)
         at -= 1u;
         there[at] = s_held->pair;
     }
-    qsort(there, g_cli_deploy_there_count, sizeof(there[0]), there_order);
+    // no pairs is no array to order, and qsort takes no null
+    if (there != NULL)
+    {
+        qsort(there, g_cli_deploy_there_count, sizeof(there[0]), there_order);
+    }
     g_cli_deploy_there = there;
     return 1;
 }

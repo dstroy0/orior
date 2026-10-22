@@ -3,6 +3,7 @@
 // files_read.c: a file read for the editor: its text where it is text, its first bytes where it is not, and a larger
 // text read a window of whole lines at a time
 #include "../text/json_tree.h"
+#include "../text/pieces.h"
 #include "archive.h"
 #include "files.h"
 
@@ -100,20 +101,27 @@ static void cli_opened_written(CliLine *out, const char *path, unsigned long lon
     cli_line_text(out, windowed ? ",\"windowed\":true}" : ",\"windowed\":false}");
 }
 
-// a file within an archive read out of it whole and written as a file read
+// a file within an archive read out of it whole, through pieces into a cell of its size given back once it is
+// written as a file read
 static int cli_archived_read(const char *root, const char *file, CliLine *out, CliLine *said)
 {
-    static char s_bytes[CLI_ARCHIVE_BYTES];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    CliLine read = {s_bytes, sizeof(s_bytes), 0ull};
+    char piece[4096];
+    CliPieces pieces;
+    CliLine read;
+    cli_pieces_begun(&pieces, &read, piece, sizeof(piece));
     if (!cli_archive_read(root, file, &read, said))
     {
-        cli_lock_give(&s_lock);
+        cli_pieces_given(&pieces);
         return 0;
     }
-    const unsigned char *const bytes = (const unsigned char *)s_bytes;
-    const unsigned long long size = read.at;
+    unsigned long long size = 0ull;
+    char *const held = cli_pieces_joined(&pieces, &read, "a file read out of an archive", &size);
+    if (held == NULL)
+    {
+        cli_line_text(said, "the file read out of the archive could not be held");
+        return 0;
+    }
+    const unsigned char *const bytes = (const unsigned char *)held;
     // the path with the slashes at either end left off
     const char *from = file;
     while (from[0] == '/')
@@ -137,7 +145,7 @@ static int cli_archived_read(const char *root, const char *file, CliLine *out, C
     {
         cli_opened_written(out, path, size, NULL, bytes, (size < CLI_SHOWN_BYTES) ? size : CLI_SHOWN_BYTES, 0);
     }
-    cli_lock_give(&s_lock);
+    cli_cell_given(held);
     return 1;
 }
 
@@ -156,7 +164,7 @@ static const unsigned char *cli_mapped(const char *root, const char *file, char 
     {
         return NULL;
     }
-    const unsigned char *const bytes = qry_member_file_mapped(path, size);
+    const unsigned char *const bytes = cli_file_held(path, size);
     if (bytes == NULL)
     {
         cli_unread(file, said);
@@ -192,14 +200,14 @@ int cli_files_read(const char *root, const char *file, CliLine *out, CliLine *sa
         {
             cli_opened_written(out, shown_path, size, NULL, bytes, shown, 0);
         }
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
         return 1;
     }
     // text where the first bytes hold no 0 and read as UTF-8, a letter the cut splits aside
     const unsigned long long probe = (shown < CLI_PROBE_BYTES) ? shown : CLI_PROBE_BYTES;
     const int text = !cli_probe_zero(bytes, shown) && cli_utf8(bytes, probe, 1);
     cli_opened_written(out, shown_path, size, NULL, text ? NULL : bytes, text ? 0ull : shown, text);
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     return 1;
 }
 
@@ -249,41 +257,6 @@ static void cli_slice_written(CliLine *out, const unsigned char *bytes, unsigned
     cli_line_character(out, '}');
 }
 
-int cli_files_window(const char *root, const char *file, unsigned long long line, unsigned long long half, CliLine *out,
-                     CliLine *said)
-{
-    char path[CLI_PATH_LONGEST];
-    unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_mapped(root, file, path, &size, said);
-    if (bytes == NULL)
-    {
-        return 0;
-    }
-    // where line `line` starts, counted from 0; past the end of the file, where the file's last line starts
-    unsigned long long seen = 0ull;
-    unsigned long long last_start = 0ull;
-    for (unsigned long long at = 0ull; (seen < line) && (at < size); at += 1ull)
-    {
-        if (bytes[at] == '\n')
-        {
-            seen += 1ull;
-            last_start = at + 1ull;
-        }
-    }
-    const unsigned long long target = (last_start < size) ? last_start : size;
-    const unsigned long long target_line = (seen < line) ? seen : line;
-    const unsigned long long back = (target > half) ? (target - half) : 0ull;
-    const unsigned long long start_at = cli_line_start(bytes, back, size);
-    const unsigned long long start = (start_at < target) ? start_at : target;
-    const unsigned long long ahead = ((size - target) > half) ? (target + half) : size;
-    const unsigned long long end = cli_line_start(bytes, ahead, size);
-    const unsigned long long first = target_line - cli_newlines(bytes, start, target);
-    cli_slice_written(out, bytes, start, (end > start) ? end : start, size, first,
-                      cli_newlines(bytes, 0ull, size) + 1ull);
-    qry_member_file_unmapped(bytes, size);
-    return 1;
-}
-
 int cli_files_slice(const char *root, const char *file, unsigned long long start, unsigned long long end, CliLine *out,
                     CliLine *said)
 {
@@ -298,6 +271,6 @@ int cli_files_slice(const char *root, const char *file, unsigned long long start
     const unsigned long long to_at = cli_line_start(bytes, end, size);
     const unsigned long long to = (to_at > from) ? to_at : from;
     cli_slice_written(out, bytes, from, to, size, 0ull, 0ull);
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     return 1;
 }

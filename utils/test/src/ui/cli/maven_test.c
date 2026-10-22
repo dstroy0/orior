@@ -3,6 +3,7 @@
 // maven_test.c: Maven's check: a POM is checked, broken XML is found, a POM completes its elements, properties and
 // values, and the compiler's settings are read and set
 #include "../../../../../ui/cli/src/builds/maven.h"
+#include "../../../../../ui/cli/src/builds/maven_internal.h"
 #include "cli_check.h"
 
 static const char s_pom[] =
@@ -231,5 +232,9 @@ int main(void)
     maven_pom();
     maven_completes();
     maven_settings();
+    cli_check((g_cli_xml_cells.holds == 0ull) && (g_cli_xml_cells.hw != 0ull),
+              "every XML file read, a POM, its parents and the settings, is given back once it is read");
+    cli_check((g_cli_maven_model_cells.holds == 0ull) && (g_cli_maven_model_cells.hw != 0ull),
+              "and every model of what a POM gives its children");
     return cli_checked();
 }

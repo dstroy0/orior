@@ -2,12 +2,12 @@
 // exact_integer_hash.c: the hash and the agreement
 #include "exact_integer_internal.h"
 
-uint64_t anchor_exact_hash(const AnchorExactInteger *value)
+uint64_t orior_exact_hash(const OriorExactInteger *value)
 {
     // FNV-1a over the limbs, with the sign folded in last so two magnitudes that differ only in
     // sign do not land on one bucket.
     uint64_t hash = 0xCBF29CE484222325u;
-    for (size_t at = 0u; at < (size_t)ANCHOR_EXACT_LIMBS; at++)
+    for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
         hash ^= (uint64_t)value->limb[at];
         hash *= 0x100000001B3u;
@@ -25,14 +25,14 @@ uint64_t anchor_exact_hash(const AnchorExactInteger *value)
  * @param[in] values    The value standing at each position [BORROWS].
  * @param[in] count     How many positions.
  * @param[in] lag       The offset to test [BORROWS].
- * @return              The count anchor_exact_agreement_using returns with a table.
+ * @return              The count orior_exact_agreement_using returns with a table.
  * @note Quadratic in `count` and needs no memory. A position is counted at its last entry only, and
  *       a displaced position is matched to the last entry equal to it, which keeps the last value
  *       at a repeated position.
  */
-static size_t agreement_without_table(int (*equal)(const AnchorExactInteger *left, const AnchorExactInteger *right),
-                                      const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                                      const AnchorExactInteger *lag)
+static size_t agreement_without_table(int (*equal)(const OriorExactInteger *left, const OriorExactInteger *right),
+                                      const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                                      const OriorExactInteger *lag)
 {
     EXACT_VALUE(moved);
     if (!EXACT_SCRATCH_VALID(moved))
@@ -56,7 +56,7 @@ static size_t agreement_without_table(int (*equal)(const AnchorExactInteger *lef
             continue;
         }
 
-        if (anchor_exact_add(&positions[at], lag, moved) != ANCHOR_EXACT_OK)
+        if (orior_exact_add(&positions[at], lag, moved) != ORIOR_EXACT_OK)
         {
             continue;
         }
@@ -77,15 +77,15 @@ static size_t agreement_without_table(int (*equal)(const AnchorExactInteger *lef
     return agreed;
 }
 
-size_t anchor_exact_agreement(const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                              const AnchorExactInteger *lag)
+size_t orior_exact_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                              const OriorExactInteger *lag)
 {
-    return anchor_exact_agreement_using(anchor_exact_equal, positions, values, count, lag);
+    return orior_exact_agreement_using(orior_exact_equal, positions, values, count, lag);
 }
 
-size_t anchor_exact_agreement_using(int (*equal)(const AnchorExactInteger *left, const AnchorExactInteger *right),
-                                    const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                                    const AnchorExactInteger *lag)
+size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, const OriorExactInteger *right),
+                                    const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                                    const OriorExactInteger *lag)
 {
     // What the measure asks of the set is membership: is there a point exactly one lag away, and
     // does it carry the same value. A set has no ordering, and a search that walks one imposes a
@@ -133,7 +133,7 @@ size_t anchor_exact_agreement_using(int (*equal)(const AnchorExactInteger *left,
     const size_t mask = slots - 1u;
     for (size_t at = 0u; at < count; at++)
     {
-        size_t slot = (size_t)(anchor_exact_hash(&positions[at]) & (uint64_t)mask);
+        size_t slot = (size_t)(orior_exact_hash(&positions[at]) & (uint64_t)mask);
         while ((table[slot] != count) && (equal(&positions[table[slot]], &positions[at]) == 0))
         {
             slot = (slot + 1u) & mask;
@@ -157,11 +157,11 @@ size_t anchor_exact_agreement_using(int (*equal)(const AnchorExactInteger *left,
         {
             continue;
         }
-        if (anchor_exact_add(&positions[at], lag, moved) != ANCHOR_EXACT_OK)
+        if (orior_exact_add(&positions[at], lag, moved) != ORIOR_EXACT_OK)
         {
             continue;
         }
-        size_t slot = (size_t)(anchor_exact_hash(moved) & (uint64_t)mask);
+        size_t slot = (size_t)(orior_exact_hash(moved) & (uint64_t)mask);
         while (table[slot] != count)
         {
             if (equal(&positions[table[slot]], moved) != 0)

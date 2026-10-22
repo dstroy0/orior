@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kdecode_internal.h: what the modules of kdecode share: its includes, the bounds of a line, a word, the names and the
+// kdecode_internal.h: what the modules of orior_kdecode share: its includes, the bounds of a line, a word, the names and the
 // run's records read, the text it hands the run, the record and file read, the code, column, oracle, blob, text, file,
 // row and run structures, and the functions one module reads from another
 #ifndef KDECODE_INTERNAL_H
@@ -36,7 +36,7 @@
 
 // the record the decoder hands the run its text in, gathered in s_shown and handed whenever it holds past half its
 // room and once the decoder is done (kdecode_shown_handed)
-#define KDECODE_SHOWN "kdecode"
+#define KDECODE_SHOWN "orior_kdecode"
 
 // A code an oracle gives: the family its `where` names, its name and its value
 typedef struct
@@ -110,7 +110,7 @@ typedef struct
 
 // What one walk of a run's blobs keeps: the table asked, its range of keys and the most rows; every blob's sequence
 // and name, the run's texts and the texts and heads of the table's k-files; the rows of the range; the oracles the run
-// holds; each where it stands in the mapped run, and 1 in `failed` where the run held more than a walk keeps
+// holds; each where it stands in the mapped run, and 1 in `failed` where the run holds more than a walk keeps
 typedef struct
 {
     const char *table;

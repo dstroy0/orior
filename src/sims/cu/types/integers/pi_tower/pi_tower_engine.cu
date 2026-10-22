@@ -77,7 +77,7 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
     sim_flush(results);
 }
 
-// a resolution past the exact turn's: held as (2, n), every part that does not ask for pi's bits printed exact, and
+// a resolution past the exact turn's: represented as (2, n), every part that does not ask for pi's bits printed exact, and
 // the depth-n turn summed on the engine sweep by sweep until every term is in or the run is stopped
 void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWide &depth)
 {
@@ -190,7 +190,7 @@ int pi_tower_request(const char *text, PiWide *value)
         walk += 1;
         PiWide exponent;
         if ((pi_tower_digits(&walk, &exponent) == 0) ||
-            (pi_tower_compare(exponent, pi_tower_unsigned(ANCHOR_EXACT_BITS)) > 0))
+            (pi_tower_compare(exponent, pi_tower_unsigned(ORIOR_EXACT_BITS)) > 0))
         {
             return 0;
         }

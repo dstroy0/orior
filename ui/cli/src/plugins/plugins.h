@@ -34,22 +34,30 @@
 #ifndef PLUGINS_H
 #define PLUGINS_H
 
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
 
-// the most keys of extensions, names and paths the languages map, and the most plugins the reader keeps
-#define CLI_LANGUAGE_KEYS 8192u
+// the keys of extensions, names and paths the languages' room is begun with before it doubles, and the most plugins
+// the reader keeps
+#define CLI_LANGUAGE_PAIRS_FIRST 64u
 
 #define CLI_USER_PLUGINS 1024u
 
-// the most bytes of a plugin's text and of its sample, as a plugin is written
-#define CLI_PLUGIN_FILE (1u << 22u)
+// the cells the plugins are read in (plugins.c)
+extern CliCellsTally g_cli_plugins_cells;
 
-// A plugin that comes with orior: its id, and the text of its plugin.json, `size` bytes
+// the bytes a plugin's text and its sample are begun to be written in, as a plugin is written, doubling as they are
+#define CLI_PLUGIN_TEXT_FIRST 4096u
+
+// A plugin that comes with orior: its id, the text of its plugin.json, `size` bytes, and the code it runs as a script
+// plugin, `code_size` bytes, NULL for one that runs none
 typedef struct
 {
     const char *id;
     const unsigned char *text;
     unsigned long long size;
+    const unsigned char *code;
+    unsigned long long code_size;
 } CliBundled;
 
 // the plugins built into the program, in the order of their ids (plugins_bundled.c, written as the program is built)
@@ -67,40 +75,58 @@ typedef struct
     unsigned long long size;
 } CliPlugin;
 
-// The language each extension, whole name and pattern of paths opens as: `/<name>` for a whole name, `?<pattern>` for
-// a pattern, and the extension itself; each key's language id, a later plugin's standing in for an earlier's
+// One key an extension, whole name or pattern of paths opens by, and the id of the language it opens as
 typedef struct
 {
-    char key[CLI_LANGUAGE_KEYS][CLI_NAME_LONGEST];
-    char id[CLI_LANGUAGE_KEYS][CLI_NAME_LONGEST];
+    char key[CLI_NAME_LONGEST];
+    char id[CLI_NAME_LONGEST];
+} CliLanguagePair;
+
+// The language each extension, whole name and pattern of paths opens as: `/<name>` for a whole name, `?<pattern>` for
+// a pattern, and the extension itself; each key with its language id, a later plugin's standing in for an earlier's,
+// in a cell whose room doubles as they are put, given back with cli_plugins_languages_given
+typedef struct
+{
+    CliLanguagePair *pair;
     unsigned int count;
+    unsigned int room;
 } CliLanguages;
 
 // every plugin handed to `each`: those that come with orior, then the reader's, each in the order of its id
 void cli_plugins_each(void (*each)(void *context, const CliPlugin *plugin), void *context);
 // the language each extension opens as, by the language plugins, a reader's plugin standing in for one that comes with
-// orior
+// orior, a key whose room could not be taken left out; and the languages' cell given back
 void cli_plugins_languages(CliLanguages *languages);
+void cli_plugins_languages_given(CliLanguages *languages);
 // the language the file at `path` opens as, of those `languages` gives, into `id`, which holds CLI_NAME_LONGEST: by
 // its whole name where a plugin names it, by a plugin's pattern of paths where one takes it, and by its extension where
 // neither does. 1, or 0 where none does
 int cli_plugins_language_for(const CliLanguages *languages, const char *path, char *id);
-// the code the script plugin `id` runs into `out`: the file its plugin.json names as `main`, plugin.js where it names
-// none, in the plugin's own folder. A name that leaves the folder is refused. 1, or 0 with why said
+// the code the script plugin `id` runs into `out`: the file its plugin.json names as `main`, or each of a list of them
+// there in order, joined by a line's end, plugin.js where it names none, in the plugin's own folder, or the code built
+// into the program for one that comes with orior. A name that leaves the folder is refused. 1, or 0 with why said
+// (plugins.c); and the same code read for the plugin `id` of the folder `folder` whose plugin.json is `size` bytes of
+// `text` (plugins_code.c)
 int cli_plugins_code_of(const char *id, CliLine *out, CliLine *said);
+int cli_plugins_code_in(const char *id, const char *folder, const char *text, unsigned long long size, CliLine *out,
+                        CliLine *said);
 // a name as an id into `id`, which holds CLI_NAME_LONGEST: its letters and digits in lower case, every run of anything
 // else one dash
 void cli_plugins_slug(const char *name, char *id);
 // The plugin the answers at `spec` in `json` ask for, `{name, id, extensions, from, lineComment, blockComment,
 // keywords, types, constants, quotes}` each of which may be left out, made in `json`: its node, or CLI_JSON_NONE with
-// why said (plugins_draft.c)
+// why said; and a tree held into `draft`, given back with cli_json_given, sized to the answers at `spec` in `json`,
+// to the plugin they start from and to what a draft of them makes, the answers copied into it: their node there, or
+// CLI_JSON_NONE with why said (plugins_draft.c)
 unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, CliLine *said);
+unsigned int cli_plugins_draft_tree(CliJson *draft, const CliJson *json, unsigned int spec, CliLine *said);
 // a plugin as its file holds it: each value on one line where it fits in 110 characters (plugins_text.c)
 void cli_plugins_text_of(const CliJson *json, unsigned int plugin, CliLine *out);
 // the plugin the answers ask for written under `dir`, in a folder of its id, with a sample file beside it, the folder
 // into `folder`, which holds CLI_PATH_LONGEST: a plugin of that id already there is kept unless `replace`. And the same
 // under the reader's plugins folder. 1, or 0 with why said
-int cli_plugins_create_in(const char *dir, CliJson *json, unsigned int spec, int replace, char *folder, CliLine *said);
-int cli_plugins_create(CliJson *json, unsigned int spec, int replace, char *folder, CliLine *said);
+int cli_plugins_create_in(const char *dir, const CliJson *json, unsigned int spec, int replace, char *folder,
+                          CliLine *said);
+int cli_plugins_create(const CliJson *json, unsigned int spec, int replace, char *folder, CliLine *said);
 
 #endif

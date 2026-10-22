@@ -5,7 +5,11 @@
 #ifndef REQUESTS_INTERNAL_H
 #define REQUESTS_INTERNAL_H
 
+#include "../command_line/cells.h"
 #include "requests.h"
+
+// the cells the requests are read, filled and answered in (requests_values.c)
+extern CliCellsTally g_cli_requests_cells;
 
 // the most requests a file holds that are read, headers a request holds, variables a file sets, values an environment
 // gives, and the bytes their texts take; the most of an answer's body read, and of it kept with the answers; how many
@@ -54,27 +58,32 @@ typedef struct
 } CliRequest;
 
 // A file of requests read: its requests in order, the variables it sets, the pool of their texts, and 1 in `full`
-// where a line, a request, a header, a variable or a text did not fit
+// where a line, a request, a header, a variable or a text did not fit. The requests are a cell of the count of the
+// file's parts and the pool a cell sized to the file, each given back with cli_requests_parsed_given
 typedef struct
 {
-    CliRequest requests[CLI_REQUESTS_MOST];
+    CliRequest *requests;
     unsigned int count;
+    unsigned int requests_room;
     CliRequestsText variable_name[CLI_REQUESTS_VARIABLES];
     CliRequestsText variable_value[CLI_REQUESTS_VARIABLES];
     unsigned int variables;
-    char text[CLI_REQUESTS_TEXT];
+    char *text;
     unsigned long long used;
+    unsigned long long text_room;
     int full;
 } CliRequestsParsed;
 
-// The values a request's variables are filled from, a name to one value, and the pool of their texts
+// The values a request's variables are filled from, a name to one value, and the pool of their texts, a cell whose
+// room doubles as they are put, to CLI_REQUESTS_TEXT at the most, given back with cli_requests_values_given
 typedef struct
 {
     CliRequestsText name[CLI_REQUESTS_VALUES];
     CliRequestsText value[CLI_REQUESTS_VALUES];
     unsigned int count;
-    char text[CLI_REQUESTS_TEXT];
+    char *text;
     unsigned long long used;
+    unsigned long long room;
 } CliRequestsValues;
 
 // A request ready to go: its method, address and headers with its variables filled in, its body read, and whether it
@@ -166,14 +175,18 @@ typedef struct
 extern CliLock g_cli_requests_lock;
 extern CliRequestsParsed g_cli_requests_parsed;
 
-// a file of requests read into `parsed`, the lock above held: 1, or 0 where it is larger than `parsed` holds; the
-// request whose part holds line `line`, or the last before it, the first where none does: NULL where the file holds
-// none; a text of the pool; and the part of a text from `start` to `end` with the white letters at its two ends
-// passed over, as Rust's str::trim trims it (requests_parse.c)
+// a file of requests read into `parsed`, what it held before given back, the lock above held: 1, or 0 where it is
+// larger than `parsed` holds or its cells are refused; its cells given back, `parsed` left empty; the request whose
+// part holds line `line`, or the last before it, the first where none does: NULL where the file holds none; a text of
+// the pool (requests_white.c); the part of a text from `start` to `end` with the white letters at its two ends passed
+// over, as Rust's str::trim trims it; and the bytes of the white letter at `at` of a text ending at `end`, 0 where the
+// letter there is not white (requests_parse.c, requests_white.c)
 int cli_requests_parse(const char *text, unsigned long long size, CliRequestsParsed *parsed);
+void cli_requests_parsed_given(CliRequestsParsed *parsed);
 const CliRequest *cli_requests_at(const CliRequestsParsed *parsed, unsigned long long line);
 const char *cli_requests_text(const char *pool, CliRequestsText text);
 void cli_requests_trimmed(const char *text, unsigned long long *start, unsigned long long *end);
+unsigned long long cli_requests_white_at(const char *text, unsigned long long at, unsigned long long end);
 // the key a request's answers are kept under, its name, else its method and address as written, into `out`; and the
 // reason a file of requests was not read whole (requests_written.c)
 void cli_requests_full_said(CliLine *said);
@@ -181,11 +194,13 @@ void cli_requests_key(const CliRequestsParsed *parsed, const CliRequest *request
 
 // the nearest file `name` beside the file at `path` or in a folder above it within the tree, into `found`: 1, or 0
 // where there is none; the values of environment `env`, or of none, for the file at `path`: the shared file's then the
-// private file's, `$shared` under the environment's own: 1, or 0 with why said; a value put, in place of one of its
-// name: 1, or 0 where it does not fit; a name's value, NULL where it has none; and whether the peer's certificate is
-// checked for environment `env` (requests_values.c)
+// private file's, `$shared` under the environment's own: 1, or 0 with why said; the values' pool given back and the
+// values left empty; a value put, in place of one of its name: 1, or 0 where it does not fit or its room is refused; a
+// name's value, NULL where it has none; and whether the peer's certificate is checked for environment `env`
+// (requests_values.c)
 int cli_requests_nearest(const char *root, const char *path, const char *name, char *found);
 int cli_requests_values(const char *root, const char *path, const char *env, CliRequestsValues *values, CliLine *said);
+void cli_requests_values_given(CliRequestsValues *values);
 int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned long long name_size, const char *value,
                            unsigned long long value_size);
 const CliRequestsText *cli_requests_value(const CliRequestsValues *values, const char *name, unsigned long long size);

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// serve_lines.c: the window answered over the standard input and output, as `orior-cli serve` answers a window over a
+// serve_lines.c: the window answered over the standard input and output, as `orior_cli serve` answers a window over a
 // link: each line of input a call, `{id, name, args}`, answered on one of the server's call threads by a line `{id,
 // ok}` or `{id, error}` once it is ready, a line read waiting for a thread to be free; what the server tells sent as
 // lines `{event, body}` as it comes, each line written whole; and, once the input ends, the calls made before it
@@ -29,7 +29,6 @@ static unsigned int s_started;
 static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
 static CliLock s_output = CLI_LOCK_INIT;
-static char s_input[CLI_SERVE_LINE];
 
 static CliServeLink s_link;
 
@@ -205,6 +204,15 @@ void cli_serve(const char *root)
 void cli_serve_over(const char *root, const CliServeLink *link)
 {
     s_link = *link;
+    // a line of input is read whole or refused, so the room it is read into holds the most a line takes, a cell held
+    // while the server serves
+    char *const input = cli_cell_taken(CLI_SERVE_LINE, "the line a call is read in");
+    if (input == NULL)
+    {
+        static const char s_roomless[] = "{\"error\":\"the room a call is read in could not be taken\"}";
+        lines_told(NULL, "refused", s_roomless, sizeof(s_roomless) - 1u);
+        return;
+    }
     char home[CLI_PATH_LONGEST];
     char keeping[CLI_PATH_LONGEST];
     const int has_home = cli_home_folder(home);
@@ -232,13 +240,13 @@ void cli_serve_over(const char *root, const CliServeLink *link)
     lines_told(NULL, "serving", serving, body.at);
     for (;;)
     {
-        const unsigned long long size = s_link.read(s_link.context, s_input, sizeof(s_input));
+        const unsigned long long size = s_link.read(s_link.context, input, CLI_SERVE_LINE);
         if (size == QRY_MEMBER_UNREAD)
         {
             break;
         }
         // a line longer than the input holds is refused whole, and none of it is read as a call
-        if (size >= sizeof(s_input))
+        if (size >= CLI_SERVE_LINE)
         {
             static const char s_long[] = "{\"error\":\"a call longer than the server reads: pass its text through a "
                                          "file\"}";
@@ -247,13 +255,14 @@ void cli_serve_over(const char *root, const CliServeLink *link)
         }
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
-        cli_text_trimmed(s_input, size, &from, &to);
+        cli_text_trimmed(input, size, &from, &to);
         // a line that is no whole JSON value is passed over
-        if ((to > from) && (cli_json_value_end(s_input + from, to - from, 0ull) == to - from))
+        if ((to > from) && (cli_json_value_end(input + from, to - from, 0ull) == to - from))
         {
-            lines_handed(s_input + from, to - from);
+            lines_handed(input + from, to - from);
         }
     }
+    cli_cell_given(input);
     // the calls made before the input ended are answered before the server ends
     cli_lock_take(&s_lock);
     for (unsigned int at = 0u; at < s_started; at += 1u)

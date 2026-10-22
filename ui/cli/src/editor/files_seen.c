@@ -212,22 +212,90 @@ static int seen_git_read(const char *root, CliSeen *view)
     return made && cli_files_sorted(&view->files) && cli_files_sorted(&view->dirs) && (view->files.count != 0u);
 }
 
+// where the name of the file at `path`, `length` bytes, starts in it, and the bytes of its ending from its last dot
+// into `*ending`, 0 where no dot stands past the name's first letter
+static unsigned long long seen_name(const char *path, unsigned long long length, unsigned long long *ending)
+{
+    unsigned long long name = 0ull;
+    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    {
+        name = ((path[at] == '/') || (path[at] == '\\')) ? (at + 1ull) : name;
+    }
+    *ending = 0ull;
+    for (unsigned long long at = name + 1ull; at < length; at += 1ull)
+    {
+        *ending = (path[at] == '.') ? (length - at) : *ending;
+    }
+    return name;
+}
+
+// the name and the ending of each of the view's files into its kinds, each once: put into a list made for every file's
+// two, then copied into one made at the size they come to. 1, or 0 where the cellblock cannot meet them, none kept
+static int seen_kinds_read(CliSeen *view)
+{
+    unsigned long long count = 0ull;
+    unsigned long long bytes = 0ull;
+    for (unsigned int at = 0u; at < view->files.count; at += 1u)
+    {
+        const char *const path = cli_files_at(&view->files, at);
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+        unsigned long long ending = 0ull;
+        const unsigned long long name = seen_name(path, length, &ending);
+        count += (ending != 0ull) ? 2ull : 1ull;
+        bytes += (length - name) + 1ull + ((ending != 0ull) ? (ending + 1ull) : 0ull);
+    }
+    // two for each of at most CLI_FILES_MOST files, which an unsigned int counts
+    CliFiles every = {cli_files_cell_taken(count * sizeof(unsigned int)),
+                      0u,
+                      (unsigned int)count,
+                      cli_files_cell_taken(bytes),
+                      0ull,
+                      bytes};
+    for (unsigned int at = 0u; (every.start != NULL) && (every.text != NULL) && (at < view->files.count); at += 1u)
+    {
+        const char *const path = cli_files_at(&view->files, at);
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+        unsigned long long ending = 0ull;
+        const unsigned long long name = seen_name(path, length, &ending);
+        (void)cli_files_put(&every, path + name, length - name);
+        if (ending != 0ull)
+        {
+            (void)cli_files_put(&every, path + length - ending, ending);
+        }
+    }
+    const int read = (every.start != NULL) && (every.text != NULL) && cli_files_sorted(&every) &&
+                     cli_files_made(&view->kinds, every.count, every.used);
+    for (unsigned int at = 0u; read && (at < every.count); at += 1u)
+    {
+        const char *const kind = cli_files_at(&every, at);
+        (void)cli_files_put(&view->kinds, kind, cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}));
+    }
+    cli_files_emptied(&every);
+    return read;
+}
+
 // the view of the tree at `root` read into `view`, its lists from before given back first: git's, or the files walked
-// where git cannot read the tree or lists nothing of it. 1 where the view holds files. The view is the read's alone:
-// no holder holds it and its filling is marked
+// where git cannot read the tree or lists nothing of it, and the names and endings of its files. 1 where the view holds
+// files. The view is the read's alone: no holder holds it and its filling is marked
 static int seen_read(const char *root, CliSeen *view)
 {
     cli_files_emptied(&view->files);
     cli_files_emptied(&view->dirs);
+    cli_files_emptied(&view->kinds);
     view->at = cli_clock_milliseconds();
     view->git = seen_git_read(root, view);
-    if (view->git)
+    if (!view->git)
     {
-        return 1;
+        cli_files_emptied(&view->files);
+        cli_files_emptied(&view->dirs);
     }
-    cli_files_emptied(&view->files);
-    cli_files_emptied(&view->dirs);
-    return seen_walked(root, view);
+    // a view whose kinds the cellblock cannot meet still holds its files, and uses no tool for them
+    const int has = view->git || seen_walked(root, view);
+    if (has)
+    {
+        (void)seen_kinds_read(view);
+    }
+    return has;
 }
 
 // whether a view is free to be read into: no holder holds it and no read fills it. Under the lock
@@ -255,6 +323,7 @@ static void seen_views_emptied(void)
         {
             cli_files_emptied(&s_kept.view[at].files);
             cli_files_emptied(&s_kept.view[at].dirs);
+            cli_files_emptied(&s_kept.view[at].kinds);
             s_kept.has[at] = 0;
         }
     }
@@ -312,7 +381,7 @@ const CliSeen *cli_seen_held(const char *root)
             memor.cpy(&(MemoriaCfg){.dst = s_kept.reseen_root,
                                     .src = root,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-            s_kept.reseer = (CliThread){seen_reseen, NULL};
+            s_kept.reseer = (CliThread){seen_reseen, NULL, CLI_PRIORITY_IDLE};
             if (!cli_thread_started(&s_kept.reseer))
             {
                 s_kept.reseeing = 0;
@@ -364,8 +433,15 @@ void cli_files_let(const CliFiles *files)
 {
     if (files != NULL)
     {
-        cli_seen_let((files == &s_kept.view[1].files) ? &s_kept.view[1] : &s_kept.view[0]);
+        const int second = (files == &s_kept.view[1].files) || (files == &s_kept.view[1].kinds);
+        cli_seen_let(second ? &s_kept.view[1] : &s_kept.view[0]);
     }
+}
+
+const CliFiles *cli_files_kinds_held(const char *root)
+{
+    const CliSeen *const seen = cli_seen_held(root);
+    return (seen != NULL) ? &seen->kinds : NULL;
 }
 
 // the view read behind the window, as a tree opens, for the first list or search
@@ -382,7 +458,7 @@ void cli_files_warm(const char *root)
     cli_lock_take(&s_warm_lock);
     memor.cpy(&(MemoriaCfg){
         .dst = s_root, .src = root, .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    s_warmer = (CliThread){seen_warmed, s_root};
+    s_warmer = (CliThread){seen_warmed, s_root, CLI_PRIORITY_IDLE};
     cli_thread_started(&s_warmer);
     cli_lock_give(&s_warm_lock);
 }

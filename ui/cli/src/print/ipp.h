@@ -1,15 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ipp.h: the Internet Printing Protocol, as RFC 8010 and 8011 set it out, spoken by orior itself over HTTP/1.1 (ipp.c
-// encodes, decodes and exchanges a message, ipp_jobs.c asks what printing needs): a printer's attributes asked for, a
-// job printed with its document, its state asked for and a job canceled, and the printers a CUPS server shares listed.
-// A printer is named by its ipp:// address; one that takes only ipps://, IPP over TLS, is said to be out of reach
+// ipp.h: the Internet Printing Protocol, as RFC 8010 and 8011 set it out, spoken by orior_cli itself over HTTP/1.1
+// (ipp.c encodes, decodes and exchanges a message, ipp_jobs.c asks what printing needs): a printer's attributes asked
+// for, a job printed with its document, its state asked for and a job canceled, and the printers a CUPS server shares
+// listed. A printer is named by its ipp:// address; one that takes only ipps://, IPP over TLS, is said to be out of
+// reach
 #ifndef PRINT_IPP_H
 #define PRINT_IPP_H
 
 #include "print.h"
 
-// the groups' tags, the end of the groups, and the tags of the texts orior writes
+// the groups' tags, the end of the groups, and the tags of the texts orior_cli writes
 #define CLI_IPP_OPERATION 0x01u
 #define CLI_IPP_JOB 0x02u
 #define CLI_IPP_END 0x03u
@@ -31,7 +32,7 @@
 
 #define CLI_IPP_BYTES (1u << 21u)
 
-// a value's kinds: a number, a truth, an enum, a range of two numbers, a text by its tag, and one orior reads past
+// a value's kinds: a number, a truth, an enum, a range of two numbers, a text by its tag, and one orior_cli reads past
 enum
 {
     CLI_IPP_INTEGER,
@@ -76,21 +77,29 @@ typedef struct
 {
     unsigned int code;
     unsigned int request_id;
-    CliIppGroup group[CLI_IPP_GROUPS];
+    CliIppGroup *group;
     unsigned int groups;
-    CliIppAttribute attribute[CLI_IPP_ATTRIBUTES];
+    unsigned int group_room;
+    CliIppAttribute *attribute;
     unsigned int attributes;
-    CliIppValue value[CLI_IPP_VALUES];
+    unsigned int attribute_room;
+    CliIppValue *value;
     unsigned int values;
-    unsigned char bytes[CLI_IPP_BYTES];
+    unsigned int value_room;
+    unsigned char *bytes;
     unsigned int used;
+    unsigned int byte_room;
     const unsigned char *data;
     unsigned long long data_length;
     int full;
 } CliIppMessage;
 
-// a message begun with no groups; a group begun; an attribute of `name` begun in the last group; and a value put after
-// the last attribute's: a number or an enum, a truth, a range, a text by its tag
+// the cells the messages' groups, attributes, values and bytes are held in, each doubling as it is put, counted; and a
+// message's cells given back, the message left empty, a message given back once it is done with (ipp.c)
+extern CliCellsTally g_cli_ipp_cells;
+void cli_ipp_given(CliIppMessage *message);
+// a message begun with no groups, the cells it held kept for its puts; a group begun; an attribute of `name` begun in
+// the last group; and a value put after the last attribute's: a number or an enum, a truth, a range, a text by its tag
 void cli_ipp_begun(CliIppMessage *message, unsigned int code, unsigned int request_id);
 void cli_ipp_group(CliIppMessage *message, unsigned int tag);
 void cli_ipp_attribute(CliIppMessage *message, const char *name);

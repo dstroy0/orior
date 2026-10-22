@@ -14,7 +14,7 @@
 // A language with no server finds its usages as whole words in the tree's files, and has no
 // rename, quick fix or parameter info.
 
-import { invoke, listen } from "./bridge.js";
+import { asked, invoke, listen } from "./bridge.js";
 import { cmp, wordAt } from "./editor/document.js";
 import { escapeHtml } from "./editor/view.js";
 import { markup } from "./editor/widgets.js";
@@ -84,18 +84,18 @@ export async function placesHere(kind) {
   const name = word?.text ?? "the symbol";
   await flush(found.tab);
   if (kind === "definition") {
-    const places = await invoke("lsp_definition", found.at).catch(() => []);
+    const places = await asked("lsp_definition", found.at).catch(() => []);
     return { name, places: places.map((one) => ({ path: one.path, line: one.line, col: one.col, text: "" })) };
   }
   if (kind === "usages") {
-    const usages = await invoke("lsp_references", found.at);
+    const usages = await asked("lsp_references", found.at, 61000);
     return { name, places: usages.map((one) => ({ path: one.path, line: one.from.line, col: one.from.col, text: one.text })) };
   }
-  const root = await invoke("calls_root", found.at);
+  const root = await asked("calls_root", found.at);
   if (!root) {
     return { name, places: [] };
   }
-  const calls = await invoke("calls_of", { path: found.tab.file, item: root.item, incoming: true });
+  const calls = await asked("calls_of", { path: found.tab.file, item: root.item, incoming: true });
   return {
     name: root.name,
     places: calls.flatMap((call) => (call.at.length ? call.at : [call.from]).map((at) => ({ path: call.path, line: at.line, col: at.col, text: call.site, caller: call.name }))),
@@ -228,7 +228,7 @@ export async function findUsages() {
   let usages;
   try {
     await flush(found.tab);
-    usages = await invoke("lsp_references", found.at);
+    usages = await asked("lsp_references", found.at, 61000);
   } catch (error) {
     if (asked === state.asked) {
       document.getElementById("usages-said").textContent = String(error);
@@ -266,7 +266,7 @@ async function commitRename() {
     return;
   }
   try {
-    const files = await invoke("lsp_rename", { ...box.at, name });
+    const files = await asked("lsp_rename", { ...box.at, name }, 61000);
     const done = await applyEdits(files);
     say(`Renamed ${box.old} to ${name} in ${done.places} place${done.places === 1 ? "" : "s"} in ${done.files} file${done.files === 1 ? "" : "s"}.`);
   } catch (error) {
@@ -283,7 +283,7 @@ export async function renameSymbol() {
   let span;
   try {
     await flush(found.tab);
-    span = await invoke("lsp_renamable", found.at);
+    span = await asked("lsp_renamable", found.at);
   } catch (error) {
     say(String(error), { failed: true });
     return;
@@ -338,7 +338,7 @@ export async function quickFix() {
   let actions;
   try {
     await flush(tab);
-    actions = await invoke("lsp_actions", { path: tab.file, from: { line: s.base + start.line, col: start.col }, to: { line: s.base + end.line, col: end.col } });
+    actions = await asked("lsp_actions", { path: tab.file, from: { line: s.base + start.line, col: start.col }, to: { line: s.base + end.line, col: end.col } });
   } catch (error) {
     say(String(error), { failed: true });
     return;
@@ -364,7 +364,7 @@ async function applyAction({ editor, tab }, action) {
     return;
   }
   try {
-    const files = await invoke("lsp_act", { path: tab.file, raw: action.raw });
+    const files = await asked("lsp_act", { path: tab.file, raw: action.raw });
     await applyEdits(files);
   } catch (error) {
     say(String(error), { failed: true });
@@ -385,7 +385,7 @@ export const intelCommands = {
     const sel = editor.primary();
     const [start, end] = cmp(sel.anchor, sel.head) <= 0 ? [sel.anchor, sel.head] : [sel.head, sel.anchor];
     await flush(tab);
-    const actions = await invoke("lsp_actions", { path: tab.file, from: { line: s.base + start.line, col: start.col }, to: { line: s.base + end.line, col: end.col } }).catch(() => []);
+    const actions = await asked("lsp_actions", { path: tab.file, from: { line: s.base + start.line, col: start.col }, to: { line: s.base + end.line, col: end.col } }).catch(() => []);
     const action = actions.find((one) => one.title === title);
     return action ? applyAction(found, action) : say(`No quick fix here is titled ${title}.`, { failed: true });
   },
@@ -407,7 +407,7 @@ export async function callHierarchy() {
   let root;
   try {
     await flush(found.tab);
-    root = await invoke("calls_root", found.at);
+    root = await asked("calls_root", found.at);
   } catch (error) {
     say(String(error), { failed: true });
     return;
@@ -433,7 +433,7 @@ async function loadCalls(calls, key, call, incoming) {
   if (calls.children.has(key)) {
     return;
   }
-  const found = await invoke("calls_of", { path: calls.from, item: call.item, incoming }).catch((error) => {
+  const found = await asked("calls_of", { path: calls.from, item: call.item, incoming }).catch((error) => {
     say(String(error), { failed: true });
     return [];
   });
@@ -534,7 +534,7 @@ export async function parameterInfo({ quiet = false } = {}) {
   }
   const asked = ++state.signatureAsked;
   await flush(found.tab);
-  const signature = await invoke("lsp_signature", found.at).catch(() => null);
+  const signature = await asked("lsp_signature", found.at).catch(() => null);
   if (asked !== state.signatureAsked || state.hooks.editor()?.s !== found.s) {
     return;
   }

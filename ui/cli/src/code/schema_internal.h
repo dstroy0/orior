@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_internal.h: what the schemas' reader shares: a JSON file read with the place of each of its values and what
 // kept it from reading; the schemas a check reaches, each by its URL or its path, held as JSON trees; and the check of
-// a file's values against them (schema.c, schema_read.c, schema_bundled.c, schema_store.c, schema_check.c,
-// schema_values.c, schema_bounds.c, schema_array.c, schema_object.c, schema_complete.c, schema_offer.c)
+// a file's values against them (schema.c, schema_read.c, schema_bundled.c, schema_store.c, schema_resolve.c,
+// schema_check.c, schema_values.c, schema_bounds.c, schema_array.c, schema_object.c, schema_complete.c,
+// schema_offer.c)
 #ifndef SCHEMA_INTERNAL_H
 #define SCHEMA_INTERNAL_H
 
@@ -64,22 +65,43 @@ typedef struct
 } CliSchemaError;
 
 // A JSON file as read: its text, its values and members, what kept it from reading, its root, CLI_SCHEMA_NONE where
-// none was read, the texts of all, and 1 in `full` where a part of it did not fit
+// none was read, the texts of all, and 1 in `full` where a part of it did not fit. The values, the members and the
+// texts are cells of `nodes_most`, `members_most` and `pool_most` places that double as the file is read, to
+// CLI_SCHEMA_NODES, CLI_SCHEMA_MEMBERS and CLI_SCHEMA_POOL at the most; the values' room is grown once more before
+// the file is checked, by a value for each member and CLI_SCHEMA_CHECK_NODES, for the keys a check makes values of, and
+// holds still while the file is checked
 typedef struct
 {
     const char *text;
     unsigned long long size;
-    CliSchemaNode node[CLI_SCHEMA_NODES];
+    CliSchemaNode *node;
     unsigned int nodes;
-    CliSchemaMember member[CLI_SCHEMA_MEMBERS];
+    unsigned int nodes_most;
+    CliSchemaMember *member;
     unsigned int members;
+    unsigned int members_most;
     CliSchemaError error[CLI_SCHEMA_ERRORS];
     unsigned int errors;
     unsigned int root;
-    char pool[CLI_SCHEMA_POOL];
+    char *pool;
     unsigned int used;
+    unsigned int pool_most;
     int full;
 } CliSchemaRead;
+
+// the places a read's lists are begun with, and the values over the read's own a check may make
+#define CLI_SCHEMA_FIRST 1024u
+#define CLI_SCHEMA_CHECK_NODES 1024u
+
+// a list of `each`-byte places at `cells`, `*most` of them, grown to hold `needed`, twice its room at a time from
+// CLI_SCHEMA_FIRST and no more than `hard`, the places it held copied: the list, moved or not, or NULL with it left as
+// it was where it cannot be; a read's lists grown to hold `nodes` values, `members` members and `pool` bytes of text,
+// 1 where all do and 0 where one does not; and a read's lists given back (schema.c)
+void *cli_schema_grown(void *cells, unsigned int *most, unsigned long long needed, size_t each, unsigned int hard,
+                       const char *what);
+int cli_schema_read_room(CliSchemaRead *read, unsigned long long nodes, unsigned long long members,
+                         unsigned long long pool);
+void cli_schema_read_given(CliSchemaRead *read);
 
 // `size` bytes of a JSON file read into `read`, comments passed over (schema_read.c); a text of the pool; and the type
 // a value is of as a schema names it, `integer` for a number with no fraction (schema_values.c)
@@ -87,7 +109,7 @@ void cli_schema_read(const char *text, unsigned long long size, CliSchemaRead *r
 const char *cli_schema_text(const CliSchemaRead *read, unsigned int at);
 const char *cli_schema_kind(const CliSchemaNode *node);
 
-// the meta-schemas orior holds, each its URL with no scheme and no `#` and its text (schema_bundled.c)
+// the meta-schemas orior_cli holds, each its URL with no scheme and no `#` and its text (schema_bundled.c)
 extern const char *const g_cli_schema_bundled[5][2];
 
 // the most documents a check reaches, those it could not find, the values and bytes they take, and the deepest a value
@@ -111,18 +133,20 @@ typedef struct
     unsigned int missings;
 } CliSchemaStore;
 
-// the store made empty; the document at `key` read where it was not, a bundled meta-schema, a file, or a schema kept
-// from an earlier fetch: its root, CLI_SCHEMA_NONE where none could be read; the schema `size` bytes of `reference`
-// name from the document at `base`, and that document's key into `key`, which holds CLI_PATH_LONGEST: its node, or
-// CLI_SCHEMA_NONE; the file a schema fetched from `url` is kept in, into `out`: 1, or 0 where orior has no folder of
-// its own; and where a file's schema is, its `$schema` read beside it where it is a path, or the one its name is known
-// by, into `key`: 1 with the span of the `$schema` value where it names one, `named` 0 where it is known by its name,
-// or 0 where it has none (schema_store.c)
+// the cells the store holds while it reads a document; the store made empty; the document at `key` read where it was
+// not, a bundled meta-schema, a file, or a schema kept from an earlier fetch: its root, CLI_SCHEMA_NONE where none
+// could be read; and the file a schema fetched from `url` is kept in, into `out`: 1, or 0 where orior_cli has no folder
+// of its own (schema_store.c)
+extern CliCellsTally g_cli_schema_cells;
 void cli_schema_store_begun(CliSchemaStore *store);
 unsigned int cli_schema_load(CliSchemaStore *store, const char *key);
+int cli_schema_kept_at(const char *url, char *out);
+// the schema `size` bytes of `reference` name from the document at `base`, and that document's key into `key`, which
+// holds CLI_PATH_LONGEST: its node, or CLI_SCHEMA_NONE; and where a file's schema is, its `$schema` read beside it
+// where it is a path, or the one its name is known by, into `key`: 1 with the span of the `$schema` value where it
+// names one, `named` 0 where it is known by its name, or 0 where it has none (schema_resolve.c)
 unsigned int cli_schema_resolve(CliSchemaStore *store, const char *base, const char *reference, unsigned long long size,
                                 char *key);
-int cli_schema_kept_at(const char *url, char *out);
 int cli_schema_of(const char *path, const CliSchemaRead *read, char *key, int *named, unsigned long long *from,
                   unsigned long long *to);
 
@@ -140,7 +164,7 @@ int cli_schema_same(const CliSchemaRead *read, unsigned int node, const CliJson 
 int cli_schema_same_values(const CliSchemaRead *read, unsigned int one, unsigned int other);
 // a schema's value as a message shows it, between backticks, cut short where it is long; a file's value the same; a
 // number as a message shows it; a type's name as a message says it; and whether `size` bytes of `text` match `pattern`
-// somewhere, as ECMAScript reads it: 1, 0, or -1 where orior does not read the pattern
+// somewhere, as ECMAScript reads it: 1, 0, or -1 where orior_cli does not read the pattern
 void cli_schema_shown(const CliJson *json, unsigned int value, CliLine *out);
 void cli_schema_shown_value(const CliSchemaRead *read, unsigned int node, CliLine *out);
 void cli_schema_number_shown(double value, CliLine *out);

@@ -125,7 +125,7 @@ while [ "$limbs" -le "$to" ]; do
     # empty one. The target list expands to one argument per target.
     # shellcheck disable=SC2086
     if cmake -S "$ROOT/src/cu" -B "$tree" $generator $compiler -DCMAKE_BUILD_TYPE=Release \
-           -DANCHOR_SKIP_CUDA=ON -DANCHOR_EXACT_LIMBS="$limbs" -DANCHOR_EXACT_DIGITS="$digits" \
+           -DORIOR_SKIP_CUDA=ON -DORIOR_EXACT_LIMBS="$limbs" -DORIOR_EXACT_DIGITS="$digits" \
            > "$log" 2>&1 \
        && cmake --build "$tree" --target $targets >> "$log" 2>&1; then
 

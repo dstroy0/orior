@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // khw_learn.c: a part's forms learned by asking the part, and its .khw written from the answers
 //
-//     khw_learn <part> <path.khw> <layout> <mnemonics> <fields> <machine writer> [<rounds>] -- <carrier word>...
+//     orior_khw_learn <part> <path.khw> <layout> <mnemonics> <fields> <machine writer> [<rounds>] -- <carrier word>...
 //
 // Every form in the file this writes is there because the part answered for it (P8). Nothing reads a listing, a
 // disassembler or a vendor's table of operations: the part is handed code and cases over the run channel
@@ -11,9 +11,9 @@
 //
 // The kernel is the code the container the system accepted already holds (the layout's container rows, `layout`
 // above). It loads a case's first two words into two registers, computes one instruction, and stores the result as
-// the case's answer. That one instruction is the slot, and which place of the kernel it stands at is asked: the kernel
+// the case's answer. That one instruction is the position, and which place of the kernel it stands at is asked: the kernel
 // is put with each place holding the encoding its unreached places hold, and the place whose answer comes back as the
-// case's second word is the slot, because nothing then wrote the register the kernel stores.
+// case's second word is the position, because nothing then wrote the register the kernel stores.
 //
 // The first question is the kernel's own relation: the kernel the system accepted, every instruction of it waiting on
 // all six barriers and otherwise unchanged, over every case of each relation of the ladder, and the launches of
@@ -57,7 +57,7 @@ int main(int count, char **word)
     }
     if ((split < 7) || (split >= count) || ((count - split) < 2))
     {
-        printf("khw_learn <part> <path.khw> <layout> <mnemonics> <fields> <machine writer> [<rounds>] -- "
+        printf("orior_khw_learn <part> <path.khw> <layout> <mnemonics> <fields> <machine writer> [<rounds>] -- "
                "<carrier word>...\n");
         return 2;
     }
@@ -67,7 +67,7 @@ int main(int count, char **word)
     s_mnemonics = word[4];
     s_fields = word[5];
     s_machine_writer = word[6];
-    // [<rounds>] and, for a dry run tuned off the part, [--slot <n>] and [--forms <name>]: the slot whose questions are
+    // [<rounds>] and, for a dry run tuned off the part, [--position <n>] and [--forms <name>]: the position whose questions are
     // emitted for the vendor's disassembler, and the blob of the run holding the forms a prior run learned to
     // seed them from, in place of the learn loop (khw_enumerate). The split's passes over the working set: [--discover]
     // widens it a round and keeps what it finds with its fields unasked; [--turns] asks the turns of what a discover
@@ -79,7 +79,7 @@ int main(int count, char **word)
     unsigned int enumerate = 0xffffffffu;
     const char *forms = NULL;
     // [--seeds <name>] with --discover: the blob of the run holding encodings to ask their relation of, a line
-    // `<low> <high>` in hex each, as a vendor's reader of a listing writes them (sass_listing_seeds): the question Q17
+    // `<low> <high>` in hex each, as a vendor's reader of a listing writes them (orior_sass_listing_seeds): the question Q17
     // names and the part answers, each a discovered form where it answers a ladder relation and passed over where not
     const char *seeds = NULL;
     int discover = 0;
@@ -88,7 +88,7 @@ int main(int count, char **word)
     int costs = 0;
     for (int at = 7; at < split; at += 1)
     {
-        if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
+        if ((strcmp(word[at], "--position") == 0) && ((at + 1) < split))
         {
             enumerate = (unsigned int)strtoul(word[at + 1], NULL, 10);
             at += 1;
@@ -173,7 +173,7 @@ int main(int count, char **word)
         run_channel_close();
         return 1;
     }
-    // tuned off the part: the slot's first field-finding round emitted for the vendor's disassembler, the learn loop
+    // tuned off the part: the position's first field-finding round emitted for the vendor's disassembler, the learn loop
     // left for a run that reaches the part
     if (enumerate != 0xffffffffu)
     {
@@ -193,7 +193,7 @@ int main(int count, char **word)
     // turns of what a discover left, a register pass asks the register-runs the turns found. A cross-check reads each
     // round's questions before it is carried, and neither a form's turns nor its register-runs reach the part before
     // the vendor has read them. The working set is the run's blob KHW_WORK_NAME, which the passes hand each other; the
-    // slot is found afresh each pass, off the kernel's code
+    // position is found afresh each pass, off the kernel's code
     if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
         KhwAnswered kernel;
@@ -223,7 +223,7 @@ int main(int count, char **word)
             const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
             if (s_names == 0u)
             {
-                // the working set empty: the kernel's own slot form seeded as a discovered form, its relation asked but
+                // the working set empty: the kernel's own position form seeded as a discovered form, its relation asked but
                 // its fields left for the turns and register passes to ask once a cross has read them, as of any form.
                 // The relation is the real instruction the part already ran, safe to ask without a cross
                 KhwAnswered held;
@@ -242,7 +242,7 @@ int main(int count, char **word)
             {
                 seeded += khw_seeds_asked(seeds);
             }
-            // the frame round, where a classified form holds the slot's registers: the slot's own form, classified by
+            // the frame round, where a classified form holds the position's registers: the position's own form, classified by
             // a register pass before this discover
             const KhwAnswered *slot_form = NULL;
             for (unsigned int at = 0u; at < s_names; at += 1u)
@@ -295,7 +295,7 @@ int main(int count, char **word)
         if (costs != 0)
         {
             // every form the machine file names timed on the timer register, its cost and spread kept in the
-            // part's .ksc beside the machine file. A costs question writes a form many times over from the slot, and
+            // part's .ksc beside the machine file. A costs question writes a form many times over from the position, and
             // the gate holds a second instruction no form holds: so the gate's file is written again before asking,
             // the kernel's places and the forms the part answered for together (the vendor's writer, `costs`). After,
             // the machine file is laid out by the vendor once more from the forms the part answered for, as the
@@ -362,7 +362,7 @@ int main(int count, char **word)
                s_asks - 1ull, s_asks);
     }
     // a dry channel carries every question by nothing: the kernel answers no relation, and the pass goes on with the
-    // slot the .ksc names, every round put through the airlock as on a live channel and nothing launched
+    // position the .ksc names, every round put through the airlock as on a live channel and nothing launched
     const int dry = !related && (strncmp(s_pool[0].refused, "dry:", 4u) == 0);
     if (!related && !dry)
     {
@@ -398,7 +398,7 @@ int main(int count, char **word)
     const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
     printf("  the forms the part answers for:\n");
     khw_form_asked(slot_low, slot_high);
-    // the frame round on the slot's own classified form, each place of the kernel asked what it answers at the slot
+    // the frame round on the position's own classified form, each place of the kernel asked what it answers at the position
     const unsigned int framed = (s_names != 0u) ? khw_frame_round(&s_named[0], 0) : 0u;
     printf("  the frame round: %u place(s) answered a frame relation, %llu asks\n", framed, s_asks);
     unsigned int from = 0u;

@@ -150,7 +150,7 @@ int cli_tar_with(const unsigned char *bytes, unsigned long long size, const CliM
     const unsigned long long rest = (after < size) ? (size - after) : 0ull;
     if (((target->at + 512ull) > size) || ((target->at + 512ull + padded + rest) > room))
     {
-        cli_line_text(said, "the tar is larger than orior holds");
+        cli_line_text(said, "the tar is larger than orior_cli holds");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = out, .src = bytes, .bytes = target->at});

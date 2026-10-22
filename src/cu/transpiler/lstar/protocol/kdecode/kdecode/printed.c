@@ -405,7 +405,7 @@ int kdecode_blobs(const char *path, const char *name, int latest)
     const int read = kdecode_records_each(bytes, size, blobs_each, &walk);
     if (!read)
     {
-        scriptura_text(&s_shown, "kdecode: the run could not be read whole\n");
+        scriptura_text(&s_shown, "orior_kdecode: the run could not be read whole\n");
     }
     if (read && latest && (walk.bytes != NULL))
     {
@@ -434,8 +434,8 @@ int kdecode_table(const char *path, const char *table, int raw, unsigned long lo
     const int read = kdecode_records_each(bytes, size, kdecode_blob, &run);
     if (!read || run.failed)
     {
-        scriptura_text(&s_shown, run.failed ? "kdecode: the run holds more than a walk keeps\n"
-                                             : "kdecode: the run could not be read whole\n");
+        scriptura_text(&s_shown, run.failed ? "orior_kdecode: the run holds more than a walk keeps\n"
+                                             : "orior_kdecode: the run could not be read whole\n");
     }
     static KdecodeOracle s_oracle;
     static KdecodeOracle s_format;

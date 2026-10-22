@@ -4,7 +4,7 @@
 
 static size_t magnitude_trailing_zeros(const uint32_t *value)
 {
-    for (size_t at = 0u; at < (size_t)ANCHOR_EXACT_LIMBS; at++)
+    for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
         uint32_t word = value[at];
         if (word != 0u)
@@ -25,11 +25,11 @@ static void magnitude_shift_down(uint32_t *value, size_t bits)
 {
     const size_t limb_shift = bits / LIMB_BITS;
     const unsigned int part = (unsigned int)(bits % LIMB_BITS);
-    for (size_t at = 0u; at < (size_t)ANCHOR_EXACT_LIMBS; at++)
+    for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
         const size_t from = at + limb_shift;
-        const uint32_t low = (from < (size_t)ANCHOR_EXACT_LIMBS) ? value[from] : 0u;
-        const uint32_t high = ((from + 1u) < (size_t)ANCHOR_EXACT_LIMBS) ? value[from + 1u] : 0u;
+        const uint32_t low = (from < (size_t)ORIOR_EXACT_LIMBS) ? value[from] : 0u;
+        const uint32_t high = ((from + 1u) < (size_t)ORIOR_EXACT_LIMBS) ? value[from + 1u] : 0u;
         value[at] = (part == 0u) ? low : ((low >> part) | (high << (LIMB_BITS - part)));
     }
 }
@@ -40,7 +40,7 @@ void limbs_ladder_product(uint32_t *result, const uint32_t *left, size_t left_co
                           size_t right_count)
 {
     const size_t shorter = (left_count < right_count) ? left_count : right_count;
-    if ((shorter >= (size_t)ANCHOR_EXACT_TRANSFORM_LIMBS) &&
+    if ((shorter >= (size_t)ORIOR_EXACT_TRANSFORM_LIMBS) &&
         (transform_product(result, left, left_count, right, right_count) != 0))
     {
         return;
@@ -92,22 +92,22 @@ static void magnitude_odd_inverse(const uint32_t *odd, size_t limbs, uint32_t *i
     memcpy(inverse, guess, EXACT_LIMBS * sizeof(uint32_t));
 }
 
-AnchorExactStatus anchor_exact_divide_exact(const AnchorExactInteger *numerator, const AnchorExactInteger *divisor,
-                                            AnchorExactInteger *quotient)
+OriorExactStatus orior_exact_divide_exact(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
+                                            OriorExactInteger *quotient)
 {
     if (divisor->sign == 0)
     {
-        return ANCHOR_EXACT_BY_ZERO;
+        return ORIOR_EXACT_BY_ZERO;
     }
     if (numerator->sign == 0)
     {
-        anchor_exact_zero(quotient);
-        return ANCHOR_EXACT_OK;
+        orior_exact_zero(quotient);
+        return ORIOR_EXACT_OK;
     }
     EXACT_SCRATCH(work, 10u * EXACT_LIMBS);
     if (!EXACT_SCRATCH_VALID(work))
     {
-        return ANCHOR_EXACT_WILL_NOT_FIT;
+        return ORIOR_EXACT_WILL_NOT_FIT;
     }
     uint32_t *const odd = work;
     uint32_t *const top = &work[EXACT_LIMBS];
@@ -130,7 +130,7 @@ AnchorExactStatus anchor_exact_divide_exact(const AnchorExactInteger *numerator,
     // multiplied back, the quotient must give the numerator's magnitude
     const size_t low_product_used = magnitude_used(low_product);
     const size_t divisor_used = magnitude_used(divisor->limb);
-    AnchorExactStatus status = ANCHOR_EXACT_NOT_EXACT;
+    OriorExactStatus status = ORIOR_EXACT_NOT_EXACT;
     if ((low_product_used != 0u) && ((low_product_used + divisor_used) <= (2u * EXACT_LIMBS)))
     {
         limbs_ladder_product(back, low_product, low_product_used, divisor->limb, divisor_used);
@@ -141,7 +141,7 @@ AnchorExactStatus anchor_exact_divide_exact(const AnchorExactInteger *numerator,
             const int32_t sign = numerator->sign * divisor->sign;
             memcpy(quotient->limb, low_product, EXACT_LIMBS * sizeof(uint32_t));
             settle_sign(quotient, sign);
-            status = ANCHOR_EXACT_OK;
+            status = ORIOR_EXACT_OK;
         }
     }
     EXACT_SCRATCH_RELEASE(work);
@@ -196,25 +196,25 @@ static void limbs_combine(uint32_t *result, const uint32_t *first, int64_t first
 // Lehmer's gcd (Knuth's algorithm L): the leading 32 bits of u and the same bits of v run Euclid's steps in words
 // while the quotient is certain, and the steps' cofactors then advance u and v in one pass, about thirty bits at a
 // time; where no step is certain one long division advances them; the last two words finish in a word
-AnchorExactStatus anchor_exact_gcd(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                   AnchorExactInteger *result)
+OriorExactStatus orior_exact_gcd(const OriorExactInteger *left, const OriorExactInteger *right,
+                                   OriorExactInteger *result)
 {
     if (left->sign == 0)
     {
         *result = *right;
         result->sign = (right->sign == 0) ? 0 : 1;
-        return ANCHOR_EXACT_OK;
+        return ORIOR_EXACT_OK;
     }
     if (right->sign == 0)
     {
         *result = *left;
         result->sign = 1;
-        return ANCHOR_EXACT_OK;
+        return ORIOR_EXACT_OK;
     }
     EXACT_SCRATCH(work, (9u * EXACT_LIMBS) + 8u);
     if (!EXACT_SCRATCH_VALID(work))
     {
-        return ANCHOR_EXACT_WILL_NOT_FIT;
+        return ORIOR_EXACT_WILL_NOT_FIT;
     }
     const size_t width = EXACT_LIMBS + 1u;
     uint32_t *buffer[4] = {work, &work[width], &work[2u * width], &work[3u * width]};
@@ -302,7 +302,7 @@ AnchorExactStatus anchor_exact_gcd(const AnchorExactInteger *left, const AnchorE
             larger_word = smaller_word;
             smaller_word = next;
         }
-        anchor_exact_zero(result);
+        orior_exact_zero(result);
         result->limb[0] = (uint32_t)(larger_word & LIMB_MASK);
         if (EXACT_LIMBS > 1u)
         {
@@ -315,5 +315,5 @@ AnchorExactStatus anchor_exact_gcd(const AnchorExactInteger *left, const AnchorE
     }
     settle_sign(result, 1);
     EXACT_SCRATCH_RELEASE(work);
-    return ANCHOR_EXACT_OK;
+    return ORIOR_EXACT_OK;
 }

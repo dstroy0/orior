@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// decoder_internal.h: what the modules of klq_decoder share: its includes, one put of the log, the metas, sets
+// decoder_internal.h: what the modules of orior_klq_decoder share: its includes, one put of the log, the metas, sets
 // and categories a pair is read into, the functions over puts, and the decoding of one log
 #ifndef KLQ_DECODER_INTERNAL_H
 #define KLQ_DECODER_INTERNAL_H

@@ -16,18 +16,18 @@
  *
  * @note THE REFERENCE. This arm uses no intrinsic and no compiler extension. It builds anywhere a
  *       C11 compiler runs, and every other scan arm returns the same count or has a defect. That is
- *       the contract AnchorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
- * @note It counts a scan call and never a wide call. anchor_steer_scan_calls and
- *       anchor_steer_wide_calls are defined in orior_steer_count.c and declared in the header; a wide arm
+ *       the contract OriorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
+ * @note It counts a scan call and never a wide call. orior_steer_scan_calls and
+ *       orior_steer_wide_calls are defined in orior_steer_count.c and declared in the header; a wide arm
  *       counts both. Wide over total is the share served on the vector path.
  */
 
 #include "orior.h"
 
-size_t anchor_steer_truthy_after_portable(const uint8_t *corpus, size_t alignments, const uint8_t *alive,
+size_t orior_steer_truthy_after_portable(const uint8_t *corpus, size_t alignments, const uint8_t *alive,
                                           uint8_t wanted, size_t offset)
 {
-    anchor_steer_scan_calls += 1u;
+    orior_steer_scan_calls += 1u;
 
     if ((corpus == NULL) || (alive == NULL) || (alignments == 0u))
     {
@@ -49,9 +49,9 @@ size_t anchor_steer_truthy_after_portable(const uint8_t *corpus, size_t alignmen
     return standing;
 }
 
-const AnchorSteerEngine *anchor_steer_portable_engine(void)
+const OriorSteerEngine *orior_steer_portable_engine(void)
 {
-    static const AnchorSteerEngine engine = {"portable", anchor_steer_truthy_after_portable};
+    static const OriorSteerEngine engine = {"portable", orior_steer_truthy_after_portable};
 
     return &engine;
 }

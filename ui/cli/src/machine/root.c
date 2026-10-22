@@ -275,9 +275,12 @@ void cli_full(const char *root, const char *relative, char *joined)
     CliLine said = {said_text, sizeof(said_text), 0ull};
     if (!cli_inside(root, relative, joined, &said))
     {
+        // a whole path is the path it names, and any other is written under the tree
+        const int whole =
+            (relative[0] == '/') || (relative[0] == '\\') || ((relative[0] != '\0') && (relative[1] == ':'));
         CliLine line = {joined, CLI_PATH_LONGEST, 0ull};
-        cli_line_text(&line, root);
-        cli_line_character(&line, '/');
+        cli_line_text(&line, whole ? "" : root);
+        cli_line_text(&line, whole ? "" : "/");
         cli_line_text(&line, relative);
         cli_line_closed(&line);
     }

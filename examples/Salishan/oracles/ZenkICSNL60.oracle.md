@@ -3,7 +3,7 @@
 Extraction of Victoria Howard's Chinook Jargon in context by Henry Zenk, Confederated Tribes of
 Grand Ronde, Oregon, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -46,7 +46,7 @@ rows keep the space. From §4 on the draft ran the examples into the prose, and 
 read off the page again, the prose a paragraph a row, each example and appendix set a line a row,
 and Figures 1 and 2 a cell a row.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 1000
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 39828 distinct tokens in the paper, 0 language tokens are held by no row.

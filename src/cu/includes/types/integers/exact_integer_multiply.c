@@ -65,7 +65,7 @@ static size_t fermat_inner_bits(size_t piece_bits, unsigned int depth)
 // Karatsuba's three half products and linear passes
 static unsigned long long fermat_ladder_cost(size_t limbs)
 {
-    if (limbs < (size_t)ANCHOR_EXACT_KARATSUBA_LIMBS)
+    if (limbs < (size_t)ORIOR_EXACT_KARATSUBA_LIMBS)
     {
         return (unsigned long long)limbs * limbs;
     }
@@ -296,13 +296,13 @@ int transform_product(uint32_t *wide, const uint32_t *left, size_t left_used, co
 
 // the product by the rung of the ladder the operands reach, or by the transform alone when it is asked for; a rung
 // that cannot hold its workspace steps down to the one below, and long multiplication needs none
-static AnchorExactStatus exact_multiply_by(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                           AnchorExactInteger *result, int transform_only)
+static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const OriorExactInteger *right,
+                                           OriorExactInteger *result, int transform_only)
 {
     if ((left->sign == 0) || (right->sign == 0))
     {
-        anchor_exact_zero(result);
-        return ANCHOR_EXACT_OK;
+        orior_exact_zero(result);
+        return ORIOR_EXACT_OK;
     }
 
     // A factor using n limbs is at least 2^(32 * (n - 1)). The product of factors using n and m limbs
@@ -313,7 +313,7 @@ static AnchorExactStatus exact_multiply_by(const AnchorExactInteger *left, const
     const size_t range = left_used + right_used;
     if (range > (EXACT_LIMBS + 1u))
     {
-        return ANCHOR_EXACT_WILL_NOT_FIT;
+        return ORIOR_EXACT_WILL_NOT_FIT;
     }
     // The product is below 2^(32 * range) and occupies at most `range` limbs, at most one past the
     // width. An overrun shows in that extra limb, and the accumulator keeps it instead of wrapping
@@ -321,11 +321,11 @@ static AnchorExactStatus exact_multiply_by(const AnchorExactInteger *left, const
     EXACT_SCRATCH(wide, EXACT_LIMBS + 1u);
     if (!EXACT_SCRATCH_VALID(wide))
     {
-        return ANCHOR_EXACT_WILL_NOT_FIT;
+        return ORIOR_EXACT_WILL_NOT_FIT;
     }
     const size_t shorter = (left_used < right_used) ? left_used : right_used;
     int ok = 0;
-    if ((transform_only != 0) || (shorter >= (size_t)ANCHOR_EXACT_TRANSFORM_LIMBS))
+    if ((transform_only != 0) || (shorter >= (size_t)ORIOR_EXACT_TRANSFORM_LIMBS))
     {
         ok = transform_product(wide, left->limb, left_used, right->limb, right_used);
     }
@@ -338,10 +338,10 @@ static AnchorExactStatus exact_multiply_by(const AnchorExactInteger *left, const
             ok = 1;
         }
     }
-    AnchorExactStatus status = ANCHOR_EXACT_OK;
+    OriorExactStatus status = ORIOR_EXACT_OK;
     if ((ok == 0) || ((range > EXACT_LIMBS) && (wide[EXACT_LIMBS] != 0u)))
     {
-        status = ANCHOR_EXACT_WILL_NOT_FIT;
+        status = ORIOR_EXACT_WILL_NOT_FIT;
     }
     else
     {
@@ -356,14 +356,14 @@ static AnchorExactStatus exact_multiply_by(const AnchorExactInteger *left, const
     return status;
 }
 
-AnchorExactStatus anchor_exact_multiply_transform(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                                  AnchorExactInteger *result)
+OriorExactStatus orior_exact_multiply_transform(const OriorExactInteger *left, const OriorExactInteger *right,
+                                                  OriorExactInteger *result)
 {
     return exact_multiply_by(left, right, result, 1);
 }
 
-AnchorExactStatus anchor_exact_multiply(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                        AnchorExactInteger *result)
+OriorExactStatus orior_exact_multiply(const OriorExactInteger *left, const OriorExactInteger *right,
+                                        OriorExactInteger *result)
 {
     return exact_multiply_by(left, right, result, 0);
 }

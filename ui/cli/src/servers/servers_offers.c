@@ -108,7 +108,7 @@ void cli_servers_signature_of(const CliJson *json, unsigned int help, CliLine *o
     cli_line_character(out, '}');
 }
 
-int cli_servers_action_of(const CliJson *json, unsigned int one, CliLine *out)
+int cli_servers_action_of(const CliJson *json, unsigned int one, const char *plugin, CliLine *out)
 {
     unsigned long long size = 0ull;
     const char *const title = cli_json_string(json, cli_json_member(json, one, "title"), &size);
@@ -136,8 +136,15 @@ int cli_servers_action_of(const CliJson *json, unsigned int one, CliLine *out)
         cli_line_text(out, "null");
     }
     cli_line_text(out, ",\"raw\":");
+    if (plugin != NULL)
+    {
+        // an action of a plugin's server carries the plugin's id, so carrying it out goes to that server
+        cli_line_text(out, "{\"orior_plugin\":");
+        cli_json_quoted(out, plugin, cellul.len(&(CatenaFinitaCfg){.src = plugin, .cap = CLI_NAME_LONGEST}));
+        cli_line_text(out, ",\"action\":");
+    }
     cli_json_write(json, one, out, 0u, 0);
-    cli_line_character(out, '}');
+    cli_line_text(out, (plugin != NULL) ? "}}" : "}");
     return 1;
 }
 

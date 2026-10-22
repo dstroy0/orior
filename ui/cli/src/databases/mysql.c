@@ -64,7 +64,7 @@ int cli_mysql_packet(CliMysql *mysql, CliDbFailure *failure)
     }
     if (!fits)
     {
-        cli_db_failure_said(failure, "a packet is past the room orior reads one in");
+        cli_db_failure_said(failure, "a packet is past the room orior_cli reads one in");
     }
     return fits;
 }

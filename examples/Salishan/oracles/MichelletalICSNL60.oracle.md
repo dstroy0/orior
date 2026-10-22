@@ -3,7 +3,7 @@
 Extraction of mus te kʷúkʷpiʔs he sɬaʔx̣áns - The Four Food Chiefs by wlwlmelst (Maurice Michell),
 Maria Adams, Jonathan Janzen, Kanaka Bar Indian Band, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -42,7 +42,7 @@ runs over a page break under footnote 2, and (7)'s translation over a line after
 mark stands. (14) opens on its whole sentence set on one line and prints its second transcription
 line twice, and (13) has no line of English word by word; each is kept as printed.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 368
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 6711
 distinct tokens in the paper, 0 language tokens are held by no row.

@@ -6,12 +6,18 @@
 #include "kept.h"
 #include "settings.h"
 
-// the cores kept, 0 before anything has given them, under the lock; and the chains and layers they are read from
+// the cores kept, 0 before anything has given them, under the lock
 static unsigned int s_kept;
-static CliChain s_reader;
-static CliChain s_none;
-static CliLayers s_layers;
 static CliLock s_lock = CLI_LOCK_INIT;
+
+// What the cores kept are read from, a cell taken as they are first read and given back as they are kept: the reader's
+// chain, an empty chain for a tree, and the layers of the two
+typedef struct
+{
+    CliChain reader;
+    CliChain none;
+    CliLayers layers;
+} CliCoresRead;
 
 unsigned int cli_cores_machine(void)
 {
@@ -61,32 +67,41 @@ unsigned int cli_cores_kept(void)
         cli_lock_give(&s_lock);
         return kept;
     }
-    cli_settings_reader(&s_reader);
-    cli_json_begun(&s_none.json, s_none.node, CLI_SETTINGS_NODES, s_none.text, CLI_SETTINGS_TEXT);
-    s_none.files = 0u;
-    s_none.problems = 0u;
-    cli_settings_layers(&s_reader, &s_none, "", &s_layers);
-    // the setting over the reader's own, else their own settings.json's, else under it
-    static char s_own[CLI_PATH_LONGEST];
-    const char *set = cli_settings_layer(&s_layers, CLI_CORES_KEY, 1);
-    if ((set == NULL) && (s_reader.files != 0u))
+    CliCoresRead *const read = cli_cell_taken_by(&g_cli_settings_cells, sizeof(*read), "the cores kept read");
+    if (read == NULL)
     {
-        const CliJson *const json = &s_reader.json;
-        const unsigned int value = cli_json_member(json, s_reader.values[s_reader.files - 1u], CLI_CORES_KEY);
+        cli_lock_give(&s_lock);
+        return CLI_CORES_KEPT_LEAST;
+    }
+    cli_settings_reader(&read->reader);
+    cli_json_begun(&read->none.json, NULL, 0u, NULL, 0ull);
+    read->none.files = 0u;
+    read->none.problems = 0u;
+    cli_settings_layers(&read->reader, &read->none, "", &read->layers);
+    // the setting over the reader's own, else their own settings.json's, else under it
+    char own[CLI_PATH_LONGEST];
+    const char *set = cli_settings_layer(&read->layers, CLI_CORES_KEY, 1);
+    if ((set == NULL) && (read->reader.files != 0u))
+    {
+        const CliJson *const json = &read->reader.json;
+        const unsigned int value = cli_json_member(json, read->reader.values[read->reader.files - 1u], CLI_CORES_KEY);
         if (value != CLI_JSON_NONE)
         {
-            CliLine line = {s_own, sizeof(s_own), 0ull};
+            CliLine line = {own, sizeof(own), 0ull};
             cli_kept_read_back(json, value, &line);
             cli_line_closed(&line);
-            set = s_own;
+            set = own;
         }
     }
-    set = (set != NULL) ? set : cli_settings_layer(&s_layers, CLI_CORES_KEY, 0);
+    set = (set != NULL) ? set : cli_settings_layer(&read->layers, CLI_CORES_KEY, 0);
     unsigned int kept = CLI_CORES_KEPT_LEAST;
     if ((set == NULL) || !cli_count(set, &kept))
     {
         kept = CLI_CORES_KEPT_LEAST;
     }
+    cli_settings_layers_given(&read->layers);
+    cli_settings_chain_given(&read->reader);
+    cli_cell_given_by(&g_cli_settings_cells, read);
     s_kept = (kept > CLI_CORES_KEPT_LEAST) ? kept : CLI_CORES_KEPT_LEAST;
     kept = s_kept;
     cli_lock_give(&s_lock);

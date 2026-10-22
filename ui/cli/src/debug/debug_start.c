@@ -46,8 +46,8 @@ static int start_parent_language(unsigned long long parent, char *language)
     return found;
 }
 
-// the language, the adapter, and for a C file of a CMake or Meson build orior configured the program that build makes
-// from it, read into `plan`: 1, or 0 with why said
+// the language, the adapter, and for a C file of a CMake or Meson build orior_cli configured the program that build
+// makes from it, read into `plan`: 1, or 0 with why said
 static int start_adapter(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
                          CliDebugPlan *plan, CliLine *said)
 {
@@ -370,7 +370,14 @@ int cli_debug_planned(CliDebugSession *place, const char *root, const CliJson *j
                       unsigned int options, CliDebugPlan *plan, CliLine *said)
 {
     CliJson *const to = &place->start;
-    cli_json_begun(to, place->start_nodes, CLI_DEBUG_START_NODES, place->start_text, sizeof(place->start_text));
+    // the spec and the arguments the session starts with, made in a tree of the most they take, its cell held by the
+    // place until it is freed
+    cli_json_given(to);
+    if (!cli_json_held(to, CLI_DEBUG_START_NODES, CLI_DEBUG_START_TEXT, "the tree a debug session starts with"))
+    {
+        cli_line_text(said, "the cells cannot meet the tree a debug session starts with");
+        return 0;
+    }
     memor.set(&(MemoriaCfg){.dst = plan, .val = 0, .bytes = sizeof(*plan)});
     if (!start_field(json, start, "kind", plan->kind, sizeof(plan->kind), said) ||
         !start_adapter(place, root, json, start, plan, said))

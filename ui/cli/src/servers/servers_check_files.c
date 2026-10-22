@@ -24,21 +24,20 @@ typedef struct
     int told;
 } CliServersBatchLanguage;
 
-// The batch, a cell taken with its lock and given back with it: its languages, the languages known, its files' paths
-// and what each goes to
+// The batch, a cell taken with its lock and given back with it: its languages and the languages known. Its files'
+// paths, packed one after another, the place of each, and what each goes to, are cells of their own, sized to the
+// batch's files
 typedef struct
 {
     CliServersBatchLanguage language[CLI_SERVERS_BATCH_LANGUAGES];
     CliLanguages known;
-    char path[CLI_SERVERS_BATCH][CLI_PATH_LONGEST];
-    const char *paths[CLI_SERVERS_BATCH];
-    CliServersWaiting waiting[CLI_SERVERS_BATCH];
 } CliServersBatch;
 
-// the batch and how many languages it is of, under its lock
+// the batch and how many languages it is of, under its lock, and the cells a batch is held in
 static CliServersBatch *s_batch;
 static unsigned int s_languages;
 static CliLock s_lock = CLI_LOCK_INIT;
+static CliCellsTally s_cells = CLI_CELLS_TALLY("cli_servers_check");
 
 // the language `id` of the batch, its server started at `root` where it is first met: its place, or
 // CLI_SERVERS_BATCH_LANGUAGES where the batch is of too many
@@ -70,10 +69,28 @@ static unsigned int check_files_language(const char *root, const char *id, const
 unsigned int cli_servers_check_files(const char *root, const char *const *files, unsigned int count,
                                      const CliServersEmit *emit)
 {
-    cli_lock_take(&s_lock);
-    s_batch = cli_cell_taken(sizeof(*s_batch), "a batch of files checked");
-    if (s_batch == NULL)
+    // a file's full path is the tree's, a slash, and its own: the paths' text is no longer than those
+    const unsigned int most = (count < CLI_SERVERS_BATCH) ? count : CLI_SERVERS_BATCH;
+    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
+    unsigned long long text_bytes = 1ull;
+    for (unsigned int file = 0u; file < count; file += 1u)
     {
+        text_bytes += root_length + cellul.len(&(CatenaFinitaCfg){.src = files[file], .cap = CLI_CELLS_POOL}) + 2ull;
+    }
+    cli_lock_take(&s_lock);
+    s_batch = cli_cell_taken_by(&s_cells, sizeof(*s_batch), "a batch of files checked");
+    char *const text = cli_cell_taken_by(&s_cells, text_bytes, "the paths of a batch of files checked");
+    const char **const paths = cli_cell_taken_by(&s_cells, ((unsigned long long)most + 1ull) * sizeof(*paths),
+                                                 "the places of a batch's paths");
+    CliServersWaiting *const waiting_on = cli_cell_taken_by(
+        &s_cells, ((unsigned long long)most + 1ull) * sizeof(*waiting_on), "what a batch's files go to");
+    if ((s_batch == NULL) || (text == NULL) || (paths == NULL) || (waiting_on == NULL))
+    {
+        cli_cell_given_by(&s_cells, waiting_on);
+        cli_cell_given_by(&s_cells, paths);
+        cli_cell_given_by(&s_cells, text);
+        cli_cell_given_by(&s_cells, s_batch);
+        s_batch = NULL;
         cli_lock_give(&s_lock);
         return 0u;
     }
@@ -81,7 +98,8 @@ unsigned int cli_servers_check_files(const char *root, const char *const *files,
     s_languages = 0u;
     const int held = cli_trust_held_back(root);
     unsigned int waiting = 0u;
-    for (unsigned int file = 0u; (file < count) && (waiting < CLI_SERVERS_BATCH); file += 1u)
+    unsigned long long used = 0ull;
+    for (unsigned int file = 0u; (file < count) && (waiting < most); file += 1u)
     {
         char id[CLI_NAME_LONGEST];
         if (!cli_plugins_language_for(&s_batch->known, files[file], id))
@@ -108,16 +126,20 @@ unsigned int cli_servers_check_files(const char *root, const char *const *files,
             }
             continue;
         }
-        cli_full(root, files[file], s_batch->path[waiting]);
+        char full[CLI_PATH_LONGEST];
+        cli_full(root, files[file], full);
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1ull;
         unsigned long long size = 0ull;
-        if (!cli_file_size(s_batch->path[waiting], &size) || (size > CLI_SERVERS_LARGEST))
+        if (!cli_file_size(full, &size) || (size > CLI_SERVERS_LARGEST) || ((used + length) > text_bytes))
         {
             continue;
         }
-        cli_servers_id_of(&language->spec, s_batch->path[waiting], id, s_batch->waiting[waiting].id);
-        s_batch->waiting[waiting].server = language->server;
+        memor.cpy(&(MemoriaCfg){.dst = text + used, .src = full, .bytes = (size_t)length});
+        paths[waiting] = text + used;
+        used += length;
+        cli_servers_id_of(&language->spec, paths[waiting], id, waiting_on[waiting].id);
+        waiting_on[waiting].server = language->server;
         cli_lsp_held(language->server);
-        s_batch->paths[waiting] = s_batch->path[waiting];
         waiting += 1u;
     }
     for (unsigned int at = 0u; at < s_languages; at += 1u)
@@ -127,8 +149,12 @@ unsigned int cli_servers_check_files(const char *root, const char *const *files,
             cli_lsp_given(s_batch->language[at].server);
         }
     }
-    const unsigned int queued = cli_servers_check_queued(s_batch->paths, s_batch->waiting, waiting, emit);
-    cli_cell_given(s_batch);
+    cli_plugins_languages_given(&s_batch->known);
+    const unsigned int queued = cli_servers_check_queued(paths, waiting_on, waiting, emit);
+    cli_cell_given_by(&s_cells, waiting_on);
+    cli_cell_given_by(&s_cells, paths);
+    cli_cell_given_by(&s_cells, text);
+    cli_cell_given_by(&s_cells, s_batch);
     s_batch = NULL;
     cli_lock_give(&s_lock);
     return queued;

@@ -172,11 +172,11 @@ def version_lock(out):
     """
     limbs = constant(
         "src/cu/includes/types/integers/exact_integer.h",
-        r"#define\s+ANCHOR_EXACT_LIMBS\s+(\d+)",
+        r"#define\s+ORIOR_EXACT_LIMBS\s+(\d+)",
     )
     floor = constant(
         "src/cu/includes/types/integers/exact_integer.h",
-        r"#define\s+ANCHOR_EXACT_DIGITS\s+(\d+)",
+        r"#define\s+ORIOR_EXACT_DIGITS\s+(\d+)",
     )
     scale = constant(
         "archive/src/python/types/integers/exact.py", r"^SCALE_DIGITS\s*=\s*(\d+)"

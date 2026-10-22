@@ -3,7 +3,7 @@
 Extraction of Covert A-scrambling in Tlingit by Seth Cable, University of Massachusetts, Amherst,
 ICSNL 43.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -34,7 +34,7 @@ named by outline and the paper is read by glyph rows. The trees are written a pr
 the lone index the glyph rows set under OBJ and t in (18) and under SUBJ in (19) put back on its
 node, and a copy struck out on the page carries the long stroke overlay.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 567
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 14370 distinct tokens in the paper, 0 language tokens are held by no row.

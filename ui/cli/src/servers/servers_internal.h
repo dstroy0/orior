@@ -38,7 +38,7 @@
 #define CLI_SERVERS_RESTARTS_WITHIN 60000ull
 #define CLI_SERVERS_LARGEST (2ull << 20u)
 
-// the name the findings of the files orior reads itself are kept by, beside the checkers'
+// the name the findings of the files orior_cli reads itself are kept by, beside the checkers'
 #define CLI_SERVERS_OWN "orior"
 
 // the most bytes of a server's answer, and of the texts of its tree, and the most nodes the tree holds
@@ -194,18 +194,26 @@ int cli_servers_asked_at(CliLsp *server, const char *method, const char *path, u
                          const char *added, unsigned long long wait, CliLine *result, CliLine *said);
 unsigned long long cli_servers_whole(const CliJson *json, unsigned int node, unsigned long long otherwise);
 CliTextPlace cli_servers_place(const CliJson *json, unsigned int node);
+// a path written as a JSON string as it stands in `tree` (servers_shapes.c)
+void cli_servers_path_written(const char *tree, const char *path, CliLine *out);
 // a workspace edit, in either of the shapes the protocol allows, as each file's edits, `[{"path", "edits"}]`, each
-// file's first in the file first, a file made, moved or removed not among them
+// file's first in the file first, a file made, moved or removed not among them; and the cells one holds while it is
+// written (servers_edits.c)
 void cli_servers_workspace_edit_of(const CliJson *json, unsigned int edit, const char *tree, CliLine *out);
+extern CliCellsTally g_cli_servers_edits_cells;
+// every file named `name` in the tree at `root`, outside the folders a build writes and no more than six folders down,
+// sorted, written as a JSON array into `out`; and the cells a server's start holds while it starts (servers_launch.c)
+void cli_servers_projects_in(const char *root, const char *name, CliLine *out);
+extern CliCellsTally g_cli_servers_launch_cells;
 // a hover's contents as Markdown, from any of the shapes the protocol allows, its letters as they are
 void cli_servers_markdown_of(const CliJson *json, unsigned int contents, CliLine *out);
 // a completion item of the server's put among `items`
 void cli_servers_item_of(const CliJson *json, unsigned int one, CliCompletions *items);
-// a call's signature written, `null` where the server gave none; a code action written: 1, or 0 where it has no title;
-// and whether the span `from`, `to` shares a place with `range`, a span with no width touching the other counting
-// (servers_offers.c)
+// a call's signature written, `null` where the server gave none; a code action written, `{"orior_plugin", "action"}`
+// its raw where the server of the plugin `plugin` offers it: 1, or 0 where it has no title; and whether the span
+// `from`, `to` shares a place with `range`, a span with no width touching the other counting (servers_offers.c)
 void cli_servers_signature_of(const CliJson *json, unsigned int help, CliLine *out);
-int cli_servers_action_of(const CliJson *json, unsigned int one, CliLine *out);
+int cli_servers_action_of(const CliJson *json, unsigned int one, const char *plugin, CliLine *out);
 int cli_servers_overlaps(CliTextPlace from, CliTextPlace to, const CliJson *json, unsigned int range);
 // a diagnostic of the server's written as orior's, `{"from", "to", "severity", "message", "markdown", "source",
 // "code", "href"}`; and a location written as `{"path", "line", "col"}`: 1, or 0 where it names no file
@@ -218,6 +226,10 @@ int cli_servers_found_of(const CliJson *json, unsigned int location, const char 
 int cli_servers_capable(CliLsp *server, const char *name);
 // whether the member `inner` of the capability `name` is true
 int cli_servers_capable_true(CliLsp *server, const char *name, const char *inner);
+// a member of `node` written as JSON, `null` where it has none (servers_actions.c)
+void cli_servers_member_written(const CliJson *json, unsigned int node, const char *name, CliLine *out);
+// whether the server runs the command `command` itself, as its executeCommandProvider lists it
+int cli_servers_capable_command(CliLsp *server, const char *command);
 int cli_servers_selection(const char *path, CliTextPlace from, CliTextPlace to, CliLine *out, CliLine *said);
 
 // a file's key and its URI, each into what holds CLI_PATH_LONGEST (servers_emit.c)
@@ -248,8 +260,28 @@ int cli_servers_indexed(char *root);
 // class's family sets moved (servers_emit.c)
 void cli_servers_emit_reporting_attributes(const CliServersEmit *emit);
 
-// one file checked with each checker named for its language, on a thread of its own; a file orior reads itself
-// checked as its text stands; and every file of the tree orior reads itself checked as the disk holds it
+// a file the editor opens of `language` handed to each plugin server that serves the language: 1 where one took it;
+// its new text to each that holds it, and its closing told to each that holds it (servers_plugins.c)
+int cli_servers_plugins_opened(const char *path, const char *language, const char *text, unsigned long long size);
+void cli_servers_plugins_changed(const char *path, const char *text, unsigned long long size);
+void cli_servers_plugins_closed(const char *path);
+// the server of plugin `id`, held, or NULL with why said where none runs; the next plugin server from the place `at`
+// that holds `path`, held, its plugin's id into `id`, which holds CLI_NAME_LONGEST, and `at` moved past it, or NULL
+// where none is left; and a command of an action of the server of plugin `id` it does not run itself, `size` bytes of
+// `{command, arguments}`, passed to the plugin as `orior/command` (servers_plugins.c)
+CliLsp *cli_servers_plugin_of(const char *id, CliLine *said);
+CliLsp *cli_servers_plugin_holding(unsigned int *at, const char *path, char *id);
+void cli_servers_plugin_command(const char *id, const char *command, unsigned long long size);
+// the program a plugin's server starts as, found by its toolchain where `server` in `json` names one, into `program`,
+// and the folder it was found in into `folder`, each of which holds CLI_PATH_LONGEST: 1, or 0 with why said; the
+// `length` bytes of `text` written into `written` with each `{folder}` in them `folder`, escaped for a JSON string
+// where `escaped`; and the arguments of `server` put into `words` the same way (servers_plugins_program.c)
+int cli_servers_plugin_program(const CliJson *json, unsigned int server, char *program, char *folder, CliLine *said);
+void cli_servers_plugin_folder_put(CliLine *written, const char *text, unsigned long long length, const char *folder,
+                                   int escaped);
+void cli_servers_plugin_args(const CliJson *json, unsigned int server, const char *folder, CliWords *words);
+// one file checked with each checker named for its language, on a thread of its own; a file orior_cli reads itself
+// checked as its text stands; and every file of the tree orior_cli reads itself checked as the disk holds it
 // (servers_checkers.c)
 void cli_servers_run_checkers(const char *root, const char *path, const char *text, unsigned long long size, int disk,
                               const CliServersEmit *emit);
@@ -258,7 +290,7 @@ void cli_servers_check_own(const char *root, const char *path, const char *text,
 void cli_servers_check_tree_own(const char *root, const char *const *files, unsigned int count,
                                 const CliServersEmit *emit);
 void cli_servers_check_tree_with_checkers(const char *root, const CliServersEmit *emit);
-// whether orior reads the file at `path` itself, as a build file or as JSON by its schema (servers_own.c)
+// whether orior_cli reads the file at `path` itself, as a build file or as JSON by its schema (servers_own.c)
 int cli_servers_own_reads(const char *path);
 // a run of the checker `id` over the file of `key` counted: its number, which a later run of the same checker over
 // the same file stands in for; and whether the run `run` is still the last (servers_checkers.c)

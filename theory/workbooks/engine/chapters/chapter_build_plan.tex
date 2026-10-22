@@ -205,7 +205,7 @@ Still to wire:
 
 \begin{enumerate}
 \item Ruled: CRC every schedule, cfg and key at imprint and verify right before each cycle; CRC every disk read and write, with a flush read-back. Size the buffers generously, by experiment, to match ingest and r/w throughput (Doug suspects a hardware queuing “snap io desert”). Not started.
-\item Ruled: \texttt{decimal\_\allowbreak{}double} never rounds. \texttt{decimal\_\allowbreak{}double\_\allowbreak{}expand} gives the exact leading bits of digits × 10\textasciicircum{}ex in an \texttt{Anchor\allowbreak{}Exact\allowbreak{}Integer} candidate, plus a binary exponent e2. It also reports \texttt{fits} (the candidate holds the whole value), \texttt{terminates} (the binary expansion ends; a tenth does not) and \texttt{needed\_\allowbreak{}bits} (the width to grow to). Checked against Python fractions on 22 cases at 128 and 4096 bits: 1e2200 needs 5109 bits, and a 4096-bit build gets its exact top 4096 with fits 0.
+\item Ruled: \texttt{decimal\_\allowbreak{}double} never rounds. \texttt{decimal\_\allowbreak{}double\_\allowbreak{}expand} gives the exact leading bits of digits × 10\textasciicircum{}ex in an \texttt{Orior\allowbreak{}Exact\allowbreak{}Integer} candidate, plus a binary exponent e2. It also reports \texttt{fits} (the candidate holds the whole value), \texttt{terminates} (the binary expansion ends; a tenth does not) and \texttt{needed\_\allowbreak{}bits} (the width to grow to). Checked against Python fractions on 22 cases at 128 and 4096 bits: 1e2200 needs 5109 bits, and a 4096-bit build gets its exact top 4096 with fits 0.
 \item Ruled (“split it, go”): the slide and the overlap are engine math and are back in max\_\allowbreak{}tree, wired for errors. The slide's key voxels became generic probe voxels, and the engine returns each recorded level's probe partition. The present/alone tally left the engine for cell\_\allowbreak{}tracking, and a slide count that disagrees with the tree's is now a logic error. The overlap keeps probes (points) and probe links (point pairs) as its only interface. The key-cell grading that goes with this item is the cell program's (the cell workbook's build plan, item 24).
 \item Ruled, integrity: “the only acceptable crc is a merkle dag”. Every CRC-64 is replaced by BLAKE3 Merkle roots. The answers:
 \end{enumerate}
@@ -301,21 +301,21 @@ Still to wire:
 \item Doug (“You have division”, “2s compliment”, “Mulmask exact”, “add that to the exact arithmetic”): engine/base/no\_\allowbreak{}rounding/exact\_\allowbreak{}integer gained three functions, and test/exact\_\allowbreak{}divide\_\allowbreak{}test passes 8/0.
 
 \begin{itemize}
-\item anchor\_\allowbreak{}exact\_\allowbreak{}divide: Knuth~\cite{src:Knuth} D in base 2\textasciicircum{}32. It returns the quotient toward zero and a remainder with the numerator's sign. The add-back branch was confirmed to run, using an instrumented scratch copy.
-\item anchor\_\allowbreak{}exact\_\allowbreak{}divide\_\allowbreak{}exact: the mulmask exact division. Twos shift out; the result is the odd part's inverse mod 2\textasciicircum{}(32·limbs), by Newton x(2 − dx) with a two's-complement negate, then a multiply and a mask. It is multiplied back, and a remainder is refused.
-\item anchor\_\allowbreak{}exact\_\allowbreak{}gcd: Stein's binary gcd.
-\item New statuses ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}BY\_\allowbreak{}ZERO and ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}NOT\_\allowbreak{}EXACT.
+\item orior\_\allowbreak{}exact\_\allowbreak{}divide: Knuth~\cite{src:Knuth} D in base 2\textasciicircum{}32. It returns the quotient toward zero and a remainder with the numerator's sign. The add-back branch was confirmed to run, using an instrumented scratch copy.
+\item orior\_\allowbreak{}exact\_\allowbreak{}divide\_\allowbreak{}exact: the mulmask exact division. Twos shift out; the result is the odd part's inverse mod 2\textasciicircum{}(32·limbs), by Newton x(2 − dx) with a two's-complement negate, then a multiply and a mask. It is multiplied back, and a remainder is refused.
+\item orior\_\allowbreak{}exact\_\allowbreak{}gcd: Stein's binary gcd.
+\item New statuses ORIOR\_\allowbreak{}EXACT\_\allowbreak{}BY\_\allowbreak{}ZERO and ORIOR\_\allowbreak{}EXACT\_\allowbreak{}NOT\_\allowbreak{}EXACT.
 \item sim\_\allowbreak{}rational.h now keeps every value in lowest terms at any width. ka\_\allowbreak{}psi (152/0) and ask\_\allowbreak{}state (33/0) are unchanged in their verdicts and now print exact fractions (2207/4000, 11/20).
 \item Then: Schönhage–Strassen, “We use karatsuba”, “Expand the header to accept any n bits power of 2”, “Static assert”.
 
 \begin{itemize}
-\item The header takes ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}BITS or ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}LIMBS: any power of two ≥ 32 bits, no ceiling. The limbs/bits pair is derived and must agree; DIGITS was briefly min(1024, what fits) and is back to orior's fixed 1024 floor (see the integration below). All checked by static asserts, and the ladder rungs are static-asserted too.
-\item Width-sized working copies are compile-time rooms: stack up to ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}STACK\_\allowbreak{}LIMBS = 4096, heap beyond, WILL\_\allowbreak{}NOT\_\allowbreak{}FIT if not held.
-\item Ladder: long multiplication < ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}KARATSUBA\_\allowbreak{}LIMBS = 32, then Karatsuba, then the SSA transform (ring 2\textasciicircum{}n+1, shifts as twiddles, ψ weighting for the negacyclic product, depth by an integer cost model) from ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}TRANSFORM\_\allowbreak{}LIMBS = 8192 (the measured crossover; the transform is 1.44× ahead at 16K, 1.55× at 32K, 1.85× at 65K).
+\item The header takes ORIOR\_\allowbreak{}EXACT\_\allowbreak{}BITS or ORIOR\_\allowbreak{}EXACT\_\allowbreak{}LIMBS: any power of two ≥ 32 bits, no ceiling. The limbs/bits pair is derived and must agree; DIGITS was briefly min(1024, what fits) and is back to orior's fixed 1024 floor (see the integration below). All checked by static asserts, and the ladder rungs are static-asserted too.
+\item Width-sized working copies are compile-time rooms: stack up to ORIOR\_\allowbreak{}EXACT\_\allowbreak{}STACK\_\allowbreak{}LIMBS = 4096, heap beyond, WILL\_\allowbreak{}NOT\_\allowbreak{}FIT if not held.
+\item Ladder: long multiplication < ORIOR\_\allowbreak{}EXACT\_\allowbreak{}KARATSUBA\_\allowbreak{}LIMBS = 32, then Karatsuba, then the SSA transform (ring 2\textasciicircum{}n+1, shifts as twiddles, ψ weighting for the negacyclic product, depth by an integer cost model) from ORIOR\_\allowbreak{}EXACT\_\allowbreak{}TRANSFORM\_\allowbreak{}LIMBS = 8192 (the measured crossover; the transform is 1.44× ahead at 16K, 1.55× at 32K, 1.85× at 65K).
 \item gcd is now Lehmer (Knuth L) and returns a status. The exact division's Newton inverse doubles its precision and runs on the ladder.
 \item test/exact\_\allowbreak{}transform\_\allowbreak{}test passes 3/0 at 128 limbs, 4096 limbs and 4,194,304 bits (operands to 65,536 limbs).
 \item exact\_\allowbreak{}divide\_\allowbreak{}test passes 9/0 (it adds gcd = Euclid on the long division). ka\_\allowbreak{}psi passes 152/0 and ask\_\allowbreak{}state 33/0.
-\item Newton division BUILT (Doug “Add the newton port”): a half-precision recursive reciprocal, one Newton step, exact correction. ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}NEWTON\_\allowbreak{}LIMBS = 8192, measured 2n/n on the Karatsuba ladder: Knuth leads to 4096; Newton is 1.21× at 8192, 1.06× at 16384, 1.81× at 32768 and 2.44× at 65536. exact\_\allowbreak{}transform\_\allowbreak{}test passes 4/0 at 128 and 4096 limbs.
+\item Newton division BUILT (Doug “Add the newton port”): a half-precision recursive reciprocal, one Newton step, exact correction. ORIOR\_\allowbreak{}EXACT\_\allowbreak{}NEWTON\_\allowbreak{}LIMBS = 8192, measured 2n/n on the Karatsuba ladder: Knuth leads to 4096; Newton is 1.21× at 8192, 1.06× at 16384, 1.81× at 32768 and 2.44× at 65536. exact\_\allowbreak{}transform\_\allowbreak{}test passes 4/0 at 128 and 4096 limbs.
 \end{itemize}
 \item Doug (“write these exact limb functions as computer key math primitives ... projected into a bit array of the same dimensions”): record ops ENGINE\_\allowbreak{}RECORD\_\allowbreak{}QUOTIENT = 11, REMAINDER = 12, GCD = 13, EXACT\_\allowbreak{}QUOTIENT = 14.
 
@@ -327,9 +327,9 @@ Still to wire:
 \item Doug (“integrate orior's engine so we can copy push ours to orior”): THIS TREE IS NOW THE SOURCE.
 
 \begin{itemize}
-\item build\_\allowbreak{}engine.sh and build\_\allowbreak{}driver.sh default ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}ROOT to \$TOP/engine/base/no\_\allowbreak{}rounding.
+\item build\_\allowbreak{}engine.sh and build\_\allowbreak{}driver.sh default ORIOR\_\allowbreak{}EXACT\_\allowbreak{}ROOT to \$TOP/engine/base/no\_\allowbreak{}rounding.
 \item 18 files (no\_\allowbreak{}rounding arms, nbody/orior, render) were code-identical to orior's; ours had lost doc text to a sloppy prose pass, and orior's versions were copied in.
-\item exact\_\allowbreak{}integer.h/.c were merged by hand: our code with orior's contract, and stale notes fixed. ANCHOR\_\allowbreak{}EXACT\_\allowbreak{}DIGITS is back to the fixed 1024 floor (a narrow width must declare it; checked 1..64 limbs, and undeclared at 8 limbs is refused by name). check\_\allowbreak{}exact\_\allowbreak{}limbs.py's regexes still find the literal \#define lines.
+\item exact\_\allowbreak{}integer.h/.c were merged by hand: our code with orior's contract, and stale notes fixed. ORIOR\_\allowbreak{}EXACT\_\allowbreak{}DIGITS is back to the fixed 1024 floor (a narrow width must declare it; checked 1..64 limbs, and undeclared at 8 limbs is refused by name). check\_\allowbreak{}exact\_\allowbreak{}limbs.py's regexes still find the literal \#define lines.
 \item The engine DLL builds. Nothing has been written into orior's repository yet.
 \end{itemize}
 \item Doug (“Compute chaitins constant”): sim engine/sims/chaitin\_\allowbreak{}omega, Omega for the BLC normalization machine (a closed term halts when it has a normal form).

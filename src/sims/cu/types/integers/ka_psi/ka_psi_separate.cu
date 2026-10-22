@@ -4,7 +4,7 @@
 #include "ka_psi_internal.h"
 
 void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned long long tilt,
-                    const AnchorExactInteger *measured_widest)
+                    const OriorExactInteger *measured_widest)
 {
     ScripturaLine *const line = &results->line;
     static PsiValue step;
@@ -171,13 +171,13 @@ static int psi_wide_compare(PsiWide left, PsiWide right)
     return (left.low < right.low) ? -1 : ((left.low > right.low) ? 1 : 0);
 }
 
-static void psi_wide_exact(PsiWide wide, AnchorExactInteger *result)
+static void psi_wide_exact(PsiWide wide, OriorExactInteger *result)
 {
-    AnchorExactInteger high;
-    AnchorExactInteger shift;
-    AnchorExactInteger half;
-    AnchorExactInteger integer_part;
-    AnchorExactInteger low;
+    OriorExactInteger high;
+    OriorExactInteger shift;
+    OriorExactInteger half;
+    OriorExactInteger integer_part;
+    OriorExactInteger low;
     sim_exact_unsigned(&high, wide.high);
     sim_exact_unsigned(&shift, 1ull << 32u);
     psi_multiply(&high, &shift, &half);
@@ -203,8 +203,8 @@ static unsigned long long psi_integer_power(unsigned long long base, unsigned lo
 
 static SimRational psi_rational_power(long long numerator, unsigned long long base, unsigned long long power)
 {
-    AnchorExactInteger top;
-    AnchorExactInteger bottom;
+    OriorExactInteger top;
+    OriorExactInteger bottom;
     sim_exact_signed(&top, numerator);
     sim_rational_status_check(sim_exact_power(base, power, &bottom));
     return psi_rational_exact(&top, &bottom);
@@ -215,8 +215,8 @@ static int psi_grid(const PsiCase *psi_case, const PsiScale *scale, unsigned int
 {
     const unsigned long long base = psi_case->base;
     const unsigned long long points = psi_integer_power(base, level);
-    AnchorExactInteger *below = (AnchorExactInteger *)malloc((size_t)(points + 1ull) * sizeof(AnchorExactInteger));
-    AnchorExactInteger *table = (AnchorExactInteger *)malloc((size_t)(points + 1ull) * sizeof(AnchorExactInteger));
+    OriorExactInteger *below = (OriorExactInteger *)malloc((size_t)(points + 1ull) * sizeof(OriorExactInteger));
+    OriorExactInteger *table = (OriorExactInteger *)malloc((size_t)(points + 1ull) * sizeof(OriorExactInteger));
     int ok = (below != NULL) && (table != NULL);
     if (ok)
     {
@@ -227,7 +227,7 @@ static int psi_grid(const PsiCase *psi_case, const PsiScale *scale, unsigned int
         unsigned long long count = base;
         for (unsigned int step = 2u; step <= level; step += 1u)
         {
-            AnchorExactInteger *const swap = below;
+            OriorExactInteger *const swap = below;
             below = table;
             table = swap;
             psi_table_next(psi_case, scale, step, base - 2ull, below, count, table);
@@ -235,7 +235,7 @@ static int psi_grid(const PsiCase *psi_case, const PsiScale *scale, unsigned int
         }
         for (unsigned long long index = 0ull; index <= points; index += 1ull)
         {
-            for (unsigned int limb = 2u; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+            for (unsigned int limb = 2u; limb < ORIOR_EXACT_LIMBS; limb += 1u)
             {
                 ok = ok && (table[index].limb[limb] == 0u);
             }
@@ -337,12 +337,12 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
         const unsigned long long power = (shift < 19ull) ? psi_integer_power(base, shift) : 0xFFFFFFFFFFFFFFFFull;
         tail += ((2ull * grid_denominator) + power - 1ull) / power;
     }
-    AnchorExactInteger denominator;
-    AnchorExactInteger power;
-    AnchorExactInteger gap;
-    AnchorExactInteger slack;
-    AnchorExactInteger low;
-    AnchorExactInteger high;
+    OriorExactInteger denominator;
+    OriorExactInteger power;
+    OriorExactInteger gap;
+    OriorExactInteger slack;
+    OriorExactInteger low;
+    OriorExactInteger high;
     sim_rational_status_check(sim_exact_power(base, exponent, &power));
     psi_times_integer(&power, grid_denominator, &denominator);
     psi_wide_exact(least, &gap);
@@ -365,7 +365,7 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
     SimRational alphas_high = sim_rational(0ll, 1ll);
     for (unsigned int coordinate = 0u; coordinate < dimension; coordinate += 1u)
     {
-        AnchorExactInteger integer_part;
+        OriorExactInteger integer_part;
         sim_exact_unsigned(&integer_part, alpha[coordinate]);
         alphas_low = sim_rational_sum(alphas_low, psi_rational_exact(&integer_part, &power));
         if (coordinate != 0u)
@@ -454,9 +454,9 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
         const PsiWide next = psi_wide_difference(images[at + 1ull].value, images[at].value);
         truncated = (psi_wide_compare(next, truncated) < 0) ? next : truncated;
     }
-    AnchorExactInteger truncated_gap;
-    AnchorExactInteger base_power;
-    AnchorExactInteger power_denominator;
+    OriorExactInteger truncated_gap;
+    OriorExactInteger base_power;
+    OriorExactInteger power_denominator;
     psi_wide_exact(truncated, &truncated_gap);
     sim_rational_status_check(sim_exact_power(base, top_exponent, &base_power));
     psi_times_integer(&base_power, grid_denominator, &power_denominator);

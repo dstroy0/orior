@@ -230,7 +230,7 @@ void bitwise_known(BitwiseResults *results)
         for (unsigned int output = 0u; output < program.output_count; output += 1u)
         {
             const DeviceRecordStep *const step = &loaded.layout.step_table[program.outputs[output]];
-            AnchorExactInteger value;
+            OriorExactInteger value;
             bitwise_take(&host_out[lane * out_limbs], step->out_offset, step->out_bits, &value);
             // every answer is below 2^16 in magnitude, one limb
             const long long read = (long long)value.sign * (long long)value.limb[0];

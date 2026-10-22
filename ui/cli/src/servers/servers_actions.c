@@ -1,35 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_actions.c: the quick fixes and refactorings for a span of a file: the inspections' and the checkers' fixes
-// of the findings that touch it first, then what its server offers, given the diagnostics it gave that touch it, a fix
-// it offers for a diagnostic and again for its note listed once, those it can carry out first and its preferred fixes
-// before the rest; and an action carried out, its edits, filled in by the server first where it left them out, returned
-// to be written, and its command run, whose edits the server asks for on its own. A fix that runs a line in the
-// terminal is the page's to run
+// of the findings that touch it first, then what its server offers, then what each plugin server that holds it offers,
+// each given the diagnostics it gave that touch it, a fix offered for a diagnostic and again for its note listed once,
+// those that can be carried out first and the preferred fixes before the rest. An action of a plugin's server carries
+// the plugin's id, so it is carried out by that server (servers_act.c)
 #include "../command_line/cells.h"
 #include "servers_internal.h"
 
 // what is read, under the reading's lock
 static CliServersReading s_reading = {CLI_LOCK_INIT};
-static CliServersReading s_resolved = {CLI_LOCK_INIT};
 
-// a piece of what is written put on the line that is `context`
-static void actions_put(void *context, const char *bytes, unsigned long long size)
-{
-    cli_line_counted((CliLine *)context, bytes, size);
-}
-
-// what a line is handed let go, for an answer nothing reads
-static int actions_dropped(void *context, const char *bytes, unsigned long long size)
-{
-    (void)context;
-    (void)bytes;
-    (void)size;
-    return 1;
-}
-
-// a member of `node` written as JSON, `null` where it has none
-static void actions_member_written(const CliJson *json, unsigned int node, const char *name, CliLine *out)
+void cli_servers_member_written(const CliJson *json, unsigned int node, const char *name, CliLine *out)
 {
     const unsigned int member = cli_json_member(json, node, name);
     if (member == CLI_JSON_NONE)
@@ -82,7 +64,7 @@ static void actions_ours(unsigned int array, CliTextPlace from, CliTextPlace to,
             else
             {
                 cli_line_text(out, "{\"orior\":");
-                actions_member_written(json, fix, "edits", out);
+                cli_servers_member_written(json, fix, "edits", out);
             }
             cli_line_text(out, "}}");
             *written = 1;
@@ -92,7 +74,7 @@ static void actions_ours(unsigned int array, CliTextPlace from, CliTextPlace to,
 
 // the params that ask the server of `uri` for its actions on `from` to `to`, with its diagnostics that touch it, in a
 // cell of their size, their size into `length`: the cell, or NULL where the cells cannot meet them
-static char *actions_params(const char *key, const char *uri, CliTextPlace from, CliTextPlace to,
+static char *actions_params(unsigned int all, const char *uri, CliTextPlace from, CliTextPlace to,
                             unsigned long long *length)
 {
     char piece[CLI_SERVERS_PIECE];
@@ -110,7 +92,7 @@ static char *actions_params(const char *key, const char *uri, CliTextPlace from,
     cli_line_text(&params, ",\"character\":");
     cli_line_decimal(&params, to.col, 1u);
     cli_line_text(&params, "}},\"context\":{\"diagnostics\":[");
-    const unsigned int all = actions_kept_read(&g_cli_servers_published, &g_cli_servers_published_lock, key);
+
     const CliJson *const json = &s_reading.json;
     int written = 0;
     for (unsigned int one = cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].first : CLI_JSON_NONE;
@@ -141,7 +123,7 @@ static unsigned int actions_rank(const CliJson *json, unsigned int one)
 
 // the server's actions written after those written, each told apart by its title and its edit once; the actions kept
 // in a cell of one place for each the server offers, none written where it cannot be taken
-static void actions_offered(unsigned int all, int *written, CliLine *out)
+static void actions_offered(unsigned int all, const char *plugin, int *written, CliLine *out)
 {
     const CliJson *const json = &s_reading.json;
     const unsigned int offered = cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].count : 0u;
@@ -177,12 +159,36 @@ static void actions_offered(unsigned int all, int *written, CliLine *out)
             if (actions_rank(json, action[at]) == rank)
             {
                 cli_line_text(out, *written ? "," : "");
-                (void)cli_servers_action_of(json, action[at], out);
+                (void)cli_servers_action_of(json, action[at], plugin, out);
                 *written = 1;
             }
         }
     }
     cli_cell_given(action);
+}
+
+// `server`, the server of the plugin `plugin` where that is not NULL, asked for its actions on `from` to `to` of the
+// file `uri` with its diagnostics `all` that touch it, and what it offers written after those written: 1, or 0 with
+// why said
+static int actions_asked(CliLsp *server, const char *plugin, unsigned int all, const char *uri, CliTextPlace from,
+                         CliTextPlace to, int *written, CliLine *out, CliLine *said)
+{
+    unsigned long long length = 0ull;
+    char *const params = actions_params(all, uri, from, to, &length);
+    if (params == NULL)
+    {
+        cli_line_text(said, "the asking for actions could not be written: the cells cannot meet it");
+    }
+    CliLine result;
+    cli_servers_answer_begun(&s_reading, &result);
+    const int asked = (params != NULL) && cli_lsp_requested(server, "textDocument/codeAction", params, length,
+                                                            CLI_SERVERS_ASKING, &result, said);
+    cli_cell_given(params);
+    if (asked)
+    {
+        actions_offered(cli_servers_answer_read(&s_reading, &result), plugin, written, out);
+    }
+    return asked;
 }
 
 int cli_servers_actions(const char *path, CliTextPlace from, CliTextPlace to, CliLine *out, CliLine *said)
@@ -208,24 +214,26 @@ int cli_servers_actions(const char *path, CliTextPlace from, CliTextPlace to, Cl
     int asked = 1;
     if (server != NULL)
     {
-        unsigned long long length = 0ull;
-        char *const params = actions_params(key, uri, from, to, &length);
-        if (params == NULL)
-        {
-            cli_line_text(said, "the asking for actions could not be written: the cells cannot meet it");
-        }
-        CliLine result;
-        cli_servers_answer_begun(&s_reading, &result);
-        asked = (params != NULL) &&
-                cli_lsp_requested(server, "textDocument/codeAction", params, length, CLI_SERVERS_ASKING, &result, said);
-        cli_cell_given(params);
+        const unsigned int all = actions_kept_read(&g_cli_servers_published, &g_cli_servers_published_lock, key);
+        asked = actions_asked(server, NULL, all, uri, from, to, &written, out, said);
         cli_lsp_given(server);
-        if (asked)
-        {
-            actions_offered(cli_servers_answer_read(&s_reading, &result), &written, out);
-        }
     }
-    else if (!written)
+    // each plugin server that holds the file asked as well, given the diagnostics it gave, a server that does not
+    // answer offering nothing
+    int plugged = 0;
+    char plugin[CLI_NAME_LONGEST];
+    unsigned int place = 0u;
+    for (CliLsp *held = cli_servers_plugin_holding(&place, path, plugin); held != NULL;
+         held = cli_servers_plugin_holding(&place, path, plugin))
+    {
+        char why[256];
+        CliLine quiet = {why, sizeof(why), 0ull};
+        (void)actions_asked(held, plugin, cli_json_member(json, by_checker, plugin), uri, from, to, &written, out,
+                            &quiet);
+        cli_lsp_given(held);
+        plugged = 1;
+    }
+    if ((server == NULL) && !written && !plugged)
     {
         cli_line_text(said, "no language server has this file open");
         asked = 0;
@@ -234,169 +242,4 @@ int cli_servers_actions(const char *path, CliTextPlace from, CliTextPlace to, Cl
     out->at = asked ? out->at : start;
     cli_servers_reading_released(&s_reading);
     return asked;
-}
-
-// a place of an edit orior wrote, `{"line", "col"}`, written again: 1, or 0 with why said where it is none
-static int actions_place_written(const CliJson *json, unsigned int edit, const char *name, CliLine *out, CliLine *said)
-{
-    const unsigned int place = cli_json_member(json, edit, name);
-    const unsigned long long none = ~0ull;
-    const unsigned long long line = cli_servers_whole(json, cli_json_member(json, place, "line"), none);
-    const unsigned long long col = cli_servers_whole(json, cli_json_member(json, place, "col"), none);
-    if ((place == CLI_JSON_NONE) || (line > 0xffffffffull) || (col > 0xffffffffull))
-    {
-        cli_line_text(said, (place == CLI_JSON_NONE) ? "missing field `" : "invalid type: expected field `");
-        cli_line_text(said, (place == CLI_JSON_NONE) ? name : ((line > 0xffffffffull) ? "line" : "col"));
-        cli_line_character(said, '`');
-        return 0;
-    }
-    cli_text_place_written((CliTextPlace){(unsigned int)line, (unsigned int)col}, out);
-    return 1;
-}
-
-// orior's own edits of a fix written as the file's edits: 1, or 0 with why said where they are not edits
-static int actions_ours_written(const char *tree, const char *path, const CliJson *json, unsigned int edits,
-                                CliLine *out, CliLine *said)
-{
-    if (!cli_json_is(json, edits, CFG_JSON_ARRAY))
-    {
-        cli_line_text(said, "invalid type: expected a sequence");
-        return 0;
-    }
-    char shown[CLI_PATH_LONGEST];
-    CliLine where = {shown, sizeof(shown), 0ull};
-    cli_servers_tree_path(tree, path, &where);
-    cli_line_text(out, "[{\"path\":");
-    cli_json_quoted_lossy(out, (const unsigned char *)shown, cli_line_fits(&where) ? where.at : 0ull);
-    cli_line_text(out, ",\"edits\":[");
-    for (unsigned int edit = json->node[edits].first; edit != CLI_JSON_NONE; edit = json->node[edit].next)
-    {
-        unsigned long long size = 0ull;
-        const char *const text = cli_json_string(json, cli_json_member(json, edit, "text"), &size);
-        cli_line_text(out, (edit != json->node[edits].first) ? ",{\"from\":" : "{\"from\":");
-        if (!actions_place_written(json, edit, "from", out, said))
-        {
-            return 0;
-        }
-        cli_line_text(out, ",\"to\":");
-        if (!actions_place_written(json, edit, "to", out, said))
-        {
-            return 0;
-        }
-        if (text == NULL)
-        {
-            cli_line_text(said, "missing field `text`");
-            return 0;
-        }
-        cli_line_text(out, ",\"text\":");
-        cli_json_quoted(out, text, size);
-        cli_line_character(out, '}');
-    }
-    cli_line_text(out, "]}]");
-    return 1;
-}
-
-// the server's command `command`, named by `name` with its `arguments`, run: 1, or 0 with why said
-static int actions_command(CliLsp *server, const CliJson *json, unsigned int command, const char *name, CliLine *said)
-{
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    CliLine params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece));
-    cli_line_text(&params, "{\"command\":");
-    actions_member_written(json, command, name, &params);
-    cli_line_text(&params, ",\"arguments\":");
-    actions_member_written(json, command, "arguments", &params);
-    cli_line_character(&params, '}');
-    unsigned long long length = 0ull;
-    char *const asked = cli_pieces_joined(&pieces, &params, "the params a command is run with", &length);
-    if (asked == NULL)
-    {
-        cli_line_text(said, "the command could not be written: the cells cannot meet it");
-    }
-    // what the command answers is read by nothing, so each piece of it is let go as it comes
-    char ran[256];
-    CliLine result = {ran, sizeof(ran), 0ull, actions_dropped, NULL, 0ull};
-    const int done = (asked != NULL) && cli_lsp_requested(server, "workspace/executeCommand", asked, length,
-                                                          CLI_SERVERS_SEARCHING, &result, said);
-    cli_cell_given(asked);
-    return done;
-}
-
-int cli_servers_act(const char *tree, const char *path, const char *raw, unsigned long long size, CliLine *out,
-                    CliLine *said)
-{
-    cli_servers_reading_held(&s_reading);
-    cli_servers_reading_held(&s_resolved);
-    const CliJson *json = &s_reading.json;
-    unsigned int action = cli_servers_read(&s_reading, raw, size);
-    int done = 1;
-    if (cli_json_member(json, action, "orior_run") != CLI_JSON_NONE)
-    {
-        cli_line_text(out, "[]");
-    }
-    else if (cli_json_member(json, action, "orior") != CLI_JSON_NONE)
-    {
-        done = actions_ours_written(tree, path, json, cli_json_member(json, action, "orior"), out, said);
-    }
-    else
-    {
-        CliLsp *const server = cli_servers_holding(path);
-        done = (server != NULL);
-        if (server == NULL)
-        {
-            cli_line_text(said, "no language server has this file open");
-        }
-        else if (cli_json_is(json, cli_json_member(json, action, "command"), CFG_JSON_STRING))
-        {
-            done = actions_command(server, json, action, "command", said);
-            cli_line_text(out, done ? "[]" : "");
-        }
-        else
-        {
-            const unsigned int edit = cli_json_member(json, action, "edit");
-            const unsigned int command = cli_json_member(json, action, "command");
-            if (((edit == CLI_JSON_NONE) || cli_json_is(json, edit, CFG_JSON_NULL)) &&
-                ((command == CLI_JSON_NONE) || cli_json_is(json, command, CFG_JSON_NULL)) &&
-                cli_servers_capable_true(server, "codeActionProvider", "resolveProvider"))
-            {
-                CliLine result;
-                cli_servers_answer_begun(&s_resolved, &result);
-                done = cli_lsp_requested(server, "codeAction/resolve", raw, size, CLI_SERVERS_ASKING, &result, said);
-                json = &s_resolved.json;
-                action = done ? cli_servers_answer_read(&s_resolved, &result) : CLI_JSON_NONE;
-            }
-            // the edits held in pieces until the command after them has run, and written only where it ran
-            char piece[CLI_SERVERS_PIECE];
-            CliPieces held;
-            CliLine edits;
-            cli_pieces_begun(&held, &edits, piece, sizeof(piece));
-            if (done)
-            {
-                cli_servers_workspace_edit_of(json, cli_json_member(json, action, "edit"), tree, &edits);
-                done = cli_pieces_ended(&held, &edits);
-                if (!done)
-                {
-                    cli_line_text(said, "the action's edits could not be held: the cells cannot meet them");
-                }
-            }
-            const unsigned int then = cli_json_member(json, action, "command");
-            if (done && cli_json_is(json, then, CFG_JSON_OBJECT))
-            {
-                done = actions_command(server, json, then, "command", said);
-            }
-            if (done)
-            {
-                cli_pieces_each(&held, actions_put, out);
-            }
-            cli_pieces_given(&held);
-        }
-        if (server != NULL)
-        {
-            cli_lsp_given(server);
-        }
-    }
-    cli_servers_reading_released(&s_resolved);
-    cli_servers_reading_released(&s_reading);
-    return done;
 }

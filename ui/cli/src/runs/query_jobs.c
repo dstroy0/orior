@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // query_jobs.c: the query's programs found through the toolchains, every command of the query a job of the protocol
-// group whose one step is orior itself with the command's words, and `orior protocol` run here
+// group whose one step is orior_cli itself with the command's words, and `orior_cli protocol` run here
 #include "../../../query/src/query_loops.h"
 #include "../command_line/catalog.h"
 #include "../programs/executables.h"

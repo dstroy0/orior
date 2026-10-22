@@ -339,14 +339,17 @@ static void facts_functions(const char *src, CliFacts *facts)
             return;
         }
         const CliInspectTok *const name = &g_cli_inspect_tok[name_at];
-        facts->function[facts->functions] =
-            (CliInspectFunction){cli_inspect_kept(facts, src + name->start, name->end - name->start),
-                                 name->from,
-                                 name->to,
-                                 g_cli_inspect_tok[(name_at < open) ? name_at : open].from.line,
-                                 g_cli_inspect_tok[close].to.line,
-                                 call_first,
-                                 facts->names - call_first};
+        const CliInspectFunction function = {cli_inspect_kept(facts, src + name->start, name->end - name->start),
+                                             name->from,
+                                             name->to,
+                                             g_cli_inspect_tok[(name_at < open) ? name_at : open].from.line,
+                                             g_cli_inspect_tok[close].to.line,
+                                             call_first,
+                                             facts->names - call_first};
+        if (!facts->counting)
+        {
+            facts->function[facts->functions] = function;
+        }
         facts->functions += 1u;
     }
 }
@@ -399,13 +402,17 @@ static void facts_imports(const char *src, CliFacts *facts)
             return;
         }
         const unsigned int last = ((end - 1u) > at) ? (end - 1u) : at;
-        facts->import[facts->imports] = (CliInspectImport){cli_inspect_kept(facts, path, length),
-                                                           facts->names,
-                                                           0u,
-                                                           {0u, 0u},
-                                                           0,
-                                                           g_cli_inspect_tok[at].from,
-                                                           g_cli_inspect_tok[last].to};
+        const CliInspectImport import = {cli_inspect_kept(facts, path, length),
+                                         facts->names,
+                                         0u,
+                                         {0u, 0u},
+                                         0,
+                                         g_cli_inspect_tok[at].from,
+                                         g_cli_inspect_tok[last].to};
+        if (!facts->counting)
+        {
+            facts->import[facts->imports] = import;
+        }
         facts->imports += 1u;
     }
 }

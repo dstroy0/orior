@@ -139,7 +139,7 @@ if [ "$want_cuda" -eq 1 ]; then
     cmake -S "$src" -B "$build" $generator $compiler -DCMAKE_BUILD_TYPE=Release >/dev/null
 else
     cmake -S "$src" -B "$build" $generator $compiler -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON -DANCHOR_SKIP_CUDA=ON >/dev/null
+        -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON -DORIOR_SKIP_CUDA=ON >/dev/null
 fi
 
 # NAMED TARGETS AND NOT THE DEFAULT ALL, because one bench in this directory does not compile with
@@ -158,11 +158,11 @@ fi
 # and MSVC never does, sending every MSVC build to a POSIX substitute. The gate now carries the MSVC
 # definition and the driver builds and runs here.
 #
-# anchor_steer and anchor_steer_arms USED TO BE ON THIS LIST and no longer exist. Both folded into
+# orior_steer and orior_steer_arms USED TO BE ON THIS LIST and no longer exist. Both folded into
 # orior_kernel, the whole engine in one translation unit.
 echo "[*] building"
-for target in orior_kernel orior_kernel_counted anchor_raster anchor_render \
-              anchor_exact_portable orior_host shift_agreement_host \
+for target in orior_kernel orior_kernel_counted orior_raster orior_render \
+              orior_exact_portable orior_host shift_agreement_host \
               test_steer test_adversarial test_arm_agreement bench_steer_arms bench_raster \
               bench_exact_arms bench_exact bench_dispatch bench_coherence \
               bench_scaling_reads bench_scaling_cycles; do
@@ -238,12 +238,12 @@ python_grader()
     fi
 }
 
-python_grader src/python/types/integers/exact_test.py ANCHOR_BENCH_EXACT bench_exact.exe bench_exact
-python_grader src/python/engine/render/render_test.py ANCHOR_RENDER_LIB anchor_render.dll libanchor_render.dll libanchor_render.so \
-    libanchor_render.dylib
+python_grader src/python/types/integers/exact_test.py ORIOR_BENCH_EXACT bench_exact.exe bench_exact
+python_grader src/python/engine/render/render_test.py ORIOR_RENDER_LIB orior_render.dll liborior_render.dll liborior_render.so \
+    liborior_render.dylib
 python_grader src/python/engine/nbody/orior/sift_test.py ORIOR_LIB orior_host.dll liborior_host.dll liborior_host.so \
     liborior_host.dylib
-python_grader src/python/engine/analysis/shift_agreement/shift_agreement_test.py ANCHOR_SHIFT_LIB shift_agreement_host.dll libshift_agreement_host.dll \
+python_grader src/python/engine/analysis/shift_agreement/shift_agreement_test.py ORIOR_SHIFT_LIB shift_agreement_host.dll libshift_agreement_host.dll \
     libshift_agreement_host.so libshift_agreement_host.dylib
 
 echo ""

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // binary_test.c: the program reader's check: a Windows program gives its imports and delayed imports, a library only
-// orior finds is told and copied beside, and a Linux program gives its needs, run paths and glibc
+// orior_cli finds is told and copied beside, and a Linux program gives its needs, run paths and glibc
 #include "../../../../../ui/cli/src/programs/binary.h"
 #include "cli_check.h"
 
@@ -118,7 +118,7 @@ static void binary_copied(void *context, const char *name)
 }
 #endif
 
-// a library only orior finds is told and copied beside
+// a library only orior_cli finds is told and copied beside
 static void binary_orior_path(void)
 {
     static const char *const s_main[3] = {"kernel32.dll", "helper.dll", "nowhere.dll"};
@@ -158,12 +158,12 @@ static void binary_orior_path(void)
     cli_check(cellul.find(&(CatenaFinitaCfg){
                   .src = s_lines,
                   .cap = CLI_CELLS_POOL,
-                  .other = "helper.dll, which main.exe loads, is found through the folders orior puts on its PATH",
+                  .other = "helper.dll, which main.exe loads, is found through the folders orior_cli puts on its PATH",
                   .other_cap = CLI_CELLS_POOL}) != NULL,
-              "the library only orior finds is told");
+              "the library only orior_cli finds is told");
     CliLine copied = {s_copied, sizeof(s_copied), 0ull};
     cli_check(cli_binary_copy_beside(path, &s_report, binary_copied, &copied, &said), "the library is copied");
-    cli_check_text(s_copied, copied.at, "helper.dll\n", "only the library orior finds is copied");
+    cli_check_text(s_copied, copied.at, "helper.dll\n", "only the library orior_cli finds is copied");
     cli_full(app, "helper.dll", path);
     cli_check(query_is_file(path), "it stands beside the program");
 #else
@@ -221,6 +221,16 @@ static void binary_linux_needs(void)
     cli_check(s_dynamic.has_glibc &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_dynamic.glibc, .other = "GLIBC_2.34", .cap = CLI_CELLS_POOL})),
               "and the newest glibc it asks for");
+    static CliBinaryReport s_report;
+    said.at = 0ull;
+    cli_check(cli_binary_elf_read(s_bytes, 0x1000u, "/nowhere/program", &s_report, &said) &&
+                  (s_report.libraries == 2u) &&
+                  (cellul.eq(&(CatenaFinitaCfg){
+                      .src = s_report.library[1].name, .other = "libfoo.so", .cap = CLI_CELLS_POOL})) &&
+                  (s_report.build_paths == 1u) &&
+                  (cellul.eq(&(CatenaFinitaCfg){
+                      .src = s_report.build_path[0], .other = "/home/me/build/lib", .cap = CLI_CELLS_POOL})),
+              "a program's libraries are read each once, with the run paths of the machine that built it");
 }
 
 int main(void)

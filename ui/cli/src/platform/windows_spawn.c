@@ -187,8 +187,17 @@ int cli_spawn_shared(const char *const *words, const CliSetting *settings, unsig
     return 1;
 }
 
-static int cli_spawn_with(CliSpawned *spawned, const char *const *words, const char *folder, const CliSetting *settings,
-                          unsigned int count, int detached, int fed, CliLine *said)
+// the priority class a process of `priority` is made in
+static DWORD cli_spawn_class(unsigned int priority)
+{
+    return (priority == CLI_PRIORITY_RUN)     ? ABOVE_NORMAL_PRIORITY_CLASS
+           : (priority == CLI_PRIORITY_GUEST) ? BELOW_NORMAL_PRIORITY_CLASS
+           : (priority == CLI_PRIORITY_IDLE)  ? IDLE_PRIORITY_CLASS
+                                              : 0u;
+}
+
+static int cli_spawn_with(unsigned int priority, CliSpawned *spawned, const char *const *words, const char *folder,
+                          const CliSetting *settings, unsigned int count, int detached, int fed, CliLine *said)
 {
     memor.set(&(MemoriaCfg){.dst = spawned, .val = 0, .bytes = sizeof(*spawned)});
     if (!cli_spawn_prepared(words, folder, settings, count, said))
@@ -227,7 +236,8 @@ static int cli_spawn_with(CliSpawned *spawned, const char *const *words, const c
     startup.hStdError = err_write;
     PROCESS_INFORMATION process;
     memor.set(&(MemoriaCfg){.dst = &process, .val = 0, .bytes = sizeof(process)});
-    const DWORD flags = CREATE_UNICODE_ENVIRONMENT | (detached ? (CREATE_NO_WINDOW | CREATE_SUSPENDED) : 0u);
+    const DWORD flags = CREATE_UNICODE_ENVIRONMENT | cli_spawn_class(priority) |
+                        (detached ? (CREATE_NO_WINDOW | CREATE_SUSPENDED) : 0u);
     const BOOL made = piped && CreateProcessW(NULL, s_wide, NULL, NULL, TRUE, flags, s_block,
                                               (folder != NULL) ? s_folder : NULL, &startup, &process);
     const DWORD error = GetLastError();
@@ -260,9 +270,15 @@ static int cli_spawn_with(CliSpawned *spawned, const char *const *words, const c
     }
     if (detached)
     {
-        // a job with no limits, which lets nothing break away; a job the child does not join is closed
+        // a job which lets nothing break away and ends every process in it as its last handle closes, which orior's own
+        // end closes with it, so a child outlives orior in no outer job; a job the child does not join is closed
         HANDLE job = CreateJobObjectW(NULL, NULL);
-        if ((job != NULL) && !AssignProcessToJobObject(job, process.hProcess))
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
+        memor.set(&(MemoriaCfg){.dst = &limits, .val = 0, .bytes = sizeof(limits)});
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if ((job != NULL) &&
+            (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits)) ||
+             !AssignProcessToJobObject(job, process.hProcess)))
         {
             CloseHandle(job);
             job = NULL;
@@ -283,13 +299,25 @@ static int cli_spawn_with(CliSpawned *spawned, const char *const *words, const c
 int cli_spawn(CliSpawned *spawned, const char *const *words, const char *folder, const CliSetting *settings,
               unsigned int count, int detached, CliLine *said)
 {
-    return cli_spawn_with(spawned, words, folder, settings, count, detached, 0, said);
+    return cli_spawn_with(CLI_PRIORITY_WORK, spawned, words, folder, settings, count, detached, 0, said);
+}
+
+int cli_spawn_as(unsigned int priority, CliSpawned *spawned, const char *const *words, const char *folder,
+                 const CliSetting *settings, unsigned int count, int detached, CliLine *said)
+{
+    return cli_spawn_with(priority, spawned, words, folder, settings, count, detached, 0, said);
 }
 
 int cli_spawn_fed(CliSpawned *spawned, const char *const *words, const char *folder, const CliSetting *settings,
                   unsigned int count, int detached, CliLine *said)
 {
-    return cli_spawn_with(spawned, words, folder, settings, count, detached, 1, said);
+    return cli_spawn_with(CLI_PRIORITY_WORK, spawned, words, folder, settings, count, detached, 1, said);
+}
+
+int cli_spawn_fed_as(unsigned int priority, CliSpawned *spawned, const char *const *words, const char *folder,
+                     const CliSetting *settings, unsigned int count, int detached, CliLine *said)
+{
+    return cli_spawn_with(priority, spawned, words, folder, settings, count, detached, 1, said);
 }
 
 int cli_spawn_written(unsigned long long pipe, const void *bytes, unsigned long long size)

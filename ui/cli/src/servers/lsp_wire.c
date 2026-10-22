@@ -435,3 +435,22 @@ int cli_lsp_string(const char *text, unsigned long long length, char *out, unsig
     out[size] = '\0';
     return 1;
 }
+
+void cli_lsp_at(const char *path, unsigned int line, unsigned int col, const char *added, CliLine *params)
+{
+    char uri[CLI_PATH_LONGEST * 3u];
+    cli_lsp_uri_of(path, uri, sizeof(uri));
+    cli_line_text(params, "{\"textDocument\":{\"uri\":");
+    cli_json_quoted(params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
+    cli_line_text(params, "},\"position\":{\"line\":");
+    cli_line_decimal(params, line, 1u);
+    cli_line_text(params, ",\"character\":");
+    cli_line_decimal(params, col, 1u);
+    cli_line_character(params, '}');
+    if (added != NULL)
+    {
+        cli_line_character(params, ',');
+        cli_line_text(params, added);
+    }
+    cli_line_character(params, '}');
+}

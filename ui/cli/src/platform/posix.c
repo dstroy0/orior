@@ -26,8 +26,8 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#if defined(__APPLE__)
 #include "../text/text.h"
+#if defined(__APPLE__)
 #include <libproc.h>
 #include <mach-o/dyld.h>
 #endif

@@ -178,14 +178,14 @@ static int changed_text_names(const char *text, unsigned long long size, unsigne
 static int changed_names(const char *path, unsigned int tool, const char *const *files, unsigned int count)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = qry_member_file_mapped(path, &size);
+    const unsigned char *const mapped = cli_file_held(path, &size);
     if (mapped == NULL)
     {
         return 0;
     }
     const int names = cli_utf8_whole((const char *)mapped, size) &&
                       changed_text_names((const char *)mapped, size, tool, files, count);
-    qry_member_file_unmapped(mapped, size);
+    cli_file_let_go(mapped, size);
     return names;
 }
 
@@ -325,6 +325,10 @@ static void changed_given(void)
     cli_cell_given(s_batch.file_tool);
     cli_cell_given(s_batch.tool);
     cli_cell_given(s_batch.tool_language);
+    if (s_batch.languages != NULL)
+    {
+        cli_plugins_languages_given(s_batch.languages);
+    }
     cli_cell_given(s_batch.languages);
     memor.set(&(MemoriaCfg){.dst = &s_batch, .val = 0, .bytes = sizeof(s_batch)});
 }
@@ -387,12 +391,12 @@ void cli_servers_changed(const char *root, const char *const *files, unsigned in
         char path[CLI_PATH_LONGEST];
         cli_full(root, files[at], path);
         unsigned long long size = 0ull;
-        const unsigned char *const mapped = qry_member_file_mapped(path, &size);
+        const unsigned char *const mapped = cli_file_held(path, &size);
         const int whole = (mapped != NULL) && cli_utf8_whole((const char *)mapped, size);
         cli_servers_inspect(root, path, whole ? (const char *)mapped : NULL, whole ? size : 0ull, &s_emit);
         if (mapped != NULL)
         {
-            qry_member_file_unmapped(mapped, size);
+            cli_file_let_go(mapped, size);
         }
         if (whole)
         {

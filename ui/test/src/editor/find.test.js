@@ -32,8 +32,9 @@ function rustAnswer(find, key) {
 }
 
 test("a search of a large held text runs on the Rust side and finds what the page's own search finds", async () => {
-  const lines = Array.from({ length: 120000 }, (_, line) => `Line_${line} = line(${line}) # LINE ${line % 11 ? "ſtar" : "star"} $line`);
-  lines[60000] = "naïve Line_x = é and 😀 line";
+  // past HOLD_FROM lines, so the text is held on the Rust side, and under the size a file opens paged at
+  const lines = Array.from({ length: 15000 }, (_, line) => `Line_${line} = line(${line}) # LINE ${line % 11 ? "ſtar" : "star"} $line`);
+  lines[7500] = "naïve Line_x = é and 😀 line";
   await invoke("file_write", { path: "found.txt", text: `${lines.join("\n")}\n` });
   showView("edit");
   await openFile("found.txt");

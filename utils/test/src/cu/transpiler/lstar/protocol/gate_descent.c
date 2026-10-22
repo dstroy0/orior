@@ -30,7 +30,7 @@
 #include <string.h>
 
 #define GATE_NEEDLE_MOST (LADDER_CASE_COUNT + CHAIN_SWEEP)
-// a descent places at most ANCHOR_STEER_ANCHORS cases, and resume chains descents until one places none
+// a descent places at most ORIOR_STEER_ANCHORS cases, and resume chains descents until one places none
 #define GATE_DESCENTS_MOST 16u
 
 #define LADDER_TEXT(name_, text_, words_, measured_) text_,
@@ -145,7 +145,7 @@ static unsigned long long gate_split_asks(const unsigned char *checks, unsigned 
 // failing checks sit together changes what halving costs
 static void gate_asks(unsigned int anchor, unsigned int alignments, const size_t *chosen, unsigned int placed)
 {
-    static unsigned char s_checks[CHAIN_MOST * GATE_DESCENTS_MOST * ANCHOR_STEER_ANCHORS];
+    static unsigned char s_checks[CHAIN_MOST * GATE_DESCENTS_MOST * ORIOR_STEER_ANCHORS];
     unsigned int checks = 0u;
     unsigned int failing = 0u;
     for (unsigned int arrangement = 0u; arrangement < alignments; arrangement += 1u)
@@ -271,17 +271,17 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
         truth += gate_holds_every_case(&s_gate, at);
     }
 
-    const AnchorField field = {gate_same_at, &s_gate, alignments, s_gate.cases};
-    size_t offsets[ANCHOR_STEER_ANCHORS];
-    size_t chosen[GATE_DESCENTS_MOST * ANCHOR_STEER_ANCHORS];
+    const OriorField field = {gate_same_at, &s_gate, alignments, s_gate.cases};
+    size_t offsets[ORIOR_STEER_ANCHORS];
+    size_t chosen[GATE_DESCENTS_MOST * ORIOR_STEER_ANCHORS];
     unsigned int placed = 0u;
     int resume = 0;
     s_gate.asked = 0ull;
     for (unsigned int descent = 0u; descent < GATE_DESCENTS_MOST; descent += 1u)
     {
         const size_t depth =
-            ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets,
-                              .count = ANCHOR_STEER_ANCHORS, .survivors = s_survivors, .survivors_length = alignments,
+            ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets,
+                              .count = ORIOR_STEER_ANCHORS, .survivors = s_survivors, .survivors_length = alignments,
                               .sample_stride = 1u, .any = &field, .resume = resume);
         for (size_t slot = 0u; slot < depth; slot += 1u)
         {
@@ -310,9 +310,9 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
         lost += ((s_survivors[at] == 0u) && (holds != 0u)) ? 1u : 0u;
     }
 
-    ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets, .count = ANCHOR_STEER_ANCHORS,
+    ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS,
                       .survivors = s_one_descent, .survivors_length = alignments, .sample_stride = 1u, .any = &field);
-    ANCHOR_STEER_CALL(anchor_steer_spawn_coarms, AnchorSteerDescent, .offsets = offsets, .count = ANCHOR_STEER_ANCHORS,
+    ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS,
                       .survivors = s_full_depth, .survivors_length = alignments, .sample_stride = 1u, .any = &field,
                       .force_full_depth = 1);
     const unsigned int stopped = gate_standing(s_one_descent, alignments);

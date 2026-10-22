@@ -69,7 +69,7 @@ test("a plugin draws marks, a tab's label, a panel, an overlay and the chrome th
   assert.equal(document.querySelector(".plugin-overlay").textContent, "over the first line");
   const panel = document.querySelector(".plugin-panel");
   assert.equal(panel.querySelector("header span").textContent, "Drawn");
-  assert.equal(panel.querySelector("iframe").getAttribute("sandbox"), "", "a panel runs none of its scripts");
+  assert.ok(!panel.querySelector("iframe").getAttribute("sandbox").includes("allow-scripts"), "a panel runs none of its scripts");
   assert.match(panel.querySelector("iframe").srcdoc, /from the plugin/);
   // The badge comes after the theme's colors are read, a call later than the overlay.
   await ui.waitFor(() => document.getElementById("plugin-badge").textContent === "drawn in the theme's colors", 3000, "the plugin's badge");

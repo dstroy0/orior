@@ -5,21 +5,59 @@
 // name's history through the run
 #include "recording_internal.h"
 
-#include "../text/text.h"
-
 CliReplay *g_cli_replay;
 
-// the most nodes and bytes of one line of the recording read
-#define CLI_RECORDING_LINE_NODES 8192u
-#define CLI_RECORDING_LINE_TEXT (1u << 20u)
+// the most bytes of one line of the recording read
+#define CLI_RECORDING_LINE_TEXT (1ull << 20u)
 
-static CliJsonNode s_nodes[CLI_RECORDING_LINE_NODES];
-static CfgJsonToken s_tokens[CLI_RECORDING_LINE_NODES];
-static char s_text[CLI_RECORDING_LINE_TEXT];
+// the line read last, in a tree of its own sized to it, given back as the next is read and as the recording is let go
 static CliJson s_json;
-static unsigned int s_stacks[CLI_RECORDING_THREADS][CLI_RECORDING_DEPTH];
+// the frames a thread's stack's room is begun with, doubling as frames are called
+#define CLI_RECORDING_STACK_FIRST 16u
+
+// each thread's stack of frames as the recording is read, in a cell of its own of `s_rooms` frames, its depth, and
+// whether it has one; each cell given back once the recording is read
+static unsigned int *s_stacks[CLI_RECORDING_THREADS];
+static unsigned int s_rooms[CLI_RECORDING_THREADS];
 static unsigned int s_depths[CLI_RECORDING_THREADS];
 static int s_has_stack[CLI_RECORDING_THREADS];
+
+// room made on a thread's stack for one frame more: 1, or 0 where it holds the most or the larger cell is refused
+static int read_stack_room(unsigned int thread)
+{
+    if (s_depths[thread] < s_rooms[thread])
+    {
+        return 1;
+    }
+    const unsigned int doubled = (s_rooms[thread] == 0u) ? CLI_RECORDING_STACK_FIRST : (s_rooms[thread] * 2u);
+    const unsigned int room = (doubled < CLI_RECORDING_DEPTH) ? doubled : CLI_RECORDING_DEPTH;
+    unsigned int *const larger =
+        (s_depths[thread] < CLI_RECORDING_DEPTH)
+            ? cli_cell_taken((unsigned long long)room * sizeof(unsigned int), "a thread's stack")
+            : NULL;
+    if (larger == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = larger, .src = s_stacks[thread], .bytes = s_depths[thread] * sizeof(unsigned int)});
+    cli_cell_given(s_stacks[thread]);
+    s_stacks[thread] = larger;
+    s_rooms[thread] = room;
+    return 1;
+}
+
+// every thread's stack given back
+static void read_stacks_given(void)
+{
+    for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
+    {
+        cli_cell_given(s_stacks[thread]);
+        s_stacks[thread] = NULL;
+        s_rooms[thread] = 0u;
+        s_depths[thread] = 0u;
+        s_has_stack[thread] = 0;
+    }
+}
 
 const char *cli_recording_name(unsigned int at)
 {
@@ -34,12 +72,19 @@ static unsigned int read_record(unsigned long long at)
         memor.chr(&(MemoriaCfg){.src = recording->text + at, .val = '\n', .bytes = recording->size - at});
     const unsigned long long end =
         (newline != NULL) ? (unsigned long long)(newline - recording->text) : recording->size;
-    cli_json_begun(&s_json, s_nodes, CLI_RECORDING_LINE_NODES, s_text, CLI_RECORDING_LINE_TEXT);
+    cli_json_given(&s_json);
     char why[CLI_SAID_LONGEST];
     CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int root =
-        cli_json_read(&s_json, recording->text + at, end - at, s_tokens, CLI_RECORDING_LINE_NODES, &unread);
+    const unsigned int root = (end - at <= CLI_RECORDING_LINE_TEXT)
+                                  ? cli_json_taken(&s_json, recording->text + at, end - at, 0u, 0ull, &unread)
+                                  : CLI_JSON_NONE;
     return cli_json_is(&s_json, root, CFG_JSON_ARRAY) ? root : CLI_JSON_NONE;
+}
+
+const CliJson *cli_recording_record(unsigned long long at, unsigned int *record)
+{
+    *record = read_record(at);
+    return &s_json;
 }
 
 // the whole number at place `at` of a record, 0 where it holds none
@@ -117,8 +162,7 @@ static void read_call(unsigned int record)
         return;
     }
     s_has_stack[thread] = 1;
-    if (((s_depths[thread] == 0u) || (s_stacks[thread][s_depths[thread] - 1u] != serial)) &&
-        (s_depths[thread] < CLI_RECORDING_DEPTH))
+    if (((s_depths[thread] == 0u) || (s_stacks[thread][s_depths[thread] - 1u] != serial)) && read_stack_room(thread))
     {
         s_stacks[thread][s_depths[thread]] = (unsigned int)serial;
         s_depths[thread] += 1u;
@@ -220,10 +264,11 @@ void cli_recording_let_go(void)
     {
         return;
     }
+    cli_json_given(&s_json);
     CliRecording *const recording = &g_cli_replay->recording;
     if (recording->text != NULL)
     {
-        qry_member_file_unmapped((const unsigned char *)recording->text, recording->size);
+        cli_file_let_go((const unsigned char *)recording->text, recording->size);
         recording->text = NULL;
     }
     if (recording->path[0] != '\0')
@@ -313,13 +358,12 @@ void cli_recording_read(const char *path)
     }
     CliRecording *const recording = &g_cli_replay->recording;
     cli_recording_let_go();
-    memor.set(&(MemoriaCfg){.dst = s_depths, .val = 0, .bytes = sizeof(s_depths)});
-    memor.set(&(MemoriaCfg){.dst = s_has_stack, .val = 0, .bytes = sizeof(s_has_stack)});
+    read_stacks_given();
     memor.cpy(&(MemoriaCfg){.dst = recording->path,
                             .src = path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
     recording->text = (const char *)bytes;
     recording->size = (bytes != NULL) ? size : 0ull;
     unsigned long long at = 0ull;
@@ -336,6 +380,8 @@ void cli_recording_read(const char *path)
         }
         at = next;
     }
+    cli_json_given(&s_json);
+    read_stacks_given();
     // each frame's steps in turn, in the order they ran
     unsigned int first = 0u;
     for (unsigned int serial = 0u; serial < CLI_RECORDING_FRAMES; serial += 1u)
@@ -349,161 +395,5 @@ void cli_recording_read(const char *path)
         CliRecordedFrame *const frame = &recording->frames[recording->steps[step].frame];
         recording->by_frame[frame->last] = step;
         frame->last += 1u;
-    }
-}
-
-// the changes a step's line record names, each handed to `each` with its value, NULL for a name gone with none: the
-// names whose values changed, then the names gone
-static void read_changes(unsigned int step, void (*each)(void *context, const char *name, const char *value),
-                         void *context)
-{
-    const unsigned int record = read_record(g_cli_replay->recording.steps[step].record);
-    const unsigned int changed = cli_json_item(&s_json, record, 3u);
-    for (unsigned int member = cli_json_is(&s_json, changed, CFG_JSON_OBJECT) ? s_json.node[changed].first
-                                                                              : CLI_JSON_NONE;
-         member != CLI_JSON_NONE; member = s_json.node[member].next)
-    {
-        each(context, s_json.text + s_json.node[member].key, cli_json_string(&s_json, member, NULL));
-    }
-    const unsigned int gone = cli_json_item(&s_json, record, 4u);
-    for (unsigned int index = 0u; cli_json_item(&s_json, gone, index) != CLI_JSON_NONE; index += 1u)
-    {
-        const char *const name = cli_json_string(&s_json, cli_json_item(&s_json, gone, index), NULL);
-        if (name != NULL)
-        {
-            each(context, name, NULL);
-        }
-    }
-}
-
-// The values held as the steps of a frame are read: where they go, how many it holds, and how many there are
-typedef struct
-{
-    CliRecordedValue *values;
-    unsigned int room;
-    unsigned int count;
-} CliRecordedHeld;
-
-// a change applied to the values held: the name's value taken out, and its new one put after the rest where it has one
-static void read_held(void *context, const char *name, const char *value)
-{
-    CliRecordedHeld *const held = (CliRecordedHeld *)context;
-    unsigned int kept = 0u;
-    for (unsigned int at = 0u; at < held->count; at += 1u)
-    {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = held->values[at].name, .other = name, .cap = CLI_CELLS_POOL}))
-        {
-            held->values[kept] = held->values[at];
-            kept += 1u;
-        }
-    }
-    held->count = kept;
-    if ((value != NULL) && (held->count < held->room))
-    {
-        CliRecordedValue *const put = &held->values[held->count];
-        memor.cpy(&(MemoriaCfg){.dst = put->name,
-                                .src = name,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-        memor.cpy(&(MemoriaCfg){.dst = put->value,
-                                .src = value,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
-        put->has = 1;
-        held->count += 1u;
-    }
-}
-
-unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecordedValue *values, unsigned int room)
-{
-    const CliRecording *const recording = &g_cli_replay->recording;
-    CliRecordedHeld held = {values, room, 0u};
-    if (serial >= CLI_RECORDING_FRAMES)
-    {
-        return 0u;
-    }
-    const CliRecordedFrame *const frame = &recording->frames[serial];
-    for (unsigned int index = 0u; (index < frame->count) && (recording->by_frame[frame->first + index] <= at);
-         index += 1u)
-    {
-        read_changes(recording->by_frame[frame->first + index], read_held, &held);
-    }
-    // by name, as a stable sort leaves them
-    for (unsigned int one = 1u; one < held.count; one += 1u)
-    {
-        const CliRecordedValue moved = values[one];
-        unsigned int place = one;
-        while ((place > 0u) && (cli_text_order(values[place - 1u].name, moved.name) > 0))
-        {
-            values[place] = values[place - 1u];
-            place -= 1u;
-        }
-        values[place] = moved;
-    }
-    return held.count;
-}
-
-unsigned int cli_recording_stack(unsigned int at, unsigned int (*frames)[2], unsigned int room)
-{
-    const CliRecording *const recording = &g_cli_replay->recording;
-    unsigned int count = 0u;
-    unsigned int serial = recording->steps[at].frame;
-    while ((serial != 0u) && (count < 512u) && (count < room))
-    {
-        const unsigned int step = cli_recording_last_of(serial, at);
-        if (step == CLI_RECORDING_STEPS)
-        {
-            break;
-        }
-        frames[count][0] = serial;
-        frames[count][1] = step;
-        count += 1u;
-        serial =
-            ((serial < CLI_RECORDING_FRAMES) && recording->frames[serial].seen) ? recording->frames[serial].parent : 0u;
-    }
-    return count;
-}
-
-// The search of one name's history: the name, whether the step at hand changed it and the value it took
-typedef struct
-{
-    const char *name;
-    int found;
-    char value[2048];
-    int has;
-} CliRecordedSought;
-
-static void read_sought(void *context, const char *name, const char *value)
-{
-    CliRecordedSought *const sought = (CliRecordedSought *)context;
-    if (!sought->found && (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = sought->name, .cap = CLI_CELLS_POOL})))
-    {
-        sought->found = 1;
-        sought->has = (value != NULL);
-        memor.cpy(
-            &(MemoriaCfg){.dst = sought->value, .bytes = sizeof(sought->value), .src = (value != NULL) ? value : ""});
-    }
-}
-
-void cli_recording_history(unsigned int serial, const char *name,
-                           void (*each)(void *context, unsigned int step, unsigned int line, const char *value),
-                           void *context)
-{
-    const CliRecording *const recording = &g_cli_replay->recording;
-    if (serial >= CLI_RECORDING_FRAMES)
-    {
-        return;
-    }
-    const CliRecordedFrame *const frame = &recording->frames[serial];
-    for (unsigned int index = 0u; index < frame->count; index += 1u)
-    {
-        CliRecordedSought sought = {name, 0, "", 0};
-        read_changes(recording->by_frame[frame->first + index], read_sought, &sought);
-        if (!sought.found)
-        {
-            continue;
-        }
-        // a value seen first at a line was given by the frame's line before it, or by the call, for an argument,
-        // where the line is the frame's first
-        const unsigned int by = recording->by_frame[frame->first + ((index > 0u) ? index - 1u : index)];
-        each(context, by, recording->steps[by].line, sought.has ? sought.value : NULL);
     }
 }

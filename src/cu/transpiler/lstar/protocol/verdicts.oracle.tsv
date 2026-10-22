@@ -1,11 +1,11 @@
 where	who	kind	code	form	numbers	gloss
-row	cubin_run	verdict	-	verdict <ask> <rule> <held> <at> <reason> <carried>	<who> <ask> <rule> <held> <at> <reason text> <carried>	a question the gate read on the host before the driver, put past every rule or held off the part, a row of the table verdicts
-column 0	cubin_run	ask	-	<key>	<key>	the ask the gate read: the sequence of its code's blob in the run
-column 1	cubin_run	rule	-	<rule>	<code>	the first rule an instruction broke, by the codes below, 0 where the code is safe (cubin_safe.h)
-column 2	cubin_run	held	-	held|put	<0 or 1>	1 where the gate held the question off the part, 0 where it put it past every rule
-column 3	cubin_run	at	-	<byte>	<byte>	the byte of the code the gate held it at, 0 where it put it
-column 4	cubin_run	reason	-	<text>	<text>	the rule as the gate names it, by its number in the table of texts
-column 5	cubin_run	carried	-	carried|dry	<0 or 1>	1 where the part was there to carry what the gate put, 0 where the carrier ran with the part taken out
+row	orior_cubin_run	verdict	-	verdict <ask> <rule> <held> <at> <reason> <carried>	<who> <ask> <rule> <held> <at> <reason text> <carried>	a question the gate read on the host before the driver, put past every rule or held off the part, a row of the table verdicts
+column 0	orior_cubin_run	ask	-	<key>	<key>	the ask the gate read: the sequence of its code's blob in the run
+column 1	orior_cubin_run	rule	-	<rule>	<code>	the first rule an instruction broke, by the codes below, 0 where the code is safe (cubin_safe.h)
+column 2	orior_cubin_run	held	-	held|put	<0 or 1>	1 where the gate held the question off the part, 0 where it put it past every rule
+column 3	orior_cubin_run	at	-	<byte>	<byte>	the byte of the code the gate held it at, 0 where it put it
+column 4	orior_cubin_run	reason	-	<text>	<text>	the rule as the gate names it, by its number in the table of texts
+column 5	orior_cubin_run	carried	-	carried|dry	<0 or 1>	1 where the part was there to carry what the gate put, 0 where the carrier ran with the part taken out
 rule	cubin_safe	safe	0x0	safe	-	safe
 rule	cubin_safe	size	0x1	size	-	not a whole count of instructions
 rule	cubin_safe	stall	0x2	stall	-	an instruction no form holds, stalled short of the longest

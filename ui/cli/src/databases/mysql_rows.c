@@ -6,7 +6,7 @@
 #include "../text/json_tree.h"
 #include "mysql_internal.h"
 
-// the type name of MySQL's column types, and whether their values are numbers: "" where orior names it by its code
+// the type name of MySQL's column types, and whether their values are numbers: "" where orior_cli names it by its code
 static const char *rows_type_name(unsigned int code, int *numeric)
 {
     static const char *const s_names[256] = {
@@ -195,7 +195,7 @@ static int rows_head(CliMysql *mysql, CliDbFailure *failure)
     {
         (void)cli_mysql_sent(mysql, NULL, 0ull, failure);
         (void)cli_mysql_packet(mysql, failure);
-        cli_db_failure_said(failure, "orior sends no file to LOAD DATA LOCAL INFILE");
+        cli_db_failure_said(failure, "orior_cli sends no file to LOAD DATA LOCAL INFILE");
         return 0;
     }
     unsigned long long at = 0ull;

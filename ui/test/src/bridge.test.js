@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-import { invoke, listen, pick, watchCalls } from "../../gui/src-js/bridge.js";
+import { invoke, listen, onCalls, pick, STOPPED, watchCalls } from "../../gui/src-js/bridge.js";
 import { callsTo } from "../helpers.js";
 
 const { test, assert, ui, calls } = window.__harness;
@@ -60,4 +60,19 @@ test("each call goes through the watch where one is set, and straight out where 
   } finally {
     watchCalls(calls.watcher);
   }
+});
+
+test("a wait the reader stops fails its call as a stop, which no report files", async () => {
+  let stopping = null;
+  onCalls((command, args, sent, stop) => {
+    if (command === "app_version") {
+      stopping = stop;
+    }
+  });
+  const call = invoke("app_version");
+  stopping("stopped waiting");
+  const reason = await call.then(() => null, (error) => error);
+  assert.ok(reason instanceof Error, "the call fails");
+  assert.equal(reason.name, STOPPED);
+  assert.equal(reason.message, "stopped waiting");
 });

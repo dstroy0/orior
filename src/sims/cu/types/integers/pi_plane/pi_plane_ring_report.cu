@@ -11,7 +11,7 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
     ScripturaLine *const line = &results->line;
     const std::vector<unsigned long long> sizes = plane_ring_sizes(bits, PLANE_BITS_MAX);
     const unsigned long long total = plane_ring_total(sizes);
-    if ((sizes.size() < 2u) || (total + PLANE_GUARD + 64ull > ANCHOR_EXACT_BITS))
+    if ((sizes.size() < 2u) || (total + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
     {
         scriptura_text(line, "  the rings need ");
         scriptura_decimal(line, total, 1u);
@@ -78,7 +78,7 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
 
     // the spirals, on the bits the pictures showed and on pi's next block of as many bits, which no picture showed
     plane_ring_spiral_read(results, sizes, ring_bits, draws, "the rings' bits");
-    if (2ull * total + PLANE_GUARD + 64ull > ANCHOR_EXACT_BITS)
+    if (2ull * total + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS)
     {
         scriptura_text(line, "  the next block needs an exact width of ");
         scriptura_decimal(line, (2ull * total) + PLANE_GUARD + 64ull, 1u);

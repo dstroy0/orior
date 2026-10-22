@@ -107,23 +107,27 @@ static void cli_index_read(void *context)
 {
     CliPageIndex *const index = (CliPageIndex *)context;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(index->path, &size);
+    const int sized = cli_file_size(index->path, &size);
     unsigned long long lines = 1ull;
     int stop = 0;
-    for (unsigned long long offset = 0ull; (bytes != NULL) && !stop && (offset < size); offset += CLI_PAGE_CHUNK)
+    // a chunk at a time held in a cell, its newlines found where it lies; a line that runs over a chunk's end is
+    // counted at its newline in the chunk after
+    for (unsigned long long offset = 0ull; sized && !stop && (offset < size); offset += CLI_PAGE_CHUNK)
     {
-        const unsigned long long end = ((size - offset) < CLI_PAGE_CHUNK) ? size : (offset + CLI_PAGE_CHUNK);
+        unsigned long long held = 0ull;
+        const unsigned char *const chunk = cli_file_piece_held(index->path, offset, CLI_PAGE_CHUNK, &held);
+        const unsigned long long end = offset + held;
         cli_lock_take(&g_cli_index_lock);
-        for (unsigned long long at = offset; at < end;)
+        for (unsigned long long at = offset; (chunk != NULL) && (at < end);)
         {
             const unsigned char *const newline =
-                memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = end - at});
+                memor.chr(&(MemoriaCfg){.src = chunk + (at - offset), .val = '\n', .bytes = end - at});
             if (newline == NULL)
             {
                 break;
             }
             // a newline found lies in the chunk, at or past `at`
-            at = (unsigned long long)(newline - bytes) + 1ull;
+            at = offset + (unsigned long long)(newline - chunk) + 1ull;
             if (((lines % CLI_PAGE_STEP) == 0ull) && (index->starts < index->starts_most))
             {
                 index->start[index->starts] = at;
@@ -132,12 +136,9 @@ static void cli_index_read(void *context)
             lines += 1ull;
         }
         index->lines = lines;
-        stop = index->cancel;
+        stop = index->cancel || (chunk == NULL) || (held == 0ull);
         cli_lock_give(&g_cli_index_lock);
-    }
-    if (bytes != NULL)
-    {
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(chunk, held);
     }
     cli_lock_take(&g_cli_index_lock);
     index->lines = lines;
@@ -151,15 +152,11 @@ static void cli_index_read(void *context)
 static const char *cli_eol_of(const char *path)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
-    const unsigned long long head = (size < CLI_PAGE_HEAD) ? size : CLI_PAGE_HEAD;
+    const unsigned char *const bytes = cli_file_piece_held(path, 0ull, CLI_PAGE_HEAD, &size);
     const unsigned char *const newline =
-        (bytes != NULL) ? memor.chr(&(MemoriaCfg){.src = bytes, .val = '\n', .bytes = head}) : NULL;
+        (bytes != NULL) ? memor.chr(&(MemoriaCfg){.src = bytes, .val = '\n', .bytes = size}) : NULL;
     const int crlf = (newline != NULL) && (newline > bytes) && (newline[-1] == '\r');
-    if (bytes != NULL)
-    {
-        qry_member_file_unmapped(bytes, size);
-    }
+    cli_file_let_go(bytes, size);
     return crlf ? "\r\n" : "\n";
 }
 
@@ -295,20 +292,55 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
         cli_line_text(said, "the index has not read that far yet");
         return 0;
     }
-    unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(one->path, &size);
-    if (bytes == NULL)
+    // The lines from the step's start held in a cell: a window of the file from there, doubled while it holds
+    // neither the newlines the lines asked for end at nor the file's end
+    unsigned long long whole = 0ull;
+    if (!cli_file_size(one->path, &whole))
     {
         cli_line_text(said, "it could not be read");
         return 0;
     }
+    const unsigned long long begin = (start < whole) ? start : whole;
+    const unsigned long long wanted = to - (step * CLI_PAGE_STEP);
+    unsigned long long window = CLI_PAGE_CHUNK;
+    unsigned long long size = 0ull;
+    const unsigned char *bytes = NULL;
+    for (;;)
+    {
+        bytes = cli_file_piece_held(one->path, begin, window, &size);
+        if (bytes == NULL)
+        {
+            cli_line_text(said, "it could not be read");
+            return 0;
+        }
+        unsigned long long newlines = 0ull;
+        for (unsigned long long at = 0ull; (at < size) && (newlines < wanted);)
+        {
+            const unsigned char *const newline =
+                memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = size - at});
+            if (newline == NULL)
+            {
+                break;
+            }
+            // a newline found lies in the window, at or past `at`
+            at = (unsigned long long)(newline - bytes) + 1ull;
+            newlines += 1ull;
+        }
+        if (((begin + size) >= whole) || (newlines >= wanted))
+        {
+            break;
+        }
+        cli_file_let_go(bytes, size);
+        window *= 2ull;
+    }
+    // the lines from the step's start, those from `from` on put after the lines read
     const unsigned long long first = lines->count;
-    unsigned long long at = (start < size) ? start : size;
+    unsigned long long at = 0ull;
     for (unsigned long long line = step * CLI_PAGE_STEP; line < to; line += 1ull)
     {
         const unsigned char *const newline =
             (at < size) ? memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = size - at}) : NULL;
-        // a newline found lies in the bytes, at or past `at`
+        // a newline found lies in the window, at or past `at`
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
         unsigned long long length = end - at;
         length -= ((newline != NULL) && (length > 0ull) && (bytes[end - 1ull] == '\r')) ? 1ull : 0ull;
@@ -330,7 +362,7 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
             break;
         }
     }
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     while ((lines->count - first) < (to - from))
     {
         cli_line_put(lines, "", 0ull);
@@ -347,32 +379,30 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
 static int cli_written_lines(const CliPaged *one, const CliPagePiece *piece, unsigned long long skip,
                              unsigned long long count, CliPageLines *lines, CliLine *said)
 {
+    // the piece held in a cell, from its start, its bytes counted from there
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(one->shadow, &size);
-    if ((bytes == NULL) || (piece->to > size))
+    const unsigned char *const bytes = cli_file_piece_held(one->shadow, piece->from, piece->to - piece->from, &size);
+    if ((bytes == NULL) || (size < (piece->to - piece->from)))
     {
-        if (bytes != NULL)
-        {
-            qry_member_file_unmapped(bytes, size);
-        }
+        cli_file_let_go(bytes, size);
         cli_line_text(said, one->shadow);
         cli_line_text(said, ": it could not be read");
         return 0;
     }
-    unsigned long long at = piece->from;
+    unsigned long long at = 0ull;
     for (unsigned long long line = 0ull; line < (skip + count); line += 1ull)
     {
         const unsigned char *const newline =
-            (at < piece->to) ? memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = piece->to - at}) : NULL;
+            (at < size) ? memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = size - at}) : NULL;
         // a newline found lies in the piece, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : piece->to;
+        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
         if (line >= skip)
         {
             cli_line_put(lines, (const char *)bytes + at, end - at);
         }
-        at = (end < piece->to) ? (end + 1ull) : piece->to;
+        at = (end < size) ? (end + 1ull) : size;
     }
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     return 1;
 }
 

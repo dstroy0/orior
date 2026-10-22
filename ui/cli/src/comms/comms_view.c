@@ -51,7 +51,7 @@ void cli_comms_parts(CliLine *out)
     unsigned int order[CLI_COMMS_PARTS];
     unsigned int count = 0u;
     cli_lock_take(&g_cli_comms.lock);
-    for (unsigned int at = 0u; at < CLI_COMMS_PARTS; at += 1u)
+    for (unsigned int at = 0u; at < g_cli_comms.parts_room; at += 1u)
     {
         if (g_cli_comms.parts[at].taken)
         {
@@ -95,7 +95,7 @@ static void view_listeners(const char *name, CliLine *out)
 {
     unsigned int written = 0u;
     cli_line_character(out, '[');
-    for (unsigned int at = 0u; at < CLI_COMMS_LISTENERS; at += 1u)
+    for (unsigned int at = 0u; at < g_cli_comms.listeners_room; at += 1u)
     {
         const CliCommsListener *const listener = &g_cli_comms.listeners[at];
         const CliCommsPart *const part = listener->taken ? &g_cli_comms.parts[listener->part] : NULL;

@@ -215,9 +215,30 @@ impl Terms {
     pub fn close(&self, id: u64) -> Result<(), String> {
         let mut open = self.open.lock().map_err(|e| e.to_string())?;
         match open.get_mut(&id) {
-            Some(term) => term.killer.kill().map_err(|e| e.to_string()),
+            Some(term) => killed(term.killer.kill()),
             None => Ok(()),
         }
+    }
+}
+
+/// What a kill of a shell came to: portable-pty's Windows killer gives back a TerminateProcess that succeeded as an
+/// error of the system's code 0, which is the kill done.
+fn killed(result: std::io::Result<()>) -> Result<(), String> {
+    match result {
+        Err(error) if error.raw_os_error() == Some(0) => Ok(()),
+        other => other.map_err(|e| e.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod killing {
+    use super::killed;
+
+    #[test]
+    fn a_kill_the_system_says_succeeded_is_done_and_another_error_stands() {
+        assert_eq!(killed(Err(std::io::Error::from_raw_os_error(0))), Ok(()));
+        assert_eq!(killed(Ok(())), Ok(()));
+        assert!(killed(Err(std::io::Error::from_raw_os_error(5))).is_err());
     }
 }
 

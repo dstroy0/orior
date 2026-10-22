@@ -40,8 +40,10 @@ void cli_menu_split(unsigned int menu, char *split);
 unsigned int cli_menu_groups(unsigned int menu, char (*groups)[CLI_LABEL_LONGEST], unsigned int room);
 // every item of the menu, those of its groups among them, in order: their count
 unsigned int cli_menu_items(unsigned int menu, CliItem *items, unsigned int room);
-// the item of the menu whose command is `word`: 1, or 0 where it has none
+// the item of the menu whose command is `word`: 1, or 0 where it has none; and the words an item must be given, each
+// `<word>` of its args outside a bracket
 int cli_menu_command(unsigned int menu, const char *word, CliItem *item);
+unsigned int cli_item_words_needed(const CliItem *item);
 // the menu whose word is `word`: 1, or 0 where none is
 int cli_menu_named(const char *word, unsigned int *menu);
 // the list's text as read, for the window, its size into `size`

@@ -9,11 +9,13 @@
 
 static CliProverMessages s_messages;
 
-// the Lean tool read into the room: 1, or 0 where orior has none
+// the id of the tool for Lean, looked for with no validation's room kept, as the command line looks for it
+static char s_lean[CLI_NAME_LONGEST];
+
+// the Lean tool read into the room: 1, or 0 where orior_cli has none
 static int validate_lean(void)
 {
-    char id[CLI_NAME_LONGEST];
-    return cli_validate_tool_for("lean", id) && cli_validate_tool_read(id);
+    return cli_validate_tool_read(s_lean);
 }
 
 // the code of `text` read, with its words
@@ -186,6 +188,7 @@ static void validate_copy(void)
 
 int main(void)
 {
+    cli_check(cli_validate_tool_for("lean", s_lean), "the tool for a language is found with no validation's room held");
     if (!cli_validate_held())
     {
         cli_check(0, "a validation's room is taken");
@@ -193,7 +196,7 @@ int main(void)
     }
     if (!validate_lean())
     {
-        cli_check(0, "orior comes with a tool for Lean");
+        cli_check(0, "orior_cli comes with a tool for Lean");
         cli_validate_released();
         return cli_checked();
     }

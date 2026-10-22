@@ -76,9 +76,9 @@ __global__ void floor_transfer_kernel(unsigned short *lanes, const unsigned int 
 
 typedef struct
 {
-    AnchorExactInteger slope;
-    AnchorExactInteger intercept;
-    AnchorExactInteger denominator;
+    OriorExactInteger slope;
+    OriorExactInteger intercept;
+    OriorExactInteger denominator;
     unsigned long long samples;
 } FloorLine;
 

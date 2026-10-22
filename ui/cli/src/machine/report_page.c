@@ -15,7 +15,7 @@ const char *cli_report_category_of(const CliReport *report)
 // orior's version, and the commit and changes of the tree where it is orior's own, into `out`
 static void cli_version(const char *root, CliLine *out)
 {
-    cli_line_text(out, "orior " CLI_VERSION);
+    cli_line_text(out, "orior_cli " CLI_VERSION);
     if (root == NULL)
     {
         return;

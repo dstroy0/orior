@@ -34,7 +34,7 @@
 
 // an exact integer's status: anything but OK is a value the width does not hold
 #define QASM_FITS(status_, evacaddr_, error_)                                                                          \
-    QASM_CHECK((status_) == ANCHOR_EXACT_OK, (evacaddr_), (error_), ENGINE_ERROR_RESOURCE)
+    QASM_CHECK((status_) == ORIOR_EXACT_OK, (evacaddr_), (error_), ENGINE_ERROR_RESOURCE)
 
 // an amplitude's integer parts: the real half's rational and sqrt2 parts, then the imaginary half's
 #define QASM_SELF_PARTS 4u
@@ -52,11 +52,11 @@ static_assert((QASM_SELF_PARTS << QASM_SELF_QUBITS_MAX) <= ENGINE_RECORD_LIMBS_M
 
 // an input field is at most one bit past the exact integer's width. The widest record's bits fit an unsigned int
 static_assert(((((unsigned long long)QASM_SELF_PARTS << QASM_SELF_QUBITS_MAX) *
-                ((unsigned long long)ANCHOR_EXACT_BITS + 1ull)) +
+                ((unsigned long long)ORIOR_EXACT_BITS + 1ull)) +
                31ull) <= 0xFFFFFFFFull,
               "qasm: the self run's widest input record must be counted in an unsigned int");
 
-static const AnchorExactInteger qasm_self_one = {{1u}, 1};
+static const OriorExactInteger qasm_self_one = {{1u}, 1};
 
 const QasmRational *qasm_self_part(const QasmNumber *value, unsigned int part);
 
@@ -84,29 +84,29 @@ typedef struct
     unsigned int *below;
     unsigned int *built;
     // the floor's constants: each magnitude and the step holding it
-    AnchorExactInteger constant_value[QASM_SELF_CONSTANTS_MAX];
+    OriorExactInteger constant_value[QASM_SELF_CONSTANTS_MAX];
     unsigned int constant_step[QASM_SELF_CONSTANTS_MAX];
     unsigned int constant_count;
     // a gate's columns, column s from [s amplitudes], and each entry's parts over the gate's denominator
     QasmNumber *columns;
-    AnchorExactInteger *numerators;
+    OriorExactInteger *numerators;
     // the state's denominator: the inputs', times every gate's
-    AnchorExactInteger denominator;
+    OriorExactInteger denominator;
     // a coefficient doubled past the width
     int over_width;
     EngineError *error;
 } QasmSelfBuild;
 
-int qasm_self_lcm(AnchorExactInteger *common, const AnchorExactInteger *denominator, EngineError *error);
+int qasm_self_lcm(OriorExactInteger *common, const OriorExactInteger *denominator, EngineError *error);
 
-int qasm_self_over(const QasmRational *value, const AnchorExactInteger *common, AnchorExactInteger *numerator,
+int qasm_self_over(const QasmRational *value, const OriorExactInteger *common, OriorExactInteger *numerator,
                    EngineError *error);
 
 int qasm_self_floor(QasmSelfBuild *build, unsigned int qubits, const QasmExactGate *gate);
 
-unsigned int qasm_self_bits(const AnchorExactInteger *value);
+unsigned int qasm_self_bits(const OriorExactInteger *value);
 
-void qasm_self_put(unsigned int *record, unsigned int offset, unsigned int bits, const AnchorExactInteger *value);
+void qasm_self_put(unsigned int *record, unsigned int offset, unsigned int bits, const OriorExactInteger *value);
 
 // the program laid out on the host: its encoding and its layout, with each output's step
 typedef struct

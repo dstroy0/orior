@@ -72,7 +72,7 @@ Every example has a catalog number at the top of the file, such as `LNG-4-012`. 
 
 ## The search kernel
 
-`anchor_steer_count` counts how many times a needle (the pattern you search for) appears in a corpus (the text you search in). Its last argument is 1 to order the probes by rarity, or 0 to keep them in the order they appear. The count is the same either way ([`orior_descent.h:342-368`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L342-L368)). The function borrows both buffers for the length of the call ([BORROWS]).
+`orior_steer_count` counts how many times a needle (the pattern you search for) appears in a corpus (the text you search in). Its last argument is 1 to order the probes by rarity, or 0 to keep them in the order they appear. The count is the same either way ([`orior_descent.h:342-368`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L342-L368)). The function borrows both buffers for the length of the call ([BORROWS]).
 
 ```c
 #include <stdint.h>
@@ -88,10 +88,10 @@ int main(void)
     const size_t corpus_len = strlen(corpus);
     const size_t needle_len = strlen(needle);
 
-    const size_t count = anchor_steer_count((const uint8_t *)corpus, corpus_len,
+    const size_t count = orior_steer_count((const uint8_t *)corpus, corpus_len,
                                             (const uint8_t *)needle, needle_len, 1);
     printf("%lu occurrences, scanned by the %s engine\n", (unsigned long)count,
-           anchor_steer_best_engine()->name);
+           orior_steer_best_engine()->name);
     return 0;
 }
 ```

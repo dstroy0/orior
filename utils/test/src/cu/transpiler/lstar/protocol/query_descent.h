@@ -44,9 +44,9 @@ typedef struct
 } QueryDescent;
 
 // `count`, a count, as an exact integer
-static void query_descent_exact(AnchorExactInteger *value, unsigned int count)
+static void query_descent_exact(OriorExactInteger *value, unsigned int count)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     value->limb[0] = count;
     value->sign = (count != 0u) ? 1 : 0;
 }
@@ -55,20 +55,20 @@ static void query_descent_exact(AnchorExactInteger *value, unsigned int count)
 // past 4 * of. Every term an exact integer
 static int query_descent_leans(unsigned int toward, unsigned int of)
 {
-    AnchorExactInteger twice;
-    AnchorExactInteger whole;
-    AnchorExactInteger lean;
-    AnchorExactInteger square;
-    AnchorExactInteger four;
+    OriorExactInteger twice;
+    OriorExactInteger whole;
+    OriorExactInteger lean;
+    OriorExactInteger square;
+    OriorExactInteger four;
     query_descent_exact(&twice, 2u * toward);
     query_descent_exact(&whole, of);
     query_descent_exact(&four, 4u * of);
-    if ((anchor_exact_subtract(&twice, &whole, &lean) != ANCHOR_EXACT_OK) || (lean.sign <= 0) ||
-        (anchor_exact_multiply(&lean, &lean, &square) != ANCHOR_EXACT_OK))
+    if ((orior_exact_subtract(&twice, &whole, &lean) != ORIOR_EXACT_OK) || (lean.sign <= 0) ||
+        (orior_exact_multiply(&lean, &lean, &square) != ORIOR_EXACT_OK))
     {
         return 0;
     }
-    return (anchor_exact_compare(&square, &four) > 0) ? 1 : 0;
+    return (orior_exact_compare(&square, &four) > 0) ? 1 : 0;
 }
 
 // The order put one pass at a time at `order->repeat`, each pass solved on its own, until no pair stands, the bound
@@ -97,8 +97,8 @@ static void query_descent_put(QueryOrder *order, unsigned long long spend_most, 
             return;
         }
         descent->passes += 1u;
-        AnchorExactInteger numerator[QUERY_DESCENT_LINKS];
-        AnchorExactInteger denominator;
+        OriorExactInteger numerator[QUERY_DESCENT_LINKS];
+        OriorExactInteger denominator;
         if (query_order_solve(QUERY_DESCENT_LINKS, s_cost, numerator, &denominator) == 0)
         {
             descent->solved = 0u;
@@ -109,7 +109,7 @@ static void query_descent_put(QueryOrder *order, unsigned long long spend_most, 
         {
             // one pass's links share one denominator, and its sign is positive: the numerators order them
             descent->dearer[number] +=
-                (anchor_exact_compare(&numerator[number], &numerator[number - 1u]) > 0) ? 1u : 0u;
+                (orior_exact_compare(&numerator[number], &numerator[number - 1u]) > 0) ? 1u : 0u;
             descent->decided[number] = QUERY_DESCENT_STANDING;
             if (query_descent_leans(descent->dearer[number], descent->passes) != 0)
             {

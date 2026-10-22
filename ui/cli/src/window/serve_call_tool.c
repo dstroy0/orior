@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// serve_call_tool.c: the calls of the toolchains and the tools that read a file: every toolchain as orior finds it,
+// serve_call_tool.c: the calls of the toolchains and the tools that read a file: every toolchain as orior_cli finds it,
 // with the reader's groups and orior's own folder; a toolchain or a group added and taken out, its version, the line
 // that installs it, a folder put on the PATH, chosen and forgotten; a file validated, the line that runs it, kept as a
 // template; the tree's environments and one chosen, the servers told their settings changed; a text formatted and the
@@ -32,12 +32,25 @@ static void tool_group_written(void *context, const char *group)
                           cellul.len(&(CatenaFinitaCfg){.src = group, .cap = CLI_CELLS_POOL}));
 }
 
+// whether the tree's view saw a file of the name or the ending `kind`, its kinds `context`
+static int tool_kind_seen(const void *context, const char *kind)
+{
+    return cli_files_holds(context, kind);
+}
+
 static int toolchains_check(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
-    (void)args;
     (void)said;
     cli_line_text(out, "{\"tools\":");
-    cli_toolchains_check(0, out);
+    // the kinds of the open tree's files, as its view saw them, where the call asks which tools the tree uses; none
+    // where it does not or no tree is open
+    char root[CLI_PATH_LONGEST];
+    char unopened[CLI_NAME_LONGEST];
+    CliLine untold = {unopened, sizeof(unopened), 0ull};
+    const CliFiles *const kinds =
+        (cli_serve_bool_or(args, "uses", 0) && cli_serve_tree(root, &untold)) ? cli_files_kinds_held(root) : NULL;
+    cli_toolchains_check(0, (kinds != NULL) ? tool_kind_seen : NULL, kinds, out);
+    cli_files_let(kinds);
     cli_line_text(out, ",\"groups\":[");
     cli_toolchains_groups(tool_group_written, out);
     cli_line_text(out, "],\"own\":");
@@ -360,17 +373,21 @@ static int prints_added(const CliServeArgs *args, CliLine *out, CliLine *said)
 static int settings_tree(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     (void)args;
-    static CliChain s_chain;
-    static CliLock s_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_LONGEST];
     if (!cli_serve_tree(root, said))
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
-    cli_settings_tree(root, &s_chain);
-    cli_settings_chain_written(&s_chain, out);
-    cli_lock_give(&s_lock);
+    CliChain *const chain = cli_cell_taken_by(&g_cli_settings_cells, sizeof(*chain), "a tree's chain of settings");
+    if (chain == NULL)
+    {
+        cli_line_text(said, "the cell a tree's settings are read into could not be taken");
+        return 0;
+    }
+    cli_settings_tree(root, chain);
+    cli_settings_chain_written(chain, out);
+    cli_settings_chain_given(chain);
+    cli_cell_given_by(&g_cli_settings_cells, chain);
     return 1;
 }
 

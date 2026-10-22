@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // raised.c: writing a file the system refuses to write for the reader, once the system has asked the reader for the
 // rights the write needs. The text is put in a file of orior's own first, and copied over the file with the rights:
-// on Windows by orior's own program run again as `orior write-raised`, raised by the system's prompt, which writes
+// on Windows by orior's own program run again as `orior_cli write-raised`, raised by the system's prompt, which writes
 // that one file and ends; on Linux by cp run through pkexec; on macOS by cp run with the system's authorization. A
 // reader who declines the prompt leaves the file as it was
 #include "raised.h"
@@ -58,14 +58,16 @@ int cli_raised_write(const char *path, const void *text, unsigned long long size
     CliLine folder_line = {folder, sizeof(folder), 0ull};
     cli_line_text(&folder_line, base);
     cli_line_text(&folder_line, "/orior-raised");
+    // the folder ended before the staged file's path is written from it
+    const unsigned long long ended = cli_line_closed(&folder_line);
     CliLine staged_line = {staged, sizeof(staged), 0ull};
-    cli_line_text(&staged_line, folder);
+    cli_line_text(&staged_line, (ended != 0ull) ? folder : "");
     cli_line_character(&staged_line, '/');
     cli_line_decimal(&staged_line, cli_process_own(), 0u);
     cli_line_character(&staged_line, '-');
     cli_line_decimal(&staged_line, cli_clock_milliseconds(), 0u);
-    if ((cli_line_closed(&folder_line) == 0ull) || (cli_line_closed(&staged_line) == 0ull) ||
-        !query_folder_made(folder) || !query_file_written(staged, text, size))
+    if ((ended == 0ull) || (cli_line_closed(&staged_line) == 0ull) || !query_folder_made(folder) ||
+        !query_file_written(staged, text, size))
     {
         cli_line_text(said, staged);
         cli_line_text(said, ": it could not be written");

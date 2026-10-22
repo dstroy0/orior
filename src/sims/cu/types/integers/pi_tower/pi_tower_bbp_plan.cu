@@ -297,7 +297,7 @@ int pi_tower_bbp_read(SimResults *results, const PiTowerBbp *bbp, const unsigned
     {
         return 0;
     }
-    anchor_exact_zero(sum);
+    orior_exact_zero(sum);
     int zero = 1;
     for (unsigned int limb = 0u; limb < bbp->out_limbs; limb += 1u)
     {

@@ -31,15 +31,15 @@ struct TermKeyOrder
 };
 
 // the exact integer 1
-AnchorExactInteger term_form_unit(void);
+OriorExactInteger term_form_unit(void);
 
 // A form holds exact integers, entry i the numerator of the term at the program's slot i, over one positive
 // denominator. A slot is a key, a power of e and the terms' powers, numbered as the program first meets it; every form
 // in a run shares the numbering. The denominator and the entries share no factor, and the last entry is not 0.
 struct TermForm
 {
-    std::vector<AnchorExactInteger> magnitude;
-    AnchorExactInteger denominator = term_form_unit();
+    std::vector<OriorExactInteger> magnitude;
+    OriorExactInteger denominator = term_form_unit();
 };
 
 TermForm term_form_rational(SimRational value);

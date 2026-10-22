@@ -19,8 +19,8 @@
  *       compiled an AVX2 arm still has to ask the processor before calling it, since the build
  *       machine and the running machine are not the same machine.
  */
-#ifndef ANCHOR_EXACT_ARM_H
-#define ANCHOR_EXACT_ARM_H
+#ifndef ORIOR_EXACT_ARM_H
+#define ORIOR_EXACT_ARM_H
 
 #include "exact_integer.h"
 
@@ -40,20 +40,20 @@ extern "C"
     typedef struct
     {
         const char *name; /**< What to print in a row. Never null. */
-        int (*equal)(const AnchorExactInteger *left, const AnchorExactInteger *right);
-        int (*compare)(const AnchorExactInteger *left, const AnchorExactInteger *right);
-        size_t (*agreement)(const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                            const AnchorExactInteger *lag);
-    } AnchorExactArm;
+        int (*equal)(const OriorExactInteger *left, const OriorExactInteger *right);
+        int (*compare)(const OriorExactInteger *left, const OriorExactInteger *right);
+        size_t (*agreement)(const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                            const OriorExactInteger *lag);
+    } OriorExactArm;
 
     /**
      * @brief The portable C11 arm, the reference every other arm is graded against.
      *
      * @return A pointer to the arm. Never null, since this arm runs anywhere a C11 compiler built it.
      */
-    const AnchorExactArm *anchor_exact_portable_arm(void);
+    const OriorExactArm *orior_exact_portable_arm(void);
 
-#if defined(ANCHOR_EXACT_HAVE_AVX2) && ANCHOR_EXACT_HAVE_AVX2
+#if defined(ORIOR_EXACT_HAVE_AVX2) && ORIOR_EXACT_HAVE_AVX2
 
     /**
      * @brief The AVX2 arm, comparing eight limbs per instruction.
@@ -62,11 +62,11 @@ extern "C"
      * @note Asks the processor instead of trusting the build. A binary compiled with AVX2 available
      *       runs on machines that do not have it, and calling in would raise an illegal instruction.
      */
-    const AnchorExactArm *anchor_exact_avx2_arm(void);
+    const OriorExactArm *orior_exact_avx2_arm(void);
 
 #endif
 
-#if defined(ANCHOR_EXACT_HAVE_AVX512) && ANCHOR_EXACT_HAVE_AVX512
+#if defined(ORIOR_EXACT_HAVE_AVX512) && ORIOR_EXACT_HAVE_AVX512
 
     /**
      * @brief The AVX-512 arm, comparing sixteen limbs per instruction.
@@ -76,22 +76,22 @@ extern "C"
      *       instructions it emits and not on any answer it produced. It calls itself avx512-unrun, which
      *       keeps a row of results from showing it beside a run arm with the difference invisible.
      */
-    const AnchorExactArm *anchor_exact_avx512_arm(void);
+    const OriorExactArm *orior_exact_avx512_arm(void);
 
 #endif
 
-#if defined(ANCHOR_EXACT_HAVE_NEON) && ANCHOR_EXACT_HAVE_NEON
+#if defined(ORIOR_EXACT_HAVE_NEON) && ORIOR_EXACT_HAVE_NEON
 
     /**
      * @brief The NEON arm, comparing four limbs per instruction.
      *
      * @return A pointer to the arm, or NULL where this processor does not carry NEON.
      */
-    const AnchorExactArm *anchor_exact_neon_arm(void);
+    const OriorExactArm *orior_exact_neon_arm(void);
 
 #endif
 
-#if defined(ANCHOR_EXACT_HAVE_SVE) && ANCHOR_EXACT_HAVE_SVE
+#if defined(ORIOR_EXACT_HAVE_SVE) && ORIOR_EXACT_HAVE_SVE
 
     /**
      * @brief The SVE arm, comparing whatever vector length the part turns out to carry.
@@ -101,11 +101,11 @@ extern "C"
      *       the instructions it emits and calls itself sve-unrun for the same reason the AVX-512 one
      *       does.
      */
-    const AnchorExactArm *anchor_exact_sve_arm(void);
+    const OriorExactArm *orior_exact_sve_arm(void);
 
 #endif
 
-#if defined(ANCHOR_EXACT_HAVE_CUDA) && ANCHOR_EXACT_HAVE_CUDA
+#if defined(ORIOR_EXACT_HAVE_CUDA) && ORIOR_EXACT_HAVE_CUDA
 
     /**
      * @brief The CUDA arm, taking one position per thread instead of one limb per lane.
@@ -114,7 +114,7 @@ extern "C"
      * @note Its `equal` and `compare` run on the host and are the portable ones. A single comparison is
      *       far too small to be worth crossing the bus for, and only `agreement` is handed over.
      */
-    const AnchorExactArm *anchor_exact_cuda_arm(void);
+    const OriorExactArm *orior_exact_cuda_arm(void);
 
 #endif
 
@@ -122,4 +122,4 @@ extern "C"
 }
 #endif
 
-#endif /* ANCHOR_EXACT_ARM_H */
+#endif /* ORIOR_EXACT_ARM_H */

@@ -28,20 +28,20 @@
 
 #include "arm.h"
 
-#if defined(ANCHOR_EXACT_HAVE_SVE) && ANCHOR_EXACT_HAVE_SVE
+#if defined(ORIOR_EXACT_HAVE_SVE) && ORIOR_EXACT_HAVE_SVE
 
 #include <arm_sve.h>
 
 #if defined(__linux__)
 #include <sys/auxv.h>
 /** @brief Set where this translation unit can ask the kernel about SVE. */
-#define ANCHOR_SVE_CAN_DETECT 1
+#define ORIOR_SVE_CAN_DETECT 1
 #ifndef HWCAP_SVE
 /** @brief The SVE bit in AT_HWCAP, defined here where the running headers predate it. */
 #define HWCAP_SVE (1 << 22)
 #endif
 #else
-#define ANCHOR_SVE_CAN_DETECT 0
+#define ORIOR_SVE_CAN_DETECT 0
 #endif
 
 /**
@@ -51,7 +51,7 @@
  */
 static int sve_present(void)
 {
-#if ANCHOR_SVE_CAN_DETECT
+#if ORIOR_SVE_CAN_DETECT
     return ((getauxval(AT_HWCAP) & (unsigned long)HWCAP_SVE) != 0ul) ? 1 : 0;
 #else
     return 0;
@@ -71,10 +71,10 @@ static int sve_present(void)
  */
 static int sve_magnitude_equal(const uint32_t *left, const uint32_t *right)
 {
-    for (uint64_t at = 0u; at < (uint64_t)ANCHOR_EXACT_LIMBS; at += svcntw())
+    for (uint64_t at = 0u; at < (uint64_t)ORIOR_EXACT_LIMBS; at += svcntw())
     {
         // The predicate covers only the lanes that exist. The tail needs no separate loop.
-        const svbool_t live = svwhilelt_b32(at, (uint64_t)ANCHOR_EXACT_LIMBS);
+        const svbool_t live = svwhilelt_b32(at, (uint64_t)ORIOR_EXACT_LIMBS);
         const svuint32_t one = svld1_u32(live, left + at);
         const svuint32_t two = svld1_u32(live, right + at);
         if (svptest_any(live, svcmpne_u32(live, one, two)))
@@ -99,7 +99,7 @@ static int sve_magnitude_equal(const uint32_t *left, const uint32_t *right)
 static int sve_magnitude_compare(const uint32_t *left, const uint32_t *right)
 {
     const uint64_t lanes = svcntw();
-    uint64_t at = (uint64_t)ANCHOR_EXACT_LIMBS;
+    uint64_t at = (uint64_t)ORIOR_EXACT_LIMBS;
     while (at > 0u)
     {
         const uint64_t span = (at >= lanes) ? lanes : at;
@@ -130,7 +130,7 @@ static int sve_magnitude_compare(const uint32_t *left, const uint32_t *right)
  * @param[in] right Second integer [BORROWS].
  * @return          1 where the values are equal, 0 otherwise.
  */
-static int arm_equal(const AnchorExactInteger *left, const AnchorExactInteger *right)
+static int arm_equal(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -144,9 +144,9 @@ static int arm_equal(const AnchorExactInteger *left, const AnchorExactInteger *r
  *
  * @param[in] left  First integer [BORROWS].
  * @param[in] right Second integer [BORROWS].
- * @return          -1, 1 or 0, matching anchor_exact_compare exactly.
+ * @return          -1, 1 or 0, matching orior_exact_compare exactly.
  */
-static int arm_compare(const AnchorExactInteger *left, const AnchorExactInteger *right)
+static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -170,32 +170,32 @@ static int arm_compare(const AnchorExactInteger *left, const AnchorExactInteger 
  * @param[in] lag       The offset to test [BORROWS].
  * @return              How many positions agree with the place one lag above them.
  */
-static size_t arm_agreement(const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                            const AnchorExactInteger *lag)
+static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                            const OriorExactInteger *lag)
 {
     // The shared search, with only the equality test swapped. The timing then measures the instruction
     // set and not a second algorithm.
-    return anchor_exact_agreement_using(arm_equal, positions, values, count, lag);
+    return orior_exact_agreement_using(arm_equal, positions, values, count, lag);
 }
 
 /** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
-static const AnchorExactArm SVE_ARM = {
+static const OriorExactArm SVE_ARM = {
     "sve-unrun",
     arm_equal,
     arm_compare,
     arm_agreement,
 };
 
-const AnchorExactArm *anchor_exact_sve_arm(void)
+const OriorExactArm *orior_exact_sve_arm(void)
 {
     return sve_present() ? &SVE_ARM : NULL;
 }
 
 #else
 
-const AnchorExactArm *anchor_exact_sve_arm(void)
+const OriorExactArm *orior_exact_sve_arm(void)
 {
     return NULL;
 }
 
-#endif /* ANCHOR_EXACT_HAVE_SVE */
+#endif /* ORIOR_EXACT_HAVE_SVE */

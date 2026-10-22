@@ -30,9 +30,9 @@ void qasm_error(QasmParser *parser, const QasmToken *token, const char *format, 
 // ---------------------------------------------------------------------------------------------------------------
 // exact integers, rationals and angles
 
-int qasm_exact_ok(QasmParser *parser, AnchorExactStatus status)
+int qasm_exact_ok(QasmParser *parser, OriorExactStatus status)
 {
-    if (status != ANCHOR_EXACT_OK)
+    if (status != ORIOR_EXACT_OK)
     {
         qasm_error(parser, (parser->at < parser->token_count) ? &parser->tokens[parser->at] : NULL,
                     "a value outgrew the exact integer's width");
@@ -41,22 +41,22 @@ int qasm_exact_ok(QasmParser *parser, AnchorExactStatus status)
     return 1;
 }
 
-void qasm_exact_set(AnchorExactInteger *value, unsigned long long magnitude, int negative)
+void qasm_exact_set(OriorExactInteger *value, unsigned long long magnitude, int negative)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     value->limb[0] = (uint32_t)(magnitude & 0xFFFFFFFFull);
     value->limb[1] = (uint32_t)(magnitude >> 32u);
     value->sign = (magnitude == 0ull) ? 0 : ((negative != 0) ? -1 : 1);
 }
 
-void qasm_exact_power_of_two(AnchorExactInteger *value, unsigned int bits)
+void qasm_exact_power_of_two(OriorExactInteger *value, unsigned int bits)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     value->limb[bits >> 5u] = 1u << (bits & 31u);
     value->sign = 1;
 }
 
-int qasm_exact_is_zero(const AnchorExactInteger *value)
+int qasm_exact_is_zero(const OriorExactInteger *value)
 {
     return value->sign == 0;
 }
@@ -75,11 +75,11 @@ int qasm_fraction_reduce(QasmParser *parser, QasmFraction *value)
         qasm_exact_set(&value->den, 1ull, 0);
         return 1;
     }
-    AnchorExactInteger divisor;
-    AnchorExactInteger remainder;
-    if (!qasm_exact_ok(parser, anchor_exact_gcd(&value->num, &value->den, &divisor)) ||
-        !qasm_exact_ok(parser, anchor_exact_divide(&value->num, &divisor, &value->num, &remainder)) ||
-        !qasm_exact_ok(parser, anchor_exact_divide(&value->den, &divisor, &value->den, &remainder)))
+    OriorExactInteger divisor;
+    OriorExactInteger remainder;
+    if (!qasm_exact_ok(parser, orior_exact_gcd(&value->num, &value->den, &divisor)) ||
+        !qasm_exact_ok(parser, orior_exact_divide(&value->num, &divisor, &value->num, &remainder)) ||
+        !qasm_exact_ok(parser, orior_exact_divide(&value->den, &divisor, &value->den, &remainder)))
     {
         return 0;
     }
@@ -94,17 +94,17 @@ int qasm_fraction_reduce(QasmParser *parser, QasmFraction *value)
 int qasm_fraction_add(QasmParser *parser, const QasmFraction *left, const QasmFraction *right, int subtract,
                       QasmFraction *result)
 {
-    AnchorExactInteger one;
-    AnchorExactInteger two;
-    AnchorExactInteger den;
-    if (!qasm_exact_ok(parser, anchor_exact_multiply(&left->num, &right->den, &one)) ||
-        !qasm_exact_ok(parser, anchor_exact_multiply(&right->num, &left->den, &two)) ||
-        !qasm_exact_ok(parser, anchor_exact_multiply(&left->den, &right->den, &den)))
+    OriorExactInteger one;
+    OriorExactInteger two;
+    OriorExactInteger den;
+    if (!qasm_exact_ok(parser, orior_exact_multiply(&left->num, &right->den, &one)) ||
+        !qasm_exact_ok(parser, orior_exact_multiply(&right->num, &left->den, &two)) ||
+        !qasm_exact_ok(parser, orior_exact_multiply(&left->den, &right->den, &den)))
     {
         return 0;
     }
-    const AnchorExactStatus status =
-        (subtract != 0) ? anchor_exact_subtract(&one, &two, &result->num) : anchor_exact_add(&one, &two, &result->num);
+    const OriorExactStatus status =
+        (subtract != 0) ? orior_exact_subtract(&one, &two, &result->num) : orior_exact_add(&one, &two, &result->num);
     if (!qasm_exact_ok(parser, status))
     {
         return 0;
@@ -117,8 +117,8 @@ int qasm_fraction_multiply(QasmParser *parser, const QasmFraction *left, const Q
                            QasmFraction *result)
 {
     QasmFraction made;
-    if (!qasm_exact_ok(parser, anchor_exact_multiply(&left->num, &right->num, &made.num)) ||
-        !qasm_exact_ok(parser, anchor_exact_multiply(&left->den, &right->den, &made.den)))
+    if (!qasm_exact_ok(parser, orior_exact_multiply(&left->num, &right->num, &made.num)) ||
+        !qasm_exact_ok(parser, orior_exact_multiply(&left->den, &right->den, &made.den)))
     {
         return 0;
     }
@@ -129,8 +129,8 @@ int qasm_fraction_multiply(QasmParser *parser, const QasmFraction *left, const Q
 int qasm_fraction_divide(QasmParser *parser, const QasmFraction *left, const QasmFraction *right, QasmFraction *result)
 {
     QasmFraction made;
-    if (!qasm_exact_ok(parser, anchor_exact_multiply(&left->num, &right->den, &made.num)) ||
-        !qasm_exact_ok(parser, anchor_exact_multiply(&left->den, &right->num, &made.den)))
+    if (!qasm_exact_ok(parser, orior_exact_multiply(&left->num, &right->den, &made.num)) ||
+        !qasm_exact_ok(parser, orior_exact_multiply(&left->den, &right->num, &made.den)))
     {
         return 0;
     }
@@ -165,67 +165,67 @@ int qasm_angle_scale(QasmParser *parser, const QasmAngle *angle, long long num, 
 // fixed point at QASM_GUARD_BITS: value * 2^QASM_GUARD_BITS as an exact integer
 
 // (left * right) / 2^QASM_GUARD_BITS, toward zero: at most one unit lost
-int qasm_fixed_multiply(QasmParser *parser, const AnchorExactInteger *left, const AnchorExactInteger *right,
-                        AnchorExactInteger *result)
+int qasm_fixed_multiply(QasmParser *parser, const OriorExactInteger *left, const OriorExactInteger *right,
+                        OriorExactInteger *result)
 {
-    AnchorExactInteger product;
-    AnchorExactInteger scale;
-    AnchorExactInteger remainder;
+    OriorExactInteger product;
+    OriorExactInteger scale;
+    OriorExactInteger remainder;
     qasm_exact_power_of_two(&scale, QASM_GUARD_BITS);
-    return qasm_exact_ok(parser, anchor_exact_multiply(left, right, &product)) &&
-           qasm_exact_ok(parser, anchor_exact_divide(&product, &scale, result, &remainder));
+    return qasm_exact_ok(parser, orior_exact_multiply(left, right, &product)) &&
+           qasm_exact_ok(parser, orior_exact_divide(&product, &scale, result, &remainder));
 }
 
 // value / divisor for a small positive divisor, toward zero: at most one unit lost
-int qasm_fixed_divide_small(QasmParser *parser, const AnchorExactInteger *value, unsigned long long divisor,
-                            AnchorExactInteger *result)
+int qasm_fixed_divide_small(QasmParser *parser, const OriorExactInteger *value, unsigned long long divisor,
+                            OriorExactInteger *result)
 {
-    AnchorExactInteger by;
-    AnchorExactInteger remainder;
+    OriorExactInteger by;
+    OriorExactInteger remainder;
     qasm_exact_set(&by, divisor, 0);
-    return qasm_exact_ok(parser, anchor_exact_divide(value, &by, result, &remainder));
+    return qasm_exact_ok(parser, orior_exact_divide(value, &by, result, &remainder));
 }
 
 // the rational times 2^QASM_GUARD_BITS times `with` (or 2^QASM_GUARD_BITS alone when with is NULL), toward zero
-int qasm_fixed_rational(QasmParser *parser, const QasmFraction *value, const AnchorExactInteger *with,
-                        AnchorExactInteger *result)
+int qasm_fixed_rational(QasmParser *parser, const QasmFraction *value, const OriorExactInteger *with,
+                        OriorExactInteger *result)
 {
-    AnchorExactInteger scaled;
-    AnchorExactInteger remainder;
+    OriorExactInteger scaled;
+    OriorExactInteger remainder;
     if (with == NULL)
     {
-        AnchorExactInteger scale;
+        OriorExactInteger scale;
         qasm_exact_power_of_two(&scale, QASM_GUARD_BITS);
-        if (!qasm_exact_ok(parser, anchor_exact_multiply(&value->num, &scale, &scaled)))
+        if (!qasm_exact_ok(parser, orior_exact_multiply(&value->num, &scale, &scaled)))
         {
             return 0;
         }
     }
-    else if (!qasm_exact_ok(parser, anchor_exact_multiply(&value->num, with, &scaled)))
+    else if (!qasm_exact_ok(parser, orior_exact_multiply(&value->num, with, &scaled)))
     {
         return 0;
     }
-    return qasm_exact_ok(parser, anchor_exact_divide(&scaled, &value->den, result, &remainder));
+    return qasm_exact_ok(parser, orior_exact_divide(&scaled, &value->den, result, &remainder));
 }
 
 int qasm_fixed_constants(QasmParser *parser)
 {
     // pi * 10^places exactly as qasm_pi.h says, then times 2^G over 10^places: floor within one unit of pi 2^G
     const unsigned int places = QASM_PI_PLACES;
-    AnchorExactInteger pi_text;
-    AnchorExactInteger scale;
-    AnchorExactInteger ten_power;
-    AnchorExactInteger product;
-    AnchorExactInteger remainder;
-    if (!qasm_exact_ok(parser, anchor_exact_from_decimal(QASM_PI_TEXT, sizeof(QASM_PI_TEXT) - 1u, places, &pi_text)))
+    OriorExactInteger pi_text;
+    OriorExactInteger scale;
+    OriorExactInteger ten_power;
+    OriorExactInteger product;
+    OriorExactInteger remainder;
+    if (!qasm_exact_ok(parser, orior_exact_from_decimal(QASM_PI_TEXT, sizeof(QASM_PI_TEXT) - 1u, places, &pi_text)))
     {
         return 0;
     }
     qasm_exact_power_of_two(&scale, QASM_GUARD_BITS);
     qasm_exact_set(&ten_power, 1ull, 0);
-    if (!qasm_exact_ok(parser, anchor_exact_scale_by_ten(&ten_power, places)) ||
-        !qasm_exact_ok(parser, anchor_exact_multiply(&pi_text, &scale, &product)) ||
-        !qasm_exact_ok(parser, anchor_exact_divide(&product, &ten_power, &parser->pi_fixed, &remainder)))
+    if (!qasm_exact_ok(parser, orior_exact_scale_by_ten(&ten_power, places)) ||
+        !qasm_exact_ok(parser, orior_exact_multiply(&pi_text, &scale, &product)) ||
+        !qasm_exact_ok(parser, orior_exact_divide(&product, &ten_power, &parser->pi_fixed, &remainder)))
     {
         return 0;
     }
@@ -234,9 +234,9 @@ int qasm_fixed_constants(QasmParser *parser)
 }
 
 // |value| as an unsigned 64-bit count, or ~0 where it does not fit
-unsigned long long qasm_exact_small(const AnchorExactInteger *value)
+unsigned long long qasm_exact_small(const OriorExactInteger *value)
 {
-    for (unsigned int limb = 2u; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+    for (unsigned int limb = 2u; limb < ORIOR_EXACT_LIMBS; limb += 1u)
     {
         if (value->limb[limb] != 0u)
         {

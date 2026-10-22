@@ -98,10 +98,10 @@ static void pattern_impulses(long long *values, unsigned long long count, unsign
     }
 }
 
-static void pattern_print_share(ScripturaLine *line, const AnchorExactInteger *numerator,
-                                const AnchorExactInteger *denominator)
+static void pattern_print_share(ScripturaLine *line, const OriorExactInteger *numerator,
+                                const OriorExactInteger *denominator)
 {
-    AnchorExactInteger percent;
+    OriorExactInteger percent;
     if (sim_exact_scaled(numerator, 100ull, &percent) != 0)
     {
         sim_ratio_print(line, &percent, denominator, 4u);
@@ -110,7 +110,7 @@ static void pattern_print_share(ScripturaLine *line, const AnchorExactInteger *n
 }
 
 static int pattern_remove(SimResults *results, PatternWork *work, const long long *noisy, const long long *target,
-                          unsigned long long period, AnchorExactInteger *numerator, AnchorExactInteger *denominator)
+                          unsigned long long period, OriorExactInteger *numerator, OriorExactInteger *denominator)
 {
     EnergyMeasurement unused;
     if (energy_recover(results, noisy, PATTERN_LENGTH, period, work->sums, &unused) == 0)
@@ -152,8 +152,8 @@ int main(void)
     EnergyMeasurement live;
     int ok = energy_recover(&results, work->stack, PATTERN_LENGTH, PATTERN_FRAME, work->sums, &live);
     energy_shuffle(work->stack, work->shuffled, PATTERN_LENGTH, sim_draw(PATTERN_KEY, 0x4445414Full));
-    AnchorExactInteger dead_numerator;
-    AnchorExactInteger dead_denominator;
+    OriorExactInteger dead_numerator;
+    OriorExactInteger dead_denominator;
     int dead = 0;
     if (ok && live.found)
     {
@@ -203,8 +203,8 @@ int main(void)
         exact +=
             (((members * work->stack[at]) - batch[at % PATTERN_FRAME]) == (members * work->scene[at])) ? 1ull : 0ull;
     }
-    AnchorExactInteger share_numerator;
-    AnchorExactInteger share_denominator;
+    OriorExactInteger share_numerator;
+    OriorExactInteger share_denominator;
     ok = ok &&
          pattern_remove(&results, work, work->stack, work->scene, PATTERN_FRAME, &share_numerator, &share_denominator);
     scriptura_text(line, "  reject: batch and incremental (Welford) routes agree on ");
@@ -224,13 +224,13 @@ int main(void)
     sim_check(&results, (broken_from_batch != 0ull) && (broken_from_welford != 0ull),
               "the broken route splits from both");
     sim_check(&results, exact == PATTERN_LENGTH, "the residual equals the moving scene as integers");
-    sim_check(&results, ok && (anchor_exact_compare(&share_numerator, &share_denominator) == 0),
+    sim_check(&results, ok && (orior_exact_compare(&share_numerator, &share_denominator) == 0),
               "the noise reduction is exactly 1");
 
     EnergyMeasurement null_measurement;
     ok = ok && energy_recover(&results, work->shuffled, PATTERN_LENGTH, PATTERN_FRAME, work->sums, &null_measurement);
-    AnchorExactInteger wrong_numerator;
-    AnchorExactInteger wrong_denominator;
+    OriorExactInteger wrong_numerator;
+    OriorExactInteger wrong_denominator;
     ok = ok && pattern_remove(&results, work, work->stack, work->scene, PATTERN_FRAME - 1ull, &wrong_numerator,
                               &wrong_denominator);
     scriptura_text(line, "  null: the shuffled stack reads period ");
@@ -273,8 +273,8 @@ int main(void)
         scriptura_text(line, present ? "   yes         " : "   no          ");
         if (present)
         {
-            AnchorExactInteger got_numerator;
-            AnchorExactInteger got_denominator;
+            OriorExactInteger got_numerator;
+            OriorExactInteger got_denominator;
             ok = pattern_remove(&results, work, work->arm, work->scene, seen.period, &got_numerator, &got_denominator);
             scriptura_text(line, "remove, reduction ");
             pattern_print_share(line, &got_numerator, &got_denominator);
@@ -296,8 +296,8 @@ int main(void)
     const long long depth[PATTERN_DEPTHS] = {0ll, 5ll, 15ll, 30ll};
     scriptura_text(line, "  floor: a static scene feature cannot be told from a fixed pattern\n  depth   reduction\n");
     int falling = 1;
-    AnchorExactInteger last_numerator;
-    AnchorExactInteger last_denominator;
+    OriorExactInteger last_numerator;
+    OriorExactInteger last_denominator;
     for (unsigned int level = 0u; ok && (level < PATTERN_DEPTHS); level += 1u)
     {
         for (unsigned long long at = 0ull; at < PATTERN_LENGTH; at += 1ull)
@@ -305,8 +305,8 @@ int main(void)
             work->target[at] = work->scene[at] + (((at % PATTERN_FRAME) == 0ull) ? depth[level] : 0ll);
             work->arm[at] = work->target[at] + work->pattern[at % PATTERN_FRAME];
         }
-        AnchorExactInteger floor_numerator;
-        AnchorExactInteger floor_denominator;
+        OriorExactInteger floor_numerator;
+        OriorExactInteger floor_denominator;
         ok = pattern_remove(&results, work, work->arm, work->target, PATTERN_FRAME, &floor_numerator,
                             &floor_denominator);
         scriptura_text(line, "  ");

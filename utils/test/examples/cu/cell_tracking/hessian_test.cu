@@ -52,7 +52,7 @@
      (HESSIAN_TEST_DRIFT_VOLUMES * HESSIAN_TEST_PADDED_MAX * sizeof(unsigned int)) +                                   \
      (4ull * DRIFT_WORDS(HESSIAN_TEST_VOXELS_MAX) * sizeof(unsigned long long)))
 
-static_assert(ANCHOR_EXACT_LIMBS > HESSIAN_TEST_LIMBS_MAX,
+static_assert(ORIOR_EXACT_LIMBS > HESSIAN_TEST_LIMBS_MAX,
               "hessian_test: the exact integer must hold the widest difference, one limb past the widest residual");
 
 static const unsigned int HESSIAN_TEST_EXTENT[HESSIAN_TEST_EXTENTS][3] = {
@@ -73,7 +73,7 @@ typedef struct
     unsigned int voxels;
     unsigned int limbs;
     unsigned int *residual;
-    AnchorExactInteger *values;
+    OriorExactInteger *values;
 } HessianTestField;
 
 static void hessian_test_value(unsigned long long key, unsigned long long voxel, unsigned int limbs,
@@ -127,9 +127,9 @@ static void hessian_test_value(unsigned long long key, unsigned long long voxel,
     }
 }
 
-static void hessian_test_exact(const unsigned int *words, unsigned int limbs, AnchorExactInteger *value)
+static void hessian_test_exact(const unsigned int *words, unsigned int limbs, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     const unsigned int negative = words[limbs - 1u] >> 31u;
     unsigned int carry = negative;
     unsigned int any = 0u;
@@ -163,7 +163,7 @@ static unsigned int hessian_test_faces(const HessianTestField *field, unsigned i
 // the host's difference at a voxel, through the exact integer library; returns 1 where it is defined, 0 where a face
 // makes it undefined, and -1 where the library could not hold it
 static int hessian_test_expected(const HessianTestField *field, unsigned int voxel, unsigned int entry,
-                                 unsigned int faces, AnchorExactInteger *sum)
+                                 unsigned int faces, OriorExactInteger *sum)
 {
     const unsigned int axis_faces[3] = {HESSIAN_FACE_Z_LOW | HESSIAN_FACE_Z_HIGH,
                                         HESSIAN_FACE_Y_LOW | HESSIAN_FACE_Y_HIGH,
@@ -171,29 +171,29 @@ static int hessian_test_expected(const HessianTestField *field, unsigned int vox
     const unsigned int pairs[HESSIAN_ENTRIES][2] = {{0u, 0u}, {1u, 1u}, {2u, 2u}, {0u, 1u}, {0u, 2u}, {1u, 2u}};
     const unsigned int first = pairs[entry][0];
     const unsigned int second = pairs[entry][1];
-    anchor_exact_zero(sum);
+    orior_exact_zero(sum);
     if (((faces & axis_faces[first]) != 0u) || ((faces & axis_faces[second]) != 0u))
     {
         return 0;
     }
     const unsigned int stride[3] = {field->height * field->width, field->width, 1u};
-    const AnchorExactInteger *const values = field->values;
+    const OriorExactInteger *const values = field->values;
     int ok = 1;
     if (first == second)
     {
         const unsigned int step = stride[first];
-        ok = (anchor_exact_add(&values[voxel + step], &values[voxel - step], sum) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(sum, &values[voxel], sum) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(sum, &values[voxel], sum) == ANCHOR_EXACT_OK);
+        ok = (orior_exact_add(&values[voxel + step], &values[voxel - step], sum) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(sum, &values[voxel], sum) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(sum, &values[voxel], sum) == ORIOR_EXACT_OK);
     }
     else
     {
         const unsigned int one = stride[first];
         const unsigned int other = stride[second];
-        ok = (anchor_exact_subtract(&values[(voxel + one) + other], &values[(voxel + one) - other], sum) ==
-              ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(sum, &values[(voxel - one) + other], sum) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_add(sum, &values[(voxel - one) - other], sum) == ANCHOR_EXACT_OK);
+        ok = (orior_exact_subtract(&values[(voxel + one) + other], &values[(voxel + one) - other], sum) ==
+              ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(sum, &values[(voxel - one) + other], sum) == ORIOR_EXACT_OK) &&
+             (orior_exact_add(sum, &values[(voxel - one) - other], sum) == ORIOR_EXACT_OK);
     }
     return (ok != 0) ? 1 : -1;
 }
@@ -208,7 +208,7 @@ static int hessian_test_reserve(HessianTestField *field, unsigned int depth, uns
     field->voxels = depth * height * width;
     field->limbs = limbs;
     field->residual = (unsigned int *)malloc(((size_t)field->voxels * limbs + 1u) * sizeof(unsigned int));
-    field->values = (AnchorExactInteger *)malloc(((size_t)field->voxels + 1u) * sizeof(AnchorExactInteger));
+    field->values = (OriorExactInteger *)malloc(((size_t)field->voxels + 1u) * sizeof(OriorExactInteger));
     return (field->residual != NULL) && (field->values != NULL);
 }
 
@@ -265,12 +265,12 @@ static void hessian_test_prove(SimResults *results, HessianTestField *field)
         for (unsigned int entry = 0u; entry < HESSIAN_ENTRIES; entry += 1u)
         {
             const unsigned int *const difference = &differences[(((size_t)point * HESSIAN_ENTRIES) + entry) * wide];
-            AnchorExactInteger want;
-            AnchorExactInteger got;
+            OriorExactInteger want;
+            OriorExactInteger got;
             const int is_defined = hessian_test_expected(field, voxel, entry, expected_faces, &want);
             hessian_test_exact(difference, wide, &got);
             differences_agree = differences_agree && (is_defined >= 0) &&
-                                ((is_defined > 0) ? (anchor_exact_compare(&got, &want) == 0) : (got.sign == 0));
+                                ((is_defined > 0) ? (orior_exact_compare(&got, &want) == 0) : (got.sign == 0));
             defined += (is_defined > 0) ? 1ull : 0ull;
         }
     }

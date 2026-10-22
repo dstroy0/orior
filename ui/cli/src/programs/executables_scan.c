@@ -5,12 +5,28 @@
 // (executables_scan_more.c reads the rest)
 #include "executables_internal.h"
 
-// the most calls of one command read from a script
-#define CLI_SCAN_CALLS 1024u
+CliCellsTally g_cli_executables_cells = CLI_CELLS_TALLY("cli_executables");
 
-// a script's code with its comments taken out, under its lock
-static char s_code[CLI_EXECUTABLES_BYTES];
-static CliLock s_code_lock = CLI_LOCK_INIT;
+char *cli_uncommented_taken(const char *text, char quote)
+{
+    // the code with its comments taken out is no longer than the text
+    const unsigned long long room = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
+    char *const code = cli_cell_taken_by(&g_cli_executables_cells, room, "a script's code");
+    if (code != NULL)
+    {
+        cli_uncommented(text, quote, code, room);
+    }
+    return code;
+}
+
+unsigned int cli_calls_taken(const char *code, const char *command, CliCall **calls)
+{
+    const unsigned int count = (code != NULL) ? cli_calls(code, command, NULL, 0u) : 0u;
+    *calls = (count != 0u) ? cli_cell_taken_by(&g_cli_executables_cells, (unsigned long long)count * sizeof(CliCall),
+                                               "the calls of a command")
+                           : NULL;
+    return (*calls != NULL) ? cli_calls(code, command, *calls, count) : 0u;
+}
 
 int cli_scan_white(char letter)
 {
@@ -158,7 +174,11 @@ unsigned int cli_calls(const char *code, const char *command, CliCall *calls, un
             continue;
         }
         const unsigned long long size = cli_inside_length(code, from + gap);
-        if (found < room)
+        if (calls == NULL)
+        {
+            found += 1u;
+        }
+        else if (found < room)
         {
             calls[found] = (CliCall){code + from + gap + 1ull, size};
             found += 1u;
@@ -211,22 +231,21 @@ static int cli_cmake_word(const CliCall *call, unsigned int index, char *out)
 
 void cli_cmake_targets(const char *text, const char *project, CliNames *names)
 {
-    static CliCall s_calls[CLI_SCAN_CALLS];
     names->count = 0u;
-    cli_lock_take(&s_code_lock);
-    cli_uncommented(text, '"', s_code, sizeof(s_code));
-    const unsigned int count = cli_calls(s_code, "add_executable", s_calls, CLI_SCAN_CALLS);
+    char *const code = cli_uncommented_taken(text, '"');
+    CliCall *calls = NULL;
+    const unsigned int count = cli_calls_taken(code, "add_executable", &calls);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char first[CLI_NAME_LONGEST];
         char second[CLI_NAME_LONGEST];
-        if (cli_cmake_word(&s_calls[at], 1u, second) &&
+        if (cli_cmake_word(&calls[at], 1u, second) &&
             ((cellul.eq(&(CatenaFinitaCfg){.src = second, .other = "IMPORTED", .cap = CLI_CELLS_POOL})) ||
              (cellul.eq(&(CatenaFinitaCfg){.src = second, .other = "ALIAS", .cap = CLI_CELLS_POOL}))))
         {
             continue;
         }
-        if (!cli_cmake_word(&s_calls[at], 0u, first))
+        if (!cli_cmake_word(&calls[at], 0u, first))
         {
             continue;
         }
@@ -253,21 +272,22 @@ void cli_cmake_targets(const char *text, const char *project, CliNames *names)
             cli_names_put(names, name, length, NULL);
         }
     }
-    cli_lock_give(&s_code_lock);
+    cli_cell_given_by(&g_cli_executables_cells, calls);
+    cli_cell_given_by(&g_cli_executables_cells, code);
 }
 
 int cli_cmake_project(const char *text, char *out)
 {
-    static CliCall s_calls[CLI_SCAN_CALLS];
-    cli_lock_take(&s_code_lock);
-    cli_uncommented(text, '"', s_code, sizeof(s_code));
-    const unsigned int count = cli_calls(s_code, "project", s_calls, CLI_SCAN_CALLS);
+    char *const code = cli_uncommented_taken(text, '"');
+    CliCall *calls = NULL;
+    const unsigned int count = cli_calls_taken(code, "project", &calls);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < count); at += 1u)
     {
-        found = cli_cmake_word(&s_calls[at], 0u, out);
+        found = cli_cmake_word(&calls[at], 0u, out);
     }
-    cli_lock_give(&s_code_lock);
+    cli_cell_given_by(&g_cli_executables_cells, calls);
+    cli_cell_given_by(&g_cli_executables_cells, code);
     return found;
 }
 
@@ -291,33 +311,33 @@ static int cli_meson_first(const CliCall *call, char *out)
 
 void cli_meson_targets(const char *text, CliNames *names)
 {
-    static CliCall s_calls[CLI_SCAN_CALLS];
     names->count = 0u;
-    cli_lock_take(&s_code_lock);
-    cli_uncommented(text, '\'', s_code, sizeof(s_code));
-    const unsigned int count = cli_calls(s_code, "executable", s_calls, CLI_SCAN_CALLS);
+    char *const code = cli_uncommented_taken(text, '\'');
+    CliCall *calls = NULL;
+    const unsigned int count = cli_calls_taken(code, "executable", &calls);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char name[CLI_NAME_LONGEST];
-        if (cli_meson_first(&s_calls[at], name))
+        if (cli_meson_first(&calls[at], name))
         {
             cli_names_put(names, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), NULL);
         }
     }
-    cli_lock_give(&s_code_lock);
+    cli_cell_given_by(&g_cli_executables_cells, calls);
+    cli_cell_given_by(&g_cli_executables_cells, code);
 }
 
 int cli_meson_project(const char *text, char *out)
 {
-    static CliCall s_calls[CLI_SCAN_CALLS];
-    cli_lock_take(&s_code_lock);
-    cli_uncommented(text, '\'', s_code, sizeof(s_code));
-    const unsigned int count = cli_calls(s_code, "project", s_calls, CLI_SCAN_CALLS);
+    char *const code = cli_uncommented_taken(text, '\'');
+    CliCall *calls = NULL;
+    const unsigned int count = cli_calls_taken(code, "project", &calls);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < count); at += 1u)
     {
-        found = cli_meson_first(&s_calls[at], out);
+        found = cli_meson_first(&calls[at], out);
     }
-    cli_lock_give(&s_code_lock);
+    cli_cell_given_by(&g_cli_executables_cells, calls);
+    cli_cell_given_by(&g_cli_executables_cells, code);
     return found;
 }

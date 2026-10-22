@@ -2,4 +2,4 @@ where	who	kind	form	gloss
 line 1	krf_removed_by	krf	krf <part>	the part whose k-files the rows left, the file's own name
 body	krf_removed_by	removed	removed <type> <query> <reason> <row>	a row a k-file of the part let go without putting it back: <type> the k-file's extension the row left, ksc or krs; <query> the run that let it go, query<n>-<datetime> as the writer names its .qry; <reason> one word, replaced where a row of another text took its place under its question or its register, refused where the part refused the form; and <row> the row's own text whole, as the k-file held it
 any	-	comment	# <text>	a comment
-any	kfile_lines_put_by	who	who <code> | who -	the who of the lines after it to the next who line, the code that put them, its code read through the who table (qry_writer who); who - where no who is known of the lines after it
+any	kfile_lines_put_by	who	who <code> | who -	the who of the lines after it to the next who line, the code that put them, its code read through the who table (orior_qry_writer who); who - where no who is known of the lines after it

@@ -127,16 +127,16 @@ extern "C" long noise_crosstalk_volume(const unsigned short *volume, const unsig
         noise_exact_word(&read.squares[axis], cell[1]);
         for (unsigned int step = 0u; step < NOISE_CROSSTALK_STEPS; step += 1u)
         {
-            AnchorExactInteger lowered;
+            OriorExactInteger lowered;
             noise_exact_word(&read.steps[axis][step], cell[2u + (2u * step)]);
             noise_exact_word(&lowered, cell[3u + (2u * step)]);
-            formed = formed && (anchor_exact_subtract(&read.steps[axis][step], &lowered, &read.steps[axis][step]) ==
-                                ANCHOR_EXACT_OK);
+            formed = formed && (orior_exact_subtract(&read.steps[axis][step], &lowered, &read.steps[axis][step]) ==
+                                ORIOR_EXACT_OK);
         }
         // V = sum d'^2 - 2 C2
-        AnchorExactInteger twice;
-        formed = formed && (anchor_exact_add(&read.steps[axis][1], &read.steps[axis][1], &twice) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_subtract(&read.squares[axis], &twice, &read.spread[axis]) == ANCHOR_EXACT_OK);
+        OriorExactInteger twice;
+        formed = formed && (orior_exact_add(&read.steps[axis][1], &read.steps[axis][1], &twice) == ORIOR_EXACT_OK) &&
+                 (orior_exact_subtract(&read.squares[axis], &twice, &read.spread[axis]) == ORIOR_EXACT_OK);
     }
     if (!NOISE_DETECTOR_CHECK(formed, &read, error, ENGINE_ERROR_RESOURCE))
     {
@@ -250,8 +250,8 @@ extern "C" long noise_charge_series(const unsigned short *bias, const unsigned s
     }
     NoiseChargeMeasurement read;
     memset(&read, 0, sizeof(read));
-    AnchorExactInteger dark_total;
-    AnchorExactInteger dark_squares;
+    OriorExactInteger dark_total;
+    OriorExactInteger dark_squares;
     noise_exact_word(&read.offset, bias_sums[0]);
     noise_exact_word(&read.offset_denominator, frames * voxels);
     noise_exact_word(&read.level_free, bias_sums[1]);
@@ -260,15 +260,15 @@ extern "C" long noise_charge_series(const unsigned short *bias, const unsigned s
     noise_exact_word(&dark_squares, dark_sums[1]);
     read.dark_level_denominator = read.offset_denominator;
     read.dark_square_denominator = read.level_free_denominator;
-    int formed = (anchor_exact_subtract(&dark_total, &read.offset, &read.dark_level) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_subtract(&dark_squares, &read.level_free, &read.dark_square) == ANCHOR_EXACT_OK);
+    int formed = (orior_exact_subtract(&dark_total, &read.offset, &read.dark_level) == ORIOR_EXACT_OK) &&
+                 (orior_exact_subtract(&dark_squares, &read.level_free, &read.dark_square) == ORIOR_EXACT_OK);
     // g = (Q_d - Q_b) M / (2 P (A_d - A_b)), turned to a positive denominator
     read.gain_read = formed && (read.dark_level.sign != 0);
     if (read.gain_read != 0)
     {
-        formed = (anchor_exact_multiply(&read.dark_square, &read.offset_denominator, &read.gain) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&read.level_free_denominator, &read.dark_level, &read.gain_denominator) ==
-                  ANCHOR_EXACT_OK);
+        formed = (orior_exact_multiply(&read.dark_square, &read.offset_denominator, &read.gain) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&read.level_free_denominator, &read.dark_level, &read.gain_denominator) ==
+                  ORIOR_EXACT_OK);
         if (read.dark_level.sign < 0)
         {
             read.gain.sign = -read.gain.sign;

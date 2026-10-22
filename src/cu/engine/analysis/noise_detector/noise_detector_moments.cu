@@ -196,7 +196,7 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
-static void noise_exact_signed(AnchorExactInteger *value, long long word)
+static void noise_exact_signed(OriorExactInteger *value, long long word)
 {
     // the magnitude of a negative word is its two's complement negation, taken unsigned
     const unsigned long long magnitude = (word < 0ll) ? (0ull - (unsigned long long)word) : (unsigned long long)word;
@@ -208,12 +208,12 @@ static void noise_exact_signed(AnchorExactInteger *value, long long word)
 }
 
 // sum gains factor times term, exactly
-static int noise_exact_add_scaled(AnchorExactInteger *sum, long long factor, const AnchorExactInteger *term)
+static int noise_exact_add_scaled(OriorExactInteger *sum, long long factor, const OriorExactInteger *term)
 {
-    AnchorExactInteger product;
+    OriorExactInteger product;
     noise_exact_signed(&product, factor);
-    return (anchor_exact_multiply(&product, term, &product) == ANCHOR_EXACT_OK) &&
-           (anchor_exact_add(sum, &product, sum) == ANCHOR_EXACT_OK);
+    return (orior_exact_multiply(&product, term, &product) == ORIOR_EXACT_OK) &&
+           (orior_exact_add(sum, &product, sum) == ORIOR_EXACT_OK);
 }
 
 // The k-statistic of order 2, 3 or 4 over a cell's blocks (the formulas at NoiseMomentCell), in signed thousandths
@@ -222,12 +222,12 @@ static int noise_moments_cumulant(const NoiseMomentCell *cell, unsigned int orde
 {
     // the block's frames, 5, far below 2^31, as are every factor below
     const long long frames = (long long)NOISE_MOMENT_BLOCK;
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
-    AnchorExactInteger term;
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
-    anchor_exact_zero(&numerator);
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
+    OriorExactInteger term;
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
+    orior_exact_zero(&numerator);
     // the denominator: the blocks times n (n - 1) down to n - order + 1
     long long falling = 1ll;
     for (unsigned int step = 0u; step < order; step += 1u)
@@ -237,7 +237,7 @@ static int noise_moments_cumulant(const NoiseMomentCell *cell, unsigned int orde
     noise_exact_word(&denominator, cell->blocks);
     // the falling product of the block's frames is positive. It re-signs to unsigned long long exactly
     noise_exact_word(&term, (unsigned long long)falling);
-    int ok = anchor_exact_multiply(&denominator, &term, &denominator) == ANCHOR_EXACT_OK;
+    int ok = orior_exact_multiply(&denominator, &term, &denominator) == ORIOR_EXACT_OK;
     if (order == 2u)
     {
         noise_exact_word(&term, cell->s2);
@@ -268,9 +268,9 @@ static int noise_moments_cumulant(const NoiseMomentCell *cell, unsigned int orde
         ok = ok && noise_exact_add_scaled(&numerator, -6ll, &term);
     }
     noise_exact_word(&term, 1000ull);
-    ok = ok && (anchor_exact_multiply(&numerator, &term, &numerator) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_divide(&numerator, &denominator, &quotient, &remainder) == ANCHOR_EXACT_OK);
-    for (unsigned int limb = 2u; ok && (limb < ANCHOR_EXACT_LIMBS); limb += 1u)
+    ok = ok && (orior_exact_multiply(&numerator, &term, &numerator) == ORIOR_EXACT_OK) &&
+         (orior_exact_divide(&numerator, &denominator, &quotient, &remainder) == ORIOR_EXACT_OK);
+    for (unsigned int limb = 2u; ok && (limb < ORIOR_EXACT_LIMBS); limb += 1u)
     {
         ok = quotient.limb[limb] == 0u;
     }
@@ -332,23 +332,23 @@ extern "C" long noise_moments_volume(const unsigned short *volume, const unsigne
 
 extern "C" void noise_line_sums_zero(NoiseLineSums *sums)
 {
-    anchor_exact_zero(&sums->samples);
-    anchor_exact_zero(&sums->along);
-    anchor_exact_zero(&sums->along_square);
-    anchor_exact_zero(&sums->measured);
-    anchor_exact_zero(&sums->cross);
+    orior_exact_zero(&sums->samples);
+    orior_exact_zero(&sums->along);
+    orior_exact_zero(&sums->along_square);
+    orior_exact_zero(&sums->measured);
+    orior_exact_zero(&sums->cross);
 }
 
 // sum gains left times right, exactly
-int noise_exact_add_product(AnchorExactInteger *sum, const AnchorExactInteger *left, const AnchorExactInteger *right)
+int noise_exact_add_product(OriorExactInteger *sum, const OriorExactInteger *left, const OriorExactInteger *right)
 {
-    AnchorExactInteger product;
-    return (anchor_exact_multiply(left, right, &product) == ANCHOR_EXACT_OK) &&
-           (anchor_exact_add(sum, &product, sum) == ANCHOR_EXACT_OK);
+    OriorExactInteger product;
+    return (orior_exact_multiply(left, right, &product) == ORIOR_EXACT_OK) &&
+           (orior_exact_add(sum, &product, sum) == ORIOR_EXACT_OK);
 }
 
 extern "C" long noise_line_sums_add(NoiseLineSums *sums, unsigned long long count, unsigned long long place,
-                                    const AnchorExactInteger *total, EngineError *error)
+                                    const OriorExactInteger *total, EngineError *error)
 {
     if (error == NULL)
     {
@@ -359,16 +359,16 @@ extern "C" long noise_line_sums_add(NoiseLineSums *sums, unsigned long long coun
         return NOISE_DETECTOR_ERROR;
     }
     NoiseLineSums gained = *sums;
-    AnchorExactInteger number;
-    AnchorExactInteger level;
-    AnchorExactInteger weighted;
+    OriorExactInteger number;
+    OriorExactInteger level;
+    OriorExactInteger weighted;
     noise_exact_word(&number, count);
     noise_exact_word(&level, place);
-    const int ok = (anchor_exact_add(&gained.samples, &number, &gained.samples) == ANCHOR_EXACT_OK) &&
-                   (anchor_exact_multiply(&number, &level, &weighted) == ANCHOR_EXACT_OK) &&
-                   (anchor_exact_add(&gained.along, &weighted, &gained.along) == ANCHOR_EXACT_OK) &&
+    const int ok = (orior_exact_add(&gained.samples, &number, &gained.samples) == ORIOR_EXACT_OK) &&
+                   (orior_exact_multiply(&number, &level, &weighted) == ORIOR_EXACT_OK) &&
+                   (orior_exact_add(&gained.along, &weighted, &gained.along) == ORIOR_EXACT_OK) &&
                    noise_exact_add_product(&gained.along_square, &weighted, &level) &&
-                   (anchor_exact_add(&gained.measured, total, &gained.measured) == ANCHOR_EXACT_OK) &&
+                   (orior_exact_add(&gained.measured, total, &gained.measured) == ORIOR_EXACT_OK) &&
                    noise_exact_add_product(&gained.cross, &level, total);
     if (!NOISE_DETECTOR_CHECK(ok, sums, error, ENGINE_ERROR_RESOURCE))
     {
@@ -390,25 +390,25 @@ extern "C" long noise_line_fit(const NoiseLineSums *sums, unsigned long long lev
     {
         return NOISE_DETECTOR_ERROR;
     }
-    AnchorExactInteger left;
-    AnchorExactInteger right;
-    AnchorExactInteger scale;
+    OriorExactInteger left;
+    OriorExactInteger right;
+    OriorExactInteger scale;
     NoiseLine fitted;
     // N B - A^2 is positive exactly where the places span two levels, by Cauchy-Schwarz over the counts
-    const int formed = (anchor_exact_multiply(&sums->samples, &sums->along_square, &left) == ANCHOR_EXACT_OK) &&
-                       (anchor_exact_multiply(&sums->along, &sums->along, &right) == ANCHOR_EXACT_OK) &&
-                       (anchor_exact_subtract(&left, &right, &fitted.denominator) == ANCHOR_EXACT_OK);
+    const int formed = (orior_exact_multiply(&sums->samples, &sums->along_square, &left) == ORIOR_EXACT_OK) &&
+                       (orior_exact_multiply(&sums->along, &sums->along, &right) == ORIOR_EXACT_OK) &&
+                       (orior_exact_subtract(&left, &right, &fitted.denominator) == ORIOR_EXACT_OK);
     const int spanned = (formed == 0) || (fitted.denominator.sign > 0);
     noise_exact_word(&scale, level_scale);
-    int ok = formed && spanned && (anchor_exact_multiply(&sums->samples, &sums->cross, &left) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&sums->along, &sums->measured, &right) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(&left, &right, &fitted.slope) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&fitted.slope, &scale, &fitted.slope) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&sums->measured, &sums->along_square, &left) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&sums->along, &sums->cross, &right) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_subtract(&left, &right, &fitted.intercept) == ANCHOR_EXACT_OK);
+    int ok = formed && spanned && (orior_exact_multiply(&sums->samples, &sums->cross, &left) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&sums->along, &sums->measured, &right) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(&left, &right, &fitted.slope) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&fitted.slope, &scale, &fitted.slope) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&sums->measured, &sums->along_square, &left) == ORIOR_EXACT_OK) &&
+             (orior_exact_multiply(&sums->along, &sums->cross, &right) == ORIOR_EXACT_OK) &&
+             (orior_exact_subtract(&left, &right, &fitted.intercept) == ORIOR_EXACT_OK);
     noise_exact_word(&scale, measurement_scale);
-    ok = ok && (anchor_exact_multiply(&fitted.denominator, &scale, &fitted.denominator) == ANCHOR_EXACT_OK);
+    ok = ok && (orior_exact_multiply(&fitted.denominator, &scale, &fitted.denominator) == ORIOR_EXACT_OK);
     if (!NOISE_DETECTOR_CHECK(spanned, sums, error, ENGINE_ERROR_REQUEST) ||
         !NOISE_DETECTOR_CHECK(ok, sums, error, ENGINE_ERROR_RESOURCE))
     {
@@ -441,10 +441,10 @@ void noise_signed_wide_add(NoiseSignedWide *sum, unsigned long long place, long 
     noise_wide_add_product((measurement < 0ll) ? &sum->lowered : &sum->raised, place, magnitude);
 }
 
-int noise_exact_signed_wide(AnchorExactInteger *value, const NoiseSignedWide *wide)
+int noise_exact_signed_wide(OriorExactInteger *value, const NoiseSignedWide *wide)
 {
-    AnchorExactInteger lowered;
+    OriorExactInteger lowered;
     noise_exact_wide(value, &wide->raised);
     noise_exact_wide(&lowered, &wide->lowered);
-    return anchor_exact_subtract(value, &lowered, value) == ANCHOR_EXACT_OK;
+    return orior_exact_subtract(value, &lowered, value) == ORIOR_EXACT_OK;
 }

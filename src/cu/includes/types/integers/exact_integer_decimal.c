@@ -32,7 +32,7 @@ static int magnitude_multiply_small(uint32_t *value, size_t *used, uint32_t fact
     {
         return 0;
     }
-    if (*used == (size_t)ANCHOR_EXACT_LIMBS)
+    if (*used == (size_t)ORIOR_EXACT_LIMBS)
     {
         return 1;
     }
@@ -57,7 +57,7 @@ static int magnitude_add_small(uint32_t *value, size_t *used, uint32_t added)
 {
     uint64_t carry = (uint64_t)added;
     size_t at = 0u;
-    while ((at < (size_t)ANCHOR_EXACT_LIMBS) && (carry != 0u))
+    while ((at < (size_t)ORIOR_EXACT_LIMBS) && (carry != 0u))
     {
         const uint64_t total = (uint64_t)value[at] + carry;
         value[at] = (uint32_t)(total & LIMB_MASK);
@@ -100,22 +100,22 @@ static int magnitude_scale_by_ten(uint32_t *value, size_t *used, uint32_t power)
     return 0;
 }
 
-AnchorExactStatus anchor_exact_scale_by_ten(AnchorExactInteger *value, uint32_t power)
+OriorExactStatus orior_exact_scale_by_ten(OriorExactInteger *value, uint32_t power)
 {
     // Scaled on a copy. An error leaves the caller's value as it was.
     EXACT_SCRATCH(scaled, EXACT_LIMBS);
     if (!EXACT_SCRATCH_VALID(scaled))
     {
-        return ANCHOR_EXACT_WILL_NOT_FIT;
+        return ORIOR_EXACT_WILL_NOT_FIT;
     }
     memcpy(scaled, value->limb, EXACT_LIMBS * sizeof(uint32_t));
     size_t used = magnitude_used(scaled);
-    AnchorExactStatus status = ANCHOR_EXACT_WILL_NOT_FIT;
+    OriorExactStatus status = ORIOR_EXACT_WILL_NOT_FIT;
     if (magnitude_scale_by_ten(scaled, &used, power) == 0)
     {
         memcpy(value->limb, scaled, EXACT_LIMBS * sizeof(uint32_t));
         settle_sign(value, value->sign);
-        status = ANCHOR_EXACT_OK;
+        status = ORIOR_EXACT_OK;
     }
     EXACT_SCRATCH_RELEASE(scaled);
     return status;
@@ -151,12 +151,12 @@ static int decimal_is_digit(char one)
  * @param[in]  text   Decimal text [BORROWS].
  * @param[in]  length How many bytes of text.
  * @param[out] layout Where the parts sit [BORROWS].
- * @return            ANCHOR_EXACT_OK, or ANCHOR_EXACT_NOT_DECIMAL where the text breaks the grammar
- *                    anchor_exact_from_decimal documents.
+ * @return            ORIOR_EXACT_OK, or ORIOR_EXACT_NOT_DECIMAL where the text breaks the grammar
+ *                    orior_exact_from_decimal documents.
  * @note Runs to the end of the text before any digit is accumulated. A malformed text is therefore
- *       ANCHOR_EXACT_NOT_DECIMAL even where its digits would also overrun the width.
+ *       ORIOR_EXACT_NOT_DECIMAL even where its digits would also overrun the width.
  */
-static AnchorExactStatus decimal_layout(const char *text, size_t length, DecimalLayout *layout)
+static OriorExactStatus decimal_layout(const char *text, size_t length, DecimalLayout *layout)
 {
     size_t at = 0u;
     while ((at < length) && (decimal_is_space(text[at]) != 0))
@@ -193,7 +193,7 @@ static AnchorExactStatus decimal_layout(const char *text, size_t length, Decimal
 
     if ((layout->integer_to == layout->integer_from) && (layout->fraction_to == layout->fraction_from))
     {
-        return ANCHOR_EXACT_NOT_DECIMAL;
+        return ORIOR_EXACT_NOT_DECIMAL;
     }
 
     layout->uncertainty_from = at;
@@ -210,7 +210,7 @@ static AnchorExactStatus decimal_layout(const char *text, size_t length, Decimal
         layout->uncertainty_to = at;
         if ((layout->uncertainty_to == layout->uncertainty_from) || (at >= length) || (text[at] != ')'))
         {
-            return ANCHOR_EXACT_NOT_DECIMAL;
+            return ORIOR_EXACT_NOT_DECIMAL;
         }
         at++;
         layout->carried = 1;
@@ -220,7 +220,7 @@ static AnchorExactStatus decimal_layout(const char *text, size_t length, Decimal
     {
         at++;
     }
-    return (at == length) ? ANCHOR_EXACT_OK : ANCHOR_EXACT_NOT_DECIMAL;
+    return (at == length) ? ORIOR_EXACT_OK : ORIOR_EXACT_NOT_DECIMAL;
 }
 
 /**
@@ -275,18 +275,18 @@ static int magnitude_accumulate_digits(uint32_t *value, size_t *used, const char
  * @param[out] value       Staging integer the value is read into [BORROWS].
  * @param[out] uncertainty Staging integer the uncertainty is read into [BORROWS].
  * @param[out] carried     Where 1 or 0 is written for a bracketed uncertainty [BORROWS].
- * @return                 ANCHOR_EXACT_OK, ANCHOR_EXACT_NOT_DECIMAL or ANCHOR_EXACT_WILL_NOT_FIT.
- * @note The shared body of anchor_exact_from_decimal and anchor_exact_from_measured. One reading of
+ * @return                 ORIOR_EXACT_OK, ORIOR_EXACT_NOT_DECIMAL or ORIOR_EXACT_WILL_NOT_FIT.
+ * @note The shared body of orior_exact_from_decimal and orior_exact_from_measured. One reading of
  *       the grammar serves both, and the two entries cannot accept different text.
  * @warning On an error `value` and `uncertainty` hold partial limbs. Both entries pass integers of
- *          their own and copy out only on ANCHOR_EXACT_OK. An error leaves a caller's untouched.
+ *          their own and copy out only on ORIOR_EXACT_OK. An error leaves a caller's untouched.
  */
-static AnchorExactStatus decimal_read(const char *text, size_t length, uint32_t digits, AnchorExactInteger *value,
-                                      AnchorExactInteger *uncertainty, int *carried)
+static OriorExactStatus decimal_read(const char *text, size_t length, uint32_t digits, OriorExactInteger *value,
+                                      OriorExactInteger *uncertainty, int *carried)
 {
     DecimalLayout layout;
-    const AnchorExactStatus layout_status = decimal_layout(text, length, &layout);
-    if (layout_status != ANCHOR_EXACT_OK)
+    const OriorExactStatus layout_status = decimal_layout(text, length, &layout);
+    if (layout_status != ORIOR_EXACT_OK)
     {
         return layout_status;
     }
@@ -302,62 +302,62 @@ static AnchorExactStatus decimal_read(const char *text, size_t length, uint32_t 
     const size_t places = trimmed_to - layout.fraction_from;
     if (places > (size_t)digits)
     {
-        return ANCHOR_EXACT_WILL_NOT_FIT;
+        return ORIOR_EXACT_WILL_NOT_FIT;
     }
 
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     size_t value_used = 0u;
     if ((magnitude_accumulate_digits(value->limb, &value_used, text, layout.integer_from, layout.integer_to) != 0) ||
         (magnitude_accumulate_digits(value->limb, &value_used, text, layout.fraction_from, trimmed_to) != 0))
     {
-        return ANCHOR_EXACT_WILL_NOT_FIT;
+        return ORIOR_EXACT_WILL_NOT_FIT;
     }
     // places is at most digits, checked above. The difference fits the uint32_t it is passed as.
     if (magnitude_scale_by_ten(value->limb, &value_used, digits - (uint32_t)places) != 0)
     {
-        return ANCHOR_EXACT_WILL_NOT_FIT;
+        return ORIOR_EXACT_WILL_NOT_FIT;
     }
 
-    anchor_exact_zero(uncertainty);
+    orior_exact_zero(uncertainty);
     if (layout.carried != 0)
     {
         // The bracketed digits count units of the last place printed, trailing zeros included.
         const size_t printed = layout.fraction_to - layout.fraction_from;
         if (printed > (size_t)digits)
         {
-            return ANCHOR_EXACT_WILL_NOT_FIT;
+            return ORIOR_EXACT_WILL_NOT_FIT;
         }
         size_t spread_used = 0u;
         if (magnitude_accumulate_digits(uncertainty->limb, &spread_used, text, layout.uncertainty_from,
                                         layout.uncertainty_to) != 0)
         {
-            return ANCHOR_EXACT_WILL_NOT_FIT;
+            return ORIOR_EXACT_WILL_NOT_FIT;
         }
         // printed is at most digits, checked above. The difference fits the uint32_t.
         if (magnitude_scale_by_ten(uncertainty->limb, &spread_used, digits - (uint32_t)printed) != 0)
         {
-            return ANCHOR_EXACT_WILL_NOT_FIT;
+            return ORIOR_EXACT_WILL_NOT_FIT;
         }
     }
 
     settle_sign(value, layout.sign);
     settle_sign(uncertainty, 1);
     *carried = layout.carried;
-    return ANCHOR_EXACT_OK;
+    return ORIOR_EXACT_OK;
 }
 
-AnchorExactStatus anchor_exact_from_decimal(const char *text, size_t length, uint32_t digits, AnchorExactInteger *value)
+OriorExactStatus orior_exact_from_decimal(const char *text, size_t length, uint32_t digits, OriorExactInteger *value)
 {
     // Read into a local value. An error leaves the caller's value as it was. This entry reads the
     // uncertainty and drops it, as its declaration documents.
     EXACT_VALUE(read);
     EXACT_VALUE(spread);
-    AnchorExactStatus status = ANCHOR_EXACT_WILL_NOT_FIT;
+    OriorExactStatus status = ORIOR_EXACT_WILL_NOT_FIT;
     if (EXACT_SCRATCH_VALID(read) && EXACT_SCRATCH_VALID(spread))
     {
         int carried = 0;
         status = decimal_read(text, length, digits, read, spread, &carried);
-        if (status == ANCHOR_EXACT_OK)
+        if (status == ORIOR_EXACT_OK)
         {
             *value = *read;
         }
@@ -367,17 +367,17 @@ AnchorExactStatus anchor_exact_from_decimal(const char *text, size_t length, uin
     return status;
 }
 
-AnchorExactStatus anchor_exact_from_measured(const char *text, size_t length, uint32_t digits,
-                                             AnchorExactInteger *value, AnchorExactInteger *uncertainty, int *carried)
+OriorExactStatus orior_exact_from_measured(const char *text, size_t length, uint32_t digits,
+                                             OriorExactInteger *value, OriorExactInteger *uncertainty, int *carried)
 {
     EXACT_VALUE(read);
     EXACT_VALUE(spread);
-    AnchorExactStatus status = ANCHOR_EXACT_WILL_NOT_FIT;
+    OriorExactStatus status = ORIOR_EXACT_WILL_NOT_FIT;
     if (EXACT_SCRATCH_VALID(read) && EXACT_SCRATCH_VALID(spread))
     {
         int bracket = 0;
         status = decimal_read(text, length, digits, read, spread, &bracket);
-        if (status == ANCHOR_EXACT_OK)
+        if (status == ORIOR_EXACT_OK)
         {
             *value = *read;
             *uncertainty = *spread;

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sea.h: Node's single executable: a script built into a copy of node (sea.c, sea_build.c). From Node 25.5,
-// `node --build-sea` makes it. Before that, orior takes Node's documented steps itself, with no package fetched to
+// `node --build-sea` makes it. Before that, orior_cli takes Node's documented steps itself, with no package fetched to
 // take them: `node --experimental-sea-config` makes the script's blob, node is copied, the copy's signature is taken
 // off, the blob is added to it as the resource NODE_SEA_BLOB on Windows or as the note of that name in a segment of its
 // own on Linux, and the fuse is turned from 0 to 1.
@@ -11,6 +11,7 @@
 #ifndef SEA_H
 #define SEA_H
 
+#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
 
 // the most program headers a Linux node's are read with, the two this adds among them
@@ -22,6 +23,8 @@ unsigned int cli_sea_outside(const char *text, char (*found)[CLI_NAME_LONGEST], 
 // the script at `main` built into the single executable `output` with `node`, `module` saying the script is an ES
 // module, each step said through `say` as it goes: the executable's path into `made`, which holds CLI_PATH_LONGEST, 1,
 // or 0 with why said
+// the cells a build holds while it runs, the script read (sea_build.c)
+extern CliCellsTally g_cli_sea_cells;
 int cli_sea_build(const char *node, const char *main, const char *output, int module, QuerySink say, char *made,
                   CliLine *said);
 

@@ -18,8 +18,6 @@
 #define CLI_WINDOW_PROCESSES 8192u
 
 static CliLock s_lock = CLI_LOCK_INIT;
-static const char *s_paths[CLI_WINDOW_PATHS];
-static char s_full[CLI_WINDOW_PATHS][CLI_PATH_LONGEST];
 
 // the tree open here, or null where none is
 static int tree_root_now(const CliServeArgs *args, CliLine *out, CliLine *said)
@@ -69,11 +67,14 @@ static int tree_inside(const CliServeArgs *args, CliLine *out, CliLine *said)
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
-    int whole = cli_serve_strings(args, "paths", s_paths, CLI_WINDOW_PATHS, &count, said);
+    const char **paths = NULL;
+    int whole = cli_serve_strings_taken(args, "paths", CLI_WINDOW_PATHS, &paths, &count, said);
+    char (*const full)[CLI_PATH_LONGEST] =
+        whole ? cli_serve_cell((count + 1ull) * CLI_PATH_LONGEST, "the paths made whole", said) : NULL;
+    whole = whole && (full != NULL);
     for (unsigned int at = 0u; whole && (at < count); at += 1u)
     {
-        whole = cli_inside(root, s_paths[at], s_full[at], said);
+        whole = cli_inside(root, paths[at], full[at], said);
     }
     if (whole)
     {
@@ -81,11 +82,12 @@ static int tree_inside(const CliServeArgs *args, CliLine *out, CliLine *said)
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             cli_line_text(out, (at > 0u) ? "," : "");
-            cli_window_quoted(out, s_full[at]);
+            cli_window_quoted(out, full[at]);
         }
         cli_line_character(out, ']');
     }
-    cli_lock_give(&s_lock);
+    cli_cell_given(full);
+    cli_serve_strings_given(paths);
     return whole;
 }
 
@@ -101,10 +103,10 @@ static int tree_files_paste(const CliServeArgs *args, CliLine *out, CliLine *sai
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
-    const int pasted = cli_serve_strings(args, "paths", s_paths, CLI_WINDOW_PATHS, &count, said) &&
-                       cli_files_paste(root, into, s_paths, count, cut, out, said);
-    cli_lock_give(&s_lock);
+    const char **paths = NULL;
+    const int pasted = cli_serve_strings_taken(args, "paths", CLI_WINDOW_PATHS, &paths, &count, said) &&
+                       cli_files_paste(root, into, paths, count, cut, out, said);
+    cli_serve_strings_given(paths);
     return pasted;
 }
 
@@ -142,10 +144,10 @@ static int tree_bring_over(const CliServeArgs *args, CliLine *out, CliLine *said
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
-    const int brought = cli_serve_strings(args, "paths", s_paths, CLI_WINDOW_PATHS, &count, said) &&
-                        cli_files_bring_over(tree_linked, NULL, into, s_paths, count, tree_bring_told, NULL, out, said);
-    cli_lock_give(&s_lock);
+    const char **paths = NULL;
+    const int brought = cli_serve_strings_taken(args, "paths", CLI_WINDOW_PATHS, &paths, &count, said) &&
+                        cli_files_bring_over(tree_linked, NULL, into, paths, count, tree_bring_told, NULL, out, said);
+    cli_serve_strings_given(paths);
     return brought;
 }
 
@@ -338,22 +340,20 @@ static int tree_link_shell_words(const CliServeArgs *args, CliLine *out, CliLine
 static int tree_started_outside(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     (void)out;
-    static const char *s_words[CLI_WINDOW_PATHS + 1u];
+    const char **words = NULL;
     unsigned int count = 0u;
-    cli_lock_take(&s_lock);
-    int started = cli_serve_strings(args, "words", s_words, CLI_WINDOW_PATHS, &count, said) && (count > 0u);
+    int started = cli_serve_strings_taken(args, "words", CLI_WINDOW_PATHS, &words, &count, said) && (count > 0u);
     if (started)
     {
-        s_words[count] = NULL;
         unsigned int id = 0u;
-        started = cli_started_outside(s_words, &id);
+        started = cli_started_outside(words, &id);
         if (!started)
         {
-            cli_line_text(said, s_words[0]);
+            cli_line_text(said, words[0]);
             cli_line_text(said, ": it could not be started");
         }
     }
-    cli_lock_give(&s_lock);
+    cli_serve_strings_given(words);
     return started;
 }
 
@@ -388,13 +388,13 @@ static int tree_servers_checking(const CliServeArgs *args, CliLine *out, CliLine
 static int tree_servers_tools_for(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     unsigned int count = 0u;
-    cli_lock_take(&s_lock);
-    const int read = cli_serve_strings(args, "languages", s_paths, CLI_WINDOW_PATHS, &count, said);
+    const char **languages = NULL;
+    const int read = cli_serve_strings_taken(args, "languages", CLI_WINDOW_PATHS, &languages, &count, said);
     if (read)
     {
-        cli_servers_tools_for(s_paths, count, out);
+        cli_servers_tools_for(languages, count, out);
     }
-    cli_lock_give(&s_lock);
+    cli_serve_strings_given(languages);
     return read;
 }
 
@@ -402,13 +402,13 @@ static int tree_servers_tools_for(const CliServeArgs *args, CliLine *out, CliLin
 static int tree_servers_stop(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     unsigned int count = 0u;
-    cli_lock_take(&s_lock);
-    const int read = cli_serve_strings(args, "tools", s_paths, CLI_WINDOW_PATHS, &count, said);
+    const char **tools = NULL;
+    const int read = cli_serve_strings_taken(args, "tools", CLI_WINDOW_PATHS, &tools, &count, said);
     if (read)
     {
-        cli_servers_stop(s_paths, count, out);
+        cli_servers_stop(tools, count, out);
     }
-    cli_lock_give(&s_lock);
+    cli_serve_strings_given(tools);
     return read;
 }
 

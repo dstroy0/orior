@@ -1075,6 +1075,16 @@ fn open() {
             // A page that never asks for the window still has it shown after SHOW_ANYWAY.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_background_color(Some(tauri::window::Color(0x13, 0x13, 0x31, 0xff)));
+                // The web view's browser, counted in what the app holds wherever it stands.
+                #[cfg(windows)]
+                let _ = window.with_webview(|platform| {
+                    let mut browser = 0u32;
+                    // SAFETY: the web view's own interface, on the thread that owns it, writing one number.
+                    let known = unsafe { platform.controller().CoreWebView2().and_then(|core| core.BrowserProcessId(&mut browser)) };
+                    if known.is_ok() {
+                        memory::browser_known(browser);
+                    }
+                });
                 // The system's own title bar where the reader asked for it, set before the window shows.
                 if system_title_bar() {
                     let _ = window.set_decorations(true);

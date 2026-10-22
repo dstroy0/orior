@@ -31,7 +31,7 @@ static int query_learn_clock(QueryContext *context, const QueryFiles *files, con
     }
     static char s_clock[QUERY_PATH_LONGEST];
     static QueryRun s_run;
-    if (!query_context_tool(context, "bus_clock", s_clock, said) ||
+    if (!query_context_tool(context, "orior_bus_clock", s_clock, said) ||
         !query_context_started(context, &s_run, QUERY_LEARN_FOLDER, said))
     {
         return -1;
@@ -40,7 +40,7 @@ static int query_learn_clock(QueryContext *context, const QueryFiles *files, con
     const char *const words[6] = {s_clock, files->costs, step->word, step->base, "10", NULL};
     long long code = -1ll;
     const int ran =
-        query_run_read(&s_run, read, 1u, said) && query_context_teed(context, &s_run, "bus_clock", words, &code, said);
+        query_run_read(&s_run, read, 1u, said) && query_context_teed(context, &s_run, "orior_bus_clock", words, &code, said);
     if (!query_context_ended(context, &s_run, said) || !ran)
     {
         return -1;
@@ -56,7 +56,7 @@ static int query_learn_pass(QueryContext *context, const QueryFiles *files, cons
     static char s_cross[QUERY_PATH_LONGEST];
     static char s_nvdisasm[QUERY_PATH_LONGEST];
     static QueryRun s_run;
-    if (!query_context_tool(context, "measuring_stick_query", s_cross, said) ||
+    if (!query_context_tool(context, "orior_measuring_stick_query", s_cross, said) ||
         !query_nvdisasm(context, s_nvdisasm, said) || !query_context_started(context, &s_run, QUERY_LEARN_FOLDER, said))
     {
         return -1;
@@ -79,7 +79,7 @@ static int query_learn_pass(QueryContext *context, const QueryFiles *files, cons
         static char s_seeds[QUERY_PATH_LONGEST];
         const char *const seeds[4] = {s_seeds, step->word, "--modifiers", NULL};
         long long seeded = -1ll;
-        whole = query_context_tool(context, "sass_listing_seeds", s_seeds, said) &&
+        whole = query_context_tool(context, "orior_sass_listing_seeds", s_seeds, said) &&
                 query_context_handed(context, &s_run, "seeds.txt", seeds, &seeded, said);
         if (whole && (seeded != 0ll))
         {
@@ -103,7 +103,7 @@ static int query_learn_pass(QueryContext *context, const QueryFiles *files, cons
         memor.cpy(&(MemoriaCfg){.dst = &s_teacher[1],
                                 .src = s_words.word,
                                 .bytes = (size_t)(s_words.count + 1u) * sizeof(s_words.word[0])});
-        whole = query_context_teed(context, &s_run, "khw_learn", s_teacher, &code, said);
+        whole = query_context_teed(context, &s_run, "orior_khw_learn", s_teacher, &code, said);
     }
     if (!query_context_ended(context, &s_run, said) || !whole)
     {
@@ -158,7 +158,7 @@ static int query_learn_offline(QueryContext *context, const QueryFiles *files, c
     }
     const int needs_cross = step->kind != QUERY_LEARN_ENUMERATE;
     static QueryRun s_run;
-    if ((needs_cross && (!query_context_tool(context, "measuring_stick_query", s_cross, said) ||
+    if ((needs_cross && (!query_context_tool(context, "orior_measuring_stick_query", s_cross, said) ||
                          !query_nvdisasm(context, s_nvdisasm, said))) ||
         !query_context_started(context, &s_run, QUERY_LEARN_FOLDER, said))
     {
@@ -173,12 +173,11 @@ static int query_learn_offline(QueryContext *context, const QueryFiles *files, c
     CliLine rounds_line = {rounds, sizeof(rounds), 0ull};
     cli_line_decimal(&rounds_line, step->rounds, 0u);
     cli_line_closed(&rounds_line);
-    const char *forms = "forms.txt";
     if (step->kind == QUERY_LEARN_ENUMERATE)
     {
-        forms = (query_learn_lines(&s_run, "forms_work.txt") != 0u) ? "forms_work.txt" : "forms.txt";
+        const char *const forms = (query_learn_lines(&s_run, "forms_work.txt") != 0u) ? "forms_work.txt" : "forms.txt";
         const unsigned int seeded = query_learn_lines(&s_run, forms);
-        query_words_add(&s_words, "--slot");
+        query_words_add(&s_words, "--position");
         query_words_add(&s_words, step->word);
         if (seeded != 0u)
         {
@@ -213,7 +212,7 @@ static int query_learn_offline(QueryContext *context, const QueryFiles *files, c
     memor.cpy(&(MemoriaCfg){
         .dst = &s_teacher[1], .src = s_words.word, .bytes = (size_t)(s_words.count + 1u) * sizeof(s_words.word[0])});
     long long code = -1ll;
-    whole = whole && query_context_teed(context, &s_run, "khw_learn", s_teacher, &code, said);
+    whole = whole && query_context_teed(context, &s_run, "orior_khw_learn", s_teacher, &code, said);
     if (whole && (step->kind != QUERY_LEARN_ROUNDS))
     {
         if (code != 0ll)
@@ -244,7 +243,7 @@ static int query_learn_offline(QueryContext *context, const QueryFiles *files, c
             const char *const carried[7] = {carrier,         "--dry", files->machine, files->layout, "--list",
                                             "questions.txt", NULL};
             long long carried_code = -1ll;
-            whole = query_context_teed(context, &s_run, "cubin_run", carried, &carried_code, said);
+            whole = query_context_teed(context, &s_run, "orior_cubin_run", carried, &carried_code, said);
             if (whole && (carried_code != 0ll))
             {
                 cli_line_text(said, "the carrier did not read the list");
@@ -268,7 +267,7 @@ static int query_learn_offline(QueryContext *context, const QueryFiles *files, c
             {
                 query_said(context, line);
             }
-            query_said(context, "  cross-check them: orior protocol cross [--base <cu>]");
+            query_said(context, "  cross-check them: orior_cli protocol cross [--base <cu>]");
         }
         code = 0ll;
     }
@@ -294,9 +293,9 @@ int query_learn_run(QueryContext *context, const char *const *words, unsigned in
     static char s_teacher[QUERY_PATH_LONGEST];
     char work[QUERY_PATH_LONGEST];
     query_at(context, QUERY_LEARN_WORK, work);
-    if (!query_context_tool(context, "khw_machine_write", s_writer, said) ||
-        !query_context_tool(context, "cubin_run", s_carrier, said) ||
-        !query_context_tool(context, "khw_learn", s_teacher, said))
+    if (!query_context_tool(context, "orior_khw_machine_write", s_writer, said) ||
+        !query_context_tool(context, "orior_cubin_run", s_carrier, said) ||
+        !query_context_tool(context, "orior_khw_learn", s_teacher, said))
     {
         return -1;
     }

@@ -264,7 +264,7 @@ int cli_zip_data(const unsigned char *bytes, unsigned long long size, const CliM
         if (record.packed > room)
         {
             cli_line_text(said, name);
-            cli_line_text(said, " is larger than orior holds");
+            cli_line_text(said, " is larger than orior_cli holds");
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = out, .src = packed, .bytes = record.packed});
@@ -283,7 +283,7 @@ int cli_zip_data(const unsigned char *bytes, unsigned long long size, const CliM
         cli_line_text(said, name);
         cli_line_text(said, " is packed by method ");
         cli_line_decimal(said, record.method, 1u);
-        cli_line_text(said, ", which orior does not read");
+        cli_line_text(said, ", which orior_cli does not read");
         return 0;
     }
     if (cli_crc32(out, *out_size) != record.crc)
@@ -309,12 +309,6 @@ int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliM
                  const unsigned char *data, unsigned long long data_size, unsigned char *out, unsigned long long room,
                  unsigned long long *out_size, CliLine *said)
 {
-    // the directory written again and a member deflated, a cell taken for the writing
-    typedef struct
-    {
-        unsigned char directory[CLI_ARCHIVE_BYTES];
-        unsigned char deflated[CLI_ARCHIVE_BYTES];
-    } CliZipRoom;
     unsigned long long start = 0ull;
     unsigned long long count = 0ull;
     unsigned long long end = 0ull;
@@ -322,12 +316,18 @@ int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliM
     {
         return 0;
     }
-    CliZipRoom *const writing = cli_cell_taken(sizeof(*writing), "a zip's writing");
+    // the directory written again, as long as it was, and the member changed deflated, which is kept only where it is
+    // smaller than the member: one cell for the writing, the directory first
+    const unsigned long long directory_room = end - start;
+    const unsigned long long deflated_room = data_size;
+    unsigned char *const writing = cli_cell_taken(directory_room + deflated_room + 1ull, "a zip's writing");
     if (writing == NULL)
     {
         cli_line_text(said, "a zip's writing could not be taken");
         return 0;
     }
+    unsigned char *const written_directory = writing;
+    unsigned char *const written_deflated = writing + directory_room;
     unsigned long long used = 0ull;
     unsigned long long directory = 0ull;
     unsigned long long at = start;
@@ -338,7 +338,7 @@ int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliM
         done = cli_central(bytes, size, at, &record, said);
         if (done && ((record.packed > 0xffffffffull) || (record.size > 0xffffffffull) || (used > 0xffffffffull)))
         {
-            cli_line_text(said, "the zip is too large for orior to write back");
+            cli_line_text(said, "the zip is too large for orior_cli to write back");
             done = 0;
         }
         unsigned long long name_length = 0ull;
@@ -363,11 +363,10 @@ int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliM
         const unsigned char *body = NULL;
         if (at == target->at)
         {
-            const unsigned long long deflated =
-                cli_deflate(data, data_size, writing->deflated, sizeof(writing->deflated));
+            const unsigned long long deflated = cli_deflate(data, data_size, written_deflated, deflated_room);
             const int smaller = (deflated != 0ull) && (deflated < data_size);
             method = smaller ? 8ull : 0ull;
-            body = smaller ? writing->deflated : data;
+            body = smaller ? written_deflated : data;
             packed = smaller ? deflated : data_size;
             crc = cli_crc32(data, data_size);
             length = data_size;
@@ -386,7 +385,7 @@ int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliM
         // the local header as it was, its sizes and check set here, and no record after the data
         if ((used + head_length + packed) > room)
         {
-            cli_line_text(said, "the zip is larger than orior holds");
+            cli_line_text(said, "the zip is larger than orior_cli holds");
             done = 0;
             break;
         }
@@ -402,21 +401,21 @@ int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliM
         used += head_length;
         memor.cpy(&(MemoriaCfg){.dst = out + used, .src = body, .bytes = packed});
         used += packed;
-        if ((directory + record.length) > sizeof(writing->directory))
+        if ((directory + record.length) > directory_room)
         {
-            cli_line_text(said, "the zip's directory is larger than orior holds");
+            cli_line_text(said, "the zip's directory is larger than orior_cli holds");
             done = 0;
             break;
         }
-        memor.cpy(&(MemoriaCfg){.dst = writing->directory + directory, .src = bytes + at, .bytes = record.length});
+        memor.cpy(&(MemoriaCfg){.dst = written_directory + directory, .src = bytes + at, .bytes = record.length});
         unsigned long long central_flags = 0ull;
         cli_archive_number(bytes, size, at + 8ull, 2u, &central_flags, said);
-        cli_put_number(writing->directory, directory + 8ull, central_flags & ~(1ull << 3u), 2u);
-        cli_put_number(writing->directory, directory + 10ull, method, 2u);
-        cli_put_number(writing->directory, directory + 16ull, crc, 4u);
-        cli_put_number(writing->directory, directory + 20ull, packed, 4u);
-        cli_put_number(writing->directory, directory + 24ull, length, 4u);
-        cli_put_number(writing->directory, directory + 42ull, offset, 4u);
+        cli_put_number(written_directory, directory + 8ull, central_flags & ~(1ull << 3u), 2u);
+        cli_put_number(written_directory, directory + 10ull, method, 2u);
+        cli_put_number(written_directory, directory + 16ull, crc, 4u);
+        cli_put_number(written_directory, directory + 20ull, packed, 4u);
+        cli_put_number(written_directory, directory + 24ull, length, 4u);
+        cli_put_number(written_directory, directory + 42ull, offset, 4u);
         directory += record.length;
         at += record.length;
     }
@@ -424,12 +423,12 @@ int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliM
     const unsigned long long tail = size - end;
     if (done && ((used + directory + tail) > room))
     {
-        cli_line_text(said, "the zip is larger than orior holds");
+        cli_line_text(said, "the zip is larger than orior_cli holds");
         done = 0;
     }
     if (done)
     {
-        memor.cpy(&(MemoriaCfg){.dst = out + used, .src = writing->directory, .bytes = directory});
+        memor.cpy(&(MemoriaCfg){.dst = out + used, .src = written_directory, .bytes = directory});
         used += directory;
         memor.cpy(&(MemoriaCfg){.dst = out + used, .src = bytes + end, .bytes = tail});
         cli_put_number(out, used + 8ull, count, 2u);

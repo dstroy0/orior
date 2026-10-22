@@ -38,7 +38,7 @@ int cli_comms_within(const char *inner, const char *outer);
 // granted channels of the parent's own alone. Each 1, or 0 with why said
 int cli_comms_register(const char *name, int has_process, unsigned int process, const char *const *listen,
                        unsigned int listens, const char *const *speak, unsigned int speaks, char *key, CliLine *said);
-int cli_comms_register_held(const char *name, const char *const *listen, unsigned int listens, const char *const *speak,
+int cli_comms_register_kept(const char *name, const char *const *listen, unsigned int listens, const char *const *speak,
                             unsigned int speaks, char *key, CliLine *said);
 int cli_comms_register_under(const char *parent, const char *name, int has_process, unsigned int process,
                              const char *const *listen, unsigned int listens, const char *const *speak,

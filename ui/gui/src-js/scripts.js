@@ -20,18 +20,19 @@
 // not ask to reach, is refused; one that asks for more after an update waits to be let again. A
 // plugin names the form of the calls it was written for, `api` in its plugin.json, and orior
 // keeps each form it has given: a plugin of an older form gets that form's calls, each answered as
-// it was.
+// it was. From the fifth form on it brings a language server of its own, puts commands in the
+// command palette, hears what is pressed in its panels and keeps secrets (plugin_server.js,
+// plugin_panels.js).
 
 import { invoke, onCalls } from "./bridge.js";
-import { motionReduced } from "./motion.js";
-import { pluginReadings, pluginsOff, setPluginOn } from "./plugins.js";
+import { drawPanels as drawPanelsOf } from "./plugin_panels.js";
+import { hearServers, pluginCommands, preludeFive, SERVER_CALLS, serverStopped } from "./plugin_server.js";
+import { pluginReadings, pluginsOff } from "./plugins.js";
 import { say } from "./statusbar.js";
 
 // How long a plugin may go without answering before it is named stuck, and how often each is asked.
 const STUCK = 2000;
 
-// What a plugin's panel is drawn with where less motion is asked for.
-const STILL_PANEL = "<style>*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}</style>";
 const ASK = 1000;
 
 // The forms of the calls, each the code that sets `orior` in a plugin's worker before the plugin's own.
@@ -93,6 +94,10 @@ PRELUDES[3] = PRELUDES[2].replace("api: 2,", "api: 3,").replace("    files: Obje
 // The fourth form: the third's calls, and a part of a file's lines, from a line to before another, the
 // one way a file held as pages is read (paged.js).
 PRELUDES[4] = PRELUDES[3].replace("api: 3,", "api: 4,").replace('active: () => call("editor.active") }),', 'active: () => call("editor.active"), lines: (path, from, to) => call("editor.lines", path, from, to) }),');
+
+// The fifth form: the fourth's calls, and the plugin's language server, its commands, its secrets and the
+// browser (plugin_server.js).
+PRELUDES[5] = preludeFive(PRELUDES[4]);
 
 // What each plugin was let read, write and reach, by its id, kept as the setting plugins.allowed.
 const ALLOWED = "orior.plugins.allowed";
@@ -171,7 +176,7 @@ const reachable = (hosts, host) => hosts.some((one) => one === host || (one.star
 // The theme's colors a plugin reads, by the names of the window's own.
 const COLORS = ["--bg", "--surface", "--well", "--fg", "--fg-2", "--fg-3", "--line", "--signal", "--link", "--fail", "--ed-bg", "--ed-fg", "--ed-added", "--ed-changed", "--ed-removed"];
 
-const state = { running: new Map(), hooks: null, timer: 0, finding: null, node: null, told: new Set() };
+const state = { running: new Map(), hooks: null, timer: 0, node: null, told: new Set() };
 
 // The marks the running plugins lay on the file at `path`: each line's, from every plugin, as
 // [{ text, kind, title, plugin }].
@@ -207,37 +212,10 @@ function repaint() {
   state.hooks?.repaint();
 }
 
-function drawPanels() {
-  const host = document.getElementById("plugin-panels");
-  const shown = [...state.running.values()].flatMap((one) => [...one.panels].map(([id, panel]) => ({ one, id, panel })));
-  host.hidden = !shown.length;
-  const kept = new Map([...host.children].map((node) => [node.dataset.key, node]));
-  host.replaceChildren(
-    ...shown.map(({ one, id, panel }) => {
-      const key = `${one.id}/${id}`;
-      const made = kept.get(key) ?? element("section", { className: "plugin-panel", ariaLabel: String(panel.title ?? id) });
-      made.dataset.key = key;
-      const close = element("button", { type: "button", className: "plugin-panel-close", textContent: "×", title: "Close" });
-      close.addEventListener("click", () => {
-        one.panels.delete(id);
-        drawPanels();
-      });
-      let frame = made.querySelector("iframe");
-      if (!frame) {
-        frame = element("iframe", { className: "plugin-panel-frame", title: String(panel.title ?? id) });
-        frame.setAttribute("sandbox", "");
-      }
-      // A panel draws still where less motion is asked for, its animations and transitions ended.
-      const html = String(panel.html ?? "") + (motionReduced() ? STILL_PANEL : "");
-      if (frame.dataset.html !== html) {
-        frame.dataset.html = html;
-        frame.srcdoc = html;
-      }
-      made.replaceChildren(element("header", {}, element("span", { textContent: `${panel.title ?? id}`, title: one.name }), close), frame);
-      return made;
-    }),
-  );
-}
+const drawPanels = () => drawPanelsOf(state.running);
+
+// The commands the running plugins put in the command palette.
+export const pluginCommandRows = () => pluginCommands(state.running);
 
 function drawOverlays() {
   const host = document.getElementById("editor");
@@ -325,6 +303,7 @@ const CALLS = {
     return state.hooks.linesOf(String(path), Math.max(0, Number(from) || 0), Math.max(0, Number(to) || 0));
   },
   "editor.active": () => state.hooks?.active() ?? null,
+  "editor.open": async (one, path, line, col) => state.hooks.open(String(path), Math.max(0, Number(line) || 0), Math.max(0, Number(col) || 0)),
   "files.read": async (one, path) => {
     hold(one, "reads", String(path));
     return (await invoke("file_read", { path: String(path) })).text;
@@ -349,6 +328,7 @@ const CALLS = {
   },
   "settings.read": async (one) => invoke("plugin_settings_read", { id: one.id }),
   "settings.write": async (one, values) => invoke("plugin_settings_write", { id: one.id, values }),
+  ...SERVER_CALLS,
 };
 
 async function answer(one, data) {
@@ -366,7 +346,7 @@ async function answer(one, data) {
   const run = CALLS[data.call];
   try {
     if (!run) {
-      throw new Error(`orior has no call ${data.call}`);
+      throw new Error(`orior_gui has no call ${data.call}`);
     }
     const value = await run(one, ...(data.args ?? []));
     one.worker?.postMessage({ answer: data.id, value: value ?? null });
@@ -382,6 +362,7 @@ export function stopPlugin(id) {
     return;
   }
   one.worker.terminate();
+  serverStopped(one);
   state.running.delete(id);
   drawPanels();
   drawOverlays();
@@ -405,7 +386,7 @@ async function startPlugin(reading) {
   const url = URL.createObjectURL(new Blob([prelude, "\n", code], { type: "text/javascript" }));
   const worker = new Worker(url, { name: id });
   URL.revokeObjectURL(url);
-  const one = { id, name: reading.name ?? id, api, asks: reading.asks, worker, answered: performance.now(), asked: 0, marks: new Map(), overlays: new Map(), panels: new Map(), labels: new Map(), chrome: null };
+  const one = { id, name: reading.name ?? id, api, asks: reading.asks, commands: reading.commands ?? [], worker, answered: performance.now(), asked: 0, marks: new Map(), overlays: new Map(), panels: new Map(), labels: new Map(), chrome: null, serving: false };
   worker.addEventListener("message", ({ data }) => answer(one, data));
   worker.addEventListener("error", (event) => say(`${one.name}: ${event.message}`, { failed: true }));
   state.running.set(id, one);
@@ -480,80 +461,15 @@ export async function syncPlugins() {
   await Promise.all(starting);
 }
 
-// Find the Slow Plugin: the plugins on halved, half of them off at a time, the reader asked each time
-// whether the window is still slow, until one is left; then each set back as it was.
-export function findSlowPlugin() {
-  // A finding begun again starts from the plugins the reader had off before the first began.
-  const off = state.finding?.was ?? pluginsOff();
-  const on = pluginReadings().map((reading) => reading.id).filter((id) => !off.has(id));
-  if (!on.length) {
-    say("No plugin is on");
-    return;
-  }
-  state.finding = { suspects: on, was: off, step: 0 };
-  stepFinding();
-}
-
-function endFinding(named) {
-  const finding = state.finding;
-  state.finding = null;
-  document.getElementById("slow-finder").hidden = true;
-  for (const reading of pluginReadings()) {
-    setPluginOn(reading.id, !finding.was.has(reading.id));
-  }
-  syncPlugins();
-  if (named) {
-    say(`${named} is the plugin that slows the window: File, Plugins turns it off`);
-  }
-}
-
-function stepFinding() {
-  const finding = state.finding;
-  const node = document.getElementById("slow-finder");
-  if (finding.suspects.length === 1) {
-    const [found] = finding.suspects;
-    const name = pluginReadings().find((reading) => reading.id === found)?.name ?? found;
-    endFinding(name);
-    return;
-  }
-  finding.step += 1;
-  finding.half = finding.suspects.slice(0, Math.ceil(finding.suspects.length / 2));
-  for (const reading of pluginReadings()) {
-    setPluginOn(reading.id, !finding.was.has(reading.id) && !finding.half.includes(reading.id));
-  }
-  syncPlugins();
-  const button = (text, run) => {
-    const made = element("button", { type: "button", className: "slow-finder-button", textContent: text });
-    made.addEventListener("click", run);
-    return made;
-  };
-  node.hidden = false;
-  node.replaceChildren(
-    element("p", { className: "slow-finder-said", textContent: `Step ${finding.step}: ${finding.half.length} of ${finding.suspects.length} plugins are off. Is the window still slow?` }),
-    element(
-      "div",
-      { className: "slow-finder-buttons" },
-      button("Still Slow", () => {
-        finding.suspects = finding.suspects.slice(finding.half.length);
-        stepFinding();
-      }),
-      button("No Longer Slow", () => {
-        finding.suspects = finding.half;
-        stepFinding();
-      }),
-      button("Stop", () => endFinding(null)),
-    ),
-  );
-}
-
-// What the finding asks of the reader now, for the tests.
-export const finding = () => state.finding;
+// Find the Slow Plugin, and what it asks of the reader now (plugin_slow.js).
+export { findSlowPlugin, finding } from "./plugin_slow.js";
 
 export function startScripts(hooks) {
   state.hooks = hooks;
   state.node = document.getElementById("status-plugin");
   window.clearInterval(state.timer);
   state.timer = window.setInterval(ask, ASK);
+  hearServers(state.running);
   hooks.editor()?.scroller.addEventListener("scroll", () => state.running.size && drawOverlays(), { passive: true });
   onCalls((command, args, promise) => {
     if (command === "file_write" || command === "file_write_raised") {

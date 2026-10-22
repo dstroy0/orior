@@ -1,4 +1,4 @@
-"""Run anchor_sift's oracle_check on salishan_corpus papers without registering them.
+"""Run orior-engine's oracle_check on salishan_corpus papers without registering them.
 
 usage: python residue.py <stem> [stem ...]
 

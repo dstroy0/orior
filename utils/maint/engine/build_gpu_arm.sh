@@ -43,12 +43,12 @@ while [ "$#" -gt 0 ]; do
     case "$1" in
         --limbs)
             [ "$#" -ge 2 ] || { echo "  --limbs needs a value"; exit 1; }
-            WIDTH_DEFINES="$WIDTH_DEFINES -DANCHOR_EXACT_LIMBS=${2}u"
+            WIDTH_DEFINES="$WIDTH_DEFINES -DORIOR_EXACT_LIMBS=${2}u"
             shift 2
             ;;
         --digits)
             [ "$#" -ge 2 ] || { echo "  --digits needs a value"; exit 1; }
-            WIDTH_DEFINES="$WIDTH_DEFINES -DANCHOR_EXACT_DIGITS=${2}u"
+            WIDTH_DEFINES="$WIDTH_DEFINES -DORIOR_EXACT_DIGITS=${2}u"
             shift 2
             ;;
         --positions)
@@ -90,7 +90,7 @@ rm -f "$OUT/bench_exact_gpu.exe"
 # shellcheck disable=SC2086
 nvcc -ccbin "$MSVC_BIN" -O2 $GENCODE \
     -I "$ROOT/src/cu/includes/types/integers" \
-    -DANCHOR_EXACT_HAVE_CUDA=1 $WIDTH_DEFINES \
+    -DORIOR_EXACT_HAVE_CUDA=1 $WIDTH_DEFINES \
     -o "$OUT/bench_exact_gpu.exe" \
     "$ROOT/src/cu/includes/types/integers/arm.cu" \
     "$ROOT/src/cu/includes/types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \

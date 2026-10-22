@@ -6,5 +6,5 @@
 // from outside a terminal, it lets go of the console Windows made for it and only the window shows.
 
 fn main() {
-    std::process::exit(orior_ui_lib::start())
+    std::process::exit(orior_gui_lib::start())
 }

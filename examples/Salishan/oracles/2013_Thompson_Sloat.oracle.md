@@ -3,7 +3,7 @@
 Extraction of Twana and the difficult language belief by Nile R. Thompson and C. Dale Sloat,
 Dushuyay Research / North Seattle Community College, ICSNL 48.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -33,7 +33,7 @@ The forms are in NFC, and the check puts the page text, read from the glyph posi
 same repair: a mark the text sets after a space is put back on its letter, then NFC, then 20
 page-read corrections.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 613
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 28540 distinct tokens in the paper, 0 language tokens are held by no row.

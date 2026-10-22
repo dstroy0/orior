@@ -46,7 +46,7 @@ int query_writer_made(const QueryWriter *writer)
             // the run to find it by
             char line[QUERY_PATH_LONGEST + 64u];
             CliLine made = {line, sizeof(line), 0ull};
-            cli_line_text(&made, "  qry_writer: the run of ");
+            cli_line_text(&made, "  orior_qry_writer: the run of ");
             cli_line_text(&made, writer->qry);
             cli_line_text(&made, " is made\n");
             if (cli_line_fits(&made))

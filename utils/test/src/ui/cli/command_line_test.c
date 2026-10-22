@@ -38,7 +38,7 @@ static void test_line_kept(void *context, const char *line, unsigned long long s
 static void test_wrapping(void)
 {
     static const char s_text[] =
-        "orior file new-plugin <name> --ext <ext,...> [--from <plugin>] [--line-comment <text>] "
+        "orior_cli file new-plugin <name> --ext <ext,...> [--from <plugin>] [--line-comment <text>] "
         "[--keywords <a,b>]";
     static TestLines s_lines;
     s_lines.count = 0u;
@@ -108,7 +108,7 @@ static void test_help(void)
         {
             char usage[CLI_LABEL_LONGEST * 2u + 16u];
             CliLine line = {usage, sizeof(usage), 0ull};
-            cli_line_text(&line, "orior ");
+            cli_line_text(&line, "orior_cli ");
             cli_line_text(&line, word);
             cli_line_character(&line, ' ');
             cli_line_text(&line, s_items[at].command);

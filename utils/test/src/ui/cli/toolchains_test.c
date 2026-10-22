@@ -1,9 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // toolchains_test.c: the toolchains' check: a login shell's PATH is read and a shell that says nothing gives none; the
-// jobs need git, bash and python; the manifest reads and each id is one tool; the reader adds and takes out toolchains
-// and groups; a star matches any run and versions sort as numbers; a folder already on the PATH is not added twice;
-// and a tool in a chosen folder is found there first, orior's own folder a folder of the run's
+// jobs need git, bash and python; a tree uses only the tools its files call for and those; what each search found is
+// kept and taken by the next, and a PATH that changed searches again; the manifest reads and each
+// id is one tool; the reader adds and takes out toolchains and groups; a star matches any run and versions sort as
+// numbers; a folder already on the PATH is not added twice; a tool in a chosen folder is found there first, orior's own
+// folder a folder of the run's; and the PATH a step runs with begins with the folders put ahead of it, each once
 #include "../../../../../ui/cli/src/toolchains/toolchains_internal.h"
 #include "cli_check.h"
 
@@ -59,6 +61,68 @@ static void toolchains_needed(void)
     }
     cli_json_given(&json);
     cli_check_text(needed, line.at, "git|bash|python", "the jobs need git, bash and python");
+}
+
+// whether a tree of Python files alone holds a file of the name or the ending `kind`
+static int toolchains_seen(const void *context, const char *kind)
+{
+    (void)context;
+    return cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = ".py", .cap = CLI_CELLS_POOL});
+}
+
+// whether the check said tool `id` of its array `tools` is used
+static int toolchains_used(const CliJson *json, unsigned int tools, const char *id)
+{
+    for (unsigned int tool = json->node[tools].first; tool != CLI_JSON_NONE; tool = json->node[tool].next)
+    {
+        const char *const named = cli_json_string(json, cli_json_member(json, tool, "id"), NULL);
+        if ((named != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = id, .cap = CLI_CELLS_POOL})))
+        {
+            return cli_json_is(json, cli_json_member(json, tool, "used"), CFG_JSON_TRUE);
+        }
+    }
+    return 0;
+}
+
+// a tree uses the tools its files' names and endings call for and the ones the jobs need, and no other
+static void toolchains_tree_uses(void)
+{
+    static char s_out[1u << 18u];
+    CliLine out = {s_out, sizeof(s_out), 0ull};
+    cli_toolchains_check(0, toolchains_seen, NULL, &out);
+    unsigned int tools = CLI_JSON_NONE;
+    const CliJson *const json = cli_check_parsed(s_out, out.at, &tools);
+    cli_check((json != NULL) && cli_json_is(json, tools, CFG_JSON_ARRAY) && toolchains_used(json, tools, "black") &&
+                  toolchains_used(json, tools, "ruff") && toolchains_used(json, tools, "git"),
+              "a tree of Python files uses Python's formatter and checkers, and the tools the jobs need");
+    cli_check((json != NULL) && !toolchains_used(json, tools, "lean") && !toolchains_used(json, tools, "rust") &&
+                  !toolchains_used(json, tools, "docker"),
+              "and no tool whose files it does not hold");
+    CliLine none = {s_out, sizeof(s_out), 0ull};
+    cli_toolchains_check(0, NULL, NULL, &none);
+    const CliJson *const open = cli_check_parsed(s_out, none.at, &tools);
+    cli_check((open != NULL) && !toolchains_used(open, tools, "black") && toolchains_used(open, tools, "python"),
+              "with no tree open, only the tools the jobs need are used");
+}
+
+// what each tool's search found is kept in orior's own folder and taken by the next search, and a PATH that changed
+// searches again
+static void toolchains_kept(void)
+{
+    static char s_out[1u << 18u];
+    CliLine out = {s_out, sizeof(s_out), 0ull};
+    cli_toolchains_check(0, NULL, NULL, &out);
+    char kept[CLI_PATH_LONGEST];
+    cli_check(cli_toolchains_file("toolchains_found.json", kept) && query_is_file(kept),
+              "a check keeps what each tool's search found in orior's own folder");
+    unsigned int count = 0u;
+    char (*const path)[CLI_PATH_LONGEST] = cli_toolchains_path_taken(&count);
+    CliFound found;
+    cli_check(cli_toolchains_found_kept("git", (const char (*)[CLI_PATH_LONGEST])path, count, &found),
+              "and the next search of a tool takes it");
+    static const char s_other[1][CLI_PATH_LONGEST] = {"/a/folder/put/on/the/path"};
+    cli_check(!cli_toolchains_found_kept("git", s_other, 1u, &found), "and a PATH that changed searches again");
+    cli_cell_given(path);
 }
 
 // the manifest reads and each id is one tool, each naming a program and an install page, every page https
@@ -165,7 +229,7 @@ static void toolchains_reader(void)
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = why, .cap = CLI_CELLS_POOL, .other = "already", .other_cap = CLI_CELLS_POOL}) != NULL),
               "and is not added twice");
-    cli_check(!toolchains_added(s_git, id, why, sizeof(why)), "an id orior has is refused");
+    cli_check(!toolchains_added(s_git, id, why, sizeof(why)), "an id orior_cli has is refused");
     CliLine said = {why, sizeof(why), 0ull};
     cli_check(cli_toolchains_add_group("Proof assistants", &said), "an empty group is added");
     char groups[1024];
@@ -187,7 +251,7 @@ static void toolchains_reader(void)
         !cli_toolchains_remove("git", &said) && (cli_line_closed(&said) != 0ull) &&
             (cellul.find(&(CatenaFinitaCfg){
                  .src = why, .cap = CLI_CELLS_POOL, .other = "comes with orior", .other_cap = CLI_CELLS_POOL}) != NULL),
-        "a toolchain orior has is not taken out");
+        "a toolchain orior_cli has is not taken out");
     said.at = 0ull;
     cli_check(cli_toolchains_remove("zig-0-13", &said), "a toolchain the reader added is taken out");
     said.at = 0ull;
@@ -259,6 +323,30 @@ static void toolchains_chosen(void)
     (void)cli_toolchains_forget("ghdl", &said);
 }
 
+// the PATH a step runs with begins with the folders put ahead of it, each once, and goes on with the PATH's own
+static void toolchains_run_path(void)
+{
+    char ahead[2][CLI_PATH_LONGEST];
+    cli_check_folder("toolchains_ahead", ahead[0]);
+    memor.cpy(&(MemoriaCfg){.dst = ahead[1], .src = ahead[0], .bytes = sizeof(ahead[0])});
+    char *const path = cli_cell_taken(CLI_PATH_TEXT, "the PATH a step runs with, as checked");
+    if (path == NULL)
+    {
+        cli_check(0, "the PATH a step runs with has its room");
+        return;
+    }
+    cli_toolchains_run_path_with((const char (*)[CLI_PATH_LONGEST])ahead, 2u, path, CLI_PATH_TEXT);
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = ahead[0], .cap = CLI_CELLS_POOL});
+    const int first = cellul.starts(&(CatenaFinitaCfg){.src = path, .other = ahead[0], .cap = CLI_CELLS_POOL}) &&
+                      (path[length] == TOOLCHAINS_SEPARATOR[0]);
+    const int once =
+        cellul.find(&(CatenaFinitaCfg){
+            .src = path + length, .cap = CLI_CELLS_POOL, .other = ahead[0], .other_cap = CLI_CELLS_POOL}) == NULL;
+    cli_check(first && once && (path[length + 1u] != '\0'),
+              "the PATH a step runs with begins with the folders put ahead, each once, and goes on");
+    cli_cell_given(path);
+}
+
 int main(void)
 {
     char home[CLI_PATH_LONGEST];
@@ -268,10 +356,13 @@ int main(void)
     toolchains_shell();
 #endif
     toolchains_needed();
+    toolchains_tree_uses();
+    toolchains_kept();
     toolchains_manifest();
     toolchains_reader();
     toolchains_star();
     toolchains_joined();
     toolchains_chosen();
+    toolchains_run_path();
     return cli_checked();
 }

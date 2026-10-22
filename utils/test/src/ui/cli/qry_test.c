@@ -123,10 +123,39 @@ static void run_members(void)
     cli_check_text(s_out, out.at, "2", "and the other's");
 }
 
+// a tree's runs are listed with their folder and its lessons, each list in cells given back as the listing ends
+static void run_listed(void)
+{
+    char root[CLI_PATH_LONGEST];
+    char path[CLI_PATH_LONGEST];
+    cli_check_folder("qry_listed", root);
+    cli_full(root, "runs", path);
+    (void)query_folder_made(path);
+    cli_full(root, "runs/one.qry", path);
+    (void)query_file_written(path, "", 0ull);
+    cli_full(root, "runs/overseer.txt", path);
+    (void)query_file_written(path, "lesson time * a stand in\n", 25ull);
+    CliLine out = {s_out, sizeof(s_out), 0ull};
+    cli_qry_listed(root, &out);
+    cli_line_closed(&out);
+    cli_check((cellul.find(&(CatenaFinitaCfg){.src = s_out,
+                                              .cap = CLI_CELLS_POOL,
+                                              .other = "{\"path\":\"runs/one.qry\",\"folder\":\"runs\"",
+                                              .other_cap = CLI_CELLS_POOL}) != NULL) &&
+                  (cellul.find(&(CatenaFinitaCfg){.src = s_out,
+                                                  .cap = CLI_CELLS_POOL,
+                                                  .other = "\"lessons\":[{\"cause\":\"time\"",
+                                                  .other_cap = CLI_CELLS_POOL}) != NULL),
+              "a tree's run is listed with its folder and the folder's lessons");
+    cli_check((g_cli_qry_listed_cells.holds != 0ull) && (g_cli_qry_listed_cells.hw != 0ull),
+              "and the walk keeps its folders in a cell while the runs listed are given back");
+}
+
 int main(void)
 {
     run_finished();
     run_members();
+    run_listed();
     static const char s_overseer[] = "lesson time * a stand in\nnot a lesson\nlesson register 3\n";
     CliLine out = {s_out, sizeof(s_out), 0ull};
     cli_qry_lessons_written(s_overseer, sizeof(s_overseer) - 1u, &out);

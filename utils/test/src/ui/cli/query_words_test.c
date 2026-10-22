@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// query_words_test.c: the words of `orior protocol`: the list names every loop once; leave is taken off the words; a
+// query_words_test.c: the words of `orior_cli protocol`: the list names every loop once; leave is taken off the words; a
 // loop missing a program says so and starts no run; an unknown command is refused with the list; the table's whole
 // names are those with every kind; the steps run the protocol in order and their names are offered to start from; the
 // base is the one word the cross takes; the readings of a table are told apart from a pull; the version and the
@@ -159,7 +159,7 @@ static void words_whole_names(void)
     (void)query_removed(root);
 }
 
-// the steps run the protocol in order and their names are offered to start from; and the base is the one word the
+// the steps run the protocol in order and their names are offered to start from; and the base is the single word the
 // cross takes
 static void words_course(void)
 {

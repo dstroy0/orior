@@ -17,7 +17,7 @@ if command -v nvcc >/dev/null 2>&1 && [ -n "$MSVC_BIN" ] && [ -n "$CAP" ]; then
     echo "  device engine, $ARCH"
     nvcc -ccbin "$MSVC_BIN" -O2 -gencode "arch=compute_${ARCH#sm_},code=${ARCH}" \
         -I "$NO_ROUNDING" \
-        -DANCHOR_EXACT_HAVE_CUDA=1 \
+        -DORIOR_EXACT_HAVE_CUDA=1 \
         -o "$OUT/cell_shift.exe" \
         "$ROOT/src/cell_shift.c" \
         "$NO_ROUNDING_CU/arm.cu" \

@@ -160,7 +160,7 @@ void pi_tower_stop(int signal_number)
 
 unsigned int pi_tower_bit_length(const PiWide &value)
 {
-    unsigned int limb = ANCHOR_EXACT_LIMBS;
+    unsigned int limb = ORIOR_EXACT_LIMBS;
     while ((limb > 0u) && (value.limb[limb - 1u] == 0u))
     {
         limb -= 1u;
@@ -201,7 +201,7 @@ unsigned int pi_tower_field(std::vector<EngineRecordStep> *steps, unsigned int f
 // from the top, a product by 2^32 and a sum a limb
 unsigned int pi_tower_constant(std::vector<EngineRecordStep> *steps, const PiWide &value)
 {
-    unsigned int used = ANCHOR_EXACT_LIMBS;
+    unsigned int used = ORIOR_EXACT_LIMBS;
     while ((used > 1u) && (value.limb[used - 1u] == 0u))
     {
         used -= 1u;

@@ -10,15 +10,12 @@
 #include "maven.h"
 #include "maven_internal.h"
 
-// the most bytes of the user's settings read and written
-#define CLI_MAVEN_SET_TEXT (1u << 20u)
+// the bytes the user's settings written are begun with beyond what they held, the line growing past them
+#define CLI_MAVEN_SET_MORE 4096ull
 
 static CliLock s_set_lock = CLI_LOCK_INIT;
 static CliXml s_xml;
-static char s_text[CLI_MAVEN_SET_TEXT];
-static char s_written[CLI_MAVEN_SET_TEXT + 4096u];
 static char s_edit[1u << 14u];
-static unsigned int s_starts[1u << 16u];
 
 // the indent the line of the text that holds byte `at` starts with, into `out`
 static void set_indent_at(const char *text, unsigned long long at, CliLine *out)
@@ -205,10 +202,16 @@ static int set_user(const char *name, const char *value, CliLine *out, CliLine *
         cli_line_text(said, "No home folder holds the user's settings");
         return 0;
     }
-    unsigned long long size = qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text));
-    size = (size == QRY_MEMBER_UNREAD) ? 0ull : size;
-    CliLine written = {s_written, sizeof(s_written), 0ull};
-    if (cli_text_lead(s_text, size) == size)
+    unsigned long long mapped_size = 0ull;
+    const unsigned char *const mapped = cli_file_held(path, &mapped_size);
+    // the file's bytes are read as its text; a file not there is read as empty
+    const char *const text = (mapped != NULL) ? (const char *)mapped : "";
+    const unsigned long long size = (mapped != NULL) ? mapped_size : 0ull;
+    CliLine written;
+    (void)cli_line_growing(&written, size + CLI_MAVEN_SET_MORE, "the user's Maven settings written");
+    unsigned int *starts = NULL;
+    int settings = 1;
+    if (cli_text_lead(text, size) == size)
     {
         cli_line_text(&written, "<settings xmlns=\"http://maven.apache.org/SETTINGS/1.0.0\">\n  <");
         cli_line_text(&written, name);
@@ -220,29 +223,37 @@ static int set_user(const char *name, const char *value, CliLine *out, CliLine *
     }
     else
     {
-        cli_xml_parse(s_text, size, &s_xml);
+        cli_xml_parse(text, size, &s_xml);
         const unsigned int root = cli_xml_root(&s_xml);
-        if ((root == CLI_XML_NONE) || !cli_xml_named(&s_xml, root, "settings"))
+        settings = (root != CLI_XML_NONE) && cli_xml_named(&s_xml, root, "settings");
+        if (settings)
         {
-            cli_line_text(said, path);
-            cli_line_text(said, " holds no <settings>");
-            return 0;
+            CliBuildLines lines;
+            starts = cli_build_lines_taken(text, size, &lines);
+            const CliTextEdit edit = set_element(&s_xml, root, name, value, &lines);
+            (void)cli_text_applied(text, size, &edit, 1u, &written);
         }
-        CliBuildLines lines;
-        cli_build_lines_of(s_text, size, s_starts, sizeof(s_starts) / sizeof(s_starts[0]), &lines);
-        const CliTextEdit edit = set_element(&s_xml, root, name, value, &lines);
-        (void)cli_text_applied(s_text, size, &edit, 1u, &written);
     }
     char parent[CLI_PATH_LONGEST];
-    if (!cli_line_fits(&written) || (cli_path_parent(path, parent) && !query_folder_made(parent)) ||
-        !query_file_written(path, s_written, written.at))
+    const int done = settings && cli_line_fits(&written) &&
+                     !(cli_path_parent(path, parent) && !query_folder_made(parent)) &&
+                     query_file_written(path, written.out, written.at);
+    cli_cell_given_by(&g_cli_build_cells, starts);
+    cli_cell_given(written.out);
+    if (mapped != NULL)
+    {
+        cli_file_let_go(mapped, mapped_size);
+    }
+    if (done)
+    {
+        cli_line_text(out, "[]");
+    }
+    else
     {
         cli_line_text(said, path);
-        cli_line_text(said, ": it could not be written");
-        return 0;
+        cli_line_text(said, settings ? ": it could not be written" : " holds no <settings>");
     }
-    cli_line_text(out, "[]");
-    return 1;
+    return done;
 }
 
 int cli_maven_set(const char *pom, const char *text, unsigned long long size, const char *key, const char *value,
@@ -273,9 +284,10 @@ int cli_maven_set(const char *pom, const char *text, unsigned long long size, co
     {
         cli_xml_parse(text, size, &s_xml);
         CliBuildLines lines;
-        cli_build_lines_of(text, size, s_starts, sizeof(s_starts) / sizeof(s_starts[0]), &lines);
+        unsigned int *const starts = cli_build_lines_taken(text, size, &lines);
         done = (setting < 4u) ? set_compiler(pom, setting, s_value, &lines, out, said)
                               : set_plugin_version(pom, s_value, &lines, out, said);
+        cli_cell_given_by(&g_cli_build_cells, starts);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "local-repository", .cap = CLI_CELLS_POOL}))
     {
@@ -299,6 +311,7 @@ int cli_maven_set(const char *pom, const char *text, unsigned long long size, co
         cli_line_text(said, key);
         cli_line_text(said, "` is no setting that can be set");
     }
+    cli_xml_given(&s_xml);
     cli_lock_give(&s_set_lock);
     return done;
 }

@@ -197,7 +197,7 @@ int cli_link_ask(const CliLinkAddress *address, const char *line, const char *in
                                                    (input != NULL) ? size : 0ull, ran, said);
     if (words.full)
     {
-        cli_line_text(said, "the line is longer than orior runs");
+        cli_line_text(said, "the line is longer than orior_cli runs");
     }
     const int done = started && (ran->code == 0);
     if (started && !done)

@@ -8,8 +8,8 @@
 
 #include <string.h>
 
-_Static_assert(ANCHOR_EXACT_LIMBS >= 2u, "qasm: a rational set from a long long needs two limbs");
-_Static_assert(ANCHOR_EXACT_LIMBS <= 0xFFFFFFFFull, "qasm: a number's bytes count its used limbs in 32 bits");
+_Static_assert(ORIOR_EXACT_LIMBS >= 2u, "qasm: a rational set from a long long needs two limbs");
+_Static_assert(ORIOR_EXACT_LIMBS <= 0xFFFFFFFFull, "qasm: a number's bytes count its used limbs in 32 bits");
 
 // an exact status enumerates small non-negative codes. It converts to int exactly
 #define QASM_STATUS_CHECK(status_, evacaddr_, error_)                                                                  \
@@ -20,7 +20,7 @@ _Static_assert(ANCHOR_EXACT_LIMBS <= 0xFFFFFFFFull, "qasm: a number's bytes coun
                        (error_))
 
 // 10^9 exceeds 2^29. Each decimal chunk takes at least 29 of the width's bits
-#define QASM_TEXT_CHUNKS (((unsigned long long)(ANCHOR_EXACT_BITS) / 29ull) + 2ull)
+#define QASM_TEXT_CHUNKS (((unsigned long long)(ORIOR_EXACT_BITS) / 29ull) + 2ull)
 
 #define QASM_TEXT_CHUNK 1000000000u
 

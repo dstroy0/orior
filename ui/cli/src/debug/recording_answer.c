@@ -8,7 +8,6 @@
 // the most values of a frame's names told at once
 #define CLI_REPLAY_VALUES 1024u
 
-static CliRecordedValue s_values[CLI_REPLAY_VALUES];
 static unsigned int s_standing[512][2];
 
 // a string member of the arguments, its text and length, "" where it is none
@@ -86,20 +85,21 @@ static void answer_variables(const CliJson *json, unsigned int arguments, CliLin
     {
         serial = 0ull;
     }
-    const unsigned int count =
-        cli_recording_values((unsigned int)serial, g_cli_replay->at, s_values, CLI_REPLAY_VALUES);
+    CliRecordedValue *values = NULL;
+    const unsigned int count = cli_recording_values((unsigned int)serial, g_cli_replay->at, &values, CLI_REPLAY_VALUES);
     cli_line_text(body, "{\"variables\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         cli_line_text(body, (at > 0u) ? ",{\"name\":" : "{\"name\":");
-        cli_json_quoted_lossy(body, (const unsigned char *)s_values[at].name,
-                              cellul.len(&(CatenaFinitaCfg){.src = s_values[at].name, .cap = CLI_CELLS_POOL}));
+        cli_json_quoted_lossy(body, (const unsigned char *)values[at].name,
+                              cellul.len(&(CatenaFinitaCfg){.src = values[at].name, .cap = CLI_CELLS_POOL}));
         cli_line_text(body, ",\"value\":");
-        cli_json_quoted_lossy(body, (const unsigned char *)s_values[at].value,
-                              cellul.len(&(CatenaFinitaCfg){.src = s_values[at].value, .cap = CLI_CELLS_POOL}));
+        cli_json_quoted_lossy(body, (const unsigned char *)values[at].value,
+                              cellul.len(&(CatenaFinitaCfg){.src = values[at].value, .cap = CLI_CELLS_POOL}));
         cli_line_text(body, ",\"type\":\"\",\"variablesReference\":0}");
     }
     cli_line_text(body, "]}");
+    cli_cell_given(values);
 }
 
 // a name looked up in the frame, then in each module's frame standing, one whose caller is none
@@ -127,19 +127,22 @@ static int answer_evaluated(const CliJson *json, unsigned int arguments, CliLine
         {
             continue;
         }
-        const unsigned int held = cli_recording_values(one, g_cli_replay->at, s_values, CLI_REPLAY_VALUES);
+        CliRecordedValue *values = NULL;
+        const unsigned int held = cli_recording_values(one, g_cli_replay->at, &values, CLI_REPLAY_VALUES);
         for (unsigned int at = 0u; at < held; at += 1u)
         {
-            if ((cellul.len(&(CatenaFinitaCfg){.src = s_values[at].name, .cap = CLI_CELLS_POOL}) == length) &&
-                (memor.cmp(&(MemoriaCfg){.src = s_values[at].name, .other = name, .bytes = length}) == 0))
+            if ((cellul.len(&(CatenaFinitaCfg){.src = values[at].name, .cap = CLI_CELLS_POOL}) == length) &&
+                (memor.cmp(&(MemoriaCfg){.src = values[at].name, .other = name, .bytes = length}) == 0))
             {
                 cli_line_text(body, "{\"result\":");
-                cli_json_quoted_lossy(body, (const unsigned char *)s_values[at].value,
-                                      cellul.len(&(CatenaFinitaCfg){.src = s_values[at].value, .cap = CLI_CELLS_POOL}));
+                cli_json_quoted_lossy(body, (const unsigned char *)values[at].value,
+                                      cellul.len(&(CatenaFinitaCfg){.src = values[at].value, .cap = CLI_CELLS_POOL}));
                 cli_line_text(body, ",\"type\":\"\",\"variablesReference\":0}");
+                cli_cell_given(values);
                 return 1;
             }
         }
+        cli_cell_given(values);
     }
     cli_line_text(said, "a recorded run reads the names its frames held, and ");
     cli_line_counted(said, name, length);

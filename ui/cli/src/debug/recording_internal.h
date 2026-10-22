@@ -113,15 +113,20 @@ extern const char g_cli_recording_shim[];
 
 // the recording the recorder wrote at `path` read into the replay's, the file kept until the next is read; the
 // recording let go; a text of its names; the last step of frame `serial` at or before step `at`, CLI_RECORDING_STEPS
-// for none; the values of frame `serial`'s names as step `at` was about to run, by name, into `values`, which holds
-// `room`: their count; the frames standing at step `at`, the innermost first, each frame's number and the step of its
-// line then: their count; and each step where `name` of frame `serial` took a new value, the line that gave it and the
-// value, handed to `each` (recording_read.c, the last step recording_replay.c)
+// for none; the values of frame `serial`'s names as step `at` was about to run, by name, `most` of them at the most, in
+// a cell of their count into `taken`, given back with cli_cell_given: their count; the frames standing at step `at`,
+// the innermost first, each frame's number and the step of its line then: their count; and each step where `name` of
+// frame `serial` took a new value, the line that gave it and the value, handed to `each` (recording_read.c,
+// recording_values.c, the last step recording_replay.c)
 void cli_recording_read(const char *path);
 void cli_recording_let_go(void);
 const char *cli_recording_name(unsigned int at);
+// the line record that starts at byte `at` of the recording read into a tree sized to it, held until the next is read
+// or the recording let go: the tree, the record's array into `record`, CLI_JSON_NONE where it is none
+// (recording_read.c)
+const CliJson *cli_recording_record(unsigned long long at, unsigned int *record);
 unsigned int cli_recording_last_of(unsigned int serial, unsigned int at);
-unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecordedValue *values, unsigned int room);
+unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecordedValue **taken, unsigned int most);
 unsigned int cli_recording_stack(unsigned int at, unsigned int (*frames)[2], unsigned int room);
 void cli_recording_history(unsigned int serial, const char *name,
                            void (*each)(void *context, unsigned int step, unsigned int line, const char *value),

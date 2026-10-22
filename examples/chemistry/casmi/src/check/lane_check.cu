@@ -455,12 +455,12 @@ static unsigned int lane_program(ExactRecordProgram *program, unsigned long long
     return exact_record_product(program, lifted, signed_one);
 }
 
-static void lane_field(const unsigned int *record, unsigned int offset, unsigned int bits, AnchorExactInteger *value);
+static void lane_field(const unsigned int *record, unsigned int offset, unsigned int bits, OriorExactInteger *value);
 
 // the bits of an exact integer's magnitude, 0 for 0
-static unsigned long long lane_bits(const AnchorExactInteger *value)
+static unsigned long long lane_bits(const OriorExactInteger *value)
 {
-    for (unsigned int limb = ANCHOR_EXACT_LIMBS; limb > 0u; limb -= 1u)
+    for (unsigned int limb = ORIOR_EXACT_LIMBS; limb > 0u; limb -= 1u)
     {
         if (value->limb[limb - 1u] != 0u)
         {
@@ -775,7 +775,7 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     unsigned long long wide = 0ull;
     for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
     {
-        AnchorExactInteger read;
+        OriorExactInteger read;
         lane_field(&device[value * out_limbs], k_place.out_offset, k_place.out_bits, &read);
         const unsigned long long k = ((unsigned long long)read.limb[1] << 32u) | read.limb[0];
         const int narrow_k = lane_bits(&read) <= 64ull;
@@ -834,9 +834,9 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
 }
 
 // the output field at `offset`, `bits` wide, of `limbs`-limb records, as an exact integer
-static void lane_field(const unsigned int *record, unsigned int offset, unsigned int bits, AnchorExactInteger *value)
+static void lane_field(const unsigned int *record, unsigned int offset, unsigned int bits, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int from = offset + bit;
@@ -868,9 +868,9 @@ static void lane_field(const unsigned int *record, unsigned int offset, unsigned
 }
 
 // x worked out apart from the record machine, from the stored bits on the host
-static void lane_expected(unsigned long long word, unsigned long long least, AnchorExactInteger *value)
+static void lane_expected(unsigned long long word, unsigned long long least, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     const unsigned long long biased = (word >> LANE_CHECK_MANTISSA_BITS) & LANE_CHECK_EXPONENT_ALL;
     const unsigned long long fraction = word & ((1ull << LANE_CHECK_MANTISSA_BITS) - 1ull);
     const unsigned long long mantissa = fraction | ((biased != 0ull) ? (1ull << LANE_CHECK_MANTISSA_BITS) : 0ull);
@@ -981,11 +981,11 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     {
         unsigned long long word = 0ull;
         memcpy(&word, column->bytes + (value * 8ull), 8u);
-        AnchorExactInteger read;
-        AnchorExactInteger wanted;
+        OriorExactInteger read;
+        OriorExactInteger wanted;
         lane_field(&device[value * out_limbs], out_offset, out_bits, &read);
         lane_expected(word, least, &wanted);
-        apart += (anchor_exact_equal(&read, &wanted) != 0) ? 0ull : 1ull;
+        apart += (orior_exact_equal(&read, &wanted) != 0) ? 0ull : 1ull;
     }
     lane_line_decimal(results, "    x: ", program.count);
     lane_line_decimal(results, " steps, record ", out_bits);
@@ -1360,7 +1360,7 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     unsigned long long widest = 0ull;
     for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
     {
-        AnchorExactInteger read;
+        OriorExactInteger read;
         lane_field(&device[value * out_limbs], holds_place.out_offset, holds_place.out_bits, &read);
         const int holding = read.limb[0] != 0u;
         lane_field(&device[value * out_limbs], count_place.out_offset, count_place.out_bits, &read);

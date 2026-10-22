@@ -4,10 +4,11 @@
 // answers name changed
 #include "plugins.h"
 
-// the most words of one list of the answers, and the most bytes of a pattern made
-#define CLI_DRAFT_WORDS 4096u
-
+// the most bytes of a pattern made; and the nodes and bytes of texts a draft makes besides the copies of its answers
+// and the plugin it starts from, the members of a plugin and a grammar made from nothing among them
 #define CLI_PATTERN_LONGEST 1024u
+#define CLI_DRAFT_NODES_MORE 512u
+#define CLI_DRAFT_TEXT_MORE (1ull << 14u)
 
 // the number's pattern a grammar made from nothing reads
 static const char s_number[] = "0[xX][\\da-fA-F_]+|0[bB][01_]+|(?:\\d[\\d_]*)?\\.?\\d[\\d_]*(?:[eE][+-]?\\d+)?";
@@ -36,9 +37,7 @@ static unsigned long long cli_answer(const CliJson *json, unsigned int spec, con
 // the words of a list of the answers, trimmed, each once, in the order first given, made an array node
 static unsigned int cli_words(CliJson *json, unsigned int list)
 {
-    static unsigned int s_kept[CLI_DRAFT_WORDS];
     const unsigned int words = cli_json_made(json, CFG_JSON_ARRAY);
-    unsigned int count = 0u;
     for (unsigned int item = cli_json_is(json, list, CFG_JSON_ARRAY) ? json->node[list].first : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
@@ -56,17 +55,16 @@ static unsigned int cli_words(CliJson *json, unsigned int list)
         }
         const unsigned long long size = (unsigned long long)(to - from);
         int seen = size == 0ull;
-        for (unsigned int at = 0u; !seen && (at < count); at += 1u)
+        for (unsigned int kept = json->node[words].first; !seen && (kept != CLI_JSON_NONE);
+             kept = json->node[kept].next)
         {
             unsigned long long held_length = 0ull;
-            const char *const held = cli_json_string(json, s_kept[at], &held_length);
+            const char *const held = cli_json_string(json, kept, &held_length);
             seen = (held_length == size) && (memor.cmp(&(MemoriaCfg){.src = held, .other = from, .bytes = size}) == 0);
         }
-        if (!seen && (count < CLI_DRAFT_WORDS))
+        if (!seen)
         {
-            s_kept[count] = cli_json_string_made(json, from, size);
-            cli_json_append(json, words, s_kept[count]);
-            count += 1u;
+            cli_json_append(json, words, cli_json_string_made(json, from, size));
         }
     }
     return words;
@@ -259,7 +257,6 @@ typedef struct
 
 static void cli_template_each(void *context, const CliPlugin *plugin)
 {
-    static CfgJsonToken s_tokens[65536];
     CliTemplate *const template_of = (CliTemplate *)context;
     if (!cellul.eq(&(CatenaFinitaCfg){.src = plugin->id, .other = template_of->id, .cap = CLI_CELLS_POOL}))
     {
@@ -268,7 +265,54 @@ static void cli_template_each(void *context, const CliPlugin *plugin)
     template_of->seen = 1;
     char why[CLI_PATH_LONGEST];
     CliLine said = {why, sizeof(why), 0ull};
-    template_of->found = cli_json_read(template_of->json, plugin->text, plugin->size, s_tokens, 65536u, &said);
+    // the plugin's tokens in a cell of their count, given back once they are read into the tree
+    const unsigned int count = cli_json_tokens_counted(plugin->text, plugin->size) + 1u;
+    CfgJsonToken *const tokens =
+        cli_cell_taken_by(&g_cli_plugins_cells, (unsigned long long)count * sizeof(*tokens), "a plugin's tokens");
+    template_of->found = (tokens != NULL)
+                             ? cli_json_read(template_of->json, plugin->text, plugin->size, tokens, count, &said)
+                             : CLI_JSON_NONE;
+    cli_cell_given_by(&g_cli_plugins_cells, tokens);
+}
+
+// The room the plugin of `id` takes, the last found of that id: its tokens and its bytes
+typedef struct
+{
+    const char *id;
+    unsigned int nodes;
+    unsigned long long text;
+} CliTemplateRoom;
+
+static void cli_template_room_each(void *context, const CliPlugin *plugin)
+{
+    CliTemplateRoom *const room = (CliTemplateRoom *)context;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = plugin->id, .other = room->id, .cap = CLI_CELLS_POOL}))
+    {
+        room->nodes = cli_json_tokens_counted(plugin->text, plugin->size) + 1u;
+        room->text = plugin->size;
+    }
+}
+
+unsigned int cli_plugins_draft_tree(CliJson *draft, const CliJson *json, unsigned int spec, CliLine *said)
+{
+    unsigned int nodes = 0u;
+    unsigned long long text = 0ull;
+    cli_json_extent(json, spec, &nodes, &text);
+    char from[CLI_NAME_LONGEST];
+    CliTemplateRoom room = {from, 0u, 0ull};
+    if (cli_answer(json, spec, "from", from, sizeof(from)) != 0ull)
+    {
+        cli_plugins_each(cli_template_room_each, &room);
+    }
+    // the answers twice over, as the draft copies their words, the plugin started from, and the members, patterns and
+    // lists the draft makes besides
+    if (!cli_json_held(draft, (2u * nodes) + room.nodes + CLI_DRAFT_NODES_MORE,
+                       (2ull * text) + room.text + CLI_DRAFT_TEXT_MORE, "a plugin's draft"))
+    {
+        cli_line_text(said, "the cells cannot meet a plugin's draft");
+        return CLI_JSON_NONE;
+    }
+    return cli_json_copy_from(draft, json, spec);
 }
 
 unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, CliLine *said)

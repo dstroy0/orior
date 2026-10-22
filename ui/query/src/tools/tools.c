@@ -8,19 +8,54 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
-// a tool's sources, each list sorted within a pattern
-char s_c_sources[QUERY_SOURCES_MOST][QUERY_PATH_LONGEST];
-char s_cxx_sources[QUERY_SOURCES_MOST][QUERY_PATH_LONGEST];
-char s_tool_sources[QUERY_SOURCES_MOST][QUERY_PATH_LONGEST];
-char s_objects[3u * QUERY_SOURCES_MOST][QUERY_PATH_LONGEST];
+// a tool's sources, each list sorted within a pattern, and their objects
+QueryPaths g_query_c_sources;
+QueryPaths g_query_cxx_sources;
+QueryPaths g_query_tool_sources;
+QueryPaths g_query_objects;
 
-// What a folder's walk for one pattern keeps: the folder, the extension wanted, the list it adds to and its count
+int query_paths_held(QueryPaths *paths, unsigned int count)
+{
+    if (count <= paths->room)
+    {
+        return 1;
+    }
+    char (*const larger)[QUERY_PATH_LONGEST] =
+        cli_cell_taken_by(&g_query_cells, (unsigned long long)count * QUERY_PATH_LONGEST, "a list of paths");
+    if (larger == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = larger, .src = paths->path, .bytes = (size_t)paths->count * QUERY_PATH_LONGEST});
+    cli_cell_given_by(&g_query_cells, paths->path);
+    paths->path = larger;
+    paths->room = count;
+    return 1;
+}
+
+int query_paths_room(QueryPaths *paths, unsigned int most)
+{
+    if (paths->count < paths->room)
+    {
+        return 1;
+    }
+    const unsigned int doubled = (paths->room == 0u) ? QUERY_PATHS_FIRST : (paths->room * 2u);
+    return (paths->count < most) && query_paths_held(paths, (doubled < most) ? doubled : most);
+}
+
+void query_paths_given(QueryPaths *paths)
+{
+    cli_cell_given_by(&g_query_cells, paths->path);
+    *paths = (QueryPaths){NULL, 0u, 0u};
+}
+
+// What a folder's walk for one pattern keeps: the folder, the extension wanted, the list it adds to, and where this
+// pattern's files begin in it
 typedef struct
 {
     const char *folder;
     const char *extension;
-    char (*found)[QUERY_PATH_LONGEST];
-    unsigned int count;
+    QueryPaths *found;
     unsigned int first;
 } QuerySourceWalk;
 
@@ -44,11 +79,12 @@ static int query_path_after(const char *one, const char *other)
 static void query_source_walked(void *context, const char *name, int is_folder)
 {
     QuerySourceWalk *const walk = (QuerySourceWalk *)context;
-    if (is_folder || !query_extension_is(name, walk->extension) || (walk->count >= QUERY_SOURCES_MOST))
+    QueryPaths *const found = walk->found;
+    if (is_folder || !query_extension_is(name, walk->extension) || !query_paths_room(found, QUERY_SOURCES_MOST))
     {
         return;
     }
-    CliLine line = {walk->found[walk->count], QUERY_PATH_LONGEST, 0ull};
+    CliLine line = {found->path[found->count], QUERY_PATH_LONGEST, 0ull};
     cli_line_text(&line, walk->folder);
     cli_line_character(&line, '/');
     cli_line_text(&line, name);
@@ -58,27 +94,24 @@ static void query_source_walked(void *context, const char *name, int is_folder)
         return;
     }
     // kept sorted from where this pattern's files begin
-    unsigned int at = walk->count;
-    while ((at > walk->first) && query_path_after(walk->found[at - 1u], walk->found[walk->count]))
+    unsigned int at = found->count;
+    while ((at > walk->first) && query_path_after(found->path[at - 1u], found->path[found->count]))
     {
         at -= 1u;
     }
-    if (at != walk->count)
+    if (at != found->count)
     {
         char held[QUERY_PATH_LONGEST];
-        memor.cpy(&(MemoriaCfg){.dst = held, .src = walk->found[walk->count], .bytes = QUERY_PATH_LONGEST});
-        memor.move_up(&(MemoriaCfg){.dst = walk->found[at + 1u],
-                                    .src = walk->found[at],
-                                    .bytes = (size_t)(walk->count - at) * QUERY_PATH_LONGEST});
-        memor.cpy(&(MemoriaCfg){.dst = walk->found[at], .src = held, .bytes = QUERY_PATH_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = held, .src = found->path[found->count], .bytes = QUERY_PATH_LONGEST});
+        memor.move_up(&(MemoriaCfg){.dst = found->path[at + 1u],
+                                    .src = found->path[at],
+                                    .bytes = (size_t)(found->count - at) * QUERY_PATH_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = found->path[at], .src = held, .bytes = QUERY_PATH_LONGEST});
     }
-    walk->count += 1u;
+    found->count += 1u;
 }
 
-// The files `patterns` name under `root` added to `found` from `count` on, in the order of the patterns and sorted
-// within one: the count after
-unsigned int query_sources(const char *root, const char *const *patterns, char (*found)[QUERY_PATH_LONGEST],
-                           unsigned int count)
+unsigned int query_sources(const char *root, const char *const *patterns, QueryPaths *found)
 {
     for (unsigned int at = 0u; patterns[at] != NULL; at += 1u)
     {
@@ -94,23 +127,22 @@ unsigned int query_sources(const char *root, const char *const *patterns, char (
             cli_line_counted(&line, pattern, (unsigned long long)(slash - pattern));
             if (cli_line_closed(&line) != 0ull)
             {
-                QuerySourceWalk walk = {folder, slash + 3, found, count, count};
+                QuerySourceWalk walk = {folder, slash + 3, found, found->count};
                 query_folder_each(folder, query_source_walked, &walk);
-                count = walk.count;
             }
             continue;
         }
-        if (count >= QUERY_SOURCES_MOST)
+        if (!query_paths_room(found, QUERY_SOURCES_MOST))
         {
             break;
         }
-        CliLine line = {found[count], QUERY_PATH_LONGEST, 0ull};
+        CliLine line = {found->path[found->count], QUERY_PATH_LONGEST, 0ull};
         cli_line_text(&line, root);
         cli_line_character(&line, '/');
         cli_line_text(&line, pattern);
-        count += ((cli_line_closed(&line) != 0ull) && query_is_file(found[count])) ? 1u : 0u;
+        found->count += ((cli_line_closed(&line) != 0ull) && query_is_file(found->path[found->count])) ? 1u : 0u;
     }
-    return count;
+    return found->count;
 }
 
 // the tool named, or NULL
@@ -157,32 +189,41 @@ static int query_source_kept(const char *const *skip, const char *path)
 void query_every_source(const char *root, const QueryTool *tool, unsigned int *c, unsigned int *cxx,
                         unsigned int *tools)
 {
-    *c = 0u;
+    query_every_source_given();
     for (unsigned int group = 0u; (group < QUERY_TOOL_GROUPS) && (tool->c[group] != NULL); group += 1u)
     {
-        *c = query_sources(root, tool->c[group], s_c_sources, *c);
+        (void)query_sources(root, tool->c[group], &g_query_c_sources);
     }
     if (tool->file_defs)
     {
-        *c = query_sources(root, g_query_file_defs, s_c_sources, *c);
+        (void)query_sources(root, g_query_file_defs, &g_query_c_sources);
     }
-    *c = query_sources(root, g_query_mmgr, s_c_sources, *c);
+    *c = query_sources(root, g_query_mmgr, &g_query_c_sources);
     unsigned int found = 0u;
     for (unsigned int group = 0u; (group < QUERY_TOOL_GROUPS) && (tool->cxx[group] != NULL); group += 1u)
     {
-        found = query_sources(root, tool->cxx[group], s_cxx_sources, found);
+        found = query_sources(root, tool->cxx[group], &g_query_cxx_sources);
     }
+    char (*const cxx_paths)[QUERY_PATH_LONGEST] = g_query_cxx_sources.path;
     *cxx = 0u;
     for (unsigned int at = 0u; at < found; at += 1u)
     {
-        if (query_source_kept(tool->skip, s_cxx_sources[at]))
+        if (query_source_kept(tool->skip, cxx_paths[at]))
         {
-            memor.move_down(
-                &(MemoriaCfg){.dst = s_cxx_sources[*cxx], .src = s_cxx_sources[at], .bytes = QUERY_PATH_LONGEST});
+            memor.move_down(&(MemoriaCfg){.dst = cxx_paths[*cxx], .src = cxx_paths[at], .bytes = QUERY_PATH_LONGEST});
             *cxx += 1u;
         }
     }
-    *tools = query_sources(root, tool->cxx_tool, s_tool_sources, 0u);
+    g_query_cxx_sources.count = *cxx;
+    *tools = query_sources(root, tool->cxx_tool, &g_query_tool_sources);
+}
+
+void query_every_source_given(void)
+{
+    query_paths_given(&g_query_c_sources);
+    query_paths_given(&g_query_cxx_sources);
+    query_paths_given(&g_query_tool_sources);
+    query_paths_given(&g_query_objects);
 }
 
 // What a folder's walk for its newest header keeps
@@ -279,23 +320,23 @@ int query_stale(const char *root, const QueryTool *tool, const char *binary)
     unsigned int cxx = 0u;
     unsigned int tools = 0u;
     query_every_source(root, tool, &c, &cxx, &tools);
-    char (*const lists[3])[QUERY_PATH_LONGEST] = {s_c_sources, s_cxx_sources, s_tool_sources};
+    char (*const lists[3])[QUERY_PATH_LONGEST] = {g_query_c_sources.path, g_query_cxx_sources.path,
+                                                  g_query_tool_sources.path};
     const unsigned int counts[3] = {c, cxx, tools};
     unsigned long long newest = 0ull;
-    for (unsigned int list = 0u; list < 3u; list += 1u)
+    int stale = 0;
+    for (unsigned int list = 0u; !stale && (list < 3u); list += 1u)
     {
-        for (unsigned int at = 0u; at < counts[list]; at += 1u)
+        for (unsigned int at = 0u; !stale && (at < counts[list]); at += 1u)
         {
             unsigned long long seconds = 0ull;
-            if (query_modified(lists[list][at], &seconds) && (seconds > built))
-            {
-                return 1;
-            }
+            stale = query_modified(lists[list][at], &seconds) && (seconds > built);
         }
-        const unsigned long long seconds = query_newest_header_of(root, tool, lists[list], counts[list]);
+        const unsigned long long seconds = stale ? 0ull : query_newest_header_of(root, tool, lists[list], counts[list]);
         newest = (seconds > newest) ? seconds : newest;
     }
-    return newest > built;
+    query_every_source_given();
+    return stale || (newest > built);
 }
 
 int query_tool_built(const char *root, const QueryPrograms *programs, const char *name, char *binary, size_t room,

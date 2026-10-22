@@ -1,16 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema.c: a JSON file checked: what kept it from reading, then its root against the schema it names or is known by;
-// a schema it names by a URL that orior holds nowhere noted, with the line that fetches it to orior's own folder. A
+// a schema it names by a URL that orior_cli holds nowhere noted, with the line that fetches it to orior's own folder. A
 // file larger than CLI_SCHEMA_LARGEST is not checked. One check or completion runs at a time
 #include "../command_line/cells.h"
 #include "schema_internal.h"
 
 #include "../text/text.h"
 
-// the largest file checked, and the most lines of it indexed for its findings' places
+// the largest file checked
 #define CLI_SCHEMA_LARGEST (2ull << 20u)
-#define CLI_SCHEMA_LINES (1u << 20u)
 
 CliSchemaRead *g_cli_schema_read;
 CliSchemaStore *g_cli_schema_store;
@@ -21,6 +20,15 @@ int cli_schema_held(void)
     cli_lock_take(&g_cli_schema_lock);
     g_cli_schema_read = cli_cell_taken(sizeof(*g_cli_schema_read), "a file read against its schema");
     g_cli_schema_store = cli_cell_taken(sizeof(*g_cli_schema_store), "the schemas reached");
+    if (g_cli_schema_read != NULL)
+    {
+        g_cli_schema_read->node = NULL;
+        g_cli_schema_read->member = NULL;
+        g_cli_schema_read->pool = NULL;
+        g_cli_schema_read->nodes_most = 0u;
+        g_cli_schema_read->members_most = 0u;
+        g_cli_schema_read->pool_most = 0u;
+    }
     if ((g_cli_schema_read == NULL) || (g_cli_schema_store == NULL))
     {
         cli_schema_released();
@@ -29,8 +37,73 @@ int cli_schema_held(void)
     return 1;
 }
 
+void *cli_schema_grown(void *cells, unsigned int *most, unsigned long long needed, size_t each, unsigned int hard,
+                       const char *what)
+{
+    if (needed <= *most)
+    {
+        return cells;
+    }
+    if (needed > hard)
+    {
+        return NULL;
+    }
+    unsigned long long grown = (*most == 0u) ? CLI_SCHEMA_FIRST : *most;
+    while (grown < needed)
+    {
+        grown *= 2ull;
+    }
+    grown = (grown < hard) ? grown : hard;
+    unsigned char *const moved = cli_cell_taken_by(&g_cli_schema_cells, grown * each, what);
+    if (moved == NULL)
+    {
+        return NULL;
+    }
+    if (cells != NULL)
+    {
+        // the places held are below the list's room, which a size_t holds
+        memor.cpy(&(MemoriaCfg){.dst = moved, .src = cells, .bytes = (size_t)*most * each});
+    }
+    cli_cell_given_by(&g_cli_schema_cells, cells);
+    // no more than `hard`, an unsigned int
+    *most = (unsigned int)grown;
+    return moved;
+}
+
+int cli_schema_read_room(CliSchemaRead *read, unsigned long long nodes, unsigned long long members,
+                         unsigned long long pool)
+{
+    CliSchemaNode *const node = cli_schema_grown(read->node, &read->nodes_most, nodes, sizeof(*node), CLI_SCHEMA_NODES,
+                                                 "a schema read's values");
+    read->node = (node != NULL) ? node : read->node;
+    CliSchemaMember *const member = cli_schema_grown(read->member, &read->members_most, members, sizeof(*member),
+                                                     CLI_SCHEMA_MEMBERS, "a schema read's members");
+    read->member = (member != NULL) ? member : read->member;
+    char *const text =
+        cli_schema_grown(read->pool, &read->pool_most, pool, 1u, CLI_SCHEMA_POOL, "a schema read's texts");
+    read->pool = (text != NULL) ? text : read->pool;
+    return (nodes <= read->nodes_most) && (members <= read->members_most) && (pool <= read->pool_most);
+}
+
+void cli_schema_read_given(CliSchemaRead *read)
+{
+    cli_cell_given_by(&g_cli_schema_cells, read->node);
+    cli_cell_given_by(&g_cli_schema_cells, read->member);
+    cli_cell_given_by(&g_cli_schema_cells, read->pool);
+    read->node = NULL;
+    read->member = NULL;
+    read->pool = NULL;
+    read->nodes_most = 0u;
+    read->members_most = 0u;
+    read->pool_most = 0u;
+}
+
 void cli_schema_released(void)
 {
+    if (g_cli_schema_read != NULL)
+    {
+        cli_schema_read_given(g_cli_schema_read);
+    }
     cli_cell_given(g_cli_schema_store);
     cli_cell_given(g_cli_schema_read);
     g_cli_schema_store = NULL;
@@ -39,7 +112,6 @@ void cli_schema_released(void)
 }
 
 static CliBuildFindings s_found;
-static unsigned int s_starts[CLI_SCHEMA_LINES];
 
 int cli_schema_reads(const char *path)
 {
@@ -73,7 +145,7 @@ static void schema_missing(const char *root, const char *key, const char *text, 
                            unsigned long long to, const CliBuildLines *lines)
 {
     CliLine said = cli_build_said(&s_found);
-    cli_line_text(&said, "orior holds no schema at ");
+    cli_line_text(&said, "orior_cli holds no schema at ");
     cli_line_counted(&said, text + from, to - from);
     const unsigned int finding = cli_build_finding(&s_found, &said, lines, from, to, CLI_BUILD_NOTE, "schema-missing");
     char place[CLI_PATH_LONGEST];
@@ -116,9 +188,11 @@ void cli_schema_check(const char *root, const char *path, const char *text, unsi
     }
     cli_build_findings_begun(&s_found);
     CliBuildLines lines;
-    cli_build_lines_of(text, size, s_starts, CLI_SCHEMA_LINES, &lines);
+    unsigned int *const starts = cli_build_lines_taken(text, size, &lines);
     CliSchemaRead *const read = g_cli_schema_read;
     cli_schema_read(text, size, read);
+    const unsigned long long checked = (unsigned long long)read->nodes + read->members + CLI_SCHEMA_CHECK_NODES;
+    (void)cli_schema_read_room(read, (checked < CLI_SCHEMA_NODES) ? checked : CLI_SCHEMA_NODES, 0ull, 0ull);
     for (unsigned int at = 0u; at < read->errors; at += 1u)
     {
         const CliSchemaError *const error = &read->error[at];
@@ -145,5 +219,7 @@ void cli_schema_check(const char *root, const char *path, const char *text, unsi
         }
     }
     cli_build_findings_written(&s_found, out);
+    cli_build_findings_given(&s_found);
+    cli_cell_given_by(&g_cli_build_cells, starts);
     cli_schema_released();
 }

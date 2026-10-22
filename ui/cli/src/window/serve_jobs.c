@@ -16,9 +16,12 @@
 #define CLI_SERVE_ARGS 65536u
 #define CLI_SERVE_LISTS 65536u
 #define CLI_SERVE_CATALOG_TEXT (4u << 20u)
-// the most runs started here whose lines are gathered at once, and the bytes of the lines each gathers
+// the most runs started here whose lines are gathered at once; the bytes of the lines a gathering holds before they go
+// at once, and the bytes it is begun in, doubling as it fills; and the bytes a line said is begun to be written in
 #define CLI_SERVE_GATHERING 64u
 #define CLI_SERVE_GATHERED (1u << 20u)
+#define CLI_SERVE_GATHERED_FIRST 4096u
+#define CLI_SERVE_SAID_FIRST 1024u
 // how often the lines gathered go to the page, in milliseconds
 #define CLI_SERVE_FLUSH 50u
 
@@ -39,19 +42,18 @@ static CliServeCatalogRoom *s_catalog;
 static CliLock s_catalog_lock = CLI_LOCK_INIT;
 
 // A run's gathering, a cell taken as its run starts and given back as it ends: its place among the gatherings, and the
-// lines it said since they last went, as a JSON array's items
+// lines it said since they last went, a growing line holding a JSON array's opening and its items
 typedef struct
 {
     unsigned int place;
-    char lines[CLI_SERVE_GATHERED];
-    unsigned long long at;
+    CliLine lines;
 } CliServeGathering;
 
+CliCellsTally g_cli_serve_gathering_cells = CLI_CELLS_TALLY("cli_serve_gathering");
 static CliServeGathering *s_gathering[CLI_SERVE_GATHERING];
 static CliLock s_gathering_lock = CLI_LOCK_INIT;
 static CliThread s_flusher;
 static int s_flushing;
-static char s_flushed[CLI_SERVE_GATHERED + 2u];
 
 CliCatalog *cli_serve_catalog_taken(const char *root, CliLine *said)
 {
@@ -102,15 +104,16 @@ CliValues *cli_serve_values_of(const CliServeArgs *args)
 // the lines of a gathering sent to the page as run-lines, where it holds any; under the gathering's lock
 static void jobs_flushed(CliServeGathering *one)
 {
-    if (one->at == 0ull)
+    if (one->lines.at <= 1ull)
     {
         return;
     }
-    s_flushed[0] = '[';
-    memor.cpy(&(MemoriaCfg){.dst = s_flushed + 1u, .src = one->lines, .bytes = (size_t)one->at});
-    s_flushed[one->at + 1u] = ']';
-    cli_serve_emitted("run-lines", s_flushed, one->at + 2u);
-    one->at = 0ull;
+    cli_line_character(&one->lines, ']');
+    if (cli_line_fits(&one->lines))
+    {
+        cli_serve_emitted("run-lines", one->lines.out, one->lines.at);
+    }
+    one->lines.at = 1ull;
 }
 
 // every gathering's lines sent to the page every fifty milliseconds
@@ -137,49 +140,52 @@ static void jobs_flusher(void *context)
 static void jobs_said(void *context, const CliSaid *said)
 {
     CliServeGathering *const one = context;
-    static char s_line[CLI_SERVE_GATHERED];
     cli_lock_take(&s_gathering_lock);
-    CliLine line = {s_line, sizeof(s_line), 0ull};
-    cli_said_written(said, &line);
-    if (said->kind == CLI_SAID_START)
+    if ((said->kind == CLI_SAID_LINE) && (one != NULL))
     {
-        cli_serve_emitted("run-start", s_line, line.at);
-    }
-    else if ((said->kind == CLI_SAID_LINE) && (one == NULL))
-    {
-        s_flushed[0] = '[';
-        memor.cpy(&(MemoriaCfg){.dst = s_flushed + 1u, .src = s_line, .bytes = (size_t)line.at});
-        s_flushed[line.at + 1u] = ']';
-        cli_serve_emitted("run-lines", s_flushed, line.at + 2u);
-    }
-    else if (said->kind == CLI_SAID_LINE)
-    {
-        if (one->at + line.at + 1u > sizeof(one->lines))
+        if (one->lines.at > CLI_SERVE_GATHERED)
         {
             jobs_flushed(one);
         }
-        if (cli_line_fits(&line) && (one->at + line.at + 1u <= sizeof(one->lines)))
-        {
-            if (one->at > 0ull)
-            {
-                one->lines[one->at] = ',';
-                one->at += 1u;
-            }
-            memor.cpy(&(MemoriaCfg){.dst = one->lines + one->at, .src = s_line, .bytes = (size_t)line.at});
-            one->at += line.at;
-        }
+        // a line whose room cannot be met is left out, the lines before it kept
+        const unsigned long long mark = one->lines.at;
+        cli_line_text(&one->lines, (mark > 1ull) ? "," : "");
+        cli_said_written(said, &one->lines);
+        one->lines.at = cli_line_fits(&one->lines) ? one->lines.at : mark;
+        cli_lock_give(&s_gathering_lock);
+        return;
     }
-    else
+    // the line said written after an array's opening, which a line said where it has no gathering goes in alone
+    CliLine line = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_line_growing(&line, CLI_SERVE_SAID_FIRST, "a line a run said");
+    cli_line_character(&line, '[');
+    cli_said_written(said, &line);
+    if (said->kind == CLI_SAID_LINE)
+    {
+        cli_line_character(&line, ']');
+    }
+    const int fits = cli_line_fits(&line);
+    if ((said->kind == CLI_SAID_START) && fits)
+    {
+        cli_serve_emitted("run-start", line.out + 1u, line.at - 1u);
+    }
+    else if ((said->kind == CLI_SAID_LINE) && fits)
+    {
+        cli_serve_emitted("run-lines", line.out, line.at);
+    }
+    else if ((said->kind != CLI_SAID_START) && (said->kind != CLI_SAID_LINE))
     {
         if (one != NULL)
         {
             jobs_flushed(one);
             s_gathering[one->place] = NULL;
-            cli_cell_given(one);
+            cli_cell_given(one->lines.out);
+            cli_cell_given_by(&g_cli_serve_gathering_cells, one);
         }
-        cli_serve_emitted("run-end", s_line, line.at);
+        cli_serve_emitted("run-end", fits ? line.out + 1u : "", fits ? line.at - 1u : 0ull);
     }
     cli_lock_give(&s_gathering_lock);
+    cli_cell_given(line.out);
 }
 
 // a run's gathering given back where its run did not start, NULL given back as nothing
@@ -190,7 +196,8 @@ static void jobs_gathering_given(CliServeGathering *one)
         cli_lock_take(&s_gathering_lock);
         s_gathering[one->place] = NULL;
         cli_lock_give(&s_gathering_lock);
-        cli_cell_given(one);
+        cli_cell_given(one->lines.out);
+        cli_cell_given_by(&g_cli_serve_gathering_cells, one);
     }
 }
 
@@ -207,14 +214,26 @@ int cli_serve_job_start(const char *job, const CliServeArgs *args, CliLine *out,
     {
         place += 1u;
     }
-    // a run with no room left for its gathering has its lines go at once, as one past the places does
-    CliServeGathering *const one =
-        (place < CLI_SERVE_GATHERING) ? cli_cell_taken(sizeof(CliServeGathering), "a run's gathering") : NULL;
+    // a run with no room left for its gathering, or whose lines' cell is refused, has its lines go at once, as one past
+    // the places does
+    CliServeGathering *one =
+        (place < CLI_SERVE_GATHERING)
+            ? cli_cell_taken_by(&g_cli_serve_gathering_cells, sizeof(CliServeGathering), "a run's gathering")
+            : NULL;
     if (one != NULL)
     {
         one->place = place;
-        one->at = 0ull;
-        s_gathering[place] = one;
+        one->lines = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+        if (cli_line_growing(&one->lines, CLI_SERVE_GATHERED_FIRST, "the lines a run said"))
+        {
+            cli_line_character(&one->lines, '[');
+            s_gathering[place] = one;
+        }
+        else
+        {
+            cli_cell_given_by(&g_cli_serve_gathering_cells, one);
+            one = NULL;
+        }
     }
     const int started = s_flushing;
     s_flushing = 1;

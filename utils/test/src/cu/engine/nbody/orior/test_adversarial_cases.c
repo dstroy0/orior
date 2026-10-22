@@ -63,8 +63,8 @@ static int adversarial_grade_against_reference(const uint8_t *const corpus, cons
                                                const char *const label)
 {
     const size_t expected = orior_naive(corpus, corpus_len, needle, needle_len);
-    const size_t unsteered = anchor_steer_count(corpus, corpus_len, needle, needle_len, 0);
-    const size_t steered = anchor_steer_count(corpus, corpus_len, needle, needle_len, 1);
+    const size_t unsteered = orior_steer_count(corpus, corpus_len, needle, needle_len, 0);
+    const size_t steered = orior_steer_count(corpus, corpus_len, needle, needle_len, 1);
     int failed = 0;
 
     if (unsteered != expected)
@@ -160,7 +160,7 @@ int adversarial_case_overlapping(void)
         const size_t corpus_len = strlen(rows[row].corpus);
         const size_t needle_len = strlen(rows[row].needle);
         const size_t reference = orior_naive(corpus, corpus_len, needle, needle_len);
-        const size_t steered = anchor_steer_count(corpus, corpus_len, needle, needle_len, 1);
+        const size_t steered = orior_steer_count(corpus, corpus_len, needle, needle_len, 1);
 
         if ((reference != rows[row].expected) || (steered != rows[row].expected))
         {
@@ -189,7 +189,7 @@ int adversarial_case_boundaries(void)
 
     // A match at alignment zero, and a match at the final alignment, in one field.
     static const uint8_t leading[] = {'x', 'y'};
-    const size_t first_count = anchor_steer_count(field, field_len, leading, sizeof(leading), 1);
+    const size_t first_count = orior_steer_count(field, field_len, leading, sizeof(leading), 1);
     if (first_count != 2u)
     {
         printf("    FAIL leading and trailing match: %zu against 2\n", first_count);
@@ -197,7 +197,7 @@ int adversarial_case_boundaries(void)
     }
 
     // A needle occupying the whole field occurs exactly once, at the only alignment there is.
-    const size_t self_count = anchor_steer_count(field, field_len, field, field_len, 1);
+    const size_t self_count = orior_steer_count(field, field_len, field, field_len, 1);
     if (self_count != 1u)
     {
         printf("    FAIL needle equals corpus: %zu against 1\n", self_count);
@@ -206,7 +206,7 @@ int adversarial_case_boundaries(void)
 
     // A needle longer than the corpus has no alignment to sit at.
     static const uint8_t overlong[] = {'x', 'y', 'z', 'q', 'x', 'y', 'z'};
-    const size_t none = anchor_steer_count(field, field_len, overlong, sizeof(overlong), 1);
+    const size_t none = orior_steer_count(field, field_len, overlong, sizeof(overlong), 1);
     if (none != 0u)
     {
         printf("    FAIL needle longer than corpus: %zu against 0\n", none);
@@ -215,7 +215,7 @@ int adversarial_case_boundaries(void)
 
     // A single byte needle counts its symbol, the shortest probe the engine can place.
     static const uint8_t single[] = {'x'};
-    const size_t singles = anchor_steer_count(field, field_len, single, sizeof(single), 1);
+    const size_t singles = orior_steer_count(field, field_len, single, sizeof(single), 1);
     if (singles != 2u)
     {
         printf("    FAIL single byte needle: %zu against 2\n", singles);
@@ -268,13 +268,13 @@ int adversarial_case_absent_symbol(void)
 
     const size_t alignments = ADVERSARIAL_CORPUS - sizeof(needle) + 1u;
 
-    anchor_steer_probes_reset();
-    const size_t plain_count = anchor_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 0);
-    const uint64_t plain_reads = anchor_steer_probes;
+    orior_steer_probes_reset();
+    const size_t plain_count = orior_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 0);
+    const uint64_t plain_reads = orior_steer_probes;
 
-    anchor_steer_probes_reset();
-    const size_t steered_count = anchor_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 1);
-    const uint64_t steered_reads = anchor_steer_probes;
+    orior_steer_probes_reset();
+    const size_t steered_count = orior_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 1);
+    const uint64_t steered_reads = orior_steer_probes;
 
     if ((plain_count != 0u) || (steered_count != 0u))
     {
@@ -338,10 +338,10 @@ int adversarial_case_all_survivors_false(void)
     const size_t alignments = ADVERSARIAL_CORPUS - sizeof(needle) + 1u;
     const size_t reference = orior_naive(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle));
 
-    anchor_steer_probes_reset();
-    const size_t plain = anchor_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 0);
-    const uint64_t reads = anchor_steer_probes;
-    const uint64_t every_probe = (uint64_t)alignments * (uint64_t)ANCHOR_STEER_ANCHORS;
+    orior_steer_probes_reset();
+    const size_t plain = orior_steer_count(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), 0);
+    const uint64_t reads = orior_steer_probes;
+    const uint64_t every_probe = (uint64_t)alignments * (uint64_t)ORIOR_STEER_ANCHORS;
 
     if ((reference != 0u) || (plain != 0u))
     {

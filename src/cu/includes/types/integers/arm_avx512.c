@@ -30,25 +30,25 @@
 
 #include "arm.h"
 
-#if defined(ANCHOR_EXACT_HAVE_AVX512) && ANCHOR_EXACT_HAVE_AVX512
+#if defined(ORIOR_EXACT_HAVE_AVX512) && ORIOR_EXACT_HAVE_AVX512
 
 #include <immintrin.h>
 
 #if defined(_MSC_VER)
 #include <intrin.h>
 /** @brief Set where this translation unit can ask the processor about AVX-512. */
-#define ANCHOR_AVX512_CAN_DETECT 1
+#define ORIOR_AVX512_CAN_DETECT 1
 #elif defined(__GNUC__) || defined(__clang__)
-#define ANCHOR_AVX512_CAN_DETECT 1
+#define ORIOR_AVX512_CAN_DETECT 1
 #else
-#define ANCHOR_AVX512_CAN_DETECT 0
+#define ORIOR_AVX512_CAN_DETECT 0
 #endif
 
 /** @brief Limbs compared per AVX-512 instruction. 512 bits holds sixteen 32 bit limbs. */
-#define ANCHOR_AVX512_LANES 16u
+#define ORIOR_AVX512_LANES 16u
 
 /** @brief Every lane set. A full block of matching limbs compares equal to this. */
-#define ANCHOR_AVX512_ALL ((__mmask16)0xFFFFu)
+#define ORIOR_AVX512_ALL ((__mmask16)0xFFFFu)
 
 /**
  * @brief Whether the running processor carries the AVX-512 subsets this arm issues.
@@ -59,7 +59,7 @@
  */
 static int avx512_present(void)
 {
-#if !ANCHOR_AVX512_CAN_DETECT
+#if !ORIOR_AVX512_CAN_DETECT
     return 0;
 #elif defined(_MSC_VER)
     int leaves[4] = {0, 0, 0, 0};
@@ -88,13 +88,13 @@ static int avx512_present(void)
  */
 static int avx512_magnitude_equal(const uint32_t *left, const uint32_t *right)
 {
-    size_t at = (size_t)ANCHOR_EXACT_LIMBS;
-    while (at >= (size_t)ANCHOR_AVX512_LANES)
+    size_t at = (size_t)ORIOR_EXACT_LIMBS;
+    while (at >= (size_t)ORIOR_AVX512_LANES)
     {
-        at -= (size_t)ANCHOR_AVX512_LANES;
+        at -= (size_t)ORIOR_AVX512_LANES;
         const __m512i one = _mm512_loadu_si512((const void *)(left + at));
         const __m512i two = _mm512_loadu_si512((const void *)(right + at));
-        if (_mm512_cmpeq_epi32_mask(one, two) != ANCHOR_AVX512_ALL)
+        if (_mm512_cmpeq_epi32_mask(one, two) != ORIOR_AVX512_ALL)
         {
             return 0;
         }
@@ -126,15 +126,15 @@ static int avx512_magnitude_equal(const uint32_t *left, const uint32_t *right)
  */
 static int avx512_magnitude_compare(const uint32_t *left, const uint32_t *right)
 {
-    size_t at = (size_t)ANCHOR_EXACT_LIMBS;
-    while (at >= (size_t)ANCHOR_AVX512_LANES)
+    size_t at = (size_t)ORIOR_EXACT_LIMBS;
+    while (at >= (size_t)ORIOR_AVX512_LANES)
     {
-        at -= (size_t)ANCHOR_AVX512_LANES;
+        at -= (size_t)ORIOR_AVX512_LANES;
         const __m512i one = _mm512_loadu_si512((const void *)(left + at));
         const __m512i two = _mm512_loadu_si512((const void *)(right + at));
-        if (_mm512_cmpeq_epi32_mask(one, two) != ANCHOR_AVX512_ALL)
+        if (_mm512_cmpeq_epi32_mask(one, two) != ORIOR_AVX512_ALL)
         {
-            size_t back = at + (size_t)ANCHOR_AVX512_LANES;
+            size_t back = at + (size_t)ORIOR_AVX512_LANES;
             while (back > at)
             {
                 back--;
@@ -163,7 +163,7 @@ static int avx512_magnitude_compare(const uint32_t *left, const uint32_t *right)
  * @param[in] right Second integer [BORROWS].
  * @return          1 where the values are equal, 0 otherwise.
  */
-static int arm_equal(const AnchorExactInteger *left, const AnchorExactInteger *right)
+static int arm_equal(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -177,9 +177,9 @@ static int arm_equal(const AnchorExactInteger *left, const AnchorExactInteger *r
  *
  * @param[in] left  First integer [BORROWS].
  * @param[in] right Second integer [BORROWS].
- * @return          -1, 1 or 0, matching anchor_exact_compare exactly.
+ * @return          -1, 1 or 0, matching orior_exact_compare exactly.
  */
-static int arm_compare(const AnchorExactInteger *left, const AnchorExactInteger *right)
+static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *right)
 {
     if (left->sign != right->sign)
     {
@@ -203,32 +203,32 @@ static int arm_compare(const AnchorExactInteger *left, const AnchorExactInteger 
  * @param[in] lag       The offset to test [BORROWS].
  * @return              How many positions agree with the place one lag above them.
  */
-static size_t arm_agreement(const AnchorExactInteger *positions, const uint64_t *values, size_t count,
-                            const AnchorExactInteger *lag)
+static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                            const OriorExactInteger *lag)
 {
     // The shared search, with only the equality test swapped. The timing then measures the instruction
     // set and not a second algorithm.
-    return anchor_exact_agreement_using(arm_equal, positions, values, count, lag);
+    return orior_exact_agreement_using(arm_equal, positions, values, count, lag);
 }
 
 /** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
-static const AnchorExactArm AVX512_ARM = {
+static const OriorExactArm AVX512_ARM = {
     "avx512-unrun",
     arm_equal,
     arm_compare,
     arm_agreement,
 };
 
-const AnchorExactArm *anchor_exact_avx512_arm(void)
+const OriorExactArm *orior_exact_avx512_arm(void)
 {
     return avx512_present() ? &AVX512_ARM : NULL;
 }
 
 #else
 
-const AnchorExactArm *anchor_exact_avx512_arm(void)
+const OriorExactArm *orior_exact_avx512_arm(void)
 {
     return NULL;
 }
 
-#endif /* ANCHOR_EXACT_HAVE_AVX512 */
+#endif /* ORIOR_EXACT_HAVE_AVX512 */

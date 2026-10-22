@@ -8,10 +8,10 @@
 
 static CliRequestsValues s_values;
 
-// the reason a request did not fit what orior holds
+// the reason a request did not fit what orior_cli holds
 static void ready_full_said(CliLine *said)
 {
-    cli_line_text(said, "the request is larger than orior holds");
+    cli_line_text(said, "the request is larger than orior_cli holds");
 }
 
 // a text of the parse filled into `out`, which holds `room`, its end closed: 1, or 0 with why said
@@ -54,7 +54,7 @@ static int ready_body_file(const char *root, const char *path, const char *name,
     cli_line_text(&line, name);
     unsigned long long length = 0ull;
     const unsigned char *const bytes =
-        (cli_line_closed(&line) != 0ull) ? qry_member_file_mapped(beside, &length) : NULL;
+        (cli_line_closed(&line) != 0ull) ? cli_file_held(beside, &length) : NULL;
     const int whole = (bytes != NULL) && cli_utf8_whole((const char *)bytes, length);
     const int fits = whole && (length <= room);
     if (fits)
@@ -64,7 +64,7 @@ static int ready_body_file(const char *root, const char *path, const char *name,
     }
     if (bytes != NULL)
     {
-        qry_member_file_unmapped(bytes, length);
+        cli_file_let_go(bytes, length);
     }
     if (!whole)
     {
@@ -74,7 +74,7 @@ static int ready_body_file(const char *root, const char *path, const char *name,
     else if (!fits)
     {
         cli_line_text(said, name);
-        cli_line_text(said, " is larger than orior holds");
+        cli_line_text(said, " is larger than orior_cli holds");
     }
     return fits;
 }
@@ -176,11 +176,14 @@ int cli_requests_ready(const char *root, const char *path, const char *text, uns
     else
     {
         ready = ready_made(root, path, parsed, request, env, sent, body, room, said);
+        cli_requests_values_given(&s_values);
         if (ready && (key != NULL))
         {
             cli_requests_key(parsed, request, key);
         }
     }
+    // what is sent was copied out of the file read, so the file read is given back here
+    cli_requests_parsed_given(&g_cli_requests_parsed);
     cli_lock_give(&g_cli_requests_lock);
     return ready;
 }

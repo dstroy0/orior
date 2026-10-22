@@ -157,7 +157,7 @@ series, `lambda(H-beta) / lambda(H-alpha) = 20/27` exactly, with `R_inf` cancele
 of line ratios is physical-constant-free and exact while the absolute scale still carries the CODATA
 uncertainty. The spread reaches Regime C only by cancellation, predicting exact ratios, never by
 raising an absolute past its deposit. Where the absolute is needed with its uncertainty, the engine now
-carries it: `anchor_exact_from_measured` and `representation.exact.measured(text, digits)` return the
+carries it: `orior_exact_from_measured` and `representation.exact.measured(text, digits)` return the
 value and its bracketed uncertainty at one scale (on `origin/main`).
 
 ## 6. Two floors: precision and completeness

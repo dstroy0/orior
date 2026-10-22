@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// dap_within.c: a debug adapter that runs in orior on a thread of its own, spoken to through two queues framed as a
+// dap_within.c: a debug adapter that runs in orior_cli on a thread of its own, spoken to through two queues framed as a
 // program's input and output are. Each message waits in a cell of its own size: a request the client writes is taken
 // into one as its head gives its length, and a message the adapter sends is framed as the client reads it
 #include "../command_line/cells.h"
 #include "dap_internal.h"
 
-// A message waiting one way between orior and its own adapter, in a cell of its size: the one after it, its size and
+// A message waiting one way between orior_cli and its own adapter, in a cell of its size: the one after it, its size and
 // its bytes
 typedef struct CliDapQueuedStruct
 {
@@ -288,7 +288,7 @@ static unsigned long long within_unframed(void *source, char *piece, unsigned lo
     return count;
 }
 
-// each request handed to the adapter in orior until it says it goes no further or no more come; then the client told
+// each request handed to the adapter in orior_cli until it says it goes no further or no more come; then the client told
 // no more comes from it
 static void within_served(void *context)
 {

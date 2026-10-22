@@ -3,9 +3,9 @@
 // knf_identity_main.cu: departure, controls and main
 #include "knf_identity_internal.h"
 
-static AnchorExactInteger s_knf_body_departure[KNF_SCALES][KNF_BODIES];
+static OriorExactInteger s_knf_body_departure[KNF_SCALES][KNF_BODIES];
 
-static void knf_print_share(ScripturaLine *line, const AnchorExactInteger *part, const AnchorExactInteger *whole)
+static void knf_print_share(ScripturaLine *line, const OriorExactInteger *part, const OriorExactInteger *whole)
 {
     scriptura_character(line, ' ');
     char text_buffer[32];
@@ -26,13 +26,13 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
     const unsigned long long side = record->side;
     KnfEntangled whole;
     knf_entangle(record, NULL, side, boxes, &whole);
-    AnchorExactInteger truth;
+    OriorExactInteger truth;
     knf_exact_total(&whole, &truth);
-    AnchorExactInteger inside_departure[KNF_SCALES];
-    AnchorExactInteger between_departure[KNF_SCALES];
+    OriorExactInteger inside_departure[KNF_SCALES];
+    OriorExactInteger between_departure[KNF_SCALES];
     int inside_identified[KNF_SCALES];
     int between_identified[KNF_SCALES];
-    AnchorExactInteger free_sum;
+    OriorExactInteger free_sum;
     unsigned long long split_matches = 0ull;
     unsigned long long kept_stored = 0ull;
     for (unsigned int scale = 0u; scale < KNF_SCALES; scale += 1u)
@@ -40,17 +40,17 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         const unsigned long long tile = s_knf_tiles[scale];
         KnfEntangled split;
         knf_entangle(record, NULL, tile, NULL, &split);
-        AnchorExactInteger split_total;
+        OriorExactInteger split_total;
         knf_exact_total(&split, &split_total);
-        split_matches += (anchor_exact_compare(&split_total, &truth) == 0) ? 1ull : 0ull;
-        AnchorExactInteger inside_sum;
-        AnchorExactInteger between_sum;
-        AnchorExactInteger body_sum[KNF_BODIES];
-        anchor_exact_zero(&inside_sum);
-        anchor_exact_zero(&between_sum);
+        split_matches += (orior_exact_compare(&split_total, &truth) == 0) ? 1ull : 0ull;
+        OriorExactInteger inside_sum;
+        OriorExactInteger between_sum;
+        OriorExactInteger body_sum[KNF_BODIES];
+        orior_exact_zero(&inside_sum);
+        orior_exact_zero(&between_sum);
         for (unsigned int body = 0u; body < KNF_BODIES; body += 1u)
         {
-            anchor_exact_zero(&body_sum[body]);
+            orior_exact_zero(&body_sum[body]);
         }
         inside_identified[scale] = 1;
         between_identified[scale] = 1;
@@ -58,17 +58,17 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         {
             const unsigned long long counter = (((((tag * KNF_SCALES) + scale) * 2ull) * KNF_DRAWS) + draw);
             KnfEntangled drawn;
-            AnchorExactInteger total;
-            AnchorExactInteger running;
+            OriorExactInteger total;
+            OriorExactInteger running;
             knf_inside_draw(map, slot, side, tile, sim_draw(KNF_KEY ^ KNF_NULL_PURPOSE, counter));
             knf_entangle(record, map, tile, boxes, &drawn);
             knf_exact_total(&drawn, &total);
-            inside_identified[scale] = inside_identified[scale] && (anchor_exact_compare(&total, &truth) < 0);
+            inside_identified[scale] = inside_identified[scale] && (orior_exact_compare(&total, &truth) < 0);
             sim_exact_sum(&inside_sum, &total, &running);
             inside_sum = running;
             for (unsigned int body = 0u; body < KNF_BODIES; body += 1u)
             {
-                AnchorExactInteger share;
+                OriorExactInteger share;
                 knf_wide_exact(&drawn.body[body], &share);
                 sim_exact_sum(&body_sum[body], &share, &running);
                 body_sum[body] = running;
@@ -77,7 +77,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
             knf_entangle(record, map, tile, NULL, &drawn);
             kept_stored += knf_wide_equal(&drawn.inside, &split.inside) ? 1ull : 0ull;
             knf_exact_total(&drawn, &total);
-            between_identified[scale] = between_identified[scale] && (anchor_exact_compare(&total, &truth) < 0);
+            between_identified[scale] = between_identified[scale] && (orior_exact_compare(&total, &truth) < 0);
             sim_exact_sum(&between_sum, &total, &running);
             between_sum = running;
         }
@@ -86,17 +86,17 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         free_sum = inside_sum;
         for (unsigned int body = 0u; body < KNF_BODIES; body += 1u)
         {
-            AnchorExactInteger body_truth;
+            OriorExactInteger body_truth;
             knf_wide_exact(&whole.body[body], &body_truth);
             knf_departure_of(&body_truth, &body_sum[body], &s_knf_body_departure[scale][body]);
         }
     }
-    const AnchorExactInteger *const universal = &inside_departure[KNF_SCALES - 1u];
+    const OriorExactInteger *const universal = &inside_departure[KNF_SCALES - 1u];
     ScripturaLine *const line = &results->line;
     scriptura_text(line, "  ");
     scriptura_text(line, name);
     scriptura_text(line, ": the entangled entropy against the free null's mean ");
-    AnchorExactInteger scaled_truth;
+    OriorExactInteger scaled_truth;
     sim_exact_scaled(&truth, KNF_DRAWS, &scaled_truth);
     sim_ratio_print(line, &scaled_truth, &free_sum, 3u);
     scriptura_text(line, ", identified ");
@@ -107,7 +107,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
     scriptura_text(line, "      tile    inside   between       sum\n");
     for (unsigned int scale = 0u; scale < KNF_SCALES; scale += 1u)
     {
-        AnchorExactInteger both;
+        OriorExactInteger both;
         sim_exact_sum(&inside_departure[scale], &between_departure[scale], &both);
         scriptura_text(line, "    ");
         scriptura_decimal_columns(line, s_knf_tiles[scale], 6u);

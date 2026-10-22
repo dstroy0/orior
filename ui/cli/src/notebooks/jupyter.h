@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // jupyter.h: Jupyter's kernels, in any language the machine has one for: found where Jupyter keeps their specs and in
-// the Pythons orior finds, started with a connection file of orior's, and spoken to by Jupyter's messaging protocol
+// the Pythons orior_cli finds, started with a connection file of orior's, and spoken to by Jupyter's messaging protocol
 // over ZMTP, each message signed with the kernel's key.
 //
 // A kernel's specs are read in Jupyter's order, the first of a name standing: the folders JUPYTER_PATH names, the
-// reader's own Jupyter folder, each Python's own, and the system's. A Python orior finds with ipykernel in it and no
+// reader's own Jupyter folder, each Python's own, and the system's. A Python orior_cli finds with ipykernel in it and no
 // spec of its own is a kernel too; one without ipykernel is listed with the line that installs it.
 //
 // An interrupt reaches a kernel as its spec asks: by a message on its control socket, or else by SIGINT, or on Windows
-// by the event ipykernel waits on, which orior makes and names in JPY_INTERRUPT_EVENT as it starts the kernel. A
+// by the event ipykernel waits on, which orior_cli makes and names in JPY_INTERRUPT_EVENT as it starts the kernel. A
 // kernel that does not stop when asked is ended (jupyter.c, jupyter_folders.c, jupyter_specs.c, jupyter_readers.c,
 // jupyter_requests.c, jupyter_wire.c, jupyter_debug.c)
 #ifndef JUPYTER_H
@@ -47,7 +47,7 @@ typedef struct
     int full;
 } CliKernelSpec;
 
-// A running kernel and the sockets orior speaks to it on
+// A running kernel and the sockets orior_cli speaks to it on
 typedef struct CliKernel CliKernel;
 
 // what a kernel said, as the page reads a message, `{"channel", "msg_type", "msg_id", "parent", "content"}`, handed to

@@ -40,7 +40,7 @@ int query_pairs_configs(QueryContext *context, QueryRun *run, const char *part, 
 // wrapping as the part's does, run, and its answers handed as `host_answers.txt`
 int query_host_answered(QueryContext *context, const QueryRun *run, const char *out, CliLine *said);
 // `folder`/`name` into `path`; `part` and `extension` under the bridge's folder into `path`; the identity run with
-// `words` teed as `klq_identity.console`, 1 where it ran (pairs_modes.c)
+// `words` teed as `orior_klq_identity.console`, 1 where it ran (pairs_modes.c)
 void query_pairs_in(const char *folder, const char *name, char *path);
 void query_part_file(const QueryContext *context, const char *part, const char *extension, char *path);
 int query_identity_ran(QueryContext *context, const QueryRun *run, const char *identity, const char *const *words,

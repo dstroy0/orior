@@ -3,11 +3,11 @@
 // max_tree_build.c: the tree built
 #include "max_tree_internal.h"
 
-AnchorExactInteger g_asked_left;
-AnchorExactInteger g_asked_right;
+OriorExactInteger g_asked_left;
+OriorExactInteger g_asked_right;
 static unsigned int s_asked_ready = 0u;
 
-static void max_tree_exact_of(const unsigned int *residual, unsigned int voxel, AnchorExactInteger *value)
+static void max_tree_exact_of(const unsigned int *residual, unsigned int voxel, OriorExactInteger *value)
 {
     const unsigned int *const limbs = &residual[(size_t)voxel * ENGINE_RESIDUAL_LIMBS];
     const unsigned int negative = (limbs[ENGINE_RESIDUAL_LIMBS - 1u] >> 31u) & 1u;
@@ -33,8 +33,8 @@ void max_tree_ask_ready(void)
 {
     if (s_asked_ready == 0u)
     {
-        anchor_exact_zero(&g_asked_left);
-        anchor_exact_zero(&g_asked_right);
+        orior_exact_zero(&g_asked_left);
+        orior_exact_zero(&g_asked_right);
         s_asked_ready = 1u;
     }
 }
@@ -51,7 +51,7 @@ int max_tree_before(const unsigned int *residual, unsigned int left, unsigned in
     max_tree_ask_ready();
     max_tree_exact_of(residual, left, &g_asked_left);
     max_tree_exact_of(residual, right, &g_asked_right);
-    const int order = anchor_exact_compare(&g_asked_left, &g_asked_right);
+    const int order = orior_exact_compare(&g_asked_left, &g_asked_right);
     if (order != 0)
     {
         return (order > 0) ? -1 : 1;
@@ -64,7 +64,7 @@ int max_tree_same(const unsigned int *residual, unsigned int left, unsigned int 
     max_tree_ask_ready();
     max_tree_exact_of(residual, left, &g_asked_left);
     max_tree_exact_of(residual, right, &g_asked_right);
-    return anchor_exact_equal(&g_asked_left, &g_asked_right);
+    return orior_exact_equal(&g_asked_left, &g_asked_right);
 }
 
 static const unsigned int *s_ordering_residual = NULL;

@@ -19,7 +19,7 @@ test("Off the Network refuses each reach, saying what it was for, and lets this 
   await invoke("file_write", { path: "network.http", text: `GET ${AWAY}\n` });
   await setOffNetwork(true);
   const refused = await send(AWAY).then((answer) => answer.failed ?? "", (error) => String(error));
-  assert.match(refused, /orior is held off the network, and a GET request did not reach http:\/\/192\.0\.2\.1:9\//);
+  assert.match(refused, /orior_cli is held off the network, and a GET request did not reach http:\/\/192\.0\.2\.1:9\//);
   const here = window.__harness.servers?.ORIOR_TEST_HTTP;
   if (here) {
     const answer = await send(`${here}/echo`);

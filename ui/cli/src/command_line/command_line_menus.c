@@ -57,7 +57,7 @@ int cli_menu_lines(const char *root, unsigned int menu)
     {
         char line[CLI_LABEL_LONGEST * 4u];
         CliLine usage = {line, sizeof(line), 0ull};
-        cli_line_text(&usage, "orior ");
+        cli_line_text(&usage, "orior_cli ");
         cli_line_text(&usage, word);
         cli_line_character(&usage, ' ');
         cli_line_text(&usage, s_items[at].command);
@@ -140,7 +140,7 @@ int cli_menu_job(const char *named, unsigned int menu, const char *const *words,
             cli_line_text(&said, title);
             cli_line_text(&said, " has no ");
             cli_line_text(&said, name);
-            cli_line_text(&said, ": orior ");
+            cli_line_text(&said, ": orior_cli ");
             cli_line_text(&said, word);
             cli_line_text(&said, " names what it has");
             cli_err_line(why, cli_line_fits(&said) ? said.at : 0ull);

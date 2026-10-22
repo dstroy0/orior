@@ -89,8 +89,8 @@ typedef struct
 {
     const BitwiseProgram *program;
     const unsigned int *atom;
-    AnchorExactInteger product[BITWISE_TEST_STEPS];
-    AnchorExactInteger product_less_one[BITWISE_TEST_STEPS];
+    OriorExactInteger product[BITWISE_TEST_STEPS];
+    OriorExactInteger product_less_one[BITWISE_TEST_STEPS];
 } BitwiseOracle;
 
 unsigned int bitwise_random(void);
@@ -110,7 +110,7 @@ void bitwise_run(BitwiseLoaded *loaded, const unsigned int *atoms, unsigned int 
 
 void bitwise_field_fill(unsigned int *atom, unsigned int offset, unsigned int bits, unsigned int pattern);
 
-void bitwise_take(const unsigned int *record, unsigned int offset, unsigned int bits, AnchorExactInteger *value);
+void bitwise_take(const unsigned int *record, unsigned int offset, unsigned int bits, OriorExactInteger *value);
 
 int bitwise_oracle_open(BitwiseOracle *oracle, const BitwiseProgram *program, const unsigned int *atom);
 

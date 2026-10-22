@@ -112,6 +112,11 @@ static void compile_cmake(void)
     compile_file(reply, "target-probe.json", s_target, sizeof(s_target) - 1u);
     static CliDatabase s_database;
     (void)cli_compile_db_refresh(dir, &s_database);
+    const unsigned long long held = g_cli_compile_cells.holds;
+    query_paused(2100u);
+    (void)cli_compile_db_refresh(dir, &s_database);
+    cli_check((g_cli_compile_cells.hw != 0ull) && (held != 0ull) && (g_cli_compile_cells.holds == held),
+              "a look holds only the files it read once it is done, and a look again that finds them the same no more");
     line.at = 0ull;
     cli_line_character(&line, '[');
     compile_entry(&line, built, source, "main.c", s_c, 7u);

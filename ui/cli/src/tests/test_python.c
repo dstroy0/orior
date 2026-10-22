@@ -377,7 +377,8 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
         worker->named = run->share_from[share];
         worker->named_count = run->share_size[share];
         cli_lock_take(&g_cli_test_lock);
-        const int started = cli_spawn(&worker->spawned, s_words.word, run->root, settings, 2u, 1, said);
+        const int started =
+            cli_spawn_as(CLI_PRIORITY_GUEST, &worker->spawned, s_words.word, run->root, settings, 2u, 1, said);
         run->worker_count += started ? 1u : 0u;
         cli_lock_give(&g_cli_test_lock);
         if (!started)
@@ -388,7 +389,7 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
         cli_lock_take(&run->lock);
         run->going += 1u;
         cli_lock_give(&run->lock);
-        worker->thread = (CliThread){python_worker, worker};
+        worker->thread = (CliThread){python_worker, worker, CLI_PRIORITY_GUEST};
         if (!cli_thread_started(&worker->thread))
         {
             python_worker(worker);

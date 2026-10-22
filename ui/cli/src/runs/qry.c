@@ -122,7 +122,7 @@ int cli_qry_read_file_from(const char *path, unsigned long long from, CliLine *o
     }
     cli_line_text(out, "{\"live\":false,\"blobs\":[");
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
     unsigned long long at = (bytes == NULL) ? from : ((from < size) ? from : size);
     unsigned long long panicked = 0ull;
     unsigned int count = 0u;
@@ -138,7 +138,7 @@ int cli_qry_read_file_from(const char *path, unsigned long long from, CliLine *o
     }
     if (bytes != NULL)
     {
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
     cli_line_text(out, "],\"next\":");
     cli_line_decimal(out, at, 1u);
@@ -200,7 +200,7 @@ int cli_qry_joined_bytes(const char *path, const char *name, CliLine *out, CliLi
     }
     cli_lock_give(&s_lock);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
     unsigned long long at = 0ull;
     while ((bytes != NULL) && qry_record_read(bytes, size, &at, &record))
     {
@@ -209,7 +209,7 @@ int cli_qry_joined_bytes(const char *path, const char *name, CliLine *out, CliLi
     }
     if (bytes != NULL)
     {
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
     if ((bytes == NULL) || (at != size))
     {
@@ -246,6 +246,18 @@ unsigned int cli_qry_member_names(const unsigned char *data, unsigned long long 
         }
     }
     return count;
+}
+
+unsigned long long cli_qry_member_size(const unsigned char *data, unsigned long long size, const char *name)
+{
+    unsigned long long at = 0ull;
+    unsigned long long joined = 0ull;
+    const QryRecord *record = NULL;
+    while (qry_record_read(data, size, &at, &record))
+    {
+        joined += cli_named(record, name) ? record->blob_length : 0ull;
+    }
+    return joined;
 }
 
 void cli_qry_member_joined(const unsigned char *data, unsigned long long size, const char *name, CliLine *out)

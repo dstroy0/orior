@@ -10,6 +10,11 @@
 // the most bytes of what git writes that are kept, and of what it says went wrong
 #define CLI_GIT_OUT (1u << 24u)
 
+// the bytes a run's output is first given, doubled as it fills, and the bytes one read takes at the most
+#define CLI_GIT_OUT_FIRST (1u << 16u)
+
+#define CLI_GIT_READ 4096ull
+
 #define CLI_GIT_ERR (1u << 16u)
 
 // how git is started: with no optional lock taken, as a question that changes nothing asks it; with no terminal prompt
@@ -67,5 +72,11 @@ int cli_git_beside(const char *root, const char *file, char *folder, char *shown
 char cli_git_state_of(char index, char tree);
 // each commit of the graph given its column, its color and the strokes of its row (git_graph.c)
 void cli_git_laid_out(CliGraph *found);
+// the line of what git said of a commit, `length` bytes, the one that starts with `[`, else its first, into `out`; and
+// git's lines of the commits made so far, those of `out` from `from`, and `error` after them, trimmed, into `said`
+// (git_commit_said.c)
+void cli_git_commit_line(const char *said, unsigned long long length, CliLine *out);
+void cli_git_failed_after(const CliLine *out, unsigned long long from, const char *error, unsigned long long length,
+                          CliLine *said);
 
 #endif

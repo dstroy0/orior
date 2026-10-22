@@ -65,7 +65,7 @@ int run_closed(const RunWritten *written)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        printf("klq_identity: no query writer runs to write %s: %s names no .qry a writer holds open\n",
+        printf("orior_klq_identity: no query writer runs to write %s: %s names no .qry a writer holds open\n",
                written->path.c_str(), QRY_ENVIRONMENT);
         return 0;
     }

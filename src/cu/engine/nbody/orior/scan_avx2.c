@@ -42,15 +42,15 @@
 #if defined(_MSC_VER)
 #include <intrin.h>
 /** @brief Set where this translation unit can ask the processor about AVX2. */
-#define ANCHOR_STEER_AVX2_CAN_DETECT 1
+#define ORIOR_STEER_AVX2_CAN_DETECT 1
 #elif defined(__GNUC__) || defined(__clang__)
-#define ANCHOR_STEER_AVX2_CAN_DETECT 1
+#define ORIOR_STEER_AVX2_CAN_DETECT 1
 #else
-#define ANCHOR_STEER_AVX2_CAN_DETECT 0
+#define ORIOR_STEER_AVX2_CAN_DETECT 0
 #endif
 
 /** @brief Alignments one AVX2 register answers at once. */
-#define ANCHOR_STEER_LANES 32u
+#define ORIOR_STEER_LANES 32u
 
 /**
  * @brief Set bits in a 32-bit mask.
@@ -76,7 +76,7 @@ static size_t steer_popcount(unsigned int bits)
  */
 static int steer_avx2_present(void)
 {
-#if !ANCHOR_STEER_AVX2_CAN_DETECT
+#if !ORIOR_STEER_AVX2_CAN_DETECT
     return 0;
 #elif defined(_MSC_VER)
     int leaves[4];
@@ -96,13 +96,13 @@ static int steer_avx2_present(void)
 #endif
 }
 
-size_t anchor_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
+size_t orior_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
                                       size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm
      * was the one asked. The claim the counters carry is which arm RAN and not what it returned. */
-    anchor_steer_scan_calls += 1u;
-    anchor_steer_wide_calls += 1u;
+    orior_steer_scan_calls += 1u;
+    orior_steer_wide_calls += 1u;
 
     if ((corpus == NULL) || (alive == NULL) || (alignments == 0u))
     {
@@ -114,7 +114,7 @@ size_t anchor_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, 
     size_t standing = 0u;
     size_t at = 0u;
 
-    for (; (at + ANCHOR_STEER_LANES) <= alignments; at += ANCHOR_STEER_LANES)
+    for (; (at + ORIOR_STEER_LANES) <= alignments; at += ORIOR_STEER_LANES)
     {
         /* Unaligned loads. The corpus window starts at an arbitrary offset and forcing
          * alignment would mean copying, which costs more than the load does. */
@@ -147,9 +147,9 @@ size_t anchor_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, 
     return standing;
 }
 
-const AnchorSteerEngine *anchor_steer_avx2_engine(void)
+const OriorSteerEngine *orior_steer_avx2_engine(void)
 {
-    static const AnchorSteerEngine engine = {"avx2", anchor_steer_truthy_after_avx2};
+    static const OriorSteerEngine engine = {"avx2", orior_steer_truthy_after_avx2};
 
     if (steer_avx2_present() == 0)
     {

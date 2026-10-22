@@ -93,7 +93,7 @@ CliDbOpen *cli_db_connect(const char *root, const CliDbConnection *config, const
     if (open == NULL)
     {
         cli_db_failure_said(failure, (slot < CLI_DB_OPENS) ? "no room is left to open a database connection in"
-                                                           : "orior holds as many database connections open as it can");
+                                                           : "orior_cli holds as many database connections open as it can");
         return NULL;
     }
     open->config = *config;
@@ -112,7 +112,7 @@ CliDbOpen *cli_db_connect(const char *root, const CliDbConnection *config, const
         CliLine account_line = {account, sizeof(account), 0ull};
         cli_db_account(config, &account_line);
         cli_line_closed(&account_line);
-        if (!cli_keychain_read(account, open->password, sizeof(open->password)))
+        if (!cli_keychain_read("database", account, open->password, sizeof(open->password)))
         {
             open->password[0] = '\0';
         }

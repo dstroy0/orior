@@ -161,8 +161,8 @@ void terms_neighbors(SimResults *results, const unsigned short *lanes, long long
 
 void terms_shot_law(SimResults *results, const unsigned short *lanes, unsigned long long law);
 
-void terms_ratio_within(SimResults *results, const char *what, const AnchorExactInteger *numerator,
-                        const AnchorExactInteger *denominator, long long expected_numerator,
+void terms_ratio_within(SimResults *results, const char *what, const OriorExactInteger *numerator,
+                        const OriorExactInteger *denominator, long long expected_numerator,
                         unsigned long long expected_denominator, unsigned long long range_numerator,
                         unsigned long long range_denominator);
 

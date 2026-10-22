@@ -38,8 +38,8 @@
 
 typedef struct
 {
-    AnchorExactInteger num;
-    AnchorExactInteger den;
+    OriorExactInteger num;
+    OriorExactInteger den;
 } QasmFraction;
 
 // a + b pi
@@ -116,19 +116,19 @@ typedef struct
     EngineError *error;
     int failed;
     // the fixed-point constants, made once
-    AnchorExactInteger pi_fixed;
-    AnchorExactInteger one_fixed;
+    OriorExactInteger pi_fixed;
+    OriorExactInteger one_fixed;
 } QasmParser;
 
 void qasm_error(QasmParser *parser, const QasmToken *token, const char *format, ...);
 
-int qasm_exact_ok(QasmParser *parser, AnchorExactStatus status);
+int qasm_exact_ok(QasmParser *parser, OriorExactStatus status);
 
-void qasm_exact_set(AnchorExactInteger *value, unsigned long long magnitude, int negative);
+void qasm_exact_set(OriorExactInteger *value, unsigned long long magnitude, int negative);
 
-void qasm_exact_power_of_two(AnchorExactInteger *value, unsigned int bits);
+void qasm_exact_power_of_two(OriorExactInteger *value, unsigned int bits);
 
-int qasm_exact_is_zero(const AnchorExactInteger *value);
+int qasm_exact_is_zero(const OriorExactInteger *value);
 
 void qasm_fraction_integer(QasmFraction *value, long long integer);
 
@@ -148,23 +148,23 @@ int qasm_angle_add(QasmParser *parser, const QasmAngle *left, const QasmAngle *r
 
 int qasm_angle_scale(QasmParser *parser, const QasmAngle *angle, long long num, long long den, QasmAngle *result);
 
-int qasm_fixed_multiply(QasmParser *parser, const AnchorExactInteger *left, const AnchorExactInteger *right,
-                        AnchorExactInteger *result);
+int qasm_fixed_multiply(QasmParser *parser, const OriorExactInteger *left, const OriorExactInteger *right,
+                        OriorExactInteger *result);
 
-int qasm_fixed_divide_small(QasmParser *parser, const AnchorExactInteger *value, unsigned long long divisor,
-                            AnchorExactInteger *result);
+int qasm_fixed_divide_small(QasmParser *parser, const OriorExactInteger *value, unsigned long long divisor,
+                            OriorExactInteger *result);
 
-int qasm_fixed_rational(QasmParser *parser, const QasmFraction *value, const AnchorExactInteger *with,
-                        AnchorExactInteger *result);
+int qasm_fixed_rational(QasmParser *parser, const QasmFraction *value, const OriorExactInteger *with,
+                        OriorExactInteger *result);
 
 int qasm_fixed_constants(QasmParser *parser);
 
-unsigned long long qasm_exact_small(const AnchorExactInteger *value);
+unsigned long long qasm_exact_small(const OriorExactInteger *value);
 
-int qasm_cos_sin(QasmParser *parser, const QasmAngle *angle, AnchorExactInteger *cosine, AnchorExactInteger *sine,
+int qasm_cos_sin(QasmParser *parser, const QasmAngle *angle, OriorExactInteger *cosine, OriorExactInteger *sine,
                  unsigned long long *slack);
 
-int qasm_fixed_round(QasmParser *parser, const AnchorExactInteger *value, long long *rounded);
+int qasm_fixed_round(QasmParser *parser, const OriorExactInteger *value, long long *rounded);
 
 int qasm_lex(QasmParser *parser);
 
@@ -188,7 +188,7 @@ int qasm_number(QasmParser *parser, const QasmToken *token, QasmAngle *value);
 
 int qasm_expression(QasmParser *parser, const QasmScope *scope, QasmAngle *value);
 
-void qasm_wide_to_exact(const unsigned int wide[QASM_WIDE_LIMBS], AnchorExactInteger *value);
+void qasm_wide_to_exact(const unsigned int wide[QASM_WIDE_LIMBS], OriorExactInteger *value);
 
 int qasm_push_gate(QasmParser *parser, const QasmGate *gate);
 

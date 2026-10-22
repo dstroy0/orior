@@ -39,5 +39,7 @@ int cli_notebook_for_diff(CliJson *json, const char *text, unsigned long long si
 // outputs go with its source. Cells either side added stand after the cell they follow there. `{"book": ours with no
 // cells, "entries": [{"take": cell} or {"conflict": {"base", "ours", "theirs"}}]}`
 unsigned int cli_notebook_merge(CliJson *json, unsigned int base, unsigned int ours, unsigned int theirs);
+// the cells a merge holds while it runs, its room and the lines of two cells compared (notebook_merge.c)
+extern CliCellsTally g_cli_notebook_cells;
 
 #endif

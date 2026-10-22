@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers.h: the language servers the editor talks to, one for each toolchain whose `server` in toolchains.json names a
 // program, such as clangd for C, C++ and CUDA. A server starts with the first file of its languages the editor opens,
-// at the tree's top folder, and stops when another tree is opened or orior ends. One that cannot be found or does not
-// start is not tried again until the tree changes, and the file opens without it.
+// at the tree's top folder, and stops when another tree is opened or orior_cli ends. One that cannot be found or does
+// not start is not tried again until the tree changes, and the file opens without it.
 //
 // What the servers say comes back as orior's own shapes: a hover as Markdown, a definition as a path and a place, a
 // usage as a span with its line's text, a completion as the editor's items, a file's diagnostics as spans with a
@@ -49,6 +49,23 @@ int cli_servers_open(const char *root, const char *path, const char *language, c
                      unsigned long long size, const CliServersEmit *emit, CliLine *out, CliLine *said);
 int cli_servers_change(const char *path, const char *text, unsigned long long size, CliLine *said);
 int cli_servers_close(const char *path, CliLine *said);
+
+// the language server the script plugin `id` brings, as its plugin.json's `server` names it, started at `root` with
+// `length` bytes of JSON `options` as the options it starts with and the `firsts` arguments `first` before those its
+// plugin.json names, what it says going where `emit` sends it, and handed every file of its languages the editor holds:
+// 1, or 0 with why said; and the plugin's server stopped, where it runs.
+// A request sent to it, its answer waited for up to `wait` milliseconds into `result`; a notification sent to it; and a
+// request it asked, of the id `request` the window was told, answered with `length` bytes of JSON `result`. Each 1, or
+// 0 with why said (servers_plugins.c)
+int cli_servers_plugin_start(const char *root, const char *id, const char *options, unsigned long long length,
+                             const char *const *first, unsigned int firsts, const CliServersEmit *emit, CliLine *said);
+void cli_servers_plugin_stop(const char *id);
+int cli_servers_plugin_request(const char *id, const char *method, const char *params, unsigned long long length,
+                               unsigned long long wait, CliLine *result, CliLine *said);
+int cli_servers_plugin_notify(const char *id, const char *method, const char *params, unsigned long long length,
+                              CliLine *said);
+int cli_servers_plugin_answer(const char *id, const char *request, const char *result, unsigned long long length,
+                              CliLine *said);
 // the text of a file as the editor holds it, where the editor has it open, into `out`: 1, or 0 where it has none; and
 // the same copied into a cell of its size with a 0 after, its size into `size`: the cell, or NULL where the editor
 // has none or the cell could not be taken
@@ -73,9 +90,9 @@ int cli_servers_rename(const char *tree, const char *path, unsigned int line, un
 int cli_servers_signature(const char *path, unsigned int line, unsigned int col, CliLine *out, CliLine *said);
 
 // the quick fixes and refactorings for the span `from`, `to` of `path`, orior's own and the checkers' fixes of what
-// touches it first, each `{"title", "kind", "preferred", "disabled", "raw"}`; and an action carried out from its `raw`,
-// `size` bytes of JSON, its edits written as each file's `{"path", "edits"}`. Each 1, or 0 with why said
-// (servers_actions.c)
+// touches it first, then its server's and each plugin server's that holds it, each `{"title", "kind", "preferred",
+// "disabled", "raw"}` (servers_actions.c); and an action carried out from its `raw`, `size` bytes of JSON, its edits
+// written as each file's `{"path", "edits"}` (servers_act.c). Each 1, or 0 with why said
 int cli_servers_actions(const char *path, CliTextPlace from, CliTextPlace to, CliLine *out, CliLine *said);
 int cli_servers_act(const char *tree, const char *path, const char *raw, unsigned long long size, CliLine *out,
                     CliLine *said);

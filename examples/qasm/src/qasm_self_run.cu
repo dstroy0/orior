@@ -4,11 +4,11 @@
 #include "qasm_self_internal.h"
 
 // an output of `bits` bits of two's complement at bit `offset`, as a signed magnitude; 0 where the width cannot hold it
-static int qasm_self_get(const unsigned int *record, unsigned int offset, unsigned int bits, AnchorExactInteger *value)
+static int qasm_self_get(const unsigned int *record, unsigned int offset, unsigned int bits, OriorExactInteger *value)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     // widening: the width's bits are a power of two far below 2^32
-    if ((bits == 0u) || ((unsigned long long)bits > (unsigned long long)ANCHOR_EXACT_BITS))
+    if ((bits == 0u) || ((unsigned long long)bits > (unsigned long long)ORIOR_EXACT_BITS))
     {
         return 0;
     }
@@ -32,7 +32,7 @@ static int qasm_self_get(const unsigned int *record, unsigned int offset, unsign
 // The inputs over their least common denominator, as records of fields `bits` wide. Without inputs lane j is |j>: its
 // real rational part 1 at amplitude j and 0 elsewhere, over 1. The first pass finds the denominator and the widest
 // numerator; with records set the second writes them.
-static int qasm_self_inputs(const QasmSelfRequest *request, unsigned int amplitudes, AnchorExactInteger *denominator,
+static int qasm_self_inputs(const QasmSelfRequest *request, unsigned int amplitudes, OriorExactInteger *denominator,
                             unsigned int *bits, unsigned int *records, unsigned int in_limbs)
 {
     EngineError *const error = request->error;
@@ -66,7 +66,7 @@ static int qasm_self_inputs(const QasmSelfRequest *request, unsigned int amplitu
     {
         for (unsigned int part = 0u; ok && (part < QASM_SELF_PARTS); part += 1u)
         {
-            AnchorExactInteger numerator;
+            OriorExactInteger numerator;
             ok = qasm_self_over(qasm_self_part(&request->inputs[number], part), denominator, &numerator, error);
             const unsigned int used = ok ? (qasm_self_bits(&numerator) + 1u) : 0u;
             *bits = ((records == NULL) && (used > *bits)) ? used : *bits;
@@ -205,7 +205,7 @@ static int qasm_self_device(const EngineRecordLayout *layout, const unsigned int
 
 // each lane's outputs over the state's denominator, reduced, into its amplitudes
 static int qasm_self_decode(const QasmSelfRequest *request, const QasmSelfProgram *program, const unsigned int *out,
-                            unsigned int amplitudes, const AnchorExactInteger *denominator)
+                            unsigned int amplitudes, const OriorExactInteger *denominator)
 {
     EngineError *const error = request->error;
     const QasmRational scale = {*denominator, qasm_self_one};
@@ -250,7 +250,7 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
     }
     memset(measurement, 0, sizeof(*measurement));
     const unsigned int amplitudes = 1u << qubits;
-    AnchorExactInteger input_denominator;
+    OriorExactInteger input_denominator;
     unsigned int bits = 0u;
     int ok = qasm_self_inputs(request, amplitudes, &input_denominator, &bits, NULL, 0u);
     QasmSelfBuild *const build = ok ? (QasmSelfBuild *)calloc(1u, sizeof(QasmSelfBuild)) : NULL;
@@ -264,7 +264,7 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
         build->below = (unsigned int *)calloc(QASM_SELF_PARTS * amplitudes, sizeof(unsigned int));
         build->built = (unsigned int *)calloc(QASM_SELF_PARTS * amplitudes, sizeof(unsigned int));
         build->columns = (QasmNumber *)calloc(entries, sizeof(QasmNumber));
-        build->numerators = (AnchorExactInteger *)calloc(QASM_SELF_PARTS * entries, sizeof(AnchorExactInteger));
+        build->numerators = (OriorExactInteger *)calloc(QASM_SELF_PARTS * entries, sizeof(OriorExactInteger));
     }
     ok = ok && QASM_CHECK((build != NULL) && (build->below != NULL) && (build->built != NULL) &&
                               (build->columns != NULL) && (build->numerators != NULL),

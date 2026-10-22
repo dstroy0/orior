@@ -154,7 +154,7 @@ int cubin_safe_verdict_holds(unsigned long long low, unsigned long long high)
     return 0;
 }
 
-// the encodings a conference admitted past rule 3, the lessons of the cause admitted the carrier loads (cubin_run
+// the encodings a conference admitted past rule 3, the lessons of the cause admitted the carrier loads (orior_cubin_run
 // --lessons): each its low word and the bits kept of its high word, as the held list keeps them, and as many as the
 // lessons name
 static unsigned long long *s_admitted_low = NULL;

@@ -61,31 +61,35 @@ export function traceTime() {
   return performance.now() - state.began;
 }
 
+// The lines gathered handed to the run: settled once the backend has queued them.
 function hand() {
   const lines = traceLines();
-  if (lines) {
-    invoke("qry_append", { name: TRACE_BLOB, text: lines, channel: "primary" }).catch(() => {});
+  if (!lines) {
+    return Promise.resolve();
   }
+  return invoke("qry_append", { name: TRACE_BLOB, text: lines, channel: "primary" }).catch(() => {});
 }
 
+// The trace turned on or off: off, the lines gathered are handed first, and the promise settles once
+// they are queued.
 function turned(on) {
   if (on === state.on) {
-    return;
+    return Promise.resolve();
   }
   if (on) {
     Object.assign(state, { on: true, depth: 0, began: performance.now(), calls: [] });
     state.timer = window.setInterval(hand, HAND_EVERY);
-  } else {
-    window.clearInterval(state.timer);
-    hand();
-    state.on = false;
+    return Promise.resolve();
   }
+  window.clearInterval(state.timer);
+  state.on = false;
+  return hand();
 }
 
 // The window joined to the run at `path`, from the top of the tree or whole, or to none where it is
-// null: what was gathered for the run before is handed to it first.
+// null: what was gathered for the run before is handed to it before the window parts from it.
 export async function joinRun(path) {
-  turned(false);
+  await turned(false);
   const joined = await invoke("qry_join", { path });
   turned(Boolean(joined));
   return joined;

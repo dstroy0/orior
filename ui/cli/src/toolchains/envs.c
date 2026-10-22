@@ -1,18 +1,25 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// envs.c: the environments a tree holds found, each with the packages the files beside it require
-#include "envs.h"
+// envs.c: the packages the files of a folder require, read from its `setup.cfg`, Pipfile and `requirements.txt`, by
+// name, each once
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "envs_internal.h"
 
-// how many folders below the top a search for environments goes, the most folders it holds to look in, the most
-// environments found, and the most names one folder requires and the bytes of them
-#define CLI_ENVS_DEPTH 5u
-#define CLI_ENVS_PENDING 4096u
-#define CLI_ENVS_MOST 1024u
-#define CLI_ENVS_NAMES 1024u
-#define CLI_ENVS_TEXT (1u << 20u)
+CliCellsTally g_cli_envs_cells = CLI_CELLS_TALLY("cli_envs");
+
+void *cli_envs_moved(void *cell, unsigned long long used, unsigned long long room, const char *what)
+{
+    void *const moved = cli_cell_taken_by(&g_cli_envs_cells, room, what);
+    if (moved == NULL)
+    {
+        return NULL;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = (size_t)used});
+    cli_cell_given_by(&g_cli_envs_cells, cell);
+    return moved;
+}
 
 // A span of a text: where it starts and its bytes
 typedef struct
@@ -54,15 +61,43 @@ static int cli_is(CliSpan span, const char *text)
            cli_starts(span, text);
 }
 
-// The names a folder requires and their texts
-typedef struct
+// room made in `required` for one name more of `length` bytes, the text's room doubled to hold it: 1, or 0 where a
+// larger cell is refused
+static int cli_required_room(CliRequired *required, unsigned long long length)
 {
-    unsigned int start[CLI_ENVS_NAMES];
-    unsigned int length[CLI_ENVS_NAMES];
-    unsigned int count;
-    char text[CLI_ENVS_TEXT];
-    unsigned int used;
-} CliRequired;
+    if (required->count == required->room)
+    {
+        const unsigned int doubled = (required->room == 0u) ? CLI_ENVS_NAMES_FIRST : (required->room * 2u);
+        const unsigned int room = (doubled < CLI_ENVS_NAMES) ? doubled : CLI_ENVS_NAMES;
+        CliRequiredName *const moved =
+            cli_envs_moved(required->name, (unsigned long long)required->count * sizeof(CliRequiredName),
+                           (unsigned long long)room * sizeof(CliRequiredName), "the names a folder requires");
+        if (moved == NULL)
+        {
+            return 0;
+        }
+        required->name = moved;
+        required->room = room;
+    }
+    unsigned long long text_room = required->text_room;
+    while ((required->used + length) > text_room)
+    {
+        text_room = (text_room == 0ull) ? CLI_ENVS_TEXT_FIRST : (text_room * 2ull);
+    }
+    text_room = (text_room < CLI_ENVS_TEXT) ? text_room : CLI_ENVS_TEXT;
+    if (text_room != required->text_room)
+    {
+        char *const moved = cli_envs_moved(required->text, required->used, text_room, "the names' text");
+        if (moved == NULL)
+        {
+            return 0;
+        }
+        required->text = moved;
+        // a text's room is CLI_ENVS_TEXT at the most, which an unsigned int holds
+        required->text_room = (unsigned int)text_room;
+    }
+    return 1;
+}
 
 // a name put among those required: the letters, numbers, `-`, `_` and `.` it starts with, where they are some and no
 // name the same but for ASCII's case is there
@@ -85,14 +120,14 @@ static void cli_added(CliRequired *required, CliSpan name)
     }
     for (unsigned int at = 0u; at < required->count; at += 1u)
     {
-        if (required->length[at] != length)
+        if (required->name[at].length != length)
         {
             continue;
         }
         unsigned long long same = 0ull;
         while (same < length)
         {
-            const char one = required->text[required->start[at] + same];
+            const char one = required->text[required->name[at].start + same];
             const char other = name.at[same];
             const char one_lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one + 32) : one;
             const char other_lower = ((other >= 'A') && (other <= 'Z')) ? (char)(other + 32) : other;
@@ -107,10 +142,14 @@ static void cli_added(CliRequired *required, CliSpan name)
             return;
         }
     }
+    if (!cli_required_room(required, length))
+    {
+        return;
+    }
     memor.cpy(&(MemoriaCfg){.dst = required->text + required->used, .src = name.at, .bytes = length});
-    required->start[required->count] = required->used;
+    required->name[required->count].start = required->used;
     // a name is below CLI_ENVS_TEXT bytes, which an unsigned int holds
-    required->length[required->count] = (unsigned int)length;
+    required->name[required->count].length = (unsigned int)length;
     required->used += (unsigned int)length;
     required->count += 1u;
 }
@@ -120,19 +159,7 @@ static const unsigned char *cli_text_mapped(const char *folder, const char *name
 {
     char path[CLI_PATH_LONGEST];
     cli_full(folder, name, path);
-    const unsigned char *const bytes = qry_member_file_mapped(path, size);
-    for (unsigned long long at = 0ull; (bytes != NULL) && (at < *size);)
-    {
-        unsigned int letter = 0u;
-        const unsigned long long step = cli_lossy_letter(bytes, *size, at, &letter);
-        if ((step == 1ull) && (bytes[at] >= 0x80u))
-        {
-            qry_member_file_unmapped(bytes, *size);
-            return NULL;
-        }
-        at += step;
-    }
-    return bytes;
+    return cli_file_held_utf8(path, size);
 }
 
 // the next line of `size` bytes from `*at`, `*at` moved past it: 1, or 0 where the text has ended
@@ -255,8 +282,7 @@ static void cli_requirements_read(CliRequired *required, const unsigned char *by
     }
 }
 
-// the names a folder's files require read into `required`
-static void cli_required_in(const char *folder, CliRequired *required)
+void cli_required_in(const char *folder, CliRequired *required)
 {
     required->count = 0u;
     required->used = 0u;
@@ -281,194 +307,32 @@ static void cli_required_in(const char *folder, CliRequired *required)
         {
             cli_requirements_read(required, bytes, size);
         }
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
 }
 
-// the names required written as a JSON array
-static void cli_required_written(const CliRequired *required, CliLine *out)
+void cli_required_written(const CliRequired *required, CliLine *out)
 {
     cli_line_character(out, '[');
     for (unsigned int at = 0u; at < required->count; at += 1u)
     {
         cli_line_text(out, (at != 0u) ? "," : "");
-        cli_json_quoted(out, required->text + required->start[at], required->length[at]);
+        cli_json_quoted(out, required->text + required->name[at].start, required->name[at].length);
     }
     cli_line_character(out, ']');
+}
+
+void cli_required_given(CliRequired *required)
+{
+    cli_cell_given_by(&g_cli_envs_cells, required->name);
+    cli_cell_given_by(&g_cli_envs_cells, required->text);
+    *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
 }
 
 void cli_envs_requires_in(const char *folder, CliLine *out)
 {
-    static CliRequired s_required;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    cli_required_in(folder, &s_required);
-    cli_required_written(&s_required, out);
-    cli_lock_give(&s_lock);
-}
-
-// An environment found: its kind, its place in the tree, and where its requirements are read
-typedef struct
-{
-    const char *kind;
-    char place[CLI_PATH_LONGEST];
-    char requires_from[CLI_PATH_LONGEST];
-} CliFoundEnv;
-
-// The search: the folders to look in with their depths, the folder's folders as they are read, and what it found
-typedef struct
-{
-    char pending[CLI_ENVS_PENDING][CLI_PATH_LONGEST];
-    unsigned int depth[CLI_ENVS_PENDING];
-    unsigned int pending_count;
-    const char *folder;
-    unsigned int folder_depth;
-    CliFoundEnv found[CLI_ENVS_MOST];
-    unsigned int order[CLI_ENVS_MOST];
-    unsigned int count;
-    CliRequired required;
-} CliEnvSearch;
-
-static CliEnvSearch s_search;
-
-static void cli_below_each(void *context, const char *name, int is_folder)
-{
-    (void)context;
-    static const char *const s_not[6] = {".git", "node_modules", "target", "build", "__pycache__", ".tox"};
-    for (unsigned int at = 0u; is_folder && (at < 6u); at += 1u)
-    {
-        is_folder = !cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_not[at], .cap = CLI_CELLS_POOL});
-    }
-    if (is_folder && (s_search.pending_count < CLI_ENVS_PENDING))
-    {
-        cli_full(s_search.folder, name, s_search.pending[s_search.pending_count]);
-        s_search.depth[s_search.pending_count] = s_search.folder_depth + 1u;
-        s_search.pending_count += 1u;
-    }
-}
-
-// an environment put among those found
-static void cli_env_put(const char *kind, const char *place, const char *requires_from)
-{
-    if (s_search.count < CLI_ENVS_MOST)
-    {
-        CliFoundEnv *const one = &s_search.found[s_search.count];
-        one->kind = kind;
-        memor.cpy(&(MemoriaCfg){.dst = one->place,
-                                .src = place,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}) + 1u});
-        memor.cpy(
-            &(MemoriaCfg){.dst = one->requires_from,
-                          .src = requires_from,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = requires_from, .cap = CLI_CELLS_POOL}) + 1u});
-        s_search.count += 1u;
-    }
-}
-
-// how deep an environment's place is, for its order: its slashes, and one more where it is not the top
-static unsigned int cli_env_depth(const CliFoundEnv *one)
-{
-    unsigned int depth = (one->place[0] != '\0') ? 1u : 0u;
-    for (const char *at = one->place; at[0] != '\0'; at += 1)
-    {
-        depth += (at[0] == '/') ? 1u : 0u;
-    }
-    return depth;
-}
-
-// whether one environment comes before another: by depth, then place, then kind
-static int cli_env_before(const CliFoundEnv *one, const CliFoundEnv *other)
-{
-    const unsigned int one_depth = cli_env_depth(one);
-    const unsigned int other_depth = cli_env_depth(other);
-    if (one_depth != other_depth)
-    {
-        return one_depth < other_depth;
-    }
-    const int order = cli_text_order(one->place, other->place);
-    return (order < 0) || ((order == 0) && (cli_text_order(one->kind, other->kind) < 0));
-}
-
-// whether the file `name` is in `folder`
-static int cli_holds(const char *folder, const char *name)
-{
-    char path[CLI_PATH_LONGEST];
-    cli_full(folder, name, path);
-    return query_is_file(path);
-}
-
-void cli_envs_found(const char *root, CliLine *out)
-{
-    static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    s_search.count = 0u;
-    memor.cpy(&(MemoriaCfg){.dst = s_search.pending[0],
-                            .src = root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    s_search.depth[0] = 0u;
-    s_search.pending_count = 1u;
-    while (s_search.pending_count > 0u)
-    {
-        s_search.pending_count -= 1u;
-        char folder[CLI_PATH_LONGEST];
-        memor.cpy(
-            &(MemoriaCfg){.dst = folder, .bytes = sizeof(folder), .src = s_search.pending[s_search.pending_count]});
-        const unsigned int depth = s_search.depth[s_search.pending_count];
-        char place[CLI_PATH_LONGEST];
-        cli_relative(root, folder, place);
-        for (char *at = place; at[0] != '\0'; at += 1)
-        {
-            at[0] = (at[0] == '\\') ? '/' : at[0];
-        }
-        if (cli_holds(folder, "pyvenv.cfg"))
-        {
-            char parent[CLI_PATH_LONGEST];
-            cli_env_put("venv", place, cli_path_parent(folder, parent) ? parent : "");
-            continue;
-        }
-        if (cli_holds(folder, "Pipfile"))
-        {
-            cli_env_put("pipenv", place, folder);
-        }
-        if (cli_holds(folder, "shell.nix") || cli_holds(folder, "flake.nix") || cli_holds(folder, "default.nix"))
-        {
-            cli_env_put("nix", place, folder);
-        }
-        if (depth >= CLI_ENVS_DEPTH)
-        {
-            continue;
-        }
-        s_search.folder = folder;
-        s_search.folder_depth = depth;
-        query_folder_each(folder, cli_below_each, NULL);
-    }
-    for (unsigned int at = 0u; at < s_search.count; at += 1u)
-    {
-        unsigned int place = at;
-        while ((place > 0u) && cli_env_before(&s_search.found[at], &s_search.found[s_search.order[place - 1u]]))
-        {
-            s_search.order[place] = s_search.order[place - 1u];
-            place -= 1u;
-        }
-        s_search.order[place] = at;
-    }
-    cli_line_character(out, '[');
-    for (unsigned int at = 0u; at < s_search.count; at += 1u)
-    {
-        const CliFoundEnv *const one = &s_search.found[s_search.order[at]];
-        cli_line_text(out, (at != 0u) ? ",{\"kind\":" : "{\"kind\":");
-        cli_json_quoted(out, one->kind, cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"place\":");
-        cli_json_quoted(out, one->place, cellul.len(&(CatenaFinitaCfg){.src = one->place, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"requires\":");
-        s_search.required.count = 0u;
-        if (one->requires_from[0] != '\0')
-        {
-            cli_required_in(one->requires_from, &s_search.required);
-        }
-        cli_required_written(&s_search.required, out);
-        cli_line_character(out, '}');
-    }
-    cli_line_character(out, ']');
-    cli_lock_give(&s_lock);
+    CliRequired required = {NULL, 0u, 0u, NULL, 0u, 0u};
+    cli_required_in(folder, &required);
+    cli_required_written(&required, out);
+    cli_required_given(&required);
 }

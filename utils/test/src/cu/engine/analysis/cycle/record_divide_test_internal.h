@@ -78,17 +78,17 @@ void divide_free(DivideLoaded *loaded);
 void divide_run(DivideLoaded *loaded, const unsigned int *atoms, unsigned int count, unsigned int *host_out,
                 unsigned int *device_out, int *host_ran, int *device_ran);
 
-void divide_put(unsigned int *atom, unsigned int offset, unsigned int bits, const AnchorExactInteger *value);
+void divide_put(unsigned int *atom, unsigned int offset, unsigned int bits, const OriorExactInteger *value);
 
-void divide_take(const unsigned int *record, unsigned int offset, unsigned int bits, AnchorExactInteger *value);
+void divide_take(const unsigned int *record, unsigned int offset, unsigned int bits, OriorExactInteger *value);
 
-void divide_settle(AnchorExactInteger *value, int sign);
+void divide_settle(OriorExactInteger *value, int sign);
 
-void divide_magnitude(AnchorExactInteger *value, unsigned int bits, unsigned int pattern);
+void divide_magnitude(OriorExactInteger *value, unsigned int bits, unsigned int pattern);
 
-int divide_valid(const AnchorExactInteger *numerator, const AnchorExactInteger *divisor,
-                 const AnchorExactInteger *quotient, const AnchorExactInteger *remainder,
-                 const AnchorExactInteger *common);
+int divide_valid(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
+                 const OriorExactInteger *quotient, const OriorExactInteger *remainder,
+                 const OriorExactInteger *common);
 
 void divide_narrow(DivideResults *results);
 

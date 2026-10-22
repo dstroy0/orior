@@ -27,9 +27,11 @@ typedef struct
     unsigned int lines;
 } CliFilled;
 
-// the texts whose words are filled, each where it starts and its size (fill.c)
-extern const char *g_cli_fill_slice[CLI_FILL_SLICES];
-extern unsigned long long g_cli_fill_slice_size[CLI_FILL_SLICES];
+// the texts whose words are filled, each where it starts and its size, a cell taken under the fill's lock with room
+// for `g_cli_fill_slices` of them, each a line of the text or a place after the lines (fill.c)
+extern const char **g_cli_fill_slice;
+extern unsigned long long *g_cli_fill_slice_size;
+extern unsigned int g_cli_fill_slices;
 
 // the line at `index` of `size` bytes of `text`: 1, or 0 where it has none; the line before `line`, and the line after
 // it, each into it: 1, or 0 where it has none (fill.c)

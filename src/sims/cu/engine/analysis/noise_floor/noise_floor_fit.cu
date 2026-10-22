@@ -20,7 +20,7 @@ static int floor_fit(const unsigned long long *count, const unsigned long long *
             continue;
         }
         fit->samples += count[level];
-        AnchorExactInteger measured;
+        OriorExactInteger measured;
         sim_exact_unsigned(&measured, total[level]);
         ok = noise_line_sums_add(&sums, count[level], level, &measured, &error) == 0L;
     }
@@ -91,17 +91,17 @@ static void floor_bins_close(FloorBins *bins)
 // u = v + 2 c = 12 sigma^4 + 4 k4 = 12 (g^2 S + r^2)^2 + 4 g^4 S - 2 r^2. With N, A and B the counts' sums of 1, S
 // and S^2 and D = N B - A^2, the fit's intercept is a D = sum y (B - A S) and its slope b D = sum y (N S - A), and
 // Va = sum_S count(S) (B - A S)^2 u(S) >= D^2 var(a), Vb = sum_S count(S) (N S - A)^2 u(S) >= D^2 var(b).
-static int floor_spreads(const unsigned long long *count, const SimCamera *camera, AnchorExactInteger *intercept_spread,
-                         AnchorExactInteger *slope_spread)
+static int floor_spreads(const unsigned long long *count, const SimCamera *camera, OriorExactInteger *intercept_spread,
+                         OriorExactInteger *slope_spread)
 {
-    AnchorExactInteger samples;
-    AnchorExactInteger along;
-    AnchorExactInteger along_square;
-    anchor_exact_zero(&samples);
-    anchor_exact_zero(&along);
-    anchor_exact_zero(&along_square);
-    anchor_exact_zero(intercept_spread);
-    anchor_exact_zero(slope_spread);
+    OriorExactInteger samples;
+    OriorExactInteger along;
+    OriorExactInteger along_square;
+    orior_exact_zero(&samples);
+    orior_exact_zero(&along);
+    orior_exact_zero(&along_square);
+    orior_exact_zero(intercept_spread);
+    orior_exact_zero(slope_spread);
     int ok = 1;
     for (unsigned long long level = 0ull; ok && (level < FLOOR_LEVELS); level += 1ull)
     {
@@ -109,19 +109,19 @@ static int floor_spreads(const unsigned long long *count, const SimCamera *camer
         {
             continue;
         }
-        AnchorExactInteger number;
-        AnchorExactInteger weighted;
-        AnchorExactInteger squared;
+        OriorExactInteger number;
+        OriorExactInteger weighted;
+        OriorExactInteger squared;
         sim_exact_unsigned(&number, count[level]);
         ok = sim_exact_sum(&samples, &number, &samples) && sim_exact_scaled(&number, level, &weighted) &&
              sim_exact_sum(&along, &weighted, &along) && sim_exact_scaled(&weighted, level, &squared) &&
              sim_exact_sum(&along_square, &squared, &along_square);
     }
-    AnchorExactInteger gain;
-    AnchorExactInteger gain_square;
-    AnchorExactInteger gain_fourth;
-    AnchorExactInteger read;
-    AnchorExactInteger read_twice;
+    OriorExactInteger gain;
+    OriorExactInteger gain_square;
+    OriorExactInteger gain_fourth;
+    OriorExactInteger read;
+    OriorExactInteger read_twice;
     sim_exact_unsigned(&gain, camera->gain);
     sim_exact_unsigned(&read, camera->read_square);
     ok = ok && sim_exact_product(&gain, &gain, &gain_square) &&
@@ -133,24 +133,24 @@ static int floor_spreads(const unsigned long long *count, const SimCamera *camer
             continue;
         }
         // u(S) = 12 (g^2 S + r^2)^2 + 4 g^4 S - 2 r^2, non-negative for a whole r^2
-        AnchorExactInteger shot;
-        AnchorExactInteger variance;
-        AnchorExactInteger fourth;
-        AnchorExactInteger fourth_twelve;
-        AnchorExactInteger shot_fourth;
-        AnchorExactInteger spread;
-        AnchorExactInteger unit;
+        OriorExactInteger shot;
+        OriorExactInteger variance;
+        OriorExactInteger fourth;
+        OriorExactInteger fourth_twelve;
+        OriorExactInteger shot_fourth;
+        OriorExactInteger spread;
+        OriorExactInteger unit;
         // a level is below 2^18. 4 S fits a word
         ok = sim_exact_scaled(&gain_square, level, &shot) && sim_exact_sum(&shot, &read, &variance) &&
              sim_exact_product(&variance, &variance, &fourth) && sim_exact_scaled(&fourth, 12ull, &fourth_twelve) &&
              sim_exact_scaled(&gain_fourth, 4ull * level, &shot_fourth) &&
              sim_exact_sum(&fourth_twelve, &shot_fourth, &spread) && sim_exact_less(&spread, &read_twice, &unit);
         // the intercept's weight B - A S and the slope's N S - A, each squared, times count(S) u(S)
-        AnchorExactInteger product;
-        AnchorExactInteger weight;
-        AnchorExactInteger weight_square;
-        AnchorExactInteger counted;
-        AnchorExactInteger term;
+        OriorExactInteger product;
+        OriorExactInteger weight;
+        OriorExactInteger weight_square;
+        OriorExactInteger counted;
+        OriorExactInteger term;
         ok = ok && sim_exact_scaled(&along, level, &product) && sim_exact_less(&along_square, &product, &weight) &&
              sim_exact_product(&weight, &weight, &weight_square) &&
              sim_exact_scaled(&weight_square, count[level], &counted) && sim_exact_product(&counted, &unit, &term) &&
@@ -168,8 +168,8 @@ static void floor_print_correlation(ScripturaLine *line, const char *name, unsig
 {
     // the product total was accumulated modulo 2^64 and its magnitude is below 2^63
     const long long signed_product = (long long)product;
-    AnchorExactInteger top;
-    AnchorExactInteger bottom;
+    OriorExactInteger top;
+    OriorExactInteger bottom;
     sim_exact_signed(&top, signed_product);
     sim_exact_unsigned(&bottom, here);
     scriptura_text(line, name);
@@ -254,9 +254,9 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
 
         // the truth route's standard errors squared, SE^2 = V / D^2, from floor_spreads' bounds (Derived); every check
         // squares both sides against 25 V, exact
-        AnchorExactInteger intercept_spread;
-        AnchorExactInteger slope_spread;
-        AnchorExactInteger denominator_square;
+        OriorExactInteger intercept_spread;
+        OriorExactInteger slope_spread;
+        OriorExactInteger denominator_square;
         const int spread = spanned && floor_spreads(truth_count, camera, &intercept_spread, &slope_spread) &&
                            sim_exact_product(&fit[0].denominator, &fit[0].denominator, &denominator_square);
         sim_check(results, spread, "the truth route's spreads were formed");
@@ -268,27 +268,27 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
             sim_ratio_print(line, &slope_spread, &denominator_square, 8u);
             scriptura_character(line, '\n');
         }
-        AnchorExactInteger law;
-        AnchorExactInteger scaled;
-        AnchorExactInteger apart;
-        AnchorExactInteger apart_square;
-        AnchorExactInteger bound;
+        OriorExactInteger law;
+        OriorExactInteger scaled;
+        OriorExactInteger apart;
+        OriorExactInteger apart_square;
+        OriorExactInteger bound;
         sim_exact_unsigned(&law, 2ull * camera->gain * camera->gain);
         ok = spread && sim_exact_product(&law, &fit[0].denominator, &scaled) &&
              sim_exact_less(&fit[0].slope, &scaled, &apart) && sim_exact_product(&apart, &apart, &apart_square) &&
              sim_exact_scaled(&slope_spread, FLOOR_ERROR_RANGE_SQUARED, &bound) &&
-             (anchor_exact_compare(&apart_square, &bound) <= 0);
+             (orior_exact_compare(&apart_square, &bound) <= 0);
         sim_check(results, ok, "the truth route's slope lies within 5 SE_b of 2 g^2");
         sim_exact_unsigned(&law, 2ull * camera->read_square);
         ok = spread && sim_exact_product(&law, &fit[0].denominator, &scaled) &&
              sim_exact_less(&fit[0].intercept, &scaled, &apart) && sim_exact_product(&apart, &apart, &apart_square) &&
              sim_exact_scaled(&intercept_spread, FLOOR_ERROR_RANGE_SQUARED, &bound) &&
-             (anchor_exact_compare(&apart_square, &bound) <= 0);
+             (orior_exact_compare(&apart_square, &bound) <= 0);
         sim_check(results, ok, "the truth route's intercept lies within 5 SE_a of 2 r^2");
         ok = spread && (fit[0].intercept.sign > 0) &&
              sim_exact_product(&fit[0].intercept, &fit[0].intercept, &apart_square) &&
              sim_exact_scaled(&intercept_spread, FLOOR_ERROR_RANGE_SQUARED, &bound) &&
-             (anchor_exact_compare(&apart_square, &bound) >= 0);
+             (orior_exact_compare(&apart_square, &bound) >= 0);
         sim_check(results, ok, "the truth route's intercept stands at least 5 SE_a above 0: the read noise is there");
 
         scriptura_text(line, "  the neighbor coherence of d (x against x + 1)\n");
@@ -297,9 +297,9 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
                                 coherence.square_here_all);
         // the product total's magnitude is below 2^63. It is read back signed
         const long long product = (long long)coherence.neighbor_product;
-        AnchorExactInteger left;
-        AnchorExactInteger right;
-        AnchorExactInteger term;
+        OriorExactInteger left;
+        OriorExactInteger right;
+        OriorExactInteger term;
         sim_exact_signed(&term, product);
         ok = sim_exact_product(&term, &term, &left);
         sim_exact_unsigned(&term, coherence.square_here);
@@ -308,7 +308,7 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
         // twenty-five, the tolerance squared, is a small positive constant
         ok = ok && sim_exact_scaled(&right, (unsigned long long)FLOOR_CORRELATION_RANGE_SQUARED, &right);
         sim_exact_unsigned(&term, coherence.both_static);
-        ok = ok && sim_exact_product(&left, &term, &left) && (anchor_exact_compare(&left, &right) <= 0);
+        ok = ok && sim_exact_product(&left, &term, &left) && (orior_exact_compare(&left, &right) <= 0);
         sim_check(results, ok, "static pairs' neighbor correlation lies within 5 / sqrt(N) of 0, about 4.1 sigma");
     }
     free(truth_count);

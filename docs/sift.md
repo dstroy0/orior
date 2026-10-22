@@ -77,8 +77,8 @@ After a build, the scripts run these graders: `test_steer`, `test_adversarial`, 
 
 The renderer draws the object straight from the engine's state. What you see is what the search saw. There are two kinds of output, because a flat sheet and a solid block are different maps, not one map at two sizes. [`rendering.md`](https://github.com/dstroy0/orior/blob/main/theory/workbooks/orior/rendering.md) covers both.
 
-- `AnchorRasterConfig` draws a sheet. You give it a `width` and a `height`, one of four layouts, one of five channels, a rule for cells that several positions land on, and a gain.
-- `AnchorVolumeConfig` draws a block. You give it a `width`, a `height` and a `depth`, one of four volume layouts, and the same five channels, the same two rules and the same gain. They point to the same definitions, because a channel means one thing everywhere in this tree.
+- `OriorRasterConfig` draws a sheet. You give it a `width` and a `height`, one of four layouts, one of five channels, a rule for cells that several positions land on, and a gain.
+- `OriorVolumeConfig` draws a block. You give it a `width`, a `height` and a `depth`, one of four volume layouts, and the same five channels, the same two rules and the same gain. They point to the same definitions, because a channel means one thing everywhere in this tree.
 
 | volume layout   | what it is for                                                                                                                                                                                                        |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -89,13 +89,13 @@ The renderer draws the object straight from the engine's state. What you see is 
 
 Every layout sends each cell index to exactly one place, computed in whole numbers. `bench_raster` checks this. It sends every position through every layout on every channel and counts the collisions, which must be zero. A layout that quietly folded two positions together would still draw a convincing picture, and no other check would catch it.
 
-The Netpbm image formats have no way to store a volume. So `anchor_volume_write_raw` writes the block as raw bytes, with x changing fastest. It puts the size, the layout, the channel, the rule and the gain in a `.txt` file next to it, which also names the function that made it. Any volume viewer that reads raw unsigned 8-bit data can open the block, given those three size numbers.
+The Netpbm image formats have no way to store a volume. So `orior_volume_write_raw` writes the block as raw bytes, with x changing fastest. It puts the size, the layout, the channel, the rule and the gain in a `.txt` file next to it, which also names the function that made it. Any volume viewer that reads raw unsigned 8-bit data can open the block, given those three size numbers.
 
 **The device draws both sheets and volumes, and the engine uses the device when there is one.**
 
-- `anchor_raster_render` and the volume renderer both use the device first.
-- `anchor_volume_device_available` returns 1 when there is a device and the build includes the device volume kernel, and 0 otherwise. It never reports a stub as a real device.
-- `anchor_volume_render_host` only ever runs on the host, as its name tells you.
+- `orior_raster_render` and the volume renderer both use the device first.
+- `orior_volume_device_available` returns 1 when there is a device and the build includes the device volume kernel, and 0 otherwise. It never reports a stub as a real device.
+- `orior_volume_render_host` only ever runs on the host, as its name tells you.
 - `bench_raster` checks the device against the host voxel by voxel, and prints `device rasterizer: present` when there is a device.
 
 Nothing silently falls back to the host, because a stub that reports itself as present is a bug.

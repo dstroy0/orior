@@ -344,7 +344,8 @@ static int run_target_started(CliTestRun *run, const CliCargoGroup *group, const
     cli_line_closed(&name_line);
     cli_full(run->scratch, name, worker->seen);
     cli_lock_take(&g_cli_test_lock);
-    const int started = cli_spawn(&worker->spawned, s_words.word, package, settings, 2u, 1, said);
+    const int started =
+        cli_spawn_as(CLI_PRIORITY_GUEST, &worker->spawned, s_words.word, package, settings, 2u, 1, said);
     run->worker_count += started ? 1u : 0u;
     cli_lock_give(&g_cli_test_lock);
     if (!started)
@@ -355,7 +356,7 @@ static int run_target_started(CliTestRun *run, const CliCargoGroup *group, const
     cli_lock_take(&run->lock);
     run->going += 1u;
     cli_lock_give(&run->lock);
-    worker->thread = (CliThread){run_worker, worker};
+    worker->thread = (CliThread){run_worker, worker, CLI_PRIORITY_GUEST};
     if (!cli_thread_started(&worker->thread))
     {
         run_worker(worker);
@@ -377,6 +378,8 @@ int cli_cargo_workers_started(CliTestRun *run, const char *const *given, unsigne
     {
         started = run_target_started(run, &s_groups[group], cargo, said);
     }
+    // each worker took its tests' names into the run, so the tests found are given back once every one is started
+    cli_cargo_tests_given(&s_tests);
     cli_lock_give(&s_run_lock);
     return started;
 }

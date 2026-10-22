@@ -126,7 +126,7 @@ int cli_pe_imports(const unsigned char *bytes, unsigned long long size, unsigned
     const unsigned long long magic = cli_binary_number(bytes, size, optional, 2u);
     if ((magic != 0x20bu) && (magic != 0x10bu))
     {
-        cli_line_text(said, "the file's optional header is of no kind orior reads");
+        cli_line_text(said, "the file's optional header is of no kind orior_cli reads");
         return -1;
     }
     const unsigned long long directories = optional + ((magic == 0x20bu) ? 112ull : 96ull);
@@ -338,7 +338,7 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
             library->has_at && ((library->found == CLI_FOUND_BESIDE) || (library->found == CLI_FOUND_SYSTEM_PATH) ||
                                 (library->found == CLI_FOUND_ORIOR_PATH));
         unsigned long long more_size = 0ull;
-        const unsigned char *const more = looked ? qry_member_file_mapped(library->at, &more_size) : NULL;
+        const unsigned char *const more = looked ? cli_file_held(library->at, &more_size) : NULL;
         if (more != NULL)
         {
             char unsaid[CLI_PATH_LONGEST];
@@ -358,7 +358,7 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = library->name, .cap = CLI_CELLS_POOL}) + 1u});
                 queued += 1u;
             }
-            qry_member_file_unmapped(more, more_size);
+            cli_file_let_go(more, more_size);
         }
     }
     return 1;
@@ -372,7 +372,7 @@ int cli_binary_read(const char *path, const char (*orior_path)[CLI_PATH_LONGEST]
     report->has_glibc = 0;
     report->glibc[0] = '\0';
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
     if (bytes == NULL)
     {
         cli_line_text(said, path);
@@ -395,15 +395,15 @@ int cli_binary_read(const char *path, const char (*orior_path)[CLI_PATH_LONGEST]
     else if ((size >= 4u) && ((memor.cmp(&(MemoriaCfg){.src = bytes, .other = "\xcf\xfa\xed\xfe", .bytes = 4u}) == 0) ||
                               (memor.cmp(&(MemoriaCfg){.src = bytes, .other = "\xca\xfe\xba\xbe", .bytes = 4u}) == 0)))
     {
-        cli_line_text(said, "orior reads the libraries of Windows and Linux programs; a macOS program's are read with "
+        cli_line_text(said, "orior_cli reads the libraries of Windows and Linux programs; a macOS program's are read with "
                             "otool -L");
     }
     else
     {
         cli_line_text(said, path);
-        cli_line_text(said, " is no program orior reads");
+        cli_line_text(said, " is no program orior_cli reads");
     }
     cli_lock_give(&s_lock);
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     return read;
 }

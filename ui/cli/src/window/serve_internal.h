@@ -81,6 +81,13 @@ int cli_serve_strings(const CliServeArgs *args, const char *key, const char **it
                       unsigned int *count, CliLine *said);
 int cli_serve_strings_or(const CliServeArgs *args, const char *key, const char **items, unsigned int room,
                          unsigned int *count, CliLine *said);
+// the strings of an array argument, `most` of them at the most, in a cell of their count and one more, the slot after
+// the last NULL, into `*items`, given back with cli_serve_strings_given either way: their count into `count`, 1, or 0
+// with why said where it is no array of strings or the cellblock could not meet it; and the cells those calls hold
+extern CliCellsTally g_cli_serve_strings_cells;
+int cli_serve_strings_taken(const CliServeArgs *args, const char *key, unsigned int most, const char ***items,
+                            unsigned int *count, CliLine *said);
+void cli_serve_strings_given(const char **items);
 // the tree open into `root`, 1, or 0 with why said; and the argument `path` joined to it into `full`, each of which
 // holds CLI_PATH_LONGEST: 1, or 0 with why said
 int cli_serve_tree(char *root, CliLine *said);
@@ -114,6 +121,8 @@ CliCatalog *cli_serve_catalog_taken(const char *root, CliLine *said);
 void cli_serve_catalog_given(void);
 CliValues *cli_serve_values_of(const CliServeArgs *args);
 int cli_serve_job_start(const char *job, const CliServeArgs *args, CliLine *out, CliLine *said);
+// the gatherings of the runs started here that are held
+extern CliCellsTally g_cli_serve_gathering_cells;
 int cli_serve_catalog_read(const CliServeArgs *args, CliLine *out, CliLine *said);
 
 // the most bytes of a line a kept run says; and the file of the kept run `base` of `kind`, `job`, `said`, `pid` or
@@ -141,6 +150,15 @@ typedef struct
 // `answer` given `size` bytes of its arguments as a JSON object, read into a room of their own, one of those the calls
 // answered at once share: its answer as JSON into `out`, 1, or 0 with why said (serve_call.c)
 int cli_serve_answered(CliServeAnswer answer, const char *args, unsigned long long size, CliLine *out, CliLine *said);
+// `answer` run on a thread of its own where the arguments carry `ask`, the page told its answer as the event
+// `call-answered` with that number, `{"asked":true}` answered at once; run in place where they do not (serve_asked.c)
+int cli_serve_asked_or(const CliServeArgs *args, CliServeAnswer answer, CliLine *out, CliLine *said);
+// the call `name` as one answered later where its arguments carry `ask`, running `now`
+#define CLI_SERVE_ASKED(name, now)                                                                                     \
+    static int name(const CliServeArgs *args, CliLine *out, CliLine *said)                                             \
+    {                                                                                                                  \
+        return cli_serve_asked_or(args, now, out, said);                                                               \
+    }
 
 // `length` bytes of `text` written to the file at `path` of the tree, its text before kept in its local history, a
 // history that cannot be kept said on the errors: 1, or 0 with why said (serve_call_files.c)
@@ -161,8 +179,13 @@ extern const unsigned int g_cli_serve_files_count;
 // (serve_call_bring.c)
 int cli_serve_files_bring(const CliServeArgs *args, CliLine *out, CliLine *said);
 int cli_serve_bring_name(const CliServeArgs *args, CliLine *out, CliLine *said);
+// the folder of the repository the argument `repo` names, the tree's own where it names none, into `folder`, which
+// holds CLI_PATH_LONGEST: 1, or 0 with why said (serve_call_git.c)
+int cli_serve_git_repo_of(const CliServeArgs *args, char *folder, CliLine *said);
 extern const CliServeCall g_cli_serve_git_calls[];
 extern const unsigned int g_cli_serve_git_count;
+extern const CliServeCall g_cli_serve_git_acts_calls[];
+extern const unsigned int g_cli_serve_git_acts_count;
 extern const CliServeCall g_cli_serve_run_calls[];
 extern const unsigned int g_cli_serve_run_count;
 extern const CliServeCall g_cli_serve_lsp_calls[];
@@ -181,5 +204,7 @@ extern const CliServeCall g_cli_serve_shape_calls[];
 extern const unsigned int g_cli_serve_shape_count;
 extern const CliServeCall g_cli_serve_page_calls[];
 extern const unsigned int g_cli_serve_page_count;
+extern const CliServeCall g_cli_serve_notebook_calls[];
+extern const unsigned int g_cli_serve_notebook_count;
 
 #endif

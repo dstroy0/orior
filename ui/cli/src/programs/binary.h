@@ -4,7 +4,7 @@
 // imports, binary_elf.c a Linux program's needs): a Windows program's imports and its delay-loaded imports, and a Linux
 // program's needed libraries, its run paths and the glibc versions it asks for. Each library is looked for as the
 // system's loader looks for it where the program is opened on its own, and the libraries those load in turn, past the
-// system's own. A library found only through the folders orior puts on its jobs' PATH, one found nowhere, one found by
+// system's own. A library found only through the folders orior_cli puts on its jobs' PATH, one found nowhere, one found by
 // a path of the machine that built the program, and Visual Studio's debug runtime are each told, as the things that
 // start a program here and keep it from starting elsewhere
 #ifndef BINARY_H
@@ -23,7 +23,7 @@
 // Where a library a program loads is found: in the program's own folder or by a run path from it; in the system's own
 // folders or one Windows resolves itself; there, put by the Visual C++ Redistributable, which a machine without it
 // lacks; Visual Studio's debug runtime, which only a machine with Visual Studio has; through the PATH the system gives
-// a program opened on its own; only through the folders orior puts on its jobs' PATH; by a run path that names a folder
+// a program opened on its own; only through the folders orior_cli puts on its jobs' PATH; by a run path that names a folder
 // of the machine that built the program; or nowhere
 enum
 {

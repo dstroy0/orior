@@ -92,17 +92,17 @@ int main(int argc, char **argv)
         field[at] = (uint8_t)(levels[at] & 0xFFu);
     }
 
-    AnchorFieldCensus census;
-    anchor_field_census(field, count, &census);
+    OriorFieldCensus census;
+    orior_field_census(field, count, &census);
 
-    SteerLevel ranked[ANCHOR_STEER_SYMBOLS];
-    for (unsigned int level = 0u; level < ANCHOR_STEER_SYMBOLS; level++)
+    SteerLevel ranked[ORIOR_STEER_SYMBOLS];
+    for (unsigned int level = 0u; level < ORIOR_STEER_SYMBOLS; level++)
     {
         ranked[level].level = level;
         ranked[level].occurrences = census.occurrences[level];
-        ranked[level].magnitude = anchor_steer_magnitude(&census, (uint8_t)level);
+        ranked[level].magnitude = orior_steer_magnitude(&census, (uint8_t)level);
     }
-    qsort(ranked, ANCHOR_STEER_SYMBOLS, sizeof(*ranked), steer_order);
+    qsort(ranked, ORIOR_STEER_SYMBOLS, sizeof(*ranked), steer_order);
 
     const unsigned long share = strtoul(argv[2], NULL, 10);
     const uint64_t budget = (census.total * (uint64_t)share) / 1000u;
@@ -112,10 +112,10 @@ int main(int argc, char **argv)
     (void)printf("\n  rank  level  occurrences  magnitude\n");
 
     uint64_t spent = 0u;
-    unsigned char admitted[ANCHOR_STEER_SYMBOLS];
+    unsigned char admitted[ORIOR_STEER_SYMBOLS];
     memset(admitted, 0, sizeof(admitted));
     unsigned int taken = 0u;
-    for (unsigned int at = 0u; at < ANCHOR_STEER_SYMBOLS; at++)
+    for (unsigned int at = 0u; at < ORIOR_STEER_SYMBOLS; at++)
     {
         if (ranked[at].occurrences == 0u)
         {

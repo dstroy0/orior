@@ -28,7 +28,7 @@ static int read_peek(const CliSchemaReader *reader)
 // `size` bytes kept in the pool: where they start, CLI_SCHEMA_POOL where they do not fit
 static unsigned int read_kept(CliSchemaRead *read, const char *bytes, unsigned long long size)
 {
-    if (size + 1u > CLI_SCHEMA_POOL - read->used)
+    if (!cli_schema_read_room(read, 0ull, 0ull, read->used + size + 1u))
     {
         read->full = 1;
         return CLI_SCHEMA_POOL;
@@ -171,7 +171,7 @@ static unsigned int read_value(CliSchemaReader *reader);
 static unsigned int read_node(CliSchemaReader *reader, unsigned char kind, unsigned long long from)
 {
     CliSchemaRead *const read = reader->read;
-    if (read->nodes == CLI_SCHEMA_NODES)
+    if (!cli_schema_read_room(read, read->nodes + 1ull, 0ull, 0ull))
     {
         read->full = 1;
         return CLI_SCHEMA_NONE;
@@ -253,7 +253,7 @@ static unsigned int read_members(CliSchemaReader *reader, unsigned int *first)
                 break;
             }
         }
-        if (read->members < CLI_SCHEMA_MEMBERS)
+        if (cli_schema_read_room(read, 0ull, read->members + 1ull, 0ull))
         {
             const unsigned int at = read->members;
             read->member[at] = (CliSchemaMember){key_at, (unsigned int)key_size, from, to, value, CLI_SCHEMA_NONE};

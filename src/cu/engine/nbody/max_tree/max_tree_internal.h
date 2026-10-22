@@ -12,20 +12,20 @@
 #include <string.h>
 
 #if defined(__cplusplus)
-static_assert(ANCHOR_EXACT_LIMBS >= ENGINE_RESIDUAL_LIMBS,
+static_assert(ORIOR_EXACT_LIMBS >= ENGINE_RESIDUAL_LIMBS,
               "the exact type must be at least as wide as the residual it is asked about");
-static_assert(ANCHOR_EXACT_LIMBS >= MAX_TREE_KEY_LIMBS,
+static_assert(ORIOR_EXACT_LIMBS >= MAX_TREE_KEY_LIMBS,
               "the exact type must be at least as wide as a face's key, the residual and its name");
 #else
-_Static_assert(ANCHOR_EXACT_LIMBS >= ENGINE_RESIDUAL_LIMBS,
+_Static_assert(ORIOR_EXACT_LIMBS >= ENGINE_RESIDUAL_LIMBS,
                "the exact type must be at least as wide as the residual it is asked about");
-_Static_assert(ANCHOR_EXACT_LIMBS >= MAX_TREE_KEY_LIMBS,
+_Static_assert(ORIOR_EXACT_LIMBS >= MAX_TREE_KEY_LIMBS,
                "the exact type must be at least as wide as a face's key, the residual and its name");
 #endif
 
-extern AnchorExactInteger g_asked_left;
+extern OriorExactInteger g_asked_left;
 
-extern AnchorExactInteger g_asked_right;
+extern OriorExactInteger g_asked_right;
 
 void max_tree_ask_ready(void);
 

@@ -390,7 +390,7 @@ int cli_mysql_rsa_sealed(const char *pem, unsigned long long pem_size, const uns
     cli_lock_give(&s_lock);
     if (!sealed)
     {
-        cli_line_text(said, "the server's RSA key is longer than orior takes");
+        cli_line_text(said, "the server's RSA key is longer than orior_cli takes");
     }
     return sealed;
 }

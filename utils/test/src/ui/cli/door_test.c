@@ -3,10 +3,12 @@
 // door_test.c: the comms door's check: a process joins by its key and hears and speaks on its channels; a key given to
 // another process or to no part is refused at the door; a held key is taken from any process and grants its own
 // channels alone; a key given to a process is taken from every process under it; a body past the most a frame takes
-// goes through the transfer layer each way; and a frame past the most a frame takes is not read
+// goes through the transfer layer each way; a frame past the most a frame takes is not read; and every place a process
+// joined into is given back to the cellblock once its process is gone
 #include "../../../../../ui/cli/src/comms/comms.h"
 #include "../../../../../ui/cli/src/comms/door.h"
 #include "../../../../../ui/cli/src/comms/door_internal.h"
+#include "../../../../../ui/cli/src/comms/door_serve.h"
 #include "cli_check.h"
 
 // what a part's listener heard: the last channel, speaker and body, and the last body's size
@@ -170,21 +172,21 @@ static void door_refused(void)
         "a key of the container's own is refused");
 }
 
-// a held key is taken from any process and grants its own channels alone
+// a kept key is taken from any process and grants its own channels alone
 static void door_held(void)
 {
     static const char *const s_command[1] = {"command"};
     static const char *const s_answer[1] = {"answer/*"};
     char window[CLI_COMMS_KEY];
-    char held[CLI_COMMS_KEY];
+    char kept[CLI_COMMS_KEY];
     char other[CLI_COMMS_KEY];
     char why[256];
     CliLine said = {why, sizeof(why), 0ull};
     door_part("window", 0, 0u, s_command, 1u, s_answer, 1u, window);
     unsigned int listener = 0u;
     (void)cli_comms_listen(window, "command", 0, door_heard, &s_heard, &listener, &said);
-    cli_check(cli_comms_register_held("command line", s_answer, 1u, s_command, 1u, held, &said), "a held key is made");
-    CliDoorClient *const client = door_joined(held, why);
+    cli_check(cli_comms_register_kept("command line", s_answer, 1u, s_command, 1u, kept, &said), "a kept key is made");
+    CliDoorClient *const client = door_joined(kept, why);
     cli_check((client != NULL) && (cellul.eq(&(CatenaFinitaCfg){
                                       .src = cli_door_name(client), .other = "command line", .cap = CLI_CELLS_POOL})),
               "and taken from any process");
@@ -210,7 +212,7 @@ static void door_held(void)
     cli_check(!cli_door_said(client, "runs/1", "{}", 2ull, &heard, &said),
               "a channel the key does not name is refused");
     door_part("other", 0, 0u, NULL, 0u, s_command, 1u, other);
-    cli_check(door_joined(other, why) == NULL, "a key not held is taken from its own process alone");
+    cli_check(door_joined(other, why) == NULL, "a key not kept is taken from its own process alone");
     cli_door_left(client);
 }
 
@@ -415,5 +417,12 @@ int main(void)
     door_big();
     door_frame();
     door_frame_back();
+    // a place's threads end after its process does; its cell is therefore waited for up to five seconds
+    for (unsigned int waited = 0u; (g_cli_door_cells.holds != 0ull) && (waited < 250u); waited += 1u)
+    {
+        query_paused(20u);
+    }
+    cli_check((g_cli_door_cells.holds == 0ull) && (g_cli_door_cells.hw != 0ull),
+              "every place is given back once its process is gone, the most the places kept marked");
     return cli_checked();
 }

@@ -113,13 +113,13 @@ void cli_executables_compare_build(const char *root, const char *id, const char 
         return;
     }
     unsigned long long now_size = 0ull;
-    const unsigned char *const now = qry_member_file_mapped(file, &now_size);
+    const unsigned char *const now = cli_file_held(file, &now_size);
     if (now == NULL)
     {
         return;
     }
     unsigned long long old_size = 0ull;
-    const unsigned char *const old = qry_member_file_mapped(kept, &old_size);
+    const unsigned char *const old = cli_file_held(kept, &old_size);
     if (old != NULL)
     {
         char said[CLI_PATH_LONGEST * 2u];
@@ -184,7 +184,7 @@ void cli_executables_compare_build(const char *root, const char *id, const char 
         }
         cli_line_closed(&told);
         cli_say(say, said);
-        qry_member_file_unmapped(old, old_size);
+        cli_file_let_go(old, old_size);
     }
     query_removed(folder);
     if (query_folder_made(kept_folder))
@@ -192,7 +192,7 @@ void cli_executables_compare_build(const char *root, const char *id, const char 
         const CliFilePiece piece = {now, now_size};
         cli_file_pieces_written(kept, &piece, 1u);
     }
-    qry_member_file_unmapped(now, now_size);
+    cli_file_let_go(now, now_size);
 }
 
 // each `NAME=value` line of a tree's .env handed to `each`, in order: a leading `export` taken off, a value in quotes

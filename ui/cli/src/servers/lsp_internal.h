@@ -61,7 +61,9 @@ extern CliLock g_cli_lsps_lock;
 void cli_lsp_readers_started(CliLsp *lsp);
 // the server's process ended where it runs, and waited on (lsp.c)
 void cli_lsp_ended(CliLsp *lsp);
-// each file a server has open let go, as it is let go (lsp_files.c)
+// each file a server has open let go, as it is let go; and the cells the files open are held in, counted: the table of
+// them, each one's URI while it is open, and the copies one walk over a server's files takes (lsp_files.c)
 void cli_lsp_files_let_go(const CliLsp *lsp);
+extern CliCellsTally g_cli_lsp_files_cells;
 
 #endif

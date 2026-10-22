@@ -21,10 +21,10 @@ int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job
         cli_line_text(said, "the job holds more than a run keeps");
         return 0;
     }
-    const unsigned long long bytes = sizeof(CliJob) + ((unsigned long long)extent.params * sizeof(CliParam)) +
-                                     ((unsigned long long)extent.steps * sizeof(CliStep)) +
-                                     ((unsigned long long)extent.args * sizeof(CliArg)) +
-                                     ((unsigned long long)extent.lists * sizeof(unsigned int)) + extent.text + 64ull;
+    const unsigned long long bytes =
+        sizeof(CliJob) + ((unsigned long long)extent.params * sizeof(CliParam)) +
+        ((unsigned long long)extent.steps * sizeof(CliStep)) + ((unsigned long long)extent.args * sizeof(CliArg)) +
+        ((unsigned long long)extent.lists * sizeof(unsigned int)) + extent.text + sizeof(CliValues) + 64ull;
     unsigned char *const cell = cli_cell_taken(bytes, "a run's job");
     CliLines *const lines = (cell != NULL) ? cli_cell_taken(sizeof(CliLines), "a run's lines") : NULL;
     if (lines == NULL)
@@ -34,6 +34,7 @@ int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job
         return 0;
     }
     unsigned char *at = cell;
+    run->values = run_part(&at, sizeof(CliValues));
     CliJob *const jobs = run_part(&at, sizeof(CliJob));
     CliParam *const params = run_part(&at, (unsigned long long)extent.params * sizeof(CliParam));
     CliStep *const steps = run_part(&at, (unsigned long long)extent.steps * sizeof(CliStep));
@@ -94,7 +95,7 @@ int cli_runs_start(CliRunSink sink, const char *root, const CliCatalog *catalog,
     if (run == NULL)
     {
         cli_lock_give(&g_cli_runs_lock);
-        cli_line_text(said, "more runs go at once than orior holds");
+        cli_line_text(said, "more runs go at once than orior_cli holds");
         return 0;
     }
     if (!cli_run_cells_taken(run, catalog, job, said))
@@ -102,7 +103,7 @@ int cli_runs_start(CliRunSink sink, const char *root, const CliCatalog *catalog,
         cli_lock_give(&g_cli_runs_lock);
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = &run->values, .src = values, .bytes = sizeof(*values)});
+    memor.cpy(&(MemoriaCfg){.dst = run->values, .src = values, .bytes = sizeof(*values)});
     memor.cpy(&(MemoriaCfg){.dst = run->root,
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});

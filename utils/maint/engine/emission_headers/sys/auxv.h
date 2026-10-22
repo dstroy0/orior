@@ -24,8 +24,8 @@
  * @note Where a real aarch64 sysroot is present, the verifier uses the cross compiler and this header
  *       is not on the include path.
  */
-#ifndef ANCHOR_EMISSION_SYS_AUXV_H
-#define ANCHOR_EMISSION_SYS_AUXV_H
+#ifndef ORIOR_EMISSION_SYS_AUXV_H
+#define ORIOR_EMISSION_SYS_AUXV_H
 
 /** @brief The auxiliary vector entry holding hardware capability bits, as the Linux ABI numbers it. */
 #define AT_HWCAP 16ul
@@ -39,4 +39,4 @@
  */
 unsigned long getauxval(unsigned long type);
 
-#endif /* ANCHOR_EMISSION_SYS_AUXV_H */
+#endif /* ORIOR_EMISSION_SYS_AUXV_H */

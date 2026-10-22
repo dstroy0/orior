@@ -36,6 +36,9 @@ typedef struct
 // views is free to be filled for a tree read now, or the cellblock cannot meet it (files_seen.c)
 const CliFiles *cli_files_held(const char *root);
 void cli_files_let(const CliFiles *files);
+// the name of every file of the same view, and every ending, `.lean` from a name's last dot, each once, sorted, held as
+// cli_files_held holds the files and given back by cli_files_let; or NULL as there (files_seen.c)
+const CliFiles *cli_files_kinds_held(const char *root);
 // the files' own report, `<pool's bytes> <their mark> 0`, the most the views and lists held of the cellblock at once,
 // written into `out`; the path
 // at `index`; and whether `path` is among the files, which are sorted (files_cells.c)
@@ -105,12 +108,10 @@ int cli_files_search(const char *root, const char *query, CliSearching how, cons
 void cli_files_find(const char *root, const char *query, CliLine *out);
 
 // a file read for the editor, written as `{"path", "size", "text", "bytes", "windowed"}`: its text where it is text,
-// its first bytes where it is not, and a larger text opened as a window of lines; the lines around line `line`, about
-// `half` bytes either side of where it starts, cut at line ends; and the whole lines from about `start` to about `end`,
-// each written as `{"start", "end", "size", "line", "lines", "text"}`. Each 1, or 0 with why said (files_read.c)
+// its first bytes where it is not, and a larger text windowed, for the page to hold as pages; and the whole lines
+// from about `start` to about `end`, written as `{"start", "end", "size", "line", "lines", "text"}`. Each 1, or 0
+// with why said (files_read.c)
 int cli_files_read(const char *root, const char *file, CliLine *out, CliLine *said);
-int cli_files_window(const char *root, const char *file, unsigned long long line, unsigned long long half, CliLine *out,
-                     CliLine *said);
 int cli_files_slice(const char *root, const char *file, unsigned long long start, unsigned long long end, CliLine *out,
                     CliLine *said);
 // an empty file made at `file`, and a folder at `dir`, with each folder above that is not there yet, one there already

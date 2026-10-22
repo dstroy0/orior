@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// identity_internal.h: what the modules of klq_identity share: its includes, every define and struct, the const tables, and the state and functions one module reads from another
+// identity_internal.h: what the modules of orior_klq_identity share: its includes, every define and struct, the const tables, and the state and functions one module reads from another
 #ifndef IDENTITY_INTERNAL_H
 #define IDENTITY_INTERNAL_H
 

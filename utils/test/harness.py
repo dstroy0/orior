@@ -13,6 +13,14 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py run --report-out PATH      and write the run's summary as a Markdown table
     harness.py run --at HASH              the suites of orior as it was at a commit
     harness.py run --idle SECONDS         a suite silent this long once admitted is hung (1800; 0 never)
+    harness.py build gui | mmgr           the window's program and MMgr's suites built (harness_build.py)
+    harness.py cli build | test           the CLI built and its checks run (harness_cli.py)
+    harness.py source ...                 the C sources read by the compiler and the linker's tools (harness_build.py)
+    harness.py sonarqube ...              the server's project, scan and duplications (harness_sonarqube.py)
+    harness.py window ...                 the released window started, ended, pictured, measured, its suite run (harness_window.py)
+
+Every invocation is a line of build/harness/harness.log, when it began, the command line, its exit code, its
+seconds and its output's file, and its output is kept whole under build/harness/log/.
 
 --at exports the commit once, with git archive, to build/trees/<commit>
 (fetching it from origin where this clone does not hold it) and runs that tree's matrix there; its
@@ -56,10 +64,18 @@ import subprocess
 import sys
 import tarfile
 import time
+import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from utils.tools import findroot  # noqa: E402
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import harness_build  # noqa: E402
+import harness_cli  # noqa: E402
+import harness_sonarqube  # noqa: E402
+import harness_window  # noqa: E402
 
 ROOT = findroot.root()
 TABLE = findroot.at("utils", "test", "test_matrix.json")
@@ -750,12 +766,60 @@ def build_parser():
     p.add_argument("--at", metavar="HASH", help="run the suites of orior as it was at this commit (fetched from origin if need be)")
     p.add_argument("--idle", type=int, default=IDLE_SECONDS, metavar="SECONDS", help="end a suite whose log has not grown this long once admitted (0: never)")
     p.set_defaults(fn=cmd_run)
+    for module in (harness_build, harness_cli, harness_sonarqube, harness_window):
+        module.register(sub)
     return ap
 
 
+LOG = os.path.join(SCRIPT_BUILD, "harness.log")
+LOG_DIR = os.path.join(SCRIPT_BUILD, "log")
+
+
+class Teed:
+    """A stream written to the console and to the invocation's log alike."""
+
+    def __init__(self, console, kept):
+        self.console = console
+        self.kept = kept
+
+    def write(self, text):
+        self.console.write(text)
+        self.kept.write(text)
+
+    def flush(self):
+        self.console.flush()
+        self.kept.flush()
+
+
 def main():
-    a = build_parser().parse_args()
-    return a.fn(a)
+    """The command run, its output kept under build/harness/log and the invocation a line of build/harness/harness.log:
+    when it began, the command line, its exit code, its seconds and its output's file."""
+    ap = build_parser()
+    a, extra = ap.parse_known_args()
+    if extra and not getattr(a, "takes_extra", False):
+        ap.error("unrecognized arguments: %s" % " ".join(extra))
+    a.extra = extra
+    os.makedirs(LOG_DIR, exist_ok=True)
+    began = time.time()
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(began))
+    name = "_".join(word for word in (a.group, getattr(a, "command", None)) if word)
+    path = os.path.join(LOG_DIR, "%s_%s.log" % (stamp, name))
+    words = " ".join(sys.argv[1:])
+    console_out, console_err = sys.stdout, sys.stderr
+    code = 1
+    with open(path, "w", encoding="utf-8", errors="replace") as kept:
+        kept.write("$ harness.py %s\n" % words)
+        sys.stdout, sys.stderr = Teed(console_out, kept), Teed(console_err, kept)
+        try:
+            code = a.fn(a) or 0
+        except BaseException:
+            traceback.print_exc()
+            raise
+        finally:
+            sys.stdout, sys.stderr = console_out, console_err
+            with open(LOG, "a", encoding="utf-8") as log:
+                log.write("%s\t%s\t%d\t%.0f\t%s\n" % (time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(began)), words, code, time.time() - began, os.path.relpath(path, ROOT).replace("\\", "/")))
+    return code
 
 
 if __name__ == "__main__":

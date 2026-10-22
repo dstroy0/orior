@@ -612,14 +612,14 @@ function planNoted(run, line) {
     panelRedrawn(run);
   }
   if (line.stream === "command" && !run.pass) {
-    // the pass's name off the command line, `orior protocol learn <pass> ...`, for the line before the plan comes
+    // the pass's name off the command line, `orior_gui protocol learn <pass> ...`, for the line before the plan comes
     const words = line.text.split(/\s+/);
     const at = words.indexOf("learn");
     run.pass = at >= 0 && words[at + 1] ? words[at + 1] : words[words.indexOf("protocol") + 1] ?? "";
     panelRedrawn(run);
   }
   // the writer naming the run's database: the tools are built, and the writer's blobs come from here on
-  const made = /^\s*qry_writer: the run of (.+) is made\s*$/.exec(line.text);
+  const made = /^\s*orior_qry_writer: the run of (.+) is made\s*$/.exec(line.text);
   if (made) {
     run.tools = true;
     run.qry = made[1];
@@ -667,7 +667,7 @@ function madePath(made) {
 }
 
 // What a build that made a program offers: the program run in the terminal at the tree's top folder;
-// built and run again in the job, as orior runs it or as the system runs a program opened on its
+// built and run again in the job, as orior_gui runs it or as the system runs a program opened on its
 // own; the libraries it loads through a PATH copied beside it; and its path copied.
 function madeButtons(job, made) {
   const buttons = element("div", { className: "views" });
@@ -895,7 +895,7 @@ export async function loadRun() {
   drawStage();
 }
 
-// A job started from a command line's words, `orior protocol learn costs --leave all` as the window hears it: the words
+// A job started from a command line's words, `orior_gui protocol learn costs --leave all` as the window hears it: the words
 // read into the job's values as its fields would hold them, the job shown and started.
 export async function startJobWords(id, words) {
   const job = state.jobs.find((one) => one.id === id);

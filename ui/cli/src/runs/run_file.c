@@ -278,7 +278,7 @@ int cli_run_file_line(const char *root, const char *path, const char *language, 
     int done = 0;
     if (named == 0u)
     {
-        cli_line_text(said, "orior has no way to run a ");
+        cli_line_text(said, "orior_cli has no way to run a ");
         cli_line_text(said, language);
         cli_line_text(said, " file");
     }

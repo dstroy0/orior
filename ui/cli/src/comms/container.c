@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// container.c: orior's container: the one process every process orior starts stands under, the language servers,
+// container.c: orior's container: the one process every process orior_cli starts stands under, the language servers,
 // kernels, debuggers, shells, database links and runs, and every process those start. On Windows the process puts
 // itself in a job object as it starts: every process it starts joins the job on its own, and so does every process
 // those start; the job lists them, and ends them all with the container, however the container ends. On Linux and
@@ -10,6 +10,30 @@
 // own process group, and the container leaves it and every process under it out of its members. The calls the system
 // gives stand in platform/windows.c and platform/posix.c
 #include "container.h"
+
+// the room the processes are first listed in
+#define CLI_PROCESSES_FIRST 1024u
+
+CliProcess *cli_processes_taken(CliCellsTally *tally, unsigned int *count)
+{
+    for (unsigned int room = CLI_PROCESSES_FIRST;; room *= 2u)
+    {
+        CliProcess *const processes =
+            cli_cell_taken_by(tally, (unsigned long long)room * sizeof(CliProcess), "the processes the system lists");
+        if (processes == NULL)
+        {
+            *count = 0u;
+            return NULL;
+        }
+        *count = cli_processes_listed(processes, room);
+        // a list that fills its cell may be cut short
+        if ((*count < room) || (room >= CLI_PROCESSES_MOST))
+        {
+            return processes;
+        }
+        cli_cell_given_by(tally, processes);
+    }
+}
 
 int cli_under(unsigned int root, unsigned int id, const CliProcess *parents, unsigned int count)
 {

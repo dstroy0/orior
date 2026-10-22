@@ -36,11 +36,43 @@ static CliKindSet s_kinds[CLI_LAYER_PARTS];
 static char s_value[CLI_LAYER_VALUE];
 static CliLock s_lock = CLI_LOCK_INIT;
 
+// the bytes the layers' texts are first taken with
+#define CLI_LAYERS_TEXT_FIRST 256ull
+
+void cli_settings_layers_given(CliLayers *layers)
+{
+    cli_cell_given_by(&g_cli_settings_cells, layers->text);
+    layers->text = NULL;
+    layers->used = 0ull;
+    layers->room = 0ull;
+}
+
 unsigned int cli_settings_kept_text(CliLayers *layers, const char *text, unsigned long long length)
 {
-    if ((layers->used + length + 1ull) > CLI_SETTINGS_TEXT)
+    const unsigned long long most = layers->used + length + 1ull;
+    if (most > CLI_SETTINGS_TEXT)
     {
         return 0u;
+    }
+    if (most > layers->room)
+    {
+        // twice the room, or CLI_LAYERS_TEXT_FIRST where it holds none, so texts kept one at a time take the cell again
+        // seldom, up to the most the texts hold
+        const unsigned long long doubled = (layers->room == 0ull) ? CLI_LAYERS_TEXT_FIRST : (2ull * layers->room);
+        const unsigned long long wanted = (most > doubled) ? most : doubled;
+        const unsigned long long room = (wanted < CLI_SETTINGS_TEXT) ? wanted : CLI_SETTINGS_TEXT;
+        char *const grown = cli_cell_taken_by(&g_cli_settings_cells, room, "the settings layers' texts");
+        if (grown == NULL)
+        {
+            return 0u;
+        }
+        if (layers->text != NULL)
+        {
+            memor.cpy(&(MemoriaCfg){.dst = grown, .src = layers->text, .bytes = (size_t)layers->used});
+            cli_cell_given_by(&g_cli_settings_cells, layers->text);
+        }
+        layers->text = grown;
+        layers->room = room;
     }
     // a place is below CLI_SETTINGS_TEXT, which an unsigned int holds
     const unsigned int at = (unsigned int)layers->used;
@@ -259,10 +291,9 @@ static unsigned int cli_read_kept(CliLayers *layers, const CliChain *chain, unsi
 
 void cli_settings_layers(const CliChain *reader, const CliChain *tree, const char *root, CliLayers *layers)
 {
-    // every count and every key's place made 0, the texts begun anew
-    memor.set(&(MemoriaCfg){.dst = layers, .val = 0, .bytes = offsetof(CliLayers, text)});
-    layers->text[0] = '\0';
-    layers->used = 1ull;
+    // every count and every key's place made 0, the texts begun anew with the empty text at their first place
+    memor.set(&(MemoriaCfg){.dst = layers, .val = 0, .bytes = sizeof(*layers)});
+    (void)cli_settings_kept_text(layers, "", 0ull);
     layers->system = cli_settings_system();
     if (reader->files != 0u)
     {

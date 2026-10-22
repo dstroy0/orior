@@ -83,7 +83,7 @@ static int cli_find_made(CliRun *run, CliMade *made)
     {
         made->looked = 1;
         CliLine why = {made->why, sizeof(made->why), 0ull};
-        made->found = cli_executables_made(run->root, id, &run->values, run->lines, made->file, &why);
+        made->found = cli_executables_made(run->root, id, run->values, run->lines, made->file, &why);
         cli_line_closed(&why);
         if (made->found)
         {
@@ -339,7 +339,7 @@ void cli_run_steps(void *context)
     for (unsigned int at = 0u; at < job->steps; at += 1u)
     {
         const CliStep *const step = &catalog->step[job->step_first + at];
-        if (cli_runner_runs(catalog, step, &run->values))
+        if (cli_runner_runs(catalog, step, run->values))
         {
             ready[count][0] = (step->program == CLI_PROGRAM_MADE) ? CLI_READY_MADE : CLI_READY_NOW;
             ready[count][1] = job->step_first + at;
@@ -390,13 +390,13 @@ void cli_run_steps(void *context)
                 has_code = 0;
                 break;
             }
-            cli_executables_run_command(run->root, made.file, &run->values, step->system, command, &shown);
+            cli_executables_run_command(run->root, made.file, run->values, step->system, command, &shown);
         }
         else
         {
             char why[CLI_PATH_LONGEST];
             CliLine said = {why, sizeof(why), 0ull};
-            if (!cli_runner_command(run->root, catalog, step, &run->values, command, &shown, &said))
+            if (!cli_runner_command(run->root, catalog, step, run->values, command, &shown, &said))
             {
                 cli_line_closed(&said);
                 cli_said(run, why);

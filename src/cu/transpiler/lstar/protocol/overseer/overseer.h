@@ -63,7 +63,7 @@
 // kind, hold where a refusal. The ruling is by consensus the other way: admitted where one party at least admits and
 // none holds (overseer_admission). An admission is a lesson of its own cause, as narrow as the conference, the
 // question's slot encoding at every carrier (`lesson admitted * <low> <high>`): the gate puts an encoding a lesson
-// admits past rule 3 (cubin_run --lessons), and an ask the gate held under the rule is asked again, since the part
+// admits past rule 3 (orior_cubin_run --lessons), and an ask the gate held under the rule is asked again, since the part
 // never saw it.
 
 #include "../../../../includes/file_defs/qry/writer/qry_member.h"

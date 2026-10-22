@@ -28,18 +28,20 @@
     ],
     "tokenizer": {
       "root": [
-        ["^\\s*#\\s*\\w+","keyword.directive","@directive"],
+        ["(^\\s*#\\s*)(include|import)\\b",["keyword.directive","keyword.directive.include"],"@directive"],
+        ["(^\\s*#\\s*)(\\w+)",["keyword.directive",{"cases":{"define":"keyword.directive.define","undef":"keyword.directive.define","if":"keyword.directive.condition","ifdef":"keyword.directive.condition","ifndef":"keyword.directive.condition","elif":"keyword.directive.condition","else":"keyword.directive.condition","endif":"keyword.directive.condition","@default":"keyword.directive"}}]],
         {"include":"@whitespace"},
         ["[A-Za-z_]\\w*",{"cases":{"@types":"type","@words":"keyword","@default":"identifier"}}],
         [
-          "0[xX][\\da-fA-F_']+[uUlLzZ]*|0[bB][01_']+[uUlL]*|(?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?[fFuUlLjJ]*",
-          "number"
+          "(0[xX][\\da-fA-F_']+|0[bB][01_']+|(?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?)([fFuUlLjJzZ]*)",
+          ["number", "number.suffix"]
         ],
         ["[uUL]?\"","string","@string"],
         ["'(?:[^'\\\\]|\\\\.)*'","string"],
         ["[{}()[\\]]","@brackets"],
-        ["[<>=!~?:&|+\\-*/^%]+","operator"],
-        ["[;,.]","delimiter"]
+        ["->|\\*(?!=)|&(?![&=])|\\.","operator.memory"],
+        ["&&|\\|\\||<<=?|>>=?|[<>=!*&]=|\\+\\+|--|[-+/%^|!~?:<>=]=?","operator"],
+        ["[;,]","delimiter"]
       ],
       "directive": [
         ["<[^>]*>","string"],

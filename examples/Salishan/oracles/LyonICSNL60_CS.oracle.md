@@ -3,7 +3,7 @@
 Extraction of Change-of-State in Nsyilxcn Roots and Beyond by John Lyon, University of British
 Columbia – Okanagan, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -50,7 +50,7 @@ the table puts the space back. The page prints totarget in Section 5 and intepre
 labels the last row of (9) h., and gives (8k) and (4b) no closing quote; each is kept. The trees of
 Figures 1 to 6 are drawings the text layer does not hold, and only their captions are rows.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 1026
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 24404 distinct tokens in the paper, 0 language tokens are held by no row.

@@ -29,7 +29,12 @@ static void qry_shared_named(const char *path, char *name)
     unsigned long long hash = 0xcbf29ce484222325ull;
     for (const char *at = path; *at != '\0'; at += 1)
     {
-        hash = (hash ^ (unsigned char)*at) * 0x100000001b3ull;
+        // Windows reads a path the same either way its separators are written and whatever its
+        // letters' case; every written form of one path therefore names one mapping
+        const unsigned char folded = (*at == '\\')                    ? (unsigned char)'/'
+                                     : ((*at >= 'A') && (*at <= 'Z')) ? (unsigned char)(*at + ('a' - 'A'))
+                                                                      : (unsigned char)*at;
+        hash = (hash ^ folded) * 0x100000001b3ull;
     }
     memcpy(name, s_prefix, sizeof(s_prefix) - 1u);
     for (unsigned int digit = 0u; digit < 16u; digit += 1u)
@@ -41,51 +46,24 @@ static void qry_shared_named(const char *path, char *name)
 
 static HANDLE s_section = NULL;
 
-// the head before the rings and each ring's own head given memory in `shared`: 1, or 0 where the system cannot; the
-// writer and every member read a ring's owner before it is taken, and a member may map the run before the writer has
-// given them, so each gives them in its own view
-static int qry_shared_heads_committed(QryShared *shared)
-{
-    if (!qry_shared_committed(shared, offsetof(QryShared, ring)))
-    {
-        return 0;
-    }
-    for (unsigned int place = 0u; place < QRY_WRITER_MEMBERS; place += 1u)
-    {
-        if (!qry_shared_committed(&shared->ring[place], offsetof(QryRing, bytes)))
-        {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-QryShared *qry_writer_shared_made(const char *path)
+QryShared *qry_writer_shared_made(const char *path, unsigned long long bytes)
 {
     char name[32];
     qry_shared_named(path, name);
-    const unsigned long long bytes = QRY_WRITER_SHARED_BYTES;
-    s_section = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE | SEC_RESERVE, (DWORD)(bytes >> 32u),
+    // the region made whole, zeros, its bytes the system's to hold from here
+    s_section = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, (DWORD)(bytes >> 32u),
                                    (DWORD)(bytes & 0xffffffffull), name);
     if ((s_section == NULL) || (GetLastError() == ERROR_ALREADY_EXISTS))
     {
         return NULL;
     }
-    QryShared *const shared = (QryShared *)MapViewOfFile(s_section, FILE_MAP_ALL_ACCESS, 0u, 0u, 0u);
-    // the heads given memory now; each ring's bytes as its member takes it, the records as they come
-    return ((shared != NULL) && qry_shared_heads_committed(shared)) ? shared : NULL;
+    return (QryShared *)MapViewOfFile(s_section, FILE_MAP_ALL_ACCESS, 0u, 0u, 0u);
 }
 
 void qry_writer_shared_released(QryShared *shared)
 {
     UnmapViewOfFile(shared);
     CloseHandle(s_section);
-}
-
-int qry_shared_committed(void *at, unsigned long long bytes)
-{
-    // a step of memory is at most what the run's shared memory holds, which a size_t counts on a 64-bit host
-    return VirtualAlloc(at, (size_t)bytes, MEM_COMMIT, PAGE_READWRITE) != NULL;
 }
 
 long long qry_writer_file_made(const char *path)
@@ -215,6 +193,11 @@ void qry_writer_paused(void)
     Sleep(1u);
 }
 
+void qry_writer_raised(void)
+{
+    SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
+}
+
 unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     wchar_t wide[QRY_WIDE_LONGEST];
@@ -261,7 +244,8 @@ QryShared *qry_member_shared(const char *path)
     // the view holds the section for as long as it is mapped
     QryShared *const shared = (QryShared *)MapViewOfFile(section, FILE_MAP_ALL_ACCESS, 0u, 0u, 0u);
     CloseHandle(section);
-    if ((shared != NULL) && !qry_shared_heads_committed(shared))
+    // a region whose whole the writer has not written yet is no run yet
+    if ((shared != NULL) && (atomic_load(&shared->whole) == 0ull))
     {
         UnmapViewOfFile(shared);
         return NULL;

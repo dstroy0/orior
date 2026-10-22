@@ -16,7 +16,7 @@ QRY_TOP="$(cd "$QRY_SOURCE/../../../../.." && pwd)"
 export QRY_TOP
 
 qry_writer_built() {
-    QRY_WRITER="$1/qry_writer"
+    QRY_WRITER="$1/orior_qry_writer"
     local binary="$QRY_WRITER" sources=("$QRY_TOP/src/cu/includes/file_defs/qry/qry_writer.c" "$QRY_TOP/src/cu/includes/file_defs/qry/writer"/*.c "$QRY_TOP/src/cu/includes/file_defs/qry/writer"/platform/*.c
         "$QRY_TOP/src/cu/includes/file_defs/qry/qry_read.c" "$QRY_TOP/src/cu/includes/file_defs/ksg/ksg_seal.c"
         "$QRY_TOP/src/cu/includes/file_defs/ksg/ksg_writing.c")
@@ -30,7 +30,7 @@ qry_writer_built() {
     if [ "$stale" -eq 1 ]; then
         mkdir -p "$1"
         cc -std=c11 -O2 -Wall -Wextra -o "$QRY_WRITER" "${sources[@]}" ||
-            { echo "  build failed: qry_writer did not compile"; exit 1; }
+            { echo "  build failed: orior_qry_writer did not compile"; exit 1; }
     fi
 }
 

@@ -1,13 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_test.c: the language servers' check: a check stopped lets its files waiting go and says it is done; clangd
-// serves C and names CUDA files as CUDA; Zig, Mojo and Ansible are served where their servers are found, and Rust and
-// Python each have one; a hover reads as Markdown in each shape; a workspace edit reads in either shape, the first edit
-// first; edits are written by UTF-16 columns and keep line ends; a signature names each parameter by its span; a server
-// asking for settings is given its defaults and an edit is passed on; a file the check lets go keeps its diagnostics
-// and wakes its checker; a file names another in its includes and imports only; a report of an attribute names it and
-// its class; and a completion is named by what it inserts. The checks that start a server are each marked ignored where
-// they are written and are not brought
+// servers_test.c: the language servers' check: the projects a server is given are found to six folders down, in order;
+// a check stopped lets its files waiting go and says it is done; clangd serves C and names CUDA files as CUDA; Zig,
+// Mojo and Ansible are served where their servers are found, and Rust and Python each have one; a hover reads as
+// Markdown in each shape; a workspace edit reads in either shape, the first edit first; edits are written by UTF-16
+// columns and keep line ends; a signature names each parameter by its span; a server asking for settings is given its
+// defaults and an edit is passed on; a file the check lets go keeps its diagnostics and wakes its checker; a file names
+// another in its includes and imports only; a report of an attribute names it and its class; and a completion is named
+// by what it inserts. The checks that start a server are each marked ignored where they are written and are not
+// brought
 #include "../../../../../ui/cli/src/servers/servers_internal.h"
 #include "cli_check.h"
 
@@ -260,7 +261,7 @@ static void servers_settings(void)
         cellul.eq(&(CatenaFinitaCfg){.src = servers_heard(&emit, "workspace/configuration", "{\"items\":[{},{}]}"),
                                      .other = "[null,null]",
                                      .cap = CLI_CELLS_POOL}),
-        "a setting orior does not give is left to the server's default");
+        "a setting orior_cli does not give is left to the server's default");
     const CliJson *json = NULL;
     const unsigned int python =
         servers_parsed(servers_heard(&emit, "workspace/configuration",
@@ -410,12 +411,55 @@ static void servers_reports(void)
               "and another report none");
 }
 
+// the projects a server is given are found to six folders down, past the folders a build writes, in order
+static void servers_projects(void)
+{
+    static const char *const s_made[6] = {"b/Cargo.toml",       "a/x/Cargo.toml",
+                                          "target/Cargo.toml",  "c/d/e/f/g/h/i/Cargo.toml",
+                                          ".hidden/Cargo.toml", "Cargo.toml"};
+    char root[CLI_PATH_LONGEST];
+    char path[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_LONGEST];
+    cli_check_folder("servers_projects", root);
+    for (unsigned int at = 0u; at < 6u; at += 1u)
+    {
+        cli_full(root, s_made[at], path);
+        if (cli_path_parent(path, folder))
+        {
+            (void)query_folder_made(folder);
+        }
+        (void)query_file_written(path, "", 0ull);
+    }
+    char listed[4096];
+    CliLine out = {listed, sizeof(listed), 0ull};
+    cli_servers_projects_in(root, "Cargo.toml", &out);
+    char wanted[4096];
+    CliLine want = {wanted, sizeof(wanted), 0ull};
+    static const char *const s_found[3] = {"Cargo.toml", "a/x/Cargo.toml", "b/Cargo.toml"};
+    cli_line_character(&want, '[');
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        cli_full(root, s_found[at], path);
+        cli_line_text(&want, (at > 0u) ? "," : "");
+        cli_json_quoted_lossy(&want, (const unsigned char *)path,
+                              cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+    }
+    cli_line_character(&want, ']');
+    cli_check_text(listed, out.at, wanted, "the projects a server is given are found to six folders down, in order");
+    cli_check(g_cli_servers_launch_cells.holds == 0ull, "and the cells the search took are given back");
+}
+
 int main(void)
 {
+    servers_projects();
     servers_stop_check();
     servers_specs();
     servers_markdown();
     servers_edits();
+    // the workspace edits read are a few files of a few edits each, far below the room of every edit and file
+    cli_check((g_cli_servers_edits_cells.holds == 0ull) && (g_cli_servers_edits_cells.hw != 0ull) &&
+                  (g_cli_servers_edits_cells.hw < 16384ull),
+              "a workspace edit is held in a cell counted to its files and edits, and given back");
     servers_offers();
     servers_settings();
     servers_letting_go();

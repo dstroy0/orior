@@ -152,20 +152,9 @@ void cli_gradle_classes(const char *text, unsigned long long size, unsigned char
             kind = CLI_GRADLE_COMMENT;
             end = cli_text_find(rest + 2u, left - 2u, "*/", 2u, &found) ? at + 2u + found + 2u : size;
         }
-        else if (cli_text_starts(rest, left, "\"\"\"") || cli_text_starts(rest, left, "'''"))
+        else if (cli_text_quoted_end(text, size, at, &end))
         {
             kind = CLI_GRADLE_STRING;
-            end = cli_text_find(rest + 3u, left - 3u, rest, 3u, &found) ? at + 3u + found + 3u : size;
-        }
-        else if ((rest[0] == '"') || (rest[0] == '\''))
-        {
-            kind = CLI_GRADLE_STRING;
-            unsigned long long walk = at + 1u;
-            while ((walk < size) && (text[walk] != rest[0]) && (text[walk] != '\n'))
-            {
-                walk += (text[walk] == '\\') ? 2u : 1u;
-            }
-            end = (walk + 1u < size) ? walk + 1u : size;
         }
         else
         {

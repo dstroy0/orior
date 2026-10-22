@@ -3,7 +3,7 @@
 Extraction of The past tense suffix and 2PCs in ʔayʔaǰuθəm (Comox-Sliammon) by Bailey Trotter, The
 University of British Columbia, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -40,7 +40,7 @@ into the prose; the rows between are given back to their sections here. The lexi
 (15) and (18) and Tables 1 to 3 are read off the page one cell a row, their columns placed by glyph
 position.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 319
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 9483
 distinct tokens in the paper, 0 language tokens are held by no row.

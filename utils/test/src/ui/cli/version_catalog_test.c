@@ -125,7 +125,7 @@ int main(void)
     catalog_sections();
     catalog_checked();
     catalog_completes();
-    cli_check((g_cli_versions_cells.held == 0ull) && (g_cli_versions_cells.hw != 0ull),
+    cli_check((g_cli_versions_cells.holds == 0ull) && (g_cli_versions_cells.hw != 0ull),
               "every catalog read is given back, the most the catalogs held marked");
     return cli_checked();
 }

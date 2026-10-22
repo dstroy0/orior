@@ -115,9 +115,9 @@ long noise_flicker_sample(const unsigned short *volume, const unsigned long long
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
-void noise_exact_word(AnchorExactInteger *value, unsigned long long word)
+void noise_exact_word(OriorExactInteger *value, unsigned long long word)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     value->limb[0] = (uint32_t)(word & 0xFFFFFFFFull);
     value->limb[1] = (uint32_t)(word >> 32u);
     value->sign = (word != 0ull) ? 1 : 0;
@@ -132,21 +132,21 @@ int noise_per_mille(unsigned long long squares, unsigned long long pairs, unsign
     {
         return 0;
     }
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
-    AnchorExactInteger factor;
-    AnchorExactInteger quotient;
-    AnchorExactInteger remainder;
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
+    OriorExactInteger factor;
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
     noise_exact_word(&numerator, squares);
     noise_exact_word(&factor, first_pairs);
-    int ok = anchor_exact_multiply(&numerator, &factor, &numerator) == ANCHOR_EXACT_OK;
+    int ok = orior_exact_multiply(&numerator, &factor, &numerator) == ORIOR_EXACT_OK;
     noise_exact_word(&factor, 1000ull);
-    ok = ok && (anchor_exact_multiply(&numerator, &factor, &numerator) == ANCHOR_EXACT_OK);
+    ok = ok && (orior_exact_multiply(&numerator, &factor, &numerator) == ORIOR_EXACT_OK);
     noise_exact_word(&denominator, first_squares);
     noise_exact_word(&factor, pairs);
-    ok = ok && (anchor_exact_multiply(&denominator, &factor, &denominator) == ANCHOR_EXACT_OK) &&
-         (anchor_exact_divide(&numerator, &denominator, &quotient, &remainder) == ANCHOR_EXACT_OK);
-    for (unsigned int limb = 2u; ok && (limb < ANCHOR_EXACT_LIMBS); limb += 1u)
+    ok = ok && (orior_exact_multiply(&denominator, &factor, &denominator) == ORIOR_EXACT_OK) &&
+         (orior_exact_divide(&numerator, &denominator, &quotient, &remainder) == ORIOR_EXACT_OK);
+    for (unsigned int limb = 2u; ok && (limb < ORIOR_EXACT_LIMBS); limb += 1u)
     {
         ok = quotient.limb[limb] == 0u;
     }

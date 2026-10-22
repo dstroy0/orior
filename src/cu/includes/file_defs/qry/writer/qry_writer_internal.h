@@ -10,11 +10,13 @@
 
 #include <stdatomic.h>
 
-// the members the run keeps a ring for; the places the writer's schedule keeps, a record each; and the bytes of the
-// run's records
-#define QRY_WRITER_MEMBERS 256u
-#define QRY_WRITER_SCHEDULE_PLACES (1ull << 24u)
-#define QRY_WRITER_RUN_BYTES (64ull << 30u)
+// The run's shared region is laid from the bytes the writer is started with, the ask, and made whole: half of it
+// rings, a member each, the most rings QRY_WRITER_MEMBERS_MOST; a place of the schedule for each
+// QRY_WRITER_PLACE_BYTES of it; and the rest the run's records. A writer started with no ask takes
+// QRY_WRITER_RUN_DEFAULT
+#define QRY_WRITER_MEMBERS_MOST 256u
+#define QRY_WRITER_PLACE_BYTES 256ull
+#define QRY_WRITER_RUN_DEFAULT (1ull << 30u)
 
 // The host's own steps, the fastest its sweeps of timings found, stand in qry_host.h beside this file where a sweep has
 // written one (`orior protocol sweep`), and set those it names; the rest hold the values below
@@ -24,12 +26,7 @@
 #endif
 #endif
 
-// the step the writer gives memory to the schedule and the records in, and the most bytes one write call puts in a
-// file, at most a gibibyte, which a DWORD counts
-#ifndef QRY_WRITER_COMMIT_BYTES
-#define QRY_WRITER_COMMIT_BYTES (64ull << 20u)
-#endif
-
+// the most bytes one write call puts in a file, at most a gibibyte, which a DWORD counts
 #ifndef QRY_WRITER_PIECE_BYTES
 #define QRY_WRITER_PIECE_BYTES (1ull << 30u)
 #endif
@@ -53,12 +50,14 @@ struct QryRing
     unsigned char bytes[QRY_WRITER_RING_BYTES];
 };
 
-// The run's shared memory. The top of the tree, a record whose name is a path under it its file; the writer's stop;
-// the records whose bytes did not hold to their CRC; the records the schedule had no place or the run no room for;
-// the places the schedule holds, each the place of a whole record in the order the writer took it; the bytes of the
-// records; the panic line, the place plus 1 of the panic that opened it and of the panic whose ruling closed it, the
-// line open while they differ; the bytes of schedule and records given memory; the rings; the schedule; and the
-// run's records
+// The run's shared memory, its head. The top of the tree, a record whose name is a path under it its file; the
+// writer's stop; the records whose bytes did not hold to their CRC; the records the schedule had no place or the run no
+// room for; the places the schedule holds, each the place of a whole record in the order the writer took it; the bytes
+// of the records; the panic line, the place plus 1 of the panic that opened it and of the panic whose ruling closed
+// it, the line open while they differ; and the region's lay: the rings, a member each, the schedule's places and the
+// records' bytes, and where each starts from the region's first byte, with the region's whole bytes, which the writer
+// writes last as it makes the region; a member that finds the region before them therefore finds no run yet. The rings, the
+// schedule and the records follow the head in the region
 struct QryShared
 {
     char top[QRY_WRITER_TOP_LONGEST];
@@ -70,25 +69,49 @@ struct QryShared
     _Atomic unsigned long long tail;
     _Atomic unsigned long long panicked;
     _Atomic unsigned long long closed;
-    unsigned long long schedule_committed;
-    unsigned long long records_committed;
-    QryRing ring[QRY_WRITER_MEMBERS];
-    unsigned long long schedule[QRY_WRITER_SCHEDULE_PLACES];
-    unsigned char records[];
+    unsigned long long members;
+    unsigned long long places;
+    unsigned long long run_bytes;
+    unsigned long long rings_at;
+    unsigned long long schedule_at;
+    unsigned long long records_at;
+    _Atomic unsigned long long whole;
 };
 
-// the bytes the run's shared memory takes
-#define QRY_WRITER_SHARED_BYTES ((unsigned long long)sizeof(QryShared) + QRY_WRITER_RUN_BYTES)
+// The region's lay from the bytes asked: the members, the places and the records' bytes into each, and the whole the
+// region takes, the head and each part on a 64-byte boundary
+static inline unsigned long long qry_shared_laid(unsigned long long asked, unsigned long long *members,
+                                                 unsigned long long *places, unsigned long long *run_bytes)
+{
+    const unsigned long long head = (sizeof(QryShared) + 63ull) & ~63ull;
+    const unsigned long long rings = (asked / 2ull) / sizeof(QryRing);
+    *members = (rings == 0ull) ? 1ull : ((rings > QRY_WRITER_MEMBERS_MOST) ? QRY_WRITER_MEMBERS_MOST : rings);
+    *places = (asked / QRY_WRITER_PLACE_BYTES) + 1ull;
+    const unsigned long long laid = head + (*members * sizeof(QryRing)) + ((*places * 8ull + 63ull) & ~63ull);
+    *run_bytes = (asked > (laid + (1ull << 20u))) ? (asked - laid) : (1ull << 20u);
+    return laid + *run_bytes;
+}
 
-// the run's shared memory made under the name `path` gives, zeros, only its head given memory: NULL where it could
-// not be made
-QryShared *qry_writer_shared_made(const char *path);
+// a ring of the region, the schedule and the records, each where the head says it starts
+static inline QryRing *qry_shared_ring(QryShared *shared, unsigned long long place)
+{
+    return (QryRing *)(void *)((unsigned char *)shared + shared->rings_at + (place * sizeof(QryRing)));
+}
 
+static inline unsigned long long *qry_shared_schedule(QryShared *shared)
+{
+    return (unsigned long long *)(void *)((unsigned char *)shared + shared->schedule_at);
+}
+
+static inline unsigned char *qry_shared_records(QryShared *shared)
+{
+    return (unsigned char *)shared + shared->records_at;
+}
+
+// the run's shared memory made under the name `path` gives, `bytes` whole, zeros: NULL where it could not be made
+QryShared *qry_writer_shared_made(const char *path, unsigned long long bytes);
 // the run's shared memory let go
 void qry_writer_shared_released(QryShared *shared);
-
-// memory given to the `bytes` bytes at `at` in the run's shared memory: 1, or 0 where the system gives none
-int qry_shared_committed(void *at, unsigned long long bytes);
 
 // the file at `path` made anew: its handle, or -1 where it could not be made
 long long qry_writer_file_made(const char *path);
@@ -96,10 +119,10 @@ long long qry_writer_file_made(const char *path);
 // `size` bytes at `bytes` written at the end of the file `file`: 1, or 0 where they did not all go
 int qry_writer_file_put(long long file, const unsigned char *bytes, unsigned long long size);
 
-// the bytes written to the file flushed through to the disk: 1, or 0 where they were not
+// the bytes written to the file transferred to the storage device: 1, or 0 where they were not
 int qry_writer_file_durable(long long file);
 
-// the file flushed through to the disk and closed: 1, or 0 where either failed
+// the file transferred to the storage device and closed: 1, or 0 where either failed
 int qry_writer_file_closed(long long file);
 
 // the file at `path` taken away: 1, or 0 where it was not
@@ -108,8 +131,10 @@ int qry_writer_file_removed(const char *path);
 // the file at `beside` put in the place of the file at `placed`, whole: 1, or 0 where it was not
 int qry_writer_file_placed(const char *beside, const char *placed);
 
-// the writer's pause between turns over the rings
+// the writer's pause between turns over the rings; and the writer put above the work it writes for, where the system
+// lets a process raise itself
 void qry_writer_paused(void);
+void qry_writer_raised(void);
 
 // the standard input read whole into `bytes`, which holds `room`: its size, or QRY_MEMBER_UNREAD's value,
 // 0xffffffffffffffff, where it could not be read whole or is larger than `room`

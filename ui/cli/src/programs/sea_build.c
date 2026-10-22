@@ -9,6 +9,8 @@
 
 #define CLI_SEA_WANTED 64u
 
+CliCellsTally g_cli_sea_cells = CLI_CELLS_TALLY("cli_sea");
+
 // a line said through `say`
 static void cli_say(QuerySink say, const char *text)
 {
@@ -289,7 +291,7 @@ static int cli_windows_copy(const unsigned char *program, unsigned long long siz
     cli_line_closed(&line);
     cli_say(say, told);
     unsigned long long made_size = 0ull;
-    const unsigned char *const made = qry_member_file_mapped(output, &made_size);
+    const unsigned char *const made = cli_file_held(output, &made_size);
     if (made == NULL)
     {
         return cli_failed(output, ": it could not be read", said);
@@ -310,7 +312,7 @@ static int cli_windows_copy(const unsigned char *program, unsigned long long siz
             cli_failed(fused, ": it could not be written", said);
         }
     }
-    qry_member_file_unmapped(made, made_size);
+    cli_file_let_go(made, made_size);
     if (done && !query_file_renamed(fused, output))
     {
         return cli_failed(output, ": it could not be replaced", said);
@@ -322,19 +324,26 @@ static int cli_windows_copy(const unsigned char *program, unsigned long long siz
 int cli_sea_build(const char *node, const char *main, const char *output, int module, QuerySink say, char *made,
                   CliLine *said)
 {
-    static char s_script[CLI_SEA_SCRIPT];
     static char s_wanted[CLI_SEA_WANTED][CLI_NAME_LONGEST];
     static char s_config_text[CLI_PATH_LONGEST * 4u];
     static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    const unsigned long long script_size = qry_member_file_read(main, (unsigned char *)s_script, sizeof(s_script) - 1u);
-    if (script_size == QRY_MEMBER_UNREAD)
+    unsigned long long script_size = 0ull;
+    const unsigned char *const mapped = cli_file_held(main, &script_size);
+    // the script with a terminator after it, in a cell of its bytes and one more
+    char *const script = ((mapped != NULL) && (script_size < CLI_SEA_SCRIPT))
+                             ? cli_cell_taken_by(&g_cli_sea_cells, script_size + 1ull, "a script built")
+                             : NULL;
+    if (script == NULL)
     {
-        cli_lock_give(&s_lock);
+        cli_file_let_go(mapped, script_size);
         return cli_failed(main, ": it could not be read", said);
     }
-    s_script[script_size] = '\0';
-    const unsigned int wanted = cli_sea_outside(s_script, s_wanted, CLI_SEA_WANTED);
+    memor.cpy(&(MemoriaCfg){.dst = script, .src = mapped, .bytes = (size_t)script_size});
+    script[script_size] = '\0';
+    cli_file_let_go(mapped, script_size);
+    cli_lock_take(&s_lock);
+    const unsigned int wanted = cli_sea_outside(script, s_wanted, CLI_SEA_WANTED);
+    cli_cell_given_by(&g_cli_sea_cells, script);
     if (wanted != 0u)
     {
         cli_line_text(said, main);
@@ -442,7 +451,7 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
         return 1;
     }
     unsigned long long data_size = 0ull;
-    const unsigned char *const data = qry_member_file_mapped(blob, &data_size);
+    const unsigned char *const data = cli_file_held(blob, &data_size);
     if (data == NULL)
     {
         cli_lock_give(&s_lock);
@@ -457,7 +466,7 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
     cli_line_closed(&copy);
     cli_say(say, told);
     unsigned long long size = 0ull;
-    const unsigned char *const program = qry_member_file_mapped(node, &size);
+    const unsigned char *const program = cli_file_held(node, &size);
     int done = program != NULL;
     if (!done)
     {
@@ -470,9 +479,9 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
 #endif
     if (program != NULL)
     {
-        qry_member_file_unmapped(program, size);
+        cli_file_let_go(program, size);
     }
-    qry_member_file_unmapped(data, data_size);
+    cli_file_let_go(data, data_size);
     if (done)
     {
         cli_say(say, "turned the fuse to 1");

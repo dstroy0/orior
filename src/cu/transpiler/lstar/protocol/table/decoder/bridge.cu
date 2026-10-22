@@ -19,7 +19,7 @@ int Decoding::bridge_read(const char *klq)
     unsigned long long bridge_size = 0ull;
     if (!qry_member_file_blob(klq, &bridge_bytes, &bridge_size))
     {
-        printf("klq_decoder: %s could not be read\n", klq);
+        printf("orior_klq_decoder: %s could not be read\n", klq);
         return 1;
     }
     // a file read whole is at most what a size_t counts
@@ -234,7 +234,7 @@ int Decoding::bridge_handed(const char *klq)
     }
     if (!qry_member_filed(klq, bridge_text.data(), bridge_text.size()))
     {
-        printf("klq_decoder: %s could not be written through the run's writer\n", klq);
+        printf("orior_klq_decoder: %s could not be written through the run's writer\n", klq);
         return 1;
     }
     return 0;
@@ -305,7 +305,7 @@ void Decoding::printed(const char *klq)
                    named_pairs[set], set_signal[set], set_noise[set]);
         }
     }
-    printf("klq_decoder: %u puts read, %u concepts, %u of more than one pair; metas", (unsigned int)puts.size(),
+    printf("orior_klq_decoder: %u puts read, %u concepts, %u of more than one pair; metas", (unsigned int)puts.size(),
            (unsigned int)concepts.size(), shared);
     for (const char *const meta : s_metas)
     {

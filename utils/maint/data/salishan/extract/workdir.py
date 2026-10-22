@@ -2,7 +2,7 @@
 
 The tools are in the public tree. The published papers, and every text read off their pages, stay
 in the closed corpus, and the tools read them there:
-  CORPUS      the closed corpus checkout: ANCHOR_SIFT_PRIVATE when it is set, and otherwise the
+  CORPUS      the closed corpus checkout: ORIOR_ENGINE_PRIVATE when it is set, and otherwise the
               checkout the public tree's build/papers links into;
   PRIVATE     its extract/ directory: each paper's page text and ops, the defects table, and the
               outline and line tables the tools read and write;
@@ -30,14 +30,14 @@ while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(os.path.join(ROOT, "
 SALISHAN = os.path.dirname(HERE)
 INSTRUMENT = os.path.join(ROOT, "src", "python", "engine", "nbody", "orior", "instrument")
 ORACLES = os.path.join(ROOT, "examples", "Salishan", "oracles")
-CORPUS = os.environ.get("ANCHOR_SIFT_PRIVATE") or os.path.dirname(
+CORPUS = os.environ.get("ORIOR_ENGINE_PRIVATE") or os.path.dirname(
     os.path.realpath(os.path.join(ROOT, "build", "papers")))
 PRIVATE = os.path.join(CORPUS, "extract")
 GENERATORS = os.path.join(PRIVATE, "generators")
 FINISH = os.path.join(PRIVATE, "finish")
 os.environ["SALISHAN_TOOLS"] = HERE
 if not (os.path.isdir(os.path.join(CORPUS, "papers")) and os.path.isdir(PRIVATE)):
-    raise SystemExit("no closed corpus at %s: set ANCHOR_SIFT_PRIVATE, or link build/papers to its papers/"
+    raise SystemExit("no closed corpus at %s: set ORIOR_ENGINE_PRIVATE, or link build/papers to its papers/"
                      % CORPUS)
 WORK = os.environ.get("SALISHAN_WORK") or os.path.join(os.path.dirname(CORPUS), "salishan_work")
 os.makedirs(WORK, exist_ok=True)

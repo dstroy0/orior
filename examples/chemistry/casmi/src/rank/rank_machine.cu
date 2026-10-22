@@ -262,12 +262,12 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
     return ok;
 }
 
-void rank_field_read(const unsigned int *record, RankField field, AnchorExactInteger *value)
+void rank_field_read(const unsigned int *record, RankField field, OriorExactInteger *value)
 {
     // the field's bits as a magnitude, then two's complement where its top bit is set
-    anchor_exact_zero(value);
-    AnchorExactInteger raw;
-    anchor_exact_zero(&raw);
+    orior_exact_zero(value);
+    OriorExactInteger raw;
+    orior_exact_zero(&raw);
     for (unsigned int bit = 0u; bit < field.bits; bit += 1u)
     {
         const unsigned int at = field.offset + bit;
@@ -278,7 +278,7 @@ void rank_field_read(const unsigned int *record, RankField field, AnchorExactInt
     }
     const int negative = (field.bits != 0u) && ((raw.limb[(field.bits - 1u) / 32u] >> ((field.bits - 1u) % 32u)) & 1u);
     raw.sign = 0;
-    for (unsigned int limb = 0u; limb < ANCHOR_EXACT_LIMBS; limb += 1u)
+    for (unsigned int limb = 0u; limb < ORIOR_EXACT_LIMBS; limb += 1u)
     {
         raw.sign = (raw.limb[limb] != 0u) ? 1 : raw.sign;
     }
@@ -288,11 +288,11 @@ void rank_field_read(const unsigned int *record, RankField field, AnchorExactInt
         return;
     }
     // the magnitude 2^bits - raw, its sign below zero
-    AnchorExactInteger power;
-    anchor_exact_zero(&power);
+    OriorExactInteger power;
+    orior_exact_zero(&power);
     power.limb[field.bits / 32u] = 1u << (field.bits % 32u);
     power.sign = 1;
-    (void)anchor_exact_subtract(&power, &raw, value);
+    (void)orior_exact_subtract(&power, &raw, value);
     value->sign = -value->sign;
 }
 
@@ -340,19 +340,19 @@ void rank_bits_copy(unsigned int *record, unsigned int offset, const unsigned in
     }
 }
 
-void rank_field_put(unsigned int *record, unsigned int offset, unsigned int bits, const AnchorExactInteger *value)
+void rank_field_put(unsigned int *record, unsigned int offset, unsigned int bits, const OriorExactInteger *value)
 {
     // two's complement: the magnitude, or 2^bits less it below zero
-    AnchorExactInteger written = *value;
+    OriorExactInteger written = *value;
     if (value->sign < 0)
     {
-        AnchorExactInteger power;
-        anchor_exact_zero(&power);
+        OriorExactInteger power;
+        orior_exact_zero(&power);
         power.limb[bits / 32u] = 1u << (bits % 32u);
         power.sign = 1;
-        AnchorExactInteger magnitude = *value;
+        OriorExactInteger magnitude = *value;
         magnitude.sign = 1;
-        (void)anchor_exact_subtract(&power, &magnitude, &written);
+        (void)orior_exact_subtract(&power, &magnitude, &written);
     }
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
@@ -369,9 +369,9 @@ void rank_put_unsigned(unsigned int *record, unsigned int offset, unsigned int b
     rank_bits_copy(record, offset, limbs, (bits < 64u) ? bits : 64u);
 }
 
-unsigned int rank_bits(const AnchorExactInteger *value)
+unsigned int rank_bits(const OriorExactInteger *value)
 {
-    for (unsigned int limb = ANCHOR_EXACT_LIMBS; limb > 0u; limb -= 1u)
+    for (unsigned int limb = ORIOR_EXACT_LIMBS; limb > 0u; limb -= 1u)
     {
         if (value->limb[limb - 1u] != 0u)
         {
@@ -381,9 +381,9 @@ unsigned int rank_bits(const AnchorExactInteger *value)
     return 0u;
 }
 
-void rank_exact_of(unsigned long long value, AnchorExactInteger *out)
+void rank_exact_of(unsigned long long value, OriorExactInteger *out)
 {
-    anchor_exact_zero(out);
+    orior_exact_zero(out);
     out->limb[0] = (unsigned int)(value & 0xFFFFFFFFull);
     out->limb[1] = (unsigned int)(value >> 32u);
     out->sign = (value != 0ull) ? 1 : 0;

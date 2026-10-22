@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_own.c: the files orior reads itself, its build files and JSON by its schema, checked by its own reading: a
+// servers_own.c: the files orior_cli reads itself, its build files and JSON by its schema, checked by its own reading: a
 // file as its text stands, on a thread of the servers', a later check of the same file standing in for an earlier one
 // still going, the file hearing its findings, changed or the same, as a file the editor opens does; and each such file
 // of the tree as the disk holds it, a file with no findings passed on only where it had some before, for those to
@@ -159,12 +159,12 @@ static int own_had(const char *key)
 static void own_tree_file(const char *root, const char *path, int *written, CliLine *found)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = qry_member_file_mapped(path, &size);
+    const unsigned char *const mapped = cli_file_held(path, &size);
     if ((mapped == NULL) || !cli_utf8_whole((const char *)mapped, size))
     {
         if (mapped != NULL)
         {
-            qry_member_file_unmapped(mapped, size);
+            cli_file_let_go(mapped, size);
         }
         return;
     }
@@ -173,7 +173,7 @@ static void own_tree_file(const char *root, const char *path, int *written, CliL
     CliLine items;
     cli_pieces_begun(&pieces, &items, piece, sizeof(piece));
     own_check(root, path, (const char *)mapped, size, &items);
-    qry_member_file_unmapped(mapped, size);
+    cli_file_let_go(mapped, size);
     const int whole = cli_pieces_ended(&pieces, &items);
     const int empty = (pieces.size == 2ull) && (pieces.first != NULL) &&
                       (memor.cmp(&(MemoriaCfg){.src = pieces.first->bytes, .other = "[]", .bytes = 2u}) == 0);
@@ -195,7 +195,7 @@ static void own_tree_file(const char *root, const char *path, int *written, CliL
     cli_pieces_given(&pieces);
 }
 
-// each file of the tree orior reads itself checked as the disk holds it, its findings kept and passed on
+// each file of the tree orior_cli reads itself checked as the disk holds it, its findings kept and passed on
 static void own_tree_job(const void *job, unsigned long long size)
 {
     const CliServersOwnTreeJob *const tree = job;

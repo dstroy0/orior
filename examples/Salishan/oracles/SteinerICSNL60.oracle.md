@@ -3,7 +3,7 @@
 Extraction of nɬeʔkepmxcín Somatic Suffixes by Reed Steiner, University of British Columbia, ICSNL
 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -45,7 +45,7 @@ example on page 33, and prints the third step of (48) as (ii) again. The text la
 after the accented schwa of sɣə́p, cʕə́p and c̓k̓ʷə́m, which the glyph positions close; those three
 are corrected before the page is read.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 958
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 17558 distinct tokens in the paper, 0 language tokens are held by no row.

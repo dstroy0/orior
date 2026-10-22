@@ -9,13 +9,13 @@
 
 #include "../text/text.h"
 
-// the most nodes and tokens an environment file is read into, and the bytes of its texts
-#define CLI_REQUESTS_NODES 65536u
-#define CLI_REQUESTS_TREE_TEXT (1u << 20u)
+// the bytes a values' pool is begun with before it doubles, and a value written as JSON is begun in before it grows
+#define CLI_REQUESTS_POOL_FIRST (1u << 10u)
 
-static CliJsonNode s_nodes[CLI_REQUESTS_NODES];
-static CfgJsonToken s_tokens[CLI_REQUESTS_NODES];
-static char s_text[CLI_REQUESTS_TREE_TEXT];
+CliCellsTally g_cli_requests_cells = CLI_CELLS_TALLY("cli_requests");
+
+// the environment file read, a tree in a cell sized to it, and the names of the environments, under the lock and
+// given back before it is
 static CliJson s_json;
 static CliRequestsValues s_names;
 static CliLock s_lock = CLI_LOCK_INIT;
@@ -65,12 +65,12 @@ int cli_requests_nearest(const char *root, const char *path, const char *name, c
 static unsigned int values_read(const char *file, CliLine *said)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(file, &size);
+    const unsigned char *const bytes = cli_file_held(file, &size);
     if ((bytes == NULL) || !cli_utf8_whole((const char *)bytes, size))
     {
         if (bytes != NULL)
         {
-            qry_member_file_unmapped(bytes, size);
+            cli_file_let_go(bytes, size);
         }
         cli_line_text(said, file);
         cli_line_text(said, ": it could not be read");
@@ -78,10 +78,9 @@ static unsigned int values_read(const char *file, CliLine *said)
     }
     char why[CLI_SAID_LONGEST];
     CliLine read_said = {why, sizeof(why), 0ull};
-    cli_json_begun(&s_json, s_nodes, CLI_REQUESTS_NODES, s_text, sizeof(s_text));
-    const unsigned int object =
-        cli_json_read(&s_json, (const char *)bytes, size, s_tokens, CLI_REQUESTS_NODES, &read_said);
-    qry_member_file_unmapped(bytes, size);
+    cli_json_given(&s_json);
+    const unsigned int object = cli_json_taken(&s_json, (const char *)bytes, size, 0u, 0ull, &read_said);
+    cli_file_let_go(bytes, size);
     if (object == CLI_JSON_NONE)
     {
         cli_line_text(said, file);
@@ -110,9 +109,28 @@ int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned
         at += 1u;
     }
     const unsigned long long needed = value_size + 1u + ((at == values->count) ? (name_size + 1u) : 0u);
-    if ((values->used + needed > sizeof(values->text)) || (at == CLI_REQUESTS_VALUES))
+    if ((values->used + needed > CLI_REQUESTS_TEXT) || (at == CLI_REQUESTS_VALUES))
     {
         return 0;
+    }
+    if (values->used + needed > values->room)
+    {
+        // the pool's room doubled until the value fits, CLI_REQUESTS_TEXT at the most
+        unsigned long long room = (values->room == 0ull) ? CLI_REQUESTS_POOL_FIRST : values->room;
+        while (room < values->used + needed)
+        {
+            room *= 2ull;
+        }
+        room = (room < CLI_REQUESTS_TEXT) ? room : CLI_REQUESTS_TEXT;
+        char *const pool = cli_cell_taken_by(&g_cli_requests_cells, room, "the values' texts");
+        if (pool == NULL)
+        {
+            return 0;
+        }
+        memor.cpy(&(MemoriaCfg){.dst = pool, .src = values->text, .bytes = (size_t)values->used});
+        cli_cell_given_by(&g_cli_requests_cells, values->text);
+        values->text = pool;
+        values->room = room;
     }
     if (at == values->count)
     {
@@ -129,6 +147,15 @@ int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned
     values->text[values->used + value_size] = '\0';
     values->used += value_size + 1u;
     return 1;
+}
+
+void cli_requests_values_given(CliRequestsValues *values)
+{
+    cli_cell_given_by(&g_cli_requests_cells, values->text);
+    values->text = NULL;
+    values->room = 0ull;
+    values->used = 0ull;
+    values->count = 0u;
 }
 
 const CliRequestsText *cli_requests_value(const CliRequestsValues *values, const char *name, unsigned long long size)
@@ -148,7 +175,7 @@ const CliRequestsText *cli_requests_value(const CliRequestsValues *values, const
 // the reason the values of an environment did not fit
 static void values_full_said(CliLine *said)
 {
-    cli_line_text(said, "the values of the environment are larger than orior holds");
+    cli_line_text(said, "the values of the environment are larger than orior_cli holds");
 }
 
 // the names of the environments of the file at `path` put in s_names, the lock held, and the tree's paths of the
@@ -158,8 +185,7 @@ static int values_listed(const char *root, const char *path, char (*relative)[CL
 {
     int read = 1;
     int fits = 1;
-    s_names.count = 0u;
-    s_names.used = 0ull;
+    cli_requests_values_given(&s_names);
     for (unsigned int slot = 0u; read && fits && (slot < 2u); slot += 1u)
     {
         char file[CLI_PATH_LONGEST];
@@ -217,6 +243,8 @@ int cli_requests_environments(const char *root, const char *path, CliLine *out, 
         }
         cli_line_character(out, '}');
     }
+    cli_requests_values_given(&s_names);
+    cli_json_given(&s_json);
     cli_lock_give(&s_lock);
     return listed;
 }
@@ -225,7 +253,6 @@ int cli_requests_environments(const char *root, const char *path, CliLine *out, 
 // where it does not fit
 static int values_member_put(CliRequestsValues *values, unsigned int member)
 {
-    static char s_written[CLI_REQUESTS_TREE_TEXT];
     const char *const key = s_json.text + s_json.node[member].key;
     unsigned long long length = 0ull;
     const char *const text = cli_json_string(&s_json, member, &length);
@@ -234,17 +261,23 @@ static int values_member_put(CliRequestsValues *values, unsigned int member)
         return cli_requests_value_put(values, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
                                       text, length);
     }
-    CliLine written = {s_written, sizeof(s_written), 0ull};
+    CliLine written;
+    if (!cli_line_growing(&written, CLI_REQUESTS_POOL_FIRST, "a value written as JSON"))
+    {
+        return 0;
+    }
     cli_json_write(&s_json, member, &written, 0u, 0);
-    return cli_line_fits(&written) &&
-           cli_requests_value_put(values, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
-                                  s_written, written.at);
+    const int put =
+        cli_line_fits(&written) &&
+        cli_requests_value_put(values, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
+                               written.out, written.at);
+    cli_cell_given(written.out);
+    return put;
 }
 
 int cli_requests_values(const char *root, const char *path, const char *env, CliRequestsValues *values, CliLine *said)
 {
-    values->count = 0u;
-    values->used = 0ull;
+    cli_requests_values_given(values);
     int read = 1;
     int fits = 1;
     cli_lock_take(&s_lock);
@@ -268,6 +301,7 @@ int cli_requests_values(const char *root, const char *path, const char *env, Cli
             }
         }
     }
+    cli_json_given(&s_json);
     cli_lock_give(&s_lock);
     if (!fits)
     {
@@ -295,6 +329,7 @@ int cli_requests_verifies(const char *root, const char *path, const char *env)
         const unsigned int ssl = cli_json_member(&s_json, set, "SSLConfiguration");
         verifies = !cli_json_is(&s_json, cli_json_member(&s_json, ssl, "verifyHostCertificate"), CFG_JSON_FALSE);
     }
+    cli_json_given(&s_json);
     cli_lock_give(&s_lock);
     return verifies;
 }
@@ -304,7 +339,7 @@ int cli_requests_verifies(const char *root, const char *path, const char *env)
 static int values_ignored(const char *ignore, int *joined)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(ignore, &size);
+    const unsigned char *const bytes = cli_file_held(ignore, &size);
     const char *const listed = (const char *)bytes;
     const unsigned long long length = (bytes != NULL) ? size : 0ull;
     *joined = (length == 0ull) || (listed[length - 1u] == '\n');
@@ -328,7 +363,7 @@ static int values_ignored(const char *ignore, int *joined)
     }
     if (bytes != NULL)
     {
-        qry_member_file_unmapped(bytes, size);
+        cli_file_let_go(bytes, size);
     }
     return named;
 }
@@ -337,8 +372,11 @@ static int values_ignored(const char *ignore, int *joined)
 // where none is, as serde_json's pretty writer lays the object out: 1, or 0 where it could not be written
 static int values_private_written(const char *file)
 {
-    static char s_object[CLI_REQUESTS_TREE_TEXT];
-    CliLine object = {s_object, sizeof(s_object), 0ull};
+    CliLine object;
+    if (!cli_line_growing(&object, CLI_REQUESTS_POOL_FIRST, "the reader's private file written"))
+    {
+        return 0;
+    }
     cli_line_character(&object, '{');
     for (unsigned int at = 0u; at < s_names.count; at += 1u)
     {
@@ -351,7 +389,9 @@ static int values_private_written(const char *file)
         cli_line_text(&object, "\n  \"dev\": {}");
     }
     cli_line_text(&object, "\n}\n");
-    return cli_line_fits(&object) && query_file_written(file, s_object, object.at);
+    const int written = cli_line_fits(&object) && query_file_written(file, object.out, object.at);
+    cli_cell_given(object.out);
+    return written;
 }
 
 int cli_requests_private_made(const char *root, const char *path, CliLine *out, CliLine *said)
@@ -406,6 +446,8 @@ int cli_requests_private_made(const char *root, const char *path, CliLine *out, 
         done = values_private_written(file);
         failed = done ? NULL : file;
     }
+    cli_requests_values_given(&s_names);
+    cli_json_given(&s_json);
     cli_lock_give(&s_lock);
     if (failed != NULL)
     {

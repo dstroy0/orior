@@ -3,7 +3,7 @@
 Extraction of On A'-Dependencies in Gitksan by Henry Davis and Jason Brown, University of British
 Columbia and University of Auckland, ICSNL 46.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -35,7 +35,7 @@ page-read corrections. The paper is read by glyph rows. The bold and the small c
 glosses are not recorded; the strike-through of (65) and (66) is set as the combining long stroke
 overlay, and a subscript is set on the line as the text layer has it.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 898
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 20645 distinct tokens in the paper, 0 language tokens are held by no row.

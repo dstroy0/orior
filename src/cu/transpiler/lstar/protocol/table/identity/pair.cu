@@ -98,7 +98,7 @@ unsigned int PairWork::conferred(const std::string &from, const std::string &to,
 // second's first; a pair neither form can stand in for in any carrier, the second naming a parameter the first does
 // not or neither's text standing in a chain, and a pair the part refuses in every carrier, is open with 0. Each
 // verdict is written beneath its pair in the bridge in place of the one it held. Where the log is kept, each put is
-// followed by the values the form reads there on every case, the carrier cut at the form, for klq_decoder to read its
+// followed by the values the form reads there on every case, the carrier cut at the form, for orior_klq_decoder to read its
 // product off
 int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq,
                   const char *machine_path, const char *const *carrier)
@@ -109,7 +109,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     work.machine = machine_path;
     if (work.sass == NULL)
     {
-        printf("klq_identity pair: the ruleset %s names is not read\n", IDENTITY_RULESET);
+        printf("orior_klq_identity pair: the ruleset %s names is not read\n", IDENTITY_RULESET);
         return 1;
     }
     carriers_read(engine, work.host, &work.carriers);
@@ -130,7 +130,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     std::string trace_error;
     if (!query_trace_read(query_trace_path(), &s_query_trace, &trace_error))
     {
-        printf("klq_identity pair: %s\n", trace_error.c_str());
+        printf("orior_klq_identity pair: %s\n", trace_error.c_str());
         run_channel_close();
         return 1;
     }
@@ -312,7 +312,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     // are answered together. The rounds loop while a pair is left to put, and end once every pair is put
     unsigned int round = 0u;
     size_t left = pairs.size() - settled;
-    printf("klq_identity pair: %zu pairs settled on the record, %zu gray in the queue\n", settled, left);
+    printf("orior_klq_identity pair: %zu pairs settled on the record, %zu gray in the queue\n", settled, left);
     while (left != 0u)
     {
         const std::chrono::steady_clock::time_point round_began = std::chrono::steady_clock::now();
@@ -340,7 +340,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         asks_answered(carried);
         left = (size_t)std::count_if(pairs.begin(), pairs.end(), [](const PairPut &pair) { return !pair.put_whole; });
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - round_began).count();
-        printf("klq_identity round %u: %u pairs asked, %llu asks handed, %llu answered from what was held, %llu "
+        printf("orior_klq_identity round %u: %u pairs asked, %llu asks handed, %llu answered from what was held, %llu "
                "processes, %zu of %zu pairs put, %.1f seconds\n",
                round, asking, s_round_handed - handed_before, s_round_held - held_before,
                s_round_processes - processes_before, pairs.size() - left, pairs.size(), seconds);
@@ -381,14 +381,14 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     }
     if (!run_closed(&file))
     {
-        printf("klq_identity pair: %s could not be written\n", klq);
+        printf("orior_klq_identity pair: %s could not be written\n", klq);
         return 1;
     }
-    printf("klq_identity pair: %llu asks, %u open, %u closed, %u not asked, written to %s\n", work.asks, open, closed,
+    printf("orior_klq_identity pair: %llu asks, %u open, %u closed, %u not asked, written to %s\n", work.asks, open, closed,
            unasked, klq);
     // the lessons held, those carried in and those taught, handed to the run for the next run to carry
     overseer_lessons_handed(qry_member_run());
-    printf("klq_identity pair: %u conferences called by refusals, %u lessons taught, %u carried in\n", work.conferences,
+    printf("orior_klq_identity pair: %u conferences called by refusals, %u lessons taught, %u carried in\n", work.conferences,
            work.lessons_taught, lessons_carried);
     // the path this cycle read off the asks, each pair and its verdict, an open pair the question a further pass takes
     // up, written to the query record with every ask it held and every ask this cycle put once R is written back
@@ -404,7 +404,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         kqr_path_add(&s_query_record, &s_path);
         pair_row_handed(pair.first, pair.second, s_path.read, s_path.reads, pair.verdict);
     }
-    printf("klq_identity pair: %u asks held in the query record, %u of them put this cycle\n", s_query_record.asks,
+    printf("orior_klq_identity pair: %u asks held in the query record, %u of them put this cycle\n", s_query_record.asks,
            s_query_record.asks - recorded_before);
     return 0;
 }

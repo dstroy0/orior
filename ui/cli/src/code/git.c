@@ -1,17 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// git.c: the commit and the branch a tree stands at, the repositories of the tree, and the files that differ from
-// their last commits
+// git.c: the commit and the branch a tree stands at, and the files that differ from their last commits
 #include "../text/text.h"
 #include "git_internal.h"
-
-// the folders a search for the tree's repositories does not go into, those a build or a package manager fills; how
-// many folders deep under the tree it goes; and the most folders it holds to look in
-static const char *const s_not_searched[6] = {"node_modules", "target", "build", "dist", "__pycache__", "venv"};
-
-#define CLI_GIT_DEPTH 4u
-
-#define CLI_GIT_PENDING 4096u
 
 // the state letter for a porcelain status's two columns
 char cli_git_state_of(char index, char tree)
@@ -151,151 +142,6 @@ void cli_git_name(const char *root, char *name)
     CliLine line = {name, CLI_NAME_LONGEST, 0ull};
     cli_line_counted(&line, root + first, is_drive ? 0ull : (end - first));
     cli_line_closed(&line);
-}
-
-// The search for the tree's repositories: the folders still to look in and their depths, and those found holding one
-typedef struct
-{
-    char pending[CLI_GIT_PENDING][CLI_PATH_LONGEST];
-    unsigned int depth[CLI_GIT_PENDING];
-    unsigned int pending_count;
-    char nested[CLI_GIT_REPOSITORIES][CLI_PATH_LONGEST];
-    unsigned int nested_count;
-    const char *folder;
-    unsigned int at_depth;
-} CliSearch;
-
-static void cli_search_each(void *context, const char *name, int is_folder)
-{
-    CliSearch *const search = (CliSearch *)context;
-    if (!is_folder || (name[0] == '.'))
-    {
-        return;
-    }
-    for (unsigned int at = 0u; at < 6u; at += 1u)
-    {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_not_searched[at], .cap = CLI_CELLS_POOL}))
-        {
-            return;
-        }
-    }
-    char path[CLI_PATH_LONGEST];
-    char git[CLI_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, search->folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
-    CliLine marked = {git, sizeof(git), 0ull};
-    cli_line_text(&marked, path);
-    cli_line_text(&marked, "/.git");
-    if ((cli_line_closed(&line) == 0ull) || (cli_line_closed(&marked) == 0ull))
-    {
-        return;
-    }
-    if ((query_is_file(git) || query_is_folder(git)) && (search->nested_count < CLI_GIT_REPOSITORIES))
-    {
-        memor.cpy(&(MemoriaCfg){.dst = search->nested[search->nested_count],
-                                .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-        search->nested_count += 1u;
-    }
-    if (((search->at_depth + 1u) < CLI_GIT_DEPTH) && (search->pending_count < CLI_GIT_PENDING))
-    {
-        memor.cpy(&(MemoriaCfg){.dst = search->pending[search->pending_count],
-                                .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-        search->depth[search->pending_count] = search->at_depth + 1u;
-        search->pending_count += 1u;
-    }
-}
-
-// a repository put after those found, its path in the tree, its name and its branch kept
-static void cli_repository_put(CliRepositories *found, const char *relative, const char *folder)
-{
-    if (found->count >= CLI_GIT_REPOSITORIES)
-    {
-        return;
-    }
-    CliRepository *const one = &found->item[found->count];
-    found->count += 1u;
-    char name[CLI_NAME_LONGEST];
-    char branch[CLI_NAME_LONGEST];
-    cli_git_name(folder, name);
-    one->path = cli_git_text_put(&found->text, relative,
-                                 cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}));
-    one->name =
-        cli_git_text_put(&found->text, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-    one->has_branch = cli_git_branch(folder, branch);
-    one->branch = one->has_branch
-                      ? cli_git_text_put(&found->text, branch,
-                                         cellul.len(&(CatenaFinitaCfg){.src = branch, .cap = CLI_CELLS_POOL}))
-                      : 0u;
-}
-
-void cli_git_repositories(const char *root, CliRepositories *found)
-{
-    static const char *const s_inside[2] = {"rev-parse", "--is-inside-work-tree"};
-    static CliSearch s_search;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    found->count = 0u;
-    cli_git_text_begun(&found->text);
-    CliGitGave *const gave = cli_git_taken();
-    const int inside = cli_git_asked(root, s_inside, 2u, gave);
-    cli_git_given(gave);
-    if (inside)
-    {
-        cli_repository_put(found, "", root);
-    }
-    cli_lock_take(&s_lock);
-    CliSearch *const search = &s_search;
-    search->nested_count = 0u;
-    memor.cpy(&(MemoriaCfg){.dst = search->pending[0],
-                            .src = root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    search->depth[0] = 0u;
-    search->pending_count = 1u;
-    while (search->pending_count > 0u)
-    {
-        search->pending_count -= 1u;
-        char folder[CLI_PATH_LONGEST];
-        memor.cpy(&(MemoriaCfg){.dst = folder,
-                                .src = search->pending[search->pending_count],
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = search->pending[search->pending_count],
-                                                                       .cap = CLI_CELLS_POOL}) +
-                                         1u});
-        search->folder = folder;
-        search->at_depth = search->depth[search->pending_count];
-        query_folder_each(folder, cli_search_each, search);
-    }
-    // the repositories under the tree in the order of their paths
-    for (unsigned int at = 1u; at < search->nested_count; at += 1u)
-    {
-        char held[CLI_PATH_LONGEST];
-        memor.cpy(&(MemoriaCfg){
-            .dst = held,
-            .src = search->nested[at],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = search->nested[at], .cap = CLI_CELLS_POOL}) + 1u});
-        unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(search->nested[place - 1u], held) > 0))
-        {
-            memor.cpy(&(MemoriaCfg){
-                .dst = search->nested[place],
-                .src = search->nested[place - 1u],
-                .bytes =
-                    cellul.len(&(CatenaFinitaCfg){.src = search->nested[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
-            place -= 1u;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = search->nested[place],
-                                .src = held,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
-    }
-    for (unsigned int at = 0u; at < search->nested_count; at += 1u)
-    {
-        char relative[CLI_PATH_LONGEST];
-        cli_relative(root, search->nested[at], relative);
-        cli_repository_put(found, relative, search->nested[at]);
-    }
-    cli_lock_give(&s_lock);
 }
 
 int cli_git_stage_text(const char *root, const char *file, unsigned int stage, CliLine *out)
@@ -458,5 +304,6 @@ void cli_git_changed(const char *root, const char *const *repos, unsigned int co
             cli_changed_at(folder, repos[at], repos, count, found);
         }
     }
+    cli_git_text_given(&s_repositories.text);
     cli_lock_give(&s_lock);
 }

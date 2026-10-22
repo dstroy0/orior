@@ -1,5 +1,5 @@
 # The SASS instruction word's layout: where each field of the 128-bit word starts and how many bits it holds. khw_write
-# reads it to write the part's .ksc field rows, which the register walk and the predicate walk read (klq_identity);
+# reads it to write the part's .ksc field rows, which the register walk and the predicate walk read (orior_klq_identity);
 # sass_assemble.c fills the same places.
 #
 # field	<name>	<first>	<bits>	a place in the instruction word, in bits

@@ -83,7 +83,7 @@ else {
     Write-Host "[!] device arm skipped, host arms only" -ForegroundColor Yellow
 }
 
-# A CACHE LEFT BY ANOTHER RUN OUTRANKS EVERY MESSAGE PRINTED ABOVE. ANCHOR_SKIP_CUDA is an
+# A CACHE LEFT BY ANOTHER RUN OUTRANKS EVERY MESSAGE PRINTED ABOVE. ORIOR_SKIP_CUDA is an
 # option() and CMAKE_C_COMPILER is cached. A build tree configured once by build_engine.sh under
 # gcc with CUDA skipped keeps both settings through every later configure here. This script then
 # announced "importing MSVC environment" and "the device arm will be compiled in" and produced a gcc
@@ -106,10 +106,10 @@ if (Test-Path $cache) {
 Write-Host "[*] configuring"
 $configure = @("-S", $src, "-B", $build) + $generator + @("-DCMAKE_BUILD_TYPE=Release")
 if ($haveCuda) {
-    $configure += "-DANCHOR_SKIP_CUDA=OFF"
+    $configure += "-DORIOR_SKIP_CUDA=OFF"
 }
 else {
-    $configure += "-DANCHOR_SKIP_CUDA=ON"
+    $configure += "-DORIOR_SKIP_CUDA=ON"
 }
 & cmake @configure | Out-Null
 if ($LASTEXITCODE -ne 0) {
@@ -139,10 +139,10 @@ if ($haveCuda) {
 # alone, a GCC and Clang predefine MSVC never sets. Every MSVC build fell through to a POSIX
 # clock_gettime that MSVC does not ship. The gate now carries the MSVC definition.
 #
-# anchor_steer and anchor_steer_arms used to be on this list and no longer exist. Both folded into
+# orior_steer and orior_steer_arms used to be on this list and no longer exist. Both folded into
 # orior_kernel, the whole engine in one translation unit.
-$targets = @("orior_kernel", "orior_kernel_counted", "anchor_raster", "anchor_render",
-    "anchor_exact_portable", "test_steer", "test_adversarial", "test_arm_agreement",
+$targets = @("orior_kernel", "orior_kernel_counted", "orior_raster", "orior_render",
+    "orior_exact_portable", "test_steer", "test_adversarial", "test_arm_agreement",
     "test_o2_spawn",
     "bench_steer_arms", "bench_raster", "bench_exact_arms", "bench_exact",
     "bench_dispatch", "bench_coherence", "bench_scaling_reads", "bench_scaling_cycles")

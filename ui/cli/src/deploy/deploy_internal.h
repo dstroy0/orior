@@ -27,7 +27,7 @@ typedef struct
     int in_place;
 } CliDeployment;
 
-// A place a deployment sends to: a machine orior reaches, or a folder on this one, by its path
+// A place a deployment sends to: a machine orior_cli reaches, or a folder on this one, by its path
 typedef struct
 {
     int here;

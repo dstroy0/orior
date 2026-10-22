@@ -23,7 +23,7 @@
 #   <subject> errored <status>            for one that was not
 #
 # One space between fields, no trailing space, and the subject verbatim. Status is the
-# AnchorExactStatus enum: 1 is WILL_NOT_FIT and 2 is NOT_DECIMAL. An error is digested like any
+# OriorExactStatus enum: 1 is WILL_NOT_FIT and 2 is NOT_DECIMAL. An error is digested like any
 # other row, because what an implementation rejects is as much a claim as what it accepts.
 
 import hashlib

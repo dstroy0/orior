@@ -95,29 +95,29 @@ extern "C" long noise_halves_volume(const unsigned short *volume, const unsigned
         return NOISE_DETECTOR_ERROR;
     }
     NoiseHalvesMeasurement read;
-    AnchorExactInteger lower;
-    AnchorExactInteger upper;
-    AnchorExactInteger count;
-    AnchorExactInteger term;
+    OriorExactInteger lower;
+    OriorExactInteger upper;
+    OriorExactInteger count;
+    OriorExactInteger term;
     noise_exact_word(&lower, sums[NOISE_HALVES_LOWER]);
     noise_exact_word(&upper, sums[NOISE_HALVES_UPPER]);
     noise_exact_words(&read.covariance, &sums[NOISE_HALVES_PRODUCT]);
     noise_exact_word(&count, pixels);
     // P sum lo hi - sum lo sum hi over P^2 n_lo n_hi, then sum (lo + hi) over P T Z
     const unsigned long long middle = depth / 2ull;
-    int formed = (anchor_exact_multiply(&read.covariance, &count, &read.covariance) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&lower, &upper, &term) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_subtract(&read.covariance, &term, &read.covariance) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_multiply(&count, &count, &read.covariance_denominator) == ANCHOR_EXACT_OK) &&
-                 (anchor_exact_add(&lower, &upper, &read.level) == ANCHOR_EXACT_OK);
+    int formed = (orior_exact_multiply(&read.covariance, &count, &read.covariance) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&lower, &upper, &term) == ORIOR_EXACT_OK) &&
+                 (orior_exact_subtract(&read.covariance, &term, &read.covariance) == ORIOR_EXACT_OK) &&
+                 (orior_exact_multiply(&count, &count, &read.covariance_denominator) == ORIOR_EXACT_OK) &&
+                 (orior_exact_add(&lower, &upper, &read.level) == ORIOR_EXACT_OK);
     noise_exact_word(&term, frames * middle);
-    formed = formed && (anchor_exact_multiply(&read.covariance_denominator, &term, &read.covariance_denominator) ==
-                        ANCHOR_EXACT_OK);
+    formed = formed && (orior_exact_multiply(&read.covariance_denominator, &term, &read.covariance_denominator) ==
+                        ORIOR_EXACT_OK);
     noise_exact_word(&term, frames * (depth - middle));
-    formed = formed && (anchor_exact_multiply(&read.covariance_denominator, &term, &read.covariance_denominator) ==
-                        ANCHOR_EXACT_OK);
+    formed = formed && (orior_exact_multiply(&read.covariance_denominator, &term, &read.covariance_denominator) ==
+                        ORIOR_EXACT_OK);
     noise_exact_word(&term, frames * depth);
-    formed = formed && (anchor_exact_multiply(&count, &term, &read.level_denominator) == ANCHOR_EXACT_OK);
+    formed = formed && (orior_exact_multiply(&count, &term, &read.level_denominator) == ORIOR_EXACT_OK);
     if (!NOISE_DETECTOR_CHECK(formed, &read, error, ENGINE_ERROR_RESOURCE))
     {
         return NOISE_DETECTOR_ERROR;

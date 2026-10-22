@@ -58,7 +58,7 @@ int khw_pieces_read(const char *path)
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {
-        printf("  khw_machine_write: %s could not be read\n", path);
+        printf("  orior_khw_machine_write: %s could not be read\n", path);
         return 0;
     }
     char line[1024];
@@ -90,7 +90,7 @@ int khw_pieces_read(const char *path)
     fclose(file);
     if (s_pieces == 0u)
     {
-        printf("  khw_machine_write: %s holds no piece of a name\n", path);
+        printf("  orior_khw_machine_write: %s holds no piece of a name\n", path);
         return 0;
     }
     return 1;

@@ -248,7 +248,7 @@ static int http_head(HttpConnection *connection, unsigned long long step, CliLin
         }
         if (!kept)
         {
-            cli_line_text(said, "the answer's head is larger than orior holds");
+            cli_line_text(said, "the answer's head is larger than orior_cli holds");
             return 0;
         }
     } while ((answer->status >= 100u) && (answer->status < 200u) && (answer->status != 101u));
@@ -264,7 +264,7 @@ static int http_written(HttpConnection *connection, const char *host, CliLine *s
     cli_requests_head_written(&room->hop, &room->address, &head);
     if (!cli_line_fits(&head))
     {
-        cli_line_text(said, "the request is larger than orior holds");
+        cli_line_text(said, "the request is larger than orior_cli holds");
         return 0;
     }
     if (connection->tls != NULL)

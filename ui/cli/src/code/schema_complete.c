@@ -8,9 +8,8 @@
 // are not offered
 #include "schema_internal.h"
 
-// the deepest frames read, and the bytes the bases of the schemas reached take
+// the deepest frames read
 #define CLI_SCHEMA_FRAMES 512u
-#define CLI_SCHEMA_REACHED_TEXT (1u << 20u)
 
 // What stands open: an object, its key, whether its colon was passed and its first key held, or an array and its index
 typedef struct
@@ -161,11 +160,9 @@ int cli_schema_spot(const char *text, unsigned long long size)
     return 1;
 }
 
-// the schemas reached, and the bases their references are read in
+// the schemas reached
 unsigned int g_cli_schema_reached[CLI_SCHEMA_REACHED];
 unsigned int g_cli_schema_reached_count;
-static char s_reached_text[CLI_SCHEMA_REACHED_TEXT];
-static unsigned int s_reached_used;
 
 // the schemas that hold at the end of the steps from `at` of `schema`, read in `base`, put among those reached
 static void complete_schemas_at(const char *text, unsigned int schema, const char *base, unsigned int at,
@@ -179,16 +176,19 @@ static void complete_schemas_at(const char *text, unsigned int schema, const cha
     }
     unsigned long long size = 0ull;
     const char *const reference = cli_schema_string(json, schema, "$ref", &size);
-    if ((reference != NULL) && (CLI_PATH_LONGEST <= CLI_SCHEMA_REACHED_TEXT - s_reached_used))
+    // the base a reference is read in, a cell held while the schemas under it are reached
+    char *const doc = (reference != NULL)
+                          ? cli_cell_taken_by(&g_cli_schema_cells, CLI_PATH_LONGEST, "the base a reference is read in")
+                          : NULL;
+    if (doc != NULL)
     {
-        char *const doc = s_reached_text + s_reached_used;
         const unsigned int target = cli_schema_resolve(store, base, reference, size, doc);
         if (target != CLI_SCHEMA_NONE)
         {
-            s_reached_used += (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = doc, .cap = CLI_CELLS_POOL}) + 1u;
             complete_schemas_at(text, target, doc, at, depth + 1u);
         }
     }
+    cli_cell_given_by(&g_cli_schema_cells, doc);
     static const char *const s_words[5] = {"allOf", "anyOf", "oneOf", "then", "else"};
     for (unsigned int word = 0u; word < 5u; word += 1u)
     {
@@ -296,6 +296,5 @@ void cli_schema_detail(const CliJson *json, unsigned int schema, CliLine *out)
 void cli_schema_reached_of(const char *text, unsigned int schema, const char *base)
 {
     g_cli_schema_reached_count = 0u;
-    s_reached_used = 0u;
     complete_schemas_at(text, schema, base, 0u, 0u);
 }

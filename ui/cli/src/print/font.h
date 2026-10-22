@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// font.h: a TrueType font read and drawn by orior itself (font.c reads it, font_outline.c outlines and draws a glyph):
+// font.h: a TrueType font read and drawn by orior_cli itself (font.c reads it, font_outline.c outlines and draws a glyph):
 // its tables read from a .ttf or the first font of a .ttc, a character found by its cmap, a glyph's outline read from
 // glyf, simple or made of other glyphs, its quadratic curves cut into short lines, and the lines drawn as coverage, a
 // pixel's share of the glyph, by the signed area each line leaves in the cells it crosses
@@ -79,7 +79,7 @@ void cli_font_outline(const CliFont *font, unsigned int glyph, const float *matr
 // `contours`, in pixels with y going up from the baseline, drawn as coverage into `mask`, its cover in `cover`, which
 // holds `room`; a mask too large for the room drawn as none
 void cli_font_rasterize(const CliContours *contours, CliMask *mask, float *cover, unsigned long long room);
-// the monospace fonts orior draws with, regular, bold, italic and bold italic, the first found of those the editor
+// the monospace fonts orior_cli draws with, regular, bold, italic and bold italic, the first found of those the editor
 // uses and those each system has, each path into `paths`, each holding CLI_PATH_LONGEST, empty where it has none
 void cli_font_monospace(char (*paths)[CLI_PATH_LONGEST]);
 

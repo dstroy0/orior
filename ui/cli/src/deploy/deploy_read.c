@@ -154,7 +154,7 @@ static int read_texts(const CliJson *json, unsigned int entry, const char *field
     {
         cli_line_text(said, "deploy.json: ");
         cli_line_text(said, field);
-        cli_line_text(said, " names more than orior holds");
+        cli_line_text(said, " names more than orior_cli holds");
         return 0;
     }
     for (unsigned int at = 0u; at < items; at += 1u)
@@ -241,19 +241,19 @@ int cli_deploy_read(const char *root, CliDeployTree *tree, const CliDeployment *
     *deployments = NULL;
     *count = 0u;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
     if ((bytes == NULL) || !cli_utf8_whole((const char *)bytes, size))
     {
         if (bytes != NULL)
         {
-            qry_member_file_unmapped(bytes, size);
+            cli_file_let_go(bytes, size);
         }
         return 1;
     }
     char why[CLI_SAID_LONGEST];
     CliLine read_said = {why, sizeof(why), 0ull};
     const unsigned int top = cli_json_taken(&tree->json, (const char *)bytes, size, 0u, 0ull, &read_said);
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     const CliJson *const json = &tree->json;
     if (top == CLI_JSON_NONE)
     {
@@ -286,7 +286,7 @@ int cli_deploy_read(const char *root, CliDeployTree *tree, const CliDeployment *
     CliDeployment *const read = cli_deploy_placed(&tree->pool, (unsigned long long)items * sizeof(read[0]));
     if (read == NULL)
     {
-        cli_line_text(said, "deploy.json names more deployments than orior holds");
+        cli_line_text(said, "deploy.json names more deployments than orior_cli holds");
         return 0;
     }
     for (unsigned int at = 0u; at < items; at += 1u)
@@ -411,7 +411,7 @@ int cli_deploy_ask(const CliDeployPlace *place, const char *line, const char *in
     {
         cli_line_text(said, "; ");
         cli_link_machine(&place->address, said);
-        cli_line_text(said, " asks for a password, which orior does not keep: a key the system's ssh agent holds "
+        cli_line_text(said, " asks for a password, which orior_cli does not keep: a key the system's ssh agent holds "
                             "reaches it, and ssh-copy-id puts one there");
     }
     return 0;

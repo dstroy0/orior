@@ -104,11 +104,17 @@ void cli_lsp_complaint(CliLsp *lsp, CliLine *out);
 void cli_lsp_stopped(CliLsp *lsp);
 
 // a request of `method` with `length` bytes of JSON params, its answer waited for up to `wait` milliseconds and written
-// into `result`; a notification sent; and the params of a request about the place `line`, `col` of `path` written,
-// `added`, members of JSON, after the place where it is given. Each 1, or 0 with why said (lsp.c)
+// into `result`; and a notification sent. Each 1, or 0 with why said (lsp.c)
 int cli_lsp_requested(CliLsp *lsp, const char *method, const char *params, unsigned long long length,
                       unsigned long long wait, CliLine *result, CliLine *said);
 int cli_lsp_notified(CliLsp *lsp, const char *method, const char *params, unsigned long long length, CliLine *said);
+// the request the server asked that who hears it is hearing now left unanswered, to be answered later, its id's JSON
+// into `id`, which holds `room`: 1, or 0 where what is heard is no request or its id does not fit; and the request of
+// the id `id` answered with `size` bytes of JSON `result`: 1, or 0 with why said (lsp.c)
+int cli_lsp_answer_later(char *id, unsigned long long room);
+int cli_lsp_answer(CliLsp *lsp, const char *id, const char *result, unsigned long long size, CliLine *said);
+// the params of a request about the place `line`, `col` of `path` written, `added`, members of JSON, after the place
+// where it is given (lsp_wire.c)
 void cli_lsp_at(const char *path, unsigned int line, unsigned int col, const char *added, CliLine *params);
 
 // the file at `path` opened in the server as `language_id` with `length` bytes of `text`; given its new whole text;

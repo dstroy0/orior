@@ -83,7 +83,7 @@ int cli_print_faces(CliLine *said)
     s_typefaces->cover_used = 0ull;
     if (!s_typefaces->has[0])
     {
-        cli_line_text(said, "the system has no monospace font orior reads: Consolas, Cascadia Mono, DejaVu Sans Mono, "
+        cli_line_text(said, "the system has no monospace font orior_cli reads: Consolas, Cascadia Mono, DejaVu Sans Mono, "
                             "Liberation Mono, Menlo or Courier New");
         return 0;
     }

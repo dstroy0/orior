@@ -27,14 +27,54 @@ int cli_line_flushed(CliLine *line)
     {
         return 0;
     }
-    if (!line->flush(line->context, line->out, line->at))
+    const int handed = line->flush(line->context, line->out, line->at);
+    if (handed == 0)
     {
         line->at = line->capacity;
         return 0;
     }
-    line->flushed += line->at;
-    line->at = 0ull;
+    if (handed != CLI_LINE_GROWN)
+    {
+        line->flushed += line->at;
+        line->at = 0ull;
+    }
     return 1;
+}
+
+// a growing line moved into a cell twice its room, what it holds kept: CLI_LINE_GROWN, or 0 where the cell is refused
+static int line_grown(void *context, const char *bytes, unsigned long long size)
+{
+    CliLine *const line = (CliLine *)context;
+    const unsigned long long room = line->capacity * 2ull;
+    char *const larger = cli_cell_taken(room, "a growing line");
+    if (larger == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = larger, .src = bytes, .bytes = (size_t)size});
+    cli_cell_given(line->out);
+    line->out = larger;
+    line->capacity = room;
+    return CLI_LINE_GROWN;
+}
+
+int cli_line_growing(CliLine *line, unsigned long long first, const char *what)
+{
+    char *const out = cli_cell_taken(first, what);
+    *line = (CliLine){out, (out != NULL) ? first : 0ull, 0ull, (out != NULL) ? line_grown : NULL, line, 0ull};
+    return out != NULL;
+}
+
+int cli_line_room(CliLine *line, unsigned long long size)
+{
+    while (cli_line_fits(line) && ((line->capacity - line->at) <= size))
+    {
+        if ((line->flush != line_grown) || !cli_line_flushed(line))
+        {
+            return 0;
+        }
+    }
+    return cli_line_fits(line);
 }
 
 void cli_line_counted(CliLine *line, const char *text, unsigned long long length)

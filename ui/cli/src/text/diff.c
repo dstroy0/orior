@@ -13,50 +13,116 @@
 #define CLI_MOST_EDITS 3000ll
 #define CLI_DIFF_LINES (1u << 20u)
 
-// The diff's room, a cell taken with the diff's lock and given back with it: the hashes of each side's lines, the
-// furthest reach on each diagonal and each round's of them, the steps found, and the lines marked and the hunks
+// The diff's room, laid out in a cell sized to the two texts' lines, taken with the diff's lock and given back with
+// it: the hashes of each side's lines, the furthest reach on each diagonal, the steps found, and the lines marked and
+// the hunks; and each round's reaches, the trace, in a cell of its own grown as the rounds go
 typedef struct
 {
-    unsigned long long hash_then[CLI_DIFF_LINES];
-    unsigned long long hash_now[CLI_DIFF_LINES];
-    long long v[(2 * CLI_MOST_EDITS) + 3];
-    long long trace[(CLI_MOST_EDITS + 1) * (CLI_MOST_EDITS + 1)];
-    unsigned char step_kind[2u * CLI_DIFF_LINES];
-    unsigned int step_index[2u * CLI_DIFF_LINES];
+    unsigned char *cell;
+    unsigned long long *hash_then;
+    unsigned long long *hash_now;
+    long long *v;
+    long long *trace;
+    long long trace_rounds;
+    unsigned char *step_kind;
+    unsigned int *step_index;
     unsigned int steps;
-    unsigned int added[CLI_DIFF_LINES];
+    unsigned int *added;
     unsigned int addeds;
-    unsigned int changed[CLI_DIFF_LINES];
+    unsigned int *changed;
     unsigned int changeds;
-    unsigned int removed[CLI_DIFF_LINES];
+    unsigned int *removed;
     unsigned int removeds;
-    unsigned int hunk[CLI_DIFF_LINES][4];
+    unsigned int (*hunk)[4];
     unsigned int hunks;
-    unsigned int put[CLI_DIFF_LINES];
+    unsigned int *put;
     unsigned int puts;
 } CliDiff;
 
-static CliDiff *s_diff;
+// the rounds the trace first holds, doubled as the rounds go past them
+#define CLI_DIFF_TRACE_FIRST 64ll
+
+static CliDiff s_room;
+static CliDiff *s_diff = &s_room;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// the lock taken and the room with it: 1, or 0 with the lock given back where the cells cannot meet it; and the room
-// given back with the lock
-static int diff_held(void)
+// `bytes` of the room's cell from `*at` for an array, the start moved past them on an eight-byte boundary
+static void *diff_part(unsigned long long *at, unsigned long long bytes)
+{
+    void *const part = s_diff->cell + *at;
+    *at += (bytes + 7ull) & ~7ull;
+    return part;
+}
+
+// the lock taken and the room with it for `then_lines` lines against `now_lines`: 1, or 0 with the lock given back
+// where the cells cannot meet it; and the room given back with the lock
+static int diff_held(unsigned long long then_lines, unsigned long long now_lines)
 {
     cli_lock_take(&s_lock);
-    s_diff = cli_cell_taken(sizeof(*s_diff), "a diff's room");
-    if (s_diff == NULL)
+    const unsigned long long both = then_lines + now_lines + 1ull;
+    const unsigned long long most =
+        (both < (unsigned long long)CLI_MOST_EDITS) ? both : (unsigned long long)CLI_MOST_EDITS;
+    const unsigned long long bytes = (8ull * (then_lines + now_lines + (2ull * most) + 3ull)) + (5ull * both) +
+                                     (4ull * (now_lines * 3ull + then_lines)) + (16ull * both) + (8ull * 12ull);
+    memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
+    s_diff->cell = cli_cell_taken(bytes, "a diff's room");
+    if (s_diff->cell == NULL)
     {
         cli_lock_give(&s_lock);
+        return 0;
     }
-    return s_diff != NULL;
+    unsigned long long at = 0ull;
+    s_diff->hash_then = diff_part(&at, 8ull * then_lines);
+    s_diff->hash_now = diff_part(&at, 8ull * now_lines);
+    s_diff->v = diff_part(&at, 8ull * ((2ull * most) + 3ull));
+    s_diff->step_kind = diff_part(&at, both);
+    s_diff->step_index = diff_part(&at, 4ull * both);
+    s_diff->added = diff_part(&at, 4ull * now_lines);
+    s_diff->changed = diff_part(&at, 4ull * now_lines);
+    s_diff->removed = diff_part(&at, 4ull * then_lines);
+    s_diff->hunk = diff_part(&at, 16ull * both);
+    s_diff->put = diff_part(&at, 4ull * now_lines);
+    return 1;
 }
 
 static void diff_released(void)
 {
-    cli_cell_given(s_diff);
-    s_diff = NULL;
+    cli_cell_given(s_diff->trace);
+    cli_cell_given(s_diff->cell);
+    memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
     cli_lock_give(&s_lock);
+}
+
+// the trace given room for round `round`, doubled in a new cell where it has none: 1, or 0 where the cells cannot
+// meet it
+static int diff_trace_room(long long round)
+{
+    if (round < s_diff->trace_rounds)
+    {
+        return 1;
+    }
+    long long rounds = (s_diff->trace_rounds > 0) ? s_diff->trace_rounds : CLI_DIFF_TRACE_FIRST;
+    while (rounds <= round)
+    {
+        rounds *= 2;
+    }
+    rounds = (rounds < (CLI_MOST_EDITS + 1)) ? rounds : (CLI_MOST_EDITS + 1);
+    // a round is at most CLI_MOST_EDITS, so the rounds squared fit an unsigned long long
+    long long *const grown =
+        cli_cell_taken((unsigned long long)(rounds * rounds) * sizeof(long long), "a diff's trace");
+    if (grown == NULL)
+    {
+        return 0;
+    }
+    if (s_diff->trace != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){
+            .dst = grown, .src = s_diff->trace, .bytes = (unsigned long long)(round * round) * sizeof(long long)});
+    }
+    cli_cell_given(s_diff->trace);
+    s_diff->trace = grown;
+    s_diff->trace_rounds = rounds;
+    return 1;
 }
 
 // a line's hash: its units four at a time, each word multiplied and turned in, then its length
@@ -143,6 +209,10 @@ static int cli_shortest(const CliRuns *runs)
     long long found = -1;
     for (long long d = 0; (found < 0) && (d <= most); d += 1)
     {
+        if (!diff_trace_room(d))
+        {
+            return 0;
+        }
         memor.cpy(&(MemoriaCfg){.dst = s_diff->trace + (d * d),
                                 .src = s_diff->v + (middle - d),
                                 .bytes = (unsigned long long)((2 * d) + 1) * sizeof(long long)});
@@ -239,7 +309,7 @@ static void cli_closed(unsigned int line, unsigned int then_line, unsigned int *
         s_diff->removed[s_diff->removeds] = line;
         s_diff->removeds += 1u;
     }
-    if (((s_diff->puts != 0u) || (*out > 0u)) && (s_diff->hunks < CLI_DIFF_LINES))
+    if ((s_diff->puts != 0u) || (*out > 0u))
     {
         s_diff->hunk[s_diff->hunks][0] = line - s_diff->puts;
         s_diff->hunk[s_diff->hunks][1] = line;
@@ -265,7 +335,7 @@ static void cli_numbers_written(CliLine *out, const unsigned int *numbers, unsig
 
 int cli_diff_line_changes(const CliLines *then, const CliLines *now, CliLine *out)
 {
-    if ((then->lines > CLI_DIFF_LINES) || (now->lines > CLI_DIFF_LINES) || !diff_held())
+    if ((then->lines > CLI_DIFF_LINES) || (now->lines > CLI_DIFF_LINES) || !diff_held(then->lines, now->lines))
     {
         return 0;
     }
@@ -352,15 +422,15 @@ long long cli_diff_run_of(const CliLines *then, const CliLines *now, const unsig
 {
     // the lines of each are below CLI_DIFF_LINES, which a long long holds
     const CliRuns runs = {then, now, 0ull, 0ull, (long long)then->lines, (long long)now->lines};
-    if (!diff_held())
+    if ((then->lines > CLI_DIFF_LINES) || (now->lines > CLI_DIFF_LINES) || !diff_held(then->lines, now->lines))
     {
         return 0;
     }
-    for (unsigned int at = 0u; (at < then->lines) && (at < CLI_DIFF_LINES); at += 1u)
+    for (unsigned int at = 0u; at < then->lines; at += 1u)
     {
         s_diff->hash_then[at] = hash_then[at];
     }
-    for (unsigned int at = 0u; (at < now->lines) && (at < CLI_DIFF_LINES); at += 1u)
+    for (unsigned int at = 0u; at < now->lines; at += 1u)
     {
         s_diff->hash_now[at] = hash_now[at];
     }

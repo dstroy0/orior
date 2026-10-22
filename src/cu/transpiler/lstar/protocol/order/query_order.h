@@ -23,8 +23,8 @@
 // word's own count, and nothing divides it
 typedef struct
 {
-    AnchorExactInteger numerator;
-    AnchorExactInteger denominator;
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
 } QueryCost;
 
 // a known order of asks over links that are asks
@@ -53,8 +53,8 @@ int query_order_put(const QueryOrder *order, QueryCost *cost);
 // denominator one for every link of the pass and (links + 1) times every ask's denominator multiplied together.
 // Two links of one pass compare by their numerators alone. 1, or 0 where the link count has no known order or the
 // exact width could not hold a term
-int query_order_solve(unsigned int links, const QueryCost *cost, AnchorExactInteger *numerator,
-                      AnchorExactInteger *denominator);
+int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteger *numerator,
+                      OriorExactInteger *denominator);
 
 // The sweep asks from `seed` put once each, `sweeps` of them, their costs into `sweep_cost`. 1, or 0 as above
 int query_order_sweep(const QueryOrder *order, unsigned int seed, unsigned int sweeps, QueryCost *sweep_cost);

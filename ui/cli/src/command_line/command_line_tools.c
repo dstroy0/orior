@@ -1,20 +1,24 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_tools.c: `orior file plugins`, every plugin with its id, where it comes from, its name and the
-// extensions it opens, one of the reader's that stands in for one that comes with orior marked so; `orior file
-// new-plugin`, a language plugin written to the reader's plugins folder; and the toolchain `orior file toolchains add`
-// describes, its name, then each flag and its value, added
+// command_line_tools.c: `orior_cli file plugins`, every plugin with its id, where it comes from, its name and the
+// extensions it opens, one of the reader's that stands in for one that comes with orior_cli marked so; `orior_cli file
+// new-plugin`, a language plugin written to the reader's plugins folder; and the toolchain `orior_cli file toolchains
+// add` describes, its name, then each flag and its value, added
 #include "../plugins/plugins.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "command_line_internal.h"
 
-// the most plugins listed
+// the most plugins listed, and the rows their room is begun with before it doubles
 #define CLI_PLUGINS_LISTED 1024u
 
-static CliJsonNode s_node[1u << 16u];
-static char s_text[1u << 22u];
-static CfgJsonToken s_token[1u << 16u];
+#define CLI_PLUGINS_ROWS_FIRST 32u
+
+// the nodes and the bytes of texts a tree made of a command's words holds past those its words make
+#define CLI_TOOLS_NODES_MORE 64u
+#define CLI_TOOLS_TEXT_MORE 1024ull
+
+// the tree a plugin.json is read into, or a command's words are made into, a cell sized to it given back once read
 static CliJson s_json;
 static char s_line[1u << 16u];
 
@@ -27,8 +31,10 @@ typedef struct
     char opens[1024];
 } CliPluginRow;
 
-static CliPluginRow s_rows[CLI_PLUGINS_LISTED];
+// the rows listed, in a cell whose room doubles as they are put
+static CliPluginRow *s_rows;
 static unsigned int s_row_count;
+static unsigned int s_row_room;
 
 // `text` copied into `into`, which holds `room`, cut where it does not fit
 static void tools_copied(char *into, unsigned long long room, const char *text, unsigned long long size)
@@ -46,17 +52,30 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
     {
         return;
     }
+    if (s_row_count == s_row_room)
+    {
+        const unsigned int room = (s_row_room == 0u) ? CLI_PLUGINS_ROWS_FIRST : (s_row_room * 2u);
+        CliPluginRow *const rows =
+            cli_cell_taken((unsigned long long)room * sizeof(*rows), "the rows of the plugins listed");
+        if (rows == NULL)
+        {
+            return;
+        }
+        memor.cpy(&(MemoriaCfg){.dst = rows, .src = s_rows, .bytes = (size_t)s_row_count * sizeof(*rows)});
+        cli_cell_given(s_rows);
+        s_rows = rows;
+        s_row_room = room;
+    }
     CliPluginRow *const row = &s_rows[s_row_count];
     s_row_count += 1u;
     tools_copied(row->id, sizeof(row->id), plugin->id,
                  cellul.len(&(CatenaFinitaCfg){.src = plugin->id, .cap = CLI_CELLS_POOL}));
     tools_copied(row->source, sizeof(row->source), plugin->source,
                  cellul.len(&(CatenaFinitaCfg){.src = plugin->source, .cap = CLI_CELLS_POOL}));
-    cli_json_begun(&s_json, s_node, sizeof(s_node) / sizeof(s_node[0]), s_text, sizeof(s_text));
     char why[512];
     CliLine said = {why, sizeof(why), 0ull};
-    const unsigned int read =
-        cli_json_read(&s_json, plugin->text, plugin->size, s_token, sizeof(s_token) / sizeof(s_token[0]), &said);
+    cli_json_given(&s_json);
+    const unsigned int read = cli_json_taken(&s_json, plugin->text, plugin->size, 0u, 0ull, &said);
     if (read == CLI_JSON_NONE)
     {
         CliLine name = {row->name, sizeof(row->name), 0ull};
@@ -64,6 +83,7 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
         cli_line_counted(&name, why, cli_line_fits(&said) ? said.at : 0ull);
         (void)cli_line_closed(&name);
         row->opens[0] = '\0';
+        cli_json_given(&s_json);
         return;
     }
     const char *const name = cli_json_string(&s_json, cli_json_member(&s_json, read, "name"), NULL);
@@ -86,6 +106,7 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
     {
         row->opens[0] = '\0';
     }
+    cli_json_given(&s_json);
 }
 
 // `text` written and padded with spaces to `width` letters
@@ -145,7 +166,25 @@ int cli_plugins_list(void)
         cli_line_text(&line, folder);
         cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
     }
+    cli_cell_given(s_rows);
+    s_rows = NULL;
+    s_row_count = 0u;
+    s_row_room = 0u;
     return 0;
+}
+
+// a tree held empty in a cell sized to what `count` words make, every comma of them a node and the texts twice their
+// bytes at the most: 1, or 0 where the cell is refused
+static int tools_tree_held(const char *const *words, unsigned int count)
+{
+    unsigned long long bytes = 0ull;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL}) + 1ull;
+    }
+    cli_json_given(&s_json);
+    return cli_json_held(&s_json, (unsigned int)bytes + (4u * count) + CLI_TOOLS_NODES_MORE,
+                         (2ull * bytes) + CLI_TOOLS_TEXT_MORE, "a tree made of a command's words");
 }
 
 // `text` split at commas into an array of the parts, each trimmed, the empty ones left out
@@ -191,13 +230,13 @@ static void tools_err_two(const char *one, const char *other)
     cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
 }
 
-int cli_new_plugin(const char *const *words, unsigned int count)
+// the language plugin `new-plugin` describes written, the tree held for its words: 0, or CLI_WRONG with why said
+static int tools_new_plugin(const char *const *words, unsigned int count)
 {
     static const char *const s_lists[6][2] = {{"--ext", "extensions"}, {"--keywords", "keywords"},
                                               {"--types", "types"},    {"--constants", "constants"},
                                               {"--quotes", "quotes"},  {NULL, NULL}};
     static const char *const s_texts[3][2] = {{"--id", "id"}, {"--from", "from"}, {"--line-comment", "lineComment"}};
-    cli_json_begun(&s_json, s_node, sizeof(s_node) / sizeof(s_node[0]), s_text, sizeof(s_text));
     const unsigned int spec = cli_json_made(&s_json, CFG_JSON_OBJECT);
     static char s_name[1u << 12u];
     CliLine name = {s_name, sizeof(s_name), 0ull};
@@ -263,7 +302,7 @@ int cli_new_plugin(const char *const *words, unsigned int count)
                 CliLine line = {s_line, sizeof(s_line), 0ull};
                 cli_line_text(&line, "new-plugin takes no ");
                 cli_line_text(&line, word);
-                cli_line_text(&line, ": orior help names what it takes");
+                cli_line_text(&line, ": orior_cli help names what it takes");
                 cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
             }
             return CLI_WRONG;
@@ -289,6 +328,18 @@ int cli_new_plugin(const char *const *words, unsigned int count)
     return 0;
 }
 
+int cli_new_plugin(const char *const *words, unsigned int count)
+{
+    if (!tools_tree_held(words, count))
+    {
+        cli_err("the tree of the plugin's words could not be given a cell");
+        return CLI_WRONG;
+    }
+    const int written = tools_new_plugin(words, count);
+    cli_json_given(&s_json);
+    return written;
+}
+
 // The toolchain `add` describes: its name, then each flag and its value, made in the tree: its node, or CLI_JSON_NONE
 // with why said
 static unsigned int tools_described(const char *const *words, unsigned int count, CliLine *said)
@@ -298,7 +349,11 @@ static unsigned int tools_described(const char *const *words, unsigned int count
         cli_line_text(said, "add takes the toolchain's name first");
         return CLI_JSON_NONE;
     }
-    cli_json_begun(&s_json, s_node, sizeof(s_node) / sizeof(s_node[0]), s_text, sizeof(s_text));
+    if (!tools_tree_held(words, count))
+    {
+        cli_line_text(said, "the tree of the toolchain's words could not be given a cell");
+        return CLI_JSON_NONE;
+    }
     const unsigned int tool = cli_json_made(&s_json, CFG_JSON_OBJECT);
     tools_set_text(tool, "id", "");
     tools_set_text(tool, "name", words[0]);
@@ -354,12 +409,14 @@ int cli_toolchain_added(const char *const *words, unsigned int count, CliLine *o
 {
     const unsigned int tool = tools_described(words, count, said);
     char id[CLI_NAME_LONGEST];
-    if ((tool == CLI_JSON_NONE) || !cli_toolchains_add(&s_json, tool, id, said))
+    const int added = (tool != CLI_JSON_NONE) && cli_toolchains_add(&s_json, tool, id, said);
+    cli_json_given(&s_json);
+    if (!added)
     {
         return 0;
     }
     cli_line_text(out, "added ");
     cli_line_text(out, id);
-    cli_line_text(out, ": orior file toolchains lists it");
+    cli_line_text(out, ": orior_cli file toolchains lists it");
     return 1;
 }

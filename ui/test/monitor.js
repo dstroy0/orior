@@ -7,7 +7,8 @@
 // and a call that would leave the window is answered here and never made: one that quits or moves
 // the window, opens another window, the system's picker, the browser or a folder on the desktop,
 // sends to the network, files a report, installs a tool, keeps a template or a plugin in orior's own
-// folder, or reaches a plugin of the system's other than its events. The picker answers as the
+// folder, starts, stops or runs in a container of the machine, or reaches a plugin of the system's
+// other than its events. The picker answers as the
 // reader would who closed it, and every other such call fails with HELD in its message, which the
 // walker does not count as a fault. walker_probe is held too, for the walker to see the watch hold
 // before it presses anything. The page's print and its window.open do nothing.
@@ -25,7 +26,7 @@
     "app_exit", "window_open", "window_act", "view_open", "link_open", "home_reveal", "templates_reveal",
     "report_bug", "report_open", "report_error", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
     "remote_get", "remote_rejoin", "git_push", "git_pull", "git_fetch", "template_keep", "plugin_create", "project_create",
-    "walker_probe", "print_page",
+    "walker_probe", "print_page", "container_act", "container_run",
   ]);
   // A plugin's call reaches the system itself, a dialog, the shell or the process; only events pass.
   const refused = (name) => REFUSED.has(name) || name.startsWith("deploy") || name === "pick" || (name.startsWith("plugin:") && !name.startsWith("plugin:event|"));
@@ -39,6 +40,7 @@
     calls: [],
     held: [],
     out: 0,
+    outAt: [],
     lastMotion: 0,
     since: performance.now(),
   };
@@ -70,8 +72,10 @@
     const answer = send(name, args);
     if (!name.startsWith("plugin:event")) {
       walk.out += 1;
+      walk.outAt.push(at);
       const back = (record) => {
         walk.out -= 1;
+        walk.outAt.splice(walk.outAt.indexOf(at), 1);
         walk.lastMotion = performance.now();
         walk.calls.push({ t: at, name, ms: performance.now() - at, ...record });
       };
@@ -172,6 +176,9 @@
   // How long since anything moved: an animation ran, the layout shifted or a call came back; none
   // while a call is out.
   walk.quiet = () => (walk.out > 0 ? 0 : Math.round(performance.now() - Math.max(walk.lastMotion, walk.since)));
+  // The same, a call out held against it only where it was made since `begin`: what the window does on its own, as a
+  // toolchain's version asked, does not keep a press from coming to rest.
+  walk.quietOwn = () => (walk.outAt.some((at) => at >= walk.since) ? 0 : Math.round(performance.now() - Math.max(walk.lastMotion, walk.since)));
 
   // Runs a command of the menus as a press of its item does, and says how long its own work took
   // and whether it ended within `wait`.

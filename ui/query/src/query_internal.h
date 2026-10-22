@@ -34,6 +34,25 @@ extern CliCellsTally g_query_cells;
 // how many runs of a folder are kept where QRY_KEPT is not set
 #define QUERY_KEPT_MOST 64u
 
+// the paths a list's room is begun with before it doubles
+#define QUERY_PATHS_FIRST 64u
+
+// A list of paths, each in a row of QUERY_PATH_LONGEST, in a cell whose room doubles as they are put, given back with
+// query_paths_given
+typedef struct
+{
+    char (*path)[QUERY_PATH_LONGEST];
+    unsigned int count;
+    unsigned int room;
+} QueryPaths;
+
+// room made for one path more in `paths`, `most` at the most: 1, or 0 where it is at the most or its cell is refused;
+// room made for `count` paths in all in one cell: 1, or 0 where its cell is refused; and the paths' cell given back,
+// the list left empty (tools/tools.c)
+int query_paths_room(QueryPaths *paths, unsigned int most);
+int query_paths_held(QueryPaths *paths, unsigned int count);
+void query_paths_given(QueryPaths *paths);
+
 // The writer of one run: its program, its .qry, the top of the tree every current file is named under, the PATH every
 // program of the run runs with, and 1 in `member` while this process is a member of the run
 typedef struct
@@ -53,10 +72,8 @@ typedef struct
     QueryWriter writer;
     unsigned long long process;
     int joined;
-    char read[QUERY_LEAVES_MOST][QUERY_PATH_LONGEST];
-    unsigned int reads;
-    char left[QUERY_LEAVES_MOST][QUERY_PATH_LONGEST];
-    unsigned int lefts;
+    QueryPaths read;
+    QueryPaths left;
 } QueryRun;
 
 // One setting of a context, a record of the run appended before a program starts: its name and its blob

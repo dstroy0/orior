@@ -320,7 +320,7 @@ static int limbs_divide_newton(const uint32_t *top, size_t top_used, const uint3
     return 1;
 }
 
-// the full-width division: Newton's once the divisor and the quotient both reach ANCHOR_EXACT_NEWTON_LIMBS (or
+// the full-width division: Newton's once the divisor and the quotient both reach ORIOR_EXACT_NEWTON_LIMBS (or
 // always, when asked), long division below it or when Newton's workspace cannot be held; work holds 2 limbs + 1 words
 static void magnitude_divide_by(const uint32_t *top, const uint32_t *bottom, uint32_t *quotient, uint32_t *rest,
                                 uint32_t *work, int newton_only)
@@ -330,8 +330,8 @@ static void magnitude_divide_by(const uint32_t *top, const uint32_t *bottom, uin
     memset(quotient, 0, EXACT_LIMBS * sizeof(uint32_t));
     memset(rest, 0, EXACT_LIMBS * sizeof(uint32_t));
     const size_t quotient_limbs = (top_used >= bottom_used) ? ((top_used - bottom_used) + 1u) : 0u;
-    const int by_newton = (newton_only != 0) || ((bottom_used >= (size_t)ANCHOR_EXACT_NEWTON_LIMBS) &&
-                                                 (quotient_limbs >= (size_t)ANCHOR_EXACT_NEWTON_LIMBS));
+    const int by_newton = (newton_only != 0) || ((bottom_used >= (size_t)ORIOR_EXACT_NEWTON_LIMBS) &&
+                                                 (quotient_limbs >= (size_t)ORIOR_EXACT_NEWTON_LIMBS));
     if ((quotient_limbs != 0u) && (by_newton != 0))
     {
         // the quotient's limbs past the width are zero, the quotient being no larger than the top
@@ -359,17 +359,17 @@ void magnitude_divide(const uint32_t *top, const uint32_t *bottom, uint32_t *quo
     magnitude_divide_by(top, bottom, quotient, rest, work, 0);
 }
 
-static AnchorExactStatus exact_divide_by(const AnchorExactInteger *numerator, const AnchorExactInteger *divisor,
-                                         AnchorExactInteger *quotient, AnchorExactInteger *remainder, int newton_only)
+static OriorExactStatus exact_divide_by(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
+                                         OriorExactInteger *quotient, OriorExactInteger *remainder, int newton_only)
 {
     if (divisor->sign == 0)
     {
-        return ANCHOR_EXACT_BY_ZERO;
+        return ORIOR_EXACT_BY_ZERO;
     }
     EXACT_SCRATCH(work, (4u * EXACT_LIMBS) + 1u);
     if (!EXACT_SCRATCH_VALID(work))
     {
-        return ANCHOR_EXACT_WILL_NOT_FIT;
+        return ORIOR_EXACT_WILL_NOT_FIT;
     }
     uint32_t *const full_quotient = work;
     uint32_t *const rest = &work[EXACT_LIMBS];
@@ -382,17 +382,17 @@ static AnchorExactStatus exact_divide_by(const AnchorExactInteger *numerator, co
     memcpy(remainder->limb, rest, EXACT_LIMBS * sizeof(uint32_t));
     settle_sign(remainder, rest_sign);
     EXACT_SCRATCH_RELEASE(work);
-    return ANCHOR_EXACT_OK;
+    return ORIOR_EXACT_OK;
 }
 
-AnchorExactStatus anchor_exact_divide(const AnchorExactInteger *numerator, const AnchorExactInteger *divisor,
-                                      AnchorExactInteger *quotient, AnchorExactInteger *remainder)
+OriorExactStatus orior_exact_divide(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
+                                      OriorExactInteger *quotient, OriorExactInteger *remainder)
 {
     return exact_divide_by(numerator, divisor, quotient, remainder, 0);
 }
 
-AnchorExactStatus anchor_exact_divide_newton(const AnchorExactInteger *numerator, const AnchorExactInteger *divisor,
-                                             AnchorExactInteger *quotient, AnchorExactInteger *remainder)
+OriorExactStatus orior_exact_divide_newton(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
+                                             OriorExactInteger *quotient, OriorExactInteger *remainder)
 {
     return exact_divide_by(numerator, divisor, quotient, remainder, 1);
 }

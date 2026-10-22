@@ -120,12 +120,13 @@ QryRing *qry_member_ring(void)
     s_ring_join = s_joins;
     s_ring = NULL;
     const unsigned long long self = qry_member_process();
-    for (unsigned int place = 0u; place < QRY_WRITER_MEMBERS; place += 1u)
+    for (unsigned long long place = 0ull; place < run->members; place += 1ull)
     {
         unsigned long long none = 0ull;
-        if (atomic_compare_exchange_strong(&run->ring[place].owner, &none, self))
+        QryRing *const ring = qry_shared_ring(run, place);
+        if (atomic_compare_exchange_strong(&ring->owner, &none, self))
         {
-            s_ring = qry_shared_committed(&run->ring[place], sizeof(QryRing)) ? &run->ring[place] : NULL;
+            s_ring = ring;
             break;
         }
     }
@@ -185,19 +186,19 @@ unsigned long long qry_member_settled(void)
 
 unsigned long long qry_member_rings_settled(void)
 {
-    unsigned long long tails[QRY_WRITER_MEMBERS];
+    unsigned long long tails[QRY_WRITER_MEMBERS_MOST];
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
         return 0ull;
     }
-    for (unsigned int place = 0u; place < QRY_WRITER_MEMBERS; place += 1u)
+    for (unsigned long long place = 0ull; place < run->members; place += 1ull)
     {
-        tails[place] = atomic_load(&run->ring[place].tail);
+        tails[place] = atomic_load(&qry_shared_ring(run, place)->tail);
     }
-    for (unsigned int place = 0u; place < QRY_WRITER_MEMBERS; place += 1u)
+    for (unsigned long long place = 0ull; place < run->members; place += 1ull)
     {
-        while (atomic_load(&run->ring[place].head) < tails[place])
+        while (atomic_load(&qry_shared_ring(run, place)->head) < tails[place])
         {
         }
     }
@@ -210,7 +211,7 @@ int qry_member_viewed_read(QryShared *run, unsigned long long *at, const QryReco
     {
         return 0;
     }
-    *record = (const QryRecord *)(run->records + run->schedule[*at]);
+    *record = (const QryRecord *)(qry_shared_records(run) + qry_shared_schedule(run)[*at]);
     *at += 1ull;
     return 1;
 }
@@ -248,7 +249,8 @@ int qry_member_latest(const char *name, const QryRecord **record, unsigned long 
     const size_t length = strlen(name);
     for (unsigned long long at = (run != NULL) ? atomic_load(&run->scheduled) : 0ull; at != 0ull; at -= 1ull)
     {
-        const QryRecord *const held = (const QryRecord *)(run->records + run->schedule[at - 1ull]);
+        const QryRecord *const held =
+            (const QryRecord *)(qry_shared_records(run) + qry_shared_schedule(run)[at - 1ull]);
         if ((held->name_length == length) && (memcmp(held + 1, name, length) == 0))
         {
             *record = held;

@@ -187,7 +187,7 @@ static void link_answered(CliLinkCall *call, const char *line, unsigned long lon
     call->done = 2;
     if (!whole)
     {
-        cli_line_text(call->said, "the answer is larger than orior holds");
+        cli_line_text(call->said, "the answer is larger than orior_cli holds");
     }
     else if (cli_lsp_member(line, size, "error", &start, &length))
     {

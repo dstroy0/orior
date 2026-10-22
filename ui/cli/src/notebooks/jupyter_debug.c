@@ -4,9 +4,8 @@
 // listening in the kernel's process from the first time it is asked
 #include "jupyter_internal.h"
 
-// how long the kernel has to ready the run, in milliseconds, and the most nodes and bytes of its reply read
+// how long the kernel has to ready the run, in milliseconds
 #define CLI_KERNEL_DEBUG_WAIT 30000ull
-#define CLI_KERNEL_DEBUG_NODES 8192u
 
 // The kernel's next run of the code `{file}` holds named by that file, in place of the name the kernel gives a cell: a
 // breakpoint set in the file stops it. A run of other code keeps the kernel's own name, and the first run of that code
@@ -22,12 +21,6 @@ static const char s_debug_next[] =
     "    return _file\n"
     "get_ipython().compile.get_code_name = _orior_named\n"
     "del _orior_named\n";
-
-// the room a reply is read into, under its lock
-static CliJsonNode s_nodes[CLI_KERNEL_DEBUG_NODES];
-static CfgJsonToken s_tokens[CLI_KERNEL_DEBUG_NODES];
-static char s_text[CLI_KERNEL_REPLY_ROOM];
-static CliLock s_reply_lock = CLI_LOCK_INIT;
 
 // the string a path of members names under `node`, NULL where it names none or no string
 static const char *jupyter_string_at(const CliJson *json, unsigned int node, const char *first, const char *second)
@@ -79,15 +72,12 @@ static int jupyter_port_read(const char *text, unsigned int *port)
     return start < end;
 }
 
-// what the reply to the readying says read: the port debugpy listens at, 1, or 0 with why said
-static int jupyter_reply_read(CliKernel *kernel, const CliLine *reply, unsigned int *port, CliLine *said)
+// what the reply to the readying says, read into `json` at `root`: the port debugpy listens at, 1, or 0 with why said
+static int jupyter_reply_read(CliKernel *kernel, const CliJson *reply_json, unsigned int root, unsigned int *port,
+                              CliLine *said)
 {
     const char *const shown = cli_jupyter_display_name(kernel);
-    CliJson json;
-    cli_json_begun(&json, s_nodes, CLI_KERNEL_DEBUG_NODES, s_text, sizeof(s_text));
-    char why[CLI_SAID_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_read(&json, reply->out, reply->at, s_tokens, CLI_KERNEL_DEBUG_NODES, &unread);
+    const CliJson json = *reply_json;
     const unsigned int content = cli_json_member(&json, root, "content");
     const char *const status = jupyter_string_at(&json, content, "status", NULL);
     if ((status == NULL) || (!cellul.eq(&(CatenaFinitaCfg){.src = status, .other = "ok", .cap = CLI_CELLS_POOL})))
@@ -160,7 +150,7 @@ static int jupyter_debug_asked(CliKernel *kernel, const char *file, unsigned int
     if (!cli_line_fits(&code) || !cli_line_fits(&asked))
     {
         cli_line_text(said, file);
-        cli_line_text(said, " is a longer path than orior holds");
+        cli_line_text(said, " is a longer path than orior_cli holds");
         return 0;
     }
     CliLine reply = {kernel->debug_reply, sizeof(kernel->debug_reply), 0ull};
@@ -169,9 +159,13 @@ static int jupyter_debug_asked(CliKernel *kernel, const char *file, unsigned int
     {
         return 0;
     }
-    cli_lock_take(&s_reply_lock);
-    const int read = jupyter_reply_read(kernel, &reply, port, said);
-    cli_lock_give(&s_reply_lock);
+    // the reply read into a tree taken to its size and given back
+    CliJson json = {0};
+    char why[CLI_SAID_LONGEST];
+    CliLine unread = {why, sizeof(why), 0ull};
+    const unsigned int root = cli_json_taken(&json, reply.out, reply.at, 0u, 0ull, &unread);
+    const int read = jupyter_reply_read(kernel, &json, root, port, said);
+    cli_json_given(&json);
     return read;
 }
 

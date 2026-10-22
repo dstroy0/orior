@@ -353,7 +353,7 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
             *at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = cap, .at = *at, .text = before});
             *at = verba_littera.ch(&(VerbaLitteraCfg){.out = out, .cap = cap, .at = *at, .ch = '\n'});
             written += 1u;
-            printf("  krs_write: no form answered for in this run writes %s; the ruleset keeps its form\n", row->form);
+            printf("  orior_krs_write: no form answered for in this run writes %s; the ruleset keeps its form\n", row->form);
         }
     }
     if (removals != 0u)
@@ -362,7 +362,7 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
         krf_path_beside(ksc_path, krf, sizeof(krf));
         if (!krf_removed(krf, "krs", "replaced", removed, removals))
         {
-            printf("  krs_write: %u frame lines a written one replaced could not be kept in %s\n", removals, krf);
+            printf("  orior_krs_write: %u frame lines a written one replaced could not be kept in %s\n", removals, krf);
         }
     }
     return written;

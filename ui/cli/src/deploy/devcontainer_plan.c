@@ -3,6 +3,7 @@
 // devcontainer_plan.c: a description's JSON read, its strings, members and lists, its variables read in, and the
 // plan's texts it is kept in
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../text/json_tree.h"
 #include "../text/text.h"
 #include "devcontainer_internal.h"
 
@@ -11,9 +12,12 @@
 
 #define CLI_DESCRIPTION_TOKENS 65536u
 
-static char s_raw[CLI_DESCRIPTION_BYTES];
-static char s_plain[CLI_DESCRIPTION_BYTES];
-static CfgJsonToken s_tokens[CLI_DESCRIPTION_TOKENS];
+CliCellsTally g_cli_devcontainer_cells = CLI_CELLS_TALLY("cli_devcontainer");
+
+// the description made plain, a cell of the bytes it was read in and one more, and its tokens, a cell of their count;
+// held under the plan's lock from the read to the plan made
+static char *s_plain;
+static CfgJsonToken *s_tokens;
 
 // 1 where a text of the description did not fit what a plan keeps
 static int s_full;
@@ -21,20 +25,43 @@ static int s_full;
 int cli_plan_description_read(const char *file, CliLine *said)
 {
     s_full = 0;
-    const unsigned long long size = qry_member_file_read(file, (unsigned char *)s_raw, sizeof(s_raw));
-    if (size == QRY_MEMBER_UNREAD)
+    unsigned long long size = 0ull;
+    const unsigned char *const raw = cli_file_held(file, &size);
+    if ((raw == NULL) || (size > CLI_DESCRIPTION_BYTES))
     {
+        cli_file_let_go(raw, size);
         cli_line_text(said, file);
         cli_line_text(said, ": it could not be read");
         return 0;
     }
-    CliLine plain = {s_plain, sizeof(s_plain), 0ull};
-    cli_plain_json(s_raw, size, &plain);
+    // plain JSON is the description with its comments and trailing commas left out, never longer
+    s_plain = cli_cell_taken_by(&g_cli_devcontainer_cells, size + 1ull, "a description made plain");
+    CliLine plain = {s_plain, (s_plain != NULL) ? (size + 1ull) : 0ull, 0ull};
+    if (s_plain != NULL)
+    {
+        // the description's bytes read as the text they are
+        cli_plain_json((const char *)raw, size, &plain);
+    }
+    cli_file_let_go(raw, size);
+    const unsigned int counted = cli_line_fits(&plain) ? cli_json_tokens_counted(s_plain, plain.at) : 0u;
+    const unsigned int tokens =
+        (counted < CLI_DESCRIPTION_TOKENS) ? ((counted != 0u) ? counted : 1u) : CLI_DESCRIPTION_TOKENS;
+    s_tokens = cli_line_fits(&plain)
+                   ? cli_cell_taken_by(&g_cli_devcontainer_cells, tokens * sizeof(*s_tokens), "a description's tokens")
+                   : NULL;
     CfgJsonParse parse = {0u, 0u, 0u, NULL};
-    if (cli_line_fits(&plain) && cfg_json_parse_metadata(s_plain, plain.at, s_tokens, CLI_DESCRIPTION_TOKENS, &parse))
+    if ((s_tokens != NULL) && cfg_json_parse_metadata(s_plain, plain.at, s_tokens, tokens, &parse))
     {
         return 1;
     }
+    if ((s_plain == NULL) || (cli_line_fits(&plain) && (s_tokens == NULL)))
+    {
+        cli_plan_description_given();
+        cli_line_text(said, file);
+        cli_line_text(said, ": the cells cannot meet it");
+        return 0;
+    }
+    cli_plan_description_given();
     cli_line_text(said, file);
     cli_line_text(said, ": ");
     if (!cli_line_fits(&plain))
@@ -48,6 +75,14 @@ int cli_plan_description_read(const char *file, CliLine *said)
     cli_line_text(said, ", column ");
     cli_line_decimal(said, parse.column, 1u);
     return 0;
+}
+
+void cli_plan_description_given(void)
+{
+    cli_cell_given_by(&g_cli_devcontainer_cells, s_tokens);
+    cli_cell_given_by(&g_cli_devcontainer_cells, s_plain);
+    s_tokens = NULL;
+    s_plain = NULL;
 }
 
 int cli_plan_overflowed(void)

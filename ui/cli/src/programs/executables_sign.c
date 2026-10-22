@@ -6,11 +6,7 @@
 #include "../text/text.h"
 #include "executables_internal.h"
 
-// the most nodes and bytes of settings.json read, and the most bytes of a tree's .env read
-#define CLI_SIGN_NODES 16384u
-
-#define CLI_SIGN_BYTES (1u << 20u)
-
+// the most bytes of a tree's .env read
 #define CLI_ENV_BYTES (1u << 16u)
 
 // a line said through `say`
@@ -26,26 +22,17 @@ static void cli_say(QuerySink say, const char *text)
 // by; `macos` the identity codesign signs with; and `notarize` the keychain profile notarytool sends the program with
 static int cli_signing(const char *key, char *out)
 {
-    static CliJsonNode s_nodes[CLI_SIGN_NODES];
-    static CfgJsonToken s_tokens[CLI_SIGN_NODES];
-    static char s_file[CLI_SIGN_BYTES];
-    static char s_text[CLI_SIGN_BYTES];
-    static CliLock s_lock = CLI_LOCK_INIT;
     char home[CLI_PATH_LONGEST];
     char path[CLI_PATH_LONGEST];
     if (!cli_home_folder(home) || !cli_executables_joined(home, "settings.json", path))
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
-    const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_file, sizeof(s_file));
-    CliJson json;
-    cli_json_begun(&json, s_nodes, CLI_SIGN_NODES, s_text, sizeof(s_text));
+    // settings.json read into a tree sized to it, given back as the setting is copied out
+    CliJson json = {0};
     char why[CLI_NAME_LONGEST];
     CliLine reason = {why, sizeof(why), 0ull};
-    const unsigned int root = (size != QRY_MEMBER_UNREAD)
-                                  ? cli_json_read(&json, s_file, size, s_tokens, CLI_SIGN_NODES, &reason)
-                                  : CLI_JSON_NONE;
+    const unsigned int root = cli_json_file_taken(&json, path, 0u, 0ull, &reason);
     char named[CLI_NAME_LONGEST];
     CliLine line = {named, sizeof(named), 0ull};
     cli_line_text(&line, "signing.");
@@ -58,7 +45,7 @@ static int cli_signing(const char *key, char *out)
         cli_scan_trim(&value, &length);
         cli_scan_copied(value, length, out, CLI_PATH_LONGEST);
     }
-    cli_lock_give(&s_lock);
+    cli_json_given(&json);
     return (value != NULL) && (length != 0ull);
 }
 

@@ -52,22 +52,22 @@ static unsigned int ladder_draw(void)
     return (unsigned int)ladder_mix(LADDER_KEY ^ ladder_mix(s_counter));
 }
 
-static AnchorExactInteger *ladder_value(void)
+static OriorExactInteger *ladder_value(void)
 {
-    AnchorExactInteger *const value = (AnchorExactInteger *)malloc(sizeof(AnchorExactInteger));
+    OriorExactInteger *const value = (OriorExactInteger *)malloc(sizeof(OriorExactInteger));
     if (value == NULL)
     {
         printf("  no room for a value at this width\n");
         exit(1);
     }
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     return value;
 }
 
 // all ones half the time: every coefficient of the transform at its largest
-static void ladder_fill(AnchorExactInteger *value, size_t limbs, int shaped)
+static void ladder_fill(OriorExactInteger *value, size_t limbs, int shaped)
 {
-    anchor_exact_zero(value);
+    orior_exact_zero(value);
     for (size_t at = 0u; at < limbs; at++)
     {
         value->limb[at] = (shaped != 0) ? 0xFFFFFFFFu : ladder_draw();
@@ -76,9 +76,9 @@ static void ladder_fill(AnchorExactInteger *value, size_t limbs, int shaped)
     value->sign = ((ladder_draw() & 1u) != 0u) ? -1 : 1;
 }
 
-static size_t ladder_used(const AnchorExactInteger *value)
+static size_t ladder_used(const OriorExactInteger *value)
 {
-    size_t used = (size_t)ANCHOR_EXACT_LIMBS;
+    size_t used = (size_t)ORIOR_EXACT_LIMBS;
     while ((used > 0u) && (value->limb[used - 1u] == 0u))
     {
         used--;
@@ -87,8 +87,8 @@ static size_t ladder_used(const AnchorExactInteger *value)
 }
 
 // the reference: long multiplication, the sign apart
-static int ladder_matches(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                          const AnchorExactInteger *product)
+static int ladder_matches(const OriorExactInteger *left, const OriorExactInteger *right,
+                          const OriorExactInteger *product)
 {
     const size_t left_used = ladder_used(left);
     const size_t right_used = ladder_used(right);
@@ -112,7 +112,7 @@ static int ladder_matches(const AnchorExactInteger *left, const AnchorExactInteg
         wide[low + right_used] = (uint32_t)carry;
     }
     int same = (product->sign == ((left->sign == right->sign) ? 1 : -1));
-    for (size_t at = 0u; (at < (size_t)ANCHOR_EXACT_LIMBS) && (same != 0); at++)
+    for (size_t at = 0u; (at < (size_t)ORIOR_EXACT_LIMBS) && (same != 0); at++)
     {
         const uint32_t expected = (at < (left_used + right_used)) ? wide[at] : 0u;
         same = (product->limb[at] == expected);
@@ -121,10 +121,10 @@ static int ladder_matches(const AnchorExactInteger *left, const AnchorExactInteg
     return same;
 }
 
-static double ladder_seconds(AnchorExactStatus (*multiply)(const AnchorExactInteger *, const AnchorExactInteger *,
-                                                           AnchorExactInteger *),
-                             const AnchorExactInteger *left, const AnchorExactInteger *right,
-                             AnchorExactInteger *product)
+static double ladder_seconds(OriorExactStatus (*multiply)(const OriorExactInteger *, const OriorExactInteger *,
+                                                           OriorExactInteger *),
+                             const OriorExactInteger *left, const OriorExactInteger *right,
+                             OriorExactInteger *product)
 {
     unsigned int repeats = 1u;
     for (;;)
@@ -143,10 +143,10 @@ static double ladder_seconds(AnchorExactStatus (*multiply)(const AnchorExactInte
     }
 }
 
-static double ladder_divide_seconds(AnchorExactStatus (*divide)(const AnchorExactInteger *, const AnchorExactInteger *,
-                                                                AnchorExactInteger *, AnchorExactInteger *),
-                                    const AnchorExactInteger *numerator, const AnchorExactInteger *divisor,
-                                    AnchorExactInteger *quotient, AnchorExactInteger *remainder)
+static double ladder_divide_seconds(OriorExactStatus (*divide)(const OriorExactInteger *, const OriorExactInteger *,
+                                                                OriorExactInteger *, OriorExactInteger *),
+                                    const OriorExactInteger *numerator, const OriorExactInteger *divisor,
+                                    OriorExactInteger *quotient, OriorExactInteger *remainder)
 {
     unsigned int repeats = 1u;
     for (;;)
@@ -166,10 +166,10 @@ static double ladder_divide_seconds(AnchorExactStatus (*divide)(const AnchorExac
 }
 
 // the long multiplication, for timing, through the same signature
-static AnchorExactInteger *s_long_scratch = NULL;
+static OriorExactInteger *s_long_scratch = NULL;
 
-static AnchorExactStatus ladder_long(const AnchorExactInteger *left, const AnchorExactInteger *right,
-                                     AnchorExactInteger *result)
+static OriorExactStatus ladder_long(const OriorExactInteger *left, const OriorExactInteger *right,
+                                     OriorExactInteger *result)
 {
     (void)s_long_scratch;
     const size_t left_used = ladder_used(left);
@@ -190,7 +190,7 @@ static AnchorExactStatus ladder_long(const AnchorExactInteger *left, const Ancho
         result->limb[low + right_used] = (uint32_t)carry;
     }
     result->sign = 1;
-    return ANCHOR_EXACT_OK;
+    return ORIOR_EXACT_OK;
 }
 
 int main(void)
@@ -198,16 +198,16 @@ int main(void)
     // unbuffered: a long run shows where it is
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("  exact integer multiplication ladder at %llu bits (%llu limbs; Karatsuba from %u, transform from %u)\n",
-           (unsigned long long)ANCHOR_EXACT_BITS, (unsigned long long)ANCHOR_EXACT_LIMBS,
-           (unsigned int)ANCHOR_EXACT_KARATSUBA_LIMBS, (unsigned int)ANCHOR_EXACT_TRANSFORM_LIMBS);
-    AnchorExactInteger *const left = ladder_value();
-    AnchorExactInteger *const right = ladder_value();
-    AnchorExactInteger *const product = ladder_value();
-    AnchorExactInteger *const quotient = ladder_value();
-    AnchorExactInteger *const remainder = ladder_value();
-    AnchorExactInteger *const common = ladder_value();
+           (unsigned long long)ORIOR_EXACT_BITS, (unsigned long long)ORIOR_EXACT_LIMBS,
+           (unsigned int)ORIOR_EXACT_KARATSUBA_LIMBS, (unsigned int)ORIOR_EXACT_TRANSFORM_LIMBS);
+    OriorExactInteger *const left = ladder_value();
+    OriorExactInteger *const right = ladder_value();
+    OriorExactInteger *const product = ladder_value();
+    OriorExactInteger *const quotient = ladder_value();
+    OriorExactInteger *const remainder = ladder_value();
+    OriorExactInteger *const common = ladder_value();
 
-    const size_t half = (size_t)ANCHOR_EXACT_LIMBS / 2u;
+    const size_t half = (size_t)ORIOR_EXACT_LIMBS / 2u;
     size_t sizes[64];
     unsigned int size_count = 0u;
     const size_t marks[] = {1u,   2u,   3u,   31u,  32u,  33u,   63u,   64u,   65u,
@@ -245,21 +245,21 @@ int main(void)
             ladder_fill(left, left_limbs, (int)(trial == 1u));
             ladder_fill(right, right_limbs, (int)(trial == 1u));
             tried++;
-            ladder_ok += ((anchor_exact_multiply(left, right, product) == ANCHOR_EXACT_OK) &&
+            ladder_ok += ((orior_exact_multiply(left, right, product) == ORIOR_EXACT_OK) &&
                           ladder_matches(left, right, product))
                              ? 1u
                              : 0u;
-            transform_ok += ((anchor_exact_multiply_transform(left, right, product) == ANCHOR_EXACT_OK) &&
+            transform_ok += ((orior_exact_multiply_transform(left, right, product) == ORIOR_EXACT_OK) &&
                              ladder_matches(left, right, product))
                                 ? 1u
                                 : 0u;
             // the product divides back to its factors, and the gcd holds the shorter one
-            int back = (anchor_exact_divide(product, right, quotient, remainder) == ANCHOR_EXACT_OK) &&
-                       (remainder->sign == 0) && anchor_exact_equal(quotient, left);
-            back = back && (anchor_exact_divide_exact(product, left, quotient) == ANCHOR_EXACT_OK) &&
-                   anchor_exact_equal(quotient, right);
-            back = back && (anchor_exact_gcd(product, right, common) == ANCHOR_EXACT_OK) &&
-                   (anchor_exact_divide(common, right, quotient, remainder) == ANCHOR_EXACT_OK) &&
+            int back = (orior_exact_divide(product, right, quotient, remainder) == ORIOR_EXACT_OK) &&
+                       (remainder->sign == 0) && orior_exact_equal(quotient, left);
+            back = back && (orior_exact_divide_exact(product, left, quotient) == ORIOR_EXACT_OK) &&
+                   orior_exact_equal(quotient, right);
+            back = back && (orior_exact_gcd(product, right, common) == ORIOR_EXACT_OK) &&
+                   (orior_exact_divide(common, right, quotient, remainder) == ORIOR_EXACT_OK) &&
                    (remainder->sign == 0);
             divided += back ? 1u : 0u;
         }
@@ -273,9 +273,9 @@ int main(void)
 
     // division of values that are not multiples: numerator = quotient . divisor + remainder, 0 <= |remainder| <
     // |divisor|, the definition of the division whatever computes it; Newton's and the dispatched division agree
-    AnchorExactInteger *const newton_quotient = ladder_value();
-    AnchorExactInteger *const newton_remainder = ladder_value();
-    AnchorExactInteger *const rebuilt = ladder_value();
+    OriorExactInteger *const newton_quotient = ladder_value();
+    OriorExactInteger *const newton_remainder = ladder_value();
+    OriorExactInteger *const rebuilt = ladder_value();
     unsigned int division_ok = 0u;
     unsigned int division_tried = 0u;
     for (unsigned int at = 0u; at < size_count; at++)
@@ -285,23 +285,23 @@ int main(void)
             const size_t divisor_limbs = sizes[at];
             // the numerator twice the divisor, a limb more, or the width, whichever is least
             const size_t twice = (2u * divisor_limbs) + (size_t)(trial & 1u);
-            const size_t numerator_limbs = (twice < (size_t)ANCHOR_EXACT_LIMBS) ? twice : (size_t)ANCHOR_EXACT_LIMBS;
+            const size_t numerator_limbs = (twice < (size_t)ORIOR_EXACT_LIMBS) ? twice : (size_t)ORIOR_EXACT_LIMBS;
             ladder_fill(left, numerator_limbs, (int)(trial == 1u));
             ladder_fill(right, divisor_limbs, (int)(trial == 2u));
             division_tried++;
             int passed =
-                (anchor_exact_divide(left, right, quotient, remainder) == ANCHOR_EXACT_OK) &&
-                (anchor_exact_divide_newton(left, right, newton_quotient, newton_remainder) == ANCHOR_EXACT_OK) &&
-                anchor_exact_equal(quotient, newton_quotient) && anchor_exact_equal(remainder, newton_remainder);
-            passed = passed && (anchor_exact_multiply(newton_quotient, right, product) == ANCHOR_EXACT_OK) &&
-                     (anchor_exact_add(product, newton_remainder, rebuilt) == ANCHOR_EXACT_OK) &&
-                     anchor_exact_equal(rebuilt, left);
-            AnchorExactInteger *const magnitude = common;
+                (orior_exact_divide(left, right, quotient, remainder) == ORIOR_EXACT_OK) &&
+                (orior_exact_divide_newton(left, right, newton_quotient, newton_remainder) == ORIOR_EXACT_OK) &&
+                orior_exact_equal(quotient, newton_quotient) && orior_exact_equal(remainder, newton_remainder);
+            passed = passed && (orior_exact_multiply(newton_quotient, right, product) == ORIOR_EXACT_OK) &&
+                     (orior_exact_add(product, newton_remainder, rebuilt) == ORIOR_EXACT_OK) &&
+                     orior_exact_equal(rebuilt, left);
+            OriorExactInteger *const magnitude = common;
             *magnitude = *newton_remainder;
             magnitude->sign = (magnitude->sign == 0) ? 0 : 1;
             *product = *right;
             product->sign = 1;
-            passed = passed && (anchor_exact_compare(magnitude, product) < 0) &&
+            passed = passed && (orior_exact_compare(magnitude, product) < 0) &&
                      ((newton_remainder->sign == 0) || (newton_remainder->sign == left->sign));
             division_ok += passed ? 1u : 0u;
         }
@@ -317,19 +317,19 @@ int main(void)
         ladder_fill(left, size, 0);
         ladder_fill(right, size, 0);
         const double long_seconds = (size <= 8192u) ? ladder_seconds(ladder_long, left, right, product) : 0.0;
-        const double ladder_time = ladder_seconds(anchor_exact_multiply, left, right, product);
-        const double transform_time = ladder_seconds(anchor_exact_multiply_transform, left, right, product);
+        const double ladder_time = ladder_seconds(orior_exact_multiply, left, right, product);
+        const double transform_time = ladder_seconds(orior_exact_multiply_transform, left, right, product);
         printf("  %7llu  %11.3e  %11.3e  %11.3e\n", (unsigned long long)size, long_seconds, ladder_time,
                transform_time);
     }
 
     printf("  seconds per division, a 2n-limb numerator by an n-limb divisor:\n  limbs        divide       newton\n");
-    for (size_t size = 8u; (2u * size) <= (size_t)ANCHOR_EXACT_LIMBS; size *= 2u)
+    for (size_t size = 8u; (2u * size) <= (size_t)ORIOR_EXACT_LIMBS; size *= 2u)
     {
         ladder_fill(left, 2u * size, 0);
         ladder_fill(right, size, 0);
-        const double divide_time = ladder_divide_seconds(anchor_exact_divide, left, right, quotient, remainder);
-        const double newton_time = ladder_divide_seconds(anchor_exact_divide_newton, left, right, quotient, remainder);
+        const double divide_time = ladder_divide_seconds(orior_exact_divide, left, right, quotient, remainder);
+        const double newton_time = ladder_divide_seconds(orior_exact_divide_newton, left, right, quotient, remainder);
         printf("  %7llu  %11.3e  %11.3e\n", (unsigned long long)size, divide_time, newton_time);
     }
 

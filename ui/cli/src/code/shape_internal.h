@@ -5,6 +5,7 @@
 #ifndef SHAPE_INTERNAL_H
 #define SHAPE_INTERNAL_H
 
+#include "../command_line/cells.h"
 #include "../text/text.h"
 #include "shape.h"
 
@@ -60,8 +61,9 @@ void cli_shape_tokens(const char *language, const char *src, unsigned long long 
                       CliShapeHoles *holes);
 
 // The match of a pattern against the code: the code and its tokens; the pattern and its tokens, each part a word to
-// match as written or the placeholder at `hole_of`, CLI_SHAPE_HOLES for none; the steps taken; and the placeholders
-// bound so far, each its name and the tokens it took
+// match as written or the placeholder at `hole_of`, CLI_SHAPE_HOLES for none; the steps taken; the placeholders
+// bound so far, each its name and the tokens it took; and the stack of ends tried, `ends_top` of them in a cell of
+// `ends_room`, grown as ends are put and given back with cli_shape_ends_given
 typedef struct
 {
     const char *src;
@@ -76,7 +78,16 @@ typedef struct
     unsigned int bound_from[CLI_SHAPE_HOLES];
     unsigned int bound_to[CLI_SHAPE_HOLES];
     unsigned int bound_count;
+    unsigned int *ends;
+    unsigned int ends_top;
+    unsigned int ends_room;
 } CliShapeMatcher;
+
+// the cells a search holds while it runs, its room, its ends tried and a match's template written (shape_search.c)
+extern CliCellsTally g_cli_shape_cells;
+
+// the matcher's stack of ends given back (shape_match.c)
+void cli_shape_ends_given(CliShapeMatcher *matcher);
 
 // the end of a match of the parts from `part` on at the token `at`, the placeholders bound so far kept bound: 1 with it
 // into `end`, or 0 where none matches (shape_match.c)

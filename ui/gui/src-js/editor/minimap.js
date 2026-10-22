@@ -95,8 +95,8 @@ export class Minimap {
       // beside it, however many lines have been read in around it since.
       start = viewRow - this.held.offset;
     } else if (s?.window) {
-      // A file still being read: the map stands where the view stands in the whole file, its line
-      // count as counted when the file opened, and not in the part read so far.
+      // A file held as pages: the map stands where the view stands in the whole file, its line
+      // count as counted when the file opened, and not in the window held now.
       const total = ed.linesInFile();
       const ratio = Math.min(1, Math.max(0, fileTop / Math.max(1, total - onScreen)));
       start = Math.round(ratio * Math.max(0, total - fit)) - s.base;

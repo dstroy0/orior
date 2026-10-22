@@ -42,6 +42,11 @@ unsigned int cli_sift_plan(const unsigned char *window, unsigned long long lengt
 unsigned long long cli_sift_find_all(const unsigned char *text, unsigned long long length, const unsigned char *needle,
                                      unsigned long long needle_length, int fold,
                                      void (*found)(void *context, unsigned long long at), void *context);
+// every offset `needle` stands at in a text within one window, found by the needle's own shifts, Horspool's, with no
+// plan made: their count; what cli_sift_find_all takes for such a text
+unsigned long long cli_sift_horspool(const unsigned char *text, unsigned long long length, const unsigned char *needle,
+                                     unsigned long long needle_length, int fold,
+                                     void (*found)(void *context, unsigned long long at), void *context);
 unsigned long long cli_sift_find_all_on(unsigned int path, const unsigned char *text, unsigned long long length,
                                         const unsigned char *needle, unsigned long long needle_length, int fold,
                                         void (*found)(void *context, unsigned long long at), void *context);

@@ -1,13 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// compile_db.c: a look for the tree's compilation database, kept for two seconds and kept while the files it read
-// stand, and the words clangd starts with for it
+// compile_db.c: what a look for the tree's compilation database reads with: a file and when it changed, the folders and
+// files of a name below a build, a CMake reply's newest index, a command line's words, and a JSON file read
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
-// how long one look for the database stands before the builds are looked at again, in milliseconds; and the most
-// folders a search below a build holds to look in
-#define CLI_COMPILE_LOOKED_FOR 2000ull
+// the most folders a search below a build holds to look in
 #define CLI_COMPILE_PENDING 4096u
 
 int cli_compile_stamped(const char *path, CliStamped *stamped)
@@ -23,27 +21,73 @@ int cli_compile_stamped(const char *path, CliStamped *stamped)
     return 1;
 }
 
-// A search below a build: the folders still to look in with their depths, the folder looked in and its depth
+CliCellsTally g_cli_compile_cells = CLI_CELLS_TALLY("cli_compile_db");
+
+void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsigned long long each, unsigned int most,
+                       const char *what)
+{
+    if (count < *room)
+    {
+        return list;
+    }
+    const unsigned int doubled = (*room == 0u) ? CLI_COMPILE_FIRST : (*room * 2u);
+    const unsigned int grown = (doubled < most) ? doubled : most;
+    void *const larger =
+        (count < most) ? cli_cell_taken_by(&g_cli_compile_cells, (unsigned long long)grown * each, what) : NULL;
+    if (larger == NULL)
+    {
+        return NULL;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
+    cli_cell_given_by(&g_cli_compile_cells, list);
+    *room = grown;
+    return larger;
+}
+
+void cli_compile_inputs_given(CliInputs *inputs)
+{
+    cli_cell_given_by(&g_cli_compile_cells, inputs->file);
+    *inputs = (CliInputs){0, NULL, 0u, 0u};
+}
+
+void cli_compile_found_given(CliFoundFolders *found)
+{
+    cli_cell_given_by(&g_cli_compile_cells, found->path);
+    *found = (CliFoundFolders){NULL, 0u, 0u};
+}
+
+// A folder still to look in below a build, and its depth
 typedef struct
 {
-    char pending[CLI_COMPILE_PENDING][CLI_PATH_LONGEST];
-    unsigned int depth[CLI_COMPILE_PENDING];
+    char path[CLI_PATH_LONGEST];
+    unsigned int depth;
+} CliBelowFolder;
+
+// A search below a build: the folders still to look in, in a cell whose room doubles as they are put, and the folder
+// looked in and its depth
+typedef struct
+{
+    CliBelowFolder *pending;
     unsigned int count;
+    unsigned int room;
     const char *folder;
     unsigned int folder_depth;
 } CliBelow;
 
-static CliBelow s_below;
-static CliLock s_below_lock = CLI_LOCK_INIT;
-
 static void cli_below_each(void *context, const char *name, int is_folder)
 {
-    (void)context;
-    if (is_folder && (name[0] != '.') && (s_below.count < CLI_COMPILE_PENDING))
+    CliBelow *const below = context;
+    CliBelowFolder *const pending =
+        (is_folder && (name[0] != '.'))
+            ? cli_compile_room(below->pending, below->count, &below->room, sizeof(CliBelowFolder), CLI_COMPILE_PENDING,
+                               "the folders a search below a build has still to look in")
+            : NULL;
+    if (pending != NULL)
     {
-        cli_full(s_below.folder, name, s_below.pending[s_below.count]);
-        s_below.depth[s_below.count] = s_below.folder_depth + 1u;
-        s_below.count += 1u;
+        below->pending = pending;
+        cli_full(below->folder, name, below->pending[below->count].path);
+        below->pending[below->count].depth = below->folder_depth + 1u;
+        below->count += 1u;
     }
 }
 
@@ -51,31 +95,33 @@ static void cli_below_each(void *context, const char *name, int is_folder)
 static void cli_walked_below(const char *top, int (*each)(void *context, const char *folder, unsigned int depth),
                              void *context)
 {
-    cli_lock_take(&s_below_lock);
-    memor.cpy(&(MemoriaCfg){.dst = s_below.pending[0],
+    CliBelow below = {NULL, 0u, 0u, NULL, 0u};
+    below.pending = cli_compile_room(NULL, 0u, &below.room, sizeof(CliBelowFolder), CLI_COMPILE_PENDING,
+                                     "the folders a search below a build has still to look in");
+    if (below.pending == NULL)
+    {
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = below.pending[0].path,
                             .src = top,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL}) + 1u});
-    s_below.depth[0] = 0u;
-    s_below.count = 1u;
-    while (s_below.count > 0u)
+    below.pending[0].depth = 0u;
+    below.count = 1u;
+    while (below.count > 0u)
     {
-        s_below.count -= 1u;
+        below.count -= 1u;
         char folder[CLI_PATH_LONGEST];
-        memor.cpy(&(MemoriaCfg){
-            .dst = folder,
-            .src = s_below.pending[s_below.count],
-            .bytes =
-                cellul.len(&(CatenaFinitaCfg){.src = s_below.pending[s_below.count], .cap = CLI_CELLS_POOL}) + 1u});
-        const unsigned int depth = s_below.depth[s_below.count];
+        memor.cpy(&(MemoriaCfg){.dst = folder, .src = below.pending[below.count].path, .bytes = sizeof(folder)});
+        const unsigned int depth = below.pending[below.count].depth;
         if (!each(context, folder, depth) || (depth >= CLI_COMPILE_DEPTH))
         {
             continue;
         }
-        s_below.folder = folder;
-        s_below.folder_depth = depth;
-        query_folder_each(folder, cli_below_each, NULL);
+        below.folder = folder;
+        below.folder_depth = depth;
+        query_folder_each(folder, cli_below_each, &below);
     }
-    cli_lock_give(&s_below_lock);
+    cli_cell_given_by(&g_cli_compile_cells, below.pending);
 }
 
 // A search for folders ending in a tail, or for files of a name
@@ -89,8 +135,12 @@ typedef struct
 
 static void cli_found_put(CliFoundFolders *found, const char *path)
 {
-    if (found->count < CLI_COMPILE_FOUND)
+    char (*const paths)[CLI_PATH_LONGEST] =
+        cli_compile_room(found->path, found->count, &found->room, CLI_PATH_LONGEST, CLI_COMPILE_FOUND,
+                         "the folders a search below a build found");
+    if (paths != NULL)
     {
+        found->path = paths;
         memor.cpy(&(MemoriaCfg){.dst = found->path[found->count],
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
@@ -183,8 +233,7 @@ int cli_compile_newest_index(const char *reply, char *index)
     return newest.found;
 }
 
-// whether a letter is whitespace as a command line is read
-static int cli_white(char letter)
+int cli_compile_white(char letter)
 {
     return (letter == ' ') || ((letter >= '\t') && (letter <= '\r'));
 }
@@ -206,7 +255,7 @@ void cli_compile_words_each(const char *text, unsigned long long length,
             quoted = !quoted;
             any = 1;
         }
-        else if (cli_white(letter) && !quoted)
+        else if (cli_compile_white(letter) && !quoted)
         {
             if (any)
             {
@@ -260,7 +309,7 @@ int cli_compile_first_word(const char *text, unsigned long long length, char *fi
 unsigned int cli_compile_json_read(CliJson *json, const char *path, CfgJsonToken *tokens, unsigned int tokens_most)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
+    const unsigned char *const bytes = cli_file_held(path, &size);
     if (bytes == NULL)
     {
         return CLI_JSON_NONE;
@@ -268,234 +317,6 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path, CfgJsonToken
     char why[CLI_NAME_LONGEST];
     CliLine unread = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_read(json, (const char *)bytes, size, tokens, tokens_most, &unread);
-    qry_member_file_unmapped(bytes, size);
+    cli_file_let_go(bytes, size);
     return root;
-}
-
-// the folder a .clangd at the tree's top names as its CompilationDatabase into `folder`: 1, or 0 where it names none
-static int cli_clangd_names(const char *root, char *folder)
-{
-    char path[CLI_PATH_LONGEST];
-    cli_full(root, ".clangd", path);
-    unsigned long long size = 0ull;
-    const unsigned char *const bytes = qry_member_file_mapped(path, &size);
-    int named = 0;
-    for (unsigned long long at = 0ull; (bytes != NULL) && !named && (at < size);)
-    {
-        const unsigned char *const newline =
-            memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the bytes, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
-        const char *from = (const char *)bytes + at;
-        const char *to = (const char *)bytes + end;
-        at = end + 1ull;
-        while ((from < to) && cli_white(from[0]))
-        {
-            from += 1;
-        }
-        if (((to - from) < 20) ||
-            (memor.cmp(&(MemoriaCfg){.src = from, .other = "CompilationDatabase:", .bytes = 20u}) != 0))
-        {
-            continue;
-        }
-        from += 20;
-        const char *const hash =
-            memor.chr(&(MemoriaCfg){.src = from, .val = '#', .bytes = (unsigned long long)(to - from)});
-        to = (hash != NULL) ? hash : to;
-        while ((from < to) && (cli_white(from[0]) || (from[0] == '"')))
-        {
-            from += 1;
-        }
-        while ((to > from) && (cli_white(to[-1]) || (to[-1] == '"')))
-        {
-            to -= 1;
-        }
-        // the folder lies between its quotes, its end at or past its start
-        const unsigned long long length = (unsigned long long)(to - from);
-        if ((length > 0ull) && (length < CLI_PATH_LONGEST))
-        {
-            memor.cpy(&(MemoriaCfg){.dst = folder, .src = from, .bytes = length});
-            folder[length] = '\0';
-            named = 1;
-        }
-    }
-    if (bytes != NULL)
-    {
-        qry_member_file_unmapped(bytes, size);
-    }
-    return named;
-}
-
-void cli_compile_inputs(const char *root, CliInputs *inputs)
-{
-    static CliFoundFolders s_found;
-    static const char *const s_reply[4] = {".cmake", "api", "v1", "reply"};
-    inputs->own = 0;
-    inputs->count = 0u;
-    char own[3][CLI_PATH_LONGEST];
-    unsigned int owns = 0u;
-    char named[CLI_PATH_LONGEST];
-    char joined[CLI_PATH_LONGEST];
-    if (cli_clangd_names(root, named))
-    {
-        cli_full(root, named, joined);
-        cli_full(joined, "compile_commands.json", own[owns]);
-        owns += 1u;
-    }
-    cli_full(root, "compile_commands.json", own[owns]);
-    owns += 1u;
-    cli_full(root, "build/compile_commands.json", own[owns]);
-    owns += 1u;
-    for (unsigned int at = 0u; at < owns; at += 1u)
-    {
-        if (cli_compile_stamped(own[at], &inputs->file[0]))
-        {
-            inputs->own = 1;
-            inputs->count = 1u;
-            return;
-        }
-    }
-    cli_full(root, "build/cmake", joined);
-    cli_compile_folders_named(joined, s_reply, 4u, &s_found);
-    for (unsigned int at = 0u; (at < s_found.count) && (inputs->count < CLI_COMPILE_INPUTS); at += 1u)
-    {
-        char index[CLI_PATH_LONGEST];
-        if (cli_compile_newest_index(s_found.path[at], index) &&
-            cli_compile_stamped(index, &inputs->file[inputs->count]))
-        {
-            inputs->count += 1u;
-        }
-    }
-    cli_full(root, "build/meson", joined);
-    cli_compile_files_named(joined, "compile_commands.json", &s_found);
-    for (unsigned int at = 0u; (at < s_found.count) && (inputs->count < CLI_COMPILE_INPUTS); at += 1u)
-    {
-        inputs->count += cli_compile_stamped(s_found.path[at], &inputs->file[inputs->count]) ? 1u : 0u;
-    }
-    // sorted by path, then time
-    for (unsigned int at = 1u; at < inputs->count; at += 1u)
-    {
-        const CliStamped held = inputs->file[at];
-        unsigned int place = at;
-        while ((place > 0u) &&
-               ((cli_text_order(inputs->file[place - 1u].path, held.path) > 0) ||
-                ((cellul.eq(&(CatenaFinitaCfg){
-                     .src = inputs->file[place - 1u].path, .other = held.path, .cap = CLI_CELLS_POOL})) &&
-                 (inputs->file[place - 1u].time > held.time))))
-        {
-            inputs->file[place] = inputs->file[place - 1u];
-            place -= 1u;
-        }
-        inputs->file[place] = held;
-    }
-}
-
-// The last look: its tree, when, the files it read with their times, and what it found
-typedef struct
-{
-    int kept;
-    char root[CLI_PATH_LONGEST];
-    unsigned long long at;
-    CliInputs read;
-    CliDatabase database;
-    CliInputs reading;
-} CliKeptLook;
-
-static CliKeptLook s_kept;
-static CliLock s_kept_lock = CLI_LOCK_INIT;
-
-// whether two looks read the same files at the same times
-static int cli_same_inputs(const CliInputs *one, const CliInputs *other)
-{
-    if (one->count != other->count)
-    {
-        return 0;
-    }
-    for (unsigned int at = 0u; at < one->count; at += 1u)
-    {
-        if ((one->file[at].time != other->file[at].time) ||
-            (!cellul.eq(
-                &(CatenaFinitaCfg){.src = one->file[at].path, .other = other->file[at].path, .cap = CLI_CELLS_POOL})))
-        {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-int cli_compile_db_refresh(const char *root, CliDatabase *database)
-{
-    cli_lock_take(&s_kept_lock);
-    const int same =
-        s_kept.kept && (cellul.eq(&(CatenaFinitaCfg){.src = s_kept.root, .other = root, .cap = CLI_CELLS_POOL}));
-    if (same && ((cli_clock_milliseconds() - s_kept.at) < CLI_COMPILE_LOOKED_FOR))
-    {
-        *database = s_kept.database;
-        cli_lock_give(&s_kept_lock);
-        return 0;
-    }
-    cli_compile_inputs(root, &s_kept.reading);
-    if (same && cli_same_inputs(&s_kept.read, &s_kept.reading))
-    {
-        s_kept.at = cli_clock_milliseconds();
-        *database = s_kept.database;
-        cli_lock_give(&s_kept_lock);
-        return 0;
-    }
-    cli_compile_gather(root, &s_kept.reading, &s_kept.database);
-    // the builds read changed since the last look at this tree: clangd is to read the database again
-    s_kept.kept = 1;
-    memor.cpy(&(MemoriaCfg){.dst = s_kept.root,
-                            .src = root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    s_kept.at = cli_clock_milliseconds();
-    s_kept.read = s_kept.reading;
-    *database = s_kept.database;
-    cli_lock_give(&s_kept_lock);
-    return same;
-}
-
-int cli_compile_db_is_cl(const char *compiler)
-{
-    const char *name = compiler;
-    for (const char *at = compiler; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
-    const char *const dot =
-        cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
-    const unsigned long long stem = ((dot != NULL) && (dot != name))
-                                        ? (unsigned long long)(dot - name)
-                                        : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    return (stem == 2ull) && ((name[0] | 0x20) == 'c') && ((name[1] | 0x20) == 'l');
-}
-
-void cli_compile_db_words(const CliDatabase *database, CliWords *words)
-{
-    char word[CLI_PATH_LONGEST * 4u];
-    if (database->has_folder)
-    {
-        CliLine line = {word, sizeof(word), 0ull};
-        cli_line_text(&line, "--compile-commands-dir=");
-        cli_line_text(&line, database->folder);
-        cli_line_closed(&line);
-        cli_words_put(words, word);
-    }
-    CliLine line = {word, sizeof(word), 0ull};
-    cli_line_text(&line, "--query-driver=");
-    unsigned int drivers = 0u;
-    for (unsigned int at = 0u; at < database->compilers; at += 1u)
-    {
-        if (!cli_compile_db_is_cl(database->compiler[at]))
-        {
-            cli_line_text(&line, (drivers != 0u) ? "," : "");
-            cli_line_text(&line, database->compiler[at]);
-            drivers += 1u;
-        }
-    }
-    cli_line_closed(&line);
-    if (drivers != 0u)
-    {
-        cli_words_put(words, word);
-    }
 }

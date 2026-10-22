@@ -102,7 +102,9 @@ int cli_debug_watch_data(unsigned long long id, const char *name, int has_refere
                          unsigned long long bytes, CliLine *out, CliLine *said);
 
 // the processes of the machine, by their names, each its number, its program's name and the line it was started with
-// where the system says, written into `out` (debug_processes.c)
+// where the system says, written into `out`, from cells sized to the processes found, counted to
+// g_cli_debug_processes_cells and given back once written (debug_processes.c)
+extern CliCellsTally g_cli_debug_processes_cells;
 void cli_debug_processes(CliLine *out);
 
 // the bytecode of the function of the Python file at `path` that holds `line`, counted from 0, as the tree's Python

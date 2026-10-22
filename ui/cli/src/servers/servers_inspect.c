@@ -170,10 +170,14 @@ static int inspect_supplied_put(void)
     for (unsigned int at = 0u; at < s_supplied_new.entries; at += 1u)
     {
         const CliKeyedEntry *const one = cli_keyed_entry(&s_supplied_new, at);
+        if (!one->used)
+        {
+            continue;
+        }
         const char *beside = NULL;
         unsigned long long size = 0ull;
         const char *const text = cli_keyed_get(&s_supplied_new, one->cell, &beside, &size);
-        if (one->used && (text != NULL))
+        if (text != NULL)
         {
             (void)cli_keyed_put(&g_cli_servers_supplied, one->cell, "", text, size);
         }
@@ -270,14 +274,14 @@ static int inspect_index_read(const char *root, unsigned long long born)
         char path[CLI_PATH_LONGEST];
         cli_full(root, one, path);
         unsigned long long size = 0ull;
-        const unsigned char *const mapped = qry_member_file_mapped(path, &size);
+        const unsigned char *const mapped = cli_file_held(path, &size);
         if ((mapped != NULL) && cli_utf8_whole((const char *)mapped, size))
         {
             (void)cli_inspect_tree_set(one, language, (const char *)mapped, size);
         }
         if (mapped != NULL)
         {
-            qry_member_file_unmapped(mapped, size);
+            cli_file_let_go(mapped, size);
         }
     }
     cli_files_let(files);

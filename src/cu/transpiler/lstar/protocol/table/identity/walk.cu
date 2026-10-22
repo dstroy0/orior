@@ -155,7 +155,7 @@ static int identity_last(const char *engine, const char *answers, const char *ks
     }
     if (probes.empty())
     {
-        printf("klq_identity %s: no chain answers alike with a value renamed, and no probe\n", mode);
+        printf("orior_klq_identity %s: no chain answers alike with a value renamed, and no probe\n", mode);
         run_channel_close();
         return 1;
     }
@@ -184,24 +184,24 @@ static int identity_last(const char *engine, const char *answers, const char *ks
     const long long last = walk_step(renamed_alike, (long long)highest, -1, 0);
     if (!run_closed(&table))
     {
-        printf("klq_identity %s: %s/%s could not be written\n", mode, folder.c_str(), blob);
+        printf("orior_klq_identity %s: %s/%s could not be written\n", mode, folder.c_str(), blob);
         run_channel_close();
         return 1;
     }
     run_channel_close();
     if (last < 0)
     {
-        printf("klq_identity %s: no number answers alike, and no last value\n", mode);
+        printf("orior_klq_identity %s: no number answers alike, and no last value\n", mode);
         return 1;
     }
     char row[64];
     snprintf(row, sizeof(row), "run answers %08llx %s", (unsigned long long)last, answer);
     if (!ksc_answers_write(ksc, mode, std::vector<std::string>{row}))
     {
-        printf("klq_identity %s: %s could not be written\n", mode, ksc);
+        printf("orior_klq_identity %s: %s could not be written\n", mode, ksc);
         return 1;
     }
-    printf("klq_identity %s: the last %c%lld, over %llu asks, written to %s\n", mode, token, last, asks, ksc);
+    printf("orior_klq_identity %s: the last %c%lld, over %llu asks, written to %s\n", mode, token, last, asks, ksc);
     return 0;
 }
 
@@ -215,7 +215,7 @@ int identity_register(const char *engine, const char *answers, const char *ksc, 
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
         (fields.count("rb") == 0u))
     {
-        printf("klq_identity register: %s gives no stall field or not every register field\n", ksc);
+        printf("orior_klq_identity register: %s gives no stall field or not every register field\n", ksc);
         return 1;
     }
     const std::vector<StallField> registers = {fields["rd"], fields["ra"], fields["rb"]};
@@ -234,7 +234,7 @@ int identity_predicate(const char *engine, const char *answers, const char *ksc,
     if ((fields.count("stall") == 0u) || (fields.count("pg") == 0u) || (fields.count("guard") == 0u) ||
         (fields.count("pt") == 0u))
     {
-        printf("klq_identity predicate: %s gives no stall field or not every predicate field\n", ksc);
+        printf("orior_klq_identity predicate: %s gives no stall field or not every predicate field\n", ksc);
         return 1;
     }
     const std::vector<StallField> predicates = {fields["pg"], fields["guard"], fields["pt"]};
@@ -256,7 +256,7 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
         (fields.count("rb") == 0u))
     {
-        printf("klq_identity past: %s gives no stall field or not every register field\n", ksc);
+        printf("orior_klq_identity past: %s gives no stall field or not every register field\n", ksc);
         return 1;
     }
     const StallField stall = fields["stall"];
@@ -327,22 +327,22 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
     }
     if (!run_closed(&table))
     {
-        printf("klq_identity past: %s/past.txt could not be written\n", folder.c_str());
+        printf("orior_klq_identity past: %s/past.txt could not be written\n", folder.c_str());
     }
     run_channel_close();
     if (past < 0)
     {
-        printf("klq_identity past: no chain answers alike declaring any count, and no answer\n");
+        printf("orior_klq_identity past: no chain answers alike declaring any count, and no answer\n");
         return 1;
     }
     char row[64];
     snprintf(row, sizeof(row), "run answers %08llx register past", (unsigned long long)past);
     if (!ksc_answers_write(ksc, "past", std::vector<std::string>{row}))
     {
-        printf("klq_identity past: %s could not be written\n", ksc);
+        printf("orior_klq_identity past: %s could not be written\n", ksc);
         return 1;
     }
-    printf("klq_identity past: a container's code reaches %lld past the highest register it names, over %llu asks, "
+    printf("orior_klq_identity past: a container's code reaches %lld past the highest register it names, over %llu asks, "
            "written to %s\n",
            past, asks, ksc);
     return 0;

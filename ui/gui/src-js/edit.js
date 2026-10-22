@@ -28,7 +28,6 @@ import { onAuthors } from "./authors.js";
 import { invoke, listen } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
 import { lineChanges } from "./editor/diff.js";
-import { HALF, SLICE } from "./files_host.js";
 import { Session } from "./editor/session.js";
 import { colorWith } from "./editor/tokens.js";
 import { findWith } from "./editor/find.js";
@@ -42,7 +41,7 @@ import { anchor } from "./review.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
-import { follow as followPaged, inWindow, jumpPaged, openPaged, PAGED_FROM, readPaged, releasePaged, savePaged } from "./paged.js";
+import { follow as followPaged, inWindow, jumpPaged, openPaged, readPaged, releasePaged, savePaged } from "./paged.js";
 import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, parseShown, serve, spansOf, startServers, stopServing, stopTelling, treeChecking, wrap } from "./servers.js";
 import { callHierarchy, closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
@@ -65,7 +64,6 @@ import { cellFileOf, closeNotebook, drawNotebook, hideNotebook, isNotebook, mark
 import { onScheme } from "./scheme.js";
 import { iconsKey, kindColors } from "./themes.js";
 import { onFonts } from "./fonts.js";
-import { calm, nextSlice, status, write } from "./status.js";
 import { writeWithCare } from "./rights.js";
 import { marksOf, startScripts, syncPlugins, tabLabelOf, tell } from "./scripts.js";
 import { togglePane } from "./sides.js";
@@ -775,6 +773,7 @@ function closeTab(tab) {
   leaveGroup(tab.path);
   leaveSplit(tab.path);
   stopServing(tab);
+  tell("close", { path: tab.file });
   letGo(tab.session?.doc);
   releasePaged(tab.session);
   if (tab.notebook) {
@@ -791,9 +790,8 @@ function closeTab(tab) {
   }
 }
 
-// A file too large to read whole opens as a window of HALF bytes either side of the line it was
-// left at, and reads outward from there a SLICE at a time, below then above, between frames. The
-// sizes are the host's, as its sweeps found them (files_host.js).
+// A file too large to read whole opens paged (paged.js): the CLI holds it, and the page holds a
+// window of its lines about the view, slid as the view moves.
 
 const placeKey = (path) => `orior.place.${path}`;
 
@@ -822,58 +820,6 @@ function settleAt(session, place) {
   session.top = Math.max(0, line - 8);
 }
 
-const textOf = new TextDecoder();
-
-// A slice of a file as file_slice sends it: its start, its end and the file's size, each 8 bytes
-// little-endian, then the text.
-async function sliceAt(path, start, end) {
-  const sent = await invoke("file_slice", { path, start, end });
-  const head = new DataView(sent, 0, 24);
-  const at = (offset) => Number(head.getBigUint64(offset, true));
-  return { start: at(0), end: at(8), size: at(16), text: textOf.decode(new Uint8Array(sent, 24)) };
-}
-
-// Reads the rest of a windowed file, a slice at a time, standing back whenever the status block says
-// the view is pressed, and writing how far it has read there. The slices come as nextSlice says.
-async function readOutward(tab) {
-  const s = tab.session;
-  let below = true;
-  while (s.window && (s.window.start > 0 || s.window.end < s.window.size)) {
-    if (!state.tabs.includes(tab)) {
-      write("reads", [tab.path, null]);
-      return;
-    }
-    write("reads", [tab.path, { read: s.window.end - s.window.start, size: s.window.size }]);
-    const canAbove = s.window.start > 0;
-    const canBelow = s.window.end < s.window.size;
-    const goBelow = nextSlice({ canAbove, canBelow, moving: status.scroll.speed > 0, heading: status.scroll.heading, below }) === "below";
-    below = !below;
-    if (goBelow) {
-      const got = await sliceAt(tab.path, s.window.end, s.window.end + SLICE);
-      s.grow(got.text, false);
-      s.window.end = got.end > s.window.end ? got.end : s.window.size;
-    } else {
-      let got = await sliceAt(tab.path, Math.max(0, s.window.start - SLICE), s.window.start);
-      if (got.start >= s.window.start) {
-        got = await sliceAt(tab.path, 0, s.window.start);
-      }
-      s.grow(got.text, true);
-      s.window.start = got.start;
-    }
-    await calm();
-  }
-  write("reads", [tab.path, null]);
-  s.window = null;
-  // Read whole with no edit made on the way, the file's lines are the document's.
-  const own = s.doc.id === tab.saved;
-  if (own) {
-    keepSaved(tab);
-  }
-  hold(tab, own);
-  state.editor.schedule();
-}
-
-// Opens a file on the side last pressed in.
 // Loads a file's tab, or says on the status bar why its file could not be read, as for a file gone
 // from the disk since its tab was kept. Answers whether the tab is there.
 async function loaded(path) {
@@ -947,14 +893,8 @@ async function load(path, as = null) {
     const opened = await invoke("file_read", { path });
     const tab = { path, file: path, size: opened.size, closing: false };
     const place = placeOf(path);
-    if (opened.windowed && opened.size >= PAGED_FROM) {
+    if (opened.windowed) {
       tab.session = await openPaged(path, place?.line ?? 0, state.known.languageOf(path));
-      markSaved(tab);
-      settleAt(tab.session, place);
-    } else if (opened.windowed) {
-      const shown = await invoke("file_window", { path, line: place?.line ?? 0, half: HALF });
-      const held = { start: shown.start, end: shown.end, size: shown.size, lines: shown.lines };
-      tab.session = new Session(shown.text, state.known.languageOf(path), { base: shown.line, window: held });
       markSaved(tab);
       settleAt(tab.session, place);
     } else if (opened.text !== null && opened.text !== undefined) {
@@ -980,9 +920,6 @@ async function load(path, as = null) {
       tab.bytes = new Uint8Array(opened.bytes);
     }
     state.tabs.push(tab);
-    if (tab.session?.window && !tab.session.window.paged) {
-      tab.reading = readOutward(tab);
-    }
     serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
     // The width the file's formatter keeps its lines to, drawn as a line down the editor.
     if (tab.session) {
@@ -1360,8 +1297,6 @@ async function saveActive(tab = tabOf(actingPath())) {
     drawTree();
     return;
   }
-  // A file still being read is written only once all of it is in.
-  await tab.reading;
   if (saving("format")) {
     await formatTab(tab, { saving: true });
   }
@@ -1408,9 +1343,6 @@ export async function openAt(path, line, col = 0, { preview = false } = {}) {
   const s = tab?.session;
   if (!s) {
     return;
-  }
-  if ((line < s.base || line >= s.base + s.doc.count) && tab.reading) {
-    await tab.reading;
   }
   if (s.window?.paged && !inWindow(s, line)) {
     await jumpPaged(s, line);
@@ -1477,7 +1409,6 @@ async function formatTab(tab, { saving: onSave = false } = {}) {
     }
     return;
   }
-  await tab.reading;
   const doc = s.doc;
   const version = doc.id;
   const before = doc.lines.join("\n");
@@ -2022,7 +1953,6 @@ async function revertSnapshot(path, at) {
     await openFile(path);
   }
   const tab = tabOf(path);
-  await tab?.reading;
   if (tab?.session && !tab.readOnly) {
     closeDiff();
     replaceText(tab, then, "revert");
@@ -3162,7 +3092,6 @@ export async function startEdit(defs) {
       if (s?.window?.paged) {
         throw new Error(`${path} is held as pages: orior.editor.lines reads a part of it`);
       }
-      await tabOf(path)?.reading;
       return s?.doc.text() ?? (await invoke("file_read", { path })).text;
     },
     // A part of a file's lines: a paged file's from the Rust side, and any other's as its tab holds
@@ -3172,11 +3101,11 @@ export async function startEdit(defs) {
       if (s?.window?.paged) {
         return readPaged(s, from, to);
       }
-      await tabOf(path)?.reading;
       const lines = s ? s.doc.lines : ((await invoke("file_read", { path })).text ?? "").split(/\r?\n/);
       return lines.slice(from - (s?.base ?? 0), to - (s?.base ?? 0));
     },
     write: (one, path, text) => writeWithCare(path, text, { who: one.name }).then(() => null),
+    open: (path, line, col) => openAt(path, line, col),
   });
   syncPlugins();
   onShown((path) => path && tell("open", { path }));
@@ -3892,7 +3821,6 @@ export function editing() {
     saveAll: async ({ auto = false } = {}) => {
       const shown = state.active;
       for (const tab of state.tabs.filter(dirty)) {
-        await tab.reading;
         if (!auto && saving("format")) {
           await formatTab(tab, { saving: true });
         }

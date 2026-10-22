@@ -311,6 +311,11 @@ static void tool_looked_over(const char *language)
 
 int cli_validate_tool_for(const char *language, char *id)
 {
+    // each plugin is read into the validation's room, held for the look as a validation holds it
+    if (!cli_validate_held())
+    {
+        return 0;
+    }
     tool_looked_over(language);
     const char *least = NULL;
     for (unsigned int at = 0u; at < s_look.count; at += 1u)
@@ -327,6 +332,7 @@ int cli_validate_tool_for(const char *language, char *id)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = least, .cap = CLI_CELLS_POOL}) + 1u});
     }
     cli_lock_give(&s_look_lock);
+    cli_validate_released();
     return least != NULL;
 }
 

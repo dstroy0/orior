@@ -3,7 +3,7 @@
 Extraction of Don’t stress about schwa: The diachrony of weak roots in Secwepemctsín by Ethan
 Pincott, ICSNL 60.
 
-Drafted by the anchor_sift engine and read against the page by a person. The engine sorted every
+Drafted by the orior-engine engine and read against the page by a person. The engine sorted every
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
@@ -43,7 +43,7 @@ together; the glyph positions set them as the table writes them. The paper numbe
 pages 10 and 12, and the table names each by its page. Figure 1 is a chart the text layer does not
 carry, and only its caption is kept.
 
-anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
+orior-engine's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 612
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 9162
 distinct tokens in the paper, 0 language tokens are held by no row.

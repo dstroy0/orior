@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line.h: the command line: the window's menus as words. `orior <menu> <command>` is the command of that menu,
-// `orior <menu> <job>` the job of a menu of jobs, and the help is the menus listed.
+// command_line.h: the command line: the window's menus as words. `orior_cli <menu> <command>` is the command of that menu,
+// `orior_cli <menu> <job>` the job of a menu of jobs, and the help is the menus listed.
 //
 // A command the terminal can do, starting a job, listing, showing, the bridge, the keys and the version, runs here.
 // Every other acts in the window, and the words come to the window to open with the command to run in it. Every job

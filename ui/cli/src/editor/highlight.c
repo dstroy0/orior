@@ -130,7 +130,8 @@ static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int v
             (key != NULL) ? cli_text(grammar, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}), 0)
                           : CLI_HIGHLIGHT_NONE;
         const CliHighlightCase entry = {
-            key_text, (inner != CLI_HIGHLIGHT_NONE) ? inner : cli_token_made(grammar, CLI_TOKEN_NAME, 0u)};
+            key_text, (inner != CLI_HIGHLIGHT_NONE) ? inner : cli_token_made(grammar, CLI_TOKEN_NAME, 0u),
+            CLI_HIGHLIGHT_NONE, 0};
         grammar->cases[place] = entry;
         place += 1u;
     }
@@ -191,6 +192,7 @@ static int cli_pattern_of(CliGrammar *grammar, const CliJson *json, unsigned int
     rule->groups = read.groups;
     rule->fold = read.fold;
     rule->first = read.first;
+    rule->anchored = read.anchored;
     grammar->nodes += read.nodes;
     grammar->items += read.items;
     grammar->parts += read.parts;
@@ -210,6 +212,7 @@ void cli_highlight_pattern(const CliGrammar *grammar, const CliHighlightRule *ru
     pattern->groups = rule->groups;
     pattern->fold = rule->fold;
     pattern->first = rule->first;
+    pattern->anchored = rule->anchored;
 }
 
 // one rule of a state read: an include, or a pattern with its token and the state it goes to. 1, or 0 with why said
@@ -437,6 +440,23 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
         grammar->state[state].first = grammar->listed_count;
         cli_expanded(grammar, state, seen, 1u);
         grammar->state[state].count = grammar->listed_count - grammar->state[state].first;
+    }
+    // each case's text read once here: `@default` is the fallback, and a text starting with `@` names a word list
+    for (unsigned int at = 0u; at < grammar->case_count; at += 1u)
+    {
+        CliHighlightCase *const entry = &grammar->cases[at];
+        const char *const key = (entry->key != CLI_HIGHLIGHT_NONE) ? grammar->text + entry->key : "";
+        entry->fallback = cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "@default", .cap = CLI_CELLS_POOL});
+        entry->list = CLI_HIGHLIGHT_NONE;
+        for (unsigned int list = 0u; !entry->fallback && (key[0] == '@') && (list < grammar->word_lists); list += 1u)
+        {
+            if (cellul.eq(&(CatenaFinitaCfg){
+                    .src = grammar->text + grammar->words[list].name, .other = key + 1, .cap = CLI_CELLS_POOL}))
+            {
+                entry->list = list;
+                break;
+            }
+        }
     }
     if (s_full)
     {

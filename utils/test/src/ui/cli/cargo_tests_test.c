@@ -20,8 +20,7 @@ static void cargo_scanned(void)
         "#[tokio::test]\n    async fn two() {}\n\n    #[test]\n    #[should_panic(expected = \"no {\")]\n    pub fn "
         "three() { let _ = '}'; }\n\n    fn not_a_test() {}\n\n    mod deeper {\n        mod inner_file;\n        "
         "#[test]\n        fn four() {}\n    }\n}\n\n#[test]\nfn five() {}\n";
-    g_cli_cargo_scan.held_count = 0u;
-    g_cli_cargo_scan.name_used = 0ull;
+    cli_cargo_scan_given();
     cli_cargo_tokens(s_text, sizeof(s_text) - 1u);
     const unsigned int count = cli_cargo_scan(s_text);
     char tests[1024];
@@ -46,6 +45,10 @@ static void cargo_scanned(void)
     cli_check_text(tests, test_line.at, "tests::one 12|tests::two 15|tests::three 19|tests::deeper::four 26|five 31",
                    "tests are found past strings, comments and lifetimes");
     cli_check_text(mods, mod_line.at, "outer|tests::deeper::inner_file", "and the modules a file names");
+    cli_check((g_cli_cargo_scan.token_room == g_cli_cargo_scan.token_count) && (g_cli_cargo_scan.token_count != 0u),
+              "the tokens' cell is the size of their count");
+    cli_cargo_scan_given();
+    cli_check(g_cli_cargo_cells.holds == 0ull, "and every cell of the search is given back");
 }
 
 // a target written as `kind` or `kind:name`
@@ -109,6 +112,11 @@ static void cargo_found(void)
                    "-\ncrate/tests/whole.rs::integration test:whole integration -",
                    "a package's targets and modules give each test its name");
     cli_check((s_tests.count > 1u) && (s_tests.found[1].test.line == 3u), "and its line");
+    cli_check((s_tests.room >= s_tests.count) && (s_tests.pieces != NULL) && (s_tests.pieces->next == NULL),
+              "the tests are held in a room grown to them, their texts in one piece");
+    cli_cargo_tests_given(&s_tests);
+    cli_check((g_cli_cargo_cells.holds == 0ull) && (g_cli_cargo_cells.hw != 0ull),
+              "the search's cells are each given back as it ends");
     cli_check(cli_cargo_is_rust("crate/src/lib.rs::at_top") && cli_cargo_is_rust("crate/src/lib.rs") &&
                   !cli_cargo_is_rust("tests/test_a.py::test_one"),
               "a Rust test and file are told from a Python one");

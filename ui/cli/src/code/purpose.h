@@ -14,6 +14,7 @@
 #ifndef PURPOSE_H
 #define PURPOSE_H
 
+#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
 
 // the most bytes of a file read for its comment, and of each file read for its uses; the most letters of a comment
@@ -24,8 +25,9 @@
 #define CLI_PURPOSE_USERS 20u
 
 // what the first comment of `size` bytes of `text`, the text of the file at `path`, says, past a license's comment,
-// written into `out` (purpose_comment.c)
+// written into `out`; and the cells the room it is read in holds (purpose_comment.c)
 void cli_purpose_first_comment(const char *path, const char *text, unsigned long long size, CliLine *out);
+extern CliCellsTally g_cli_purpose_cells;
 
 // whether `size` bytes of `text` use the file named `name`, whose name without its extension is `stem`; what the first
 // comment of the file at `path` of the tree `root` says, written as a JSON string; the files of the tree that use it,

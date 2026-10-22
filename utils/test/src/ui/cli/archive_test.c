@@ -235,7 +235,7 @@ static int archive_round(const unsigned char *data, unsigned long long size)
 // deflate and inflate give back every byte, and gzip and gunzip
 static void archive_deflate(void)
 {
-    static const char s_words[] = "orior reads archives ";
+    static const char s_words[] = "orior_cli reads archives ";
     for (unsigned int at = 0u; at < sizeof(s_text); at += 1u)
     {
         // a letter of the words, its low bit turned at every 251st
@@ -421,7 +421,7 @@ static int archive_python(const char *python, const char *code, const char *dir,
     return whole;
 }
 
-// archives Python's own zipfile and tarfile write are read here, and what orior writes back is read by them in turn
+// archives Python's own zipfile and tarfile write are read here, and what orior_cli writes back is read by them in turn
 static void archive_python_made(void)
 {
     static const char s_make[] =
@@ -457,7 +457,7 @@ static void archive_python_made(void)
     cli_check(archive_python(python, s_check, dir, out, sizeof(out)) &&
                   (cellul.eq(&(CatenaFinitaCfg){
                       .src = out, .other = "written by orior|3000|tar text, written by orior", .cap = CLI_CELLS_POOL})),
-              "and Python reads what orior wrote");
+              "and Python reads what orior_cli wrote");
 }
 
 // `path` with its backslashes made slashes, into `out`, which holds CLI_PATH_LONGEST

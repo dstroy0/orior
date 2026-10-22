@@ -11,12 +11,12 @@
 
 typedef struct
 {
-    AnchorExactInteger *positions;
+    OriorExactInteger *positions;
     uint64_t *values;
     size_t count;
 } CellFrame;
 
-static int shift_from_unsigned(unsigned long long value, AnchorExactInteger *result)
+static int shift_from_unsigned(unsigned long long value, OriorExactInteger *result)
 {
     char text[SHIFT_TEXT];
     const int written = snprintf(text, sizeof(text), "%llu", value);
@@ -24,7 +24,7 @@ static int shift_from_unsigned(unsigned long long value, AnchorExactInteger *res
     {
         return 0;
     }
-    return anchor_exact_from_decimal(text, (size_t)written, ANCHOR_EXACT_DIGITS, result) == ANCHOR_EXACT_OK;
+    return orior_exact_from_decimal(text, (size_t)written, ORIOR_EXACT_DIGITS, result) == ORIOR_EXACT_OK;
 }
 
 static int shift_read_frame(const char *path, unsigned long long side_y, unsigned long long side_x, CellFrame *frame)
@@ -54,7 +54,7 @@ static int shift_read_frame(const char *path, unsigned long long side_y, unsigne
         if (frame->count == capacity)
         {
             capacity *= 2u;
-            AnchorExactInteger *grown = realloc(frame->positions, capacity * sizeof(*grown));
+            OriorExactInteger *grown = realloc(frame->positions, capacity * sizeof(*grown));
             uint64_t *grown_values = realloc(frame->values, capacity * sizeof(*grown_values));
             if ((grown == NULL) || (grown_values == NULL))
             {
@@ -79,7 +79,7 @@ static int shift_read_frame(const char *path, unsigned long long side_y, unsigne
 
 static int shift_order(const void *left, const void *right)
 {
-    return anchor_exact_compare((const AnchorExactInteger *)left, (const AnchorExactInteger *)right);
+    return orior_exact_compare((const OriorExactInteger *)left, (const OriorExactInteger *)right);
 }
 
 int main(int argc, char **argv)
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
     }
 
     const size_t total = first.count + second.count;
-    AnchorExactInteger *positions = malloc(total * sizeof(*positions));
+    OriorExactInteger *positions = malloc(total * sizeof(*positions));
     uint64_t *values = malloc(total * sizeof(*values));
     if ((positions == NULL) || (values == NULL))
     {
@@ -125,11 +125,11 @@ int main(int argc, char **argv)
     memcpy(values + first.count, second.values, second.count * sizeof(*values));
     qsort(positions, total, sizeof(*positions), shift_order);
 
-    const AnchorExactArm *engine = anchor_exact_portable_arm();
-#if defined(ANCHOR_EXACT_HAVE_CUDA) && ANCHOR_EXACT_HAVE_CUDA
+    const OriorExactArm *engine = orior_exact_portable_arm();
+#if defined(ORIOR_EXACT_HAVE_CUDA) && ORIOR_EXACT_HAVE_CUDA
     if ((argc < 7) || (strcmp(argv[6], "portable") != 0))
     {
-        const AnchorExactArm *device = anchor_exact_cuda_arm();
+        const OriorExactArm *device = orior_exact_cuda_arm();
         if (device != NULL)
         {
             engine = device;
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
     long best_dz = 0;
     for (long dz = 0; dz <= max_step; dz++)
     {
-        AnchorExactInteger lag;
+        OriorExactInteger lag;
         const unsigned long long step = (unsigned long long)dz * side_y * side_x;
         if (!shift_from_unsigned(step, &lag))
         {

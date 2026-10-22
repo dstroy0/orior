@@ -52,8 +52,8 @@ static volatile unsigned int s_owned[2u * CHECK_LINKS * 16u];
 // one branch's reading of one pass: its exact link costs, numerator[link] / denominator
 typedef struct
 {
-    AnchorExactInteger numerator[CHECK_LINKS];
-    AnchorExactInteger denominator;
+    OriorExactInteger numerator[CHECK_LINKS];
+    OriorExactInteger denominator;
 } CheckReading;
 
 // a branch: seven links reading a still word, link k `extra` + 64·k more times past its first read
@@ -92,11 +92,11 @@ static void check_solve(const QueryAsk *link, unsigned long long clock, unsigned
 // the sign of one's cost less two's at `link`: one's numerator times two's denominator against the reverse
 static int check_against(const CheckReading *one, const CheckReading *two, unsigned int link)
 {
-    AnchorExactInteger left;
-    AnchorExactInteger right;
-    anchor_exact_multiply(&one->numerator[link], &two->denominator, &left);
-    anchor_exact_multiply(&two->numerator[link], &one->denominator, &right);
-    return anchor_exact_compare(&left, &right);
+    OriorExactInteger left;
+    OriorExactInteger right;
+    orior_exact_multiply(&one->numerator[link], &two->denominator, &left);
+    orior_exact_multiply(&two->numerator[link], &one->denominator, &right);
+    return orior_exact_compare(&left, &right);
 }
 #endif
 
