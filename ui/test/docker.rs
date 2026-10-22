@@ -128,6 +128,10 @@ pub fn run_words(ui: &Path, passed: &[String], env: &[(String, String)], keys: O
     if let Some(cu) = ui.parent().map(|top| top.join("src").join("cu")).filter(|cu| cu.is_dir()) {
         mount(cu.display().to_string(), "/src/cu", true);
     }
+    // the names of the tree's programs, which the command line's build and the window's build.rs read at the top
+    if let Some(names) = ui.parent().map(|top| top.join("bin_names.tsv")).filter(|names| names.is_file()) {
+        mount(names.display().to_string(), "/bin_names.tsv", true);
+    }
     mount(ui.join("test").join("runs").display().to_string(), "/ui/test/runs", false);
     if let Some(keys) = keys {
         mount(keys.display().to_string(), "/host/ssh", true);
