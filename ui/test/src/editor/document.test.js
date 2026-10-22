@@ -108,6 +108,8 @@ let made = 0;
 async function closed(path) {
   const closer = () => document.querySelector(`#tabs .tab .close[title="${path}"]`);
   for (let press = 0; press < 2 && closer(); press += 1) {
+    // the tab may stand past the strip's edge among the tabs the pastes opened
+    closer().scrollIntoView({ block: "nearest", inline: "nearest" });
     await ui.waitFor(() => closer()?.checkVisibility(), 3000);
     await ui.click(closer());
   }

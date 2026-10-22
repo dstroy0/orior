@@ -15,6 +15,7 @@
   --code-size: 13px;
   --code-line: 20px;
   --bar-fg: #f3f2fb;
+  --bar-mark: #dfe0f0;
   --bar-signal: #6fdcb4;
   --bar-title: rgba(243, 242, 251, 0.78);
   --bar-title-hover: rgba(243, 242, 251, 0.1);
@@ -2093,7 +2094,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   flex: none;
   font: 700 17px/1 var(--head);
   letter-spacing: -0.03em;
-  color: var(--bar-fg);
+  color: var(--bar-mark);
   visibility: hidden;
 }
 
@@ -2123,13 +2124,13 @@ body[data-solo] [data-solo-tool] > .dock-sash {
    its own place. */
 .bar-mark {
   position: relative;
-  left: -9px;
-  top: 3.2px;
+  left: -7px;
+  top: 5.2px;
   margin-right: -4.4px;
 }
 
 .bar-mark .eye-mark path {
-  stroke-width: 9;
+  stroke-width: 6.75;
 }
 
 .empty-body p,
