@@ -15,6 +15,7 @@ import { drawMenubar, hearCommandLine, restoreEnvironment, runCommand, runLaunch
 import { forgetRuns } from "./runs.js";
 import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
+import { startClaim } from "./claim.js";
 import { closeIcon, refreshStrip, startStrip } from "./strip.js";
 import { startKeyHints } from "./keyhints.js";
 import { startSight } from "./sight.js";
@@ -295,6 +296,7 @@ async function start() {
     (line === null || line === undefined ? openFile(path) : openAt(path, line, col ?? 0)).then(showWindow);
   });
   startStrip({ run: runCommand });
+  startClaim();
   startKeyHints();
   startSight();
   startWaits();
