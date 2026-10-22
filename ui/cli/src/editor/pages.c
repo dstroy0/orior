@@ -332,15 +332,22 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
         unsigned long long length = end - at;
         length -= ((newline != NULL) && (length > 0ull) && (bytes[end - 1ull] == '\r')) ? 1ull : 0ull;
         const unsigned long long read = (newline != NULL) ? (end - at + 1ull) : (size - at);
-        // the line read as UTF-8, each byte that starts no whole letter as U+FFFD, three bytes, straight after the
-        // lines read, the room for it made first
-        if ((line >= from) && !lines->full && cli_page_lines_room(lines, 1ull, 3ull * length))
+        // the line read as UTF-8 straight after the lines read, with room for its own bytes; a byte that starts no
+        // whole letter is written as U+FFFD, three bytes, and a line those do not fit is written again with three
+        // bytes of room for each of its own
+        if ((line >= from) && !lines->full && cli_page_lines_room(lines, 1ull, length))
         {
             CliLine lossy = {lines->text + lines->used, lines->text_most - lines->used, 0ull};
             cli_lossy(&lossy, bytes + at, length);
+            if (!cli_line_fits(&lossy) && cli_page_lines_room(lines, 1ull, 3ull * length))
+            {
+                lossy = (CliLine){lines->text + lines->used, lines->text_most - lines->used, 0ull};
+                cli_lossy(&lossy, bytes + at, length);
+            }
+            lines->full = lines->full || !cli_line_fits(&lossy);
             lines->start[lines->count] = lines->used;
-            lines->length[lines->count] = lossy.at;
-            lines->used += lossy.at;
+            lines->length[lines->count] = cli_line_fits(&lossy) ? lossy.at : 0ull;
+            lines->used += lines->length[lines->count];
             lines->count += 1ull;
         }
         at = (newline != NULL) ? (end + 1ull) : size;
