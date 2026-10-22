@@ -98,7 +98,7 @@ int cli_serve_keep_run(const char *base)
     }
     cli_serve_kept_file(base, "said", s_said_file);
     cli_serve_kept_file(base, "stop", s_stop_file);
-    if (!cli_file_appended(s_said_file, "", 0ull, 0))
+    if (!cli_file_appended(s_said_file, "", 0ull, 1))
     {
         return 2;
     }

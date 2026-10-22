@@ -1,0 +1,61 @@
+kind	name	key	code	key_code	text	shifted
+mark	`	`	Backquote	192	`	~
+mark	-	-	Minus	189	-	_
+mark	=	=	Equal	187	=	+
+mark	[	[	BracketLeft	219	[	{
+mark	]	]	BracketRight	221	]	}
+mark	\	\	Backslash	220	\	|
+mark	;	;	Semicolon	186	;	:
+mark	'	'	Quote	222	'	"
+mark	,	,	Comma	188	,	<
+mark	.	.	Period	190	.	>
+mark	/	/	Slash	191	/	?
+named	Enter	Enter	Enter	13	\r
+named	Escape	Escape	Escape	27
+named	Esc	Escape	Escape	27
+named	Tab	Tab	Tab	9
+named	Backspace	Backspace	Backspace	8
+named	Delete	Delete	Delete	46
+named	Insert	Insert	Insert	45
+named	Home	Home	Home	36
+named	End	End	End	35
+named	PageUp	PageUp	PageUp	33
+named	PageDown	PageDown	PageDown	34
+named	Up	ArrowUp	ArrowUp	38
+named	Down	ArrowDown	ArrowDown	40
+named	Left	ArrowLeft	ArrowLeft	37
+named	Right	ArrowRight	ArrowRight	39
+named	ArrowUp	ArrowUp	ArrowUp	38
+named	ArrowDown	ArrowDown	ArrowDown	40
+named	ArrowLeft	ArrowLeft	ArrowLeft	37
+named	ArrowRight	ArrowRight	ArrowRight	39
+named	Space	 	Space	32
+named	ContextMenu	ContextMenu	ContextMenu	93
+modifier	Ctrl	Control	ControlLeft	17		2
+modifier	Control	Control	ControlLeft	17		2
+modifier	Shift	Shift	ShiftLeft	16		8
+modifier	Alt	Alt	AltLeft	18		1
+modifier	Option	Alt	AltLeft	18		1
+modifier	Meta	Meta	MetaLeft	91		4
+modifier	Cmd	Meta	MetaLeft	91		4
+modifier	Command	Meta	MetaLeft	91		4
+modifier	Win	Meta	MetaLeft	91		4
+modifier	Super	Meta	MetaLeft	91		4
+driven	Enter	
+driven	Escape	
+driven	Tab	
+driven	Backspace	
+driven	Delete	
+driven	Insert	
+driven	Home	
+driven	End	
+driven	PageUp	
+driven	PageDown	
+driven	ArrowUp	
+driven	ArrowDown	
+driven	ArrowLeft	
+driven	ArrowRight	
+driven	Control	
+driven	Shift	
+driven	Alt	
+driven	Meta	

@@ -15,7 +15,7 @@
 // rename, quick fix or parameter info.
 
 import { asked, invoke, listen } from "./bridge.js";
-import { cmp, wordAt } from "./editor/document.js";
+import { cmp, pos, wordAt, wordBefore } from "./editor/document.js";
 import { escapeHtml } from "./editor/view.js";
 import { markup } from "./editor/widgets.js";
 import { iconOf, showPane } from "./explorer.js";
@@ -84,18 +84,18 @@ export async function placesHere(kind) {
   const name = word?.text ?? "the symbol";
   await flush(found.tab);
   if (kind === "definition") {
-    const places = await asked("lsp_definition", found.at).catch(() => []);
+    const places = (await asked("lsp_definition", found.at).catch(() => [])) ?? [];
     return { name, places: places.map((one) => ({ path: one.path, line: one.line, col: one.col, text: "" })) };
   }
   if (kind === "usages") {
-    const usages = await asked("lsp_references", found.at, 61000);
+    const usages = (await asked("lsp_references", found.at, 61000)) ?? [];
     return { name, places: usages.map((one) => ({ path: one.path, line: one.from.line, col: one.from.col, text: one.text })) };
   }
   const root = await asked("calls_root", found.at);
   if (!root) {
     return { name, places: [] };
   }
-  const calls = await asked("calls_of", { path: found.tab.file, item: root.item, incoming: true });
+  const calls = (await asked("calls_of", { path: found.tab.file, item: root.item, incoming: true })) ?? [];
   return {
     name: root.name,
     places: calls.flatMap((call) => (call.at.length ? call.at : [call.from]).map((at) => ({ path: call.path, line: at.line, col: at.col, text: call.site, caller: call.name }))),
@@ -219,7 +219,7 @@ export async function findUsages() {
     say(`No language server serves ${found.s.language?.name ?? "plain text"}: searching the tree for ${word.text} as a whole word.`);
     return;
   }
-  const asked = ++state.asked;
+  const turn = ++state.asked;
   state.name = word?.text ?? "the symbol";
   togglePane(true, { take: false });
   showPane("usages");
@@ -228,14 +228,14 @@ export async function findUsages() {
   let usages;
   try {
     await flush(found.tab);
-    usages = await asked("lsp_references", found.at, 61000);
+    usages = (await asked("lsp_references", found.at, 61000)) ?? [];
   } catch (error) {
-    if (asked === state.asked) {
+    if (turn === state.asked) {
       document.getElementById("usages-said").textContent = String(error);
     }
     return;
   }
-  if (asked !== state.asked) {
+  if (turn !== state.asked) {
     return;
   }
   state.usages = usages;
@@ -526,26 +526,97 @@ function signatureOpen() {
   return Boolean(state.signature && !state.signature.hidden);
 }
 
-// Asks for the signature at the cursor and shows it, or closes it where the cursor is in no call.
-export async function parameterInfo({ quiet = false } = {}) {
-  const found = quiet ? here() : served();
-  if (!found?.tab.served) {
-    return;
-  }
-  const asked = ++state.signatureAsked;
-  await flush(found.tab);
-  const signature = await asked("lsp_signature", found.at).catch(() => null);
-  if (asked !== state.signatureAsked || state.hooks.editor()?.s !== found.s) {
-    return;
-  }
-  if (!signature) {
-    closeSignature();
-    if (!quiet) {
-      say("The cursor is not in a call.");
+// How many lines above the cursor the call it is in may have opened on.
+const CALL_LINES = 24;
+
+// The call the cursor is in, read back from the text: the name before its open parenthesis and which argument the
+// cursor stands in, the commas at the call's own depth counted; null where the cursor is in no call, a `;` at that
+// depth or an opening bracket or brace closing the reading.
+function callAt(doc, head) {
+  let depth = 0;
+  let index = 0;
+  for (let line = head.line; line >= 0 && line > head.line - CALL_LINES; line -= 1) {
+    const text = doc.line(line);
+    for (let col = line === head.line ? head.col - 1 : text.length - 1; col >= 0; col -= 1) {
+      const letter = text[col];
+      if (letter === ")" || letter === "]" || letter === "}") {
+        depth += 1;
+      } else if (letter === "(") {
+        if (depth === 0) {
+          const word = wordBefore(doc, pos(line, col));
+          return word?.text ? { name: word.text, index } : null;
+        }
+        depth -= 1;
+      } else if (letter === "[" || letter === "{") {
+        if (depth === 0) {
+          return null;
+        }
+        depth -= 1;
+      } else if (letter === "," && depth === 0) {
+        index += 1;
+      } else if (letter === ";" && depth === 0) {
+        return null;
+      }
     }
-    return;
   }
-  const { editor } = found;
+  return null;
+}
+
+// The parameters of a declaration's line: each `[from, to]` in the line, split on the commas inside its outermost
+// parentheses; none where the line holds no parentheses after the name.
+function parametersOf(text, name) {
+  const open = text.indexOf("(", text.indexOf(name));
+  if (open < 0) {
+    return { label: text, params: [] };
+  }
+  const params = [];
+  let depth = 0;
+  let from = open + 1;
+  let close = text.length;
+  for (let at = open + 1; at < text.length; at += 1) {
+    const letter = text[at];
+    if (letter === "(" || letter === "[" || letter === "{") {
+      depth += 1;
+    } else if (letter === ")" || letter === "]" || letter === "}") {
+      if (depth === 0) {
+        close = at;
+        break;
+      }
+      depth -= 1;
+    } else if (letter === "," && depth === 0) {
+      params.push([from, at]);
+      from = at + 1;
+    }
+  }
+  if (close > from && text.slice(from, close).trim()) {
+    params.push([from, close]);
+  }
+  const label = text.slice(0, close + 1);
+  const trimmed = params.map(([a, b]) => {
+    const piece = label.slice(a, b);
+    const lead = piece.length - piece.trimStart().length;
+    return [a + lead, a + lead + piece.trim().length];
+  });
+  return { label, params: trimmed };
+}
+
+// The signature the tree gives for the call at the cursor: the declarations of its name in the tree's index, the
+// first's own line as the label with the active parameter marked, the like declarations listed below it; null where
+// the tree declares no such function.
+async function treeSignature(call) {
+  const found = await invoke("symbols_find", { query: call.name }).catch(() => null);
+  const same = (found?.symbols ?? []).filter((one) => one.name === call.name && one.text && one.text.includes("("));
+  if (!same.length) {
+    return null;
+  }
+  const first = parametersOf(same[0].text, call.name);
+  const others = same.slice(1).map((one) => `\`${one.path}:${one.line + 1}\` ${one.text}`);
+  const where = `\`${same[0].path}:${same[0].line + 1}\``;
+  return { label: first.label, params: first.params, active: Math.min(call.index, Math.max(first.params.length - 1, 0)), doc: [where, ...others].join("\n\n") };
+}
+
+// the signature shown at the cursor, its active parameter in bold, the box placed above the line or below it
+function signatureShown(editor, signature) {
   const box = signatureBox(editor);
   const [from, to] = signature.params[signature.active ?? -1] ?? [0, 0];
   const label = signature.label;
@@ -559,11 +630,51 @@ export async function parameterInfo({ quiet = false } = {}) {
   box.style.left = `${Math.max(4, Math.min(rect.left - host.left - 12, host.width - box.offsetWidth - 12))}px`;
 }
 
-// After the text of a served tab changes: opens Parameter Info where ( or , was just typed, and
-// asks again while it is open.
+// Shows the signature at the cursor, or closes it where the cursor is in no call. The tree answers first and at
+// once, from the declarations its index holds; where a server holds the file its answer comes later and replaces
+// the tree's while the cursor still stands in the same call. Nothing waits on the server.
+export async function parameterInfo({ quiet = false } = {}) {
+  const found = here();
+  if (!found) {
+    return;
+  }
+  const turn = ++state.signatureAsked;
+  const call = callAt(found.s.doc, found.head);
+  const own = call ? await treeSignature(call) : null;
+  if (turn !== state.signatureAsked || state.hooks.editor()?.s !== found.s) {
+    return;
+  }
+  if (own) {
+    signatureShown(found.editor, own);
+  }
+  if (!found.tab.served) {
+    if (!own) {
+      closeSignature();
+      if (!quiet) {
+        say(call ? `The tree declares no ${call.name}.` : "The cursor is not in a call.");
+      }
+    }
+    return;
+  }
+  await flush(found.tab);
+  const signature = await asked("lsp_signature", found.at).catch(() => null);
+  if (turn !== state.signatureAsked || state.hooks.editor()?.s !== found.s) {
+    return;
+  }
+  if (signature) {
+    signatureShown(found.editor, signature);
+  } else if (!own) {
+    closeSignature();
+    if (!quiet) {
+      say("The cursor is not in a call.");
+    }
+  }
+}
+
+// After the text of a tab changes: opens Parameter Info where ( or , was just typed, and asks again while it is open.
 export function typed() {
   const found = here();
-  if (!found?.tab.served) {
+  if (!found) {
     return;
   }
   const before = found.s.doc.line(found.head.line)[found.head.col - 1];

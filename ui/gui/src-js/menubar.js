@@ -623,6 +623,7 @@ const COMMANDS = {
   // in the protocol panel; and its other commands, which the command line says and the menu does not list.
   course: protocolJob("protocol/course"),
   tables: protocolJob("protocol/tables"),
+  decode: protocolJob("protocol/decode"),
   query: protocolJob("protocol/query"),
   learn: protocolJob("protocol/learn"),
   cross: protocolJob("protocol/cross"),

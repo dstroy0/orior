@@ -1,0 +1,9 @@
+program	systems	for
+git	all	the repositories the tests make and read
+python	all	the files the tests run and the debugger they attach
+clangd	all	the language server the C tests ask
+clang	all	the compiler the C tests build with
+bash	posix	the jobs the tests start
+gdb	posix	the debugger the tests attach
+lldb-dap	posix	the debugger the tests attach
+WebKitWebDriver	posix	the driver the window is driven through

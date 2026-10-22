@@ -1291,6 +1291,30 @@ test("Edit, Rename, Quick Fix, Parameter Info and Quick Documentation ask the la
 const QUICK = "build/src/build_quick.sh";
 const SLOW = "build/src/build_slow.sh";
 
+// The protocol's commands, which the command line says and the menu lists under the protocol: each shows the Run
+// view with its job chosen; the run's tree holds no protocol jobs, and the job is chosen by its name alone. The
+// readings among them, `decode`, print at the command line and are no job of the window's: with no record named the
+// command line refuses one.
+const PROTOCOL = ["course", "tables", "decode", "query", "learn", "cross", "write", "pairs", "stick", "kept", "sweep"];
+const PROTOCOL_READINGS = new Set(["decode"]);
+PROTOCOL.forEach((command) => COVERED.add(command));
+
+test("the protocol's commands show the Run view, from the window and from the command line", async () => {
+  await loadRun();
+  for (const command of PROTOCOL) {
+    showView("edit");
+    await runCommand(command);
+    assert.equal(document.body.dataset.view, "run", `${command} shows the Run view from the window`);
+    showView("edit");
+    if (PROTOCOL_READINGS.has(command)) {
+      await assert.rejects(() => press(command), /exit code: 2/, `${command} with no record is refused at the command line`);
+      continue;
+    }
+    await press(command);
+    assert.equal(document.body.dataset.view, "run", `${command} shows the Run view`);
+  }
+});
+
 test("Run, Start and Stop run the job chosen, and the command line lists, shows and starts the tree's jobs", async () => {
   await invoke("file_write", { path: "src/build_quick.sh", text: "#!/usr/bin/env bash\necho quick\n" });
   await invoke("file_write", { path: "src/build_slow.sh", text: "#!/usr/bin/env bash\nsleep 30\n" });

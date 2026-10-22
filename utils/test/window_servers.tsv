@@ -1,0 +1,6 @@
+name	image	ports	env	args	reached
+orior-test-postgres	postgres:17-alpine	5432	POSTGRES_PASSWORD=orior-test		ORIOR_PG_,"PG"
+orior-test-mysql	mysql:8.4	3306	MYSQL_ROOT_PASSWORD=orior-test	--mysql-native-password=ON	ORIOR_MYSQL,"MYSQL"
+orior-test-mariadb	mariadb:11	3306	MARIADB_ROOT_PASSWORD=orior-test		ORIOR_MARIADB,"MARIADB"
+orior-test-cups	orior-test-cups	631,8631,8632,8633			ORIOR_CUPS,ORIOR_IPP_
+orior-test-ssh	orior-test-ssh	22			ORIOR_TEST_SSH

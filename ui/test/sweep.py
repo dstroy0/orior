@@ -38,7 +38,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import cdp  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "utils" / "test"))
+import harness_cdp as cdp  # noqa: E402
 import isolated  # noqa: E402
 import walk  # noqa: E402
 

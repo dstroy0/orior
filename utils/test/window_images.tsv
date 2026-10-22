@@ -1,0 +1,5 @@
+id	image	folder	for
+linux	orior-test-window	ui/test/docker	the window's suite on Linux, driven through WebDriver
+windows	orior-test-window-windows	ui/test/docker/windows	the window's suite in a Windows container, driven through its debugging port
+tree_volume	orior-test-window-tree		the volume that keeps the container's copy of the tree and its builds
+cargo_volume	orior-test-window-cargo		the volume that keeps the container's downloaded crates

@@ -60,4 +60,3 @@ Thumbs.db
 
 # A host's own sweep of timings for the run's buffer, written by `orior protocol sweep` for that host alone.
 src/cu/transpiler/lstar/protocol/qry_host.h
-ui/test/target/

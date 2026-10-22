@@ -14,6 +14,8 @@
 // process still runs
 #define CLI_SERVE_FOLLOW_EVERY 50u
 #define CLI_SERVE_FOLLOW_ASKS 20u
+// how many asks a run's process may go without writing its number before the run is taken as never started
+#define CLI_SERVE_UNSTARTED_ASKS 5u
 // the most runs followed at once
 #define CLI_SERVE_FOLLOWERS 32u
 
@@ -78,6 +80,7 @@ static void kept_follower(void *context)
     cli_serve_kept_file(one->base, "pid", pid_file);
     unsigned long long at = 0ull;
     unsigned int quiet = 0u;
+    unsigned int unstarted = 0u;
     one->holding = 0ull;
     for (;;)
     {
@@ -138,6 +141,19 @@ static void kept_follower(void *context)
             char pid_text[32];
             const unsigned long long pid_size =
                 qry_member_file_read(pid_file, (unsigned char *)pid_text, sizeof(pid_text) - 1u);
+            // a run whose process has written no number of its own by CLI_SERVE_UNSTARTED_ASKS asks, and said nothing,
+            // never started: it ends as stopped rather than being followed without end
+            unstarted = (pid_size == QRY_MEMBER_UNREAD) ? unstarted + 1u : 0u;
+            if ((unstarted >= CLI_SERVE_UNSTARTED_ASKS) && (at == 0ull) && (whole == 0ull))
+            {
+                char ended[256];
+                CliLine line = {ended, sizeof(ended), 0ull};
+                cli_line_text(&line, "{\"run\":");
+                cli_line_decimal(&line, one->run, 1u);
+                cli_line_text(&line, ",\"code\":null,\"stopped\":true,\"views\":[],\"ms\":0.0}");
+                cli_serve_emitted("run-end", ended, line.at);
+                break;
+            }
             unsigned long long pid = 0ull;
             int number = (pid_size != QRY_MEMBER_UNREAD);
             for (unsigned long long digit = 0ull; number && (digit < pid_size); digit += 1ull)

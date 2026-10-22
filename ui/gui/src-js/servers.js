@@ -34,10 +34,10 @@ export function hintsShown(tab, from, to) {
     await flush(tab);
     const low = Math.max(0, from - HINTS_AROUND);
     const high = Math.min(s.doc.count - 1, to + HINTS_AROUND);
-    const asked = (tab.hintsAsked = (tab.hintsAsked ?? 0) + 1);
+    const turn = (tab.hintsAsked = (tab.hintsAsked ?? 0) + 1);
     const version = s.doc.id;
     const found = await asked("lsp_hints", { path: tab.file, from: s.base + low, to: s.base + high }).catch(() => null);
-    if (!found || asked !== tab.hintsAsked || s.doc.id !== version) {
+    if (!found || turn !== tab.hintsAsked || s.doc.id !== version) {
       return;
     }
     const byLine = new Map();
@@ -138,7 +138,7 @@ export async function spansOf(tab, from, to) {
   }
   await flush(tab);
   const found = await asked("parse_spans", { path: tab.file, from: { line: s.base + from.line, col: from.col }, to: { line: s.base + to.line, col: to.col } }).catch(() => []);
-  return found.map(([start, end]) => [{ line: start.line - s.base, col: start.col }, { line: end.line - s.base, col: end.col }]);
+  return (found ?? []).map(([start, end]) => [{ line: start.line - s.base, col: start.col }, { line: end.line - s.base, col: end.col }]);
 }
 
 // The checkers the reader names, as checkers.rs in the command line's crate runs them, kept by

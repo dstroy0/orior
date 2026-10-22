@@ -5,8 +5,8 @@
 # orior's window is built with, WebKitGTK's WebDriver, a display of X's that draws in memory and a
 # session bus, Rust as rustup installs it, rsync, which brings the tree in, ssh for the tunnels'
 # tests, the tools the window's tests drive, clangd and clang, lldb's and gdb's debuggers, debugpy and
-# pytest, and VNC and noVNC, which show the display to a browser. docker.rs runs the harness here, and
-# driven.rs drives the window it builds.
+# pytest, and VNC and noVNC, which show the display to a browser. harness.py window test --docker runs the
+# harness here, which builds the window and drives it through WebDriver.
 
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive

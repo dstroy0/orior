@@ -51,7 +51,8 @@ export function onCalls(listener) {
 // A call answered later: sent with an ask number of its own, the call returns at once and its answer, or
 // why it failed, comes as the event call-answered with that number; a call the command line answers
 // in place, as it does where no server holds the file, is answered as it is. Past `wait` ms with no
-// answer the ask answers null, so nothing waits on a server that is slow or gone.
+// answer the ask answers null, so nothing waits on a server that is slow or gone. The answer's event
+// can come before the call's own return does, so the ask is waited for before the call is sent.
 const asks = new Map();
 let askNext = 0;
 let asksHeard = null;
@@ -65,8 +66,22 @@ export async function asked(command, args = {}, wait = 6000) {
   });
   await asksHeard;
   const ask = ++askNext;
-  const sent = await invoke(command, { ...args, ask });
+  let heard = null;
+  const answered = new Promise((resolve, reject) => {
+    heard = (said) => ("error" in said ? reject(new Error(said.error)) : resolve(said.answer));
+  });
+  // an answer that comes before anything waits on it is no unhandled rejection
+  answered.catch(() => {});
+  asks.set(ask, heard);
+  let sent;
+  try {
+    sent = await invoke(command, { ...args, ask });
+  } catch (error) {
+    asks.delete(ask);
+    throw error;
+  }
   if (!(sent && typeof sent === "object" && sent.asked === true)) {
+    asks.delete(ask);
     return sent;
   }
   return new Promise((resolve, reject) => {
@@ -74,14 +89,16 @@ export async function asked(command, args = {}, wait = 6000) {
       asks.delete(ask);
       resolve(null);
     }, wait);
-    asks.set(ask, (said) => {
-      window.clearTimeout(timer);
-      if ("error" in said) {
-        reject(new Error(said.error));
-      } else {
-        resolve(said.answer);
-      }
-    });
+    answered.then(
+      (answer) => {
+        window.clearTimeout(timer);
+        resolve(answer);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
   });
 }
 

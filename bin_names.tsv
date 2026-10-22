@@ -1,7 +1,6 @@
 id	name	kind	source	built_to	for
 cli	orior_cli	program	ui/cli	build/cli/<target>/orior_cli	the command line, and the library the window links, liborior_cli.a
 gui	orior_gui	program	ui/gui/src-tauri	build/cargo/release/orior_gui	the window
-harness	orior_harness	program	ui/test	build/cargo/release/orior_harness	the window's and the crates' tests
 plugins_bundle	orior_plugins_bundle	program	ui/cli/src/bundle	build/cli/<host>/bundle/orior_plugins_bundle	writes plugins_bundled.c as the command line is built
 qry_writer	orior_qry_writer	program	src/cu/includes/file_defs/qry	<programs>/orior_qry_writer	a run's writer, the one process that writes its .qry
 bus_clock	orior_bus_clock	program	src/cu/transpiler/lstar/protocol	<programs>/orior_bus_clock	the clock asked of the bus

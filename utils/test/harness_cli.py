@@ -1,11 +1,10 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""harness.py cli and harness.py window test: the CLI built and its suite run, and the window's suite run.
+"""harness.py cli: the CLI built, its checks run and its common paths timed.
 
     harness.py cli build                  the CLI library and programs, ui/cli/build.sh
     harness.py cli test [name...]         the CLI's checks, every one where none is named
     harness.py cli bench [--label L] [--repeat N]  the CLI's common paths timed over ui/cli/src, rows kept in build/harness/bench
-    harness.py window test [arg...]       the window's suite, ui/test, the arguments handed to it
 
 A child's output streams through the harness's own; the invocation's log under build/harness/log therefore holds it."""
 
@@ -19,7 +18,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from utils.tools import findroot  # noqa: E402
 
 ROOT = findroot.root()
-WINDOW_TESTS = os.path.join(ROOT, "ui", "test", "Cargo.toml")
 CLI_BUILD = "ui/cli/build.sh"
 CLI_TESTS = "utils/test/src/ui/cli/cli_test.sh"
 CLI_BENCH = "utils/test/src/ui/cli/cli_bench.sh"
@@ -137,9 +135,6 @@ def cmd_cli_bench(a):
                     env=dict(os.environ, MSYS_NO_PATHCONV="1"))
 
 
-def cmd_window_test(a):
-    words = [word for word in a.extra if word != "--"]
-    return streamed(["cargo", "run", "--manifest-path", WINDOW_TESTS, "--release", "--", *words], stall=None)
 
 
 def register(sub):
@@ -159,9 +154,3 @@ def register(sub):
     p.set_defaults(fn=cmd_cli_bench)
 
 
-def register_window_test(window):
-    """The window suite's command, added to the window group."""
-    p = window.add_parser("test", help="the window's suite, ui/test, every argument handed to it")
-    # the suite's arguments, such as --only <name> --no-servers --no-rust --monitor 3, are not the harness's: main
-    # hands them over unparsed, in their order
-    p.set_defaults(fn=cmd_window_test, takes_extra=True)

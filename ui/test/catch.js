@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // What the page throws and writes as an error, kept for the harness where the window is driven
-// through WebDriver, which tells the harness of neither. driven.rs puts it first in the page the
+// through WebDriver, which tells the harness of neither. The harness puts it first in the page the
 // window is built with, ahead of every module, and reads window.__harnessErrors after each file:
 // each entry "threw ..." or "console.error ...", as the debugging port's events give them.
 

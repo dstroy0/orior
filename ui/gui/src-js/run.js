@@ -778,6 +778,14 @@ export function startChosen() {
   document.querySelector("#job-stage .actions .primary")?.click();
 }
 
+// Every live run stopped, whichever job it is of, and how many were: what a test harness leaving the page asks, so
+// that nothing it started runs on after it.
+export async function stopLive() {
+  const live = [...state.runs.values()].filter((run) => !run.done);
+  await Promise.all(live.map((run) => invoke("job_stop", { run: run.run }).catch(() => {})));
+  return live.length;
+}
+
 export function stopChosen() {
   runsOf(state.chosen)
     .filter((run) => !run.done)

@@ -12,7 +12,7 @@
     harness.py window cpu [--minutes 2] [--step 5] [--spike 150] its processor time each step, its busiest threads, a
                                                                  stack of the busiest past the spike, to window_cpu.txt
     harness.py window in-job --id N                              whether a process sits in a job
-    harness.py window test [arg...]                              the window's suite, ui/test (harness_cli.py)
+    harness.py window test [arg...]                              the window's suite, ui/test/src (harness_window_test.py)
 
 The window's program is build/cargo/release/<gui>.exe, gui as bin_names.tsv names it. Every start ends the windows
 running from that program first; one window therefore runs at a time, and its process id is kept in build/harness/window.pid
@@ -332,6 +332,6 @@ def register(sub):
     p.add_argument("--id", type=int, required=True)
     p.set_defaults(fn=cmd_in_job)
 
-    import harness_cli
+    import harness_window_test
 
-    harness_cli.register_window_test(window)
+    harness_window_test.register(window)

@@ -44,7 +44,7 @@ Checks: the app's harness holding that the line's nodes are reached from a recor
 1. The feature is built.
 2. Its test goes in `test/`, which mirrors `gui/src-js/` file for file: `gui/src-js/x.js` is tested by `test/src/x.test.js`. A Rust module keeps its unit tests in its own `tests` module, as Rust's convention has it, and a test that spans modules goes in its crate's `tests/` folder.
 3. A feature of the window is tested through the window's debugging port, every way it can be used: each press, key, menu item, drag, hover and scroll, each state it can be in, and each error it can give, checked for what it shows and what it does.
-4. `test/harness.rs` runs every test, the crates' and the window's, and names each source file with no test of its own. The walker of the menus, `test/walk.py`, and the memory watcher, `test/memory.py`, run over every command.
+4. `python utils/test/harness.py window test` runs the window's tests and names each module of the window with no test of its own. The walker of the menus, `test/walk.py`, and the memory watcher, `test/memory.py`, run over every command.
 5. The feature is committed and pushed once all of it passes.
 
 Every program the tree builds is named orior_<thing>, and `bin_names.tsv` at the top of the tree is the one place the names are kept: a row an id, its name, what it is, where its sources are and where it is built to. A build script, the harness and the window's scripts read a name from there by its id and write none of their own.
@@ -52,30 +52,27 @@ Every program the tree builds is named orior_<thing>, and `bin_names.tsv` at the
 ## Testing it
 
 ```
-cargo run --manifest-path ui/test/Cargo.toml -- [--only TEXT] [--monitor N]
+python utils/test/harness.py window test [--only TEXT] [--monitor N] [--docker]
 ```
 
 The harness starts the servers the run's tests reach, read from the tests' text, each a Docker
 container of its own on this machine's loopback: PostgreSQL, MySQL, MariaDB, CUPS with three
 printers, and an ssh server for tunnels. A server no test of the run reaches is not started, and
 the ones started are taken away as the run ends. Without Docker the tests that reach them do not
-run, and the report names them. It runs
-each crate's tests, then the command line's crate's tests again in Debian, Ubuntu, Fedora, Alpine
-and Arch Linux and in Debian on aarch64, each a Docker image of `test/systems/`; `--no-systems`
-leaves those out. A Mac's system and Windows on Arm run only on machines of their own, and the
-crate is built for each of them in their place. Then it runs the window's tests, in orior built for
-the run with a home and a tree of its own: a run leaves the reader's orior as it was. The window
-goes on the highest numbered monitor that is not the main one, or the one `--monitor` or
-`ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while any test fails or any
-source file has no test, and its report is in `build/ui_test/runs/<time>/report.md` at the top of
-the tree.
+run, and the report names them. Before the tests the system is read: each program they drive found on
+PATH with its version, the run's folder writable, the display set. The window's tests run in orior
+built for the run with a home and a tree of its own: a run leaves the reader's orior as it was. The
+window's comms are proven before the first file, and every job a file started is stopped after it.
+The window goes on the harness's display, or the one `--monitor` or `ORIOR_TEST_MONITOR` numbers;
+`--monitors` lists them. The run fails while any test fails or any module of the window has no test,
+and its report is in `build/ui_test/runs/<time>/report.md` at the top of the tree.
 
 On Windows the window is driven through its debugging port. On Linux its web view is WebKitGTK,
 and the window is driven through WebKitWebDriver: every press, key, drag and wheel goes as
 WebDriver's actions. `--docker` runs the window's tests in the harness's own Docker image, from
 `test/docker/`, on any machine Docker runs on. The tree is brought into a volume of the
 container's own, the window is built there and drawn on a display in memory, and the report comes
-back to `test/runs/`. Every item of every menu and every option of Preferences is pressed there as
+back to `build/ui_test/runs/`. Every item of every menu and every option of Preferences is pressed there as
 a person presses it. While a run goes, a browser on this machine shows its window at
 `http://localhost:6080/vnc.html`, to be watched and not driven. `.github/workflows/ui.yml` runs the same on each pull request that changes the
 app, beside CodeQL and SonarQube Cloud.

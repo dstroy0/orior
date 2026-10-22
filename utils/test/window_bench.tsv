@@ -1,0 +1,4 @@
+name	url	bytes	sha256
+checker.ts	https://raw.githubusercontent.com/microsoft/TypeScript/v5.9.3/src/compiler/checker.ts	3121747	aba154f42352498790b55fa6995bdbb5dee607460eef5eebc1908b0cf0087d3c
+sqlite3.c	https://raw.githubusercontent.com/azadkuh/sqlite-amalgamation/3.38.2/sqlite3.c	8462111	254d5579c10ae6a7425ddd055abbdecc5d7b7e6b473ddf28729cd831f25bbd8d
+large-file.json	https://raw.githubusercontent.com/json-iterator/test-data/0bce379832b475a6c21726ce37f971f8d849513b/large-file.json	26141343	4fc1e52c4e609febd05d75a24c84bc6957fa4d2cfb0d5fbebbac650bdc7ed8c0

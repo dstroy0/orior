@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The test runner inside the window, put into the page by harness.rs. A test file of test/src/ takes
+// The test runner inside the window, put into the page by the harness, utils/test/harness_page.py. A test file of test/src/ takes
 // what it needs from window.__harness:
 //
 //   const { test, assert, ui, calls } = window.__harness;

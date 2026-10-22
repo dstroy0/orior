@@ -45,6 +45,8 @@ const WRAPS_KEPT = 200000;
 
 // How round a selection's corners are, in pixels.
 const SELECTION_ROUND = 4;
+// How long Expand Selection waits on the tree's spans, in milliseconds, before the editor's own answer alone.
+const SPANS_WAIT = 250;
 
 // Rows are placed from an origin, a row near the screen and a whole number of ORIGIN_ROWS from
 // the first, and never from the first row itself. A row of a long file placed from the first stands
@@ -2052,7 +2054,9 @@ export class Editor {
     const s = this.s;
     const sel = this.primary();
     const asked = [cmp(sel.anchor, sel.head) <= 0 ? sel.anchor : sel.head, cmp(sel.anchor, sel.head) <= 0 ? sel.head : sel.anchor];
-    const parsed = await this.spansOf(s, asked[0], asked[1]);
+    // The tree's spans are taken where they come within SPANS_WAIT; past it the editor's own spans below answer alone,
+    // so the selection grows at once whatever the parse's state.
+    const parsed = await Promise.race([this.spansOf(s, asked[0], asked[1]), new Promise((done) => window.setTimeout(() => done([]), SPANS_WAIT))]);
     if (this.s !== s || this.primary() !== sel) {
       return;
     }
