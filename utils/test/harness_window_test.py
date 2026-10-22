@@ -422,6 +422,10 @@ def docker_words(passed, env, keys):
     container's copy, its builds and its crates, the runs' folder here where its reports go, the servers' settings as a
     container reaches this machine, and the ssh key's folder where the ssh server came up."""
     words = ["run", "--rm", "--init", "--shm-size=1g", "--add-host", "host.docker.internal:host-gateway", "-p", "127.0.0.1:6080:6080"]
+    # A sanitizer's runtime turns address randomization off for its process through personality, a call the
+    # default seccomp profile refuses: the container runs without that profile where one is named.
+    if "--sanitize" in passed:
+        words += ["--security-opt", "seccomp=unconfined"]
     for key, value in env:
         words += ["-e", "%s=%s" % (key, value)]
     mounts = [(findroot.at("ui"), "/host/ui", True), (findroot.at("utils"), "/host/utils", True), (findroot.at("src", "cu"), "/host/src/cu", True), (findroot.at("bin_names.tsv"), "/host/bin_names.tsv", True), (RUNS, "/top/build/ui_test/runs", False)]

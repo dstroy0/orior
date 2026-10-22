@@ -8,6 +8,7 @@
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { claimed, revealed, zoneAt } from "../../gui/src-js/claim.js";
 import { showView } from "../../gui/src-js/views.js";
+import { togglePane } from "../../gui/src-js/sides.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -77,6 +78,8 @@ test("a rest in the controls' corner drops the three controls alone, a ghost of 
 
 test("the claim goes as the keys leave the editor for the explorer", async () => {
   await editingHello();
+  togglePane(true, { take: false });
+  await ui.waitFor(() => document.getElementById("file-filter").getBoundingClientRect().left >= 0, 3000, "the explorer back beside the editor");
   await ui.click(document.getElementById("file-filter"));
   await ui.waitFor(() => !claimed(), 3000, "the claim let go");
   const bar = document.querySelector("header.bar").getBoundingClientRect();

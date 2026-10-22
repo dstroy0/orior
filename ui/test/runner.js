@@ -105,6 +105,34 @@
 
   const named = (node) => (node ? `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ""}${typeof node.className === "string" && node.className ? `.${node.className.trim().split(/\s+/).join(".")}` : ""}` : "nothing");
 
+  // A part the claim has taken off an edge, brought back as a person brings it: the pointer rested in
+  // the gap at that edge until the part is revealed and its slide has ended. A target in no such
+  // part, or with no claim on, waits for nothing.
+  const edgeRested = async (node) => {
+    if (!document.body.hasAttribute("data-claim")) {
+      return;
+    }
+    const edges = [
+      ["left", "#strip", () => ({ x: 4, y: Math.round(innerHeight / 2) })],
+      ["top", "header.bar, #toolbar", () => ({ x: Math.round(innerWidth / 2), y: 4 })],
+      ["bottom", "#statusbar", () => ({ x: Math.round(innerWidth / 2), y: innerHeight - 4 })],
+      ["controls", "#window-controls", () => ({ x: innerWidth - 40, y: 4 })],
+    ];
+    const edge = edges.find(([, parts]) => node.closest(parts));
+    if (!edge || document.body.dataset.reveal === edge[0]) {
+      return;
+    }
+    await ask({ op: "move", ...edge[2]() });
+    const until = performance.now() + 3000;
+    while (document.body.dataset.reveal !== edge[0] && performance.now() < until) {
+      await frame();
+    }
+    const slid = performance.now() + 400;
+    while (performance.now() < slid) {
+      await frame();
+    }
+  };
+
   // The middle of a target in the window, or the point given, once a person could press it: the
   // target shown, in view, scrolled into it where it is not, standing still from one frame to the
   // next, and the topmost thing at its middle, nothing laid over it. Within 5 s, or the step fails
@@ -114,6 +142,7 @@
       return { x: target.x, y: target.y };
     }
     const label = typeof target === "string" ? target : named(target);
+    await edgeRested(elementOf(target));
     const until = performance.now() + 5000;
     let last = null;
     let why = "";
@@ -358,6 +387,14 @@
           try {
             (await import(`${location.origin}/menu.js`)).closeMenu?.(false);
           } catch {}
+          // The keys leave the editor, so the claim a test made lets go before the next test.
+          if (document.body.hasAttribute("data-claim")) {
+            document.activeElement?.blur?.();
+            const gone = performance.now() + 1000;
+            while (document.body.hasAttribute("data-claim") && performance.now() < gone) {
+              await frame();
+            }
+          }
         }
       }
     }

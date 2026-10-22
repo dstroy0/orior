@@ -266,12 +266,17 @@ def screen_pixels(left, top, width, height):
     gdi32.DeleteObject(bitmap)
     gdi32.DeleteDC(memory_dc)
     user32.ReleaseDC(None, screen)
-    raw = bytes(pixels)
-    rows = []
-    for row in range(height):
-        line = raw[row * width * 4 : (row + 1) * width * 4]
-        rows.append(bytes(byte for at in range(0, len(line), 4) for byte in (line[at + 2], line[at + 1], line[at])))
-    return rows
+    return rows_of_bgra(width, height, bytes(pixels))
+
+
+def rows_of_bgra(width, height, raw):
+    """Rows of RGB bytes from a bitmap's BGRA bytes, each channel moved by one slice."""
+    rgb = bytearray(width * height * 3)
+    rgb[0::3] = raw[2::4]
+    rgb[1::3] = raw[1::4]
+    rgb[2::3] = raw[0::4]
+    stride = width * 3
+    return [bytes(rgb[row * stride : (row + 1) * stride]) for row in range(height)]
 
 
 def rows_scaled(rows, scale):

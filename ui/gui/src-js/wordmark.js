@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The name: "or", the eye in place of the i, "or". The eye is line art in the text's color and
-// follows the scheme, and the name still reads as orior_gui to a screen reader. The bar along the top
-// holds the eye alone, and an empty view holds the whole name large until it goes there. Either
-// opens orior's repository.
+// The name: orior over the eye, tabula under it. The eye is line art in the text's color and
+// follows the scheme, and the name reads as orior to a screen reader. The bar along the top holds
+// the eye alone, and an empty view holds the whole name large until the eye goes there, the words
+// going as it lands. Either opens orior's repository.
 
 import { invoke } from "./bridge.js";
 import { motionReduced } from "./motion.js";
@@ -72,11 +72,20 @@ function eye() {
   return svg;
 }
 
-// Sets the name in `node`: or, the eye, or; or, with `eyeOnly`, the eye alone, as the bar holds it.
+// A word of the large name, above or below the eye.
+function word(text, className) {
+  const span = document.createElement("span");
+  span.className = className;
+  span.textContent = text;
+  return span;
+}
+
+// Sets the name in `node`: orior over the eye, tabula under it; or, with `eyeOnly`, the eye alone,
+// as the bar holds it.
 export function setWordmark(node, { eyeOnly = false } = {}) {
   node.setAttribute("aria-label", "orior");
   node.classList.add("wordmark");
-  node.replaceChildren(...(eyeOnly ? [eye()] : ["or", eye(), "or"]));
+  node.replaceChildren(...(eyeOnly ? [eye()] : [word("orior", "wordmark-name"), eye(), word("tabula", "wordmark-under")]));
   return node;
 }
 
@@ -117,9 +126,14 @@ const smooth = (part) => {
   return clamped * clamped * (3 - 2 * clamped);
 };
 
-// The name drawn as it stands, onto a canvas `scale` times its size: each "or" in its own font and
-// color, and the eye's strokes and iris where the eye stands.
-function drawName(node, box, scale) {
+// The share of a funnel side that runs straight, the rest of it the S of `smooth`: a flatter S than
+// the whole would make.
+const STRAIGHT = 0.35;
+const sided = (part) => STRAIGHT * Math.min(1, Math.max(0, part)) + (1 - STRAIGHT) * smooth(part);
+
+// The eye drawn as it stands in `node`, onto a canvas `scale` times its box: its strokes and iris in
+// the name's color, and none of the words around it.
+function drawEye(node, part, box, scale) {
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(box.width * scale);
   canvas.height = Math.ceil(box.height * scale);
@@ -128,44 +142,28 @@ function drawName(node, box, scale) {
   const style = getComputedStyle(node);
   pen.fillStyle = style.color;
   pen.strokeStyle = style.color;
-  pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-  pen.letterSpacing = style.letterSpacing;
-  pen.textBaseline = "alphabetic";
-  for (const part of node.childNodes) {
-    if (part.nodeType === Node.TEXT_NODE) {
-      const range = document.createRange();
-      range.selectNodeContents(part);
-      const at = range.getBoundingClientRect();
-      const ascent = pen.measureText(part.textContent).fontBoundingBoxAscent;
-      pen.fillText(part.textContent, at.left - box.left, at.top - box.top + ascent);
-    } else if (part.nodeName === "svg") {
-      const at = part.getBoundingClientRect();
-      const [left, top, wide, high] = part.getAttribute("viewBox").split(" ").map(Number);
-      const fit = Math.min(at.width / wide, at.height / high);
-      pen.save();
-      pen.translate(at.left - box.left + (at.width - wide * fit) / 2, at.top - box.top + (at.height - high * fit) / 2);
-      pen.scale(fit, fit);
-      pen.translate(-left, -top);
-      const lines = part.querySelector("path:not(.iris)");
-      pen.lineWidth = Number.parseFloat(getComputedStyle(lines).strokeWidth) || 2.2;
-      pen.lineCap = "round";
-      pen.lineJoin = "round";
-      pen.stroke(new Path2D(lines.getAttribute("d")));
-      pen.fill(new Path2D(part.querySelector(".iris").getAttribute("d")));
-      pen.restore();
-    }
-  }
+  const [left, top, wide, high] = part.getAttribute("viewBox").split(" ").map(Number);
+  const fit = Math.min(box.width / wide, box.height / high);
+  pen.translate((box.width - wide * fit) / 2, (box.height - high * fit) / 2);
+  pen.scale(fit, fit);
+  pen.translate(-left, -top);
+  const lines = part.querySelector("path:not(.iris)");
+  pen.lineWidth = Number.parseFloat(getComputedStyle(lines).strokeWidth) || 2.2;
+  pen.lineCap = "round";
+  pen.lineJoin = "round";
+  pen.stroke(new Path2D(lines.getAttribute("d")));
+  pen.fill(new Path2D(part.querySelector(".iris").getAttribute("d")));
   return canvas;
 }
 
-// The name large on an empty view: it stands a moment, then goes to the bar as a genie does. A
-// funnel forms between the name and the point on the bar's bottom edge under the eye in the bar,
-// its sides bending sideways from the name's ends to the eye's as they rise, and the name pours up
-// it a row of pixels at a time, every row level, each as wide as the funnel where it stands and
+// The name large on an empty view: it stands a moment, then its eye goes to the bar as a genie
+// does. A funnel forms between the eye and the point on the bar's bottom edge under the eye in the
+// bar, its sides bending sideways from the one's ends to the other's as they rise, and the eye pours
+// up it a row of pixels at a time, every row level, each as wide as the funnel where it stands and
 // shorter the nearer the tip, until the bar's edge takes the last of it. The funnel is drawn over
-// the whole window: no pane or strip it crosses cuts it short. The eye in the bar then
-// shows and stays. The name stands and goes once as the app loads; an empty view shown after it has
-// reached the bar holds the lattice alone.
+// the whole window: no pane or strip it crosses cuts it short. The eye in the bar then shows and
+// stays, and the words go. The name stands and goes once as the app loads; an empty view shown
+// after it has reached the bar holds the lattice alone.
 function fly(node) {
   const home = document.getElementById("bar-mark");
   window.clearTimeout(flights.get(node));
@@ -175,26 +173,45 @@ function fly(node) {
     node.style.visibility = "hidden";
     return;
   }
+  // The loading pane lies over the view while a tree is read: the name stands once the pane has gone,
+  // and not under it.
+  const pane = document.getElementById("loading");
+  if (pane && !pane.hidden) {
+    going.add(node);
+    node.style.visibility = "hidden";
+    new MutationObserver((_, watcher) => {
+      if (pane.hidden) {
+        watcher.disconnect();
+        fly(node);
+      }
+    }).observe(pane, { attributes: true, attributeFilter: ["hidden"] });
+    return;
+  }
   node.style.visibility = "";
+  node.dataset.standing = "";
   going.add(node);
   flights.set(
     node,
     window.setTimeout(() => {
-      const from = node.getBoundingClientRect();
+      // The eye alone goes: the words above and below it stay where they stand until it has landed.
+      const symbol = node.querySelector(".eye-mark");
+      const from = symbol.getBoundingClientRect();
       const to = home.getBoundingClientRect();
       const bar = home.closest(".bar")?.getBoundingClientRect();
       const done = () => {
         settle(node);
         node.style.visibility = "hidden";
+        delete node.dataset.standing;
+        symbol.style.visibility = "";
         going.delete(node);
-        home.classList.add("home");
+        landed();
       };
       if (!from.width || !to.width || !bar || motionReduced()) {
         done();
         return;
       }
       const scale = window.devicePixelRatio || 1;
-      const name = drawName(node, from, scale);
+      const name = drawEye(node, symbol, from, scale);
       const width = window.innerWidth;
       const height = window.innerHeight;
       const canvas = Object.assign(document.createElement("canvas"), { className: "genie" });
@@ -222,7 +239,7 @@ function fly(node) {
       const began = performance.now();
       const genie = { canvas, frame: 0 };
       genies.set(node, genie);
-      node.style.visibility = "hidden";
+      symbol.style.visibility = "hidden";
       const draw = (now) => {
         const part = Math.min(1, (now - began) / FLIES);
         const forming = smooth(part / FORMS);
@@ -238,7 +255,7 @@ function fly(node) {
           }
           const y = placed(depth);
           const tall = (placed(depth + 1 / scale) - y) || 1 / scale;
-          const bend = forming * (1 - smooth(y / reach));
+          const bend = forming * (1 - sided(y / reach));
           const start = left + (tipLeft - left) * bend;
           const end = right + (tipRight - right) * bend;
           pen.drawImage(name, 0, row, name.width, 1, start, y, end - start, tall + 0.35 / scale);

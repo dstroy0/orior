@@ -301,20 +301,6 @@ select {
   flex: none;
 }
 
-/* The bar's signal line runs over the work alone, from the curve at its top left to the curve at
-   its top right: it begins and ends at the centre of each curve, where the curve's band still stands
-   at the line's full height, so no row of the line reaches past the band. */
-.bar::before {
-  content: "";
-  position: absolute;
-  left: 51px;
-  right: calc(var(--frame-right) + 7px);
-  bottom: -2px;
-  height: 2px;
-  background: var(--bar-signal);
-  pointer-events: none;
-}
-
 .mark {
   font-size: 1.15rem;
   color: var(--bar-signal);
@@ -369,7 +355,6 @@ select {
 .frame {
   position: relative;
   flex: 1;
-  padding-right: var(--frame-right);
   min-height: 0;
   display: flex;
 }
@@ -460,78 +445,29 @@ select {
   background-position: left top, left bottom;
 }
 
-/* The work stands in four lines: the bar's signal line along its top, the strip's line down its
-   left, a line in the link color mixed with 35% black, as thick as the signal line, down its right,
-   and one in the same color, as thin as the strip's line, along its foot. Its four corners are
-   curves of one radius, and the lines bend round each from one into the next, the color passing
-   from the one line's into the other's along the curve. Each curve is a band, as wide as the lines
-   it joins at either end, cut from a sweep of their colors. */
-.frame::before,
-.frame::after,
-.bar::after,
-.statusbar::after {
-  content: "";
-  position: absolute;
-  z-index: 40;
-  pointer-events: none;
-  mask-composite: subtract;
-}
-
-.frame::before {
-  left: calc(var(--strip-width) - 1px);
-  top: -2px;
-  width: 8px;
-  height: 9px;
-  background: conic-gradient(from 270deg at 100% 100%, var(--status-line), var(--bar-signal) 90deg);
-  mask-image: radial-gradient(8px 9px at 100% 100%, #000 95%, transparent 100%), radial-gradient(circle 7px at 100% 100%, #000 6.6px, transparent 7px);
-}
-
-.frame::after {
-  left: calc(var(--strip-width) - 1px);
-  bottom: -1px;
-  width: 8px;
-  height: 8px;
-  background: conic-gradient(from 180deg at 100% 0, color-mix(in srgb, var(--link), black 35%), var(--status-line) 90deg);
-  mask-image: radial-gradient(circle 8px at 100% 0, #000 7.6px, transparent 8px), radial-gradient(circle 7px at 100% 0, #000 6.6px, transparent 7px);
-}
-
-.bar::after {
-  right: calc(var(--frame-right) - 2px);
-  bottom: -9px;
-  width: 9px;
-  height: 9px;
-  background: conic-gradient(from 0deg at 0 100%, var(--bar-signal), color-mix(in srgb, var(--link), black 35%) 90deg);
-  mask-image: radial-gradient(circle 9px at 0 100%, #000 8.6px, transparent 9px), radial-gradient(circle 7px at 0 100%, #000 6.6px, transparent 7px);
-}
-
+/* The work stands in four lines, drawn on the work itself so they move with it as it takes the
+   window's edges and gives them back: the signal line along its top, a line as thin as the strip's
+   down its left, a line in the link color mixed with 35% black, as thick as the signal line, down
+   its right, and one in the same color, as thin as the left's, along its foot. Its four corners are
+   curves of one radius, and the lines bend round each from one into the next. */
 .statusbar {
   position: relative;
 }
 
-.statusbar::after {
-  right: calc(var(--frame-right) - 2px);
-  top: -7px;
-  width: 9px;
-  height: 8px;
-  background: color-mix(in srgb, var(--link), black 35%);
-  mask-image: radial-gradient(9px 8px at 0 0, #000 95%, transparent 100%), radial-gradient(circle 7px at 0 0, #000 6.6px, transparent 7px);
-}
-
-/* The line along the work's foot, on the status bar's top edge, from the centre of the one curve to
-   the centre of the other. */
-.statusbar::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 51px;
-  right: calc(var(--frame-right) + 7px);
-  height: 1px;
-  background: color-mix(in srgb, var(--link), black 35%);
-  pointer-events: none;
-}
-
 .work {
   clip-path: inset(0 round 7px);
+}
+
+.work::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  border-style: solid;
+  border-width: 2px 2px 1px 1px;
+  border-color: var(--bar-signal) color-mix(in srgb, var(--link), black 35%) color-mix(in srgb, var(--link), black 35%) var(--status-line);
+  border-radius: 7px;
 }
 
 /* The window's lattice runs on under the frame round the work, the bar, the strip and the status
@@ -622,12 +558,11 @@ select {
 
 .frame {
   background:
-    linear-gradient(color-mix(in srgb, var(--link), black 35%), color-mix(in srgb, var(--link), black 35%)) right calc(var(--frame-right) - 2px) top 7px / 2px calc(100% - 14px) no-repeat,
     linear-gradient(var(--glass-tint), var(--glass-tint)) right top / var(--frame-right) 100% no-repeat,
-    radial-gradient(circle 7px at 100% 100%, transparent 6.6px, var(--glass-tint) 7px) left var(--strip-width) top 0 / 7px 7px no-repeat,
-    radial-gradient(circle 7px at 100% 0, transparent 6.6px, var(--glass-tint) 7px) left var(--strip-width) bottom 0 / 7px 7px no-repeat,
-    radial-gradient(circle 7px at 0 100%, transparent 6.6px, var(--glass-tint) 7px) right var(--frame-right) top 0 / 7px 7px no-repeat,
-    radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right var(--frame-right) bottom 0 / 7px 7px no-repeat;
+    radial-gradient(circle 7px at 100% 100%, transparent 6.6px, var(--glass-tint) 7px) left calc(var(--strip-width) + var(--claim-gap)) top var(--claim-gap) / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 100% 0, transparent 6.6px, var(--glass-tint) 7px) left calc(var(--strip-width) + var(--claim-gap)) bottom var(--claim-gap) / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 0 100%, transparent 6.6px, var(--glass-tint) 7px) right var(--frame-right) top var(--claim-gap) / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right var(--frame-right) bottom var(--claim-gap) / 7px 7px no-repeat;
 }
 
 /* The window's lattice, behind the whole page, on the deep of the lattices in the views, and the
@@ -644,18 +579,6 @@ select {
 /* The glass's top edge catches the light. */
 .bar {
   box-shadow: inset 0 1px 0 var(--bar-highlight);
-}
-
-/* The strip's line, between the curves. */
-.strip::after {
-  content: "";
-  position: absolute;
-  top: 7px;
-  right: 0;
-  bottom: 7px;
-  width: 1px;
-  background: var(--status-line);
-  pointer-events: none;
 }
 
 /* The tool strip: an icon a tool window, the windows that show marked in signal on a square of it. Where
@@ -765,57 +688,81 @@ body[data-strip-edge] .strip-edge {
 
 /* The claim: while the reader edits, the work takes the bar's row, the toolbar's, the strip's column
    and the status bar's row, and the frame keeps its right gap on every side. Each part slides out of
-   its edge and back on a rest in the gap there, which claim.js sets as the reveal. */
+   its edge and back on a rest in the gap there, which claim.js sets as the reveal. One number, the
+   claim, runs from 0 to 1 and back on one curve, and every edge's place is a product of it: the
+   frame's gap, the bar's and the toolbar's rise, the strip's and the status bar's leave, so no edge
+   runs ahead of another and the work's edge never passes its resting place. A reveal is a number of
+   its own for its edge, 1 while the edge's part is back. */
+@property --claim {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --reveal-top {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --reveal-bottom {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --reveal-left {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
 :root {
   --claim-slide: 0.35s;
 }
 
-.bar,
-.toolbar,
-.strip,
-.statusbar {
-  transition: margin var(--claim-slide) ease;
-}
-
-.frame {
-  transition: padding var(--claim-slide) ease;
+/* The gap is the claim's share of the frame's right gap, worked out where the claim is set. */
+body {
+  --claim-gap: calc(var(--claim) * var(--frame-right));
+  transition: --claim var(--claim-slide) ease, --reveal-top var(--claim-slide) ease, --reveal-bottom var(--claim-slide) ease, --reveal-left var(--claim-slide) ease;
 }
 
 body[data-claim] {
   --strip-width: 0px;
+  --claim: 1;
 }
 
-body[data-claim] .frame {
-  padding: var(--frame-right);
+body[data-claim][data-reveal="top"] {
+  --reveal-top: 1;
 }
 
-body[data-claim] .bar {
-  margin-top: calc(-1 * var(--bar-height));
+body[data-claim][data-reveal="bottom"] {
+  --reveal-bottom: 1;
 }
 
-body[data-claim] .toolbar {
-  margin-top: -30px;
+body[data-claim][data-reveal="left"] {
+  --reveal-left: 1;
 }
 
-body[data-claim] .strip {
-  margin-left: -44px;
+.frame {
+  padding: var(--claim-gap) var(--frame-right) var(--claim-gap) var(--claim-gap);
 }
 
-body[data-claim] .statusbar {
-  margin-bottom: -27px;
+.bar {
+  margin-top: calc(-1 * var(--bar-height) * var(--claim) * (1 - var(--reveal-top)));
 }
 
-body[data-claim][data-reveal="top"] .bar,
-body[data-claim][data-reveal="top"] .toolbar {
-  margin-top: 0;
+.toolbar {
+  margin-top: calc(-30px * var(--claim) * (1 - var(--reveal-top)));
 }
 
-body[data-claim][data-reveal="bottom"] .statusbar {
-  margin-bottom: 0;
+.strip {
+  margin-left: calc((-44px - var(--frame-right)) * var(--claim) * (1 - var(--reveal-left)));
+  margin-right: var(--claim-gap);
 }
 
-body[data-claim][data-reveal="left"] .strip {
-  margin-left: 0;
+.statusbar {
+  margin-bottom: calc(-27px * var(--claim) * (1 - var(--reveal-bottom)));
 }
 
 /* With the bar away, the controls stand ready above the window's top right as a rounded tab, the
@@ -1206,7 +1153,7 @@ body[data-claim][data-reveal="top"] .window-controls {
   align-items: center;
   gap: 1.1rem;
   height: 27px;
-  padding: 3px calc(0.8rem + 3px) 2px calc(var(--strip-width) + 7px);
+  padding: 3px calc(0.8rem + 3px) 2px calc(var(--strip-width) + 0.8rem + 3px);
   color: var(--status-fg);
   font: 12px var(--head);
   white-space: nowrap;
@@ -2188,32 +2135,33 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   fill: currentColor;
 }
 
-/* The name large on an empty view takes only its own width and goes to the bar from where it
- * stands. */
+/* The name large on an empty view takes only its own width and stands as a column at the view's
+   middle: orior, the eye, tabula. The eye goes to the bar from where it stands; tabula fades in a
+   moment after the name stands, and the words show only while it stands. */
 .empty-body .wordmark,
 .open-body .wordmark {
   width: fit-content;
   margin-inline: auto;
-}
-
-/* The empty view's name stands at the top, and tabula where the name stood, at the view's middle. */
-.empty > .empty-body {
-  position: absolute;
-  inset: 0;
   display: grid;
-  grid-template-rows: 1fr auto 1fr;
   justify-items: center;
+  row-gap: 0.1em;
 }
 
-.empty > .empty-body h1 {
-  align-self: start;
-  margin-top: 10vh;
-}
-
-.empty-under {
+.empty-body .wordmark .eye-mark,
+.open-body .wordmark .eye-mark {
+  width: 1.6em;
+  height: 1.58em;
   margin: 0;
-  font: 700 clamp(3rem, 7vw, 5.5rem) / 1 var(--head);
-  letter-spacing: -0.04em;
+  vertical-align: baseline;
+}
+
+.wordmark-under {
+  opacity: 0;
+  transition: opacity 500ms ease-in-out 300ms;
+}
+
+.wordmark[data-standing] .wordmark-under {
+  opacity: 1;
 }
 
 /* The canvas the name pours up to the bar on, over the view it leaves. */
@@ -2303,6 +2251,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   bottom: calc(0.2in - var(--eye-size) * 0.22);
   width: var(--eye-size);
   aspect-ratio: 1;
+  opacity: 0.25;
 }
 
 .loading .eye-box canvas {

@@ -7,6 +7,10 @@
     harness.py window watch [--seconds 25]                       started alone with its output kept, ended after
     harness.py window shot [--id N] [--width 480] [--height 320] its top-left pictured to build/harness/window_shot.png
     harness.py window zoom [--x --y --width --height --scale]    a part drawn larger to build/harness/window_zoom.png
+    harness.py window frames [--id N] [--every 40] [--for 1200]  pictured whole every --every ms into build/harness/frames,
+                             [--port P --trigger JS] [--start]   an expression run first, or started and pictured from
+                                                                 its first moment
+    harness.py window dump [--path FILE]                         the newest crash dump read under cdb, the faulting stack
     harness.py window debug [--seconds 45]                       run under cdb, the stack where it faults
     harness.py window memory                                     its process tree's private working set and commit
     harness.py window luminance [--floor 78] [--each 6]          the dark scheme's tokens by lightness, with their rules
@@ -201,12 +205,83 @@ def cmd_shot(a):
     return 0
 
 
+def frames_window_started():
+    """The suite's build of the window started on a copy of the fixture tree with a home and a web view profile of
+    its own under build/harness/frames_run, placed on the harness's display, for frames from its first moment.
+    Returns the process."""
+    import shutil
+
+    import harness_win32 as win
+    import harness_window_test as suite
+
+    run = os.path.join(HARNESS_BUILD, "frames_run")
+    shutil.rmtree(run, ignore_errors=True)
+    tree = os.path.join(run, "tree")
+    suite.copy_tree(os.path.join(suite.SUITE, "fixtures", "tree"), tree)
+    os.makedirs(os.path.join(run, "home"), exist_ok=True)
+    env = dict(os.environ)
+    env.update({"ORIOR_HOME": os.path.join(run, "home"), "ORIOR_ROOT": tree, "ORIOR_NO_REPORTS": "1", "WEBVIEW2_USER_DATA_FOLDER": os.path.join(run, "webview")})
+    program = os.path.join(suite.APP_TARGET, "debug", gui_name() + ".exe")
+    process = subprocess.Popen([program], cwd=tree, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    until = time.monotonic() + 60
+    while time.monotonic() < until and not win.main_window(process.pid)[0]:
+        time.sleep(0.05)
+    window_placed(process.pid, DISPLAY)
+    return process
+
+
+def cmd_frames(a):
+    """The window pictured whole every --every milliseconds for --for milliseconds, each frame a PNG under
+    build/harness/frames, numbered; where --port and --trigger are given, the expression runs on the window's page
+    through its debugging port as the first frame is taken: the frames show what it sets in motion. With --start
+    the suite's build of the window is started on the fixture tree and pictured from its first moment, and ended
+    after."""
+    if not windows_only():
+        return 1
+    import harness_win32 as win
+
+    started = frames_window_started() if a.start else None
+    found = window_of(started.pid if started else a.id)
+    if not found:
+        return 1
+    process_id, _, rect = found
+    handle, _ = win.main_window(process_id)
+    left, top, right, bottom = win.window_rect(handle)
+    folder = os.path.join(HARNESS_BUILD, "frames")
+    for old in os.listdir(folder) if os.path.isdir(folder) else []:
+        os.remove(os.path.join(folder, old))
+    os.makedirs(folder, exist_ok=True)
+    if a.port and a.trigger:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import harness_cdp
+
+        conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
+        conn.call("Runtime.enable", timeout=10)
+        conn.evaluate(a.trigger, timeout=10)
+    began = time.monotonic()
+    grabbed = []
+    while (time.monotonic() - began) * 1000.0 < a.seconds_for:
+        grabbed.append((int((time.monotonic() - began) * 1000.0), win.screen_pixels(left, top, right - left, bottom - top)))
+        time.sleep(a.every / 1000.0)
+    if started:
+        started.kill()
+        started.wait()
+    crop = [int(one) for one in a.crop.split(",")] if a.crop else None
+    for count, (at, rows) in enumerate(grabbed):
+        if crop:
+            rows = [row[crop[0] * 3 : (crop[0] + crop[2]) * 3] for row in rows[crop[1] : crop[1] + crop[3]]]
+            rows = win.rows_scaled(rows, a.scale)
+        win.png_written(os.path.join(folder, "%03d_%04dms.png" % (count, at)), rows)
+    print("window %d at %d,%d to %d,%d, %d frames every %d ms: %s" % (process_id, left, top, right, bottom, len(grabbed), a.every, folder))
+    return 0
+
+
 def cmd_zoom(a):
     if not windows_only():
         return 1
     import harness_win32 as win
 
-    found = window_of(0)
+    found = window_of(a.id)
     if not found:
         return 1
     _, _, rect = found
@@ -214,6 +289,28 @@ def cmd_zoom(a):
     rows = win.screen_pixels(rect[0] + a.x, rect[1] + a.y, a.width, a.height)
     win.png_written(path, win.rows_scaled(rows, a.scale))
     print("zoomed %d,%d %d x %d by %d: %s" % (a.x, a.y, a.width, a.height, a.scale, path))
+    return 0
+
+
+def cmd_dump(a):
+    """The newest crash dump under build/harness/dumps, or the one --path names, read under cdb with the suite build's
+    symbols: the faulting stack with its lines, to build/harness/window_dump.txt and the screen."""
+    if not windows_only():
+        return 1
+    folder = os.path.join(HARNESS_BUILD, "dumps")
+    dumps = sorted((os.path.join(folder, name) for name in os.listdir(folder) if name.endswith(".dmp")), key=os.path.getmtime) if os.path.isdir(folder) else []
+    path = a.path or (dumps[-1] if dumps else "")
+    if not path:
+        print("no dump under %s: turn on Windows Error Reporting's LocalDumps for %s.exe into it" % (folder, gui_name()))
+        return 1
+    symbols = ";".join([os.path.join(ROOT, "build", "cargo", "app", "debug"), os.path.join(ROOT, "build", "cargo", "release"), os.path.join(ROOT, "build", "cargo", "debug")])
+    log = os.path.join(HARNESS_BUILD, "window_dump.txt")
+    with open(log, "wb") as out:
+        subprocess.run([CDB, "-z", path, "-y", symbols, "-c", ".lines; .ecxr; kc 40; ~*kc 12; q"], cwd=ROOT, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
+    with open(log, "r", encoding="utf-8", errors="replace") as read:
+        text = read.read()
+    print("%s read under cdb: %s" % (path, log))
+    print(text[text.find("ExceptionAddress") - 200 if "ExceptionAddress" in text else 0 :][:6000])
     return 0
 
 
@@ -360,13 +457,29 @@ def register(sub):
     p.add_argument("--height", type=int, default=320)
     p.set_defaults(fn=cmd_shot)
 
+    p = window.add_parser("frames", help="the window pictured whole every --every ms for --for ms, to build/harness/frames, an expression run on its page first")
+    p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
+    p.add_argument("--every", type=int, default=40)
+    p.add_argument("--for", dest="seconds_for", type=int, default=1200, help="milliseconds")
+    p.add_argument("--port", type=int, default=0, help="the window's debugging port, for --trigger")
+    p.add_argument("--trigger", default="", help="an expression run on the page as the first frame is taken")
+    p.add_argument("--start", action="store_true", help="the suite's build started on the fixture tree and pictured from its first moment")
+    p.add_argument("--crop", default="", help="LEFT,TOP,WIDTH,HEIGHT of the window kept of each frame, drawn --scale times larger")
+    p.add_argument("--scale", type=int, default=4)
+    p.set_defaults(fn=cmd_frames)
+
     p = window.add_parser("zoom", help="a part of the window drawn larger to build/harness/window_zoom.png")
+    p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
     p.add_argument("--x", type=int, default=0)
     p.add_argument("--y", type=int, default=0)
     p.add_argument("--width", type=int, default=160)
     p.add_argument("--height", type=int, default=100)
     p.add_argument("--scale", type=int, default=5)
     p.set_defaults(fn=cmd_zoom)
+
+    p = window.add_parser("dump", help="the newest crash dump under build/harness/dumps read under cdb, the faulting stack to build/harness/window_dump.txt")
+    p.add_argument("--path", default="", help="a dump file; the newest under build/harness/dumps where none")
+    p.set_defaults(fn=cmd_dump)
 
     p = window.add_parser("debug", help="run under cdb, its stack where it faults, to build/harness/window_debug.txt")
     p.add_argument("--seconds", type=int, default=45)
