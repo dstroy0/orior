@@ -164,6 +164,8 @@ unsigned long long cli_regexp_letters(const char *text, unsigned long long size,
 // the pattern `source` with `flags` read into `regexp`, its arrays pointed at a room: 1, or 0 with why said,
 // `/<source>/: <why> at <place>`
 int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, CliLine *said);
+// whether a first set allows a match to start at `letter`: its ASCII bits, or `other` past them
+int cli_regexp_allows(const CliRegexpFirst *first, unsigned int letter);
 // whether a match starts at `at` in the text, `length` letters, each group's span written into `groups`, which holds
 // the regexp's groups and one, the whole match first: 1, or 0
 int cli_regexp_match_into(const CliRegexp *regexp, const unsigned int *text, unsigned long long length,

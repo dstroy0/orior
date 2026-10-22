@@ -57,7 +57,8 @@ typedef struct
     const char *rules;
 } BenchCutDown;
 
-static const BenchCutDown s_cut_down[4] = {
+static const BenchCutDown s_cut_down[5] = {
+    {"color:none", "[]"},
     {"color:whitespace", "[{\"include\":\"@whitespace\"}]"},
     {"color:identifier-plain", "[{\"include\":\"@whitespace\"},[\"[A-Za-z_]\\\\w*\",\"identifier\"]]"},
     {"color:identifier-cases", "[{\"include\":\"@whitespace\"},[\"[A-Za-z_]\\\\w*\",{\"cases\":{\"@types\":\"type\","
@@ -74,7 +75,7 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
                            unsigned int repeat, unsigned long long largest)
 {
     const unsigned int tokenizer = cli_json_member(json, grammar, "tokenizer");
-    for (unsigned int at = 0u; at < 4u; at += 1u)
+    for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         CliLine made;
         if (!cli_line_growing(&made, 1ull << 16u, "a cut-down grammar"))

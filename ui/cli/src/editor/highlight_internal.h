@@ -44,8 +44,6 @@
 
 #define CLI_HIGHLIGHT_STACK 256u
 
-#define CLI_HIGHLIGHT_ENDINGS (1u << 22u)
-
 // a token's kinds: a name, cases that pick one by the matched text, or one token for each group of the match
 enum
 {
@@ -92,12 +90,17 @@ typedef struct
     unsigned int next;
 } CliHighlightRule;
 
-// A state, or a list of words: its name's text, and its rules or its words, `count` of the list from `first`
+// A state, or a list of words: its name's text, and its rules or its words, `count` of the list from `first`; for a
+// state, the letters any of its rules that colors or changes the state can start a match at, every such rule's first
+// letters joined, and a table of the ASCII ones, 1 at each byte such a rule starts at, by which the colorer strides
+// over the letters no rule takes in one lookup a letter
 typedef struct
 {
     unsigned int name;
     unsigned int first;
     unsigned int count;
+    CliRegexpFirst starts;
+    unsigned char starts_at[128];
 } CliHighlightList;
 
 // A grammar's parts, wherever they are held: the patterns' nodes, items, child places and their first letters; the
@@ -170,14 +173,14 @@ typedef struct
     unsigned int text_most;
 } CliGrammarRoom;
 
-// the most bytes the state one line ends in takes among the endings: its names as JSON, a quote either side, and the
-// comma before it
-#define CLI_HIGHLIGHT_ENDING ((6u * CLI_HIGHLIGHT_STACK * 4u) + 3u)
+// the bytes each line's ending is given among the endings: its states as JSON and the comma before it; a coloring whose
+// endings take more leaves them cut
+#define CLI_HIGHLIGHT_ENDING 256ull
 
-// A coloring's room, its parts placed in one cell the keeper takes for one coloring at the sizes its lines ask:
-// a line's letters, `most` of them for the longest line; where each starts in UTF-16 units and the line's end last; its
-// runs; the states stacked; the text a case is picked by, four bytes a letter; and the state each line ends in, the
-// endings holding `endings_size` bytes
+// The coloring room, its parts placed in one cell the keeper takes once and keeps, at twice the sizes the largest
+// coloring asked so far, taken again only where a larger one comes: a line's letters, `most` of them for the longest
+// line; where each starts in UTF-16 units and the line's end last; its runs; the states stacked; the text a case is
+// picked by, four bytes a letter; and the state each of `count` lines ends in, the endings holding `endings_size` bytes
 typedef struct
 {
     unsigned int *letters;
@@ -189,6 +192,7 @@ typedef struct
     char *key;
     char *endings;
     unsigned long long most;
+    unsigned long long count;
     unsigned long long endings_size;
 } CliHighlightRoom;
 

@@ -440,6 +440,34 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
         grammar->state[state].first = grammar->listed_count;
         cli_expanded(grammar, state, seen, 1u);
         grammar->state[state].count = grammar->listed_count - grammar->state[state].first;
+        // the letters a rule of the state that colors or changes the state starts at, each such rule's first letters
+        // joined, and whether any takes nothing; a rule with the plain token and no next is a skip, which a stride over
+        // its letters as plain is the same as, and it joins nothing
+        CliRegexpFirst *const starts = &grammar->state[state].starts;
+        starts->ascii[0] = 0ull;
+        starts->ascii[1] = 0ull;
+        starts->other = 0;
+        starts->empty = 0;
+        for (unsigned int each = 0u; each < grammar->state[state].count; each += 1u)
+        {
+            const CliHighlightRule *const rule = &grammar->rule[grammar->listed[grammar->state[state].first + each]];
+            const CliHighlightToken *const token =
+                (rule->token != CLI_HIGHLIGHT_NONE) ? &grammar->token[rule->token] : NULL;
+            const int plain = (token == NULL) || ((token->kind == CLI_TOKEN_NAME) && (token->name == 0u));
+            if (plain && (rule->next == CLI_HIGHLIGHT_NONE) && !rule->first.empty)
+            {
+                continue;
+            }
+            starts->ascii[0] |= rule->first.ascii[0];
+            starts->ascii[1] |= rule->first.ascii[1];
+            starts->other |= rule->first.other;
+            starts->empty |= rule->first.empty;
+        }
+        // the ASCII letters among them as the table the colorer's stride reads, one byte a letter
+        for (unsigned int byte = 0u; byte < 128u; byte += 1u)
+        {
+            grammar->state[state].starts_at[byte] = (unsigned char)((starts->ascii[byte / 64u] >> (byte % 64u)) & 1ull);
+        }
     }
     // each case's text read once here: `@default` is the fallback, and a text starting with `@` names a word list
     for (unsigned int at = 0u; at < grammar->case_count; at += 1u)

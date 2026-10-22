@@ -8,12 +8,15 @@
 // the room the coloring under way works in, the one the keeper handed it
 static CliHighlightRoom *s_room;
 
-// One line's work: its letters, how many are colored, its runs, and the states stacked
+// One line's work: its letters, how many are colored, its runs, the states stacked, each stacked state's place among
+// the grammar's states, found once as it is stacked, and root's place
 typedef struct
 {
     unsigned long long letters;
     unsigned int runs;
     unsigned int depth;
+    unsigned int root;
+    unsigned int state_at[CLI_HIGHLIGHT_STACK];
 } CliColoring;
 
 // the letters from `from` to `to` written in UTF-8 into `out`, which holds four bytes a letter, lower case where
@@ -110,7 +113,7 @@ static void cli_push(CliColoring *coloring, unsigned long long at, unsigned int 
 
 // the state stacked changed by a next: none, `@pop` leaving the one entered last, `@popall` returning to root, or a
 // state entered
-static void cli_step(CliColoring *coloring, const char *next)
+static void cli_step(const CliGrammar *grammar, CliColoring *coloring, const char *next)
 {
     if ((next == NULL) || (next[0] == '\0'))
     {
@@ -133,20 +136,19 @@ static void cli_step(CliColoring *coloring, const char *next)
     }
     if (coloring->depth < CLI_HIGHLIGHT_STACK)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_room->stack[coloring->depth],
-                                .src = name,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+        memor.cpy(&(MemoriaCfg){.dst = s_room->stack[coloring->depth], .src = name, .bytes = length + 1u});
+        coloring->state_at[coloring->depth] = cli_highlight_state(grammar, name, length);
         coloring->depth += 1u;
     }
 }
 
-// the rules of the state on top, root's where the grammar has no such state, none where it has neither
+// the rules of the state on top, its place found as it was stacked; root's where the grammar has no such state, none
+// where it has neither
 static const CliHighlightList *cli_rules(const CliGrammar *grammar, const CliColoring *coloring, int or_root)
 {
-    const char *const top = (coloring->depth != 0u) ? s_room->stack[coloring->depth - 1u] : "root";
-    unsigned int state =
-        cli_highlight_state(grammar, top, cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL}));
-    state = ((state == CLI_HIGHLIGHT_NONE) && or_root) ? cli_highlight_state(grammar, "root", 4u) : state;
+    unsigned int state = (coloring->depth != 0u) ? coloring->state_at[coloring->depth - 1u] : coloring->root;
+    state = ((state == CLI_HIGHLIGHT_NONE) && or_root) ? coloring->root : state;
     return (state != CLI_HIGHLIGHT_NONE) ? &grammar->state[state] : NULL;
 }
 
@@ -210,15 +212,41 @@ static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *c
     length = ((length == coloring->letters) && (col >= CLI_HIGHLIGHT_LONGEST)) ? coloring->letters : length;
     CliRegexpSpan found[CLI_REGEXP_GROUPS + 1u];
     const CliHighlightList *rules = cli_rules(grammar, coloring, 1);
+    const unsigned int *const letters = s_room->letters;
     unsigned long long at = 0ull;
     unsigned int stalled = 0u;
     while (at < length)
     {
+        // the letters no rule of the state can start at are plain, taken in one stride, the state's table read once a
+        // letter and no rule tried at any of them; where a rule starts at a letter outside ASCII, or takes nothing,
+        // every letter is tried
+        if ((rules != NULL) && !rules->starts.empty && !rules->starts.other)
+        {
+            const unsigned char *const starts_at = rules->starts_at;
+            unsigned long long stride = at;
+            while ((stride < length) && (letters[stride] < 128u) && (starts_at[letters[stride]] == 0u))
+            {
+                stride += 1ull;
+            }
+            if (stride > at)
+            {
+                cli_push(coloring, at, 0u);
+                at = stride;
+                stalled = 0u;
+                continue;
+            }
+        }
         int taken = 0;
         for (unsigned int each = 0u; (rules != NULL) && !taken && (each < rules->count); each += 1u)
         {
             const unsigned int index = grammar->listed[rules->first + each];
             const CliHighlightRule *const rule = &grammar->rule[index];
+            // a rule that cannot start at this letter is passed over before its pattern is made
+            if ((rule->anchored && (at != 0ull)) ||
+                (!rule->first.empty && !cli_regexp_allows(&rule->first, letters[at])))
+            {
+                continue;
+            }
             if (!cli_tried(grammar, index, coloring, at, found))
             {
                 continue;
@@ -233,7 +261,7 @@ static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *c
             at += size;
             if (rule->next != CLI_HIGHLIGHT_NONE)
             {
-                cli_step(coloring, grammar->text + rule->next);
+                cli_step(grammar, coloring, grammar->text + rule->next);
                 rules = cli_rules(grammar, coloring, 1);
             }
             taken = 1;
@@ -259,7 +287,7 @@ static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *c
             cli_tried(grammar, index, coloring, coloring->letters, found) && found[0].set &&
             (found[0].from == found[0].to))
         {
-            cli_step(coloring, grammar->text + grammar->rule[index].next);
+            cli_step(grammar, coloring, grammar->text + grammar->rule[index].next);
             break;
         }
     }
@@ -288,7 +316,11 @@ void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, cons
                          unsigned int count, CliLine *out)
 {
     s_room = room;
-    CliColoring coloring = {0ull, 0u, 0u};
+    CliColoring coloring;
+    coloring.letters = 0ull;
+    coloring.runs = 0u;
+    coloring.depth = 0u;
+    coloring.root = cli_highlight_state(grammar, "root", 4u);
     // the state given stacked, each of its names between `/` one state
     const char *from = state;
     for (;;)
@@ -302,6 +334,7 @@ void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, cons
             CliLine name = {s_room->stack[coloring.depth], CLI_NAME_LONGEST, 0ull};
             cli_line_counted(&name, from, length);
             cli_line_closed(&name);
+            coloring.state_at[coloring.depth] = cli_highlight_state(grammar, from, length);
             coloring.depth += 1u;
         }
         if (slash == NULL)
@@ -318,6 +351,7 @@ void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, cons
         cli_json_quoted(out, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     }
     cli_line_text(out, "],\"runs\":[");
+    // the state each line ends in, as JSON, among the room's endings
     CliLine endings = {s_room->endings, s_room->endings_size, 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
     {
@@ -328,6 +362,7 @@ void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, cons
                 &(MemoriaCfg){.dst = s_room->stack[0],
                               .src = "root",
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = "root", .cap = CLI_CELLS_POOL}) + 1u});
+            coloring.state_at[0] = coloring.root;
             coloring.depth = 1u;
         }
         cli_line(grammar, lines[each], &coloring);

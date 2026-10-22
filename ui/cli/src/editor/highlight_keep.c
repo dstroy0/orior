@@ -260,11 +260,15 @@ static unsigned long long cli_coloring_parts(CliHighlightRoom *room, unsigned ch
     return at;
 }
 
-// the parts of a coloring's room for `count` lines, each at the size the lines ask: the letters of the longest line, a
-// line's letters being no more than its bytes nor than a line is read to, and the endings of every line. The room is
-// one cell, sized on a first pass over its parts and placed in on a second: the cell, for the caller to give back, or
-// NULL where the cellblock cannot meet it
-static unsigned char *cli_coloring_roomed(CliHighlightRoom *room, const char *const *lines, unsigned int count)
+// the coloring room kept, and its cell
+static CliHighlightRoom s_coloring;
+static unsigned char *s_coloring_cell;
+
+// the coloring room for `count` lines: the kept one where it holds the longest line's letters, a line's letters being
+// no more than its bytes nor than a line is read to, and the count; else one taken at twice both, the one kept before
+// given back. The room is one cell, sized on a first pass over its parts and placed in on a second: the room, or NULL
+// where the cellblock cannot meet it; under the lock
+static CliHighlightRoom *cli_coloring_roomed(const char *const *lines, unsigned int count)
 {
     unsigned long long most = 0ull;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -272,16 +276,26 @@ static unsigned char *cli_coloring_roomed(CliHighlightRoom *room, const char *co
         const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = lines[at], .cap = CLI_CELLS_POOL});
         most = (bytes > most) ? bytes : most;
     }
-    room->most = (most < CLI_HIGHLIGHT_LETTERS) ? most : CLI_HIGHLIGHT_LETTERS;
-    // each line's ending, and the byte a line holds back for its terminator
-    const unsigned long long endings = ((unsigned long long)count * CLI_HIGHLIGHT_ENDING) + 1ull;
-    room->endings_size = (endings < CLI_HIGHLIGHT_ENDINGS) ? endings : CLI_HIGHLIGHT_ENDINGS;
-    unsigned char *const cell = cli_cell_taken_by(&s_tally, cli_coloring_parts(room, NULL), "a coloring's room");
-    if (cell != NULL)
+    most = (most < CLI_HIGHLIGHT_LETTERS) ? most : CLI_HIGHLIGHT_LETTERS;
+    if ((s_coloring_cell != NULL) && (most <= s_coloring.most) && (count <= s_coloring.count))
     {
-        (void)cli_coloring_parts(room, cell);
+        return &s_coloring;
     }
-    return cell;
+    CliHighlightRoom room;
+    room.most = (most * 2ull < CLI_HIGHLIGHT_LETTERS) ? most * 2ull : CLI_HIGHLIGHT_LETTERS;
+    room.count = (unsigned long long)count * 2ull;
+    // each line's ending, and the byte the endings hold back for their terminator
+    room.endings_size = (room.count * CLI_HIGHLIGHT_ENDING) + 1ull;
+    unsigned char *const cell = cli_cell_taken_by(&s_tally, cli_coloring_parts(&room, NULL), "the coloring room");
+    if (cell == NULL)
+    {
+        return NULL;
+    }
+    (void)cli_coloring_parts(&room, cell);
+    cli_cell_given_by(&s_tally, s_coloring_cell);
+    s_coloring_cell = cell;
+    s_coloring = room;
+    return &s_coloring;
 }
 
 int cli_highlight_keep(const char *key, const CliJson *json, unsigned int def, CliLine *said)
@@ -314,14 +328,12 @@ int cli_highlight_color(const char *key, const char *state, const char *const *l
     const int held = held_at != s_kept_room;
     if (held)
     {
-        CliHighlightRoom room;
-        unsigned char *const cell = cli_coloring_roomed(&room, lines, count);
-        roomed = (cell != NULL);
+        CliHighlightRoom *const room = cli_coloring_roomed(lines, count);
+        roomed = (room != NULL);
         if (roomed)
         {
-            cli_highlight_lines(&s_kept[held_at].grammar, &room, state, lines, count, out);
+            cli_highlight_lines(&s_kept[held_at].grammar, room, state, lines, count, out);
         }
-        cli_cell_given_by(&s_tally, cell);
     }
     cli_lock_give(&s_lock);
     if (!held)

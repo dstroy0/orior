@@ -57,13 +57,12 @@ typedef struct CliRegexpThen
 } CliRegexpThen;
 
 // a word's character, a space, a line's end; two letters the same, under `i` without case; a class node's or a
-// character node's holding of one letter, -1 for a node that takes no one letter; and a letter a first set allows
+// character node's holding of one letter, -1 for a node that takes no one letter
 int cli_regexp_word(unsigned int letter);
 int cli_regexp_space(unsigned int letter);
 int cli_regexp_ends_line(unsigned int letter);
 int cli_regexp_same(const CliRegexp *regexp, unsigned int a, unsigned int b);
 int cli_regexp_one(const CliRegexp *regexp, unsigned int index, unsigned int letter);
-int cli_regexp_allows(const CliRegexpFirst *first, unsigned int letter);
 // the steps (regexp_match.c): what comes after handed a place; the rest of a sequence; a repetition at a pass; a repeat
 // over one character, and one whose pass takes the text one way or none
 int cli_regexp_then(const CliRegexp *regexp, const CliRegexpThen *then, unsigned long long at, CliRegexpRun *run);
