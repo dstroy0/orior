@@ -136,8 +136,10 @@ static void symbols_index(void)
     unsigned int found = symbols_found("first", 10u, &json, &reading);
     CliLine line = {text, sizeof(text), 0ull};
     cli_json_write(json, found, &line, 0u, 0);
-    cli_check_text(text, line.at, "[{\"name\":\"first\",\"kind\":\"function\",\"path\":\"a.py\",\"line\":0}]",
-                   "the index reads a tree");
+    cli_check_text(
+        text, line.at,
+        "[{\"name\":\"first\",\"kind\":\"function\",\"path\":\"a.py\",\"line\":0,\"text\":\"def first():\"}]",
+        "the index reads a tree");
     query_paused(20u);
     (void)query_file_written(path, "\ndef second():\n    pass\n", 24ull);
     // a tree is brought up to date again once four seconds have passed since the last

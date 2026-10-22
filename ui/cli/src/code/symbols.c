@@ -74,7 +74,7 @@ static CliSymbolsReading *s_listing;
 
 // The index's state: its tree, whether a reading goes and when the last ended, how far it has gone, whether it is asked
 // to stop, which reading of the tree it is, and whether its thread runs
-static char s_root[CLI_PATH_LONGEST];
+char g_cli_symbols_root[CLI_PATH_LONGEST];
 static int s_rooted;
 int g_cli_symbols_reading;
 static int s_read;
@@ -200,9 +200,10 @@ static void cli_reading(void *context)
     cli_lock_take(&g_cli_symbols_lock);
     const unsigned long long generation = s_generation;
     char root[CLI_PATH_LONGEST];
-    memor.cpy(&(MemoriaCfg){.dst = root,
-                            .src = s_root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_root, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(
+        &(MemoriaCfg){.dst = root,
+                      .src = g_cli_symbols_root,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_symbols_root, .cap = CLI_CELLS_POOL}) + 1u});
     s_done = 0ull;
     s_total = s_listed_count;
     for (unsigned int at = 0u; at < g_cli_symbol_file_count; at += 1u)
@@ -314,10 +315,10 @@ void cli_symbols_forget(void)
 void cli_symbols_refresh(const char *root, const char *const *paths, unsigned int count)
 {
     cli_lock_take(&g_cli_symbols_lock);
-    if (!s_rooted || (!cellul.eq(&(CatenaFinitaCfg){.src = s_root, .other = root, .cap = CLI_CELLS_POOL})))
+    if (!s_rooted || (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_symbols_root, .other = root, .cap = CLI_CELLS_POOL})))
     {
         s_generation += 1ull;
-        memor.cpy(&(MemoriaCfg){.dst = s_root,
+        memor.cpy(&(MemoriaCfg){.dst = g_cli_symbols_root,
                                 .src = root,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
         s_rooted = 1;

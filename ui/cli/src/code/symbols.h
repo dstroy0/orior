@@ -35,7 +35,8 @@ void cli_symbols_stop(void);
 // whether the tree's files are being read for the first time
 int cli_symbols_unread(void);
 // the declarations whose names answer `query`, at most `most` of them, the best first, written as `{"symbols":
-// [{"name", "kind", "path", "line"}...], "reading"}`
+// [{"name", "kind", "path", "line", "text"}...], "reading"}`, `text` the declaration's own line trimmed, read from
+// its file as the answer is written
 void cli_symbols_find(const char *query, unsigned int most, CliLine *out);
 
 #endif

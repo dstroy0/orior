@@ -311,7 +311,8 @@ async function treeHover(word) {
   }
   const found = await invoke("symbols_find", { query: word.text }).catch(() => null);
   const same = (found?.symbols ?? []).filter((one) => one.name === word.text).slice(0, TREE_HOVER_MOST);
-  return same.map((one) => `**${one.name}** ${one.kind}\n\n\`${one.path}:${one.line}\``);
+  // the declaration's own line first, as code, then what it is and where
+  return same.map((one) => `${one.text ? "```\n" + one.text + "\n```\n\n" : ""}${one.kind} \`${one.path}:${one.line + 1}\``);
 }
 
 export function wrap(tab) {

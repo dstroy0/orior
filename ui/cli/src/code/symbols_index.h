@@ -33,6 +33,8 @@ typedef struct
 
 // the files held, in a cell whose room doubles as places are wanted, CLI_SYMBOL_FILES at the most, how many places
 // among them were taken, the lock, and whether a reading goes (symbols.c, symbols_table.c)
+// the tree the index reads, its top, written under the lock as a tree is opened (symbols.c)
+extern char g_cli_symbols_root[CLI_PATH_LONGEST];
 extern CliHeldFile *g_cli_symbol_files;
 extern unsigned int g_cli_symbol_file_count;
 extern CliLock g_cli_symbols_lock;

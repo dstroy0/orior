@@ -17,6 +17,46 @@ typedef struct
     unsigned int symbol;
 } CliScored;
 
+// the most bytes of a declaration's line written with it, and the most bytes of a file read for that line
+#define CLI_SYMBOL_LINE_MOST 240ull
+#define CLI_SYMBOL_LINE_FILE_MOST (1ull << 20u)
+
+// the declaration's own line, `line` counted from 0 in the file at `path`, written as a JSON string with the whitespace
+// at either end left off, cut to CLI_SYMBOL_LINE_MOST bytes: an empty string where the file is not read or has no
+// such line
+static void find_line_written(const char *path, unsigned int line, CliLine *out)
+{
+    unsigned long long size = 0ull;
+    const unsigned char *const bytes = cli_file_held(path, &size);
+    unsigned long long start = 0ull;
+    unsigned int counted = 0u;
+    while ((bytes != NULL) && (size <= CLI_SYMBOL_LINE_FILE_MOST) && (counted < line) && (start < size))
+    {
+        const unsigned char *const newline =
+            memor.chr(&(MemoriaCfg){.src = bytes + start, .val = '\n', .bytes = size - start});
+        // a newline found lies in the bytes, at or past `start`
+        start = (newline != NULL) ? ((unsigned long long)(newline - bytes) + 1ull) : size;
+        counted += 1u;
+    }
+    unsigned long long end = start;
+    while ((bytes != NULL) && (counted == line) && (end < size) && (bytes[end] != '\n'))
+    {
+        end += 1ull;
+    }
+    while ((end > start) && ((bytes[end - 1ull] == '\r') || (bytes[end - 1ull] == ' ') || (bytes[end - 1ull] == '\t')))
+    {
+        end -= 1ull;
+    }
+    while ((start < end) && ((bytes[start] == ' ') || (bytes[start] == '\t')))
+    {
+        start += 1ull;
+    }
+    const unsigned long long length = ((end - start) < CLI_SYMBOL_LINE_MOST) ? (end - start) : CLI_SYMBOL_LINE_MOST;
+    cli_json_quoted_lossy(out, (bytes != NULL) ? bytes + start : (const unsigned char *)"",
+                          (bytes != NULL) ? length : 0ull);
+    cli_file_let_go(bytes, size);
+}
+
 // whether one found ranks before another: more points, then by name, path, kind and line
 static int cli_ranks_before(const CliScored *one, const CliScored *other)
 {
@@ -85,6 +125,10 @@ void cli_symbols_find(const char *query, unsigned int most, CliLine *out)
         cli_json_quoted(out, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
         cli_line_text(out, ",\"line\":");
         cli_line_decimal(out, symbol->line, 1u);
+        cli_line_text(out, ",\"text\":");
+        char full[CLI_PATH_LONGEST];
+        cli_full(g_cli_symbols_root, path, full);
+        find_line_written(full, symbol->line, out);
         cli_line_character(out, '}');
     }
     cli_line_text(out, g_cli_symbols_reading ? "],\"reading\":true}" : "],\"reading\":false}");
