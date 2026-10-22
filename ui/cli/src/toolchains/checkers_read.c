@@ -6,26 +6,22 @@
 #include "../text/json_tree.h"
 #include "checkers_internal.h"
 
-// the most nodes and bytes of a checker's JSON read, and the most bytes of a finding's fixes
-#define CLI_CHECK_NODES (1u << 19u)
-#define CLI_CHECK_JSON (1u << 24u)
+// the most bytes of a finding's fixes
 #define CLI_CHECK_FIXES (1u << 16u)
 
-// A check being read, a cell taken with the reading's lock and given back with it: the checker's name, the tree, the
-// file `-` stands for, the findings, and the tree a checker's JSON is read into
+// A check being read, under the reading's lock: the checker's name, the tree, the file `-` stands for, the findings,
+// and the tree a checker's JSON is read into, in a cell sized to that JSON and given back as the reading ends
 typedef struct
 {
     const char *name;
     const char *root;
     const char *path;
     CliFindings *findings;
-    CliJsonNode nodes[CLI_CHECK_NODES];
-    CfgJsonToken tokens[CLI_CHECK_NODES];
-    char text[CLI_CHECK_JSON];
     CliJson json;
     char fixes[CLI_CHECK_FIXES];
 } CliCheckRead;
 
+static CliCheckRead s_room;
 static CliCheckRead *s_read;
 
 // a path's key: with forward slashes, in lower case
@@ -201,13 +197,12 @@ static const char *cli_text(unsigned int node, const char *key, const char *othe
     return (text != NULL) ? text : otherwise;
 }
 
-// the checker's JSON read: its root, or CLI_JSON_NONE
+// the checker's JSON read into a tree sized to it: its root, or CLI_JSON_NONE
 static unsigned int cli_json_of(const char *out, unsigned long long size)
 {
-    cli_json_begun(&s_read->json, s_read->nodes, CLI_CHECK_NODES, s_read->text, CLI_CHECK_JSON);
     char why[CLI_NAME_LONGEST];
     CliLine unread = {why, sizeof(why), 0ull};
-    return cli_json_read(&s_read->json, out, size, s_read->tokens, CLI_CHECK_NODES, &unread);
+    return cli_json_taken(&s_read->json, out, size, 0u, 0ull, &unread);
 }
 
 // a place in ruff's findings, its row and column counted from one, written counted from zero as `{"line", "col"}`
@@ -361,15 +356,7 @@ void cli_checkers_read(const char *name, const char *reads, const char *out, uns
 {
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
-    s_read = cli_cell_taken(sizeof(*s_read), "a checker's findings read");
-    if (s_read == NULL)
-    {
-        findings->files = 0u;
-        findings->findings = 0u;
-        findings->used = 0u;
-        cli_lock_give(&s_lock);
-        return;
-    }
+    s_read = &s_room;
     s_read->name = name;
     s_read->root = root;
     s_read->path = path;
@@ -398,7 +385,7 @@ void cli_checkers_read(const char *name, const char *reads, const char *out, uns
             cli_checkers_lines_read(err, err_size);
         }
     }
-    cli_cell_given(s_read);
+    cli_json_given(&s_read->json);
     s_read = NULL;
     cli_lock_give(&s_lock);
 }
