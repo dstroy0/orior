@@ -23,17 +23,20 @@ typedef struct
 } CliDecl;
 
 // One side of a file, before or after the change: its lines, each where it starts and its bytes, its declarations,
-// and its lines before the first of them
+// and its lines before the first of them; the lines and declarations are parts of a cell sized to the file's two
+// sides by their newlines, taken as the file is compared and given back after
 typedef struct
 {
     const char *text;
-    unsigned int start[CLI_REVIEW_LINES];
-    unsigned int length[CLI_REVIEW_LINES];
+    unsigned int *start;
+    unsigned int *length;
     unsigned int lines;
-    CliDecl decl[CLI_REVIEW_DECLS];
+    unsigned int lines_most;
+    CliDecl *decl;
     unsigned int decls;
+    unsigned int decls_most;
     unsigned int head;
-    unsigned char matched[CLI_REVIEW_DECLS];
+    unsigned char *matched;
 } CliSide;
 
 // The comparison: the two sides of the file compared, the pieces added and taken out across the files, and room to
@@ -58,6 +61,50 @@ unsigned long long cli_review_compared_bytes(void)
     return sizeof(CliCompare);
 }
 
+// the lines of `size` bytes of `text`: one more than its newlines
+static unsigned int cli_lines_counted(const char *text, unsigned long long size)
+{
+    unsigned int lines = 1u;
+    for (unsigned long long at = 0ull; at < size; lines += 1u)
+    {
+        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
+        if (newline == NULL)
+        {
+            break;
+        }
+        at = (unsigned long long)(newline - text) + 1ull;
+    }
+    return lines;
+}
+
+// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+static void *cli_side_part(unsigned char **at, unsigned long long bytes)
+{
+    void *const part = *at;
+    *at += (bytes + 7ull) & ~7ull;
+    return part;
+}
+
+// a side's parts set into a cell from `*at` for `lines` lines, its declarations at most CLI_REVIEW_DECLS of them
+static void cli_side_set(CliSide *side, unsigned char **at, unsigned int lines)
+{
+    const unsigned int decls = (lines < CLI_REVIEW_DECLS) ? lines : CLI_REVIEW_DECLS;
+    side->start = cli_side_part(at, (unsigned long long)lines * sizeof(unsigned int));
+    side->length = cli_side_part(at, (unsigned long long)lines * sizeof(unsigned int));
+    side->lines_most = lines;
+    side->decl = cli_side_part(at, (unsigned long long)decls * sizeof(CliDecl));
+    side->decls_most = decls;
+    side->matched = cli_side_part(at, decls);
+}
+
+// the bytes a side's parts take for `lines` lines
+static unsigned long long cli_side_bytes(unsigned int lines)
+{
+    const unsigned int decls = (lines < CLI_REVIEW_DECLS) ? lines : CLI_REVIEW_DECLS;
+    return ((unsigned long long)lines * 2ull * sizeof(unsigned int)) + ((unsigned long long)decls * sizeof(CliDecl)) +
+           decls + (4ull * 8ull);
+}
+
 unsigned int cli_review_kept(const char *text, unsigned long long length)
 {
     if (!cli_review_room(&g_cli_review.kept, &g_cli_review.kept_room, g_cli_review.kept_used, length + 1ull,
@@ -78,7 +125,7 @@ static void cli_lines_of(const char *text, unsigned long long size, CliSide *sid
 {
     side->text = text;
     side->lines = 0u;
-    for (unsigned long long at = 0ull; (at < size) && (side->lines < CLI_REVIEW_LINES);)
+    for (unsigned long long at = 0ull; (at < size) && (side->lines < side->lines_most);)
     {
         const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
         // a newline found lies in the text, at or past `at`
@@ -136,7 +183,7 @@ static void cli_declared(void *context, const char *name, unsigned long long len
                          unsigned int line)
 {
     CliSide *const side = (CliSide *)context;
-    if (side->decls < CLI_REVIEW_DECLS)
+    if (side->decls < side->decls_most)
     {
         side->decl[side->decls] = (CliDecl){
             cli_review_kept(name, length),
@@ -251,10 +298,26 @@ static void cli_file_compared(const CliReviewFile *file)
     }
     CliSide *const was = &s_compare->was;
     CliSide *const now = &s_compare->now;
+    const char *const was_text = file->has_was ? (g_cli_review.text + file->was) : "";
+    const char *const now_text = file->has_now ? (g_cli_review.text + file->now) : "";
+    const unsigned long long was_size = file->has_was ? file->was_size : 0ull;
+    const unsigned long long now_size = file->has_now ? file->now_size : 0ull;
+    // the two sides' lines and declarations in one cell sized to the file's newlines
+    const unsigned int was_lines = cli_lines_counted(was_text, was_size);
+    const unsigned int now_lines = cli_lines_counted(now_text, now_size);
+    unsigned char *const cell =
+        cli_cell_taken(cli_side_bytes(was_lines) + cli_side_bytes(now_lines), "a file's two sides compared");
+    if (cell == NULL)
+    {
+        cli_other_put(file->path);
+        return;
+    }
+    unsigned char *at_cell = cell;
+    cli_side_set(was, &at_cell, was_lines);
+    cli_side_set(now, &at_cell, now_lines);
     const unsigned int empty = cli_review_kept("", 0ull);
-    cli_spans(g_cli_review.text + file->was_path, file->has_was ? (g_cli_review.text + file->was) : "",
-              file->has_was ? file->was_size : 0ull, was);
-    cli_spans(path, file->has_now ? (g_cli_review.text + file->now) : "", file->has_now ? file->now_size : 0ull, now);
+    cli_spans(g_cli_review.text + file->was_path, was_text, was_size, was);
+    cli_spans(path, now_text, now_size, now);
     if (!cli_same_trimmed(g_cli_review.kept + was->head, g_cli_review.kept + now->head) && file->has_was &&
         file->has_now)
     {
@@ -307,6 +370,7 @@ static void cli_file_compared(const CliReviewFile *file)
         cli_piece_put(s_compare->removed, &s_compare->removeds,
                       cli_piece(file->was_path, &was->decl[least], "removed", was->decl[least].text, empty));
     }
+    cli_cell_given(cell);
 }
 
 // whether a piece comes before another: by path, then line
