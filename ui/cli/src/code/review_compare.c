@@ -149,7 +149,9 @@ static unsigned int cli_joined(const CliSide *side, unsigned int from, unsigned 
     {
         size += side->length[line] + ((line != from) ? 1ull : 0ull);
     }
-    if ((at + size + 1ull) > CLI_REVIEW_KEPT)
+    // the pieces' texts grown to hold the joined lines and their end, as a piece's text put grows them
+    if (!cli_review_room(&g_cli_review.kept, &g_cli_review.kept_room, at, size + 1ull, CLI_REVIEW_KEPT,
+                         "a review's piece texts"))
     {
         return 0u;
     }
