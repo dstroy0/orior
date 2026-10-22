@@ -69,10 +69,11 @@ STALL_SECONDS = 90
 HEARTBEAT_SECONDS = 30
 
 
-def streamed(command, cwd=ROOT, env=None):
+def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS):
     """A command run with its output streamed line by line through the harness's standard output; its exit code.
     A child that writes nothing is watched: while its processor time moves a heartbeat says so every
-    HEARTBEAT_SECONDS; one whose time stands still for STALL_SECONDS is ended and 124 is the exit code."""
+    HEARTBEAT_SECONDS; one whose time stands still for `stall` seconds is ended and 124 is the exit code. A child whose work
+    runs inside a container shows no processor time here; such a child is therefore run with no stall, the heartbeat alone."""
     import queue
     import threading
     import time
@@ -99,8 +100,8 @@ def streamed(command, cwd=ROOT, env=None):
             if cpu is not None and cpu_was is not None and cpu > cpu_was + 0.05:
                 cpu_moved_at = now
             cpu_was = cpu if cpu is not None else cpu_was
-            if now - max(cpu_moved_at, quiet_since) >= STALL_SECONDS:
-                print("stalled: no output and no processor time for %d s, ended: %s" % (STALL_SECONDS, " ".join(command)), flush=True)
+            if (stall is not None) and (now - max(cpu_moved_at, quiet_since) >= stall):
+                print("stalled: no output and no processor time for %d s, ended: %s" % (stall, " ".join(command)), flush=True)
                 process.kill()
                 process.wait()
                 return 124
@@ -132,13 +133,13 @@ def cmd_cli_bench(a):
     inside = ("mkdir -p /work /usr/src/build/harness/bench && cp -r /usr/src/ui /usr/src/src /usr/src/utils /usr/src/bin_names.tsv /work/"
               " && cd /work && bash utils/test/src/ui/cli/cli_bench.sh %s %d"
               " && cat build/harness/bench/bench.tsv >> /usr/src/build/harness/bench/bench.tsv") % ("docker-" + a.label, a.repeat)
-    return streamed(["docker", "run", "--rm", "-v", ROOT + ":/usr/src", "-w", "/usr/src", "orior-test-window", "sh", "-c", inside],
+    return streamed(["docker", "run", "--rm", "-v", ROOT + ":/usr/src", "-w", "/usr/src", "orior-test-window", "sh", "-c", inside], stall=None,
                     env=dict(os.environ, MSYS_NO_PATHCONV="1"))
 
 
 def cmd_window_test(a):
     words = [word for word in a.extra if word != "--"]
-    return streamed(["cargo", "run", "--manifest-path", WINDOW_TESTS, "--release", "--", *words])
+    return streamed(["cargo", "run", "--manifest-path", WINDOW_TESTS, "--release", "--", *words], stall=None)
 
 
 def register(sub):
