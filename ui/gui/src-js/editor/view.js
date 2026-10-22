@@ -2478,11 +2478,17 @@ export class Editor {
 
   // Binds keys written as a menu lists them, such as "Shift+Alt+F" or "Ctrl+K Ctrl+I", each to its
   // `run`, in place of those the menus bound before. A key the editor already binds keeps its own.
+  // The keys of the menus' commands for the editor. A command marked `native` leaves its key to the
+  // browser, which does the work itself: a paste's text then comes in the paste event, straight from
+  // the system's clipboard, and never crosses to the app's side and back as text.
   addKeys(list) {
     this.keys = this.keyMap();
     this.first = {};
-    for (const { keys, run, first } of list) {
-      if (first) {
+    this.native = new Set();
+    for (const { keys, run, first, native } of list) {
+      if (native) {
+        this.native.add(keysName(keys));
+      } else if (first) {
         this.first[keysName(keys)] = run;
       } else {
         this.keys[keysName(keys)] ??= run;
@@ -2528,6 +2534,11 @@ export class Editor {
     }
     // A key the reader bound is told which editor it was pressed in.
     const own = this.bound[full];
+    if (!own && this.native?.has(full)) {
+      this.chord = null;
+      this.note({ key: full });
+      return;
+    }
     const found = own ? () => own(this) : this.keys[full];
     if (this.chord) {
       if (!/^(?:Mod|Alt|Shift|Ctrl)\+(?:Control|Meta|Alt|Shift)$|^(?:Control|Meta|Alt|Shift)$/.test(name)) {
@@ -2955,6 +2966,7 @@ export class Editor {
     this.keys = this.keyMap();
     this.bound = {};
     this.first = {};
+    this.native = new Set();
     this.vim = null;
     this.recording = null;
     const input = this.input;

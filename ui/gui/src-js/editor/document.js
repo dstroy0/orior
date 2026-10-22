@@ -94,6 +94,9 @@ export function wordBefore(doc, p) {
   return { text: text.slice(start, p.col), from: pos(p.line, start), to: p };
 }
 
+// The most lines one splice puts in as its arguments.
+const SPREAD = 1024;
+
 // Edits of one kind that follow each other inside this many milliseconds undo as one step.
 const JOINED = 1200;
 
@@ -197,13 +200,20 @@ export class Doc {
     return { edits, undo };
   }
 
+  // Writes one edit at its line. A text of up to SPREAD lines goes in by one splice; a longer one,
+  // as a paste of megabytes, by joining the lines before, the text's lines and the lines after,
+  // since a call with one argument a line is bounded by the stack.
   splice(edit) {
     const head = this.lines[edit.from.line].slice(0, edit.from.col);
     const tail = this.lines[edit.to.line].slice(edit.to.col);
     const parts = edit.text.split("\n");
     parts[0] = head + parts[0];
     parts[parts.length - 1] += tail;
-    this.lines.splice(edit.from.line, edit.to.line - edit.from.line + 1, ...parts);
+    if (parts.length <= SPREAD) {
+      this.lines.splice(edit.from.line, edit.to.line - edit.from.line + 1, ...parts);
+    } else {
+      this.lines = this.lines.slice(0, edit.from.line).concat(parts, this.lines.slice(edit.to.line + 1));
+    }
   }
 
   // Writes many edits in one pass over the lines. Splicing each in turn costs the whole text per edit.

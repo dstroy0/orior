@@ -512,6 +512,10 @@ def drive(options, run, tree, env, benched, report):
             return
         program = window_built(gui_name)
         told.append(("ORIOR_TEST_PROGRAM", program))
+        # a window left by a run ended from outside would hold the display and the port this run takes
+        import harness_window
+
+        harness_window.windows_ended()
         window = Window(program, run, tree, extra)
     except (RuntimeError, OSError) as error:
         print("  %s" % error, flush=True)

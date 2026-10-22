@@ -1713,7 +1713,7 @@ function applyKeys() {
   }
   bindEditorKeys(
     state.menus.flatMap((menu) =>
-      menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
+      menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command), native: Boolean(item.native) }))),
     ).concat(
       firstKeys(state.menus.flatMap((menu) => menu.all.filter((item) => item.needs === "sql" || item.needs === "http"))),
     ),
