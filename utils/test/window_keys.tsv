@@ -29,7 +29,7 @@ named	ArrowUp	ArrowUp	ArrowUp	38
 named	ArrowDown	ArrowDown	ArrowDown	40
 named	ArrowLeft	ArrowLeft	ArrowLeft	37
 named	ArrowRight	ArrowRight	ArrowRight	39
-named	Space	 	Space	32
+named	Space	 	Space	32	 
 named	ContextMenu	ContextMenu	ContextMenu	93
 modifier	Ctrl	Control	ControlLeft	17		2
 modifier	Control	Control	ControlLeft	17		2

@@ -11,6 +11,9 @@
                              [--port P --trigger JS] [--start]   an expression run first, or started and pictured from
                                                                  its first moment
     harness.py window dump [--path FILE]                         the newest crash dump read under cdb, the faulting stack
+    harness.py window eval --port P EXPRESSION                   an expression run on the window's page, its answer printed
+    harness.py window type --port P [--key] TEXT                 text typed into the window key by key, or one chord
+    harness.py window regions [--id N] [--count 12]              committed bytes by kind and the largest allocations
     harness.py window debug [--seconds 45]                       run under cdb, the stack where it faults
     harness.py window memory                                     its process tree's private working set and commit
     harness.py window luminance [--floor 78] [--each 6]          the dark scheme's tokens by lightness, with their rules
@@ -276,6 +279,33 @@ def cmd_frames(a):
     return 0
 
 
+def cmd_eval(a):
+    """An expression run on the window's page through its debugging port, its answer printed: a promise is
+    awaited, and an object is printed as JSON."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import harness_cdp
+
+    conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
+    conn.call("Runtime.enable", timeout=10)
+    print(conn.evaluate(a.expression, timeout=a.seconds))
+    return 0
+
+
+def cmd_type(a):
+    """Text typed into the window through its debugging port, key by key as the suite types, a chord of the form
+    Ctrl+S with --key."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import harness_cdp
+    import harness_input
+
+    conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
+    if a.key:
+        harness_input.press(conn, a.text)
+    else:
+        harness_input.type_text(conn, a.text)
+    return 0
+
+
 def cmd_zoom(a):
     if not windows_only():
         return 1
@@ -494,6 +524,18 @@ def register(sub):
     p.add_argument("--crop", default="", help="LEFT,TOP,WIDTH,HEIGHT of the window kept of each frame, drawn --scale times larger")
     p.add_argument("--scale", type=int, default=4)
     p.set_defaults(fn=cmd_frames)
+
+    p = window.add_parser("eval", help="an expression run on the window's page through its debugging port, its answer printed")
+    p.add_argument("--port", type=int, required=True, help="the window's debugging port, as window test --keep-window prints it")
+    p.add_argument("--seconds", type=int, default=30, help="how long the answer is waited for")
+    p.add_argument("expression")
+    p.set_defaults(fn=cmd_eval)
+
+    p = window.add_parser("type", help="text typed into the window through its debugging port, key by key, or one chord with --key")
+    p.add_argument("--port", type=int, required=True, help="the window's debugging port")
+    p.add_argument("--key", action="store_true", help="the text is one chord, as Ctrl+S or Enter")
+    p.add_argument("text")
+    p.set_defaults(fn=cmd_type)
 
     p = window.add_parser("zoom", help="a part of the window drawn larger to build/harness/window_zoom.png")
     p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")

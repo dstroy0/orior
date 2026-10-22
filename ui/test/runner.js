@@ -19,9 +19,12 @@
   const harness = { tests: [], waiting: new Map(), next: 1 };
   window.__harness = harness;
 
+  // A value as text, an object's keys in one order whatever order it holds them in, so two objects that hold
+  // the same compare the same.
   const describe = (value) => {
+    const ordered = (one) => (one && typeof one === "object" && !Array.isArray(one) ? Object.fromEntries(Object.keys(one).sort().map((key) => [key, ordered(one[key])])) : Array.isArray(one) ? one.map(ordered) : one);
     try {
-      return typeof value === "string" ? JSON.stringify(value) : JSON.stringify(value) ?? String(value);
+      return typeof value === "string" ? JSON.stringify(value) : JSON.stringify(ordered(value)) ?? String(value);
     } catch {
       return String(value);
     }
