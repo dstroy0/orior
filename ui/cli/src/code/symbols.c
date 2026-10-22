@@ -26,8 +26,36 @@ typedef struct
     unsigned int text_room;
     CliSymbol *read_symbols;
     unsigned int symbol_room;
+    unsigned char *file_bytes;
+    unsigned long long file_room;
     char listed[];
 } CliSymbolsReading;
+
+// the bytes past a file read in the reading's cell, zero, so a walk's word past the text reads inside the cell
+#define CLI_SYMBOLS_FILE_SLACK 64ull
+
+// room for a file of `size` bytes in the reading's one file cell: the cell as it is where it holds them and the slack,
+// else one taken anew of twice the cell's bytes or the file's and the slack, the cell before given back; NULL, so the
+// file is passed over, where it is larger than the index reads or no cell is given
+static unsigned char *cli_file_roomed(void *context, unsigned long long size)
+{
+    CliSymbolsReading *const reading = context;
+    if (size > CLI_SYMBOLS_LARGEST)
+    {
+        return NULL;
+    }
+    if ((size + CLI_SYMBOLS_FILE_SLACK) > reading->file_room)
+    {
+        cli_cell_given(reading->file_bytes);
+        unsigned long long room = (reading->file_room * 2ull > size + CLI_SYMBOLS_FILE_SLACK)
+                                      ? (reading->file_room * 2ull)
+                                      : (size + CLI_SYMBOLS_FILE_SLACK);
+        room = (room < CLI_SYMBOL_READ_FIRST) ? CLI_SYMBOL_READ_FIRST : room;
+        reading->file_bytes = cli_cell_taken(room, "a reading's file");
+        reading->file_room = (reading->file_bytes != NULL) ? room : 0ull;
+    }
+    return reading->file_bytes;
+}
 
 // `cell`, `used` bytes of it held, moved into a cell of `room` bytes: the larger, or NULL with `cell` kept where it is
 // refused
@@ -222,20 +250,19 @@ static void cli_reading(void *context)
             continue;
         }
         cli_lock_give(&g_cli_symbols_lock);
+        // the file read into the reading's one cell, kept from file to file, so a reading takes a cell a growth and
+        // not one a file
         unsigned long long mapped_size = 0ull;
-        const unsigned char *const mapped = cli_file_held(full, &mapped_size);
-        const unsigned long long read =
-            ((mapped != NULL) && (mapped_size <= CLI_SYMBOLS_LARGEST)) ? mapped_size : QRY_MEMBER_UNREAD;
+        const int mapped =
+            cli_file_read_whole(full, cli_file_roomed, reading, &mapped_size) && (reading->file_bytes != NULL);
+        const unsigned long long read = mapped ? mapped_size : QRY_MEMBER_UNREAD;
         s_read_count = 0u;
         s_read_used = 0u;
         if (read != QRY_MEMBER_UNREAD)
         {
+            memor.set(&(MemoriaCfg){.dst = reading->file_bytes + read, .val = 0, .bytes = CLI_SYMBOLS_FILE_SLACK});
             // the file's bytes are read as its text
-            cli_symbols_declared(path, (const char *)mapped, read, cli_read_each, reading);
-        }
-        if (mapped != NULL)
-        {
-            cli_file_let_go(mapped, mapped_size);
+            cli_symbols_declared(path, (const char *)reading->file_bytes, read, cli_read_each, reading);
         }
         cli_lock_take(&g_cli_symbols_lock);
         if (s_generation != generation)
@@ -264,6 +291,7 @@ static void cli_reading(void *context)
     }
     cli_cell_given(reading->read_text);
     cli_cell_given(reading->read_symbols);
+    cli_cell_given(reading->file_bytes);
     cli_cell_given(reading);
     s_listing = NULL;
     s_running = 0;
