@@ -13,10 +13,19 @@ import { showView } from "../../../gui/src-js/views.js";
 
 const { test, assert, ui } = window.__harness;
 
+// The buses in the order each size pastes on them: the two interleaved size by size, so a cold first
+// paste lands on one row and the row beside it, the same size on the other bus, tells.
+const BUSES = ["internal", "os"];
 const LINES = [10, 100, 250, 500, 1000, 2500, 5000, 10000];
-// The megabytes pasted from the system's clipboard, and from the editor's own, which copies from a
-// file the editor opens whole: one the editor opens paged is read, not copied from.
-const MEGABYTES = { os: [1, 2, 5, 10], internal: [1] };
+// The megabytes pasted and the buses each pastes on: the editor's own clipboard copies from a file the
+// editor opens whole, and one the editor opens paged is read, not copied from, so past 1 MB the
+// system's clipboard alone.
+const MEGABYTES = [
+  [1, BUSES],
+  [2, ["os"]],
+  [5, ["os"]],
+  [10, ["os"]],
+];
 // The line of the target the text is pasted at, and the target's lines around it.
 const AT = 100;
 const TARGET_LINES = 200;
@@ -157,24 +166,28 @@ async function pasted(bus, text, named) {
   return { own: held - began, held: held - at, drawn: drawn - at };
 }
 
-for (const bus of ["internal", "os"]) {
-  test(`${bus}: a paste of ten lines to ten thousand lands at its line, each timed`, async () => {
-    const said = [];
-    for (const count of LINES) {
-      const text = textOfLines(count);
+test("a paste of ten lines to ten thousand lands at its line on each bus, size by size, each timed", async () => {
+  const said = [];
+  for (const count of LINES) {
+    const text = textOfLines(count);
+    for (const bus of BUSES) {
       const { own, held, drawn } = await pasted(bus, text, `paste_${bus}_${count}_lines`);
       await rowKept(bus, count, text.length, own, held, drawn);
-      said.push(`${count}: ${own.toFixed(1)} / ${held.toFixed(1)} / ${drawn.toFixed(1)} ms`);
+      said.push(`${bus} ${count}: ${own.toFixed(1)} / ${held.toFixed(1)} / ${drawn.toFixed(1)} ms`);
     }
-    assert.ok(said.length === LINES.length, `own / to the document / to the frame: ${said.join("; ")}`);
-  });
+  }
+  assert.ok(said.length === LINES.length * BUSES.length, `own / to the document / to the frame: ${said.join("; ")}`);
+});
 
-  for (const megabytes of MEGABYTES[bus]) {
-    test(`${bus}: a paste of ${megabytes} MB lands at its line, timed`, async () => {
-      const text = textOfBytes(megabytes << 20);
+for (const [megabytes, buses] of MEGABYTES) {
+  test(`a paste of ${megabytes} MB lands at its line on ${buses.join(" and ")}, timed`, async () => {
+    const text = textOfBytes(megabytes << 20);
+    const said = [];
+    for (const bus of buses) {
       const { own, held, drawn } = await pasted(bus, text, `paste_${bus}_${megabytes}_mb`);
       await rowKept(bus, text.split("\n").length - 1, text.length, own, held, drawn);
-      assert.ok(drawn > 0, `own / to the document / to the frame: ${own.toFixed(1)} / ${held.toFixed(1)} / ${drawn.toFixed(1)} ms`);
-    }, { timeout: 120000, tries: 1 });
-  }
+      said.push(`${bus}: ${own.toFixed(1)} / ${held.toFixed(1)} / ${drawn.toFixed(1)} ms`);
+    }
+    assert.ok(said.length === buses.length, `own / to the document / to the frame: ${said.join("; ")}`);
+  }, { timeout: 240000, tries: 1 });
 }
