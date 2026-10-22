@@ -2156,13 +2156,13 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   opacity: 0;
 }
 
-/* The eye floats in the pane's bottom right corner, three tenths of an inch in from the right and a
-   fifth above the status bar. Its drawing leaves 17% of the box to each side of the lids and 22% under
-   the plasma, which the box reaches past the corner by. */
+/* The eye floats in the pane's bottom right corner, three tenths of an inch and five pixels in from
+   the right and a fifth above the status bar. Its drawing leaves 17% of the box to each side of the
+   lids and 22% under the plasma, which the box reaches past the corner by. */
 .loading .eye-box {
   --eye-size: min(7.26rem, 11.88vw, 15.18vh);
   position: absolute;
-  right: calc(0.3in - var(--eye-size) * 0.17);
+  right: calc(0.3in + 5px - var(--eye-size) * 0.17);
   bottom: calc(0.2in - var(--eye-size) * 0.22);
   width: var(--eye-size);
   aspect-ratio: 1;
