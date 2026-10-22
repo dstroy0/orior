@@ -347,6 +347,13 @@ static void cells_given(CliCellsTally *tally, void *cell)
         return;
     }
     unsigned char *const start = cell;
+    // a pointer the cellblock does not hold is handed to the cellblock before any byte ahead of it is read: the
+    // cellblock stops the program naming it, where reading its header here would fault on a garbage address
+    if (!cli_cells_site.cli_cells_pool.who_owns_buf(start))
+    {
+        cli_cells_site.cli_cells_pool.persistent_buf_release(start);
+        return;
+    }
     unsigned char *const first = start - start[-1];
     unsigned long long bytes = 0ull;
     const char *what = NULL;

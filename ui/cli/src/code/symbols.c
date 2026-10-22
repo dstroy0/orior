@@ -361,6 +361,8 @@ void cli_symbols_refresh(const char *root, const char *const *paths, unsigned in
     s_listing->text_room = 0u;
     s_listing->read_symbols = NULL;
     s_listing->symbol_room = 0u;
+    s_listing->file_bytes = NULL;
+    s_listing->file_room = 0ull;
     unsigned long long offset = 0ull;
     s_listed_count = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)

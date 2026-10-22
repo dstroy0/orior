@@ -322,9 +322,12 @@ def sanitizer_settings(sanitizer, run):
     if not sanitizer:
         return []
     into = os.path.join(run, "sanitizer").replace("\\", "/")
+    # the image's symbolizer names each frame's function and line in a report; on a machine without it the
+    # runtime falls back to its own
+    symbolizer = ":external_symbolizer_path=/usr/bin/llvm-symbolizer-18" if os.path.exists("/usr/bin/llvm-symbolizer-18") else ""
     if sanitizer == "thread":
-        return [("TSAN_OPTIONS", "log_path=%s:halt_on_error=0" % into)]
-    return [("ASAN_OPTIONS", "log_path=%s:halt_on_error=0:detect_leaks=0" % into)]
+        return [("TSAN_OPTIONS", "log_path=%s:halt_on_error=0%s" % (into, symbolizer))]
+    return [("ASAN_OPTIONS", "log_path=%s:halt_on_error=0:detect_leaks=0%s" % (into, symbolizer))]
 
 
 def sanitizer_said(run, report):
@@ -358,7 +361,7 @@ class Window:
             import harness_window
 
             symbols = ";".join([os.path.dirname(program), os.path.join(ROOT, "build", "cargo", "release")])
-            command = [harness_window.CDB, "-y", symbols, "-g", "-G", "-c", ".lines; sxd eh; sxd clr; sxi ld; sxi ud; g; !analyze -v; kc 40; ~*kc 15; q", program]
+            command = [harness_window.CDB, "-y", symbols, "-g", "-G", "-c", ".lines; sxd eh; sxd clr; sxi ld; sxi ud; g; !analyze -v; r; k 40; ~*kc 15; q", program]
         env = dict(os.environ)
         env.update({"ORIOR_HOME": os.path.join(run, "home"), "ORIOR_ROOT": tree, "ORIOR_NO_REPORTS": "1", "GIT_CONFIG_COUNT": "2", "GIT_CONFIG_KEY_0": "commit.gpgsign", "GIT_CONFIG_VALUE_0": "false", "GIT_CONFIG_KEY_1": "tag.gpgsign", "GIT_CONFIG_VALUE_1": "false", "WEBVIEW2_USER_DATA_FOLDER": os.path.join(run, "webview"), "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS": browser_arguments(self.port)})
         env.update(dict(extra))
