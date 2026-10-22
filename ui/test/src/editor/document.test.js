@@ -106,12 +106,15 @@ let made = 0;
 // The tab of `path` closed, a changed one by its second press, so the pastes leave no large text
 // open behind them.
 async function closed(path) {
-  const closer = () => document.querySelector(`#tabs .tab .close[title="${path}"]`);
+  const mark = `#tabs .tab .close[title="${path}"]`;
+  const closer = () => document.querySelector(mark);
   for (let press = 0; press < 2 && closer(); press += 1) {
     // the tab may stand past the strip's edge among the tabs the pastes opened
     closer().scrollIntoView({ block: "nearest", inline: "nearest" });
     await ui.waitFor(() => closer()?.checkVisibility(), 3000);
-    await ui.click(closer());
+    // pressed by its selector: the tab is drawn anew as the undo leaves the text clean, and a node held across
+    // that redraw stands detached
+    await ui.click(mark);
   }
   await ui.waitFor(() => !closer(), 30000, `${path} closed`);
 }
