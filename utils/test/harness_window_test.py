@@ -139,6 +139,7 @@ def options_of(words):
     parser.add_argument("--monitors", action="store_true", help="the displays listed, by the number --monitor takes")
     parser.add_argument("--no-servers", action="store_true", help="no test server started here: each is told in the environment")
     parser.add_argument("--keep-window", action="store_true")
+    parser.add_argument("--debugger", action="store_true", help="on Windows, the window run under cdb: where it faults, every thread's stack goes to the run's window.log")
     parser.add_argument("--stop-servers", action="store_true", help="every test server taken away")
     return parser.parse_args(words)
 
@@ -345,14 +346,24 @@ def sanitizer_said(run, report):
 class Window:
     """The window started for the run on its debugging port, with a home, a tree and a web view profile of its own."""
 
-    def __init__(self, program, run, tree, extra):
+    def __init__(self, program, run, tree, extra, debugger=False):
         self.run = run
+        self.program = program
         self.port = free_port()
+        # Under cdb the window runs as it would alone, the debugger quiet on the C++ exceptions the web view's host
+        # raises and resumes, and on a fault it writes the faulting thread's stack with its lines, then every
+        # thread's, into the window's log, and ends the window.
+        command = [program]
+        if debugger:
+            import harness_window
+
+            symbols = ";".join([os.path.dirname(program), os.path.join(ROOT, "build", "cargo", "release")])
+            command = [harness_window.CDB, "-y", symbols, "-g", "-G", "-c", ".lines; sxd eh; sxd clr; sxi ld; sxi ud; g; !analyze -v; kc 40; ~*kc 15; q", program]
         env = dict(os.environ)
         env.update({"ORIOR_HOME": os.path.join(run, "home"), "ORIOR_ROOT": tree, "ORIOR_NO_REPORTS": "1", "GIT_CONFIG_COUNT": "2", "GIT_CONFIG_KEY_0": "commit.gpgsign", "GIT_CONFIG_VALUE_0": "false", "GIT_CONFIG_KEY_1": "tag.gpgsign", "GIT_CONFIG_VALUE_1": "false", "WEBVIEW2_USER_DATA_FOLDER": os.path.join(run, "webview"), "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS": browser_arguments(self.port)})
         env.update(dict(extra))
         self.log = open(os.path.join(run, "window.log"), "wb")
-        self.process = subprocess.Popen([program], cwd=tree, env=env, stdin=subprocess.DEVNULL, stdout=self.log, stderr=self.log)
+        self.process = subprocess.Popen(command, cwd=tree, env=env, stdin=subprocess.DEVNULL, stdout=self.log, stderr=self.log)
         until = time.monotonic() + 120
         self.page = None
         while time.monotonic() < until and self.page is None:
@@ -377,7 +388,12 @@ class Window:
         wanted = "\\\\.\\DISPLAY%d" % monitor if monitor else harness_window.DISPLAY
         if wanted not in displays and displays:
             wanted = sorted(displays)[-1]
-        harness_window.window_placed(self.process.pid, wanted)
+        # Under the debugger the window is the debugger's child, the one process of the program's name under it.
+        placed = self.process.pid
+        for process_id, _, name in win.processes():
+            if process_id in win.process_tree(self.process.pid) and name.lower() == os.path.basename(self.program).lower():
+                placed = process_id
+        harness_window.window_placed(placed, wanted)
 
     def ended(self):
         code = self.process.poll()
@@ -573,7 +589,7 @@ def drive(options, run, tree, env, benched, report):
         test_windows_ended(os.path.join(APP_TARGET + ("-" + options.sanitize if options.sanitize else ""), "debug", gui_name + ".exe"))
         program = window_built(gui_name, options.sanitize)
         told.append(("ORIOR_TEST_PROGRAM", program))
-        window = Window(program, run, tree, extra)
+        window = Window(program, run, tree, extra, debugger=options.debugger)
     except (RuntimeError, OSError) as error:
         print("  %s" % error, flush=True)
         report.files.append(("the window", [harness_page.Outcome("it starts", False, 0, str(error))], []))
