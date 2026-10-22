@@ -1,61 +1,22 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compile_db_cmake.c: a CMake build's entries read from its file API reply: one for each source of each target in
-// the configuration the build's folder is named for, as the build's own compiler is given it, C and C++ alone
+// the configuration the build's folder is named for, as the build's own compiler is given it, C and C++ alone. Each
+// reply file is held mapped and walked by key in one pass, the entries made straight into the gathered tree
 #include "compile_db_internal.h"
 
-// a member's string in the reply, NULL where it is none
-static const char *cli_reply_string(unsigned int node, const char *key)
+// the reply file a member `jsonFile` of the object at `node` of `reply` names, in the reply folder `folder`, held
+// mapped into `file`: 1, or 0 where the member names none or the file cannot be read
+static int cli_reply_file_held(const CliReply *reply, unsigned long long node, const char *folder, CliReply *file)
 {
-    return cli_json_string(&g_cli_gather.reply, cli_json_member(&g_cli_gather.reply, node, key), NULL);
-}
-
-// the reply file a member `jsonFile` of `node` names, read into the reply tree: its root, or CLI_JSON_NONE
-static unsigned int cli_reply_file(const char *reply, unsigned int node)
-{
-    const char *const name = cli_reply_string(node, "jsonFile");
-    if (name == NULL)
+    char name[CLI_PATH_LONGEST];
+    if (!cli_reply_string(reply, cli_reply_member(reply, node, "jsonFile"), name, sizeof(name)))
     {
-        return CLI_JSON_NONE;
+        return 0;
     }
     char path[CLI_PATH_LONGEST];
-    cli_full(reply, name, path);
-    return cli_compile_json_read(&g_cli_gather.reply, path);
-}
-
-// a member's string in the reply as its place among the reply's texts, which move as the reply grows: the place, or
-// all ones where it is none; and the text at a place, "" where it is all ones
-static unsigned long long cli_reply_place(unsigned int node, const char *key)
-{
-    const unsigned int member = cli_json_member(&g_cli_gather.reply, node, key);
-    return cli_json_is(&g_cli_gather.reply, member, CFG_JSON_STRING) ? g_cli_gather.reply.node[member].text
-                                                                     : 0xffffffffffffffffull;
-}
-
-static const char *cli_reply_at(unsigned long long place)
-{
-    return (place == 0xffffffffffffffffull) ? "" : (g_cli_gather.reply.text + place);
-}
-
-// a whole number node of the reply, as written: its value, or all ones where it is none
-static unsigned long long cli_reply_whole(unsigned int node)
-{
-    if (!cli_json_is(&g_cli_gather.reply, node, CFG_JSON_NUMBER))
-    {
-        return ~0ull;
-    }
-    const CliJsonNode *const one = &g_cli_gather.reply.node[node];
-    const char *const digits = g_cli_gather.reply.text + one->text;
-    unsigned long long value = 0ull;
-    for (unsigned long long at = 0ull; at < one->length; at += 1ull)
-    {
-        if ((digits[at] < '0') || (digits[at] > '9') || (value > 0xffffffffull))
-        {
-            return ~0ull;
-        }
-        value = (value * 10ull) + (unsigned long long)(digits[at] - '0');
-    }
-    return (one->length > 0ull) ? value : ~0ull;
+    cli_full(folder, name, path);
+    return cli_reply_held(path, file);
 }
 
 // a flag put after the compile group's flags
@@ -111,45 +72,56 @@ static unsigned int cli_slashed_made(const char *text)
                                 cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}));
 }
 
-// a compile group's flags: its fragments' words, its include folders, its defines and its sysroot
-static void cli_group_flags(unsigned int group, int msvc)
+// a fragment of a compile command at `at` of the target's reply decoded into the fragment line, which grows to its
+// bytes as written, and its words put after the flags
+static void cli_fragment_flags(const CliReply *target, unsigned long long at)
 {
-    CliJson *const reply = &g_cli_gather.reply;
+    CliLine *const text = &g_cli_gather.fragment_text;
+    const unsigned long long span = cli_reply_string_span(target, at);
+    text->at = 0ull;
+    if (!cli_line_room(text, span + 1ull) || !cli_reply_string(target, at, text->out, span + 1ull))
+    {
+        return;
+    }
+    cli_compile_words_each(text->out, cellul.len(&(CatenaFinitaCfg){.src = text->out, .cap = CLI_CELLS_POOL}),
+                           cli_fragment_word, NULL);
+}
+
+// a compile group's flags: its fragments' words, its include folders, its defines and its sysroot
+static void cli_group_flags(const CliReply *target, unsigned long long group, int msvc)
+{
     g_cli_gather.flags = 0u;
     g_cli_gather.flags_text.at = 0ull;
-    const unsigned int fragments = cli_json_member(reply, group, "compileCommandFragments");
-    for (unsigned int at = 0u; cli_json_item(reply, fragments, at) != CLI_JSON_NONE; at += 1u)
+    const unsigned long long fragments = cli_reply_member(target, group, "compileCommandFragments");
+    for (unsigned long long at = cli_reply_first(target, fragments); at != CLI_REPLY_NONE;
+         at = cli_reply_next(target, at))
     {
-        unsigned long long size = 0ull;
-        const char *const fragment =
-            cli_json_string(reply, cli_json_member(reply, cli_json_item(reply, fragments, at), "fragment"), &size);
-        if (fragment != NULL)
-        {
-            cli_compile_words_each(fragment, size, cli_fragment_word, NULL);
-        }
+        cli_fragment_flags(target, cli_reply_member(target, at, "fragment"));
     }
-    const unsigned int includes = cli_json_member(reply, group, "includes");
-    for (unsigned int at = 0u; cli_json_item(reply, includes, at) != CLI_JSON_NONE; at += 1u)
+    const unsigned long long includes = cli_reply_member(target, group, "includes");
+    for (unsigned long long at = cli_reply_first(target, includes); at != CLI_REPLY_NONE;
+         at = cli_reply_next(target, at))
     {
-        const unsigned int include = cli_json_item(reply, includes, at);
-        const char *const path = cli_reply_string(include, "path");
-        const int system = cli_json_is(reply, cli_json_member(reply, include, "isSystem"), CFG_JSON_TRUE);
-        if (path != NULL)
+        char path[CLI_PATH_LONGEST];
+        const int system = cli_reply_true(target, cli_reply_member(target, at, "isSystem"));
+        if (cli_reply_string(target, cli_reply_member(target, at, "path"), path, sizeof(path)))
         {
             cli_flag_made(msvc ? "/I" : (system ? "-isystem" : "-I"), path);
         }
     }
-    const unsigned int defines = cli_json_member(reply, group, "defines");
-    for (unsigned int at = 0u; cli_json_item(reply, defines, at) != CLI_JSON_NONE; at += 1u)
+    const unsigned long long defines = cli_reply_member(target, group, "defines");
+    for (unsigned long long at = cli_reply_first(target, defines); at != CLI_REPLY_NONE;
+         at = cli_reply_next(target, at))
     {
-        const char *const define = cli_reply_string(cli_json_item(reply, defines, at), "define");
-        if (define != NULL)
+        char define[CLI_PATH_LONGEST];
+        if (cli_reply_string(target, cli_reply_member(target, at, "define"), define, sizeof(define)))
         {
             cli_flag_made(msvc ? "/D" : "-D", define);
         }
     }
-    const char *const sysroot = cli_reply_string(cli_json_member(reply, group, "sysroot"), "path");
-    if (sysroot != NULL)
+    char sysroot[CLI_PATH_LONGEST];
+    if (cli_reply_string(target, cli_reply_member(target, cli_reply_member(target, group, "sysroot"), "path"), sysroot,
+                         sizeof(sysroot)))
     {
         cli_flag_made("--sysroot=", sysroot);
     }
@@ -161,161 +133,200 @@ static unsigned int cli_compiler_of(const char *language)
     unsigned int at = 0u;
     while ((at < g_cli_gather.compilers) &&
            (!cellul.eq(&(CatenaFinitaCfg){
-               .src = cli_reply_at(g_cli_gather.compiler[at].language), .other = language, .cap = CLI_CELLS_POOL})))
+               .src = g_cli_gather.compiler[at].language, .other = language, .cap = CLI_CELLS_POOL})))
     {
         at += 1u;
     }
     return at;
 }
 
-// the entries of a target's C and C++ compile groups, one for each source, appended to `entries`
-static void cli_target_entries(unsigned int target, const char *source, const char *build, unsigned int entries)
+// the compilers of the toolchains file at `node` of the index's reply read: each language's path and id
+static void cli_toolchains_read(const CliReply *reply, unsigned long long node, const char *folder)
 {
-    CliJson *const reply = &g_cli_gather.reply;
-    CliJson *const json = &g_cli_gather.json;
-    const unsigned int sources = cli_json_member(reply, target, "sources");
-    const unsigned int groups = cli_json_member(reply, target, "compileGroups");
-    for (unsigned int index = 0u; cli_json_item(reply, groups, index) != CLI_JSON_NONE; index += 1u)
+    CliReply chains_file = {NULL, 0ull};
+    g_cli_gather.compilers = 0u;
+    if (!cli_reply_file_held(reply, node, folder, &chains_file))
     {
-        const unsigned int group = cli_json_item(reply, groups, index);
-        const char *const language = cli_reply_string(group, "language");
-        const unsigned int compiler = (language != NULL) ? cli_compiler_of(language) : g_cli_gather.compilers;
-        if ((language == NULL) ||
+        return;
+    }
+    const unsigned long long chains = cli_reply_member(&chains_file, cli_reply_root(&chains_file), "toolchains");
+    for (unsigned long long at = cli_reply_first(&chains_file, chains);
+         (g_cli_gather.compilers < CLI_GATHER_LANGUAGES) && (at != CLI_REPLY_NONE);
+         at = cli_reply_next(&chains_file, at))
+    {
+        CliCompilerOf one;
+        const unsigned long long compiler = cli_reply_member(&chains_file, at, "compiler");
+        if (!cli_reply_string(&chains_file, cli_reply_member(&chains_file, at, "language"), one.language,
+                              sizeof(one.language)) ||
+            !cli_reply_string(&chains_file, cli_reply_member(&chains_file, compiler, "path"), one.path,
+                              sizeof(one.path)))
+        {
+            continue;
+        }
+        if (!cli_reply_string(&chains_file, cli_reply_member(&chains_file, compiler, "id"), one.id, sizeof(one.id)))
+        {
+            one.id[0] = '\0';
+        }
+        const unsigned int place = cli_compiler_of(one.language);
+        g_cli_gather.compiler[place] = one;
+        g_cli_gather.compilers += (place == g_cli_gather.compilers) ? 1u : 0u;
+    }
+    cli_reply_let_go(&chains_file);
+}
+
+// one entry made for the source `path` of a compile group whose flags are read, appended to `entries`
+static void cli_entry_made(const char *source, const char *build, const char *path, const CliCompilerOf *compiler,
+                           int msvc, unsigned int entries)
+{
+    CliJson *const json = &g_cli_gather.json;
+    char file[CLI_PATH_LONGEST];
+    if ((path[0] == '/') || (path[0] == '\\') || ((path[0] != '\0') && (path[1] == ':')))
+    {
+        memor.cpy(&(MemoriaCfg){.dst = file,
+                                .src = path,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+    }
+    else
+    {
+        cli_full(source, path, file);
+    }
+    const unsigned int arguments = cli_json_made(json, CFG_JSON_ARRAY);
+    cli_json_append(json, arguments, cli_slashed_made(compiler->path));
+    for (unsigned int flag = 0u; flag < g_cli_gather.flags; flag += 1u)
+    {
+        const char *const text = g_cli_gather.flags_text.out + g_cli_gather.flag[flag];
+        cli_json_append(
+            json, arguments,
+            cli_json_string_made(json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})));
+    }
+    cli_json_append(json, arguments, cli_json_string_made(json, msvc ? "/c" : "-c", 2ull));
+    cli_json_append(json, arguments, cli_slashed_made(file));
+    const unsigned int entry = cli_json_made(json, CFG_JSON_OBJECT);
+    cli_json_set(
+        json, entry, "directory",
+        cli_json_string_made(json, build, cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL})));
+    cli_json_set(json, entry, "file", cli_slashed_made(file));
+    cli_json_set(json, entry, "arguments", arguments);
+    cli_json_append(json, entries, entry);
+}
+
+// the entries of a target's C and C++ compile groups, one for each source, appended to `entries`: the group's source
+// indexes rise, so its sources are walked once beside them
+static void cli_target_entries(const CliReply *target, const char *source, const char *build, unsigned int entries)
+{
+    const unsigned long long root = cli_reply_root(target);
+    const unsigned long long sources = cli_reply_member(target, root, "sources");
+    const unsigned long long groups = cli_reply_member(target, root, "compileGroups");
+    for (unsigned long long group = cli_reply_first(target, groups); group != CLI_REPLY_NONE;
+         group = cli_reply_next(target, group))
+    {
+        char language[CLI_NAME_LONGEST];
+        if (!cli_reply_string(target, cli_reply_member(target, group, "language"), language, sizeof(language)) ||
             ((!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "C", .cap = CLI_CELLS_POOL})) &&
-             (!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "CXX", .cap = CLI_CELLS_POOL}))) ||
-            (compiler == g_cli_gather.compilers))
+             (!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "CXX", .cap = CLI_CELLS_POOL}))))
+        {
+            continue;
+        }
+        const unsigned int compiler = cli_compiler_of(language);
+        if (compiler == g_cli_gather.compilers)
         {
             continue;
         }
         const CliCompilerOf *const one = &g_cli_gather.compiler[compiler];
-        const int msvc =
-            (cellul.eq(&(CatenaFinitaCfg){.src = cli_reply_at(one->id), .other = "MSVC", .cap = CLI_CELLS_POOL})) ||
-            cli_compile_db_is_cl(cli_reply_at(one->path));
-        cli_group_flags(group, msvc);
-        const unsigned int indexes = cli_json_member(reply, group, "sourceIndexes");
-        for (unsigned int at = 0u; cli_json_item(reply, indexes, at) != CLI_JSON_NONE; at += 1u)
+        const int msvc = (cellul.eq(&(CatenaFinitaCfg){.src = one->id, .other = "MSVC", .cap = CLI_CELLS_POOL})) ||
+                         cli_compile_db_is_cl(one->path);
+        cli_group_flags(target, group, msvc);
+        unsigned long long index = cli_reply_first(target, cli_reply_member(target, group, "sourceIndexes"));
+        unsigned long long place = 0ull;
+        for (unsigned long long item = cli_reply_first(target, sources);
+             (item != CLI_REPLY_NONE) && (index != CLI_REPLY_NONE); item = cli_reply_next(target, item))
         {
-            const unsigned long long place = cli_reply_whole(cli_json_item(reply, indexes, at));
-            // a source's place in the target's sources is below 2^32
-            const char *const path = (place < 0xffffffffull)
-                                         ? cli_reply_string(cli_json_item(reply, sources, (unsigned int)place), "path")
-                                         : NULL;
-            if (path == NULL)
+            while ((index != CLI_REPLY_NONE) && (cli_reply_whole(target, index) < place))
             {
-                continue;
+                index = cli_reply_next(target, index);
             }
-            char file[CLI_PATH_LONGEST];
-            if ((path[0] == '/') || (path[0] == '\\') || ((path[0] != '\0') && (path[1] == ':')))
+            if ((index != CLI_REPLY_NONE) && (cli_reply_whole(target, index) == place))
             {
-                memor.cpy(
-                    &(MemoriaCfg){.dst = file,
-                                  .src = path,
-                                  .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                char path[CLI_PATH_LONGEST];
+                if (cli_reply_string(target, cli_reply_member(target, item, "path"), path, sizeof(path)))
+                {
+                    cli_entry_made(source, build, path, one, msvc, entries);
+                }
+                index = cli_reply_next(target, index);
             }
-            else
-            {
-                cli_full(source, path, file);
-            }
-            const unsigned int arguments = cli_json_made(json, CFG_JSON_ARRAY);
-            cli_json_append(json, arguments, cli_slashed_made(cli_reply_at(one->path)));
-            for (unsigned int flag = 0u; flag < g_cli_gather.flags; flag += 1u)
-            {
-                const char *const text = g_cli_gather.flags_text.out + g_cli_gather.flag[flag];
-                cli_json_append(json, arguments,
-                                cli_json_string_made(
-                                    json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})));
-            }
-            cli_json_append(json, arguments, cli_json_string_made(json, msvc ? "/c" : "-c", 2ull));
-            cli_json_append(json, arguments, cli_slashed_made(file));
-            const unsigned int entry = cli_json_made(json, CFG_JSON_OBJECT);
-            cli_json_set(
-                json, entry, "directory",
-                cli_json_string_made(json, build, cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL})));
-            cli_json_set(json, entry, "file", cli_slashed_made(file));
-            cli_json_set(json, entry, "arguments", arguments);
-            cli_json_append(json, entries, entry);
+            place += 1ull;
         }
     }
 }
 
-unsigned int cli_compile_cmake_entries(const char *index, char *source)
+// the configuration of the codemodel the build's folder is named for, as orior_cli names it, or the first
+static unsigned long long cli_configuration_of(const CliReply *model, unsigned long long configurations,
+                                               const char *build)
 {
-    CliJson *const reply = &g_cli_gather.reply;
-    cli_json_emptied(reply);
-    char folder[CLI_PATH_LONGEST];
-    const unsigned int told = cli_path_parent(index, folder) ? cli_compile_json_read(reply, index) : CLI_JSON_NONE;
-    const unsigned int answers = cli_json_member(reply, told, "reply");
-    const unsigned int model = cli_reply_file(folder, cli_json_member(reply, answers, "codemodel-v2"));
-    if (model == CLI_JSON_NONE)
-    {
-        return CLI_JSON_NONE;
-    }
-    g_cli_gather.compilers = 0u;
-    const unsigned int chains_file = cli_reply_file(folder, cli_json_member(reply, answers, "toolchains-v1"));
-    const unsigned int chains = cli_json_member(reply, chains_file, "toolchains");
-    for (unsigned int at = 0u;
-         (g_cli_gather.compilers < CLI_GATHER_LANGUAGES) && (cli_json_item(reply, chains, at) != CLI_JSON_NONE);
-         at += 1u)
-    {
-        const unsigned int one = cli_json_item(reply, chains, at);
-        const unsigned int compiler = cli_json_member(reply, one, "compiler");
-        const char *const language = cli_reply_string(one, "language");
-        const unsigned long long path = cli_reply_place(compiler, "path");
-        if ((language != NULL) && (path != 0xffffffffffffffffull))
-        {
-            const unsigned int place = cli_compiler_of(language);
-            g_cli_gather.compiler[place] =
-                (CliCompilerOf){cli_reply_place(one, "language"), path, cli_reply_place(compiler, "id")};
-            g_cli_gather.compilers += (place == g_cli_gather.compilers) ? 1u : 0u;
-        }
-    }
-    const unsigned int paths = cli_json_member(reply, model, "paths");
-    const char *const source_path = cli_reply_string(paths, "source");
-    const char *const build = cli_reply_string(paths, "build");
-    const unsigned int configurations = cli_json_member(reply, model, "configurations");
-    if ((source_path == NULL) || (build == NULL) || (cli_json_item(reply, configurations, 0u) == CLI_JSON_NONE))
-    {
-        return CLI_JSON_NONE;
-    }
-    // the configuration the build's folder is named for, as orior_cli names it, or the first
     const char *named = build;
     for (const char *at = build; at[0] != '\0'; at += 1)
     {
         named = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : named;
     }
-    unsigned int configuration = cli_json_item(reply, configurations, 0u);
-    for (unsigned int at = 0u; cli_json_item(reply, configurations, at) != CLI_JSON_NONE; at += 1u)
+    const unsigned long long first = cli_reply_first(model, configurations);
+    for (unsigned long long at = first; at != CLI_REPLY_NONE; at = cli_reply_next(model, at))
     {
-        const char *const name = cli_reply_string(cli_json_item(reply, configurations, at), "name");
-        int same = (name != NULL) && (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) ==
-                                      cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
+        char name[CLI_NAME_LONGEST];
+        int same = cli_reply_string(model, cli_reply_member(model, at, "name"), name, sizeof(name)) &&
+                   (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) ==
+                    cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
         for (unsigned long long letter = 0ull; same && (name[letter] != '\0'); letter += 1ull)
         {
             same = (name[letter] | 0x20) == (named[letter] | 0x20);
         }
         if (same)
         {
-            configuration = cli_json_item(reply, configurations, at);
-            break;
+            return at;
         }
     }
-    memor.cpy(&(MemoriaCfg){.dst = source,
-                            .src = source_path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = source_path, .cap = CLI_CELLS_POOL}) + 1u});
-    // the build folder copied out of the reply, whose texts move as each target's file is read into it
-    char build_folder[CLI_PATH_LONGEST];
-    memor.cpy(&(MemoriaCfg){.dst = build_folder,
-                            .src = build,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}) + 1u});
-    const unsigned int entries = cli_json_made(&g_cli_gather.json, CFG_JSON_ARRAY);
-    const unsigned int targets = cli_json_member(reply, configuration, "targets");
-    for (unsigned int at = 0u; cli_json_item(reply, targets, at) != CLI_JSON_NONE; at += 1u)
+    return first;
+}
+
+unsigned int cli_compile_cmake_entries(const char *index, char *source)
+{
+    char folder[CLI_PATH_LONGEST];
+    CliReply reply = {NULL, 0ull};
+    if (!cli_path_parent(index, folder) || !cli_reply_held(index, &reply))
     {
-        const unsigned int target = cli_reply_file(folder, cli_json_item(reply, targets, at));
-        if (target != CLI_JSON_NONE)
+        return CLI_JSON_NONE;
+    }
+    const unsigned long long answers = cli_reply_member(&reply, cli_reply_root(&reply), "reply");
+    CliReply model = {NULL, 0ull};
+    const int modelled = cli_reply_file_held(&reply, cli_reply_member(&reply, answers, "codemodel-v2"), folder, &model);
+    cli_toolchains_read(&reply, cli_reply_member(&reply, answers, "toolchains-v1"), folder);
+    cli_reply_let_go(&reply);
+    if (!modelled)
+    {
+        return CLI_JSON_NONE;
+    }
+    const unsigned long long paths = cli_reply_member(&model, cli_reply_root(&model), "paths");
+    const unsigned long long configurations = cli_reply_member(&model, cli_reply_root(&model), "configurations");
+    char build[CLI_PATH_LONGEST];
+    if (!cli_reply_string(&model, cli_reply_member(&model, paths, "source"), source, CLI_PATH_LONGEST) ||
+        !cli_reply_string(&model, cli_reply_member(&model, paths, "build"), build, sizeof(build)) ||
+        (cli_reply_first(&model, configurations) == CLI_REPLY_NONE))
+    {
+        cli_reply_let_go(&model);
+        return CLI_JSON_NONE;
+    }
+    const unsigned long long configuration = cli_configuration_of(&model, configurations, build);
+    const unsigned int entries = cli_json_made(&g_cli_gather.json, CFG_JSON_ARRAY);
+    const unsigned long long targets = cli_reply_member(&model, configuration, "targets");
+    for (unsigned long long at = cli_reply_first(&model, targets); at != CLI_REPLY_NONE;
+         at = cli_reply_next(&model, at))
+    {
+        CliReply target = {NULL, 0ull};
+        if (cli_reply_file_held(&model, at, folder, &target))
         {
-            cli_target_entries(target, source, build_folder, entries);
+            cli_target_entries(&target, source, build, entries);
+            cli_reply_let_go(&target);
         }
     }
+    cli_reply_let_go(&model);
     return entries;
 }

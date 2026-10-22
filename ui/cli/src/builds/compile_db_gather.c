@@ -12,21 +12,23 @@ CliGathering g_cli_gather;
 // the gathering's cells given back, those it has; and taken: 1, or 0 with none kept where the cells cannot meet them
 static void gather_cells_given(void)
 {
-    cli_json_given(&g_cli_gather.reply);
     cli_json_given(&g_cli_gather.json);
     cli_cell_given(g_cli_gather.flags_text.out);
+    cli_cell_given(g_cli_gather.fragment_text.out);
     g_cli_gather.flags_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    g_cli_gather.fragment_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
 }
 
 static int gather_cells_taken(void)
 {
     const int entries = cli_json_growing(&g_cli_gather.json, CLI_GATHER_NODES_FIRST, CLI_GATHER_TEXT_FIRST,
                                          "the compile entries gathered");
-    const int reply =
-        cli_json_growing(&g_cli_gather.reply, CLI_GATHER_NODES_FIRST, CLI_GATHER_TEXT_FIRST, "a CMake reply read");
     g_cli_gather.flags_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    g_cli_gather.fragment_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     const int flags = cli_line_growing(&g_cli_gather.flags_text, CLI_GATHER_FLAGS_FIRST, "a compile group's flags");
-    const int taken = entries && reply && flags;
+    const int fragment =
+        cli_line_growing(&g_cli_gather.fragment_text, CLI_GATHER_FLAGS_FIRST, "a compile fragment decoded");
+    const int taken = entries && flags && fragment;
     if (!taken)
     {
         gather_cells_given();

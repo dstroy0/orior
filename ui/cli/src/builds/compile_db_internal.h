@@ -7,6 +7,7 @@
 
 #include "../text/json_tree.h"
 #include "compile_db.h"
+#include "reply.h"
 
 // how deep below build/cmake and build/meson a build is looked for; the most files a look reads; the most folders a
 // search below a build finds; and the files and folders their rooms are begun with, doubling as they are put
@@ -76,9 +77,9 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path);
 // what a look at the tree at `root` reads into `inputs` (compile_db_look.c)
 void cli_compile_inputs(const char *root, CliInputs *inputs);
 
-// the nodes and bytes the entries gathered and a CMake reply read are begun with, doubling as they fill, the most
-// projects, languages and flags of one compile group, and the bytes the database and a compile group's flags are
-// begun to be written in, doubling as they fill
+// the nodes and bytes the entries gathered are begun with, doubling as they fill, the most projects, languages and
+// flags of one compile group, and the bytes the database and a compile group's flags are begun to be written in,
+// doubling as they fill
 #define CLI_GATHER_NODES_FIRST 4096u
 #define CLI_GATHER_TEXT_FIRST (1u << 18u)
 #define CLI_GATHER_PROJECTS 256u
@@ -95,22 +96,20 @@ typedef struct
     unsigned int entries;
 } CliProject;
 
-// A language's compiler as a CMake build gives it: its language, its path and its id, each a place among the reply
-// tree's texts, which move as the tree grows
+// A language's compiler as a CMake build gives it: its language, its path and its id
 typedef struct
 {
-    unsigned long long language;
-    unsigned long long path;
-    unsigned long long id;
+    char language[CLI_NAME_LONGEST];
+    char path[CLI_PATH_LONGEST];
+    char id[CLI_NAME_LONGEST];
 } CliCompilerOf;
 
-// The gathering: the entries tree and the reply tree, each growing in a cell of its own, the projects, a compile
-// group's flags, their text a growing line, each one after another with its zero after it, taken for one gathering
-// and given back as it ends
+// The gathering: the entries tree, growing in a cell of its own, the projects, a compile group's flags, their text a
+// growing line, each one after another with its zero after it, and a fragment of a compile command decoded, a growing
+// line, taken for one gathering and given back as it ends
 typedef struct
 {
     CliJson json;
-    CliJson reply;
     CliProject project[CLI_GATHER_PROJECTS];
     unsigned int projects;
     CliCompilerOf compiler[CLI_GATHER_LANGUAGES];
@@ -118,6 +117,7 @@ typedef struct
     CliLine flags_text;
     unsigned int flag[CLI_GATHER_FLAGS];
     unsigned int flags;
+    CliLine fragment_text;
 } CliGathering;
 
 extern CliGathering g_cli_gather;
