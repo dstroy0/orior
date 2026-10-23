@@ -34,8 +34,9 @@ typedef struct
 // what the link hands on: an event, `link` for its own, and its body, `size` bytes of JSON
 typedef void (*CliLinkTold)(void *context, const char *event, const char *body, unsigned long long size);
 
-// `size` bytes of `text` written as one word of a POSIX shell's line
+// `size` bytes of `text` written as one word of a POSIX shell's line; and a path as one, its backslashes made slashes
 void cli_link_quote(const char *text, unsigned long long size, CliLine *out);
+void cli_link_path_word(const char *path, CliLine *out);
 // an address read from `text`: 1, or 0 with why said; the address written as that reads it; and the machine, as the
 // window names it
 int cli_link_address_parse(const char *text, CliLinkAddress *address, CliLine *said);

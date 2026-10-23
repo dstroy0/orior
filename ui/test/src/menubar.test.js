@@ -1282,7 +1282,7 @@ test("Edit, Rename, Quick Fix, Parameter Info and Quick Documentation ask the la
   closeMenu(false);
 }, { timeout: 90000 });
 
-["start", "stop", "list", "show", "run-file", "validate", "update-snapshots", "run-statement", "run-sql-file", "send-request", "copy-as-curl", "private-environment"].forEach((command) => COVERED.add(command));
+["start", "stop", "list", "show", "run-file", "validate", "disasm-verify", "update-snapshots", "run-statement", "run-sql-file", "send-request", "copy-as-curl", "private-environment"].forEach((command) => COVERED.add(command));
 ["tests", "run-tests", "run-failed-tests", "cover-tests", "stop-tests", "profile", "profile-remote", "stop-profile", "print-here", "breakpoint"].forEach((command) => COVERED.add(command));
 ["debug", "continue", "step-over", "step-into", "step-out", "stop-debug", "pause", "restart-debug", "record", "step-back", "reverse-continue", "debug-mixed"].forEach((command) => COVERED.add(command));
 ["attach-process", "attach-address", "stepping", "export-breakpoints", "import-breakpoints", "show-memory", "watch-memory", "machine-code"].forEach((command) => COVERED.add(command));
@@ -1353,6 +1353,15 @@ test("Run, Validate says where no tool plugin validates the file, from the windo
   await openFile("hello.py");
   await runCommand("validate");
   assert.ok(told(/No tool plugin validates Python/));
+});
+
+test("Run, Verify Disassembly reads a C module alone from the window, and the command line names the toolchain it lacks", async () => {
+  // the command line's loop asks for Ghidra and the compiler first, and says which it lacks on a machine without them
+  assert.match(await ran("disasm-verify", `${TREE()}/hello.py`), /ended|Ghidra|clang/, "the command line's answer names what stops the loop");
+  showView("edit");
+  await openFile("hello.py");
+  await runCommand("disasm-verify");
+  assert.ok(told(/Verify Disassembly reads a C module/), "a file that is no C module is said to be none");
 });
 
 test("Run, Update Snapshots runs its line in the terminal", async () => {

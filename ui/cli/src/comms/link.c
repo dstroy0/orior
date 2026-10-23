@@ -240,3 +240,15 @@ void cli_link_heard(unsigned long long size, int whole)
     }
     cli_lock_give(&g_cli_link_lock);
 }
+
+void cli_link_path_word(const char *path, CliLine *out)
+{
+    char slashed[CLI_PATH_LONGEST];
+    memor.cpy(&(MemoriaCfg){
+        .dst = slashed, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+    for (char *at = slashed; *at != '\0'; at += 1)
+    {
+        *at = (*at == '\\') ? '/' : *at;
+    }
+    cli_link_quote(slashed, cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}), out);
+}

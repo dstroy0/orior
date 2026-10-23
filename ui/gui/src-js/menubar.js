@@ -617,6 +617,7 @@ const COMMANDS = {
   stop: stopChosen,
   "run-file": () => editing().runFile(),
   validate: () => editing().validate(),
+  "disasm-verify": () => editing().verifyDisassembly(),
   list: (args) => searchJobs(args[0]),
   show: (args) => searchJobs(args[0]),
   // The protocol: its one job, the course, shown and with words from the command line started, the run

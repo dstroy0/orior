@@ -9,6 +9,7 @@
 #include "../code/prints.h"
 #include "../code/purpose.h"
 #include "../code/review.h"
+#include "../comms/link.h"
 #include "../editor/latex.h"
 #include "../machine/settings.h"
 #include "../machine/trust.h"
@@ -193,6 +194,35 @@ static int run_file_line(const CliServeArgs *args, CliLine *out, CliLine *said)
     const char *const language = cli_serve_string(args, "language", said);
     return (language != NULL) && cli_serve_at(args, root, full, said) &&
            cli_run_file_line(root, full, language, out, said);
+}
+
+// the shell line that verifies the disassembly of the module at the argument `path`, for the terminal to run: this
+// program, with the tree as its root, running the console command disasm-verify on the module
+static int disasm_verify_line(const CliServeArgs *args, CliLine *out, CliLine *said)
+{
+    char root[CLI_PATH_LONGEST];
+    char full[CLI_PATH_LONGEST];
+    char program[CLI_PATH_LONGEST];
+    if (!cli_serve_at(args, root, full, said))
+    {
+        return 0;
+    }
+    if (!cli_program_own(program, sizeof(program)))
+    {
+        cli_line_text(said, "orior's program could not be found");
+        return 0;
+    }
+    char piece[1024];
+    CliJsonQuoting quoting;
+    CliLine line;
+    cli_json_quoting_begun(&quoting, out, &line, piece, sizeof(piece));
+    cli_link_path_word(program, &line);
+    cli_line_text(&line, " --root ");
+    cli_link_path_word(root, &line);
+    cli_line_text(&line, " run disasm-verify ");
+    cli_link_path_word(full, &line);
+    cli_json_quoting_ended(&quoting, &line);
+    return 1;
 }
 
 static int template_keep(const CliServeArgs *args, CliLine *out, CliLine *said)
@@ -418,6 +448,7 @@ const CliServeCall g_cli_serve_tool_calls[] = {
     {"toolchain_forget", toolchain_forget},
     {"validate_file", validate_file},
     {"run_file_line", run_file_line},
+    {"disasm_verify_line", disasm_verify_line},
     {"template_keep", template_keep},
     {"envs_found", envs_found},
     {"env_use", env_use},

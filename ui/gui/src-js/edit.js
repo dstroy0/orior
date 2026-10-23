@@ -1571,6 +1571,33 @@ ${finding.lifted}` : finding.message,
   }
 }
 
+// Run, Verify Disassembly: the tab's C module saved where it has changes, then the command line's
+// loop over it run in the terminal, by the line the tree's side gives: the tree built with link-time
+// optimization, the module's functions read by the disassembler and by Ghidra, and the two readings
+// held the same. A file that is no C module is said to be none.
+async function verifyDisassemblyTab(tab) {
+  const s = tab?.session;
+  if (!s || s.window) {
+    return;
+  }
+  const name = tab.file.split("/").pop();
+  if (s.language?.id !== "c") {
+    say(`Verify Disassembly reads a C module: ${name} is ${s.language?.name ?? "plain text"}.`);
+    return;
+  }
+  if (dirty(tab) && !tab.readOnly) {
+    state.active = tab.path;
+    await saveActive();
+  }
+  try {
+    const line = await invoke("disasm_verify_line", { path: tab.path });
+    runInTerminal(line);
+    say(`Verifying ${name}'s disassembly in the terminal.`);
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
 // A file's changes from the last commit side by side over the editor: its text as the open tab
 // holds it, or as the tree does where no tab holds it.
 async function openDiff(path, mark) {
@@ -3818,6 +3845,7 @@ export function editing() {
     parameterInfo: () => parameterInfo(),
     quickDoc,
     validate: () => validateTab(tabOf(actingPath())),
+    verifyDisassembly: () => verifyDisassemblyTab(tabOf(actingPath())),
     saveAll: async ({ auto = false } = {}) => {
       const shown = state.active;
       for (const tab of state.tabs.filter(dirty)) {

@@ -324,19 +324,6 @@ static int code_commands_read(const CliServeArgs *args, CliLine *out, CliLine *s
     return 1;
 }
 
-// a path written as one word of a POSIX shell's line, its backslashes made slashes
-static void code_shell_word(const char *path, CliLine *out)
-{
-    char slashed[CLI_PATH_LONGEST];
-    memor.cpy(&(MemoriaCfg){
-        .dst = slashed, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = slashed; *at != '\0'; at += 1)
-    {
-        *at = (*at == '\\') ? '/' : *at;
-    }
-    cli_link_quote(slashed, cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}), out);
-}
-
 // the shell line that brings the tree's dev container up and opens a window on the tree in it, for the terminal to run
 static int code_devcontainer_line(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
@@ -363,9 +350,9 @@ static int code_devcontainer_line(const CliServeArgs *args, CliLine *out, CliLin
     CliJsonQuoting quoting;
     CliLine line;
     cli_json_quoting_begun(&quoting, out, &line, piece, sizeof(piece));
-    code_shell_word(program, &line);
+    cli_link_path_word(program, &line);
     cli_line_text(&line, " --root ");
-    code_shell_word(root, &line);
+    cli_link_path_word(root, &line);
     cli_line_text(&line, " file dev-container");
     cli_json_quoting_ended(&quoting, &line);
     return 1;
