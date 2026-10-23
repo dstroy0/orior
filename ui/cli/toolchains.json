@@ -259,6 +259,17 @@
       "places": {"windows": ["%USERPROFILE%\\.vscode\\extensions\\sonarsource.sonarlint-vscode-*\\jre\\*\\bin"], "any": ["~/.vscode/extensions/sonarsource.sonarlint-vscode-*/jre/*/bin"]}
     },
     {
+      "id": "ghidra",
+      "name": "Ghidra",
+      "group": "C, C++ and CUDA",
+      "for": "analyzeHeadless, Ghidra's analyzer run without its window, which orior_cli run disasm-verify reads a program's functions through",
+      "uses": [],
+      "programs": ["analyzeHeadless"],
+      "version": ["-version"],
+      "install": {"any": "https://ghidra-sre.org/"},
+      "places": {"linux": ["/mnt/orior_test/tools/ghidra/*/support", "~/ghidra/*/support", "/opt/ghidra*/support", "/snap/ghidra/current/support"], "macos": ["~/ghidra/*/support", "/opt/ghidra*/support"], "windows": ["%USERPROFILE%\\ghidra\\*\\support", "%ProgramFiles%\\ghidra*\\support"]}
+    },
+    {
       "id": "lean",
       "name": "Lean",
       "group": "Languages",
@@ -272,7 +283,7 @@
         "windows": "d=\"$(mktemp -d)\" && curl -sSfL -o \"$d/elan.zip\" https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-pc-windows-msvc.zip && unzip -q -o \"$d/elan.zip\" -d \"$d\" && \"$d/elan-init.exe\" -y --default-toolchain stable && ~/.elan/bin/lean --version; rm -rf \"$d\"",
         "any": "curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain stable && ~/.elan/bin/lean --version"
       },
-      "places": {"windows": ["%USERPROFILE%\\.elan\\bin"], "any": ["~/.elan/bin"]}
+      "places": {"windows": ["%USERPROFILE%\\.elan\\bin"], "linux": ["/mnt/orior_test/tools/elan/bin"], "any": ["~/.elan/bin"]}
     },
     {
       "id": "zig",

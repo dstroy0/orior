@@ -9,6 +9,7 @@
 #include "../editor/files.h"
 #include "../machine/reach.h"
 #include "../machine/report.h"
+#include "../programs/disasm_verify.h"
 #include "../runs/protocol.h"
 #include "../runs/runner.h"
 #include "../text/json_tree.h"
@@ -294,6 +295,10 @@ static int console_treeless(const char *command, const char *named, const char *
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "validate", .cap = CLI_CELLS_POOL}))
     {
         *code = cli_validate_files(words, count);
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disasm-verify", .cap = CLI_CELLS_POOL}))
+    {
+        *code = cli_disasm_verify_words(words, count);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "report", .cap = CLI_CELLS_POOL}))
     {

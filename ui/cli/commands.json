@@ -275,6 +275,7 @@
         { "label": "Copy as curl", "command": "copy-as-curl", "needs": "http" },
         { "label": "Private Environment File", "command": "private-environment", "needs": "http" },
         { "label": "Validate", "command": "validate", "keys": "Ctrl+Alt+F5", "args": "[--json] <file>...", "needs": "tab", "console": true },
+        { "label": "Verify Disassembly", "command": "disasm-verify", "args": "<module> [--function <name>]... [--toolchain llvm|gcc|apple] [--target <triple>]", "needs": "tab", "console": true },
         { "label": "Update Snapshots", "command": "update-snapshots" },
         { "label": "Find Tests…", "command": "tests", "args": "[--json]", "console": true },
         { "label": "Run All Tests", "command": "run-tests" },

@@ -18,6 +18,7 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py source ...                 the C sources read by the compiler and the linker's tools (harness_build.py)
     harness.py sonarqube ...              the server's project, scan and duplications (harness_sonarqube.py)
     harness.py window ...                 the released window started, ended, pictured, measured, its suite run (harness_window.py)
+    harness.py wsl ...                    the ext4 test volume under WSL, the tree copied onto it, commands run there (harness_wsl.py)
 
 Every invocation is a line of build/harness/harness.log, when it began, the command line, its exit code, its
 seconds and its output's file, and its output is kept whole under build/harness/log/.
@@ -43,7 +44,8 @@ An env holds:
     src       the sources it builds, as +<path> under src/
     tests     the test folders it runs, under utils/test/
     env       settings the script runs under, NAME: VALUE
-    wsl       true where the script runs under WSL, which takes its settings on the command line
+    wsl       true where the script runs under WSL, which takes its settings on the command line, on the ext4 test
+              volume where one is mounted (harness.py wsl)
 
 Every change to the matrix goes through `harness.py env`, which splices the one env it changes
 into the file as text: a change is a minimal diff; nothing else in the file moves. A script
@@ -74,6 +76,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import harness_build  # noqa: E402
 import harness_cli  # noqa: E402
+import harness_wsl  # noqa: E402
 import harness_sonarqube  # noqa: E402
 import harness_window  # noqa: E402
 
@@ -512,12 +515,15 @@ def script_command(name, e, tessera, root=ROOT, script_build=SCRIPT_BUILD):
         env["CYCLE_CACHE"] = cache.replace("\\", "/")
     script = os.path.join(root, *e["script"].split("/"))
     if e.get("wsl"):
-        # WSL takes no environment from here: the settings ride on the command line
+        # WSL takes no environment from here: the settings ride on the command line. The script is the copy on the
+        # ext4 volume where the volume is mounted and the tree is this one, else the tree through WSL's 9p mount
+        on_volume = (root == ROOT) and harness_wsl.mounted()
+        where = "%s/%s" % (harness_wsl.TREE, e["script"]) if on_volume else wsl_path(script)
         sets = " ".join(
             "%s=%s" % (k, wsl_path(v) if k == "BUILD_OUT" else v)
             for k, v in sorted(list(e.get("env", {}).items()) + [("BUILD_OUT", out)])
         )
-        return ["wsl.exe", "bash", "-lc", "%s bash %s" % (sets, wsl_path(script))], env
+        return ["wsl.exe", "bash", "-lc", "%s bash %s" % (sets, where)], env
     cmd = [
         tessera,
         "--processors",
@@ -644,6 +650,12 @@ def cmd_run(a):
         print("not a suite in utils/test/test_matrix.json: " + " ".join(missing))
         return 1
     os.makedirs(script_build, exist_ok=True)
+    # the suites that run under WSL run on the ext4 volume where it is mounted: the tree is copied there first
+    if (root == ROOT) and any(table[n].get("wsl") for n in names) and harness_wsl.mounted():
+        print("wsl suites run on %s" % harness_wsl.TREE)
+        if harness_wsl.synced() != 0:
+            print("error: the tree could not be copied onto the volume")
+            return 1
     total = len(names)
     results = []
     t0 = time.time()
@@ -766,7 +778,7 @@ def build_parser():
     p.add_argument("--at", metavar="HASH", help="run the suites of orior as it was at this commit (fetched from origin if need be)")
     p.add_argument("--idle", type=int, default=IDLE_SECONDS, metavar="SECONDS", help="end a suite whose log has not grown this long once admitted (0: never)")
     p.set_defaults(fn=cmd_run)
-    for module in (harness_build, harness_cli, harness_sonarqube, harness_window):
+    for module in (harness_build, harness_cli, harness_sonarqube, harness_window, harness_wsl):
         module.register(sub)
     return ap
 

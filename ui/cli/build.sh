@@ -36,8 +36,23 @@ LTO_WORDS=()
 LINK_WORDS=()
 if [ "$LTO" = 1 ]; then
     LTO_SUFFIX="-lto"
-    LTO_WORDS=(-flto=thin)
-    LINK_WORDS=(-flto=thin -fuse-ld=lld)
+    # GCC's link-time optimization is one flag on both sides; clang's is thin, linked by lld where the system's linker
+    # is not Apple's, which optimizes at its link itself
+    case "$CC" in
+        *gcc*) LTO_WORDS=(-flto); LINK_WORDS=(-flto) ;;
+        *) LTO_WORDS=(-flto=thin); LINK_WORDS=(-flto=thin)
+           # lld where the machine has it, on PATH or beside the compiler, under its plain name or a versioned one,
+           # the newest first; else the system's linker, which links thin LTO through the compiler's plugin
+           if [ "$(uname -s)" != "Darwin" ]; then
+               lld=""
+               for name in ld.lld ld.lld-21 ld.lld-20 ld.lld-19 ld.lld-18 ld.lld-17; do
+                   found="$(command -v "$name" 2>/dev/null || true)"
+                   [ -n "$found" ] || { beside="$(dirname "$(command -v "$CC")")/$name"; [ -x "$beside" ] && found="$beside"; }
+                   if [ -n "$found" ]; then lld="$found"; break; fi
+               done
+               [ -z "$lld" ] || LINK_WORDS+=("-fuse-ld=$lld")
+           fi ;;
+    esac
 fi
 # ORIOR_SANITIZE=address or thread builds every object and link under that sanitizer, with frame pointers kept for
 # its stacks and the code position-independent, since the sanitizer's constructors keep every object's sections in
@@ -125,6 +140,13 @@ mmgr_built() {
     local into="$TOP/build/orior_cmake/$target$LTO_SUFFIX"
     mkdir -p "$TOP/build/orior_cmake"
     vector_words_of "$target"
+    # a cache configured for another compiler goes first: CMake re-runs its configure when the compiler changes and
+    # that re-run drops the flags given on the command line, so MMgr's host entries go unbuilt
+    local cached
+    cached="$(sed -n 's/^CMAKE_C_COMPILER:[A-Z]*=//p' "$into/CMakeCache.txt" 2>/dev/null)"
+    if [ -n "$cached" ] && [ "$cached" != "$CC" ] && [ "$cached" != "$(command -v "$CC" 2>/dev/null)" ]; then
+        rm -rf "$into"
+    fi
     { cmake -S "$TOP/src/cu" -B "$into" -G Ninja -DCMAKE_C_COMPILER="$CC" -DCMAKE_C_COMPILER_TARGET="$target" \
         -DCMAKE_BUILD_TYPE=Release -DORIOR_SKIP_CUDA=ON -DORIOR_MMGR_ONLY=ON \
         -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER -DMMGR_ENABLE_HOST=1 ${VECTOR_WORDS[*]} ${SANITIZE_WORDS[*]}" \

@@ -1,0 +1,12 @@
+{
+  "id": "ghidra",
+  "name": "Ghidra: Verify Disassembly",
+  "version": "1.0.0",
+  "kind": "tool",
+  "toolchain": "ghidra",
+  "about": "The sound hardware and compiler analysis loop's verification: a C module of the tree built with link-time optimization, its bitcode lifted to IR, the instructions of the functions it defines read out of the linked program by LLVM's disassembler and by Ghidra's, the program executed, and the two readings held the same instruction for instruction, each function a row. The loop runs as orior_cli run disasm-verify <module.c>, which finds Ghidra through the toolchain ghidra and LLVM's tools beside clang.",
+  "script": "FunctionsDisassembled.java",
+  "commands": [
+    { "id": "disasm-verify", "title": "Ghidra: Verify Disassembly of Current Module" }
+  ]
+}
