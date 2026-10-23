@@ -14,14 +14,37 @@ const { test, assert, ui } = window.__harness;
 
 const rowOf = (path) => treeRowShown(path);
 
+// The row of `path` in sight once the tree has stopped moving it: the tree draws its rows again as files come and
+// go, and a pointer sent to a row that then moves rests on another file.
+async function settledRow(path) {
+  let place = "";
+  let since = performance.now();
+  await ui.waitFor(() => {
+    const row = rowOf(path);
+    const box = row?.getBoundingClientRect();
+    const now = row?.checkVisibility() ? `${box.top},${box.left}` : "";
+    if (now !== place) {
+      place = now;
+      since = performance.now();
+    }
+    return place !== "" && performance.now() - since >= 400;
+  }, 10000).catch((error) => {
+    const row = rowOf(path);
+    throw new Error(`${error.message}; row ${row?.dataset.key} at ${place || "nowhere"}, shown ${row?.checkVisibility()}, files shown ${document.getElementById("files")?.checkVisibility()}`);
+  });
+  return rowOf(path);
+}
+
+// The card shown for `path`.
+const cardOf = (path) => (shownCard()?.querySelector(".file-card-path")?.textContent === path ? shownCard() : null);
+
 test("the pointer resting on a file shows what its first comment says and the files that use it", async () => {
   await invoke("file_write", { path: "card_lib.js", text: "// SPDX-License-Identifier: MIT\n\n// Helpers the cards are drawn with.\nexport const one = 1;\n" });
   await invoke("file_write", { path: "card_main.js", text: 'import { one } from "./card_lib.js";\n' });
   showView("edit");
   togglePane(true, { take: false, pin: true });
-  await ui.waitFor(() => rowOf("card_lib.js")?.checkVisibility(), 10000);
-  await ui.hover(rowOf("card_lib.js"));
-  await ui.waitFor(() => shownCard()?.querySelector(".file-card-user"), 5000);
+  await ui.hover(await settledRow("card_lib.js"));
+  await ui.waitFor(() => cardOf("card_lib.js")?.querySelector(".file-card-user"), 5000);
   const card = shownCard();
   assert.equal(card.querySelector(".file-card-path").textContent, "card_lib.js");
   assert.equal(card.querySelector(".file-card-said").textContent, "Helpers the cards are drawn with.");
@@ -36,8 +59,10 @@ test("the pointer resting on a file shows what its first comment says and the fi
 });
 
 test("a file with no comment at its head says so, and the card goes when the pointer leaves", async () => {
-  await ui.hover(rowOf("card_main.js"));
-  await ui.waitFor(() => shownCard()?.querySelector(".file-card-head"), 5000);
+  // the file the card opened takes the window's edges: the explorer is shown again
+  togglePane(true, { take: false, pin: true });
+  await ui.hover(await settledRow("card_main.js"));
+  await ui.waitFor(() => cardOf("card_main.js")?.querySelector(".file-card-head"), 5000);
   assert.equal(shownCard().querySelector(".file-card-said").textContent, "No comment at its head says what it is for.");
   assert.equal(shownCard().querySelector(".file-card-head").textContent, "No file of the tree uses it.");
   await ui.hover(document.getElementById("statusbar"));
