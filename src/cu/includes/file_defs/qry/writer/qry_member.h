@@ -170,8 +170,8 @@ extern "C"
     // the `size` bytes at `bytes` qry_member_file_mapped mapped let go
     void qry_member_file_unmapped(const unsigned char *bytes, unsigned long long size);
 
-    // the file at `path` read whole into `bytes`, which holds `room`: its size, or QRY_MEMBER_UNREAD where it could
-    // not be read whole or is larger than `room`
+    // the file at `path` read whole into `bytes`, which holds `room`, read to its end whatever length the system
+    // gives it: the bytes it holds, or QRY_MEMBER_UNREAD where it could not be read whole or is larger than `room`
     unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, unsigned long long room);
 
 #ifdef __cplusplus

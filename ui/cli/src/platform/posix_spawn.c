@@ -270,8 +270,12 @@ void cli_spawn_closed(CliSpawned *spawned)
 
 void cli_spawn_tree_end(unsigned long long id)
 {
-    // the group the run's process leads, asked to end
-    kill(-(pid_t)id, SIGTERM);
+    // the group the run's process leads, asked to end; an id of 0 names no run, and kill of group 0 would end the
+    // caller's own group
+    if (id != 0ull)
+    {
+        kill(-(pid_t)id, SIGTERM);
+    }
 }
 
 void cli_spawn_killed(const CliSpawned *spawned)

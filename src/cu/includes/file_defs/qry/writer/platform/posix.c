@@ -159,21 +159,29 @@ unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, 
         }
         return QRY_MEMBER_UNREAD;
     }
-    // a file's length is not negative and fits `room`
-    const unsigned long long size = (unsigned long long)held.st_size;
+    // the file read to its end, since a file of /proc gives a length of 0 and holds its text all the same; one byte
+    // more than `room` holds leaves it unread
     unsigned long long done = 0ull;
-    while (done < size)
+    for (;;)
     {
-        const ssize_t got = read(file, bytes + done, (size_t)(size - done));
-        if (got <= 0)
+        unsigned char past;
+        unsigned char *const into = (done < room) ? (bytes + done) : &past;
+        const size_t wanted = (done < room) ? (size_t)(room - done) : 1u;
+        const ssize_t got = read(file, into, wanted);
+        if ((got < 0) || ((got > 0) && (done >= room)))
         {
             close(file);
             return QRY_MEMBER_UNREAD;
         }
+        if (got == 0)
+        {
+            break;
+        }
+        // a read that gave bytes gave a positive count
         done += (unsigned long long)got;
     }
     close(file);
-    return size;
+    return done;
 }
 
 QryShared *qry_member_shared(const char *path)

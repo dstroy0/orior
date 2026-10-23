@@ -139,7 +139,13 @@ static void run_names(void)
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = name, .other = "src/cu/transpiler/lstar/protocol/table/sm_86.khw", .cap = CLI_CELLS_POOL}),
               "a path is named under the top of the tree");
-    query_named(s_root, "C:/elsewhere/forms.txt", name, sizeof(name));
+    // a path outside the tree on each system: a drive's on Windows, the root's elsewhere
+#if defined(_WIN32)
+    static const char s_outside[] = "C:/elsewhere/forms.txt";
+#else
+    static const char s_outside[] = "/elsewhere/forms.txt";
+#endif
+    query_named(s_root, s_outside, name, sizeof(name));
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "forms.txt", .cap = CLI_CELLS_POOL}),
               "and one outside it by its name");
 }
