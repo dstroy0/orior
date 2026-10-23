@@ -99,8 +99,10 @@ test("a large text is held on the window's side, each change follows it there, a
   // the press brings the strip back from its edge and finds the button as it then stands.
   const mark = `#tabs .tab .close[title="held/held.py"]`;
   const closer = () => document.querySelector(mark);
-  for (let press = 0; press < 2 && closer(); press += 1) {
+  // a press brings the strip back, one asks again of a changed tab, one closes it
+  for (let press = 0; press < 4 && closer(); press += 1) {
     await ui.click(mark);
+    await ui.rest(100);
   }
   await ui.waitFor(() => !closer(), 3000).catch((error) => {
     const box = closer()?.getBoundingClientRect();
@@ -195,4 +197,31 @@ test("the changes not saved are kept at once as the window closes, and let go on
   await ui.key("Backspace");
   window.dispatchEvent(new Event("pagehide"));
   assert.equal(backup(), null, "back as saved, nothing kept");
+});
+
+test("the tab shown stands in sight in a strip of more tabs than the window holds", async () => {
+  showView("edit");
+  const names = Array.from({ length: 40 }, (_, at) => `many_tabs/a_file_with_a_long_name_${String(at).padStart(2, "0")}.txt`);
+  await invoke("folder_create", { path: "many_tabs" }).catch(() => {});
+  for (const name of names) {
+    await invoke("file_write", { path: name, text: "x\n" });
+    await openFile(name);
+  }
+  const strip = document.getElementById("tabs");
+  const inSight = (path) => {
+    const box = strip.querySelector(`.tab[title="${path}"]`)?.getBoundingClientRect();
+    const view = strip.getBoundingClientRect();
+    return Boolean(box) && box.left >= view.left - 1 && box.right <= Math.min(view.right, innerWidth) + 1;
+  };
+  try {
+    assert.ok(strip.scrollWidth > strip.clientWidth, `the strip holds more than it shows: ${strip.scrollWidth} px in ${strip.clientWidth}`);
+    await ui.waitFor(() => inSight(names.at(-1)), 2000, "the last tab opened in sight");
+    await openFile(names[0]);
+    await ui.waitFor(() => inSight(names[0]), 2000, "the first tab, shown again, in sight");
+  } finally {
+    for (const name of names) {
+      const tab = strip.querySelector(`.tab .close[title="${name}"]`);
+      tab?.click();
+    }
+  }
 });

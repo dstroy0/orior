@@ -1387,7 +1387,8 @@ test("Run, Send Request, Copy as curl and Private Environment File on a file of 
   editing().editor.goTo(0, 0);
   calls.answer("requests_send", () => ({ status: 200, reason: "OK", headers: [], body: "", ms: 1, size: 0 }));
   await press("send-request");
-  assert.ok(made("requests_send").some((one) => one.args.path === "asked.http"), "the request sent");
+  // the send reads the file's environments first, so it is made after the press has returned
+  await ui.waitFor(() => made("requests_send").some((one) => one.args.path === "asked.http"), 5000, "the request sent");
   const copied = [];
   calls.answer("clip_write", ({ text }) => copied.push(text));
   await press("copy-as-curl");

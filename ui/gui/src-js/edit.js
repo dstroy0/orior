@@ -591,6 +591,8 @@ function drawTabs() {
   }
   drawn.push(...mainTabs().filter((tab) => !groupOf(tab.path)).map(tabButton));
   bar.replaceChildren(...drawn);
+  // the tab shown stands in sight in a strip of more tabs than it holds
+  bar.querySelector('.tab[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 // Tabs down the side: the first side's tabs in a column beside its editor in place of a row above

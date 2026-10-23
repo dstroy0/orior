@@ -210,12 +210,15 @@ int cli_servers_actions(const char *path, CliTextPlace from, CliTextPlace to, Cl
     {
         actions_ours(id, from, to, &written, out);
     }
+    // the tree's own server asked first, its refusal said only where no other offers anything
     CliLsp *const server = cli_servers_holding(path);
     int asked = 1;
+    char refused[256];
+    CliLine refusal = {refused, sizeof(refused), 0ull};
     if (server != NULL)
     {
         const unsigned int all = actions_kept_read(&g_cli_servers_published, &g_cli_servers_published_lock, key);
-        asked = actions_asked(server, NULL, all, uri, from, to, &written, out, said);
+        asked = actions_asked(server, NULL, all, uri, from, to, &written, out, &refusal);
         cli_lsp_given(server);
     }
     // each plugin server that holds the file asked as well, given the diagnostics it gave, a server that does not
@@ -237,6 +240,14 @@ int cli_servers_actions(const char *path, CliTextPlace from, CliTextPlace to, Cl
     {
         cli_line_text(said, "no language server has this file open");
         asked = 0;
+    }
+    if (!asked && (written || plugged))
+    {
+        asked = 1;
+    }
+    else if (!asked)
+    {
+        cli_line_counted(said, refused, cli_line_fits(&refusal) ? refusal.at : sizeof(refused));
     }
     cli_line_character(out, ']');
     out->at = asked ? out->at : start;
