@@ -58,9 +58,12 @@ test("a large text is held on the window's side, each change follows it there, a
   const lines = Array.from({ length: 20000 }, (_, line) => `value_${line} = compute(${line}) + ${line % 7}`);
   const root = await invoke("root_get");
   await invoke("folder_create", { path: "held" }).catch(() => {});
-  await invoke("repo_init", { folder: `${root}/held` });
+  // a try after the first finds the repository made and the file committed as it is written again
+  await invoke("repo_init", { folder: `${root}/held` }).catch((error) => assert.match(String(error), /is a repository already/));
   await invoke("file_write", { path: "held/held.py", text: `${lines.join("\n")}\n` });
-  await invoke("git_commit", { message: "a large file held", paths: ["held/held.py"] });
+  await invoke("git_commit", { message: "a large file held", paths: ["held/held.py"] }).catch(async (error) => {
+    assert.equal((await invoke("file_head", { path: "held/held.py" })).split(/\r?\n/).length, lines.length + 1, `the commit refused: ${error}`);
+  });
   showView("edit");
   await openFile("held/held.py");
   await ui.waitFor(() => editing().active === "held/held.py" && editing().editor?.s?.doc.held?.ready, 10000);
@@ -99,7 +102,11 @@ test("a large text is held on the window's side, each change follows it there, a
   for (let press = 0; press < 2 && closer(); press += 1) {
     await ui.click(mark);
   }
-  await ui.waitFor(() => !closer(), 3000);
+  await ui.waitFor(() => !closer(), 3000).catch((error) => {
+    const box = closer()?.getBoundingClientRect();
+    const at = box ? document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) : null;
+    throw new Error(`${error.message}; the close at ${box ? `${Math.round(box.left)},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(box.height)}` : "nowhere"}, shown ${closer()?.checkVisibility()}, under it ${at?.outerHTML.slice(0, 160)}; sheet ${document.querySelector("dialog[open]")?.textContent.slice(0, 200)}; status ${document.getElementById("status-said")?.textContent}`);
+  });
   let gone = false;
   for (let tries = 0; tries < 30 && !gone; tries += 1) {
     gone = await invoke("document_edit", { key: held.key, changes: [] }).then(() => false, () => true);
