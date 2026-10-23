@@ -158,7 +158,15 @@ static int pages_find(const CliServeArgs *args, CliLine *out, CliLine *said)
 static int pages_save(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     const char *const key = cli_serve_string(args, "key", said);
-    return (key != NULL) && cli_pages_save(key, out, said);
+    if (key == NULL)
+    {
+        return 0;
+    }
+    // a paged file is written as every file of the tree is, one write at a time
+    cli_lock_take(&g_cli_serve_write_lock);
+    const int saved = cli_pages_save(key, out, said);
+    cli_lock_give(&g_cli_serve_write_lock);
+    return saved;
 }
 
 static int pages_release(const CliServeArgs *args, CliLine *out, CliLine *said)

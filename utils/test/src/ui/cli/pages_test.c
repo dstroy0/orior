@@ -125,15 +125,20 @@ static void pages_edit(void)
     char why[256];
     CliLine said = {why, sizeof(why), 0ull};
     CliLine out = {s_out, sizeof(s_out), 0ull};
-    (void)cli_pages_open("edit", path, &out, &said);
+    const int opened = cli_pages_open("edit", path, &out, &said);
+    (void)cli_line_closed(&said);
+    cli_check(opened, opened ? "the file opens for its edits" : why);
     (void)pages_indexed("edit");
     static const CliEdit s_edits[2] = {{{10ull, 0ull}, {10ull, 3ull}, "ROW", 3ull},
                                        {{2000ull, 4ull}, {2001ull, 4ull}, "joined\nand ", 11ull}};
     const CliEdit *const changes[1] = {s_edits};
     const unsigned int counts[1] = {2u};
     out.at = 0ull;
-    cli_check(cli_pages_edit("edit", changes, counts, 1u, &out, &said) && (pages_shape_of(out.at).lines == 3001ull),
-              "the edits are written, the text one line longer");
+    const int edited = cli_pages_edit("edit", changes, counts, 1u, &out, &said);
+    (void)cli_line_closed(&said);
+    cli_check(edited && (pages_shape_of(out.at).lines == 3001ull),
+              edited ? "the edits are written, the text one line longer"
+                     : ((why[0] != '\0') ? why : "the edit was refused with no reason said"));
     char shadow[CLI_PATH_LONGEST];
     cli_full(s_folder, ".edit.txt.~", shadow);
     const unsigned long long shadowed = qry_member_file_read(shadow, (unsigned char *)s_text, sizeof(s_text) - 1u);

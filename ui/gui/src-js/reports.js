@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Error reports from the window. An error no part of the window caught goes to the Rust side, which
+// Error reports from the window. An error no part of the window caught goes to the window's side, which
 // files it as an issue on its own where the reader lets errors file; Help, Report a Bug opens a form
 // for a report the reader writes. Where a report went shows in the status bar, its issue a click away.
 

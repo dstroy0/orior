@@ -163,6 +163,8 @@ int cli_serve_asked_or(const CliServeArgs *args, CliServeAnswer answer, CliLine 
 // `length` bytes of `text` written to the file at `path` of the tree, its text before kept in its local history, a
 // history that cannot be kept said on the errors: 1, or 0 with why said (serve_call_files.c)
 int cli_serve_file_write(const char *path, const char *text, unsigned long long length, CliLine *said);
+// the lock every write of a file of the tree holds, so that one write lands at a time (serve_call_files.c)
+extern CliLock g_cli_serve_write_lock;
 
 // the statement at the argument `offset` of the argument `text`, and every statement of it, each as the argument
 // `kind` of database splits them (serve_statements.c)

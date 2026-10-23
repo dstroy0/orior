@@ -70,10 +70,23 @@ int cli_files_write(const char *root, const char *file, const char *text, unsign
         return cli_archive_write(root, file, (const unsigned char *)text, length, said);
     }
     char path[CLI_PATH_LONGEST];
-    if (!cli_inside(root, file, path, said))
+    char beside[CLI_PATH_LONGEST];
+    if (!cli_inside(root, file, path, said) || !cli_files_saving_beside(path, file, beside, said))
     {
         return 0;
     }
+    if (!query_file_written(beside, text, length))
+    {
+        const unsigned int error = cli_system_error();
+        cli_unwritten(file, said);
+        cli_system_reason(error, said);
+        return 0;
+    }
+    return cli_files_saved(beside, path, file, said);
+}
+
+int cli_files_saving_beside(const char *path, const char *file, char *beside, CliLine *said)
+{
     char parent[CLI_PATH_LONGEST];
     if (!cli_path_parent(path, parent))
     {
@@ -92,19 +105,21 @@ int cli_files_write(const char *root, const char *file, const char *text, unsign
         cli_line_text(said, " has no name");
         return 0;
     }
-    char beside[CLI_PATH_LONGEST];
-    CliLine line = {beside, sizeof(beside), 0ull};
+    CliLine line = {beside, CLI_PATH_LONGEST, 0ull};
     cli_line_text(&line, parent);
     cli_line_text(&line, "/.");
     cli_line_text(&line, name);
     cli_line_text(&line, ".saving");
-    if ((cli_line_closed(&line) == 0ull) || !query_file_written(beside, text, length))
+    if (cli_line_closed(&line) == 0ull)
     {
-        const unsigned int error = cli_system_error();
         cli_unwritten(file, said);
-        cli_system_reason(error, said);
         return 0;
     }
+    return 1;
+}
+
+int cli_files_saved(const char *beside, const char *path, const char *file, CliLine *said)
+{
     if (!query_file_renamed(beside, path))
     {
         const unsigned int error = cli_system_error();

@@ -202,7 +202,7 @@ async function rowsFor(text) {
   return fileRows(text);
 }
 
-// The rows of a list given as items, matched on the Rust side, picks.rs, where its texts are held:
+// The rows of a list given as items, matched on the window's side, picks.c, where its texts are held:
 // the best MOST of them for what is typed, each item's own label marked where it matched.
 async function heldRows(query) {
   const { items } = state.custom;
@@ -216,7 +216,7 @@ async function heldRows(query) {
     });
 }
 
-// Lets go of the list held on the Rust side for the list shown, where one is.
+// Lets go of the list held on the window's side for the list shown, where one is.
 function letGo() {
   const held = state.held;
   state.held = null;
@@ -316,7 +316,7 @@ function go() {
 // Opens the quick open holding `text`: "" for files, ">" for commands, ":" for a line, "@" for what
 // the file declares. With `everywhere` it searches all of them at once, and with `custom`, as
 // { placeholder, rows(query) }, it lists the rows that gives; a list of many rows gives them as
-// { placeholder, items }, each item { text, label, detail, run }, matched by its text on the Rust side.
+// { placeholder, items }, each item { text, label, detail, run }, matched by its text on the window's side.
 export function openPalette(text = "", { everywhere = false, custom = null } = {}) {
   if (state.node.hidden) {
     state.before = document.activeElement;

@@ -120,6 +120,12 @@ int cli_files_slice(const char *root, const char *file, unsigned long long start
 int cli_files_create_file(const char *root, const char *file, CliLine *said);
 int cli_files_create_folder(const char *root, const char *dir, CliLine *said);
 int cli_files_write(const char *root, const char *file, const char *text, unsigned long long length, CliLine *said);
+// the tree's way of writing a file, which every writer of one takes: the text is written beside the file at `path`,
+// as `.name.saving` in its folder, the path into `beside`, which holds CLI_PATH_LONGEST, and moved over the file once
+// whole, the file left as it was where the move fails and the text beside removed; `file` names the file in what is
+// said. Each 1, or 0 with why said (files_write.c)
+int cli_files_saving_beside(const char *path, const char *file, char *beside, CliLine *said);
+int cli_files_saved(const char *beside, const char *path, const char *file, CliLine *said);
 
 // what is told as a file is brought: the tree's path of it, the bytes copied and its size
 typedef void (*CliTold)(void *context, const char *path, unsigned long long done, unsigned long long size);

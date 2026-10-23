@@ -4,6 +4,7 @@
 // and the text saved to its file
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "files.h"
 #include "pages_internal.h"
 
 // the most bytes of an edit's lines, the most bytes of the matches find writes, and the bytes a reading's cell begins
@@ -164,7 +165,9 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
     const unsigned long long last_length = lines->length[lines->count - 1ull];
     const unsigned long long head = cli_byte_at(first, first_length, edit->from.col);
     const unsigned long long tail = cli_byte_at(last, last_length, edit->to.col);
-    const unsigned long long size = head + edit->length + (last_length - tail) + 1ull;
+    // the head, the edit's text, the tail, the newline that ends the last line, and the byte a line holds back for
+    // its terminator
+    const unsigned long long size = head + edit->length + (last_length - tail) + 2ull;
     if (size > CLI_PAGE_EDIT)
     {
         cli_line_text(said, "the lines written over ");
@@ -183,6 +186,12 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
     cli_line_counted(&written, edit->text, edit->length);
     cli_line_counted(&written, last + tail, last_length - tail);
     cli_line_character(&written, '\n');
+    if (!cli_line_fits(&written))
+    {
+        cli_cell_given(text);
+        cli_line_text(said, "an edit's lines as written do not fit the cell sized to them");
+        return 0;
+    }
     const CliPagePiece put = cli_written_put(one, text, written.at, said);
     cli_cell_given(text);
     return (put.lines != 0ull) && cli_replaced(one, edit->from.line, reach, put, said);
@@ -394,9 +403,15 @@ int cli_pages_save(const char *key, CliLine *out, CliLine *said)
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }
+    // the text goes to the file as the tree writes every file: beside it, then moved over it once whole
     const unsigned long long total = cli_total(one);
     char beside[CLI_PATH_LONGEST];
-    cli_page_beside(one->path, ".orior-saving", beside);
+    if (!cli_files_saving_beside(one->path, one->path, beside, said))
+    {
+        cli_page_lines_given(&lines);
+        cli_lock_give(&g_cli_pages_lock);
+        return 0;
+    }
     int written = cli_file_appended(beside, "", 0ull, 1);
     for (unsigned long long from = 0ull; written && (from < total);)
     {
@@ -435,10 +450,8 @@ int cli_pages_save(const char *key, CliLine *out, CliLine *said)
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }
-    if (!query_file_renamed(beside, one->path))
+    if (!cli_files_saved(beside, one->path, one->path, said))
     {
-        cli_line_text(said, one->path);
-        cli_line_text(said, ": it could not be moved over");
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }

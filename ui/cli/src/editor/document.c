@@ -5,6 +5,7 @@
 #include "document.h"
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/sift.h"
 #include "../text/vector.h"
 
 // the most units of a text's lines joined, and the most lines
@@ -233,63 +234,100 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
     return done;
 }
 
+// A search's walk over the joined units as the sift hands each offset it finds the needle at: the matches taken in
+// order, each past the one before, on a unit's boundary, a whole word where one is sought, as the page searches each
+// line whole and stops before the first line it starts with `most` found
+typedef struct
+{
+    CliFindRoom *room;
+    const CliDocSought *sought;
+    unsigned long long size;
+    unsigned long long most;
+    unsigned long long found;
+    unsigned int line;
+    unsigned int last;
+    unsigned long long next;
+    int stopped;
+    int own;
+} CliFindWalk;
+
+static void cli_found_at(void *context, unsigned long long byte)
+{
+    CliFindWalk *const walk = (CliFindWalk *)context;
+    const unsigned long long hit = byte / 2ull;
+    // a hit between two units, or inside the match before, is none
+    if (walk->stopped || walk->own || ((byte % 2ull) != 0ull) || (hit < walk->next))
+    {
+        return;
+    }
+    const CliJoined *const joined = &walk->room->joined;
+    while (joined->start[walk->line + 1u] <= hit)
+    {
+        walk->line += 1u;
+    }
+    if ((walk->last != 0xffffffffu) && (walk->line > walk->last))
+    {
+        walk->stopped = 1;
+        return;
+    }
+    const unsigned long long from = hit - joined->start[walk->line];
+    const unsigned long long to = from + walk->size;
+    if (walk->sought->word)
+    {
+        const unsigned long long length = joined->start[walk->line + 1u] - joined->start[walk->line] - 1ull;
+        const int whole = cli_whole(joined->unit + joined->start[walk->line], length, from, to);
+        if (whole < 0)
+        {
+            walk->own = 1;
+            return;
+        }
+        if (!whole)
+        {
+            walk->next = hit + 1ull;
+            return;
+        }
+    }
+    if (walk->found < CLI_FIND_MATCHES)
+    {
+        walk->room->match[walk->found][0] = walk->line;
+        walk->room->match[walk->found][1] = from;
+        walk->room->match[walk->found][2] = to;
+    }
+    walk->found += 1ull;
+    if ((walk->found >= walk->most) && (walk->last == 0xffffffffu))
+    {
+        walk->last = walk->line;
+    }
+    walk->next = hit + walk->size;
+}
+
 static int cli_found_each(CliFindRoom *room, unsigned long long size, const CliDocSought *sought,
                           unsigned long long most, CliFound3 each, void *context, CliLine *said)
 {
-    const CliJoined *const joined = &room->joined;
-    // the page searches each line whole, and stops before the first line it starts with `most` found
-    unsigned long long found = 0ull;
-    unsigned int line = 0u;
-    unsigned int last = 0xffffffffu;
-    unsigned long long at = 0ull;
-    for (;;)
+    // a search without case folds the room's units and the needle's first, each unit to the one the page's search
+    // folds it to, so the sift reads them as they are: the units searched as their bytes, the needle's laid the same
+    // way, a match starting on an even byte; a text within one of the sift's windows goes by Horspool's shifts and a
+    // longer one by the sift's plan
+    if (!sought->match_case)
     {
-        const unsigned long long hit = sought->match_case
-                                           ? cli_vector_find(joined->unit, joined->used, room->wanted, size, at)
-                                           : cli_vector_find_folded(joined->unit, joined->used, room->wanted, size, at);
-        if (hit == CLI_VECTOR_NONE)
+        for (unsigned long long at = 0ull; at < room->joined.used; at += 1ull)
         {
-            break;
+            room->joined.unit[at] = cli_vector_fold(room->joined.unit[at]);
         }
-        while (joined->start[line + 1u] <= hit)
+        for (unsigned long long at = 0ull; at < size; at += 1ull)
         {
-            line += 1u;
+            room->wanted[at] = cli_vector_fold(room->wanted[at]);
         }
-        if ((last != 0xffffffffu) && (line > last))
-        {
-            break;
-        }
-        const unsigned long long from = hit - joined->start[line];
-        const unsigned long long to = from + size;
-        if (sought->word)
-        {
-            const unsigned long long length = joined->start[line + 1u] - joined->start[line] - 1ull;
-            const int whole = cli_whole(joined->unit + joined->start[line], length, from, to);
-            if (whole < 0)
-            {
-                cli_line_text(said, CLI_PAGE_OWN);
-                return 0;
-            }
-            if (!whole)
-            {
-                at = hit + 1ull;
-                continue;
-            }
-        }
-        if (found < CLI_FIND_MATCHES)
-        {
-            room->match[found][0] = line;
-            room->match[found][1] = from;
-            room->match[found][2] = to;
-        }
-        found += 1ull;
-        if ((found >= most) && (last == 0xffffffffu))
-        {
-            last = line;
-        }
-        at = hit + size;
     }
-    for (unsigned long long one = 0ull; (one < found) && (one < CLI_FIND_MATCHES); one += 1ull)
+    CliFindWalk walk = {room, sought, size, most, 0ull, 0u, 0xffffffffu, 0ull, 0, 0};
+    (void)cli_sift_find_all((const unsigned char *)room->joined.unit, room->joined.used * 2ull,
+                            (const unsigned char *)room->wanted, size * 2ull, 0, cli_found_at, &walk);
+    if (walk.own)
+    {
+        cli_line_text(said, CLI_PAGE_OWN);
+        return 0;
+    }
+    for (unsigned long long one = 0ull; (one < walk.found) && (one < CLI_FIND_MATCHES); one += 1ull)
     {
         each(context, room->match[one][0], room->match[one][1], room->match[one][2]);
     }

@@ -97,7 +97,7 @@ const state = {
   cycle: null,
   // Each file's text as the last commit left it, as it is being read or once it is: null for none.
   heads: new Map(),
-  // How many times the last commit's files were forgotten, for a text held on the Rust side to know
+  // How many times the last commit's files were forgotten, for a text held on the window's side to know
   // to read its file as the commit holds it again.
   headsAge: 0,
   // How many files the system clipboard holds, for the tree's Paste.
@@ -1286,7 +1286,7 @@ async function saveActive(tab = tabOf(actingPath())) {
   if (!tab?.session || tab.readOnly) {
     return;
   }
-  // A paged file is written on the Rust side, with every edit made to it.
+  // A paged file is written on the tree's side, with every edit made to it.
   if (tab.session.window?.paged) {
     const writing = tab.session.doc.id;
     await savePaged(tab.session);
@@ -2162,7 +2162,7 @@ function drawCrumbs() {
   bar.replaceChildren(...nodes.flatMap((node, at) => (at ? [element("span", { className: "crumb-gap", textContent: "›", ariaHidden: "true" }), node] : [node])));
 }
 
-// Texts of HOLD_FROM lines or more are held on the Rust side as the page holds them, for the work on
+// Texts of HOLD_FROM lines or more are held on the window's side as the page holds them, for the work on
 // them that costs a frame here to run there and hand back only its answer: the gutter's marks against
 // the last commit, which cost the page a frame from about there, and find on a text of more. The Rust
 // side reads the file itself; a text the page holds as the file does not goes over in parts of PART
@@ -2188,7 +2188,7 @@ function along(held, work) {
   return next;
 }
 
-// Holds the text of a tab's file on the Rust side, read there from the file where `fromFile` says the
+// Holds the text of a tab's file on the window's side, read there from the file where `fromFile` says the
 // tab's text is the file's own; otherwise, or where what was read differs, the page gives it.
 function hold(tab, fromFile) {
   const s = tab.session;
@@ -2237,7 +2237,7 @@ function sendChanges(doc) {
   along(held, () => invoke("document_edit", { key: held.key, changes })).catch(() => letGo(doc));
 }
 
-// Lets go of a text held on the Rust side; it is not held again.
+// Lets go of a text held on the window's side; it is not held again.
 function letGo(doc) {
   const held = doc?.held;
   if (!held) {
@@ -2253,7 +2253,7 @@ function forgetHeads() {
   state.headsAge += 1;
 }
 
-// The gutter's marks for a held text, worked out on the Rust side against its file as the last commit
+// The gutter's marks for a held text, worked out on the window's side against its file as the last commit
 // holds it; the lines each change spans there come with them, for the peek and to put back.
 async function markHeld(tab) {
   const s = tab.session;
@@ -2859,7 +2859,7 @@ function light() {
 
 export async function startEdit(defs) {
   document.querySelector("#mode-edit .desk").dataset.tabs = sideTabs() ? "side" : "row";
-  // The editor's colors are worked out on the app's Rust side, each grammar kept there under a key.
+  // The editor's colors are worked out on the app's window's side, each grammar kept there under a key.
   let grammars = 0;
   colorWith({
     keep: (json) => {
@@ -2869,7 +2869,7 @@ export async function startEdit(defs) {
     },
     color: (key, state, lines) => invoke("highlight_lines", { key, state, lines }),
   });
-  // Find on a large text held on the Rust side runs there; a search it does not run as the page does
+  // Find on a large text held on the window's side runs there; a search it does not run as the page does
   // answers null, and the page runs it.
   findWith((doc, sought, most) => {
     const held = doc.held;
@@ -3094,7 +3094,7 @@ export async function startEdit(defs) {
       }
       return s?.doc.text() ?? (await invoke("file_read", { path })).text;
     },
-    // A part of a file's lines: a paged file's from the Rust side, and any other's as its tab holds
+    // A part of a file's lines: a paged file's from the tree's side, and any other's as its tab holds
     // it or its file does.
     linesOf: async (path, from, to) => {
       const s = tabOf(path)?.session;

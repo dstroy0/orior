@@ -21,7 +21,7 @@
 // the cells a file's text and bytes are held in as they are read and written, each sized to them, and the lock a
 // file's text is read, written over and kept in its history under, one write at a time
 static CliCellsTally s_cells = CLI_CELLS_TALLY("cli_serve_files");
-static CliLock s_write_lock = CLI_LOCK_INIT;
+CliLock g_cli_serve_write_lock = CLI_LOCK_INIT;
 
 // a growing line begun for a file's text: 1, or 0 with why said where the cells cannot meet it
 static int text_line_begun(CliLine *text, CliLine *said)
@@ -238,7 +238,7 @@ int cli_serve_file_write(const char *path, const char *text, unsigned long long 
     }
     cli_full(root, path, full);
     // the text the file held is copied out before it is written over, as the write puts a new file in its place
-    cli_lock_take(&s_write_lock);
+    cli_lock_take(&g_cli_serve_write_lock);
     unsigned long long held = 0ull;
     char *const was = cli_file_size(full, &held)
                           ? cli_cell_taken_by(&s_cells, held + 1ull, "a file's text before it is written")
@@ -249,7 +249,7 @@ int cli_serve_file_write(const char *path, const char *text, unsigned long long 
     if (!cli_files_write(root, path, text, length, said))
     {
         cli_cell_given_by(&s_cells, was);
-        cli_lock_give(&s_write_lock);
+        cli_lock_give(&g_cli_serve_write_lock);
         return 0;
     }
     char why[1024];
@@ -266,7 +266,7 @@ int cli_serve_file_write(const char *path, const char *text, unsigned long long 
         query_terminal_written(1, told, cli_line_fits(&line) ? line.at : 0ull);
     }
     cli_cell_given_by(&s_cells, was);
-    cli_lock_give(&s_write_lock);
+    cli_lock_give(&g_cli_serve_write_lock);
     return 1;
 }
 

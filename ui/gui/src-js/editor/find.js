@@ -6,13 +6,12 @@
 import { cmp, pos } from "./document.js";
 
 const MOST = 20000;
-// A text of FIND_FROM lines or more is searched on the Rust side where it holds the text: from about
-// there, the page's own scan of the tests' long file costs it a frame. The matches are drawn once the
-// answer comes, and a search the Rust side does not run as the page does stays the page's.
-const FIND_FROM = 100000;
+// A text held on the window's side is searched there, by its sift: Horspool's shifts within one of the
+// sift's windows and the sift's plan past it. The matches are drawn once the answer comes, and a search
+// the sift does not run as the page does, a pattern or one without case outside ASCII, stays the page's.
 let elsewhere = null;
 
-// Gives find the way to search a text held on the Rust side: `given(doc, sought, most)` answers a
+// Gives find the way to search a text held on the window's side: `given(doc, sought, most)` answers a
 // promise of the matches as [line, from col, to col], or of null where the search is the page's, or
 // null where the text is not held.
 export function findWith(given) {
@@ -187,7 +186,7 @@ export class Find {
     this.bar.dataset.bad = String(Boolean(this.query.value) && !pattern);
     const doc = ed.doc;
     const sought = { query: this.query.value, regex: this.options.regex, case: this.options.case, word: this.options.word, unicode: Boolean(pattern?.unicode) };
-    const asked = pattern && doc.count >= FIND_FROM ? elsewhere?.(doc, sought, MOST) : null;
+    const asked = pattern && doc.held ? elsewhere?.(doc, sought, MOST) : null;
     if (asked) {
       // The matches already drawn stay until the answer comes.
       this.asking = asked;

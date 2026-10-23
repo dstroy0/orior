@@ -444,6 +444,57 @@ static void files_refused(void)
               why);
 }
 
+// whether `text` holds `part`
+static int files_text_holds(const char *text, const char *part)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
+    for (const char *at = text; *at != '\0'; at += 1)
+    {
+        if (cellul.starts(&(CatenaFinitaCfg){.src = at, .other = part, .cap = length}))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// a file past the size the window pages: read for the window, its shape is answered from its first bytes, read at
+// their offset, and a slice of its lines from the bytes about them, the cellblock holding no cell of the file's size
+// either time
+static unsigned char s_huge[128u << 20u];
+
+static void files_large(void)
+{
+    char root[CLI_PATH_LONGEST];
+    char why[512];
+    CliLine said = {why, sizeof(why), 0ull};
+    CliLine out = {s_out, sizeof(s_out), 0ull};
+    cli_check_folder("files_large", root);
+    for (unsigned long long at = 0ull; at < sizeof(s_huge); at += 1ull)
+    {
+        // lines of a hundred bytes, the letters in turn
+        s_huge[at] = ((at % 100ull) == 99ull) ? (unsigned char)'\n' : (unsigned char)('a' + (at % 26ull));
+    }
+    files_written(root, "huge.log", s_huge, sizeof(s_huge));
+    unsigned long long pool = 0ull;
+    unsigned long long peak = 0ull;
+    unsigned long long temporary = 0ull;
+    cli_check(cli_files_read(root, "huge.log", &out, &said), "a file past the paging size is read for the window");
+    (void)cli_line_closed(&out);
+    cli_check(files_text_holds(s_out, "\"windowed\":true") && files_text_holds(s_out, "\"size\":134217728"),
+              "as windowed, with its size");
+    cli_cells_report(&pool, &peak, &temporary);
+    cli_check(peak < sizeof(s_huge),
+              "the cellblock's peak stays under the file's size: its first bytes alone were held");
+    out.at = 0ull;
+    cli_check(cli_files_slice(root, "huge.log", 8000000ull, 8001000ull, &out, &said), "a slice of its lines is read");
+    (void)cli_line_closed(&out);
+    cli_check(files_text_holds(s_out, "\"start\":8000000") && files_text_holds(s_out, "\"end\":8001000"),
+              "from the line start at the offset to the one at the end");
+    cli_cells_report(&pool, &peak, &temporary);
+    cli_check(peak < sizeof(s_huge), "the slice held the bytes about it alone");
+}
+
 int main(void)
 {
     files_refused();
@@ -453,6 +504,7 @@ int main(void)
     files_bring_over();
     files_bring();
     files_listing();
+    files_large();
     char report[256];
     CliLine said = {report, sizeof(report), 0ull};
     cli_line_text(&said, "the files count what the views and their lists hold in the cellblock, their report ");

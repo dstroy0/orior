@@ -3,7 +3,7 @@
 
 // The memory a document's life takes and gives back: a ten-megabyte file opened, pasted into, undone
 // and closed, ten times over, the bytes the window's own process and the whole have committed measured
-// after each, with what the Rust side holds; the process holds no more after the tenth than after the
+// after each, with what the window's side holds; the process holds no more after the tenth than after the
 // first beyond what one open takes, or the growth is reported with the calls that kept it.
 
 import { invoke } from "../../../gui/src-js/bridge.js";
@@ -77,7 +77,7 @@ test("a ten-megabyte file opened, pasted into, undone and closed ten times leave
   }
   const first = rounds[0];
   const last = rounds[rounds.length - 1];
-  const said = rounds.map((one, at) => `${at}: own ${(one.own / 1048576).toFixed(0)} MB, web view ${(one.view / 1048576).toFixed(0)} MB, all ${(one.all / 1048576).toFixed(0)} MB, the Rust side holds ${(one.rust / 1048576).toFixed(0)} MB${one.kept.length ? ` kept ${one.kept.join("; ")}` : ""}`).join("\n");
+  const said = rounds.map((one, at) => `${at}: own ${(one.own / 1048576).toFixed(0)} MB, web view ${(one.view / 1048576).toFixed(0)} MB, all ${(one.all / 1048576).toFixed(0)} MB, the window's side holds ${(one.rust / 1048576).toFixed(0)} MB${one.kept.length ? ` kept ${one.kept.join("; ")}` : ""}`).join("\n");
   const grew = last.own - first.own;
   assert.ok(grew < SLACK, `the window's own process grew ${(grew / 1048576).toFixed(0)} MB over ${ROUNDS} rounds:\n${said}`);
   const viewGrew = last.view - first.view;

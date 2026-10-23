@@ -365,6 +365,9 @@
     const results = [];
     for (const one of tests) {
       const started = performance.now();
+      // Each run's failure is kept, so a test that fails for one reason first and for another on its
+      // runs after tells both.
+      const failures = [];
       for (let ran = 1; ran <= one.tries; ran += 1) {
         calls.forget();
         try {
@@ -379,9 +382,10 @@
           // A step only the window with its debugging port can take, met under WebDriver: the test is
           // not run here, and says why, where it would fail for what the window cannot be asked.
           const notHere = message.startsWith("not run on a WebDriver window:");
+          failures.push(told.split("\n").slice(0, 4).join("\n"));
           if (notHere || ran === one.tries) {
-            const tried = ran > 1 ? `after ${ran} runs: ` : "";
-            results.push({ name: one.name, ok: notHere, ms: Math.round(performance.now() - started), error: notHere ? message : `${tried}${told.split("\n").slice(0, 4).join("\n")}` });
+            const each = failures.length > 1 ? failures.map((text, at) => `run ${at + 1}: ${text}`).join("\n") : failures[0];
+            results.push({ name: one.name, ok: notHere, ms: Math.round(performance.now() - started), error: notHere ? message : each });
             break;
           }
         } finally {

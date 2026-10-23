@@ -64,7 +64,7 @@ test("with Fuzzy Matching off, Go to File answers only the files whose paths hol
   }
 });
 
-test("a list of no rows, held on the Rust side, says it holds none", async () => {
+test("a list of no rows, held on the window's side, says it holds none", async () => {
   openPalette("", { custom: { placeholder: "No rows", empty: "Nothing here.", items: [] } });
   try {
     await ui.waitFor(() => labels()[0] === "Nothing here.", 5000, "the list's word that it holds none");
@@ -74,9 +74,9 @@ test("a list of no rows, held on the Rust side, says it holds none", async () =>
   }
 });
 
-test("a list of thirty thousand rows, held on the Rust side, answers each letter typed fast with its best rows and no frame held", async () => {
+test("a list of thirty thousand rows, held on the window's side, answers each letter typed fast with its best rows and no frame held", async () => {
   const many = Array.from({ length: 30000 }, (_, at) => ({ name: `test_case_${at}_${(at * 7919) % 30000}`, file: `tests/test_part_${at % 300}.py` }));
-  // The row the page's own matcher ranks first for what is typed, which the Rust side ranks first too.
+  // The row the page's own matcher ranks first for what is typed, which the window's side ranks first too.
   let best = null;
   for (const one of many) {
     const hit = fuzzy("case12", `${one.name} ${one.file}`);

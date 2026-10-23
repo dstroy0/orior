@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Files of PAGED_FROM bytes or more, held as pages (pages.rs). The Rust side holds the file and the
+// Files of PAGED_FROM bytes or more, held as pages (ui/cli/src/editor/pages.c). The tree's side holds the file and the
 // lines written over it, and an index of its lines; the page holds a window of the lines about the
 // view, never more than MOST of them, as a file still being read is held: the view scrolls the whole
 // file, and the lines outside the window stand as padding.
@@ -9,7 +9,7 @@
 // The window moves as the view comes within NEAR lines of its edge, STEP lines read in on that side
 // and, once it holds more than MOST, as many let go on the far side. A line the history still
 // reaches is let go only past HARD lines, and the history with it. A jump to a line outside the
-// window puts the window there. Each edit goes to the Rust side as it is made, the calls about one
+// window puts the window there. Each edit goes to the tree's side as it is made, the calls about one
 // file one after another, and a save writes the file there. A paged file is not backed up as it
 // changes, and its tab is never split.
 
@@ -51,7 +51,7 @@ export async function openPaged(path, line, language) {
   const paged = { key, chain: Promise.resolve(), indexed: shape.indexed, moving: false };
   const session = new Session(lines.join("\n"), language, { base: from, window: { paged, start: 0, end: 0, size: shape.size, after: shape.lines - to } });
   paged.session = session;
-  // Each edit goes to the Rust side in the file's lines, as the window stands when it is made.
+  // Each edit goes to the tree's side in the file's lines, as the window stands when it is made.
   paged.unwatch = session.doc.watch(({ edits }) => {
     const base = session.base;
     const change = edits.map(({ from: a, to: b, text }) => ({ from: { line: a.line + base, col: a.col }, to: { line: b.line + base, col: b.col }, text }));
@@ -158,20 +158,20 @@ export async function jumpPaged(s, line) {
 // Whether the file's line `line` lies in the window of the paged session `s`.
 export const inWindow = (s, line) => line >= s.base && line < s.base + s.doc.count;
 
-// The paged session `s`'s file's lines from `from` to before `to`, as the Rust side holds them once
+// The paged session `s`'s file's lines from `from` to before `to`, as the tree's side holds them once
 // every edit before has gone there.
 export function readPaged(s, from, to) {
   const paged = s.window.paged;
   return along(paged, () => invoke("pages_read", { key: paged.key, from, to }));
 }
 
-// Saves a paged file on the Rust side, once every edit before it has gone there.
+// Saves a paged file on the tree's side, once every edit before it has gone there.
 export function savePaged(s) {
   const paged = s.window.paged;
   return along(paged, () => invoke("pages_save", { key: paged.key }));
 }
 
-// Lets go of a paged file on the Rust side, as its tab closes.
+// Lets go of a paged file on the tree's side, as its tab closes.
 export function releasePaged(s) {
   const paged = s?.window?.paged;
   if (!paged) {

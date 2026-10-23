@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The editor's tabs and files: a zip in the tree opened as a folder, its files read, changed and saved
-// back into it, and a large text held on the Rust side, its changes following it there and its
+// back into it, and a large text held on the window's side, its changes following it there and its
 // gutter's marks worked out there, the tabs opened again as the tree starts, and a tab back at its
 // saved text, however it got back, marked saved; and the changes not saved kept as a window closes.
 
@@ -54,7 +54,7 @@ test("names the zip does not say are UTF-8 read in the encoding the reader choos
   togglePane(false);
 });
 
-test("a large text is held on the Rust side, each change follows it there, and its gutter's marks come from there as the page's own diff gives them", async () => {
+test("a large text is held on the window's side, each change follows it there, and its gutter's marks come from there as the page's own diff gives them", async () => {
   const lines = Array.from({ length: 20000 }, (_, line) => `value_${line} = compute(${line}) + ${line % 7}`);
   const root = await invoke("root_get");
   await invoke("folder_create", { path: "held" }).catch(() => {});
@@ -75,7 +75,7 @@ test("a large text is held on the Rust side, each change follows it there, and i
   await ui.key("Delete");
   view.goTo(15000, 0);
   await ui.type("put in\n");
-  // Each change has gone to the Rust side, once the calls about the text are answered, and the text
+  // Each change has gone to the window's side, once the calls about the text are answered, and the text
   // there is the page's, line for line and unit for unit.
   await new Promise((rest) => setTimeout(rest, 50));
   await held.chain;
@@ -91,14 +91,15 @@ test("a large text is held on the Rust side, each change follows it there, and i
   for (const hunk of own.hunks) {
     assert.deepEqual(s.changesThen.slice(hunk.then[0], hunk.then[1]), head.slice(hunk.then[0], hunk.then[1]), "the lines a change spans as the commit holds them");
   }
-  // Closed, its tab's text is let go on the Rust side. The tab strip is drawn again as the marks
-  // come: each press is on the close button as it stands.
-  const closer = () => document.querySelector(`#tabs .tab .close[title="held/held.py"]`);
+  // Closed, its tab's text is let go on the window's side. The tab strip is drawn again as the marks
+  // come, and the editing claims the window's edges, so each press is by the close button's selector:
+  // the press brings the strip back from its edge and finds the button as it then stands.
+  const mark = `#tabs .tab .close[title="held/held.py"]`;
+  const closer = () => document.querySelector(mark);
   for (let press = 0; press < 2 && closer(); press += 1) {
-    await ui.waitFor(() => closer()?.checkVisibility(), 3000);
-    await ui.click(closer());
+    await ui.click(mark);
   }
-  await ui.waitFor(() => !document.querySelector(`#tabs .tab .close[title="held/held.py"]`), 3000);
+  await ui.waitFor(() => !closer(), 3000);
   let gone = false;
   for (let tries = 0; tries < 30 && !gone; tries += 1) {
     gone = await invoke("document_edit", { key: held.key, changes: [] }).then(() => false, () => true);

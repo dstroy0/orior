@@ -9,7 +9,7 @@
 // changes to white space aside, lines that differ only in it standing level as the same, and the
 // choice is kept under orior.diff-space.
 //
-// Its second box compares by structure, in the app's Rust side, and the choice is kept under
+// Its second box compares by structure, in the app's window's side, and the choice is kept under
 // orior.diff-structure. Lines then stand level by the tokens they hold, a line moved is marked as
 // moved on both sides, a name changed to one other name everywhere as renamed, and a line whose
 // tokens are the same and only its layout changed as reshaped; within a line, each token taken out or
@@ -89,7 +89,7 @@ function openNote(row, line, review, lines) {
 const SPACE_KEY = "orior.diff-space";
 const STRUCTURE_KEY = "orior.diff-structure";
 
-// What a line of a structural comparison is, by the number the Rust side gives it.
+// What a line of a structural comparison is, by the number the window's side gives it.
 const KINDS = ["same", "changed", "moved", "reshaped", "renamed"];
 
 // A line's text with each of its marked tokens, `[from, to, kind]`, in a span of its kind.

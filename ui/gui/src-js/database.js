@@ -671,7 +671,7 @@ function placeAt(here, offset) {
 
 const kindOf = (name) => connectionOf(name)?.kind ?? "postgres";
 
-// The page counts text in UTF-16 units and the Rust side and the servers count it in characters: the
+// The page counts text in UTF-16 units and the window's side and the servers count it in characters: the
 // characters before a place the page gives, and the units before a count of characters.
 const charsBefore = (text, units) => [...text.slice(0, units)].length;
 const unitsBefore = (text, chars) => [...text].slice(0, chars).join("").length;

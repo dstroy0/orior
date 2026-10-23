@@ -101,7 +101,7 @@ export function compile(def) {
   return { states, words, perLine: Boolean(def.perLine), ignoreCase: Boolean(def.ignoreCase), def };
 }
 
-// A grammar's definition as the app's Rust side reads it: JSON, each pattern its source and flags.
+// A grammar's definition as the app's window's side reads it: JSON, each pattern its source and flags.
 export function grammarJson(grammar) {
   return JSON.stringify(grammar.def, (key, value) => (value instanceof RegExp ? { pattern: value.source, flags: value.flags } : value));
 }
@@ -219,12 +219,12 @@ const GUESS_FROM = 300;
 
 const PLAIN = [[0, ""]];
 
-// How many lines past the last one asked for each request to the Rust side colors besides, which
+// How many lines past the last one asked for each request to the window's side colors besides, which
 // a scroll then finds done, and how many lines below an edit are asked for as it is made.
 const AHEAD = 120;
 const SCREEN = 80;
 
-// The app's Rust side, where the page has handed it in: `keep(json)` keeps a grammar and answers its
+// The app's window's side, where the page has handed it in: `keep(json)` keeps a grammar and answers its
 // key, and `color(key, state, lines)` answers each line's runs and the state each ends in.
 let colorer = null;
 const keys = new WeakMap();
@@ -233,7 +233,7 @@ export function colorWith(given) {
   colorer = given;
 }
 
-// The key a grammar is kept under on the Rust side, or null where it refuses the grammar.
+// The key a grammar is kept under on the window's side, or null where it refuses the grammar.
 function keyOf(grammar) {
   if (!keys.has(grammar)) {
     keys.set(grammar, colorer.keep(grammarJson(grammar)).catch(() => null));
@@ -242,7 +242,7 @@ function keyOf(grammar) {
 }
 
 // The tokens of the lines of a text, worked out as they are asked for, from the lines on screen
-// outward, and kept until an edit reaches them. Where the app's Rust side keeps the grammar, it
+// outward, and kept until an edit reaches them. Where the app's window's side keeps the grammar, it
 // works them out: the lines asked for in a frame go in one request, and until the answer comes, a
 // line an edit reached shows the tokens it had before, carried with its line, and `colored` is
 // called once they come. Where it does not, the page works them out as they are asked for. A
@@ -473,8 +473,8 @@ export class Highlight {
   }
 
   // A line's tokens to draw it by at any speed: kept, or worked out in the page now where they are not
-  // yet, the Rust side asked for the lines past it meanwhile. No row is drawn without its colors, and
-  // the same tokens coming back from the Rust side draw it no other way.
+  // yet, the window's side asked for the lines past it meanwhile. No row is drawn without its colors, and
+  // the same tokens coming back from the window's side draw it no other way.
   runsShown(line) {
     return this.laid(line, this.ownRunsShown(line));
   }
@@ -499,7 +499,7 @@ export class Highlight {
     return runs;
   }
 
-  // Adds a line to the next request to the Rust side, which goes once the page's work in hand is done.
+  // Adds a line to the next request to the window's side, which goes once the page's work in hand is done.
   ask(line) {
     const first = this.wanted === null;
     this.wanted = first ? [line, line] : [Math.min(this.wanted[0], line), Math.max(this.wanted[1], line)];
