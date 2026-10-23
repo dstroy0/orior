@@ -32,6 +32,35 @@ void cli_sift_census(const unsigned char *window, unsigned long long length, int
     }
 }
 
+void cli_sift_census_counted(CliCensus *census, const unsigned char *bytes, unsigned long long length)
+{
+    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    {
+        census->occurrences[bytes[at]] += 1ull;
+    }
+    census->total += length;
+}
+
+void cli_sift_census_uncounted(CliCensus *census, const unsigned char *bytes, unsigned long long length)
+{
+    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    {
+        census->occurrences[bytes[at]] -= 1ull;
+    }
+    census->total -= length;
+}
+
+void cli_sift_census_folded(const CliCensus *exact, CliCensus *folded)
+{
+    *folded = *exact;
+    for (unsigned int byte = 'A'; byte <= 'Z'; byte += 1u)
+    {
+        // a capital's count joins its small letter's, which stands at the byte with 0x20 set
+        folded->occurrences[byte | 0x20u] += folded->occurrences[byte];
+        folded->occurrences[byte] = 0ull;
+    }
+}
+
 // How rare a byte is in the census, larger the rarer: the bytes counted that are other bytes
 static unsigned long long cli_magnitude(const CliCensus *census, unsigned char byte)
 {
@@ -45,15 +74,25 @@ static int cli_agrees(const unsigned char *window, const unsigned char *needle, 
     return cli_sift_folded(window[at + offset], fold) == cli_sift_folded(needle[offset], fold);
 }
 
-static unsigned int cli_plan_held(const unsigned char *window, unsigned long long length, const unsigned char *needle,
-                                  unsigned long long needle_length, int fold, unsigned long long *anchors)
+// the anchors planned for `window`, ranked by `given`, a census kept with the text, where one is given, else by a count
+// over the window
+static unsigned int cli_plan_held(const CliCensus *given, const unsigned char *window, unsigned long long length,
+                                  const unsigned char *needle, unsigned long long needle_length, int fold,
+                                  unsigned long long *anchors)
 {
     if ((needle_length == 0ull) || (needle_length > length))
     {
         return 0u;
     }
     CliCensus census;
-    cli_sift_census(window, length, fold, &census);
+    if (given != NULL)
+    {
+        census = *given;
+    }
+    else
+    {
+        cli_sift_census(window, length, fold, &census);
+    }
     // The candidates: the needle's offsets, the rarest byte first, ties in the needle's order; a byte the needle
     // repeats tests at each of its offsets what it tests at another place, which the descent may want
     unsigned long long candidates[CLI_SIFT_CANDIDATES];
@@ -144,8 +183,15 @@ static unsigned int cli_plan_held(const unsigned char *window, unsigned long lon
 unsigned int cli_sift_plan(const unsigned char *window, unsigned long long length, const unsigned char *needle,
                            unsigned long long needle_length, int fold, unsigned long long *anchors)
 {
+    return cli_sift_plan_with(NULL, window, length, needle, needle_length, fold, anchors);
+}
+
+unsigned int cli_sift_plan_with(const CliCensus *census, const unsigned char *window, unsigned long long length,
+                                const unsigned char *needle, unsigned long long needle_length, int fold,
+                                unsigned long long *anchors)
+{
     cli_lock_take(&s_lock);
-    const unsigned int placed = cli_plan_held(window, length, needle, needle_length, fold, anchors);
+    const unsigned int placed = cli_plan_held(census, window, length, needle, needle_length, fold, anchors);
     cli_lock_give(&s_lock);
     return placed;
 }
@@ -257,9 +303,11 @@ unsigned long long cli_sift_horspool(const unsigned char *text, unsigned long lo
     return count;
 }
 
-unsigned long long cli_sift_find_all_on(unsigned int path, const unsigned char *text, unsigned long long length,
-                                        const unsigned char *needle, unsigned long long needle_length, int fold,
-                                        void (*found)(void *context, unsigned long long at), void *context)
+// every offset `needle` stands at in `text` on `path`, each window planned by `census` where one is given
+static unsigned long long cli_find_all_census(unsigned int path, const CliCensus *census, const unsigned char *text,
+                                              unsigned long long length, const unsigned char *needle,
+                                              unsigned long long needle_length, int fold,
+                                              void (*found)(void *context, unsigned long long at), void *context)
 {
     if ((needle_length == 0ull) || (needle_length > length))
     {
@@ -279,16 +327,31 @@ unsigned long long cli_sift_find_all_on(unsigned int path, const unsigned char *
         const unsigned long long end =
             ((start + step + needle_length - 1ull) < length) ? (start + step + needle_length - 1ull) : length;
         unsigned long long anchors[CLI_SIFT_ANCHORS];
-        const unsigned int placed = cli_sift_plan(text + start, end - start, needle, needle_length, fold, anchors);
+        const unsigned int placed =
+            cli_sift_plan_with(census, text + start, end - start, needle, needle_length, fold, anchors);
         count += cli_window_on(path, text + start, end - start, needle, needle_length, anchors, placed, fold, start,
                                found, context);
     }
     return count;
 }
 
+unsigned long long cli_sift_find_all_on(unsigned int path, const unsigned char *text, unsigned long long length,
+                                        const unsigned char *needle, unsigned long long needle_length, int fold,
+                                        void (*found)(void *context, unsigned long long at), void *context)
+{
+    return cli_find_all_census(path, NULL, text, length, needle, needle_length, fold, found, context);
+}
+
 unsigned long long cli_sift_find_all(const unsigned char *text, unsigned long long length, const unsigned char *needle,
                                      unsigned long long needle_length, int fold,
                                      void (*found)(void *context, unsigned long long at), void *context)
 {
-    return cli_sift_find_all_on(cli_vector_best(), text, length, needle, needle_length, fold, found, context);
+    return cli_find_all_census(cli_vector_best(), NULL, text, length, needle, needle_length, fold, found, context);
+}
+
+unsigned long long cli_sift_find_all_with(const CliCensus *census, const unsigned char *text, unsigned long long length,
+                                          const unsigned char *needle, unsigned long long needle_length, int fold,
+                                          void (*found)(void *context, unsigned long long at), void *context)
+{
+    return cli_find_all_census(cli_vector_best(), census, text, length, needle, needle_length, fold, found, context);
 }

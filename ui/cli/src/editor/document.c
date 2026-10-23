@@ -30,12 +30,14 @@ static void cli_unit_put(CliLines *lines, unsigned int letter)
         // each half of a pair of surrogates is below 2^16
         lines->unit[lines->used] = (unsigned short)(0xd800u + (rest >> 10u));
         lines->unit[lines->used + 1ull] = (unsigned short)(0xdc00u + (rest & 0x3ffu));
+        cli_lines_census_put(lines, lines->unit[lines->used + 1ull]);
     }
     else
     {
         // a letter of the basic plane is below 2^16
         lines->unit[lines->used] = (unsigned short)letter;
     }
+    cli_lines_census_put(lines, lines->unit[lines->used]);
     lines->used += need;
 }
 
@@ -44,6 +46,7 @@ void cli_document_lines_of(const char *text, unsigned long long size, CliLines *
     lines->used = 0ull;
     lines->lines = 0u;
     lines->full = 0;
+    memor.set(&(MemoriaCfg){.dst = &lines->census, .val = 0, .bytes = sizeof(lines->census)});
     unsigned long long at = 0ull;
     for (;;)
     {
@@ -185,8 +188,9 @@ typedef struct
 
 // the search of `size` units sought through the room's lines joined, each match handed to `each`: 1, or 0 with why
 // said where the page searches itself
-static int cli_found_each(CliFindRoom *room, unsigned long long size, const CliDocSought *sought,
-                          unsigned long long most, CliFound3 each, void *context, CliLine *said);
+static int cli_found_each(CliFindRoom *room, const CliCensus *census, unsigned long long size,
+                          const CliDocSought *sought, unsigned long long most, CliFound3 each, void *context,
+                          CliLine *said);
 
 int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, unsigned long long most, CliFound3 each,
                            void *context, CliLine *said)
@@ -228,8 +232,20 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
     {
         newline = newline || (room->wanted[at] == '\n');
     }
+    // the search reads the text's kept census, with the newline the join puts after each line, and folded as the
+    // search folds where it runs without case
+    CliCensus census = lines->census;
+    census.occurrences['\n'] += lines->lines;
+    census.occurrences[0] += lines->lines;
+    census.total += 2ull * lines->lines;
+    if (!sought->match_case)
+    {
+        CliCensus folded;
+        cli_sift_census_folded(&census, &folded);
+        census = folded;
+    }
     const int done = (size == 0ull) || newline || !cli_joined_of(lines, &room->joined) ||
-                     cli_found_each(room, size, sought, most, each, context, said);
+                     cli_found_each(room, &census, size, sought, most, each, context, said);
     cli_cell_given(room);
     return done;
 }
@@ -301,8 +317,9 @@ static void cli_found_at(void *context, unsigned long long byte)
     walk->next = hit + walk->size;
 }
 
-static int cli_found_each(CliFindRoom *room, unsigned long long size, const CliDocSought *sought,
-                          unsigned long long most, CliFound3 each, void *context, CliLine *said)
+static int cli_found_each(CliFindRoom *room, const CliCensus *census, unsigned long long size,
+                          const CliDocSought *sought, unsigned long long most, CliFound3 each, void *context,
+                          CliLine *said)
 {
     // a search without case folds the room's units and the needle's first, each unit to the one the page's search
     // folds it to, so the sift reads them as they are: the units searched as their bytes, the needle's laid the same
@@ -320,8 +337,8 @@ static int cli_found_each(CliFindRoom *room, unsigned long long size, const CliD
         }
     }
     CliFindWalk walk = {room, sought, size, most, 0ull, 0u, 0xffffffffu, 0ull, 0, 0};
-    (void)cli_sift_find_all((const unsigned char *)room->joined.unit, room->joined.used * 2ull,
-                            (const unsigned char *)room->wanted, size * 2ull, 0, cli_found_at, &walk);
+    (void)cli_sift_find_all_with(census, (const unsigned char *)room->joined.unit, room->joined.used * 2ull,
+                                 (const unsigned char *)room->wanted, size * 2ull, 0, cli_found_at, &walk);
     if (walk.own)
     {
         cli_line_text(said, CLI_PAGE_OWN);

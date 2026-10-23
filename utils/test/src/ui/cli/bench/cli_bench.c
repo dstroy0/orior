@@ -122,6 +122,49 @@ static void each_sift(const char *path, const unsigned char *bytes, unsigned lon
                             context);
 }
 
+// the corpus joined into one text of `whole` bytes and sifted for the needle twice over, `s_repeat` times each, the
+// least time of each kept: once with each window counted for its plan, and once planned from the text's census, counted
+// once as a text kept in lines keeps it. The rows "sift whole" and "sift kept"
+static void bench_sift_whole(unsigned long long whole)
+{
+    unsigned char *const text = cli_cell_taken(whole + 1ull, "the corpus as one text");
+    if (text == NULL)
+    {
+        return;
+    }
+    unsigned long long used = 0ull;
+    for (unsigned int at = 0u; at < s_count; at += 1u)
+    {
+        if (s_held[at].bytes != NULL)
+        {
+            memor.cpy(&(MemoriaCfg){.dst = text + used, .src = s_held[at].bytes, .bytes = s_held[at].size});
+            used += s_held[at].size;
+        }
+    }
+    CliCensus census;
+    memor.set(&(MemoriaCfg){.dst = &census, .val = 0, .bytes = sizeof(census)});
+    cli_sift_census_counted(&census, text, used);
+    BenchMeasure counted = {used, ~0ull};
+    BenchMeasure kept = {used, ~0ull};
+    for (unsigned int round = 0u; round < s_repeat; round += 1u)
+    {
+        unsigned long long sum = 0ull;
+        unsigned long long began = cli_clock_microseconds();
+        (void)cli_sift_find_all(text, used, (const unsigned char *)BENCH_NEEDLE, sizeof(BENCH_NEEDLE) - 1u, 0,
+                                sift_found, &sum);
+        unsigned long long took = cli_clock_microseconds() - began;
+        counted.least = (took < counted.least) ? took : counted.least;
+        began = cli_clock_microseconds();
+        (void)cli_sift_find_all_with(&census, text, used, (const unsigned char *)BENCH_NEEDLE,
+                                     sizeof(BENCH_NEEDLE) - 1u, 0, sift_found, &sum);
+        took = cli_clock_microseconds() - began;
+        kept.least = (took < kept.least) ? took : kept.least;
+    }
+    cli_cell_given(text);
+    bench_row("sift whole", counted);
+    bench_row("sift kept", kept);
+}
+
 static void each_facts(const char *path, const unsigned char *bytes, unsigned long long size, void *context)
 {
     (void)context;
@@ -401,6 +444,7 @@ int main(int argc, char **argv)
     bench_row("find", bench_pass(each_find, &sum));
     sum = 0ull;
     bench_row("sift", bench_pass(each_sift, &sum));
+    bench_sift_whole(whole);
     bench_row("facts", bench_pass(each_facts, NULL));
     cli_inspect_tree_cleared();
     s_runs = cli_cell_taken((unsigned long long)BENCH_RUNS * sizeof(CliInspectRun), "the parse's runs");

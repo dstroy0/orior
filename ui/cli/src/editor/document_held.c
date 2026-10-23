@@ -280,6 +280,10 @@ static void cli_units_put(CliLines *lines, const unsigned short *units, unsigned
         return;
     }
     memor.cpy(&(MemoriaCfg){.dst = lines->unit + lines->used, .src = units, .bytes = count * sizeof(unsigned short)});
+    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    {
+        cli_lines_census_put(lines, units[at]);
+    }
     lines->used += count;
 }
 
@@ -355,6 +359,7 @@ static void cli_edit_written(CliHeldText *one, const CliEdit *edit, CliLines *sp
             .dst = now->length, .src = spare->length, .bytes = spare->lines * sizeof(unsigned long long)});
         now->used = spare->used;
         now->lines = spare->lines;
+        now->census = spare->census;
         held_room_given(spare);
     }
     else
@@ -427,6 +432,18 @@ int cli_document_edit(const char *key, const CliEdit *const *changes, const unsi
     *shape = cli_document_shape_of(&one->lines);
     cli_lock_give(&s_lock);
     return 1;
+}
+
+int cli_document_census(const char *key, CliCensus *census)
+{
+    cli_lock_take(&s_lock);
+    CliHeldText *const one = cli_held_of(key);
+    if (one != NULL)
+    {
+        *census = one->lines.census;
+    }
+    cli_lock_give(&s_lock);
+    return one != NULL;
 }
 
 int cli_document_marks(const char *key, int head_given, const char *head, unsigned long long head_size, CliLine *out)

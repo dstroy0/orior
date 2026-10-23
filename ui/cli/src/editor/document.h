@@ -15,6 +15,7 @@
 #define DOCUMENT_H
 
 #include "../command_line/cli_internal.h"
+#include "../text/sift.h"
 
 // A place in a text: its line and its col, both from 0, the col in UTF-16 units
 typedef struct
@@ -50,7 +51,9 @@ typedef struct
     int unicode;
 } CliDocSought;
 
-// A text's lines of UTF-16 units: each where it starts in the units and how many it holds, in storage the holder gives
+// A text's lines of UTF-16 units: each where it starts in the units and how many it holds, in storage the holder gives;
+// and the census of the units' bytes as the sift reads them, each unit its low byte then its high, counted as the units
+// are put and kept with the text, so a search plans from it with no count over the text
 typedef struct
 {
     unsigned short *unit;
@@ -61,7 +64,16 @@ typedef struct
     unsigned int lines_most;
     unsigned int lines;
     int full;
+    CliCensus census;
 } CliLines;
+
+// the two bytes of a unit counted into a text's census as the unit is put
+static inline void cli_lines_census_put(CliLines *lines, unsigned short unit)
+{
+    lines->census.occurrences[unit & 0xffu] += 1ull;
+    lines->census.occurrences[unit >> 8u] += 1ull;
+    lines->census.total += 2ull;
+}
 
 // a text's lines, `size` bytes of UTF-8, split as the page splits a file it reads, into `lines`; its shape; and the
 // matches find gives for lines, each `[line, from col, to col]`, lines searched until `most` are found, each line
@@ -93,6 +105,8 @@ int cli_document_hold_part(const char *key, const char *part, unsigned long long
                            CliShape *shape);
 void cli_document_release(const char *key);
 int cli_document_shape(const char *key, CliShape *shape);
+// the census kept with the text held under `key`, into `census`: 1, or 0 where none is held under the key
+int cli_document_census(const char *key, CliCensus *census);
 int cli_document_edit(const char *key, const CliEdit *const *changes, const unsigned int *edits, unsigned int count,
                       CliShape *shape, CliLine *said);
 int cli_document_marks(const char *key, int head_given, const char *head, unsigned long long head_size, CliLine *out);

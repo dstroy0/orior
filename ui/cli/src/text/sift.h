@@ -33,6 +33,12 @@ typedef struct
 
 // the census of a window, of every so many of its bytes as keeps the count to a bound
 void cli_sift_census(const unsigned char *window, unsigned long long length, int fold, CliCensus *census);
+// a census kept with a text: every byte of `bytes` counted into it as they enter the text, and counted out of it as
+// they leave, so the text's census stands without a count over the text; and the census as a search without case
+// reads it, each capital's count joined to its small letter's
+void cli_sift_census_counted(CliCensus *census, const unsigned char *bytes, unsigned long long length);
+void cli_sift_census_uncounted(CliCensus *census, const unsigned char *bytes, unsigned long long length);
+void cli_sift_census_folded(const CliCensus *exact, CliCensus *folded);
 // the anchors placed on a needle for a window into `anchors`, which holds CLI_SIFT_ANCHORS: offsets into the needle,
 // the first refuting most; their count
 unsigned int cli_sift_plan(const unsigned char *window, unsigned long long length, const unsigned char *needle,
@@ -50,6 +56,14 @@ unsigned long long cli_sift_horspool(const unsigned char *text, unsigned long lo
 unsigned long long cli_sift_find_all_on(unsigned int path, const unsigned char *text, unsigned long long length,
                                         const unsigned char *needle, unsigned long long needle_length, int fold,
                                         void (*found)(void *context, unsigned long long at), void *context);
+// the same, each window's plan ranked by `census`, the text's kept census as the search reads it, folded where the
+// search folds, in place of a count over the window
+unsigned int cli_sift_plan_with(const CliCensus *census, const unsigned char *window, unsigned long long length,
+                                const unsigned char *needle, unsigned long long needle_length, int fold,
+                                unsigned long long *anchors);
+unsigned long long cli_sift_find_all_with(const CliCensus *census, const unsigned char *text, unsigned long long length,
+                                          const unsigned char *needle, unsigned long long needle_length, int fold,
+                                          void (*found)(void *context, unsigned long long at), void *context);
 
 // what sift.c and sift_x86.c share: a byte as a search without case reads it; whether the anchors from `from` on
 // agree at `at` and the whole needle stands there; the plain loop of a window from the alignment `start`; and the

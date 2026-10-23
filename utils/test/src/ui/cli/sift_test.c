@@ -166,11 +166,48 @@ static void sift_seam(void)
     cli_check(agree, "a needle across two windows is found once");
 }
 
+static void census_found(void *context, unsigned long long at)
+{
+    (void)at;
+    *(unsigned long long *)context += 1ull;
+}
+
+// a census counted over bytes and uncounted of some of them is a fresh count of the rest; folded, each capital's count
+// joins its small letter's; and a search planned from a kept census finds the needle where one planned from each
+// window finds it, over the seam text as sift_seam leaves it
+static void sift_census(void)
+{
+    static const unsigned char s_bytes[] = "Aa Bb AAA zz\nQ";
+    CliCensus kept;
+    memor.set(&(MemoriaCfg){.dst = &kept, .val = 0, .bytes = sizeof(kept)});
+    cli_sift_census_counted(&kept, s_bytes, sizeof(s_bytes) - 1u);
+    cli_check((kept.total == (sizeof(s_bytes) - 1u)) && (kept.occurrences['A'] == 4ull) &&
+                  (kept.occurrences['a'] == 1ull),
+              "a census counted holds each byte");
+    cli_sift_census_uncounted(&kept, s_bytes + 6, 3ull);
+    cli_check((kept.total == (sizeof(s_bytes) - 4u)) && (kept.occurrences['A'] == 1ull),
+              "and bytes uncounted leave it");
+    CliCensus folded;
+    cli_sift_census_folded(&kept, &folded);
+    cli_check((folded.occurrences['a'] == 2ull) && (folded.occurrences['A'] == 0ull) &&
+                  (folded.occurrences['q'] == 1ull) && (folded.total == kept.total),
+              "folded, each capital's count joins its small letter's");
+    static const char s_needle[] = "across the seam";
+    CliCensus whole;
+    memor.set(&(MemoriaCfg){.dst = &whole, .val = 0, .bytes = sizeof(whole)});
+    cli_sift_census_counted(&whole, s_wide, sizeof(s_wide));
+    unsigned long long found = 0ull;
+    cli_check(cli_sift_find_all_with(&whole, s_wide, sizeof(s_wide), (const unsigned char *)s_needle,
+                                     sizeof(s_needle) - 1u, 0, census_found, &found) == 4ull,
+              "a search planned from the kept census finds the needle at its four places");
+}
+
 int main(void)
 {
     sift_paths();
     sift_case();
     sift_seam();
+    sift_census();
     static unsigned char s_text[4010];
     for (unsigned int at = 0u; at < 400u; at += 1u)
     {

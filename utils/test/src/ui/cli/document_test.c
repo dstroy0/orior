@@ -52,7 +52,7 @@ static int document_found(const CliLines *lines, CliDocSought sought, unsigned l
     return 1;
 }
 
-// the matches of `query` in the text held under `key`, checked against `wanted`
+// the matches of `query` in the text kept under `key`, checked against `wanted`
 static void document_held_found(const char *key, const char *query, const char *wanted, const char *what)
 {
     const CliDocSought sought = document_sought(query, 0, 1, 0);
@@ -80,6 +80,12 @@ static void document_edits(void)
     document_held_found("edits", "1st line", "[[0,0,8]]", "the first line written over");
     document_held_found("edits", "second joined", "[[1,0,13]]", "lines joined");
     document_held_found("edits", "and ird", "[[2,0,7]]", "and the last line's start");
+    // the census kept with the text is of the units' bytes as the edits leave them: 28 units of ASCII, each a letter
+    // low and a zero high, four of them `n`
+    CliCensus census;
+    cli_check(cli_document_census("edits", &census) && (census.total == 56ull) && (census.occurrences[0] == 28ull) &&
+                  (census.occurrences['n'] == 4ull) && (census.occurrences['1'] == 1ull),
+              "the census kept with the text counts its units' bytes as the edits leave them");
     static const CliEdit s_past[1] = {{{9u, 0u}, {9u, 0u}, "x", 1u}};
     const CliEdit *const past[1] = {s_past};
     const unsigned int one[1] = {1u};
@@ -98,7 +104,7 @@ static int document_marks(const char *key, int given, const char *head)
     return marked;
 }
 
-// the marks say whether the commit holds the file and carry each change's lines as it held them
+// the marks say whether the commit holds the file and carry each change's lines as it kept them
 static void document_marked(void)
 {
     CliShape shape;
