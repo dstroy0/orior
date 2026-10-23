@@ -28,16 +28,19 @@ const HOW = { there: "only there", here: "only here, and stays", changed: "chang
 export async function takeKept(reloadOwn) {
   const now = await invoke("kept_now", { keys: Object.keys(localStorage) });
   const changed = new Set();
-  for (const [key, text] of Object.entries(now.set)) {
-    if (ownItem(`orior.${key}`) !== text) {
-      localStorage.setItem(`orior.${key}`, text);
+  const fromFolder = window.oriorKeptTaken ?? ((put) => put());
+  fromFolder(() => {
+    for (const [key, text] of Object.entries(now.set)) {
+      if (ownItem(`orior.${key}`) !== text) {
+        localStorage.setItem(`orior.${key}`, text);
+        changed.add(key);
+      }
+    }
+    for (const key of now.gone) {
+      localStorage.removeItem(`orior.${key}`);
       changed.add(key);
     }
-  }
-  for (const key of now.gone) {
-    localStorage.removeItem(`orior.${key}`);
-    changed.add(key);
-  }
+  });
   settingsChanged(changed);
   await reloadOwn?.();
   return changed;

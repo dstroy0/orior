@@ -24,18 +24,37 @@
       wait = window.setTimeout(flush, KEEP_REST);
     }
   };
+  // While `taken` is set, the entries put come from orior's folder: the folder holds them already, so
+  // none is written back, and a change of the same key still waiting is dropped, so no older value
+  // lands over what the folder holds.
+  let taken = false;
+  const kept = (storage, key, text) => {
+    if (storage !== window.localStorage) {
+      return;
+    }
+    if (taken) {
+      changed.delete(key);
+    } else {
+      note(key, text);
+    }
+  };
   const set = Storage.prototype.setItem;
   const remove = Storage.prototype.removeItem;
   Storage.prototype.setItem = function (key, text) {
     set.call(this, key, text);
-    if (this === window.localStorage) {
-      note(String(key), String(text));
-    }
+    kept(this, String(key), String(text));
   };
   Storage.prototype.removeItem = function (key) {
     remove.call(this, key);
-    if (this === window.localStorage) {
-      note(String(key), null);
+    kept(this, String(key), null);
+  };
+  // Runs `put`, each entry it puts into the page's storage taken from orior's folder.
+  window.oriorKeptTaken = (put) => {
+    taken = true;
+    try {
+      put();
+    } finally {
+      taken = false;
     }
   };
   window.addEventListener("pagehide", flush);
