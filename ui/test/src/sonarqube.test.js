@@ -61,21 +61,27 @@ async function pressed(title, command, fields = {}) {
   page().querySelector(`[data-command='${command}']`).click();
 }
 
+// `promise`, a refusal of it named by the step `what`, since a call refused answers a bare reason.
+const step = (what, promise) =>
+  promise.catch((error) => {
+    throw new Error(`${what}: ${error?.message ?? error}`);
+  });
+
 test("SonarQube analyses a file alone, and bound to a project of its server", async () => {
-  await loadPlugins();
-  await allowPlugin("sonarqube");
+  await step("loading the plugins", loadPlugins());
+  await step("allowing the plugin", allowPlugin("sonarqube"));
   await ui.waitFor(() => running().has("sonarqube"), 5000, "the plugin to run");
   try {
     await invoke("file_write", { path: "unused.py", text: UNUSED });
     showView("edit");
-    await openFile("unused.py");
+    await step("opening the file", openFile("unused.py"));
     await until(() => problemsOf("unused.py").includes("unused local variable"), 120000, "SonarQube's issue among the file's problems");
     assert.ok(problemsOf("unused.py").includes("python:S1481"), `the issue names its rule: ${problemsOf("unused.py")}`);
-    const actions = await invoke("lsp_actions", { path: "unused.py", from: { line: 3, col: 4 }, to: { line: 3, col: 5 } });
+    const actions = await step("asking for the file's actions", invoke("lsp_actions", { path: "unused.py", from: { line: 3, col: 4 }, to: { line: 3, col: 5 } }));
     assert.ok(actions.some((one) => one.raw?.orior_plugin === "sonarqube"), `the issue's actions are among the file's: ${JSON.stringify(actions.map((one) => one.title))}`);
     const describe = actions.find((one) => one.raw?.orior_plugin === "sonarqube" && /description|details/i.test(one.title));
     assert.ok(describe, "one opens the rule's description");
-    await invoke("lsp_act", { path: "unused.py", raw: describe.raw });
+    await step("acting on the description", invoke("lsp_act", { path: "unused.py", raw: describe.raw }));
     await until(() => panel("SonarQube Rule").includes("S1481"), 20000, "the rule's description");
 
     commanded("SonarQube: Show Findings");
