@@ -5,9 +5,6 @@
 #include "../code/git.h"
 #include "carry_internal.h"
 
-// the most bytes of the one file a sending writes
-#define CLI_SENT_FILE (CLI_CARRIED_TEXT * 2ull)
-
 // The room a sending takes: what travels and the files the folder holds that travel, their cells given back as the
 // sending ends
 typedef struct
@@ -30,14 +27,14 @@ static void cli_sent(CliLine *out, unsigned int count, const char *how, const ch
 // what travels written as one file at `to`: 1, or 0 with why said
 static int cli_file_sent(const char *to, CliLine *said)
 {
-    char *const text = cli_cell_taken(CLI_SENT_FILE, "the settings file sent");
-    if (text == NULL)
+    // the file written in a cell that grows with what travels
+    CliLine file;
+    if (!cli_line_growing(&file, CLI_CARRY_WRITTEN_FIRST, "the settings file sent"))
     {
         cli_line_text(said, to);
         cli_line_text(said, ": no cell could be taken to write it in");
         return 0;
     }
-    CliLine file = {text, CLI_SENT_FILE, 0ull};
     cli_line_text(&file, "{\n  \"orior\": \"" CLI_CARRY_MARK "\",\n  \"files\": {");
     for (unsigned int at = 0u; at < s_send.packed.count; at += 1u)
     {
@@ -48,8 +45,8 @@ static int cli_file_sent(const char *to, CliLine *said)
         cli_json_quoted(&file, cli_carried_value(&s_send.packed, at), s_send.packed.size[at]);
     }
     cli_line_text(&file, (s_send.packed.count != 0u) ? "\n  }\n}\n" : "}\n}\n");
-    const int written = cli_line_fits(&file) && query_file_written(to, text, file.at);
-    cli_cell_given(text);
+    const int written = cli_line_fits(&file) && query_file_written(to, file.out, file.at);
+    cli_cell_given(file.out);
     if (!written)
     {
         cli_line_text(said, to);
