@@ -142,7 +142,7 @@ int cli_qry_read_file_from(const char *path, unsigned long long from, CliLine *o
     }
     cli_line_text(out, "],\"next\":");
     cli_line_decimal(out, at, 1u);
-    cli_line_text(out, ",\"stepped\":0,\"table\":false,\"panicked\":");
+    cli_line_text(out, ",\"stepped\":0,\"table\":true,\"panicked\":");
     cli_line_decimal(out, panicked, 1u);
     cli_line_character(out, '}');
     return 1;

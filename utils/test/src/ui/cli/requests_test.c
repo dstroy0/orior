@@ -204,7 +204,7 @@ static void requests_private(void)
     requests_written(root, ".gitignore", "target");
     CliLine out = {s_out, sizeof(s_out), 0ull};
     cli_check(cli_requests_private_made(root, "api/calls.http", &out, &said), "the private file is made");
-    cli_check_text(s_out, out.at, "api/" CLI_REQUESTS_PRIVATE, "beside the file");
+    cli_check_text(s_out, out.at, "\"api/" CLI_REQUESTS_PRIVATE "\"", "beside the file");
     cli_full(root, "api/" CLI_REQUESTS_PRIVATE, path);
     unsigned long long size = qry_member_file_read(path, (unsigned char *)s_body, sizeof(s_body));
     unsigned int read = CLI_JSON_NONE;
@@ -218,7 +218,7 @@ static void requests_private(void)
                    "and named in the .gitignore");
     out.at = 0ull;
     cli_check(cli_requests_private_made(root, "api/calls.http", &out, &said), "made again");
-    cli_check_text(s_out, out.at, "api/" CLI_REQUESTS_PRIVATE, "the one there is kept");
+    cli_check_text(s_out, out.at, "\"api/" CLI_REQUESTS_PRIVATE "\"", "the one there is kept");
     size = qry_member_file_read(path, (unsigned char *)s_body, sizeof(s_body));
     cli_check_text(s_body, (size != QRY_MEMBER_UNREAD) ? size : 0ull, "target\n" CLI_REQUESTS_PRIVATE "\n",
                    "and named once");

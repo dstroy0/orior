@@ -51,7 +51,7 @@ test("a run started apart from the window shows as it runs: its blobs as handed,
     await ui.waitFor(() => document.querySelector("#runs .runs-panic")?.textContent.includes("the part faulted"), 3000);
     assert.ok(performance.now() - handed < 3000, "the panic shows as it lands");
     await ui.waitFor(() => document.querySelector(".strip-button.strip-runs").classList.contains("marked"), 3000);
-    await ui.waitFor(() => /query1-20261011T120000 panicked: the part faulted/.test(document.getElementById("status-said")?.textContent ?? ""), 3000);
+    await ui.waitFor(() => /query1-20261011T120000 panicked at blob \d+/.test(document.getElementById("status-said")?.textContent ?? ""), 3000);
     await invoke("qry_stop", { path: qry });
     await ui.waitFor(() => rowOf("query1-20261011T120000") && !rowOf("query1-20261011T120000").classList.contains("live"), 10000);
     await ui.waitFor(() => /read by its table/.test(shownText()), 5000);

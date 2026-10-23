@@ -42,7 +42,8 @@ int cli_requests_key_at(const char *text, unsigned long long size, unsigned long
 
 // the environment files of the file at `path`, the names of their environments and the tree's paths of the shared
 // file and the private one, written into `out`; the reader's private environment file made beside the file at `path`
-// where none is there, with its name added to the tree's .gitignore, its path in the tree into `out`. Each 1, or 0 with
+// where none is there, with its name added to the tree's .gitignore, its path in the tree into `out` as a JSON string.
+// Each 1, or 0 with
 // why said (requests_values.c)
 int cli_requests_environments(const char *root, const char *path, CliLine *out, CliLine *said);
 int cli_requests_private_made(const char *root, const char *path, CliLine *out, CliLine *said);

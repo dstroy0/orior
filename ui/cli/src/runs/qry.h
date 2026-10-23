@@ -37,8 +37,8 @@ enum
 
 // a read of the run at `path`, going on from `from`, written into `out` as `{"live", "blobs": [{"name", "sequence",
 // "nanoseconds", "priority", "size", "text": string or null, "whole": bool}...], "next", "stepped", "table",
-// "panicked"}`: from its shared memory while its writer runs, the records past place `from` of its schedule; from its
-// .qry where none does, the records past the byte `from`. 1, or 0 with why said
+// "panicked"}`: from its shared memory while its writer runs, the records past place `from` of its schedule, "table"
+// false; from its .qry where none does, the records past the byte `from`, "table" true. 1, or 0 with why said
 int cli_qry_read(const char *path, unsigned long long from, CliLine *out, CliLine *said);
 // a .qry file read going on from the byte `from`, written as cli_qry_read writes it: 1, or 0 with why said
 int cli_qry_read_file_from(const char *path, unsigned long long from, CliLine *out, CliLine *said);

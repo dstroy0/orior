@@ -106,6 +106,10 @@ async function opening(path) {
   let read;
   try {
     read = await invoke("qry_read", { path, from: held.live ? held.next : 0 });
+    // A place in a live run's schedule is no byte of its .qry: a run that ended since is read whole.
+    if (!read.live && held.live && held.next) {
+      read = await invoke("qry_read", { path, from: 0 });
+    }
   } catch (error) {
     held.error = String(error);
     return held;
@@ -221,14 +225,22 @@ export function draw() {
   );
 }
 
-// Lists the tree's runs on a beat, more often while one is live or the pane shows. A run is read as it is opened;
-// nothing reads it again on the beat.
+// Lists the tree's runs on a beat, more often while one is live or the pane shows, and while the pane shows reads
+// each run open in it that was live as last read on from where that read stopped, or whole by its table once it
+// has ended.
 export function startRuns() {
   const beat = async () => {
     const often = shown() || state.listing.runs.some((run) => run.live);
     if (performance.now() - state.listedAt >= (often ? LIST_LIVE : LIST_IDLE)) {
       state.listedAt = performance.now();
       await list();
+    }
+    const live = shown() ? [...state.open].filter(([, held]) => held.live).map(([path]) => path) : [];
+    for (const path of live) {
+      await opening(path);
+    }
+    if (live.length) {
+      draw();
     }
     window.setTimeout(beat, READ_LIVE);
   };

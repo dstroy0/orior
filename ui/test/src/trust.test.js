@@ -39,7 +39,7 @@ test("a crate with a build script is asked about once, Hold It Back is kept and 
     assert.deepEqual(told.code, ["build.rs"]);
     assert.equal(told.answer, null);
     assert.ok(!ask().hidden, "the question shows");
-    assert.match(ask().textContent, /crate holds code its tools run as they read it: build\.rs/);
+    assert.match(ask().textContent, /crate has build scripts of its own, build\.rs, which run when the tree is built/);
     assert.equal(document.activeElement, typing, "the question takes no keys");
     await ui.click(buttonNamed("Hold It Back"));
     await ui.waitFor(() => ask().hidden && !status().hidden, 3000);

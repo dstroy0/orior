@@ -401,7 +401,7 @@ int cli_requests_private_made(const char *root, const char *path, CliLine *out, 
     if (cli_requests_nearest(root, path, CLI_REQUESTS_PRIVATE, file))
     {
         cli_relative(root, file, relative[0]);
-        cli_line_text(out, relative[0]);
+        cli_json_quoted(out, relative[0], cellul.len(&(CatenaFinitaCfg){.src = relative[0], .cap = CLI_CELLS_POOL}));
         return 1;
     }
     char inside[CLI_PATH_LONGEST];
@@ -457,7 +457,7 @@ int cli_requests_private_made(const char *root, const char *path, CliLine *out, 
     if (done)
     {
         cli_relative(root, file, relative[0]);
-        cli_line_text(out, relative[0]);
+        cli_json_quoted(out, relative[0], cellul.len(&(CatenaFinitaCfg){.src = relative[0], .cap = CLI_CELLS_POOL}));
     }
     return done;
 }
