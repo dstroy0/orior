@@ -99,6 +99,31 @@ void cli_page_lines_put(CliPageLines *lines, const char *bytes, unsigned long lo
     lines->count += 1ull;
 }
 
+int cli_page_block_read(CliPaged *one, unsigned long long from, unsigned long long total, unsigned long long *block_most,
+                        unsigned long long *to, CliPageLines *lines, CliLine *said)
+{
+    for (;;)
+    {
+        *to = ((from + *block_most) < total) ? (from + *block_most) : total;
+        if (!cli_page_lines_of(one, from, *to, lines, said))
+        {
+            return 0;
+        }
+        if (!lines->full)
+        {
+            return 1;
+        }
+        if (*block_most == 1ull)
+        {
+            cli_line_text(said, "line ");
+            cli_line_decimal(said, from + 1ull, 1u);
+            cli_line_text(said, " is longer than a reading of the text holds");
+            return 0;
+        }
+        *block_most /= 2ull;
+    }
+}
+
 void cli_page_lines_given(CliPageLines *lines)
 {
     cli_cell_given(lines->cell);

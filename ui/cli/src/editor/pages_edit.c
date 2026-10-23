@@ -153,6 +153,11 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
     {
         return 0;
     }
+    if (lines->full)
+    {
+        cli_line_text(said, "the lines an edit reaches are more than a reading of the text holds");
+        return 0;
+    }
     if ((lines->count == 0ull) || (lines->count != (reach - edit->from.line)))
     {
         cli_line_text(said, "an edit reaches past the text, to line ");
@@ -348,13 +353,26 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
     const unsigned long long total = read ? cli_total(one) : 0ull;
     CliLine written = {found_text, CLI_PAGE_FOUND, 0ull};
     CliPageFound found = {&written, 0ull, 0ull};
+    unsigned long long block_most = CLI_PAGE_BLOCK;
     for (unsigned long long from = 0ull; read && (from < total) && (found.found < most);)
     {
-        const unsigned long long to = ((from + CLI_PAGE_BLOCK) < total) ? (from + CLI_PAGE_BLOCK) : total;
-        read = cli_page_lines_of(one, from, to, &lines, said);
-        // the block's units and lines a cell sized to the lines read, given back as the block is searched
+        unsigned long long to = from;
+        read = cli_page_block_read(one, from, total, &block_most, &to, &lines, said);
+        // a block of more than CLI_PAGE_FIND_TEXT bytes is read again as half as many lines
+        if (read && (lines.used > CLI_PAGE_FIND_TEXT) && (block_most > 1ull))
+        {
+            block_most /= 2ull;
+            continue;
+        }
+        // the block's units and lines a cell sized to the lines read, given back as the block is searched; a block
+        // whose units the cells cannot meet is read again as half as many lines
         unsigned char *const storage =
             read ? cli_cell_taken(cli_block_bytes(&lines), "a block's units for find") : NULL;
+        if (read && (storage == NULL) && (block_most > 1ull))
+        {
+            block_most /= 2ull;
+            continue;
+        }
         if (read && (storage == NULL))
         {
             cli_line_text(said, "a block's units for find could not be taken");
@@ -418,10 +436,11 @@ int cli_pages_save(const char *key, CliLine *out, CliLine *said)
         return 0;
     }
     int written = cli_file_appended(beside, "", 0ull, 1);
+    unsigned long long block_most = CLI_PAGE_BLOCK;
     for (unsigned long long from = 0ull; written && (from < total);)
     {
-        const unsigned long long to = ((from + CLI_PAGE_BLOCK) < total) ? (from + CLI_PAGE_BLOCK) : total;
-        written = cli_page_lines_of(one, from, to, &lines, said);
+        unsigned long long to = from;
+        written = cli_page_block_read(one, from, total, &block_most, &to, &lines, said);
         // the block's text a cell sized to the lines read and an end of line, two bytes at the most, for each
         const unsigned long long size = lines.used + (2ull * lines.count) + 1ull;
         char *const text = written ? cli_cell_taken(size, "a block of lines saved") : NULL;

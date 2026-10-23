@@ -8,13 +8,15 @@
 #include "pages.h"
 
 // how many lines apart the index holds the byte a line starts at, and the most it holds; how many lines find and a
-// save read at a time; the most pieces of a text; and the most lines and bytes one reading gives
+// save read at a time; the most pieces of a text; the most lines and bytes one reading gives; and the most bytes of
+// text find searches at a time, its units and its search each taking cells of several times that
 #define CLI_PAGE_STEP 1024ull
 #define CLI_PAGE_STARTS (1u << 20u)
 #define CLI_PAGE_BLOCK 16384ull
 #define CLI_PAGE_PIECES 65536u
 #define CLI_PAGE_READ_LINES (1u << 17u)
 #define CLI_PAGE_READ_TEXT (1u << 26u)
+#define CLI_PAGE_FIND_TEXT (1u << 23u)
 
 // the end of the shadow's name, after a dot and the file's name, beside the file
 #define CLI_PAGE_SHADOW ".~"
@@ -91,6 +93,11 @@ void cli_page_lines_emptied(CliPageLines *lines);
 int cli_page_lines_room(CliPageLines *lines, unsigned long long lines_more, unsigned long long text_more);
 void cli_page_lines_put(CliPageLines *lines, const char *bytes, unsigned long long size);
 void cli_page_lines_given(CliPageLines *lines);
+// the lines of `one` from `from`, up to `*block_most` of them and none past `total`, read whole into `lines`,
+// `*block_most` halved while a reading of that many is full, the line after the last read into `to`: 1, or 0 with why
+// said, a single line a reading cannot hold among the whys (pages_lines.c)
+int cli_page_block_read(CliPaged *one, unsigned long long from, unsigned long long total, unsigned long long *block_most,
+                        unsigned long long *to, CliPageLines *lines, CliLine *said);
 
 // the first of the paged texts held and the lock they and their pieces are read and written under; and the lock every
 // index is read and written under, and its wake

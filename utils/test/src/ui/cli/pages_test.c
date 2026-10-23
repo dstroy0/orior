@@ -220,11 +220,50 @@ static void pages_many(void)
     }
 }
 
+// a block of lines wider than a reading holds is read a part at a time: find reaches the last line and the save
+// writes every byte
+static void pages_wide(void)
+{
+    static char s_wide[32u * 8192u];
+    memor.set(&(MemoriaCfg){.dst = s_wide, .val = 'w', .bytes = sizeof(s_wide)});
+    for (unsigned int line = 1u; line <= 32u; line += 1u)
+    {
+        s_wide[(line * 8192u) - 1u] = '\n';
+    }
+    static const char s_last[] = "the last line\n";
+    char path[CLI_PATH_LONGEST];
+    cli_full(s_folder, "wide.txt", path);
+    int written = cli_file_appended(path, "", 0ull, 1);
+    for (unsigned int part = 0u; written && (part < 282u); part += 1u)
+    {
+        written = cli_file_appended(path, s_wide, sizeof(s_wide), 0);
+    }
+    written = written && cli_file_appended(path, s_last, sizeof(s_last) - 1u, 0);
+    const unsigned long long whole = (282ull * sizeof(s_wide)) + sizeof(s_last) - 1u;
+    char why[256];
+    CliLine said = {why, sizeof(why), 0ull};
+    CliLine out = {s_out, sizeof(s_out), 0ull};
+    cli_check(written && cli_pages_open("wide", path, &out, &said), "a file of wide lines opens as a paged text");
+    cli_check(pages_indexed("wide").lines == 9026ull, "and is indexed whole");
+    const CliDocSought sought = {"the last", 0, 1, 0, 0};
+    out.at = 0ull;
+    said.at = 0ull;
+    (void)cli_pages_find("wide", &sought, 10ull, &out, &said);
+    cli_check_text(s_out, out.at, "[[9024,0,8]]", "find reaches the line past a block wider than a reading");
+    out.at = 0ull;
+    said.at = 0ull;
+    cli_check(cli_pages_save("wide", &out, &said), "the wide text is saved");
+    unsigned long long size = 0ull;
+    cli_check(cli_file_size(path, &size) && (size == whole), "the save writes every byte of every line");
+    cli_pages_release("wide");
+}
+
 int main(void)
 {
     cli_check_folder("pages", s_folder);
     pages_read();
     pages_edit();
     pages_many();
+    pages_wide();
     return cli_checked();
 }
