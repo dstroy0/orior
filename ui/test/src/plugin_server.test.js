@@ -112,6 +112,8 @@ test("a plugin's language server, its panel, its command and its secrets", async
   await invoke("file_write_any", { path: `${folder}/plugin.json`, text: JSON.stringify(manifest) });
   await invoke("file_write_any", { path: `${folder}/plugin.js`, text: SERVES });
   await loadPlugins();
+  // a try after the first finds the plugin turned off as the first one ended
+  setPluginOn("serves", true);
   await allowPlugin("serves");
   await ui.waitFor(() => running().has("serves"), 5000, "the plugin to run");
   try {
@@ -120,8 +122,9 @@ test("a plugin's language server, its panel, its command and its secrets", async
     await openFile("served.py");
     await until(() => heard().includes("answered yes"), 20000, "the server's question answered");
     assert.ok(heard().includes("asked"), "the plugin hears what its server asks");
-    const problems = [...knownProblems().entries()].find(([path]) => path.endsWith("served.py"))?.[1] ?? [];
-    assert.ok(JSON.stringify(problems).includes("the stand-in finds this"), "the server's diagnostics are among the file's problems");
+    // the diagnostics come by the server's own channel, the question by the plugin's: neither waits on the other
+    const problems = () => [...knownProblems().entries()].find(([path]) => path.endsWith("served.py"))?.[1] ?? [];
+    await until(() => JSON.stringify(problems()).includes("the stand-in finds this"), 10000, "the server's diagnostics among the file's problems");
     const frame = [...document.querySelectorAll(".plugin-panel-frame")].find((one) => (one.dataset.html ?? "").includes("id='heard'"));
     await ui.waitFor(() => frame.contentDocument?.querySelector("[data-command='press']"), 5000, "the panel's button");
     frame.contentDocument.querySelector("[data-command='press']").click();

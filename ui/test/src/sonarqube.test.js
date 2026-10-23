@@ -69,6 +69,8 @@ const step = (what, promise) =>
 
 test("SonarQube analyses a file alone, and bound to a project of its server", async () => {
   await step("loading the plugins", loadPlugins());
+  // a try after the first finds the plugin turned off as the first one ended
+  setPluginOn("sonarqube", true);
   await step("allowing the plugin", allowPlugin("sonarqube"));
   await ui.waitFor(() => running().has("sonarqube"), 5000, "the plugin to run");
   try {
