@@ -126,6 +126,21 @@ static void databases_failure_said(const CliDbFailure *failure, CliLine *said)
     }
 }
 
+// what a server said went wrong as the page reads it: `{"message", "code", "detail", "hint", "position"}`
+static void databases_failure_written(const CliDbFailure *failure, CliLine *out)
+{
+    const char *const field_name[4] = {"{\"message\":", ",\"code\":", ",\"detail\":", ",\"hint\":"};
+    const char *const field[4] = {failure->message, failure->code, failure->detail, failure->hint};
+    for (unsigned int at = 0u; at < 4u; at += 1u)
+    {
+        cli_line_text(out, field_name[at]);
+        cli_json_quoted(out, field[at], cellul.len(&(CatenaFinitaCfg){.src = field[at], .cap = CLI_CELLS_POOL}));
+    }
+    cli_line_text(out, ",\"position\":");
+    cli_line_decimal(out, failure->position, 1u);
+    cli_line_character(out, '}');
+}
+
 static int db_list(const CliServeArgs *args, CliLine *out, CliLine *said)
 {
     (void)args;
@@ -323,7 +338,7 @@ static int db_run(const CliServeArgs *args, CliLine *out, CliLine *said)
     {
         out->at = start;
         cli_line_text(out, "{\"failure\":");
-        cli_db_failure_written(&one->failure, out);
+        databases_failure_written(&one->failure, out);
         cli_line_text(out, ",\"transaction\":");
         const char *const transaction = cli_db_transaction(one->open);
         cli_json_quoted(out, transaction, cellul.len(&(CatenaFinitaCfg){.src = transaction, .cap = CLI_CELLS_POOL}));

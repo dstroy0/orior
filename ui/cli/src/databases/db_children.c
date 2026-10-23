@@ -116,7 +116,7 @@ static void children_node(CliDbChildren *children, const char *label, const char
     cli_line_text(out, ",\"detail\":");
     cli_json_quoted_lossy(out, (const unsigned char *)detail,
                           cellul.len(&(CatenaFinitaCfg){.src = detail, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, leaf ? ",\"leaf\":true,\"at\":[" : ",\"leaf\":false,\"at\":[");
+    cli_line_text(out, leaf ? ",\"leaf\":true,\"path\":[" : ",\"leaf\":false,\"path\":[");
     for (unsigned int one = 0u; one < count; one += 1u)
     {
         cli_line_text(out, (one > 0u) ? "," : "");
