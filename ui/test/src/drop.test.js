@@ -44,11 +44,14 @@ test("a file dropped on a folder is copied into it behind the window, its bar on
   await invoke("file_write_any", { path: source, text: "a line of the dropped file\n".repeat(400000) });
   const active = editing().active;
   const folder = middle(rowOf("src"));
-  // Each step of the copy as the window hears it, and whether its bar stood on the status bar then.
+  // Each step of the copy as the window hears it, and whether its bar stood on the status bar once the window's own
+  // listener had taken the step: this listener may run before it, so the bar is read a task later.
   const heard = [];
-  await listen("bring-progress", ({ payload }) => heard.push({ ...payload, shown: status.reads.has(payload.path) }));
+  let hearing = true;
+  await listen("bring-progress", ({ payload }) => hearing && setTimeout(() => heard.push({ ...payload, shown: status.reads.has(payload.path) }), 0));
   await invoke("plugin:event|emit", { event: "tauri://drag-drop", payload: { paths: [source], position: { x: folder.x * devicePixelRatio, y: folder.y * devicePixelRatio } } });
   await ui.waitFor(() => document.getElementById("status-said").textContent.includes("Copied src/large.txt into the tree"), 10000);
+  hearing = false;
   const going = heard.filter((one) => one.path === "src/large.txt" && one.done < one.size);
   assert.ok(going.length && going.every((one) => one.shown), `its bar stood while it was copied: ${JSON.stringify(heard)}`);
   assert.ok(!status.reads.has("src/large.txt"), "and went once it was whole");
