@@ -91,7 +91,9 @@ test("Open takes the place to a preview tab, the next preview takes its place, a
 });
 
 test("Peek Definition and Peek Usages ask the language server, here clangd", async () => {
-  await invoke("file_write", { path: "peek.c", text: "int helper(void) { return 1; }\n\nint main(void) {\n  return helper() + helper();\n}\n" });
+  // names no other file of the tree defines: a C function of another file of the same name is the same function to
+  // clangd's index, as main is in every program of the tree
+  await invoke("file_write", { path: "peek.c", text: "int peek_helper(void) { return 1; }\n\nint peek_caller(void) {\n  return peek_helper() + peek_helper();\n}\n" });
   showView("edit");
   await openFile("peek.c");
   await ui.waitFor(() => editing().active === "peek.c", 5000);
@@ -101,7 +103,7 @@ test("Peek Definition and Peek Usages ask the language server, here clangd", asy
     return peekShown()?.places.length > 0;
   }, 30000);
   assert.deepEqual(peekShown().places.map((one) => [one.path, one.line]), [["peek.c", 0]]);
-  assert.equal(peekShown().title, "Definition of helper");
+  assert.equal(peekShown().title, "Definition of peek_helper");
   closePeek();
   editing().editor.goTo(3, 10);
   await peekHere("usages");
@@ -112,7 +114,7 @@ test("Peek Definition and Peek Usages ask the language server, here clangd", asy
   editing().editor.goTo(0, 6);
   await peekHere("callers");
   await ui.waitFor(() => peekShown()?.places.length >= 1, 10000);
-  assert.equal(peekShown().title, "Callers of helper");
-  assert.ok(peekShown().places.every((one) => one.path === "peek.c" && one.line === 3 && one.caller === "main"), JSON.stringify(peekShown().places));
+  assert.equal(peekShown().title, "Callers of peek_helper");
+  assert.ok(peekShown().places.every((one) => one.path === "peek.c" && one.line === 3 && one.caller === "peek_caller"), JSON.stringify(peekShown().places));
   closePeek();
 });
