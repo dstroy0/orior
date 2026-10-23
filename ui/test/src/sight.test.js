@@ -5,6 +5,8 @@
 // not on the page while the list keeps their height, and those its scroll heads into drawn ahead.
 
 import { invoke } from "../../gui/src-js/bridge.js";
+import { treeRowShown } from "../../gui/src-js/edit.js";
+import { showGroup } from "../../gui/src-js/explorer.js";
 import { togglePane } from "../../gui/src-js/sides.js";
 import { aheadOf } from "../../gui/src-js/sight.js";
 import { showView } from "../../gui/src-js/views.js";
@@ -22,12 +24,14 @@ test("rows of the tree out of sight are not on the page and keep their height, a
   }
   showView("edit");
   togglePane(true, { take: false, pin: true });
-  await ui.waitFor(() => rowOf("sight")?.checkVisibility(), 10000);
+  showGroup("explorer");
+  // The tree draws the rows in sight alone, so the folder's row is scrolled into sight first.
+  await ui.waitFor(() => treeRowShown("sight")?.checkVisibility(), 10000);
   if (rowOf("sight").getAttribute("aria-expanded") !== "true") {
     await ui.click(rowOf("sight"));
   }
   await ui.waitFor(() => files().rowModel?.indexOf(name(299)) >= 0, 10000);
-  files().scrollTop = 0;
+  treeRowShown("sight");
   await ui.rest(100);
   assert.ok(drawn(rowOf("sight")), "the folder's own row, in sight, is drawn");
   assert.equal(rowOf(name(299)), null, "a row far below is not on the page");
@@ -51,8 +55,7 @@ test("the rows the tree scrolls toward are drawn ahead of it", async () => {
 });
 
 test("the tree drawn as it was", async () => {
-  files().scrollTop = 0;
-  await ui.click(rowOf("sight"));
+  await ui.click(treeRowShown("sight"));
   await ui.waitFor(() => !rowOf(name(0)), 5000);
   togglePane(false);
 });
