@@ -898,8 +898,9 @@ test("Go, Toggle Bookmark sets and takes off a bookmark on the cursor's line, an
   assert.ok(bookmarksOf(GIVEN)?.has(1), "the second line bookmarked");
   await press("bookmarks");
   try {
-    await ui.waitFor(() => paletteOpen(), 3000, "the bookmarks");
-    assert.match(document.querySelector(".quick-input").placeholder, /^Bookmarks/);
+    await ui.waitFor(() => paletteOpen() && /^Bookmarks/.test(document.querySelector(".quick-input").placeholder), 3000, "the bookmarks").catch((error) => {
+      throw new Error(`${error.message}; the palette asks ${document.querySelector(".quick-input")?.placeholder}`);
+    });
   } finally {
     await ui.key("Escape");
   }

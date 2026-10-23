@@ -79,8 +79,14 @@ test("SonarQube analyses a file alone, and bound to a project of its server", as
     await step("opening the file", openFile("unused.py"));
     await until(() => problemsOf("unused.py").includes("unused local variable"), 120000, "SonarQube's issue among the file's problems");
     assert.ok(problemsOf("unused.py").includes("python:S1481"), `the issue names its rule: ${problemsOf("unused.py")}`);
-    const actions = await step("asking for the file's actions", invoke("lsp_actions", { path: "unused.py", from: { line: 3, col: 4 }, to: { line: 3, col: 5 } }));
-    assert.ok(actions.some((one) => one.raw?.orior_plugin === "sonarqube"), `the issue's actions are among the file's: ${JSON.stringify(actions.map((one) => one.title))}`);
+    // a plugin's server that is slow to answer offers nothing to that asking, so the actions are asked again
+    let actions = [];
+    await ui.waitFor(async () => {
+      actions = await step("asking for the file's actions", invoke("lsp_actions", { path: "unused.py", from: { line: 3, col: 4 }, to: { line: 3, col: 5 } }));
+      return actions.some((one) => one.raw?.orior_plugin === "sonarqube");
+    }, 30000).catch((error) => {
+      throw new Error(`${error.message}; the issue's actions are not among the file's: ${JSON.stringify(actions.map((one) => one.title))}`);
+    });
     const describe = actions.find((one) => one.raw?.orior_plugin === "sonarqube" && /description|details/i.test(one.title));
     assert.ok(describe, "one opens the rule's description");
     await step("acting on the description", invoke("lsp_act", { path: "unused.py", raw: describe.raw }));
