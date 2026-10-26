@@ -9,6 +9,7 @@
 // is read. `base` is the number in the file of the window's first line, and `window` the bytes
 // read so far, { start, end, size }, or null once the file is whole.
 
+import { invoke } from "../bridge.js";
 import { Doc, mapThrough, pos } from "./document.js";
 import { indentOf, opens, regionEnd, regions } from "./folding.js";
 import { Highlight } from "./tokens.js";
@@ -132,7 +133,10 @@ export class Session {
         }
         this.view?.schedule();
       }
-      this.highlight.forget(first);
+      // A twin's colors are the session's it was made from, and they take each change once.
+      if (!this.of) {
+        this.highlight.changed(edits);
+      }
       if (this.depths && this.depths.length > first + 1) {
         this.depths.length = first + 1;
       }
@@ -215,10 +219,21 @@ export class Session {
     }
   }
 
-  // Colors the text in `language` from here on, as a plugin read again asks.
+  // Colors the text in `language` from here on, as a plugin read again asks: a text the window's side holds is
+  // colored there again, its colors coming as they are worked out.
   setLanguage(language) {
     this.language = language ?? null;
-    this.highlight = new Highlight(this.doc, this.language?.grammar ?? null, () => this.view?.schedule());
+    const key = this.highlight?.key;
+    if (key) {
+      invoke("branch_language", { key, id: this.language?.id ?? "" }).catch(() => {});
+      return;
+    }
+    this.highlight = this.highlighted();
+  }
+
+  // The colors of the text, read in the language set, a window's lines counted from the file's first.
+  highlighted() {
+    return new Highlight(this.doc, this.language?.grammar ?? null, () => this.view?.schedule(), () => (this.window ? this.base : null));
   }
 
   // Every region that folds: the parse's where the file has one, the headings' and blocks' the
@@ -323,6 +338,12 @@ export class Session {
       this.view?.grown(this, 0, parts.slice(1));
       return;
     }
+    this.grownAbove(parts);
+  }
+
+  // The lines `parts` put in above the window's first line, the last joined to the start of that line.
+  grownAbove(parts) {
+    const doc = this.doc;
     const added = parts.length - 1;
     parts[added] += doc.lines[0];
     doc.lines = parts.concat(doc.lines.slice(1));
@@ -354,7 +375,7 @@ export class Session {
       this.view?.grown(this, 0, lines);
       return;
     }
-    this.grow(`${lines.join("\n")}\n`, true);
+    this.grownAbove(lines.concat(""));
   }
 
   // Lets go of `count` lines of a paged file's window, above it or below it. Neither is an edit; the
@@ -406,7 +427,7 @@ export class Session {
     this.folded = new Map();
     this.foldings += 1;
     this.snippet = null;
-    this.highlight = new Highlight(this.doc, this.language?.grammar ?? null, () => this.view?.schedule());
+    this.highlight.cleared();
     this.foundAt = -1;
     this.top = top;
     this.view?.replaced(this);

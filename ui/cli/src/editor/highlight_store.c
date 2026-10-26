@@ -253,8 +253,10 @@ static unsigned long long cli_coloring_parts(CliHighlightRoom *room, unsigned ch
     unsigned long long at = 0ull;
     room->letters = cli_room_part(cell, &at, room->most * sizeof(unsigned int));
     room->cols = cli_room_part(cell, &at, (room->most + 1ull) * sizeof(unsigned int));
-    room->run_col = cli_room_part(cell, &at, (room->most + 2ull) * sizeof(unsigned int));
-    room->run_name = cli_room_part(cell, &at, (room->most + 2ull) * sizeof(unsigned int));
+    // a run for each letter, one past the colored part and one for an empty line, and a mark for each state stacked and
+    // one more
+    room->run_col = cli_room_part(cell, &at, (room->most + 3ull + CLI_HIGHLIGHT_STACK) * sizeof(unsigned int));
+    room->run_name = cli_room_part(cell, &at, (room->most + 3ull + CLI_HIGHLIGHT_STACK) * sizeof(unsigned int));
     room->stack = cli_room_part(cell, &at, (unsigned long long)CLI_HIGHLIGHT_STACK * CLI_NAME_MAX_LEN);
     room->picked = cli_room_part(cell, &at, (4ull * room->most) + 1ull);
     room->key = cli_room_part(cell, &at, (4ull * room->most) + 1ull);
@@ -315,23 +317,24 @@ int cli_highlight_store(const char *key, const CliJson *json, unsigned int def, 
     return stored;
 }
 
-// The lines handed over: their state, the lines and their count; and where they go, the coloring written as JSON into
-// `out`, or each line's leaves handed to `each`, the state the last ends in into `ended`
+// The lines handed over: their state, the lines and their count, and whether the last ends the text; and where they
+// go, the coloring written as JSON into `out`, or each line's leaves handed to `each`, the state the last ends in into
+// `ended`
 typedef struct
 {
     const char *state;
     const char *const *lines;
     unsigned int count;
+    int ends;
     VerbaLinea *out;
     CliLeavesEach each;
     void *context;
     VerbaLinea *ended;
 } CliColored;
 
-// the lines colored with the grammar stored under `key`, as `colored` says where they go: 1, or 0 with why given
-static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *err_msg)
+// the place of the grammar stored under `key`, s_grammar_room where none is; under the lock
+static unsigned int cli_grammar_entry_of(const char *key)
 {
-    cli_lock_take(&s_lock);
     unsigned int entry_at = 0u;
     while ((entry_at < s_grammar_room) &&
            !(s_grammars[entry_at].used &&
@@ -339,6 +342,14 @@ static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *e
     {
         entry_at += 1u;
     }
+    return entry_at;
+}
+
+// the lines colored with the grammar stored under `key`, as `colored` says where they go: 1, or 0 with why given
+static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *err_msg)
+{
+    cli_lock_take(&s_lock);
+    const unsigned int entry_at = cli_grammar_entry_of(key);
     int roomed = 0;
     const int has_entry = entry_at != s_grammar_room;
     if (has_entry)
@@ -348,7 +359,7 @@ static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *e
         if (roomed && (colored->each != NULL))
         {
             cli_highlight_leaves_of(&s_grammars[entry_at].grammar, room, colored->state, colored->lines,
-                                    colored->count, colored->each, colored->context, colored->ended);
+                                    colored->count, colored->ends, colored->each, colored->context, colored->ended);
         }
         else if (roomed)
         {
@@ -374,15 +385,36 @@ static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *e
 int cli_highlight_color(const char *key, const char *state, const char *const *lines, unsigned int count,
                         VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const CliColored colored = {state, lines, count, out, NULL, NULL, NULL};
+    const CliColored colored = {state, lines, count, 0, out, NULL, NULL, NULL};
     return cli_colored(key, &colored, err_msg);
 }
 
-int cli_highlight_leaves(const char *key, const char *state, const char *const *lines, unsigned int count,
+int cli_highlight_leaves(const char *key, const char *state, const char *const *lines, unsigned int count, int ends,
                          CliLeavesEach each, void *context, VerbaLinea *ended, VerbaLinea *err_msg)
 {
-    const CliColored colored = {state, lines, count, NULL, each, context, ended};
+    const CliColored colored = {state, lines, count, ends, NULL, each, context, ended};
     return cli_colored(key, &colored, err_msg);
+}
+
+int cli_highlight_names_written(const char *key, VerbaLinea *out)
+{
+    cli_lock_take(&s_lock);
+    const unsigned int entry_at = cli_grammar_entry_of(key);
+    const int has_entry = entry_at != s_grammar_room;
+    if (has_entry)
+    {
+        const CliGrammar *const grammar = &s_grammars[entry_at].grammar;
+        mmgr_line_ch(out, '[');
+        for (unsigned int at = 0u; at < grammar->names; at += 1u)
+        {
+            const char *const name = grammar->text + grammar->name[at];
+            mmgr_line_put(out, (at != 0u) ? "," : "");
+            cli_json_quoted(out, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+        }
+        mmgr_line_ch(out, ']');
+    }
+    cli_lock_give(&s_lock);
+    return has_entry;
 }
 
 unsigned int cli_highlight_state(const CliGrammar *grammar, const char *name, unsigned long long length)

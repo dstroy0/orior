@@ -178,8 +178,8 @@ static int cli_leaves_grown(CliLeafRead *read)
     return 1;
 }
 
-// One line's leaves kept after those before, each at its bytes in the text: the copy the colorer reads holds each line
-// at the text's own bytes, its first line at the copy's first byte
+// One line's leaves kept after those before, each at its bytes in the text, a mark a leaf of no bytes: the copy the
+// colorer reads holds each line at the text's own bytes, its first line at the copy's first byte
 static void cli_leaves_line(void *context, const CliLeaves *leaves)
 {
     CliLeafRead *const read = (CliLeafRead *)context;
@@ -198,7 +198,8 @@ static void cli_leaves_line(void *context, const CliLeaves *leaves)
         const unsigned long long from = cli_symbols_byte_at(line, size, leaves->col[run], &byte, &at);
         const unsigned long long to =
             ((run + 1u) < leaves->runs) ? cli_symbols_byte_at(line, size, leaves->col[run + 1u], &byte, &at) : size;
-        if (to <= from)
+        // a run of no letters is a leaf where it is a mark, a run its grammar names
+        if ((to < from) || ((to == from) && (leaves->name[run] == 0u)))
         {
             continue;
         }

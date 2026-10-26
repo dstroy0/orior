@@ -1,41 +1,37 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The tokens of a text's lines, from its grammar (grammar.js), kept as they are worked out.
+// The tokens of a text's lines as orior's side colors them, kept as they come: each line's runs one flat list, a column
+// then a name for each run, read into classes as the line is drawn. A text held there comes with the runs of the lines
+// in view; the page holds the runs of the lines near its view alone, those come as orior's side walks the text out from
+// the view, and more are asked for as the view moves; the lines a change wrote come once it colors them again. The page
+// colors nothing: a line a change wrote shows the runs of the line the change began on until its own come. A text read
+// a window at a time counts its lines from the file's first, as orior's side does.
 
-import { classOf, grammarJson, tokenize } from "./grammar.js";
+import { invoke, listen } from "../bridge.js";
+import { classOf } from "./grammar.js";
 
-export { classOf, compile, grammarJson, tokenKinds, tokenize } from "./grammar.js";
-
-// How far back a line looks for a line whose state is known, and where it finds none, how far
-// back it starts from root instead. A state carried further than that is guessed. A jump into
-// the middle of a large text costs a few hundred lines and not every line above it.
-const LOOK_BACK = 3000;
-const GUESS_FROM = 300;
+export { classOf, compile, tokenKinds } from "./grammar.js";
 
 const PLAIN = [[0, ""]];
 
-// How many lines past the last one asked for each request to the window's side colors besides, which
-// a scroll then finds done, and how many lines below an edit are asked for as it is made.
-const AHEAD = 120;
-const SCREEN = 80;
+// The most lines one splice puts in as its arguments.
+const SPREAD = 1024;
 
-// The app's window's side, where the page has handed it in: `keep(json)` keeps a grammar and answers its
-// key, and `color(key, state, lines)` answers each line's runs and the state each ends in.
-let colorer = null;
-const keys = new WeakMap();
+// How many views' height of lines on each side of the view the page holds the runs of.
+const HELD = 2;
 
-export function colorWith(given) {
-  colorer = given;
+// Each text held on orior's side by its key, and the colors it hands on heard once.
+const held = new Map();
+let hearing = null;
+
+function heard() {
+  hearing ??= listen("branch-colors", ({ payload }) => held.get(payload?.key)?.put(payload.seq, payload.colors, payload.names));
+  return hearing;
 }
 
-// The key a grammar is kept under on the window's side, or null where it refuses the grammar.
-function keyOf(grammar) {
-  if (!keys.has(grammar)) {
-    keys.set(grammar, colorer.keep(grammarJson(grammar)).catch(() => null));
-  }
-  return keys.get(grammar);
-}
+// The lines `text` writes.
+const linesOf = (text) => text.split("\n").length;
 
 // A line's runs with a parse's spans laid over them, each span's class from its first col to its
 // last. A parse that colors every col stands in for the runs whole.
@@ -79,137 +75,194 @@ function overlay(runs, spans, names, whole) {
   return out;
 }
 
-// The tokens of the lines of a text, worked out as they are asked for, from the lines on screen
-// outward, and kept until an edit reaches them. Where the app's window's side keeps the grammar, it
-// works them out: the lines asked for in a frame go in one request, and until the answer comes, a
-// line an edit reached shows the tokens it had before, carried with its line, and `colored` is
-// called once they come. Where it does not, the page works them out as they are asked for. A
-// line's tokens wanted at once, as bracket pairs and printing want them, are worked out in the
-// page for a line not yet answered.
+// A line's runs as they came, a column then a name for each, read in the names' classes.
+function classed(flat, classes) {
+  const runs = [];
+  for (let at = 0; at + 1 < flat.length; at += 2) {
+    runs.push([flat[at], classes[flat[at + 1]] ?? ""]);
+  }
+  return runs;
+}
+
 export class Highlight {
-  constructor(doc, grammar, colored = null) {
+  // `windowAt` gives, for a text read a window at a time, the file's number of the window's first line, and null for a
+  // text read whole.
+  constructor(doc, grammar, colored = null, windowAt = () => null) {
     this.doc = doc;
     this.grammar = grammar;
     // The file's parse, where one reads it: each line's spans by the line, the names of its classes,
     // whether it colors every col, the lines asked for, its folds, and whether the text changed since.
     this.parse = null;
-    this.starts = ["root"];
     this.runs = [];
-    this.stale = [];
-    this.count = doc.count;
+    this.classes = [""];
     this.colored = colored;
-    this.remote = null;
-    this.wanted = null;
-    this.flying = false;
-    this.cut = Infinity;
-    if (grammar && colorer) {
-      keyOf(grammar).then((key) => {
-        if (key !== null && this.grammar === grammar) {
-          this.remote = key;
-          this.colored?.();
+    this.windowAt = windowAt;
+    // The key the text is held under on orior's side, null where it is held nowhere; the changes the page made to
+    // it, counted, and those orior's side had not colored the text after when its last colors came, their lines
+    // counted from the file's first; and the view told it last.
+    this.key = null;
+    this.seq = 0;
+    this.changes = [];
+    this.viewTold = null;
+  }
+
+  // The file's number of the first line held.
+  base() {
+    return this.windowAt() ?? 0;
+  }
+
+  // The text held on orior's side under `key`: the names its grammar's tokens take, and the colors that came with it.
+  held(key, names, colors) {
+    this.key = key;
+    held.set(key, this);
+    heard();
+    this.named(names);
+    this.put(0, colors ?? []);
+  }
+
+  // The text held nowhere from here on: no colors come for it.
+  letGo() {
+    held.delete(this.key);
+    this.key = null;
+  }
+
+  // The names the grammar's tokens take; the runs kept show as they were until those of the grammar come.
+  named(names) {
+    this.classes = (names ?? [""]).map(classOf);
+  }
+
+  // Colors orior's side worked out as the text stood after its change `seq`, `[{ from, runs }]`, each line's runs kept
+  // as they came where its line stands now, moved through the changes made since, a line one of them wrote or one
+  // outside the lines held left out; the first colors after the text's grammar changed come with its names.
+  put(seq, colors, names = null) {
+    if (names) {
+      this.named(names);
+    }
+    this.changes = this.changes.filter((change) => change.seq > seq);
+    const base = this.base();
+    for (const { from, runs } of colors) {
+      runs.forEach((line, at) => {
+        const placed = this.placed(from + at);
+        const held = placed === null ? -1 : placed - base;
+        if (held >= 0 && held < this.doc.count) {
+          this.runs[held] = line;
         }
       });
     }
+    this.colored?.();
   }
 
-  // Forgets every line from this one on. The lines after it keep, as stale, the tokens they had,
-  // moved by as many lines as the text gained or lost, to show until theirs come. The lines from it
-  // to a screen's worth below are asked for at once, so that the answer comes before the frame that
-  // draws the edit.
-  forget(line) {
-    const moved = this.doc.count - this.count;
-    this.count = this.doc.count;
-    this.cut = Math.min(this.cut, line);
-    const kept = this.runs.length > line;
-    if (this.remote) {
-      for (let at = line; at < this.runs.length; at += 1) {
-        if (this.runs[at]) {
-          this.stale[at > line ? at + moved : at] = this.runs[at];
+  // Where the line `line` of the text, as it stood before the changes kept, stands now: null where one of them wrote
+  // it. The edits of one change are each placed against the text as it stood before that change.
+  placed(line) {
+    for (const { edits } of this.changes) {
+      let moved = line;
+      for (const { from, to, text } of edits) {
+        if (line >= from.line && line <= to.line) {
+          return null;
+        }
+        if (line > to.line) {
+          moved += linesOf(text) - 1 - (to.line - from.line);
         }
       }
+      line = moved;
     }
-    if (this.starts.length > line + 1) {
-      this.starts.length = line + 1;
+    return line;
+  }
+
+  // A change the page made, its edits as the document writes them: the lines each wrote take the place of those it
+  // took out, the first showing the runs of the line it began on until its own come, and the lines after move with
+  // them.
+  changed(edits) {
+    for (const { from, to, text } of [...edits].reverse()) {
+      const count = linesOf(text);
+      const removed = to.line - from.line + 1;
+      if (count <= SPREAD) {
+        const written = new Array(count);
+        written[0] = this.runs[from.line];
+        this.runs.splice(from.line, removed, ...written);
+      } else {
+        // a change of many lines takes the runs apart and puts them back, as one splice takes no more than SPREAD
+        const written = new Array(count);
+        written[0] = this.runs[from.line];
+        this.runs = this.runs.slice(0, from.line).concat(written, this.runs.slice(from.line + removed));
+      }
     }
+    if (this.key) {
+      const base = this.base();
+      const moved = (place) => ({ line: place.line + base, col: place.col });
+      this.seq += 1;
+      this.changes.push({ seq: this.seq, edits: base ? edits.map((edit) => ({ ...edit, from: moved(edit.from), to: moved(edit.to) })) : edits });
+    }
+  }
+
+  // The lines from `from` to `to` shown: where a line in them or within half the held reach of them has no runs yet,
+  // orior's side is told the view, which it colors first, and the lines held, the view and HELD views' height on each
+  // side, whose runs it hands on; the runs of the lines outside them are let go, and asked for again as the view comes
+  // near them.
+  shown(from, to) {
+    if (!this.key) {
+      return;
+    }
+    const count = this.doc.count;
+    const reach = (to - from + 1) * HELD;
+    const near = Math.floor(reach / 2);
+    for (let line = Math.max(0, from - near); line <= Math.min(to + near, count - 1); line += 1) {
+      if (!this.runs[line]) {
+        const base = this.base();
+        const heldFrom = Math.max(0, from - reach);
+        const heldTo = Math.min(count, to + 1 + reach);
+        const view = `${from + base}|${to + base}|${heldFrom + base}|${heldTo + base}`;
+        if (this.viewTold !== view) {
+          this.viewTold = view;
+          this.kept(heldFrom, heldTo);
+          invoke("branch_view", { key: this.key, first: from + base, last: to + base, from: heldFrom + base, to: heldTo + base }).catch(() => {});
+        }
+        return;
+      }
+    }
+  }
+
+  // The colors orior's side gave for lines asked of it, `[{ from, runs }]`, each line's runs in their classes by the
+  // line as the page counts it, as a print reads them.
+  classedFrom(colors) {
+    const base = this.base();
+    const lines = new Map();
+    for (const { from, runs } of colors ?? []) {
+      runs.forEach((line, at) => lines.set(from + at - base, classed(line, this.classes)));
+    }
+    return lines;
+  }
+
+  // The runs of the lines from `from` to before `to` kept and every other line's let go.
+  kept(from, to) {
+    if (this.runs.length > to) {
+      this.runs.length = to;
+    }
+    this.runs.fill(undefined, 0, Math.min(from, this.runs.length));
+  }
+
+  // Every line's runs let go, as a text read a window at a time puts its window elsewhere; those of the lines it holds
+  // come again as they are shown.
+  cleared() {
+    this.runs = [];
+    this.viewTold = null;
+  }
+
+  // Lines put in above the first, and lines let go above the first, of a text read a window at a time.
+  shift(added) {
+    this.runs = new Array(added).concat(this.runs);
+  }
+
+  unshift(removed) {
+    this.runs = this.runs.slice(removed);
+  }
+
+  // Every line from this one on forgotten, as a text read a window at a time reads more.
+  forget(line) {
     if (this.runs.length > line) {
       this.runs.length = line;
     }
-    if (this.remote && kept && line < this.doc.count) {
-      this.ask(line);
-      this.ask(Math.min(this.doc.count - 1, line + SCREEN));
-    }
-  }
-
-  // Lines put in above the first: what was worked out moves down with its lines, and the new first
-  // line starts at root. The lines below keep the state they were guessed to start in until the
-  // lines above reach them and say otherwise.
-  shift(added) {
-    if (!added) {
-      return;
-    }
-    this.starts = new Array(added).concat(this.starts);
-    this.starts[0] = "root";
-    this.runs = new Array(added).concat(this.runs);
-    this.stale = new Array(added).concat(this.stale);
-    this.count = this.doc.count;
-  }
-
-  // Lines let go above the first: what was worked out moves up with its lines, and the new first
-  // line starts in the state worked out for it, or at root.
-  unshift(removed) {
-    if (!removed) {
-      return;
-    }
-    const first = this.starts[removed] ?? "root";
-    this.starts = this.starts.slice(removed);
-    this.starts[0] = first;
-    this.runs = this.runs.slice(removed);
-    this.stale = this.stale.slice(removed);
-    // An answer on its way was asked of the lines as they stood, and none of it is placed.
-    this.cut = 0;
-    this.count = this.doc.count;
-  }
-
-  // Writes the state a line starts in. Where it differs from the one kept, everything worked out
-  // from that line on was worked out from a wrong state, and is forgotten.
-  startAt(line, state) {
-    if (this.starts[line] !== undefined && this.starts[line] !== state) {
-      this.forget(line);
-    }
-    this.starts[line] = state;
-  }
-
-  // The line the tokens of `line` are worked out from: the nearest line above with its state known,
-  // or one GUESS_FROM above, started at root, where none is within LOOK_BACK.
-  knownFrom(line) {
-    let from = line;
-    const floor = Math.max(0, line - LOOK_BACK);
-    while (from > floor && this.starts[from] === undefined) {
-      from -= 1;
-    }
-    if (this.starts[from] === undefined) {
-      from = Math.max(0, line - GUESS_FROM);
-      this.starts[from] = this.starts[from] ?? "root";
-    }
-    return from;
-  }
-
-  stateAt(line) {
-    if (!this.grammar || this.grammar.perLine) {
-      return "root";
-    }
-    if (this.starts[line] !== undefined) {
-      return this.starts[line];
-    }
-    const from = this.knownFrom(line);
-    for (let at = from; at < line; at += 1) {
-      const { runs, state } = tokenize(this.grammar, this.doc.line(at), this.starts[at]);
-      if (!this.remote) {
-        this.runs[at] = runs;
-      }
-      this.startAt(at + 1, state);
-    }
-    return this.starts[line];
   }
 
   // A line's runs with its parse laid over them, where the parse holds the line.
@@ -218,143 +271,25 @@ export class Highlight {
     return spans ? overlay(runs ?? PLAIN, spans, this.parse.names, this.parse.whole) : runs;
   }
 
-  // A line's tokens where they are already worked out, or null.
+  // A line's tokens where they have come, or null.
   cached(line) {
     if (this.parse?.whole && this.parse.byLine.has(line)) {
       return this.laid(line, PLAIN);
     }
-    return this.grammar ? this.laid(line, this.runs[line]) ?? null : this.laid(line, PLAIN);
+    const flat = this.runs[line];
+    return flat ? this.laid(line, classed(flat, this.classes)) : (this.laid(line, undefined) ?? null);
   }
 
+  // A line's tokens: those that came, or none.
   runsOf(line) {
-    return this.laid(line, this.ownRunsOf(line));
-  }
-
-  ownRunsOf(line) {
-    if (!this.grammar) {
-      return PLAIN;
-    }
-    const found = this.runs[line];
-    if (found) {
-      return found;
-    }
-    if (!this.remote) {
-      return this.runsNow(line);
-    }
-    this.ask(line);
-    return this.stale[line] ?? PLAIN;
-  }
-
-  // A line's tokens now: kept, or worked out in the page where they are not.
-  runsNow(line) {
-    return this.laid(line, this.ownRunsNow(line));
-  }
-
-  ownRunsNow(line) {
-    if (!this.grammar) {
-      return PLAIN;
-    }
-    const found = this.runs[line];
-    if (found) {
-      return found;
-    }
-    const { runs, state } = tokenize(this.grammar, this.doc.line(line), this.stateAt(line));
-    if (!this.remote) {
-      this.runs[line] = runs;
-    }
-    if (!this.grammar.perLine) {
-      this.startAt(line + 1, state);
-    }
-    return runs;
-  }
-
-  // A line's tokens to draw it by at any speed: kept, or worked out in the page now where they are not
-  // yet, the window's side asked for the lines past it meanwhile. No row is drawn without its colors, and
-  // the same tokens coming back from the window's side draw it no other way.
-  runsShown(line) {
-    return this.laid(line, this.ownRunsShown(line));
-  }
-
-  ownRunsShown(line) {
-    if (!this.grammar) {
-      return PLAIN;
-    }
-    const found = this.runs[line];
-    if (found) {
-      return found;
-    }
-    if (this.remote) {
-      this.ask(line);
-    }
-    const { runs, state } = tokenize(this.grammar, this.doc.line(line), this.stateAt(line));
-    this.runs[line] = runs;
-    this.stale[line] = undefined;
-    if (!this.grammar.perLine) {
-      this.startAt(line + 1, state);
-    }
-    return runs;
-  }
-
-  // Adds a line to the next request to the window's side, which goes once the page's work in hand is done.
-  ask(line) {
-    const first = this.wanted === null;
-    this.wanted = first ? [line, line] : [Math.min(this.wanted[0], line), Math.max(this.wanted[1], line)];
-    if (first && !this.flying) {
-      queueMicrotask(() => this.send());
-    }
-  }
-
-  send() {
-    if (!this.wanted || this.flying || !this.remote) {
-      return;
-    }
-    const [low, high] = this.wanted;
-    this.wanted = null;
-    const from = this.grammar.perLine ? low : this.knownFrom(low);
-    const to = Math.min(this.doc.count - 1, high + AHEAD);
-    const lines = [];
-    for (let at = from; at <= to; at += 1) {
-      lines.push(this.doc.line(at));
-    }
-    const grammar = this.grammar;
-    const key = this.remote;
-    this.flying = true;
-    this.cut = Infinity;
-    colorer
-      .color(key, this.grammar.perLine ? "root" : this.starts[from], lines)
-      .then(({ names, runs, states }) => {
-        this.flying = false;
-        if (this.grammar !== grammar || this.remote !== key) {
-          return;
-        }
-        const classes = names.map(classOf);
-        // Only the lines above the first an edit reached since the request went are as they were.
-        const until = Math.min(from + runs.length, this.cut);
-        for (let at = from; at < until; at += 1) {
-          const own = runs[at - from].map(([col, name]) => [col, classes[name]]);
-          this.runs[at] = own;
-          this.stale[at] = undefined;
-          if (!grammar.perLine && at + 1 <= this.cut) {
-            this.startAt(at + 1, states[at - from]);
-          }
-        }
-        this.colored?.();
-        if (this.wanted) {
-          this.send();
-        }
-      })
-      .catch(() => {
-        this.flying = false;
-        this.remote = null;
-        this.colored?.();
-      });
+    const flat = this.runs[line];
+    return this.laid(line, flat ? classed(flat, this.classes) : PLAIN);
   }
 
   // The class of the token at a place.
   classAt(line, col) {
-    const runs = this.runsNow(line);
     let name = "";
-    for (const [start, cls] of runs) {
+    for (const [start, cls] of this.runsOf(line)) {
       if (start > col) {
         break;
       }

@@ -372,6 +372,77 @@ static void cli_words_read(CliGrammar *grammar, const CliJson *json, unsigned in
     }
 }
 
+// the place among the grammar's states of the state the JSON string `node` names, none where it names none
+static unsigned int cli_state_named(const CliGrammar *grammar, const CliJson *json, unsigned int node)
+{
+    unsigned long long length = 0ull;
+    const char *const name = cli_json_string(json, node, &length);
+    return (name != NULL) ? cli_highlight_state(grammar, name, length) : CLI_HIGHLIGHT_NONE;
+}
+
+// the grammar's `indent` at `indent` read, none where it has none: each state it runs with the name its close takes,
+// the columns a tab reaches to the next multiple of, the pattern of a line it passes over as a rule of no state, and
+// the states a line begun with on top begins a statement. 1, or 0 with why given
+static int cli_indent_read(CliGrammar *grammar, const CliJson *json, unsigned int indent, VerbaLinea *err_msg)
+{
+    grammar->tab = 1u;
+    grammar->skip = CLI_HIGHLIGHT_NONE;
+    const unsigned int states = cli_json_member(json, indent, "states");
+    const unsigned int named = cli_json_is(json, states, CFG_JSON_OBJECT) ? json->node[states].first : CLI_JSON_NONE;
+    for (unsigned int member = named; member != CLI_JSON_NONE; member = json->node[member].next)
+    {
+        const char *const state = json->text + json->node[member].key;
+        const char *const close = cli_json_string(json, member, NULL);
+        const unsigned int at =
+            cli_highlight_state(grammar, state, cellul.len(&(CatenaFinitaCfg){.src = state, .cap = CLI_CELLS_POOL}));
+        if ((close != NULL) && (at != CLI_HIGHLIGHT_NONE))
+        {
+            grammar->state[at].close = cli_name_of(grammar, close);
+            grammar->indents = 1;
+        }
+    }
+    const unsigned int begins = cli_json_member(json, indent, "begins");
+    const unsigned int listed = cli_json_is(json, begins, CFG_JSON_ARRAY) ? json->node[begins].first : CLI_JSON_NONE;
+    for (unsigned int item = listed; item != CLI_JSON_NONE; item = json->node[item].next)
+    {
+        const unsigned int at = cli_state_named(grammar, json, item);
+        if (at != CLI_HIGHLIGHT_NONE)
+        {
+            grammar->state[at].begins = 1;
+        }
+    }
+    const unsigned int tab = cli_json_member(json, indent, "tab");
+    unsigned int columns = 0u;
+    for (unsigned long long digit = 0ull; cli_json_is(json, tab, CFG_JSON_NUMBER) && (digit < json->node[tab].length) &&
+                                          (json->text[json->node[tab].text + digit] >= '0') &&
+                                          (json->text[json->node[tab].text + digit] <= '9') && (columns < 1000u);
+         digit += 1ull)
+    {
+        columns = (columns * 10u) + (unsigned int)(json->text[json->node[tab].text + digit] - '0');
+    }
+    grammar->tab = (columns != 0u) ? columns : 1u;
+    const unsigned int skip = cli_json_member(json, indent, "skip");
+    if (!grammar->indents || (skip == CLI_JSON_NONE))
+    {
+        return 1;
+    }
+    if (grammar->rules >= s_read->rules_most)
+    {
+        s_full = 1;
+        return 1;
+    }
+    CliHighlightRule *const rule = &grammar->rule[grammar->rules];
+    if (!cli_pattern_of(grammar, json, skip, rule, err_msg))
+    {
+        return 0;
+    }
+    rule->token = CLI_HIGHLIGHT_NONE;
+    rule->next = CLI_HIGHLIGHT_NONE;
+    grammar->skip = grammar->rules;
+    grammar->rules += 1u;
+    return 1;
+}
+
 int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *room, CliGrammar *grammar,
                        VerbaLinea *err_msg)
 {
@@ -439,6 +510,8 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
         unsigned int seen[CLI_GRAMMAR_DEPTH];
         seen[0] = s_read->own_state[state].name;
         grammar->state[state].name = s_read->own_state[state].name;
+        grammar->state[state].close = CLI_HIGHLIGHT_NONE;
+        grammar->state[state].begins = 0;
         grammar->state[state].first = grammar->listed_count;
         cli_expanded(grammar, state, seen, 1u);
         grammar->state[state].count = grammar->listed_count - grammar->state[state].first;
@@ -470,6 +543,10 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
         {
             grammar->state[state].starts_at[byte] = (unsigned char)((starts->ascii[byte / 64u] >> (byte % 64u)) & 1ull);
         }
+    }
+    if (!cli_indent_read(grammar, json, cli_json_member(json, def, "indent"), err_msg))
+    {
+        return 0;
     }
     // each case's text read once here: `@default` is the fallback, and a text starting with `@` names a word list
     for (unsigned int at = 0u; at < grammar->case_count; at += 1u)

@@ -35,8 +35,8 @@ function linesOf(s) {
   return [from.line, to.col === 0 && to.line > from.line ? to.line - 1 : to.line];
 }
 
-// The page to print, as HTML.
-export function printed(s, title) {
+// The page to print, as HTML, each line in the runs `runsOf` gives it, those the page holds where none is given.
+export function printed(s, title, runsOf = (line) => s.highlight.runsOf(line)) {
   const [first, last] = linesOf(s);
   const probe = document.createElement("div");
   probe.dataset.scheme = "light";
@@ -57,7 +57,7 @@ export function printed(s, title) {
   const rows = [];
   for (let line = first; line <= last; line += 1) {
     const text = s.doc.line(line);
-    const runs = s.highlight.runsNow(line);
+    const runs = runsOf(line);
     let code = "";
     runs.forEach(([start, name], index) => {
       const end = runs[index + 1]?.[0] ?? text.length;
@@ -92,7 +92,12 @@ function keptSettings() {
 // Prints the session's text, `title` the name the sheet and the page's head give it, from orior's
 // print sheet over the window, `sheet` making it.
 export async function printText(s, title, sheet) {
-  const html = printed(s, title);
+  // The page holds the colors of the lines near its view alone, so those of every line printed are asked of orior's side.
+  const key = s.highlight.key;
+  const [first, last] = linesOf(s);
+  const colors = key ? await invoke("branch_runs", { key, first: s.base + first, last: s.base + last }).catch(() => null) : null;
+  const given = s.highlight.classedFrom(colors);
+  const html = printed(s, title, (line) => given.get(line) ?? s.highlight.runsOf(line));
   const found = await invoke("printers_list").catch((error) => ({ printers: [], silent: false, error: String(error) }));
   if (!found.silent || !sheet) {
     say(`Printing did not start: ${found.error ?? "the window gave no printers"}. File, Print opens again once it can.`, { failed: true, act: () => printText(s, title, sheet) });

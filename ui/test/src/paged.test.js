@@ -75,3 +75,21 @@ test("an edit to a paged file is saved into the file, the rest of it as it was",
   assert.equal(s.doc.line(1000 - s.base), `EDITED ${lineOf(1000)}`, "the edit read back from the file");
   assert.equal(s.doc.line(999 - s.base), lineOf(999));
 });
+
+test("a paged file is colored by the tree's side: the lines in view as it opens, and a line far off once the view reaches it", async () => {
+  // large-file.json, a file of 26 MB in 11351 long lines, opens paged
+  const path = `${BENCH}/large-file.json`;
+  showView("edit");
+  await openFile(path);
+  await ui.waitFor(() => editing().active === path, 10000);
+  const view = editing().editor;
+  const s = view.s;
+  assert.ok(s.window?.paged, "held as pages");
+  const colored = (line) => s.highlight.runsOf(line - s.base).some(([, cls]) => cls);
+  // the file opens at the place it was last left, its lines in view colored first
+  const inView = () => s.base + Math.floor(view.scrollY() / view.lineHeight);
+  await ui.waitFor(() => colored(inView()), 10000, "the lines in view colored");
+  await openAt(path, 11000, 0);
+  await ui.waitFor(() => colored(11000), 20000, "a line far down colored once the view reaches it");
+  assert.ok(s.highlight.runsOf(11000 - s.base).some(([, cls]) => cls.includes("t-string")), "its strings colored as strings");
+});

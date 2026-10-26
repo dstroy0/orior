@@ -80,9 +80,11 @@ static unsigned int search_pattern(CliSymbolsLanguages *languages, const char *l
             s_room->hole_of[s_room->holes.hole[at].token] = at;
         }
     }
+    // a statement's end and a block's close the pattern's own end puts are no parts of it
     unsigned int count = s_room->parts.count;
     while ((count > 0u) && (s_room->hole_of[count - 1u] == CLI_SHAPE_HOLES) &&
-           (s_room->parts.kind[count - 1u] == CLI_SHAPE_BREAK))
+           ((s_room->parts.kind[count - 1u] == CLI_SHAPE_BREAK) ||
+            (s_room->parts.start[count - 1u] == s_room->parts.end[count - 1u])))
     {
         count -= 1u;
     }

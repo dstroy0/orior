@@ -355,6 +355,14 @@ export const intelCommands = {
 };
 
 
+// A press on the fix mark: the quick fixes of the cursor's place, as they stand at the press. It is made apart from
+// placeFix, so it holds nothing of the place the mark was first put at.
+function fixPressed(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  quickFix();
+}
+
 // The fix mark: shown beside the cursor's line in a served tab where a diagnostic is on it.
 function placeFix() {
   if (!state.hooks) {
@@ -366,11 +374,7 @@ function placeFix() {
     state.fix = element("button", { className: "ed-fix", type: "button", title: "Quick Fix (Ctrl+.)", hidden: true });
     state.fix.innerHTML = BULB;
     state.fix.setAttribute("aria-label", "Quick Fix");
-    state.fix.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      quickFix();
-    });
+    state.fix.addEventListener("mousedown", fixPressed);
     editor.host.append(state.fix);
     editor.scroller.addEventListener("scroll", placeFix);
   }

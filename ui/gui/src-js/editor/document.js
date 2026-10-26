@@ -116,6 +116,13 @@ export class Doc {
     this.watchers = new Set();
   }
 
+  // A text given as its lines, as a paged file's window is read, taken as they are with no join and split of them.
+  static ofLines(lines) {
+    const doc = new Doc("");
+    doc.lines = lines.length ? lines : [""];
+    return doc;
+  }
+
   get count() {
     return this.lines.length;
   }

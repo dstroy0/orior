@@ -14,7 +14,6 @@
 //   comments                { line, block: [open, close] }, either left out where it has none
 //   pairs, quotes           the brackets it closes and the quotes it pairs
 //   indentAfter             a pattern a line ends with to indent the next deeper
-//   lineEndsStatement       true where a line's end outside brackets ends a statement, left out where it does not
 //   grammar                 lists of words by name and the tokenizer, as editor/tokens.js reads one; a pattern is
 //                           a string, or { pattern, flags } where it takes flags
 //   hovers                  a word and the text hovering it shows, where it has any

@@ -185,11 +185,11 @@ static void symbols_signature_held(const char *path, const char *text, unsigned 
 }
 
 // a call's signature from the tree: its name's declarations in its language in order of fit, each argument's type
-// from a parameter, a local, a literal and the tree held against each parameter's, and a bracket in a string not
+// from a parameter, a local, a literal and the tree against each parameter's, and a bracket in a string not
 // counted
 static void symbols_signature(void)
 {
-    static const char *const s_paths[3] = {"lib.c", "other.c", "lib.py"};
+    static const char *const s_paths[4] = {"lib.c", "other.c", "lib.py", "served.c"};
     char root[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     cli_check_folder("symbols_signature", root);
@@ -197,14 +197,18 @@ static void symbols_signature(void)
                                 "first, const char *second)\n{\n    return first;\n}\n";
     static const char s_other[] = "int total(int first);\n";
     static const char s_python[] = "def total(first: int, second=\"x\"):\n    pass\n";
+    static const char s_served[] =
+        "int add(int a, int b) { return a + b; }\n\nint main(void) {\n  return add(1, 2)\n}\n";
     cli_full(root, "lib.c", path);
     (void)query_file_written(path, s_lib, sizeof(s_lib) - 1u);
     cli_full(root, "other.c", path);
     (void)query_file_written(path, s_other, sizeof(s_other) - 1u);
     cli_full(root, "lib.py", path);
     (void)query_file_written(path, s_python, sizeof(s_python) - 1u);
+    cli_full(root, "served.c", path);
+    (void)query_file_written(path, s_served, sizeof(s_served) - 1u);
     cli_symbols_forget();
-    cli_symbols_refresh(root, s_paths, 3u);
+    cli_symbols_refresh(root, s_paths, 4u);
     symbols_read_waited();
     symbols_signature_held(
         "use.c", "static void run(unsigned int count)\n{\n    const char *name = \"x\";\n    total(count, name", 3u,
@@ -234,6 +238,9 @@ static void symbols_signature(void)
         0, "Python's call held against its own language's declarations alone");
     symbols_signature_held("use.py", "x = [total(1)]\n", 0u, 5u, "null", 0,
                            "and a cursor in a bracket that opens no call has none");
+    symbols_signature_held("served.c", "int add(int a, int b) { return a + b; }\n\nint main(void) {\n  return add(1, 2)",
+                           3u, 16u, "\"declarations\":[{\"path\":\"served.c\",\"line\":0,\"label\":\"int add(int a, int b)\"",
+                           1, "a call of a function its own file defines on one line, its call left without its end");
 }
 
 // `text` written as the file `name` under `root`, the folders above it made
@@ -491,19 +498,27 @@ static void symbols_span_capture(void *context, CliSymbolPlace from, CliSymbolPl
     mmgr_line_decimal(out, to.col, 1u);
 }
 
-// the spans around the place `line`, `col` of the usages' src/u/use.c, checked against `wanted`
-static void symbols_spanned(unsigned int line, unsigned int col, const char *wanted, const char *what)
+// the spans around the place `line`, `col` of `text`, the file at `path`, checked against `wanted`
+static void symbols_spanned_in(const char *path, const char *text, unsigned int line, unsigned int col,
+                               const char *wanted, const char *what)
 {
-    static const char s_use[] =
-        "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + area(1);\n}\n";
     char why[256];
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const CliSymbolPlace place = {line, col};
-    const int done =
-        cli_symbols_spans("src/u/use.c", s_use, sizeof(s_use) - 1u, place, place, symbols_span_capture, &out, &err_msg);
+    const int done = cli_symbols_spans(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
+                                       place, place, symbols_span_capture, &out, &err_msg);
     cli_check(done, what);
     cli_check_text(s_out, out.at, wanted, what);
+}
+
+// the spans around the place `line`, `col` of the usages' src/u/use.c, checked against `wanted`
+static void symbols_spanned(unsigned int line, unsigned int col, const char *wanted, const char *what)
+{
+    symbols_spanned_in(
+        "src/u/use.c",
+        "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + area(1);\n}\n", line,
+        col, wanted, what);
 }
 
 // a function a call hierarchy reaches put after the others, `path:line:from-to:name[line:col,...]` joined by `|`
@@ -548,7 +563,7 @@ static void symbols_called(int asked, const char *path, unsigned int line, const
     cli_check_text(s_out, out.at, wanted, what);
 }
 
-// whether s_out holds each of `wanted`, `count` of them, and no more usages
+// whether the usages s_out holds are `wanted`, `count` of them
 static int symbols_usages_are(const char *const *wanted, unsigned int count)
 {
     unsigned int found = (s_out[0] != '\0') ? 1u : 0u;
@@ -569,7 +584,8 @@ static int symbols_usages_are(const char *const *wanted, unsigned int count)
 // aside; a macro's the same; and a parameter's and a local's in the function that declares it alone
 static void symbols_usages(void)
 {
-    static const char *const s_paths[4] = {"src/u/shape.h", "src/u/area.c", "src/u/use.c", "src/u/other.c"};
+    static const char *const s_paths[5] = {"src/u/shape.h", "src/u/area.c", "src/u/use.c", "src/u/other.c",
+                                           "src/u/calc.py"};
     char root[CLI_PATH_MAX_LEN];
     cli_check_folder("symbols_usages", root);
     symbols_written(root, "src/u/shape.h",
@@ -581,8 +597,10 @@ static void symbols_usages(void)
         "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + area(1);\n}\n");
     symbols_written(root, "src/u/other.c",
                     "static int area(int x)\n{\n    return x;\n}\nint call(void)\n{\n    return area(2);\n}\n");
+    symbols_written(root, "src/u/calc.py",
+                    "def area(w):\n    return w * 2\n\ndef total(n):\n    w = area(n)\n    return area(w)\n");
     cli_symbols_forget();
-    cli_symbols_refresh(root, s_paths, 4u);
+    cli_symbols_refresh(root, s_paths, 5u);
     symbols_read_waited();
     static const char *const s_area[5] = {"src/u/use.c:3:12-16", "src/u/use.c:4:15-19", "src/u/shape.h:2:4-8",
                                           "src/u/area.c:1:4-8", NULL};
@@ -626,11 +644,20 @@ static void symbols_usages(void)
                     "and a call's brackets around an argument, a span the same as one before it once");
     symbols_spanned(1u, 14u, "1:14-1:15|1:10-1:15|1:9-1:16|1:0-1:16|1:0-5:1|0:0-6:0",
                     "and a place in a region's head: its brackets, the head, and the region with it");
+    symbols_spanned_in("src/u/calc.py", "def total(n):\n    w = area(n) + 1\n    return w\n\nx = 2\n", 1u, 9u,
+                       "1:8-1:12|1:4-1:19|0:13-2:12|0:12-2:12|0:0-2:12|0:0-5:0",
+                       "a block by indent: its statement ended at its line's end, the block to its last line of code, "
+                       "and the function with its head");
     symbols_called(0, "src/u/use.c", 3u, "src/u/use.c:1:4-9:total[]", "the function a line of a body stands in");
     symbols_called(1, "src/u/area.c", 1u, "src/u/use.c:1:4-9:total[3:12,4:15]",
                    "a function's callers, each with its calls of it, a static of the same name's caller set aside");
     symbols_called(2, "src/u/use.c", 1u, "src/u/shape.h:2:4-8:area[3:12,4:15]",
                    "and the functions it calls, each its definition in effect with the calls of it");
+    symbols_called(0, "src/u/calc.py", 4u, "src/u/calc.py:3:4-9:total[]",
+                   "a block by indent's function a line of its body stands in");
+    symbols_called(1, "src/u/calc.py", 0u, "src/u/calc.py:3:4-9:total[4:8,5:11]",
+                   "and its callers, each with its calls of it");
+    symbols_called(2, "src/u/calc.py", 3u, "src/u/calc.py:0:4-8:area[4:8,5:11]", "and the functions it calls");
 }
 
 static void symbols_slice(void)

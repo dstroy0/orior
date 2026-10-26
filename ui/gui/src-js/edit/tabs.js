@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
+import { invoke } from "../bridge.js";
 import { drawOpenEditors } from "../explorer.js";
 import { releasePaged } from "../paged.js";
 import { stopServing } from "../servers.js";
@@ -361,7 +362,14 @@ export function closeTab(tab) {
   leaveSplit(tab.path);
   stopServing(tab);
   tell("close", { path: tab.file });
+  // The text the window's side holds for the tab let go, held through its document or, as a text shown in its colors
+  // is, by the tab's key alone.
+  const heldThrough = Boolean(tab.session?.doc?.held);
   letGo(tab.session?.doc);
+  tab.session?.highlight?.letGo();
+  if (tab.key && !heldThrough) {
+    invoke("document_release", { key: tab.key }).catch(() => {});
+  }
   releasePaged(tab.session);
   if (tab.notebook) {
     closeNotebook(tab.notebook);

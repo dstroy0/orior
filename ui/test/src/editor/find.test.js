@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Find: on a large text held on the window's side, each search runs there and finds what the page's own
-// search finds, and one the window's side does not run as the page does is the page's own; on a small
-// text, the page searches it itself.
+// Find: on a text held on the window's side, as every text a file opens as is, each search runs there and finds what
+// the page's own search finds, and one the window's side does not run as the page does is the page's own; a small text
+// is held and searched there as a large one is.
 
 import { invoke } from "../../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../../gui/src-js/edit.js";
@@ -32,7 +32,7 @@ function rustAnswer(find, key) {
 }
 
 test("a search of a large held text runs on the window's side and finds what the page's own search finds", async () => {
-  // past HOLD_FROM lines, so the text is held on the window's side and searched there, and under the size a file opens paged at
+  // under the size a file opens paged at, so the text is held whole on the window's side and searched there
   const lines = Array.from({ length: 15000 }, (_, line) => `Line_${line} = line(${line}) # LINE ${line % 11 ? "ſtar" : "star"} $line`);
   lines[7500] = "naïve Line_x = é and 😀 line";
   await invoke("file_write", { path: "found.txt", text: `${lines.join("\n")}\n` });
@@ -71,15 +71,15 @@ test("a search of a large held text runs on the window's side and finds what the
   }
 });
 
-test("a small text is searched on the page", async () => {
+test("a small text is held and searched on the window's side as a large one is", async () => {
   await invoke("file_write", { path: "small_found.txt", text: "one line\ntwo lines\n" });
   showView("edit");
   await openFile("small_found.txt");
-  await ui.waitFor(() => editing().active === "small_found.txt", 5000);
+  await ui.waitFor(() => editing().active === "small_found.txt" && editing().editor?.s?.doc.held?.ready, 5000);
   const find = editing().editor.find;
   find.open(false);
   try {
-    assert.equal(await searched(find, "line", {}), false);
+    assert.equal(await searched(find, "line", {}), true);
     assert.equal(find.matches.length, 2);
   } finally {
     find.close();

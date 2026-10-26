@@ -135,10 +135,14 @@ export function setBrackets(on) {
   this.schedule();
 }
 
-// The depth at the end of a line that starts at `depth`, a closing bracket never taking it below 0.
+// The depth at the end of a line that starts at `depth`, a closing bracket never taking it below 0; null where the
+// line's runs, which say which brackets are no string's or comment's, have not come.
 export function bracketEnd(line, depth) {
   const text = this.s.doc.line(line);
-  const runs = this.s.highlight.runsNow(line);
+  const runs = this.s.highlight.cached(line);
+  if (!runs) {
+    return null;
+  }
   for (let index = 0; index < runs.length; index += 1) {
     const [start, name] = runs[index];
     if (UNBRACKETED.test(name)) {
@@ -157,7 +161,8 @@ export function bracketEnd(line, depth) {
   return depth;
 }
 
-// The depth at the start of a line, or null where it is too far below what is read to read now.
+// The depth at the start of a line, or null where it is too far below what is read to read now, or a line above it
+// has no runs yet.
 export function depthAt(line) {
   const s = this.s;
   if (!s.depths) {
@@ -168,7 +173,11 @@ export function depthAt(line) {
     return null;
   }
   for (; at < line; at += 1) {
-    s.depths[at + 1] = this.bracketEnd(at, s.depths[at]);
+    const end = this.bracketEnd(at, s.depths[at]);
+    if (end === null) {
+      return null;
+    }
+    s.depths[at + 1] = end;
   }
   return s.depths[line];
 }
@@ -190,7 +199,7 @@ export function rowHtml(line) {
     return (s.colored[line] ?? "") + (s.folded.has(line) && s.endOf(line) >= 0 ? `<span class="ed-folded" data-fold="${line}">⋯</span>` : "");
   }
   const text = s.doc.line(line);
-  const runs = s.highlight.runsShown(line);
+  const runs = s.highlight.runsOf(line);
   const shown = Math.min(text.length, SHOWN, this.reach());
   let depth = this.bracketsOn && s.doc.count <= BRACKETS_LINES && s.language ? this.depthAt(line) : null;
   // A row's markup is kept while its text, its colors, its depth, its hints and its marks are the

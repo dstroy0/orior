@@ -22,10 +22,12 @@ typedef struct
     void *context;
 } CliSpans;
 
-// whether the leaf `leaf` of `read` is a blank or a comment
+// whether the leaf `leaf` of `read` is a blank, a comment or a mark with no bytes, a statement's end or a block's
+// close the leaves' reading put
 static int spans_blank(const CliLeafRead *read, unsigned int leaf)
 {
-    return (read->leaf[leaf].is & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT)) != 0u;
+    return ((read->leaf[leaf].is & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT)) != 0u) ||
+           (read->leaf[leaf].from == read->leaf[leaf].to);
 }
 
 // the byte of `size` bytes of `text` the place `place` falls at, the text's end where it is past it
@@ -222,13 +224,25 @@ static unsigned int spans_statement_end(const CliLeafRead *read, unsigned int st
 }
 
 // the pair the leaf `open` opens and `close` closes handed, inside its brackets and with them, the text's end where no
-// bracket closes it
+// bracket closes it; a pair a mark of no bytes closes ending, both ways, where the last leaf before the mark that is
+// no blank ends
 static void spans_pair_handed(CliSpans *spans, unsigned int open, unsigned int close)
 {
     const CliLeafRead *const read = spans->read;
-    const unsigned int last = (close < read->count) ? close : (read->count - 1u);
-    const unsigned long long inside = (close < read->count) ? read->leaf[close].from : spans->size;
-    const unsigned long long whole = (close < read->count) ? read->leaf[close].to : spans->size;
+    unsigned int last = (close < read->count) ? close : (read->count - 1u);
+    unsigned long long inside = (close < read->count) ? read->leaf[close].from : spans->size;
+    unsigned long long whole = (close < read->count) ? read->leaf[close].to : spans->size;
+    if ((close < read->count) && (read->leaf[close].from == read->leaf[close].to))
+    {
+        last = close;
+        while ((last > (open + 1u)) && spans_blank(read, last - 1u))
+        {
+            last -= 1u;
+        }
+        last = (last > (open + 1u)) ? (last - 1u) : open;
+        inside = read->leaf[last].to;
+        whole = inside;
+    }
     spans_handed(spans, open, read->leaf[open].to, last, inside);
     spans_handed(spans, open, read->leaf[open].from, last, whole);
 }

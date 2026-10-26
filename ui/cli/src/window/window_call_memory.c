@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // window_call_memory.c: how much RAM the window holds: its own process, every process it started and the web view's
 // browser with the processes under it, each counted with the process the window started it from, a language server by
-// its program and its toolchain's id and the web view's browser as the web view; and the language servers the open tabs
+// its program and its toolchain's id and the web view's browser as the web view, and orior's own share apart from the
+// tools it started, its own process and the web view's; and the language servers the open tabs
 // do not need stopped, and where the window still holds more than its budget the server that holds the most and does
 // not serve the tab shown. Every reading is made in buffers of this file's own, under its lock
 #include "../servers/servers.h"
@@ -37,11 +38,14 @@ typedef struct
     char server[CLI_NAME_MAX_LEN];
 } CliMemoryPart;
 
-// What the window holds: the whole, and the programs it is counted under, the most first
+// What the window holds: the whole; orior's own share of it, the window's process and the web view's, its browser with
+// every renderer, GPU and toolkit process under it; and the programs it is counted under, the most first
 typedef struct
 {
     unsigned long long working;
     unsigned long long commit;
+    unsigned long long own_working;
+    unsigned long long own_commit;
     unsigned int count;
     CliMemoryPart part[CLI_MEMORY_PARTS];
 } CliMemoryReading;
@@ -149,8 +153,15 @@ static CliMemoryPart *memory_part_of(unsigned int root, unsigned int own)
     return part;
 }
 
-// each part a language server is named by its program, with its toolchain's id, and the web view's browser as the web
-// view
+// whether a part is the web view's: its browser on Windows, and on Linux each WebKit process the window starts
+static int memory_web_view(const char *name)
+{
+    return cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "msedgewebview2", .cap = CLI_CELLS_POOL}) ||
+           (memor.cmp(&(MemoriaCfg){.src = name, .other = "WebKit", .bytes = 6ull}) == 0);
+}
+
+// each part a language server is named by its program, with its toolchain's id, and the web view's processes as the
+// web view
 static void memory_parts_named(void)
 {
     const unsigned int servers = cli_servers_listed(s_naming, CLI_SERVERS_MOST);
@@ -170,7 +181,7 @@ static void memory_parts_named(void)
                 (void)mmgr_line_finish(&tool);
             }
         }
-        if (cellul.eq(&(CatenaFinitaCfg){.src = part->name, .other = "msedgewebview2", .cap = CLI_CELLS_POOL}))
+        if (memory_web_view(part->name))
         {
             named.at = 0ull;
             mmgr_line_put(&named, "web view");
@@ -238,11 +249,22 @@ static int memory_read(void)
         s_reading.part[to] = moving;
     }
     memory_parts_named();
+    for (unsigned int at = 0u; at < s_reading.count; at += 1u)
+    {
+        const CliMemoryPart *const part = &s_reading.part[at];
+        if ((part->pid == own) ||
+            cellul.eq(&(CatenaFinitaCfg){.src = part->name, .other = "web view", .cap = CLI_CELLS_POOL}))
+        {
+            s_reading.own_working += part->working;
+            s_reading.own_commit += part->commit;
+        }
+    }
     return 1;
 }
 
-// what the window holds, `{working, commit, parts}`, each part `{name, pid, processes, working, commit, server}`, the
-// server null for a part that is no language server; null where the system does not say
+// what the window holds, `{working, commit, orior, parts}`, `orior` orior's own share `{working, commit}`, each part
+// `{name, pid, processes, working, commit, server}`, the server null for a part that is no language server; null where
+// the system does not say
 static int memory_usage(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
@@ -258,7 +280,11 @@ static int memory_usage(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     mmgr_line_decimal(out, s_reading.working, 1u);
     mmgr_line_put(out, ",\"commit\":");
     mmgr_line_decimal(out, s_reading.commit, 1u);
-    mmgr_line_put(out, ",\"parts\":[");
+    mmgr_line_put(out, ",\"orior\":{\"working\":");
+    mmgr_line_decimal(out, s_reading.own_working, 1u);
+    mmgr_line_put(out, ",\"commit\":");
+    mmgr_line_decimal(out, s_reading.own_commit, 1u);
+    mmgr_line_put(out, "},\"parts\":[");
     for (unsigned int at = 0u; at < s_reading.count; at += 1u)
     {
         const CliMemoryPart *const part = &s_reading.part[at];

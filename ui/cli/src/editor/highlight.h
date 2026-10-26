@@ -12,7 +12,17 @@
 // name, or `{ cases: { "@<name>": token, "<word>": token, "@default": token } }`, which picks by the matched text, and
 // `@brackets` is a bracket's. A next of `@<state>` enters a state, `@pop` leaves the one entered last, and `@popall`
 // returns to root. A grammar whose `perLine` is set starts every line in root; any other carries its states from the
-// end of one line to the start of the next, written as their names joined by `/`
+// end of one line to the start of the next, written as their names joined by `/`.
+//
+// A rule that matches nothing at a line's end and names a token puts a mark there, a token of no letters. A grammar's
+// `indent`, `{ states: { <state>: <token>, ... }, tab, skip, begins: [<state>, ...] }`, runs the states it names by
+// indent, each line's indent its spaces and tabs before its first other letter, a tab to the next multiple of `tab`,
+// one column where it gives none. A line `skip` matches is passed over. Any other line begun with a state of `begins`
+// on top makes its indent the statement's, and a rule entering a state of `states` keeps the statement's indent with
+// it; the line, on such a state on top of the stack whose indent is as deep as its own or deeper, leaves it, a mark of
+// the state's token put at the line's start for each left. The text's end is a line of no indent, a mark put at the
+// end of its last line for each state it leaves. A grammar with an `indent` writes the states each line ends in after
+// the statement's indent and `|`, each state of `states` followed by `:` and its indent
 #ifndef HIGHLIGHT_H
 #define HIGHLIGHT_H
 
@@ -28,7 +38,8 @@ int cli_highlight_color(const char *key, const char *state, const char *const *l
                         VerbaLinea *out, VerbaLinea *err_msg);
 // One line's leaves as the colorer hands them over: the line, and its runs, each the column it starts at in UTF-16
 // units and its token's name, running to the next run's column or the line's end; a run's name is `text` from
-// `name_at[name[run]]`, the empty name where the grammar gives none
+// `name_at[name[run]]`, the empty name where the grammar gives none; and the state the line ends in, as `states` writes
+// it
 typedef struct
 {
     const char *line;
@@ -37,16 +48,21 @@ typedef struct
     const unsigned int *name;
     const unsigned int *name_at;
     const char *text;
+    const char *ended;
 } CliLeaves;
 
 // what each line's leaves are handed to, in turn
 typedef void (*CliLeavesEach)(void *context, const CliLeaves *leaves);
 
 // `count` lines colored with the grammar stored under `key`, the first starting in `state` and each after in the state
-// the one before it ends in, each line's leaves handed to `each`, and the state the last ends in written into `ended`:
-// 1, or 0 with why given. `each` runs under the lock the grammars are stored under, and colors and stores nothing
-int cli_highlight_leaves(const char *key, const char *state, const char *const *lines, unsigned int count,
+// the one before it ends in, the last ending the text where `ends` is 1, each line's leaves handed to `each`, and the
+// state the last ends in written into `ended`: 1, or 0 with why given. `each` runs under the lock the grammars are
+// stored under, and colors and stores nothing
+int cli_highlight_leaves(const char *key, const char *state, const char *const *lines, unsigned int count, int ends,
                          CliLeavesEach each, void *context, VerbaLinea *ended, VerbaLinea *err_msg);
+// every name a token of the grammar stored under `key` can take, the empty name first, written into `out` as a JSON
+// array: 1, or 0 where no grammar is stored under `key`
+int cli_highlight_names_written(const char *key, VerbaLinea *out);
 // the grammars' own report, `<pool's bytes> <their mark> 0`, the most the grammars and their rooms occupied of the
 // cellblock at once, written into `out` (highlight_store.c)
 void cli_highlight_cells_usage_written(VerbaLinea *out);

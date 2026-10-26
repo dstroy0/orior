@@ -100,7 +100,7 @@ async function judged(name, path) {
     const plain = [];
     for (const frame of frames.filter((one) => one.at < stopped)) {
       for (const [line, colored] of frame.colored) {
-        const atRest = view.s.highlight.runsNow(line).some(([, cls]) => cls);
+        const atRest = view.s.highlight.runsOf(line).some(([, cls]) => cls);
         if (atRest && !colored) {
           plain.push(line);
         }

@@ -117,7 +117,7 @@ static int pages_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         mmgr_line_put(err_msg, missing);
         mmgr_line_ch(err_msg, '`');
     }
-    const int done = whole && cli_pages_edit(key, change_list, edit_counts, count, out, err_msg);
+    const int done = whole && cli_document_paged_edit(key, change_list, edit_counts, count, out, err_msg);
     g_cli_cells->persistent_buf_release(cell, NULL);
     return done;
 }
@@ -176,6 +176,8 @@ static int pages_release(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
     {
         return 0;
     }
+    // the branch its colors are walked in let go before the pages its lines are read from
+    cli_document_release(key);
     cli_pages_release(key);
     mmgr_line_put(out, "null");
     return 1;

@@ -25,7 +25,6 @@
 // when each was last shown, while Ctrl is held.
 
 import { invoke } from "./bridge.js";
-import { colorWith } from "./editor/tokens.js";
 import { findWith } from "./editor/find.js";
 import { inBridge, loadBridge } from "./bridge_panel.js";
 import { drawGit, drawLocalHistory, drawOutline, drawTimeline, drawUndo, forgetGraph } from "./explorer.js";
@@ -251,18 +250,8 @@ export function drawEmpty(shown) {
 export async function startEdit(defs) {
   document.querySelector("#mode-edit .desk").dataset.tabs = sideTabs() ? "side" : "row";
   new ResizeObserver(() => rowOverflowing()).observe(document.getElementById("tabs"));
-  // The editor's colors are worked out on the app's window's side, each grammar kept there under a key.
-  let grammars = 0;
-  colorWith({
-    keep: (json) => {
-      grammars += 1;
-      const key = `grammar:${grammars}`;
-      return invoke("highlight_grammar", { key, def: JSON.parse(json) }).then(() => key);
-    },
-    color: (key, state, lines) => invoke("highlight_lines", { key, state, lines }),
-  });
-  // Find on a large text held on the window's side runs there; a search it does not run as the page does
-  // answers null, and the page runs it.
+  // Find on a text held on the window's side runs there; a search it does not run as the page does answers null, and
+  // the page runs it.
   findWith((doc, sought, most) => {
     const held = doc.held;
     if (!held?.ready) {

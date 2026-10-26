@@ -9,7 +9,6 @@
   "pairs": ["()","[]","{}"],
   "quotes": ["\"","'"],
   "indentAfter": "(?::\\s*(?:#.*)?|[{[(]\\s*)$",
-  "lineEndsStatement": true,
   "grammar": {
     "words": [
       "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class", "continue", "def",
@@ -24,13 +23,31 @@
       "print", "range", "repr", "reversed", "round", "set", "setattr", "slice", "sorted", "str", "sum",
       "super", "tuple", "type", "vars", "zip"
     ],
+    "indent": {
+      "states": {"block": "operator.region.close"},
+      "tab": 8,
+      "skip": "^\\s*(?:#.*)?$",
+      "begins": ["root", "block"]
+    },
     "tokenizer": {
       "root": [
+        ["$","delimiter.statement"],
+        [":(?=\\s*(?:#.*)?$)","operator.region.open","@block"],
+        {"include":"@code"}
+      ],
+      "block": [
+        ["$","delimiter.statement"],
+        [":(?=\\s*(?:#.*)?$)","operator.region.open","@block"],
+        {"include":"@code"}
+      ],
+      "continued": [["^","","@pop"]],
+      "code": [
         ["^(?=[A-Z0-9_]*[A-Z])[A-Z_][A-Z0-9_]*(?=\\s*(?::|=(?!=)))","identifier.declaration.constant"],
         ["^(\\s*)([A-Za-z_]\\w*)(\\s*:)(?=[^=]*=(?!=)(?!.*,\\s*$))",["","identifier.local","delimiter"],"@annotation"],
         ["^(\\s*)([A-Za-z_]\\w*)(?=\\s*=(?!=)(?!.*,\\s*$))",["","identifier.local"]],
         ["\\s+",""],
         ["#.*$","comment"],
+        ["\\\\$","delimiter.continued","@continued"],
         ["(def)(\\s+)([A-Za-z_]\\w*)",["keyword","","identifier.declaration.function"],"@params"],
         ["(class)(\\s+)([A-Za-z_]\\w*)",["keyword","","identifier.declaration.class"]],
         ["@[A-Za-z_][\\w.]*","tag"],
@@ -44,7 +61,7 @@
           "0[xX][\\da-fA-F_']+[uUlLzZ]*|0[bB][01_']+[uUlL]*|(?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?[fFuUlLjJ]*",
           "number"
         ],
-        ["[(\\[{]","delimiter.bracket.open"],
+        ["[(\\[{]","delimiter.bracket.open","@nested"],
         ["[)\\]}]","delimiter.bracket.close"],
         ["=(?!=)","operator.assign"],
         ["[<>=!~:&|+\\-*/^%@]+","operator"],
@@ -62,7 +79,7 @@
         [":","delimiter","@annotation"],
         ["=","operator.assign","@value"],
         [",","delimiter.separator"],
-        {"include":"@root"}
+        {"include":"@code"}
       ],
       "annotation": [
         ["\\s+",""],
@@ -85,13 +102,11 @@
       ],
       "value": [
         ["(?=[,)])","","@pop"],
-        ["[(\\[{]","delimiter.bracket.open","@nested"],
-        {"include":"@root"}
+        {"include":"@code"}
       ],
       "nested": [
         ["[)\\]}]","delimiter.bracket.close","@pop"],
-        ["[(\\[{]","delimiter.bracket.open","@nested"],
-        {"include":"@root"}
+        {"include":"@code"}
       ],
       "long2": [["\"\"\"","string","@pop"],["[^\"\\\\]+|\\\\.|\"","string"]],
       "long1": [["'''","string","@pop"],["[^'\\\\]+|\\\\.|'","string"]]

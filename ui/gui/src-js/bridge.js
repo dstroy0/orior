@@ -32,7 +32,6 @@ const OWN = new Map([
   ["report_auto", { failed: () => false }],
   ["report_auto_set", { dropped: true }],
   ["report_open", { dropped: true }],
-  ["highlight_grammar", { dropped: true }],
   ["document_release", { dropped: true, failed: () => null }],
   ["reads_file", { failed: () => false }],
   ["templates_reveal", { dropped: true }],
@@ -47,8 +46,8 @@ const OWN = new Map([
   ["home_reveal", { dropped: true }],
   ...[
     "devcontainer_line", "commands_read", "settings_layers", "carry_send", "carry_read", "carry_take", "carry_undo", "plugin_settings_read", "plugins_catalog_read",
-    "plugins_catalog_install", "plugin_request", "image_data", "report_error", "report_bug", "report_prompted", "highlight_lines", "document_read", "document_part",
-    "document_edit", "document_changes", "document_find", "structure_compare", "workspace_read", "inspect_languages", "code_docstring", "fill_paragraph", "code_sort",
+    "plugins_catalog_install", "plugin_request", "image_data", "report_error", "report_bug", "report_prompted", "branch_open", "branch_view",
+    "branch_language", "branch_signature", "branch_runs", "document_edit", "document_changes", "document_find", "structure_compare", "workspace_read", "inspect_languages", "code_docstring", "fill_paragraph", "code_sort",
     "templates_list", "project_create", "checkers_known", "parse_classes", "file_read_any", "toolchain_install", "repo_clone", "repos_folder", "plugin_code",
     "home_folder", "plugin_draft", "plugin_create", "window_open", "memory_usage", "servers_unneeded_stop", "session_key", "scrollback_open", "scrollback_keep",
     "scrollback_read", "scrollback_close", "scrollback_reset", "term_open", "term_write", "term_resize", "term_close",

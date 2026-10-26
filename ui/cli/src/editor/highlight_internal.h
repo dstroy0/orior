@@ -93,7 +93,8 @@ typedef struct
 // A state, or a list of words: its name's text, and its rules or its words, `count` of the list from `first`; for a
 // state, the letters any of its rules that colors or changes the state can start a match at, every such rule's first
 // letters joined, and a table of the ASCII ones, 1 at each byte such a rule starts at, by which the colorer strides
-// over the letters no rule takes in one lookup a letter
+// over the letters no rule takes in one lookup a letter; for a state the grammar's `indent` runs, the place among the
+// names of the name its close takes, none for any other; and whether a line begun with it on top begins a statement
 typedef struct
 {
     unsigned int name;
@@ -101,11 +102,15 @@ typedef struct
     unsigned int count;
     CliRegexpFirst starts;
     unsigned char starts_at[128];
+    unsigned int close;
+    int begins;
 } CliHighlightList;
 
 // A grammar's parts, wherever they are stored: the patterns' nodes, items, child places and their first letters; the
 // rules, tokens and cases; the rules of each state in turn, and the states; the words, each list's in order, and the
-// lists; the names; and the texts, each ended by a NUL. Each count is how many it contains
+// lists; the names; and the texts, each ended by a NUL. Each count is how many it contains; whether the grammar starts
+// each line in root and sets case aside; and of its `indent`, whether it has one, the columns a tab reaches to the
+// next multiple of, and the rule whose pattern matches a line it passes over, a rule of no state, none for none
 typedef struct
 {
     CliRegexpNode *node;
@@ -135,6 +140,9 @@ typedef struct
     unsigned int text_size;
     int per_line;
     int ignore_case;
+    int indents;
+    unsigned int tab;
+    unsigned int skip;
 } CliGrammar;
 
 // The room a grammar is read into, its parts placed in one cell the keeper takes for one read at the sizes the
@@ -212,7 +220,7 @@ int cli_highlight_has_word(const CliGrammar *grammar, const CliHighlightList *li
 void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, const char *state, const char *const *lines,
                          unsigned int count, VerbaLinea *out);
 void cli_highlight_leaves_of(const CliGrammar *grammar, CliHighlightRoom *room, const char *state,
-                             const char *const *lines, unsigned int count, CliLeavesEach each, void *context,
-                             VerbaLinea *ended);
+                             const char *const *lines, unsigned int count, int ends, CliLeavesEach each,
+                             void *context, VerbaLinea *ended);
 
 #endif

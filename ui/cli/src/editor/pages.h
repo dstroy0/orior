@@ -27,6 +27,14 @@ int cli_pages_shape(const char *key, VerbaLinea *out, VerbaLinea *err_msg);
 int cli_pages_read(const char *key, unsigned long long from, unsigned long long to, VerbaLinea *out,
                    VerbaLinea *err_msg);
 void cli_pages_release(const char *key);
+// how many lines the paged text under `key` contains as far as its index has read, into `lines`, and whether the index
+// is whole, into `whole`: 1, or 0 where none is stored under the key; and its lines from `from` to before `to` as far
+// as the index has read, as the walk of its colors reads them: each written as UTF-8 and ended by a NUL into a cell
+// taken for them, its start put into `line`, room for `to` - `from` of them, and how many were read into `count`: the
+// cell, given back with g_cli_cells->persistent_buf_release, or NULL where none is stored or they could not be read
+int cli_pages_counted(const char *key, unsigned long long *lines, int *whole);
+char *cli_pages_lines_taken(const char *key, unsigned long long from, unsigned long long to, const char **line,
+                            unsigned long long *count);
 
 // the page's changes written, each as its document writes it, `edits[at]` edits of `changes[at]`, `count` changes,
 // its edits placed against the text as it stood before any of them, written from the last to the first, the text's

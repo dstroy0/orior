@@ -8,24 +8,10 @@ import { state } from "../edit.js";
 import { openTouched } from "./compare.js";
 import { tabOf, tabOfSession } from "./tabs.js";
 
-// Texts of HOLD_FROM lines or more are held on the window's side as the page holds them, for the work on
-// them that costs a frame here to run there and hand back only its answer: the gutter's marks against
-// the last commit, which cost the page a frame from about there, and find on a text of more. The Rust
-// side reads the file itself; a text the page holds as the file does not goes over in parts of PART
-// characters, each holding the page about a millisecond. Each change the page's document writes to a
-// held text goes after it, out of the event that made it, and the calls about one text go one after
-// another, each once the one before is answered.
-const HOLD_FROM = 10000;
-const PART = 90000;
-let holds = 0;
-
-function shapeOf(doc) {
-  let units = 0;
-  for (const line of doc.lines) {
-    units += line.length;
-  }
-  return { lines: doc.count, units };
-}
+// Every text the editor opens from a file is held on the window's side as it read it, under the key the tab opened
+// it with, for every piece of work on it to run there and hand back only its answer: its colors, find, and the
+// gutter's marks against the last commit. Each change the page's document writes to it goes after it, out of the
+// event that made it, and the calls about one text go one after another, each once the one before is answered.
 
 // Runs `work`, a call about a held text, once every call before it about that text is answered.
 export function along(held, work) {
@@ -34,38 +20,20 @@ export function along(held, work) {
   return next;
 }
 
-// Holds the text of a tab's file on the window's side, read there from the file where `fromFile` says the
-// tab's text is the file's own; otherwise, or where what was read differs, the page gives it.
-export function hold(tab, fromFile) {
-  const s = tab.session;
-  const doc = s?.doc;
-  if (!doc || doc.held !== undefined || s.window || s.base || tab.commit || doc.count < HOLD_FROM) {
-    return;
-  }
-  holds += 1;
-  const held = { key: `${tab.file}#${holds}`, ready: false, changes: [], waiting: false, chain: Promise.resolve(), headsAge: -1 };
+// The tab's text held as the window's side holds it under `key`, as it opened the tab's file: the change `change`
+// sent first where the tab's text is not the file's, and each change the document writes after it.
+export function holdOpened(tab, key, change = null) {
+  const doc = tab.session.doc;
+  const held = { key, ready: true, changes: change ? [change] : [], waiting: false, chain: Promise.resolve(), headsAge: -1 };
   doc.held = held;
-  const shape = shapeOf(doc);
   held.unwatch = doc.watch(({ edits }) => {
     held.changes.push(edits.map(({ from, to, text }) => ({ from: { line: from.line, col: from.col }, to: { line: to.line, col: to.col }, text })));
-    if (held.ready && !held.waiting) {
+    if (!held.waiting) {
       held.waiting = true;
       window.setTimeout(() => sendChanges(doc), 0);
     }
   });
-  along(held, async () => {
-    const read = fromFile ? await invoke("document_read", { key: held.key, path: tab.file }).catch(() => null) : null;
-    if (!read || read.lines !== shape.lines || read.units !== shape.units) {
-      // The text as it stands goes whole, and the changes made since it was measured are in it.
-      const text = doc.text();
-      held.changes = [];
-      for (let at = 0; at === 0 || at < text.length; at += PART) {
-        await invoke("document_part", { key: held.key, part: text.slice(at, at + PART), first: at === 0, done: at + PART >= text.length });
-      }
-    }
-    held.ready = true;
-    sendChanges(doc);
-  }).catch(() => letGo(doc));
+  sendChanges(doc);
 }
 
 // Sends the changes written to a held text since the last were sent.

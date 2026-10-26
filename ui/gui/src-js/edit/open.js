@@ -10,7 +10,7 @@ import { coloredLines } from "../screen.js";
 import { isNotebook, openNotebook } from "../notebook.js";
 import { say } from "../statusbar.js";
 import { element, show, state } from "../edit.js";
-import { hold } from "./held.js";
+import { holdOpened } from "./held.js";
 import { backupKey, keepRecent } from "./places.js";
 import { actingPath, closeTab, dirty, drawTabs, mainTabs, markSaved, tabName, tabOf } from "./tabs.js";
 
@@ -18,6 +18,18 @@ import { actingPath, closeTab, dirty, drawTabs, mainTabs, markSaved, tabName, ta
 // window of its lines about the view, slid as the view moves.
 
 export const placeKey = (path) => `orior.place.${path}`;
+
+// The lines a cursor put back at its place is settled below the view's top, the lines in view a file opens with
+// colored first, and the files opened, each held under a key of its own.
+const SETTLE_ABOVE = 8;
+const VIEW_LINES = 120;
+let opens = 0;
+
+// The end of `text`, as the document places it.
+function endOf(text) {
+  const lines = text.split("\n");
+  return { line: lines.length - 1, col: lines.at(-1).length };
+}
 
 function placeOf(path) {
   try {
@@ -41,7 +53,7 @@ function settleAt(session, place) {
   const line = Math.max(0, Math.min(session.doc.count - 1, (place?.line ?? 0) - session.base));
   const col = Math.min(session.doc.line(line).length, place?.col ?? 0);
   session.selections = [{ anchor: { line, col }, head: { line, col }, goal: null }];
-  session.top = Math.max(0, line - 8);
+  session.top = Math.max(0, line - SETTLE_ABOVE);
 }
 
 // Loads a file's tab, or says on the status bar why its file could not be read, as for a file gone
@@ -114,11 +126,15 @@ export async function load(path, as = null) {
     return tab;
   }
   if (!tabOf(path)) {
-    const opened = await invoke("file_read", { path });
-    const tab = { path, file: path, size: opened.size, closing: false };
+    // The file read and held on the window's side, its grammar applied as it is read, the lines in view first.
     const place = placeOf(path);
+    const first = Math.max(0, (place?.line ?? 0) - SETTLE_ABOVE);
+    opens += 1;
+    const key = `${path}#${opens}`;
+    const opened = await invoke("branch_open", { key, path, first, last: first + VIEW_LINES });
+    const tab = { path, file: path, size: opened.size, closing: false };
     if (opened.windowed) {
-      tab.session = await openPaged(path, place?.line ?? 0, state.known.languageOf(path));
+      tab.session = await openPaged(path, place?.line ?? 0, state.known.languageOf(path), key, opened);
       markSaved(tab);
       settleAt(tab.session, place);
     } else if (opened.text !== null && opened.text !== undefined) {
@@ -127,19 +143,29 @@ export async function load(path, as = null) {
       // codes taken out, read-only, until its lock is pressed.
       const colored = kept === null && opened.text.includes("\x1b[") ? coloredLines(opened.text.split(/\r?\n/)) : null;
       tab.session = new Session(colored ? colored.map((one) => one.text).join("\n") : (kept ?? opened.text), state.known.languageOf(path));
+      tab.key = key;
       if (colored) {
         tab.session.colored = colored.map((one) => one.html);
         tab.session.readOnly = true;
         tab.readOnly = true;
         tab.colored = opened.text;
       }
-      // Kept text that differs from the file's is a change not saved, and the tab says so.
+      // Kept text that differs from the file's is a change not saved, and the tab says so; the window's side is
+      // handed it as a change of the file's text, the colors that came with the file's text left.
       markSaved(tab, opened.text);
-      if (kept !== null && kept !== opened.text) {
+      const changed = kept !== null && kept !== opened.text;
+      if (changed) {
         tab.saved = -1;
       }
       settleAt(tab.session, place);
-      hold(tab, !colored && (kept === null || kept === opened.text));
+      if (!colored) {
+        tab.session.highlight.held(key, opened.names, changed ? [] : opened.colors);
+        const change = changed ? [{ from: { line: 0, col: 0 }, to: endOf(opened.text), text: kept }] : null;
+        if (change) {
+          tab.session.highlight.changed(change);
+        }
+        holdOpened(tab, key, change);
+      }
     } else {
       tab.bytes = new Uint8Array(opened.bytes);
     }

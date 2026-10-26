@@ -16,7 +16,7 @@ function codeHtml(session, breaks = null) {
   const rows = [];
   for (let line = 0; line < doc.count; line += 1) {
     const text = doc.line(line);
-    const runs = session.highlight?.runsNow?.(line) ?? [[0, ""]];
+    const runs = session.highlight?.runsOf?.(line) ?? [[0, ""]];
     let html = "";
     runs.forEach(([start, name], index) => {
       const end = runs[index + 1]?.[0] ?? text.length;

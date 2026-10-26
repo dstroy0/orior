@@ -1,14 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window_call_text.c: the window's calls on texts: a file of the tree stored for the page's slow work on it, whole or
-// as its slices give it, or a text the page gives a part at a time; its changes written as the page makes them; its
-// gutter's marks against the last commit; find's matches in it; two texts compared by structure; a grammar stored and
-// lines colored with it; and a file anywhere on the machine read or written as the reader chose it
+// window_call_text.c: the window's calls on a text held as a branch opened it (window_call_branch.c): its changes
+// written as the page makes them, the text let go, its gutter's marks against the last commit and find's matches in
+// it; two texts compared by structure; and a file anywhere on the machine read or written as the reader chose it
 #include "../code/structure.h"
 #include "../command_line/cells.h"
 #include "../deploy/devcontainer.h"
 #include "../editor/document.h"
-#include "../editor/highlight.h"
 #include "window_internal.h"
 
 // the bytes the tree's answer is begun in before it grows
@@ -28,10 +26,8 @@ static void text_shape_written(const CliShape *shape, VerbaLinea *out)
     mmgr_line_ch(out, '}');
 }
 
-// the tree's call `name` with `{"path": path}` and `more` after it, its answer read into `json`, a tree in a cell sized
-// to it, given back with cli_json_given either way: its node, or CLI_JSON_NONE with why given
-static unsigned int text_tree_called(CliJson *json, const char *name, const char *path, const char *more,
-                                     VerbaLinea *err_msg)
+unsigned int cli_window_tree_called(CliJson *json, const char *name, const char *path, const char *more,
+                                    VerbaLinea *err_msg)
 {
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
     char args[CLI_PATH_MAX_LEN * 2u];
@@ -53,83 +49,6 @@ static unsigned int text_tree_called(CliJson *json, const char *name, const char
     }
     g_cli_cells->persistent_buf_release(answer.out, NULL);
     return read;
-}
-
-// the file at `path` read from the tree as the page read it, whole or by its slices, stored under `key`: its shape, or
-// null where the file is not text
-static int text_document_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
-{
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const char *const path = (key != NULL) ? cli_serve_string(args, "path", err_msg) : NULL;
-    if (path == NULL)
-    {
-        return 0;
-    }
-    CliJson json;
-    unsigned int opened = text_tree_called(&json, "file_read", path, "", err_msg);
-    int done = (opened != CLI_JSON_NONE);
-    unsigned long long length = 0ull;
-    const char *text = done ? cli_json_string(&json, cli_json_member(&json, opened, "text"), &length) : NULL;
-    if (done && (text == NULL) && cli_json_is(&json, cli_json_member(&json, opened, "windowed"), CFG_JSON_TRUE))
-    {
-        const unsigned int size_node = cli_json_member(&json, opened, "size");
-        char more[128];
-        VerbaLinea slice = {more, sizeof(more), 0ull};
-        mmgr_line_put(&slice, ",\"start\":0,\"end\":");
-        if (cli_json_is(&json, size_node, CFG_JSON_NUMBER))
-        {
-            mmgr_line_put_n(&slice, json.text + json.node[size_node].text, json.node[size_node].length);
-        }
-        else
-        {
-            mmgr_line_ch(&slice, '0');
-        }
-        (void)mmgr_line_finish(&slice);
-        cli_json_given(&json);
-        opened = text_tree_called(&json, "file_slice", path, more, err_msg);
-        done = (opened != CLI_JSON_NONE);
-        text = done ? cli_json_string(&json, cli_json_member(&json, opened, "text"), &length) : NULL;
-    }
-    CliShape shape;
-    if (done && (text != NULL) && cli_document_store(key, text, length, &shape))
-    {
-        text_shape_written(&shape, out);
-    }
-    else if (done)
-    {
-        mmgr_line_put(out, "null");
-    }
-    cli_json_given(&json);
-    return done;
-}
-
-// a text the page gives a part at a time stored under `key`: its shape once the last comes, else null
-static int text_document_part(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
-{
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    unsigned long long length = 0ull;
-    const char *const part = (key != NULL) ? cli_json_string(args->json, cli_serve_arg(args, "part"), &length) : NULL;
-    int first = 0;
-    int last = 0;
-    if ((part == NULL) && (key != NULL))
-    {
-        (void)cli_serve_string(args, "part", err_msg);
-    }
-    if ((part == NULL) || !cli_serve_bool(args, "first", &first, err_msg) ||
-        !cli_serve_bool(args, "done", &last, err_msg))
-    {
-        return 0;
-    }
-    CliShape shape;
-    if (cli_document_store_part(key, part, length, first, last, &shape))
-    {
-        text_shape_written(&shape, out);
-    }
-    else
-    {
-        mmgr_line_put(out, "null");
-    }
-    return 1;
 }
 
 // a place argument `{line, col}` of an edit read
@@ -276,7 +195,7 @@ static int text_document_changes(const CliServeArgs *args, VerbaLinea *out, Verb
         return 1;
     }
     CliJson json;
-    const unsigned int head = text_tree_called(&json, "file_head", path, "", err_msg);
+    const unsigned int head = cli_window_tree_called(&json, "file_head", path, "", err_msg);
     unsigned long long length = 0ull;
     const char *const text = (head != CLI_JSON_NONE) ? cli_json_string(&json, head, &length) : NULL;
     const int read = (head != CLI_JSON_NONE);
@@ -325,38 +244,6 @@ static int text_structure_compare(const CliServeArgs *args, VerbaLinea *out, Ver
     cli_structure_compare(then, cellul.len(&(CatenaFinitaCfg){.src = then, .cap = CLI_CELLS_POOL}), now,
                           cellul.len(&(CatenaFinitaCfg){.src = now, .cap = CLI_CELLS_POOL}), out);
     return 1;
-}
-
-// a grammar of the page's stored under `key`
-static int text_highlight_grammar(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
-{
-    (void)out;
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    return (key != NULL) && cli_highlight_store(key, args->json, cli_serve_arg(args, "def"), err_msg);
-}
-
-// lines colored with the grammar stored under `key`, the first starting in `state`
-static int text_highlight_lines(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
-{
-    unsigned int count = 0u;
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const char *const state = (key != NULL) ? cli_serve_string(args, "state", err_msg) : NULL;
-    if (state == NULL)
-    {
-        return 0;
-    }
-    const unsigned int most = text_items(args->json, cli_serve_arg(args, "lines"));
-    const char **const lines =
-        g_cli_cells->persistent_buf_alloc((most + 1ull) * sizeof(*lines), &g_cli_window_text_cells);
-    if (lines == NULL)
-    {
-        mmgr_line_put(err_msg, "the lines colored could not be given a cell");
-        return 0;
-    }
-    const int colored = cli_serve_strings(args, "lines", lines, most, &count, err_msg) &&
-                        cli_highlight_color(key, state, lines, count, out, err_msg);
-    g_cli_cells->persistent_buf_release(lines, &g_cli_window_text_cells);
-    return colored;
 }
 
 // the text of the file at `path`, anywhere on the machine, as the reader chose it
@@ -492,11 +379,9 @@ static int text_workspace_read(const CliServeArgs *args, VerbaLinea *out, VerbaL
 }
 
 const CliServeCall g_cli_window_text_calls[] = {
-    {"document_read", text_document_read},         {"document_part", text_document_part},
     {"document_edit", text_document_edit},         {"document_release", text_document_release},
     {"document_changes", text_document_changes},   {"document_find", text_document_find},
-    {"structure_compare", text_structure_compare}, {"highlight_grammar", text_highlight_grammar},
-    {"highlight_lines", text_highlight_lines},     {"file_read_any", text_file_read_any},
+    {"structure_compare", text_structure_compare}, {"file_read_any", text_file_read_any},
     {"file_write_any", text_file_write_any},       {"workspace_read", text_workspace_read},
 };
 const unsigned int g_cli_window_text_count = sizeof(g_cli_window_text_calls) / sizeof(g_cli_window_text_calls[0]);

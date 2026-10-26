@@ -3,11 +3,29 @@
 
 // A page of HTML, CSS or SVG for the live preview: its elements tied to their lines, a stylesheet's
 // rules and the page made from its selectors, a linked sheet taken from a tab, and a change patched
-// where it changed.
+// where it changed; and every page shown on white shown with its white turned down.
 
 import { annotate, cssPage, cssRules, elementAt, LINE, morph, pageOf, rebase, selectorElements } from "../../gui/src-js/pagepreview.js";
 
 const { test, assert } = window.__harness;
+
+test("every page the window shows on white is shown with its white turned down: the preview's frame, a LaTeX page, a notebook's image and output, the print's paper", () => {
+  const light = getComputedStyle(document.documentElement).getPropertyValue("--paper-light").trim();
+  assert.ok(Number(light) > 0 && Number(light) < 1, `the light a page is shown in: ${light}`);
+  const made = [["iframe", "preview-frame"], ["div", "tex-page"], ["img", "nb-image"], ["iframe", "nb-html"], ["div", "print-paper"]].map(([tag, className]) => {
+    const one = document.createElement(tag);
+    one.className = className;
+    document.body.append(one);
+    return one;
+  });
+  try {
+    for (const one of made) {
+      assert.equal(getComputedStyle(one).filter, `brightness(${light})`, `${one.className} shown in the page's light`);
+    }
+  } finally {
+    made.forEach((one) => one.remove());
+  }
+});
 
 test("each element's start tag is told its line, a comment's and a script's text left as they are", () => {
   const text = '<div>\n<!-- <p> -->\n<p class="a">x</p>\n<script>if (a<b) {}</script>\n<br/>';

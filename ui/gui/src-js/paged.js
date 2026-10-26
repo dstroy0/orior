@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Files of PAGED_FROM bytes or more, held as pages (ui/cli/src/editor/pages.c). The tree's side holds the file and the
-// lines written over it, and an index of its lines; the page holds a window of the lines about the
-// view, never more than MOST of them, as a file still being read is held: the view scrolls the whole
-// file, and the lines outside the window stand as padding.
+// Files the tree's side opens paged, too large to read whole, held as pages (ui/cli/src/editor/pages.c). The tree's
+// side holds the file and the lines written over it, and an index of its lines, and colors it as it colors every
+// branch; the page holds a window of the lines about the view, never more than MOST of them, as a file still being read
+// is held: the view scrolls the whole file, and the lines outside the window stand as padding.
 //
 // The window moves as the view comes within NEAR lines of its edge, STEP lines read in on that side
 // and, once it holds more than MOST, as many let go on the far side. A line the history still
@@ -14,16 +14,14 @@
 // changes, and its tab is never split.
 
 import { invoke } from "./bridge.js";
+import { Doc } from "./editor/document.js";
 import { Session } from "./editor/session.js";
 import { say } from "./statusbar.js";
 
-export const PAGED_FROM = 64 * 1024 * 1024;
 const NEAR = 2000;
 const STEP = 20000;
 const MOST = 120000;
 const HARD = 400000;
-
-let opened = 0;
 
 const rest = (ms) => new Promise((done) => setTimeout(done, ms));
 
@@ -35,11 +33,14 @@ function along(paged, work) {
   return next;
 }
 
-// Opens the file at `path` paged, its window about the line `line`, in `language`. Gives its session.
-export async function openPaged(path, line, language) {
-  opened += 1;
-  const key = `${path}#paged${opened}`;
-  let shape = await invoke("pages_open", { key, path });
+// The file at `path` that orior's side opened paged under `key`, `opened` its answer with the file's shape, the names
+// its grammar's tokens take and the colors of the lines in view: its window about the line `line`, in `language`, the
+// colors of the lines in view put. Gives its session.
+export async function openPaged(path, line, language, key, opened) {
+  let shape = opened.shape;
+  if (!shape) {
+    throw new Error(`${path}: it could not be opened paged`);
+  }
   // A line far down the file waits for the index to reach it.
   while (!shape.indexed && shape.lines <= line + NEAR) {
     await rest(25);
@@ -49,7 +50,8 @@ export async function openPaged(path, line, language) {
   const to = Math.min(shape.lines, from + STEP);
   const lines = await invoke("pages_read", { key, from, to });
   const paged = { key, chain: Promise.resolve(), indexed: shape.indexed, moving: false };
-  const session = new Session(lines.join("\n"), language, { base: from, window: { paged, start: 0, end: 0, size: shape.size, after: shape.lines - to } });
+  const session = new Session(null, language, { doc: Doc.ofLines(lines), base: from, window: { paged, start: 0, end: 0, size: shape.size, after: shape.lines - to } });
+  session.highlight.held(key, opened.names, opened.colors);
   paged.session = session;
   // Each edit goes to the tree's side in the file's lines, as the window stands when it is made.
   paged.unwatch = session.doc.watch(({ edits }) => {

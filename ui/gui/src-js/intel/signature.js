@@ -4,7 +4,7 @@
 // Parameter Info: the signature of the call the cursor is in, the parameter it is at in bold.
 
 import { asked, invoke } from "../bridge.js";
-import { openersOf } from "../editor/folding.js";
+import { along, sendChanges } from "../edit/held.js";
 import { escapeHtml } from "../editor/view.js";
 import { markup } from "../editor/widgets.js";
 import { flush } from "../servers.js";
@@ -36,24 +36,18 @@ export function signatureOpen() {
   return Boolean(state.signature && !state.signature.hidden);
 }
 
-// How many lines above the outermost line the cursor's regions open on go with the lines handed, and the most lines
-// handed.
-const HEAD_ABOVE = 8;
-const LINES_MOST = 4000;
-
-// The tree's signature for the call the cursor is in, worked out on the window's side off the leaves of the lines from
-// above the outermost region the cursor stands in down to the cursor's line: the call's name, its arguments with their
-// types, and every declaration of the name in the tree in order of fit; null where the cursor stands in no call.
+// The tree's signature for the call the cursor is in, worked out on the window's side off the lines of the text it holds
+// down to the cursor's line, once the changes written before are: the call's name, its arguments with their types, and
+// every declaration of the name in the tree in order of fit; null where the cursor stands in no call or the text is held
+// nowhere.
 function treeSignature(found) {
   const { s, head } = found;
-  const outer = openersOf(s.doc, head.line, s.indent.size, LINES_MOST)[0] ?? head.line;
-  const top = Math.max(0, outer - HEAD_ABOVE, head.line - LINES_MOST + 1);
-  const lines = [];
-  for (let at = top; at <= head.line; at += 1) {
-    lines.push(s.doc.line(at));
+  const held = s.doc.held;
+  if (!held?.ready) {
+    return Promise.resolve(null);
   }
-  const state = s.highlight?.stateAt(top) ?? "root";
-  return invoke("symbols_signature", { path: found.tab.file, text: lines.join("\n"), state, line: head.line - top, col: head.col }).catch(() => null);
+  sendChanges(s.doc);
+  return along(held, () => invoke("branch_signature", { key: held.key, path: found.tab.file, line: head.line, col: head.col })).catch(() => null);
 }
 
 // The tree's answer as the box shows it: the first declaration's label with the active parameter marked and each

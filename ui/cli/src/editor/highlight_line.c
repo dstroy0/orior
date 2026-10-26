@@ -9,7 +9,9 @@
 static CliHighlightRoom *s_room;
 
 // One line's work: its letters, how many are colored, its runs, the states stacked, each stacked state's place among
-// the grammar's states, found once as it is stacked, and root's place
+// the grammar's states, found once as it is stacked, and root's place; each stacked state's indent, that of the
+// statement it was entered in; the indent of the statement under way; and the runs before the last mark put, which no
+// run put at a mark's column takes the place of
 typedef struct
 {
     unsigned long long letters;
@@ -17,6 +19,9 @@ typedef struct
     unsigned int depth;
     unsigned int root;
     unsigned int state_at[CLI_HIGHLIGHT_STACK];
+    unsigned long long indent_at[CLI_HIGHLIGHT_STACK];
+    unsigned long long statement;
+    unsigned int marked;
 } CliColoring;
 
 // the letters from `from` to `to` written in UTF-8 into `out`, sized for four bytes a letter, lower case where
@@ -90,7 +95,7 @@ static unsigned int cli_resolve(const CliGrammar *grammar, unsigned int token, u
 }
 
 // a run put at letter `at` with `name`: each token a run of its own, but plain text, which joins the plain run before
-// it, and the run before taken off where it starts at the same column
+// it, and the run before taken off where it starts at the same column, a mark never
 static void cli_push(CliColoring *coloring, unsigned long long at, unsigned int name)
 {
     const unsigned int col = s_room->cols[at];
@@ -98,7 +103,7 @@ static void cli_push(CliColoring *coloring, unsigned long long at, unsigned int 
     {
         return;
     }
-    if ((coloring->runs != 0u) && (s_room->run_col[coloring->runs - 1u] == col))
+    if ((coloring->runs > coloring->marked) && (s_room->run_col[coloring->runs - 1u] == col))
     {
         coloring->runs -= 1u;
         if ((coloring->runs != 0u) && (name == 0u) && (s_room->run_name[coloring->runs - 1u] == 0u))
@@ -109,6 +114,16 @@ static void cli_push(CliColoring *coloring, unsigned long long at, unsigned int 
     s_room->run_col[coloring->runs] = col;
     s_room->run_name[coloring->runs] = name;
     coloring->runs += 1u;
+}
+
+// a mark put at the column `col` with `name`, a run of no letters that no run put after it at its column takes the
+// place of
+static void cli_mark(CliColoring *coloring, unsigned int col, unsigned int name)
+{
+    s_room->run_col[coloring->runs] = col;
+    s_room->run_name[coloring->runs] = name;
+    coloring->runs += 1u;
+    coloring->marked = coloring->runs;
 }
 
 // the state stacked changed by a next: none, `@pop` leaving the one entered last, `@popall` returning to root, or a
@@ -139,7 +154,26 @@ static void cli_step(const CliGrammar *grammar, CliColoring *coloring, const cha
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
         memor.cpy(&(MemoriaCfg){.dst = s_room->stack[coloring->depth], .src = name, .bytes = length + 1u});
         coloring->state_at[coloring->depth] = cli_highlight_state(grammar, name, length);
+        coloring->indent_at[coloring->depth] = coloring->statement;
         coloring->depth += 1u;
+    }
+}
+
+// the place among the names of the name the close of the state on top takes, none where it is none of the states of
+// the grammar's `indent`
+static unsigned int cli_top_close(const CliGrammar *grammar, const CliColoring *coloring)
+{
+    const unsigned int state = (coloring->depth != 0u) ? coloring->state_at[coloring->depth - 1u] : CLI_HIGHLIGHT_NONE;
+    return (state != CLI_HIGHLIGHT_NONE) ? grammar->state[state].close : CLI_HIGHLIGHT_NONE;
+}
+
+// each state of the grammar's `indent` on top of the stack left, a mark of its close put at the column `col` for each
+static void cli_closed(const CliGrammar *grammar, CliColoring *coloring, unsigned int col)
+{
+    while ((coloring->depth > 1u) && (cli_top_close(grammar, coloring) != CLI_HIGHLIGHT_NONE))
+    {
+        cli_mark(coloring, col, cli_top_close(grammar, coloring));
+        coloring->depth -= 1u;
     }
 }
 
@@ -194,12 +228,44 @@ static unsigned long long cli_taken(const CliGrammar *grammar, const CliHighligh
     return size;
 }
 
+// a line begun in a grammar with an `indent`, where its `skip` does not match the line: each state of its `states` on
+// top of the stack whose indent is as deep as the line's or deeper left, a mark of its close put at the line's start,
+// and the line's indent made the statement's where the state on top is one of its `begins`. A line's indent counts a
+// space one column and a tab to the next multiple of the grammar's `tab`
+static void cli_line_indented(const CliGrammar *grammar, CliColoring *coloring)
+{
+    CliRegexpSpan found[CLI_REGEXP_GROUPS + 1u];
+    if ((grammar->skip != CLI_HIGHLIGHT_NONE) && cli_tried(grammar, grammar->skip, coloring, 0ull, found) &&
+        found[0].set)
+    {
+        return;
+    }
+    unsigned long long indent = 0ull;
+    for (unsigned long long at = 0ull;
+         (at < coloring->letters) && ((s_room->letters[at] == ' ') || (s_room->letters[at] == '\t')); at += 1ull)
+    {
+        indent = (s_room->letters[at] == '\t') ? (((indent / grammar->tab) + 1ull) * grammar->tab) : (indent + 1ull);
+    }
+    while ((coloring->depth > 1u) && (cli_top_close(grammar, coloring) != CLI_HIGHLIGHT_NONE) &&
+           (indent <= coloring->indent_at[coloring->depth - 1u]))
+    {
+        cli_mark(coloring, 0u, cli_top_close(grammar, coloring));
+        coloring->depth -= 1u;
+    }
+    const unsigned int top = (coloring->depth != 0u) ? coloring->state_at[coloring->depth - 1u] : CLI_HIGHLIGHT_NONE;
+    if ((top != CLI_HIGHLIGHT_NONE) && grammar->state[top].begins)
+    {
+        coloring->statement = indent;
+    }
+}
+
 // One line colored: its runs and the stack it ends with in the coloring
 static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *coloring)
 {
     coloring->letters = cli_regexp_letters(line, cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}),
                                            s_room->letters, s_room->most);
     coloring->runs = 0u;
+    coloring->marked = 0u;
     unsigned int col = 0u;
     unsigned long long length = coloring->letters;
     for (unsigned long long at = 0ull; at < coloring->letters; at += 1ull)
@@ -210,6 +276,10 @@ static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *c
     }
     s_room->cols[coloring->letters] = col;
     length = ((length == coloring->letters) && (col >= CLI_HIGHLIGHT_MAX_LEN)) ? coloring->letters : length;
+    if (grammar->indents)
+    {
+        cli_line_indented(grammar, coloring);
+    }
     CliRegexpSpan found[CLI_REGEXP_GROUPS + 1u];
     const CliHighlightList *rules = cli_rules(grammar, coloring, 1);
     const unsigned int *const letters = s_room->letters;
@@ -277,17 +347,26 @@ static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *c
     {
         cli_push(coloring, length, 0u);
     }
-    // A rule that matches nothing at the line's end and changes the state still applies there, once: it is how a
-    // state that lasts to the end of its line ends
+    // A rule that matches nothing at the line's end and changes the state or names a token still applies there, once:
+    // it is how a state that lasts to the end of its line ends, and a mark at a line's end is put
     const CliHighlightList *const ending = cli_rules(grammar, coloring, 0);
     for (unsigned int each = 0u; (ending != NULL) && (each < ending->count); each += 1u)
     {
         const unsigned int index = grammar->listed[ending->first + each];
-        if ((grammar->rule[index].next != CLI_HIGHLIGHT_NONE) &&
+        const CliHighlightRule *const rule = &grammar->rule[index];
+        const unsigned int name = cli_resolve(grammar, rule->token, coloring->letters, coloring->letters);
+        if (((rule->next != CLI_HIGHLIGHT_NONE) || (name != 0u)) &&
             cli_tried(grammar, index, coloring, coloring->letters, found) && found[0].set &&
             (found[0].from == found[0].to))
         {
-            cli_step(grammar, coloring, grammar->text + grammar->rule[index].next);
+            if (name != 0u)
+            {
+                cli_mark(coloring, s_room->cols[coloring->letters], name);
+            }
+            if (rule->next != CLI_HIGHLIGHT_NONE)
+            {
+                cli_step(grammar, coloring, grammar->text + rule->next);
+            }
             break;
         }
     }
@@ -297,7 +376,8 @@ static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *c
     }
 }
 
-// the states stacked written joined by `/`, or root where the grammar starts every line in root
+// the states stacked written joined by `/`, or root where the grammar starts every line in root; in a grammar with an
+// `indent`, after the statement's indent and `|`, each state of its `states` followed by `:` and its indent
 static void cli_state_written(const CliGrammar *grammar, const CliColoring *coloring, VerbaLinea *line)
 {
     if (grammar->per_line)
@@ -305,33 +385,73 @@ static void cli_state_written(const CliGrammar *grammar, const CliColoring *colo
         mmgr_line_put(line, "root");
         return;
     }
+    if (grammar->indents)
+    {
+        mmgr_line_decimal(line, coloring->statement, 1u);
+        mmgr_line_ch(line, '|');
+    }
     for (unsigned int at = 0u; at < coloring->depth; at += 1u)
     {
         mmgr_line_put(line, (at != 0u) ? "/" : "");
         mmgr_line_put(line, s_room->stack[at]);
+        const unsigned int state = coloring->state_at[at];
+        if ((state != CLI_HIGHLIGHT_NONE) && (grammar->state[state].close != CLI_HIGHLIGHT_NONE))
+        {
+            mmgr_line_ch(line, ':');
+            mmgr_line_decimal(line, coloring->indent_at[at], 1u);
+        }
     }
 }
 
-// a coloring begun with the state given stacked, each of its names between `/` one state
+// the number the digits from `*from` write, `*from` moved past them
+static unsigned long long cli_digits_read(const char **from)
+{
+    unsigned long long value = 0ull;
+    while (((*from)[0] >= '0') && ((*from)[0] <= '9'))
+    {
+        value = (value * 10ull) + (unsigned long long)((*from)[0] - '0');
+        *from += 1;
+    }
+    return value;
+}
+
+// a coloring begun with the state given stacked, each of its names between `/` one state, an indent after `:` its
+// indent, and an indent before `|` the statement's
 static void cli_stacked(const CliGrammar *grammar, CliColoring *coloring, const char *state)
 {
     coloring->letters = 0ull;
     coloring->runs = 0u;
+    coloring->marked = 0u;
     coloring->depth = 0u;
+    coloring->statement = 0ull;
     coloring->root = cli_highlight_state(grammar, "root", 4u);
     const char *from = state;
+    const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL, .byte = '|'});
+    if (bar != NULL)
+    {
+        coloring->statement = cli_digits_read(&from);
+        from = bar + 1;
+    }
     for (;;)
     {
         const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL, .byte = '/'});
-        const unsigned long long length = (slash != NULL)
-                                              ? (unsigned long long)(slash - from)
-                                              : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
+        const unsigned long long whole = (slash != NULL)
+                                             ? (unsigned long long)(slash - from)
+                                             : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
+        // the name to its `:`, where one stands within it
+        unsigned long long length = 0ull;
+        while ((length < whole) && (from[length] != ':'))
+        {
+            length += 1ull;
+        }
         if (coloring->depth < CLI_HIGHLIGHT_STACK)
         {
             VerbaLinea name = {s_room->stack[coloring->depth], CLI_NAME_MAX_LEN, 0ull};
             mmgr_line_put_n(&name, from, length);
             mmgr_line_finish(&name);
             coloring->state_at[coloring->depth] = cli_highlight_state(grammar, from, length);
+            const char *indent = from + length + ((length < whole) ? 1u : 0u);
+            coloring->indent_at[coloring->depth] = (length < whole) ? cli_digits_read(&indent) : 0ull;
             coloring->depth += 1u;
         }
         if (slash == NULL)
@@ -353,8 +473,8 @@ static void cli_rooted(CliColoring *coloring)
 }
 
 void cli_highlight_leaves_of(const CliGrammar *grammar, CliHighlightRoom *room, const char *state,
-                             const char *const *lines, unsigned int count, CliLeavesEach each, void *context,
-                             VerbaLinea *ended)
+                             const char *const *lines, unsigned int count, int ends, CliLeavesEach each,
+                             void *context, VerbaLinea *ended)
 {
     s_room = room;
     CliColoring coloring;
@@ -366,8 +486,19 @@ void cli_highlight_leaves_of(const CliGrammar *grammar, CliHighlightRoom *room, 
             cli_rooted(&coloring);
         }
         cli_line(grammar, lines[line], &coloring);
-        const CliLeaves leaves = {lines[line], coloring.runs, s_room->run_col, s_room->run_name, grammar->name,
-                                  grammar->text};
+        // the text's end, a line of no indent, leaves every state of the grammar's `indent`, a mark at the last line's
+        // end for each
+        if (ends && ((line + 1u) == count))
+        {
+            cli_closed(grammar, &coloring, s_room->cols[coloring.letters]);
+        }
+        char state[CLI_HIGHLIGHT_STACK * 4u];
+        VerbaLinea state_line = {state, sizeof(state), 0ull};
+        cli_state_written(grammar, &coloring, &state_line);
+        // a state longer than its room is read as root, as a request's last line's is
+        const char *const ended = (mmgr_line_finish(&state_line) != 0ull) ? state : "root";
+        const CliLeaves leaves = {lines[line],   coloring.runs, s_room->run_col, s_room->run_name,
+                                  grammar->name, grammar->text, ended};
         each(context, &leaves);
     }
     cli_state_written(grammar, &coloring, ended);

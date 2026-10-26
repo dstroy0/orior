@@ -135,3 +135,17 @@ test("the lock at the end of the editor's line stands as far in from the work's 
   const right = work.right - lock.right;
   assert.ok(Math.abs(left - right) < 0.5, `the icon ${left}px in from the work's left line, the lock ${right}px in from its right`);
 });
+
+test("the RAM reading on the bar is orior's own, its process and its web view's, and the hover has the whole with the tools it started", async () => {
+  const read = await invoke("memory_usage");
+  const own = read.parts.filter((part) => part.name === "orior_gui" || part.name === "web view");
+  assert.ok(own.some((part) => part.name === "web view"), `the web view among the parts: ${JSON.stringify(read.parts.map((part) => part.name))}`);
+  assert.equal(read.orior.working, own.reduce((sum, part) => sum + part.working, 0), "orior's share is its own process and the web view's");
+  assert.ok(read.orior.working <= read.working, "and no more than the whole");
+  const node = document.getElementById("status-memory");
+  const first = () => node.title.split("\n")[0];
+  // the pointer off the reading, whose hover keeps the title it opened with
+  await ui.hover({ x: 4, y: 4 });
+  await ui.waitFor(() => first() === `orior and its web view: ${node.textContent} in RAM`, 6000, "the bar shows orior's share, as its hover says");
+  assert.match(node.title.split("\n")[1], /^with the tools it started: [\d.]+ MB in RAM of a budget of /);
+});

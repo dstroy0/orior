@@ -159,8 +159,8 @@ static void highlight_leaves(void)
     VerbaLinea out = {leaves, sizeof(leaves), 0ull};
     VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int handed = cli_highlight_leaves("test", "root", s_lines, 3u, highlight_leaves_capture, &out, &ended_line,
-                                            &err_msg);
+    const int handed =
+        cli_highlight_leaves("test", "root", s_lines, 3u, 0, highlight_leaves_capture, &out, &ended_line, &err_msg);
     (void)mmgr_line_finish(&out);
     (void)mmgr_line_finish(&ended_line);
     cli_check(handed && cellul.eq(&(CatenaFinitaCfg){.src = leaves,
@@ -202,6 +202,43 @@ static void highlight_plugin_line(const char *id, const char *text, const char *
 
 // a function's parameters, their types and a body's locals named by the C, Python, Rust and JavaScript plugins'
 // grammars
+// a grammar whose `indent` runs a block by indent, a tab to the next fourth column, lines of blanks or a `;` note alone
+// passed over, and statements begun in root and in a block
+static const char s_indented[] =
+    "{\"indent\": {\"states\": {\"block\": \"close\"}, \"tab\": 4, \"skip\": \"^\\\\s*(?:;.*)?$\", "
+    "\"begins\": [\"root\", \"block\"]}, \"tokenizer\": {"
+    "\"root\": [[\"$\", \"end\"], [\":$\", \"open\", \"@block\"], {\"include\": \"@code\"}],"
+    "\"block\": [[\"$\", \"end\"], [\":$\", \"open\", \"@block\"], {\"include\": \"@code\"}],"
+    "\"code\": [[\"[a-z]+\", \"word\"], [\";.*$\", \"note\"], [\"\\\\s+\", \"\"]]}}";
+
+// a grammar's `indent` read and run: a mark at each line's end its grammar names, a block entered with its statement's
+// indent, kept over a line indented deeper by a tab and over a line its `skip` passes over, and left by a line indented
+// as deep, its close a mark at that line's start; and every block left at the text's end, a mark at its last line's end
+static void highlight_indent(void)
+{
+    static const char *const s_lines[6] = {"a:", "\tb", "; note", "c", "d:", "  e"};
+    char leaves[512];
+    char ended[64];
+    char why[256];
+    VerbaLinea out = {leaves, sizeof(leaves), 0ull};
+    VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int stored = highlight_grammar_store("indented", s_indented, sizeof(s_indented) - 1u, NULL);
+    const int handed = stored && cli_highlight_leaves("indented", "root", s_lines, 6u, 1, highlight_leaves_capture,
+                                                      &out, &ended_line, &err_msg);
+    (void)mmgr_line_finish(&out);
+    (void)mmgr_line_finish(&ended_line);
+    cli_check(handed && cellul.eq(&(CatenaFinitaCfg){.src = leaves,
+                                                     .other = "0 word|1 open|2 end/0 |1 word|2 end/0 note|6 end/0 "
+                                                              "close|0 word|1 end/0 word|1 open|2 end/0 |2 word|3 "
+                                                              "end|3 close/",
+                                                     .cap = CLI_CELLS_POOL}),
+              "a grammar's indent runs its block: kept over a deeper line and one it passes over, left by a line as "
+              "deep and at the text's end, each close a mark");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = ended, .other = "2|root", .cap = CLI_CELLS_POOL}),
+              "and the state the text ends in is root's, after the indent of the statement under way");
+}
+
 static void highlight_declarations(void)
 {
     highlight_plugin_line("c", "static int add(const char *name, unsigned int count);",
@@ -218,12 +255,15 @@ static void highlight_declarations(void)
                           "0 keyword|3 |4 identifier.declaration.function|9 delimiter.bracket.parameter.open|10 "
                           "identifier.parameter|15 delimiter|16 |17 type.number|20 delimiter.separator|21 |22 "
                           "identifier.parameter|28 operator.assign|29 string|32 delimiter.bracket.parameter.close|33 "
-                          "operator",
-                          "Python's head names its parameters and an annotation's type");
-    highlight_plugin_line("python", "    count: int = 0",
-                          "0 |4 identifier.local|9 delimiter|10 |11 type.number|14 |15 operator.assign|16 |17 number",
-                          "a Python local with its annotation");
-    highlight_plugin_line("python", "    total = 4", "0 |4 identifier.local|9 |10 operator.assign|11 |12 number",
+                          "operator.region.open|34 delimiter.statement",
+                          "Python's head names its parameters and an annotation's type, the colon that ends its line a "
+                          "region's opening, and the line's end its statement's");
+    highlight_plugin_line(
+        "python", "    count: int = 0",
+        "0 |4 identifier.local|9 delimiter|10 |11 type.number|14 |15 operator.assign|16 |17 number|18 delimiter.statement",
+        "a Python local with its annotation");
+    highlight_plugin_line("python", "    total = 4",
+                          "0 |4 identifier.local|9 |10 operator.assign|11 |12 number|13 delimiter.statement",
                           "and one without");
     highlight_plugin_line("rust", "fn add(name: &str, count: u32) -> u32 {",
                           "0 keyword|2 |3 identifier.declaration.function|6 delimiter.bracket.parameter.open|7 "
@@ -313,6 +353,7 @@ int main(void)
                                                .cap = CLI_CELLS_POOL}),
               "a hundred grammars are stored, each under its key");
     highlight_leaves();
+    highlight_indent();
     highlight_declarations();
     static const char s_bad[] = "{\"tokenizer\": {\"root\": [[{\"pattern\": \"(?<=a)b\"}, \"x\"]]}}";
     cli_check(!highlight_grammar_store("bad", s_bad, sizeof(s_bad) - 1u, NULL), "a pattern not read here is refused");

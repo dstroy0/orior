@@ -62,11 +62,13 @@
 }
 
 /* Colors no scheme sets apart, each a lever a theme, Preferences or the reader's stylesheet sets:
-   the ground of a page shown as its own author drew it, the bar's highlight, the close button's ink
-   under the pointer, the profile's ink on its bars, and Mermaid's diagrams as GitHub draws them,
-   their slices, scores and lanes among them. */
+   the ground of a page shown as its own author drew it and the light the page is shown in, its white
+   turned down beside the window's dark grounds, the bar's highlight, the close button's ink under the
+   pointer, the profile's ink on its bars, and Mermaid's diagrams as GitHub draws them, their slices,
+   scores and lanes among them. */
 :root {
   --paper: #ffffff;
+  --paper-light: 0.8;
   --paper-shadow: rgba(0, 0, 0, 0.35);
   --paper-here: #0f7a53;
   --bar-highlight: rgba(255, 255, 255, 0.08);
@@ -3543,7 +3545,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   stroke-width: 2.5px;
 }
 
-/* A page of HTML, CSS or SVG fills the preview in a frame on the white a page is drawn on. */
+/* A page of HTML, CSS or SVG fills the preview in a frame on the white a page is drawn on, that white
+   turned down. */
 .md-preview:is([data-kind="html"], [data-kind="css"], [data-kind="svg"]),
 .desk[data-preview="alone"] > .md-preview:is([data-kind="html"], [data-kind="css"], [data-kind="svg"]) {
   padding: 0;
@@ -3556,6 +3559,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   height: 100%;
   border: 0;
   background: var(--paper);
+  filter: brightness(var(--paper-light));
 }
 
 .preview-here {
@@ -3570,8 +3574,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   display: none;
 }
 
-/* A LaTeX file's pages, white on the deep ground, each as wide as the preview; the errors of a make
-   that failed stand over them as the pages scroll. */
+/* A LaTeX file's pages, white turned down on the deep ground, each as wide as the preview; the errors
+   of a make that failed stand over them as the pages scroll. */
 .md-preview[data-kind="latex"] {
   padding-top: 16px;
   background: var(--deep);
@@ -3591,6 +3595,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   margin: 0 auto 16px;
   background: var(--paper);
   box-shadow: 0 1px 4px var(--paper-shadow);
+  filter: brightness(var(--paper-light));
 }
 
 .tex-here {
@@ -5378,6 +5383,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .nb-image {
   max-width: 100%;
   background: var(--paper);
+  filter: brightness(var(--paper-light));
 }
 
 .nb-html {
@@ -5385,6 +5391,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   height: 40px;
   border: none;
   background: transparent;
+  filter: brightness(var(--paper-light));
 }
 
 /* A notebook's merge: its cells in order, those changed on both sides two to take one of. */
@@ -7544,6 +7551,7 @@ textarea.report-field {
   background: var(--paper);
   border-radius: 2px;
   box-shadow: 0 0 0 1px var(--line), 0 8px 22px var(--ed-suggest-shadow);
+  filter: brightness(var(--paper-light));
 }
 
 .print-paper.landscape {
@@ -7552,7 +7560,7 @@ textarea.report-field {
 }
 
 .print-paper.gray {
-  filter: grayscale(1);
+  filter: brightness(var(--paper-light)) grayscale(1);
 }
 
 .print-preview {

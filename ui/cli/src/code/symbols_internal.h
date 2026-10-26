@@ -14,15 +14,13 @@
 #define CLI_SYMBOLS_GRAMMARS 64u
 
 // One language whose plugin has a grammar: its id, the key its grammar is stored under, whether it is stored, 1,
-// refused, -1, or not yet sought, 0, whether its grammar names a declaration, and whether its plugin says a line's end
-// outside brackets ends a statement, `lineEndsStatement`
+// refused, -1, or not yet sought, 0, and whether its grammar names a declaration
 typedef struct
 {
     char id[CLI_NAME_MAX_LEN];
     char key[CLI_NAME_MAX_LEN];
     int stored;
     int declares;
-    int line_ends_statement;
 } CliSymbolsGrammar;
 
 // The languages a reading reads its files in: the language each file opens as, and those whose plugins have a grammar
@@ -34,13 +32,12 @@ struct CliSymbolsLanguages
 };
 
 // whether the file at `path` is read by the languages for its declarations, its grammar naming one; its declarations
-// read by them, each
-// handed to `each` with its kind, a text that stands while `each` runs; the leaves of `size` bytes of `text` read by
-// them, in the language of the file at `path` or in the language `id`, the first line starting in `state`, each line's
-// handed to `each` from a copy of the text in a cell whose lines stand at the text's own bytes, each line ended by a
-// NUL: 1, or 0 where the language is none read here or the cells cannot meet the copy; whether the plugin of the
-// language `id` says a line's end outside brackets ends a statement; and the byte of `line`, `size` bytes, the column
-// `col` stands at in UTF-16 units, walked on from `*byte` at column `*at` (symbols_read.c)
+// read by them, each handed to `each` with its kind, a text that stands while `each` runs; the leaves of `size` bytes
+// of `text` read by them, in the language of the file at `path` or in the language `id`, the first line starting in
+// `state`, each line's handed to `each` from a copy of the text in a cell whose lines stand at the text's own bytes,
+// each line ended by a NUL: 1, or 0 where the language is none read here or the cells cannot meet the copy; and the
+// byte of `line`, `size` bytes, the column `col` stands at in UTF-16 units, walked on from `*byte` at column `*at`
+// (symbols_read.c)
 int cli_symbols_reads_in(const CliSymbolsLanguages *read, const char *path);
 void cli_symbols_declared_in(CliSymbolsLanguages *read, const char *path, const char *text, unsigned long long size,
                              CliDeclared each, void *context);
@@ -48,7 +45,6 @@ int cli_symbols_leaves_in(CliSymbolsLanguages *read, const char *path, const cha
                           unsigned long long size, CliLeavesEach each, void *context);
 int cli_symbols_language_leaves_in(CliSymbolsLanguages *read, const char *id, const char *state, const char *text,
                                    unsigned long long size, CliLeavesEach each, void *context);
-int cli_symbols_line_ends_statement(const CliSymbolsLanguages *read, const char *id);
 unsigned long long cli_symbols_byte_at(const char *line, unsigned long long size, unsigned int col,
                                        unsigned long long *byte, unsigned int *at);
 

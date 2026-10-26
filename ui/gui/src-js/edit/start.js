@@ -23,7 +23,7 @@ import { say } from "../statusbar.js";
 import { cursorListeners, editing, editListeners, onCursorMoved, onEdit, onShown, pasteListeners, show, state } from "../edit.js";
 import { drawCrumbs, goToDefinition, problemsChanged } from "./crumbs.js";
 import { light } from "./defs.js";
-import { hold, letGo, markChanges, openLineCommit } from "./held.js";
+import { holdOpened, markChanges, openLineCommit } from "./held.js";
 import { marginLine, vimKeys } from "./menus.js";
 import { keepPlace, splitFocused } from "./open.js";
 import { closePeek, hunkAt, showPeek } from "./peek.js";
@@ -51,6 +51,7 @@ export function hookEditor() {
     onHistory: openLineCommit,
     onGroup: undoGroup,
     onShown: (s, from, to) => {
+      s.highlight.shown(from, to);
       const tab = tabOfSession(s.of ?? s);
       if (tab) {
         hintsShown(tab, from, to);
@@ -293,9 +294,11 @@ export function startEditor() {
       const raw = tab.colored;
       delete tab.colored;
       tab.readOnly = false;
-      letGo(tab.session.doc);
       tab.session = new Session(raw, state.known.languageOf(tab.path));
-      hold(tab, true);
+      // The window's side holds the file's text as the tab opened it; it colors it again, the names first.
+      tab.session.highlight.held(tab.key, [""], []);
+      holdOpened(tab, tab.key);
+      invoke("branch_language", { key: tab.key, id: tab.session.language?.id ?? "" }).catch(() => {});
       markSaved(tab, raw);
       show(tab.path);
       return;

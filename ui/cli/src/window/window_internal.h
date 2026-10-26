@@ -38,6 +38,10 @@ void cli_window_terminal_left(const char *key);
 // answer into `out`, 1, or 0 with why given (window.c)
 int cli_window_tree_call(const char *name, const char *args, unsigned long long size, VerbaLinea *out,
                          VerbaLinea *err_msg);
+// the tree's call `name` with `{"path": path}` and `more` after it, its answer read into `json`, a tree in a cell sized
+// to it, given back with cli_json_given either way: its node, or CLI_JSON_NONE with why given (window_call_text.c)
+unsigned int cli_window_tree_called(CliJson *json, const char *name, const char *path, const char *more,
+                                    VerbaLinea *err_msg);
 
 // the calls of each source, each table's count beside it (window_call_*.c)
 extern const CliServeCall g_cli_window_home_calls[];
@@ -50,6 +54,8 @@ extern const CliServeCall g_cli_window_report_calls[];
 extern const unsigned int g_cli_window_report_count;
 extern const CliServeCall g_cli_window_text_calls[];
 extern const unsigned int g_cli_window_text_count;
+extern const CliServeCall g_cli_window_branch_calls[];
+extern const unsigned int g_cli_window_branch_count;
 extern const CliServeCall g_cli_window_code_calls[];
 extern const unsigned int g_cli_window_code_count;
 extern const CliServeCall g_cli_window_tree_calls[];

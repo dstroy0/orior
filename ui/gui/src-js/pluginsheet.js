@@ -12,7 +12,6 @@
 // answers do, and writes it to the reader's plugins folder, as `orior_gui file new-plugin` does.
 
 import { invoke } from "./bridge.js";
-import { tokenize } from "./editor/tokens.js";
 import { languageFromText, loadPlugins, onPlugins, openerOf, pluginReadings, setPluginOn } from "./plugins.js";
 import { allowPlugin, askedMore, asksText } from "./scripts.js";
 
@@ -266,25 +265,9 @@ function sampleOf(plugin) {
   return lines;
 }
 
-// `lines` colored by `grammar`, a line a row.
-function colored(grammar, lines) {
-  let state = "root";
-  return lines.map((text) => {
-    const row = element("div");
-    if (!grammar) {
-      row.textContent = text || " ";
-      return row;
-    }
-    const read = tokenize(grammar, text, state);
-    state = read.state;
-    read.runs.forEach(([start, name], index) => {
-      const end = read.runs[index + 1]?.[0] ?? text.length;
-      if (end > start) {
-        row.append(element("span", { className: name, textContent: text.slice(start, end) }));
-      }
-    });
-    return row;
-  });
+// `lines`, a line a row.
+function colored(lines) {
+  return lines.map((text) => element("div", { textContent: text || " " }));
 }
 
 export function showGenerator(sheet, args = []) {
@@ -349,8 +332,9 @@ export function showGenerator(sheet, args = []) {
     text.textContent = written;
     try {
       const plugin = JSON.parse(written);
-      const language = languageFromText(written);
-      sample.replaceChildren(...colored(language.grammar, sampleOf(plugin)));
+      // read as a language, so a pattern that does not read is said
+      languageFromText(written);
+      sample.replaceChildren(...colored(sampleOf(plugin)));
       said.textContent = "";
       create.disabled = false;
     } catch (error) {

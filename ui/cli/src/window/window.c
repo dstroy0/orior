@@ -189,7 +189,8 @@ static CliServeAnswer window_answer_of(const char *name)
     static const CliWindowTable s_tables[] = {
         {g_cli_window_home_calls, &g_cli_window_home_count}, {g_cli_window_places_calls, &g_cli_window_places_count},
         {g_cli_window_net_calls, &g_cli_window_net_count},   {g_cli_window_report_calls, &g_cli_window_report_count},
-        {g_cli_window_text_calls, &g_cli_window_text_count}, {g_cli_window_code_calls, &g_cli_window_code_count},
+        {g_cli_window_text_calls, &g_cli_window_text_count}, {g_cli_window_branch_calls, &g_cli_window_branch_count},
+        {g_cli_window_code_calls, &g_cli_window_code_count},
         {g_cli_window_tree_calls, &g_cli_window_tree_count}, {g_cli_window_memory_calls, &g_cli_window_memory_count},
         {g_cli_window_machine_calls, &g_cli_window_machine_count},
         {g_cli_window_scrollback_calls, &g_cli_window_scrollback_count},

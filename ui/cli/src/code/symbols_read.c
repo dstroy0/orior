@@ -91,9 +91,8 @@ static void cli_symbols_line(void *context, const CliLeaves *leaves)
     reading->line += 1u;
 }
 
-// a language plugin's grammar noted where it has one, whether it names a declaration and whether its plugin says a
-// line's end outside brackets ends a statement, in the place of one of its id noted before, and one of its id that has
-// none taken out, so the plugin of each id that stands is the one read
+// a language plugin's grammar noted where it has one, and whether it names a declaration, in the place of one of its id
+// noted before, and one of its id that has none taken out, so the plugin of each id that stands is the one read
 static void cli_symbols_grammar_noted(void *context, const CliPlugin *plugin)
 {
     CliSymbolsLanguages *const read = (CliSymbolsLanguages *)context;
@@ -108,8 +107,6 @@ static void cli_symbols_grammar_noted(void *context, const CliPlugin *plugin)
         (root != CLI_JSON_NONE) &&
         ((kind == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "language", .cap = CLI_CELLS_POOL}));
     const int grammared = language && cli_json_is(&json, cli_json_member(&json, root, "grammar"), CFG_JSON_OBJECT);
-    const int line_ends_statement =
-        grammared && cli_json_is(&json, cli_json_member(&json, root, "lineEndsStatement"), CFG_JSON_TRUE);
     cli_json_given(&json);
     unsigned long long found = 0ull;
     const int declares = grammared && cli_text_find(plugin->text, plugin->size, "declaration.", 12u, &found);
@@ -134,7 +131,6 @@ static void cli_symbols_grammar_noted(void *context, const CliPlugin *plugin)
     read->grammar[at].key[0] = '\0';
     read->grammar[at].stored = 0;
     read->grammar[at].declares = declares;
-    read->grammar[at].line_ends_statement = line_ends_statement;
     read->grammars += (at == read->grammars) ? 1u : 0u;
 }
 
@@ -185,12 +181,6 @@ int cli_symbols_reads_in(const CliSymbolsLanguages *read, const char *path)
 {
     const unsigned int place = cli_symbols_grammar_of(read, path);
     return (place != CLI_SYMBOLS_GRAMMARS) && read->grammar[place].declares;
-}
-
-int cli_symbols_line_ends_statement(const CliSymbolsLanguages *read, const char *id)
-{
-    const unsigned int place = cli_symbols_grammar_named(read, id);
-    return (place != CLI_SYMBOLS_GRAMMARS) && read->grammar[place].line_ends_statement;
 }
 
 int cli_symbols_reads(const char *path)
@@ -282,7 +272,8 @@ static int cli_symbols_leaves_at(CliSymbolsLanguages *read, unsigned int place, 
         VerbaLinea ended = {ended_text, sizeof(ended_text), 0ull};
         char why[CLI_PATH_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        colored = cli_highlight_leaves(grammar->key, starting, batch, count, each, context, &ended, &err_msg);
+        colored =
+            cli_highlight_leaves(grammar->key, starting, batch, count, at >= size, each, context, &ended, &err_msg);
         const unsigned long long length = mmgr_line_finish(&ended);
         memor.cpy(&(MemoriaCfg){.dst = starting,
                                 .src = (length != 0ull) ? ended_text : "root",

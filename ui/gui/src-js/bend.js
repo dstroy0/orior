@@ -234,7 +234,8 @@ export function bendWork() {
   }
 }
 
-// The transitions under way on the parts and the work, each kept by what runs it, and the frame drawn next.
+// The transitions under way on the parts and the work, each kept by what runs it, and the frame drawn next. An element
+// taken out of the page while it moves hears no end of its transition, so it is let go once it stands outside the page.
 const moving = new Map();
 let frame = 0;
 
@@ -245,6 +246,11 @@ function run() {
     return;
   }
   const step = () => {
+    for (const target of [...moving.keys()]) {
+      if (!target.isConnected) {
+        moving.delete(target);
+      }
+    }
     bendWork();
     frame = moving.size ? requestAnimationFrame(step) : 0;
   };

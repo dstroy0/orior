@@ -3,10 +3,10 @@
 
 // The bar along the bottom of the window. On its left the breadcrumbs of the open file, then the runs
 // going and the files still being read, then a word for a moment from what was last done, such as
-// what a formatter said, which the top bar's bell keeps. On its right what the app holds in memory:
-// its own process, every process it started and the web view's, read again every MEMORY_EVERY while
-// the window shows, what they hold in RAM, marked where it is over the memory budget, with what each
-// has reserved on the hover; then the editor's own line, shown in the edit view only:
+// what a formatter said, which the top bar's bell keeps. On its right what orior holds in RAM: its
+// own process and the web view's, read again every MEMORY_EVERY while the window shows, marked where
+// the whole with every process it started is over the memory budget, and on the hover that whole and
+// what each part holds and has reserved; then the editor's own line, shown in the edit view only:
 // where the cursor is as line:column, what is chosen, the line ends, the encoding, the indent, and
 // the lock. The branch the tree is on, with a star where a file differs from the last commit, is on
 // the top bar beside the tree's name.
@@ -73,12 +73,13 @@ async function drawMemory() {
   const budget = memoryBudget() * 1024 * 1024;
   const over = read.working > budget;
   node.classList.toggle("over", over);
-  node.replaceChildren(megabytes(read.working));
+  // The bar reads orior itself, its own process and its web view's; the tools it started are in the total over it.
+  node.replaceChildren(megabytes(read.orior.working));
   const rows = read.parts.map((part) => `${part.name}${part.processes > 1 ? ` (${part.processes} processes)` : ""}: ${megabytes(part.working)} in RAM, ${megabytes(part.commit)} reserved`);
   // A title written while the pointer rests on the reading closes its tooltip and opens it again: the
   // tooltip keeps the reading it opened with until the pointer leaves.
   if (!node.matches(":hover")) {
-    node.title = [`${megabytes(read.working)} in RAM of a budget of ${megabytes(budget)}`, ...rows, cellblock, `Reserved is the most a program could come to hold, not what it holds.`].filter(Boolean).join("\n");
+    node.title = [`orior and its web view: ${megabytes(read.orior.working)} in RAM`, `with the tools it started: ${megabytes(read.working)} in RAM of a budget of ${megabytes(budget)}`, ...rows, cellblock, `Reserved is the most a program could come to hold, not what it holds.`].filter(Boolean).join("\n");
   }
   if (over && memory.hold && performance.now() - memory.held > HOLD_EVERY) {
     memory.held = performance.now();

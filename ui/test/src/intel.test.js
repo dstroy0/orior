@@ -11,7 +11,7 @@ import { asFound, press, putBackAsFound } from "../menus.js";
 
 const { test, assert, ui } = window.__harness;
 
-test("Edit, Rename, Quick Fix, Parameter Info and Quick Documentation ask the language server, here clangd", async () => {
+test("Parameter Info, Quick Documentation and Rename answer from the tree, and Quick Fix asks the language server, here clangd", async () => {
   await invoke("file_write", { path: "served.c", text: "int add(int a, int b) { return a + b; }\n\nint main(void) {\n  return add(1, 2)\n}\n" });
   showView("edit");
   await openFile("served.c");
@@ -21,7 +21,7 @@ test("Edit, Rename, Quick Fix, Parameter Info and Quick Documentation ask the la
     view.goTo(3, 16);
     await press("parameter-info");
     return document.querySelector(".ed-signature:not([hidden])")?.textContent.includes("add");
-  }, 30000, "clangd to give the signature");
+  }, 30000, "the tree to give the signature");
   view.goTo(0, 5);
   await press("quick-doc");
   await ui.waitFor(() => !view.hover.el.hidden && /add/.test(view.hover.el.textContent), 10000, "the documentation of add");

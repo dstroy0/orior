@@ -62,6 +62,11 @@ void cli_document_lines_of(const char *text, unsigned long long size, CliLines *
             return;
         }
         lines->start[lines->lines] = lines->used;
+        if (lines->begun != NULL)
+        {
+            lines->begun[lines->lines] = CLI_DOC_UNCOLORED;
+            lines->ended[lines->lines] = CLI_DOC_UNCOLORED;
+        }
         for (unsigned long long place = at; place < (at + length);)
         {
             unsigned int letter = 0u;

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pages.c: a file opened paged, its index read behind the page, and its lines read from the disk and from the lines
-// written over it
+// written over it, for the page and for the walk of its colors
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "pages_internal.h"
@@ -162,17 +162,25 @@ static const char *cli_eol_of(const char *path)
     return crlf ? "\r\n" : "\n";
 }
 
-void cli_page_shape_written(CliPaged *one, VerbaLinea *out)
+// the text's lines in all as far as the index has read, and whether the index is whole into `done`
+static unsigned long long pages_total(CliPaged *one, int *done)
 {
     cli_lock_take(&g_cli_index_lock);
     const unsigned long long indexed = one->index.lines;
-    const int done = one->index.done;
+    *done = one->index.done;
     cli_lock_give(&g_cli_index_lock);
     unsigned long long lines = 0ull;
     for (unsigned int at = 0u; at < one->pieces; at += 1u)
     {
         lines += cli_page_length(&one->piece[at], indexed);
     }
+    return lines;
+}
+
+void cli_page_shape_written(CliPaged *one, VerbaLinea *out)
+{
+    int done = 0;
+    const unsigned long long lines = pages_total(one, &done);
     mmgr_line_put(out, "{\"lines\":");
     mmgr_line_decimal(out, lines, 0u);
     mmgr_line_put(out, done ? ",\"indexed\":true,\"size\":" : ",\"indexed\":false,\"size\":");
@@ -480,6 +488,53 @@ int cli_pages_read(const char *key, unsigned long long from, unsigned long long 
     cli_lock_give(&g_cli_pages_lock);
     cli_page_lines_given(&lines);
     return read;
+}
+
+int cli_pages_counted(const char *key, unsigned long long *lines, int *whole)
+{
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_lock_take(&g_cli_pages_lock);
+    CliPaged *const one = cli_paged_of(key, &err_msg);
+    if (one != NULL)
+    {
+        *lines = pages_total(one, whole);
+    }
+    cli_lock_give(&g_cli_pages_lock);
+    return one != NULL;
+}
+
+char *cli_pages_lines_taken(const char *key, unsigned long long from, unsigned long long to, const char **line,
+                            unsigned long long *count)
+{
+    *count = 0ull;
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned long long wanted = (to > from) ? (to - from) : 1ull;
+    CliPageLines lines;
+    if (!cli_page_lines_reserved(&lines, wanted, wanted * CLI_PAGE_LINE_GUESS, &err_msg))
+    {
+        return NULL;
+    }
+    cli_lock_take(&g_cli_pages_lock);
+    CliPaged *const one = cli_paged_of(key, &err_msg);
+    const int read = (one != NULL) && cli_page_lines_of(one, from, to, &lines, &err_msg) && !lines.full;
+    cli_lock_give(&g_cli_pages_lock);
+    // each line's bytes and its NUL
+    char *const text = read ? g_cli_cells->persistent_buf_alloc(lines.used + lines.count + 1ull, NULL) : NULL;
+    const unsigned long long taken = (lines.count < wanted) ? lines.count : wanted;
+    unsigned long long at = 0ull;
+    for (unsigned long long each = 0ull; (text != NULL) && (each < taken); each += 1ull)
+    {
+        line[each] = text + at;
+        memor.cpy(&(MemoriaCfg){.dst = text + at, .src = lines.text + lines.start[each], .bytes = lines.length[each]});
+        at += lines.length[each];
+        text[at] = '\0';
+        at += 1ull;
+    }
+    *count = (text != NULL) ? taken : 0ull;
+    cli_page_lines_given(&lines);
+    return text;
 }
 
 void cli_pages_release(const char *key)
